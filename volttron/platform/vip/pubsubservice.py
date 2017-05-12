@@ -444,8 +444,8 @@ class PubSubService(object):
                         # Send the message to the external platform
                         drop = self._ext_router.send_external(platform_id, frames)
                         #If external platform is unreachable, drop the all subscriptions
-                        if not drop:
-                            self.external_platform_drop(drop)
+                        if drop:
+                            self.external_platform_drop(platform_id)
                 except ZMQError as exc:
                     try:
                         errnum, errmsg = error = _ROUTE_ERRORS[exc.errno]
@@ -534,7 +534,7 @@ class PubSubService(object):
         prefix_msg = dict()
         prefix_msg[instance_name] = prefixes
         msg = jsonapi.dumps(prefix_msg)
-        self._logger.debug("PUBSUBSERVICE My vip id: {}".format(self._ext_router.my_instance_name()))
+        #self._logger.debug("PUBSUBSERVICE My vip id: {}".format(self._ext_router.my_instance_name()))
         frames = [b'', 'VIP1', b'', b'', b'pubsub', b'external_list', msg]
 
         if self._ext_router is not None:
@@ -637,6 +637,8 @@ class PubSubService(object):
                 self._external_to_local_publish(frames)
             elif op == b'error':
                 self._handle_error(frames)
+            elif op == b'request_response':
+                pass
             else:
                 self._logger.error("PUBSUBSERVICE Unknown pubsub request {}".format(bytes(op)))
                 pass
@@ -708,7 +710,7 @@ class PubSubService(object):
                 #prefixes = set(prefixes)
                 self._logger.debug("PUBSUBSERVICE prefixes: {}".format(prefixes))
                 self._ext_subscriptions[instance_name] = prefixes
-                self._logger.debug("PUBSUBSERVICE New external list: {}".format(self._ext_subscriptions))
+                self._logger.debug("PUBSUBSERVICE New external list from {0}: List: {1}".format(instance_name, self._ext_subscriptions))
             return True
 
     def _external_to_local_publish(self, frames):

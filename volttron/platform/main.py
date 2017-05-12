@@ -454,7 +454,7 @@ class Router(BaseRouter):
         #   [SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
         frames = socket.recv_multipart(copy=False)
         # for f in frames:
-        #     _log.debug("Frames: {}".format(bytes(f)))
+        #     _log.debug("PUBSUBSERVICE Frames: {}".format(bytes(f)))
         if len(frames) < 6:
             return
 
