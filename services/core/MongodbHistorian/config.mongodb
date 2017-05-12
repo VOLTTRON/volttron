@@ -11,6 +11,10 @@
         }
     },
 
+    #run historian in query/read only mode and not to record any data into the
+    database. Default false
+    "readonly":false,
+
     # configuration specific to hourly and daily rollup tables
     # new from version 2.0 of mongo historian. Most of these configurations
     # would become optional once data collected by earlier version of mongo has
@@ -50,9 +54,8 @@
     # date for queries from hourly or daily data collections. This is to
     # account for the time it takes the periodic_rollup to process
     # records in data table and insert into daily_data and hourly_data
-
-    # collection. Units minutes. Default 4 minutes
-    "rollup_query_end":10,
+    # collection. Units days. Default 1 day
+    "rollup_query_end":5,
 
     # topic name patterns for which rollup exists. Set this if rollup was done
     # for only a subset of topics

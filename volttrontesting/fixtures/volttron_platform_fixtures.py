@@ -89,6 +89,18 @@ def volttron_instance2(request):
     return wrapper
 
 
+@pytest.fixture(scope="module")
+def volttron_instance_msgdebug(request):
+    print("building msgdebug instance")
+    wrapper = build_wrapper(get_rand_vip(), msgdebug=True)
+
+    def cleanup():
+        cleanup_wrapper(wrapper)
+
+    request.addfinalizer(cleanup)
+    return wrapper
+
+
 @pytest.fixture(scope="function",
         params=['tcp', 'ipc'])
 def volttron_instance_encrypt(request):
