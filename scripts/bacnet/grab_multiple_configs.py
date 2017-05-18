@@ -62,6 +62,7 @@ import os
 import errno
 import subprocess
 
+
 def makedirs(path):
     try:
         os.makedirs(path)
@@ -99,14 +100,15 @@ for device in device_list:
 
     prog_args = ["python", program_path]
     prog_args.append(device_id)
-    prog_args.append("--address")
-    prog_args.append(address)
+    if not args.use_proxy:
+        prog_args.append("--address")
+        prog_args.append(address)
     prog_args.append("--registry-out-file")
-    prog_args.append(join(registers_dir,str(device_id)+".csv"))
+    prog_args.append(join(registers_dir, str(device_id)+".csv"))
     prog_args.append("--driver-out-file")
     prog_args.append(join(devices_dir, str(device_id)))
 
-    print "executing command:", " ".join(prog_args)
+    print("executing command:", " ".join(prog_args))
 
     subprocess.call(prog_args)
 

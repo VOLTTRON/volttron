@@ -405,6 +405,7 @@ class PlatformWrapper:
             self.jsonrpc_endpoint = "{}/jsonrpc".format(
                 self.bind_web_address)
 
+        msgdebug = self.env.get('MSG_DEBUG', False)
         enable_logging = self.env.get('ENABLE_LOGGING', False)
         debug_mode = self.env.get('DEBUG_MODE', False)
         if not debug_mode:
@@ -413,6 +414,7 @@ class PlatformWrapper:
         if debug_mode:
             self.skip_cleanup = True
             enable_logging = True
+            msgdebug = True
         self.logit(
             "In start up platform enable_logging is {} ".format(enable_logging))
         assert self.mode in MODES, 'Invalid platform mode set: ' + str(mode)
@@ -607,6 +609,7 @@ class PlatformWrapper:
 
         if start:
             self.start_agent(agent_uuid)
+        return agent_uuid
 
         return agent_uuid
 
