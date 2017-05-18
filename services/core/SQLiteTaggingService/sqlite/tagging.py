@@ -98,8 +98,8 @@ def tagging_service(config_path, **kwargs):
     assert database is not None
 
     SQLiteTaggingService.__name__ = 'SQLiteTaggingService'
-    # TODO replace with utils.update_kwargs_with_config
-    kwargs.update(config_dict)
+    #TODO replace with utils.update_kwargs_with_config
+    utils.update_kwargs_with_config(kwargs,config_dict)
     return SQLiteTaggingService(**kwargs)
 
 
@@ -230,7 +230,6 @@ class SQLiteTaggingService(BaseTaggingService):
         # by default
         dr = csv.DictReader(csv_str.splitlines())  # comma is default delimiter
         to_db = [(i['name'], i['kind'], i['description'].decode('utf8')) for i in dr]
-        _log.debug(to_db)
         cursor = con.cursor()
         cursor.executemany("INSERT INTO {} (name, kind, description) "
                            "VALUES (?, ?, ?);".format(self.tags_table), to_db)
@@ -273,8 +272,6 @@ class SQLiteTaggingService(BaseTaggingService):
                 if line.startswith("#") and line.endswith("#"):
                     new_category = line.strip()[1:-1]
                     if len(tags) > 0:
-                        _log.debug("tags so far:{}".format(list(tags)))
-                        _log.debug("category: {}".format(current_category))
                         to_db.extend([(current_category,x) for x in tags])
                     current_category = new_category
                     tags = set()
@@ -284,10 +281,7 @@ class SQLiteTaggingService(BaseTaggingService):
 
             # insert last category after loop
             if len(tags)>0:
-                _log.debug("tags so far:{}".format(list(tags)))
-                _log.debug("category: {}".format(current_category))
                 to_db.extend([(current_category, x) for x in tags])
-            _log.debug(to_db)
             cursor.executemany(
                 "INSERT INTO {} (category, tag) "
                 "VALUES (?, ?);".format(self.category_tags_table), to_db)
@@ -302,11 +296,13 @@ class SQLiteTaggingService(BaseTaggingService):
             "tag VARCHAR NOT NULL, value TEXT)".format(self.topic_tags_table))
         con.commit()
 
-    def query_categories(self, skip=0, count=None, order=None):
+    def query_categories(self, include_description=False, skip=0, count=None,
+                       order="FIRST_TO_LAST"):
+
         con = sqlite3.connect(self.connection['params']['database'],
                               detect_types=sqlite3.PARSE_DECLTYPES |
                                            sqlite3.PARSE_COLNAMES)
-
+        _log.debug("After connection. skip={}".format(skip))
         query = '''SELECT name, description FROM ''' \
                 + self.categories_table + '''
                 {order_by}
@@ -317,6 +313,7 @@ class SQLiteTaggingService(BaseTaggingService):
             order_by = ' ORDER BY name DESC'
         args = []
 
+        _log.debug("After orderby. skip={}".format(skip))
         # can't have an offset without a limit
         # -1 = no limit and allows the user to
         # provide just an offset
@@ -330,7 +327,7 @@ class SQLiteTaggingService(BaseTaggingService):
         if skip > 0:
             offset_statement = 'OFFSET ?'
             args.append(skip)
-
+        _log.debug("before real querye")
         real_query = query.format(limit=limit_statement,
                                   offset=offset_statement,
                                   order_by=order_by)
@@ -339,19 +336,24 @@ class SQLiteTaggingService(BaseTaggingService):
         cursor = con.execute(real_query, args)
         result = OrderedDict()
         for row in cursor:
+            _log.debug(row[0])
             result[row[0]] = row[1]
-        _log.debug(result)
+        _log.debug(result.keys())
+        _log.debug(result.values())
         con.close()
-        return result
+        if include_description:
+            return result.items()
+        else:
+            return result.keys()
 
-
-
-    def query_tags_by_category(self, category_name, skip=0,
-                               count=None, order=None):
+    def query_tags_by_category(self, category_name, include_kind=False,
+                             include_description=False, skip=0, count=None,
+                             order="FIRST_TO_LAST"):
         pass
 
-    def query_tags_by_topic(self, topic_prefix, skip=0, count=None,
-                            order=None):
+    def query_tags_by_topic(self, topic_prefix, include_kind=False,
+                            include_description=False, skip=0, count=None,
+                            order="FIRST_TO_LAST"):
         pass
 
     def insert_tags(self, tags, update_version=False):

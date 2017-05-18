@@ -101,8 +101,7 @@ def tagging_service(config_path, **kwargs):
     assert database is not None
 
     MongodbTaggingService.__name__ = 'MongodbTaggingService'
-    # TODO replace with utils.update_kwargs_with_config
-    kwargs.update(config_dict)
+    utils.update_kwargs_with_config(kwargs, config_dict)
     return MongodbTaggingService(**kwargs)
 
 
@@ -250,8 +249,6 @@ class MongodbTaggingService(BaseTaggingService):
                         bulk_tags.find(
                                     {"_id":current_category}).upsert(
                             ).update({'$set': {"tags":list(tags)}})
-                        _log.debug("tags so far:{}".format(list(tags)))
-                        _log.debug("category: {}".format(current_category))
                     current_category = new_category
                     tags = set()
 
@@ -261,15 +258,14 @@ class MongodbTaggingService(BaseTaggingService):
             if len(tags)>0:
                 bulk_tags.find({"_id": current_category}).upsert().update(
                     {'$set': {"tags": list(tags)}})
-                _log.debug("tags so far:{}".format(list(tags)))
-                _log.debug("category: {}".format(current_category))
 
             bulk_tags.execute()
         else:
             _log.warn("No category to tags mapping to initialize. No such "
                       "file " + file_name)
 
-    def query_categories(self, skip=0, count=None, order=None):
+    def query_categories(self, include_description=False, skip=0, count=None,
+                       order="FIRST_TO_LAST"):
         db = self._client.get_default_database()
         order_by = pymongo.ASCENDING
         if order == 'LAST_TO_FIRST':
@@ -294,16 +290,21 @@ class MongodbTaggingService(BaseTaggingService):
             results[r['_id']] = r.get('description',"")
         _log.debug(results.keys())
         _log.debug(results.values())
-        return results
+        if include_description:
+            return results.items()
+        else:
+            return results.keys()
 
-    def query_tags_by_category(self, category_name, skip=0, count=None,
-                               order=None):
+    def query_tags_by_category(self, category_name, include_kind=False,
+                             include_description=False, skip=0, count=None,
+                             order="FIRST_TO_LAST"):
         pass
 
 
 
-    def query_tags_by_topic(self, topic_prefix, skip=0, count=None,
-                            order=None):
+    def query_tags_by_topic(self, topic_prefix, include_kind=False,
+                            include_description=False, skip=0, count=None,
+                            order="FIRST_TO_LAST"):
         pass
 
     def insert_tags(self, tags, update_version=False):

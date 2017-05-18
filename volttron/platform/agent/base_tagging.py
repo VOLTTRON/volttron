@@ -100,7 +100,6 @@ class BaseTaggingService(Agent):
     """
 
     def __init__(self, resource_sub_dir='resources', **kwargs):
-        self.tag_categories = None
         self.resource_sub_dir = "resources"
         if resource_sub_dir:
             self.resource_sub_dir = resource_sub_dir
@@ -127,10 +126,13 @@ class BaseTaggingService(Agent):
         pass
 
     @RPC.export
-    def get_categories(self, skip=0, count=None, order="FIRST_TO_LAST"):
+    def get_categories(self, include_description=False, skip=0, count=None,
+                       order="FIRST_TO_LAST"):
         """
         Get the available list tag categories. category can have multiple tags 
         and tags could belong to multiple categories
+        :param include_description: indicate if result should include 
+        available description for categories returned
         :param skip: number of tags to skip. usually used with order
         :param count: limit on the number of tags to return
         :param order: order of result - "FIRST_TO_LAST" or
@@ -138,33 +140,46 @@ class BaseTaggingService(Agent):
         :type skip: int
         :type count: int
         :type order: str
-        :return: list of category names
-        :rtype: OrderedDict
+        :return: list of category names if include_description is False, 
+        list of (category name, description) if include_description is True
+        :rtype: list
         """
         _log.debug("query params: skip:{} count:{} order:{}".format(skip,
                                                                     count,
                                                                     order))
-        if not self.tag_categories:
-            self.tag_categories = self.query_categories(skip, count, order)
-        return self.tag_categories
+        return self.query_categories(include_description, skip, count, order)
 
     @abstractmethod
-    def query_categories(self, skip=0, count=None, order=None):
+    def query_categories(self, include_description=False, skip=0, count=None,
+                       order="FIRST_TO_LAST"):
         pass
 
     @RPC.export
-    def get_tags_by_category(self, category_name, skip, count, order):
+    def get_tags_by_category(self, category_name, include_kind=False,
+                             include_description=False, skip=0, count=None,
+                             order="FIRST_TO_LAST"):
         """
-        Get the list of tags for a given category name. category can have multiple 
-        tags and tags could belong to multiple categories
+        Get the list of tags for a given category name. category can have 
+        multiple tags and tags could belong to multiple categories
         
         :param category_name: name of the category for which associated tags 
         should be returned
+        :param include_kind: indicate if result should include the 
+        kind/datatype for tags returned
+        :param include_description: indicate if result should include 
+        available description for tags returned
         :param skip: number of tags to skip. usually used with order
         :param count: limit on the number of tags to return
         :param order: order of result - "FIRST_TO_LAST" or
                       "LAST_TO_FIRST"
-        :return: list of (tag names, its data type/kind)
+        :return: Will return one of the following
+        
+          - list of tag names  
+          - list of (tags, its data type/kind) if include_kind is True 
+          - list of (tags, description) if include_description is True
+          - list of (tags, its data type/kind, description) if 
+          include_kind is True and include_description is true
+          
         :type category_name: str
         :type skip: int
         :type count: int
@@ -172,24 +187,40 @@ class BaseTaggingService(Agent):
         :rtype: list
         """
 
-        return self.query_tags_by_category(category_name, skip, count, order)
+        return self.query_tags_by_category(category_name, include_kind,
+                                           include_description, skip, count,
+                                           order)
 
     @abstractmethod
-    def query_tags_by_category(self, category_name, skip=0, count=None, order=None):
+    def query_tags_by_category(self, category_name, include_kind=False,
+                             include_description=False, skip=0, count=None,
+                             order="FIRST_TO_LAST"):
         pass
 
     @RPC.export
-    def get_tags_by_topic(self, topic_prefix, skip, count, order):
+    def get_tags_by_topic(self, topic_prefix, include_kind=False,
+                             include_description=False, skip=0, count=None,
+                             order="FIRST_TO_LAST"):
         """
-        Get the list of tags for a given category name. category can have multiple 
-        tags and tags could belong to multiple categories
+        Get the list of tags for a given topic prefix or name. 
         :param topic_prefix: topic_prefix for which associated tags should 
         be returned
+        :param include_kind: indicate if result should include the 
+        kind/datatype for tags returned
+        :param include_description: indicate if result should include 
+        available description for tags returned
         :param skip: number of tags to skip. usually used with order
         :param count: limit on the number of tags to return
         :param order: order of result - "FIRST_TO_LAST" or
                       "LAST_TO_FIRST"
-        :return: list of (tag names, its data type/kind)
+        :return: Will return one of the following
+        
+          - list of tag names  
+          - list of (tags, its data type/kind) if include_kind is True 
+          - list of (tags, description) if include_description is True
+          - list of (tags, its data type/kind, description) if 
+          include_kind is True and include_description is true
+          
         :type topic_prefix: str
         :type skip: int
         :type count: int
@@ -197,11 +228,14 @@ class BaseTaggingService(Agent):
         :rtype: list
         """
 
-        return self.query_tags_by_topic(topic_prefix, skip, count, order)
+        return self.query_tags_by_topic(topic_prefix, include_kind,
+                                        include_description, skip, count,
+                                        order)
 
     @abstractmethod
-    def query_tags_by_topic(self, topic_prefix, skip=0, count=None,
-                            order=None):
+    def query_tags_by_topic(self, topic_prefix, include_kind=False,
+                            include_description=False, skip=0, count=None,
+                            order="FIRST_TO_LAST"):
         pass
 
     @RPC.export
