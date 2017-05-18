@@ -59,7 +59,10 @@ import csv
 import logging
 import sys
 import sqlite3
-from pkg_resources import resource_string
+
+import re
+from pkg_resources import resource_string, resource_exists
+from collections import OrderedDict
 
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_tagging import BaseTaggingService
@@ -94,13 +97,13 @@ def tagging_service(config_path, **kwargs):
 
     assert database is not None
 
-    SQLTaggingService.__name__ = 'SQLTaggingService'
+    SQLiteTaggingService.__name__ = 'SQLiteTaggingService'
     # TODO replace with utils.update_kwargs_with_config
     kwargs.update(config_dict)
-    return SQLTaggingService(**kwargs)
+    return SQLiteTaggingService(**kwargs)
 
 
-class SQLTaggingService(BaseTaggingService):
+class SQLiteTaggingService(BaseTaggingService):
     """This is a tagging service agent that writes data to a SQLite database.
     """
     def __init__(self, connection, table_prefix=None, **kwargs):
@@ -118,17 +121,34 @@ class SQLTaggingService(BaseTaggingService):
         #self.units_table = "units"  #in version 2
         self.categories_table = "categories"
         self.topic_tags_table = "topic_tags"
+        self.category_tags_table = "category_tags"
         if table_prefix:
             self.tags_table = table_prefix + "_" + self.tags_table
             self.categories_table = table_prefix + "_" + self.categories_table
             self.topic_tags_table = table_prefix + "_" + self.topic_tags_table
+            self.category_tags_table = table_prefix + "_" + \
+                                       self.category_tags_table
 
-        super(SQLTaggingService, self).__init__(**kwargs)
+
+        super(SQLiteTaggingService, self).__init__(**kwargs)
 
     @doc_inherit
     def setup(self):
         _log.debug("Setup of sqlite tagging agent")
-        table_name = ""
+        err_message = ""
+        if not resource_exists(__name__, self.resource_sub_dir):
+            err_message = "Unable to load resources directory. No such " \
+                          "directory:{}. Please make sure that setup.py has " \
+                          "been updated to include the resources directory. " \
+                          "If the name of the resources directory is " \
+                          "anything other than \"resources\" please configure " \
+                          "it in the agent's configuration file using the " \
+                          "key \"resources_sub_directory\" Init of tagging " \
+                          "service failed. Stopping tagging service " \
+                          "agent".format(self.resource_sub_dir)
+
+        table_names = []
+        con = None
         try:
             con = sqlite3.connect(
                 self.connection['params']['database'],
@@ -139,10 +159,16 @@ class SQLTaggingService(BaseTaggingService):
                 "WHERE type='table' AND name='{}' OR "
                 "name='{}' OR name='{}';".format(self.tags_table,
                                                  self.categories_table,
+                                                 self.category_tags_table,
                                                  self.topic_tags_table))
             table_names = cursor.fetchall()
             _log.debug(table_names)
-
+        except Exception as e:
+            err_message = "Unable to query list of existing tables from the " \
+                          "database. Exception: {}. Stopping tagging " \
+                          "service agent".format(e.args)
+        table_name = ""
+        try:
             table_name = self.tags_table
             if self.tags_table in table_names:
                 _log.info("{} table exists. Assuming initial values have been "
@@ -164,20 +190,23 @@ class SQLTaggingService(BaseTaggingService):
             else:
                 self.init_categories(con)
 
+            table_name = self.category_tags_table
+            if self.category_tags_table in table_names:
+                _log.info("{} table exists. Assuming initial values "
+                          "have been loaded".format(table_name))
+            else:
+                self.init_category_tags(con)
+
             con.close()
         except Exception as e:
-            if table_name:
-                message = "Initialization of" + table_name +\
+            err_message = "Initialization of " + table_name + \
                           " table failed with exception: {}" \
-                          "Stopping tagging service agent. "
-            else:
-                message = "Unable to query list of existing tables from the " \
-                          "database. Exception: {}. " \
-                          "Stopping tagging service agent"
-
-            _log.error(message.format(e.args))
+                          "Stopping tagging service agent. ".format(e.args)
+        if err_message:
+            _log.error(err_message)
             self.vip.health.set_status(STATUS_BAD,
-                                       "Initialization of tag tables failed")
+                                       "Initialization of tagging service "
+                                       "failed")
             status = Status.from_json(self.vip.health.get_status_json())
             # status.context = status.context + \
             #                  " Exception: {}".format(e.args) + \
@@ -187,6 +216,8 @@ class SQLTaggingService(BaseTaggingService):
             self.core.stop()
 
     def init_tags(self, con):
+        file_name = self.resource_sub_dir + '/tags.csv'
+        _log.debug("Loading file :" + file_name)
         con.execute("CREATE TABLE {} "
                     "(id INTEGER PRIMARY KEY AUTOINCREMENT  NOT NULL, "
                     "name VARCHAR NOT NULL UNIQUE, "
@@ -194,30 +225,76 @@ class SQLTaggingService(BaseTaggingService):
                     "description VARCHAR)".format(self.tags_table))
 
         _log.debug(self.resource_sub_dir+'/tags.csv')
-        csv_str = resource_string(__name__, self.resource_sub_dir+'/tags.csv')
+        csv_str = resource_string(__name__, file_name)
         # csv.DictReader uses first line in file for column headings
         # by default
         dr = csv.DictReader(csv_str.splitlines())  # comma is default delimiter
-        to_db = [(i['Name'], i['Kind'], i['Description']) for i in dr]
-
+        to_db = [(i['name'], i['kind'], i['description'].decode('utf8')) for i in dr]
+        _log.debug(to_db)
         cursor = con.cursor()
         cursor.executemany("INSERT INTO {} (name, kind, description) "
                            "VALUES (?, ?, ?);".format(self.tags_table), to_db)
         con.commit()
 
     def init_categories(self, con):
+        file_name = self.resource_sub_dir + '/categories.csv'
+        _log.debug("Loading file :" + file_name)
         con.execute("CREATE TABLE {} "
                     "(name VARCHAR PRIMARY KEY NOT NULL,"
                     "description VARCHAR)".format(self.categories_table))
         _log.debug("created categories table")
-        csv_str = resource_string(__name__,
-                                  self.resource_sub_dir+'/categories.csv')
+        csv_str = resource_string(__name__, file_name)
         dr = csv.DictReader(csv_str.splitlines())
-        to_db = [(i['Name'], i['Description']) for i in dr]
+        to_db = [(i['name'], i['description'].decode('utf8')) for i in dr]
         cursor = con.cursor()
         cursor.executemany("INSERT INTO {} (name, description) "
-                           "VALUES (?, ?);".format(self.categories_table), to_db)
+                           "VALUES (?, ?);".format(
+            self.categories_table), to_db)
         con.commit()
+
+    def init_category_tags(self, con):
+        file_name = self.resource_sub_dir + '/category_tags.txt'
+        _log.debug("Loading file :" + file_name)
+        con.execute("CREATE TABLE {} "
+                    "(category VARCHAR NOT NULL,"
+                    "tag VARCHAR NOT NULL,"
+                    "PRIMARY KEY (category, tag))".format(
+            self.category_tags_table))
+        _log.debug("created {} table".format(self.category_tags_table))
+        csv_str = resource_string(__name__, file_name)
+        cursor = con.cursor()
+        to_db = []
+        if csv_str:
+            current_category = ""
+            tags = set()
+            for line in csv_str.splitlines():
+                if not line or line.startswith("##"):
+                    continue
+                if line.startswith("#") and line.endswith("#"):
+                    new_category = line.strip()[1:-1]
+                    if len(tags) > 0:
+                        _log.debug("tags so far:{}".format(list(tags)))
+                        _log.debug("category: {}".format(current_category))
+                        to_db.extend([(current_category,x) for x in tags])
+                    current_category = new_category
+                    tags = set()
+                else:
+                    temp= line.split(":") #ignore description
+                    tags.update(re.split(" +", temp[0]))
+
+            # insert last category after loop
+            if len(tags)>0:
+                _log.debug("tags so far:{}".format(list(tags)))
+                _log.debug("category: {}".format(current_category))
+                to_db.extend([(current_category, x) for x in tags])
+            _log.debug(to_db)
+            cursor.executemany(
+                "INSERT INTO {} (category, tag) "
+                "VALUES (?, ?);".format(self.category_tags_table), to_db)
+            con.commit()
+        else:
+            _log.warn("No category to tags mapping to initialize. No such "
+                      "file " + file_name)
 
     def init_topic_tags(self, con):
         con.execute(
@@ -230,10 +307,11 @@ class SQLTaggingService(BaseTaggingService):
                               detect_types=sqlite3.PARSE_DECLTYPES |
                                            sqlite3.PARSE_COLNAMES)
 
-        query = '''SELECT name, description FROM ''' + self.categories_table + '''
-                   {order_by}
-                   {limit}
-                   {offset}'''
+        query = '''SELECT name, description FROM ''' \
+                + self.categories_table + '''
+                {order_by}
+                {limit}
+                {offset}'''
         order_by = 'ORDER BY name ASC'
         if order == 'LAST_TO_FIRST':
             order_by = ' ORDER BY name DESC'
@@ -256,10 +334,10 @@ class SQLTaggingService(BaseTaggingService):
         real_query = query.format(limit=limit_statement,
                                   offset=offset_statement,
                                   order_by=order_by)
-        _log.debug("Real Query: "  + real_query)
+        _log.debug("Real Query: " + real_query)
         _log.debug(args)
         cursor = con.execute(real_query, args)
-        result = {}
+        result = OrderedDict()
         for row in cursor:
             result[row[0]] = row[1]
         _log.debug(result)
@@ -267,10 +345,10 @@ class SQLTaggingService(BaseTaggingService):
         return result
 
 
-    def query_tags_by_category(self, category_name, skip=0, count=None, order=None):
+
+    def query_tags_by_category(self, category_name, skip=0,
+                               count=None, order=None):
         pass
-
-
 
     def query_tags_by_topic(self, topic_prefix, skip=0, count=None,
                             order=None):
@@ -283,7 +361,8 @@ class SQLTaggingService(BaseTaggingService):
         pass
 
     def query_topics_by_tags(self, and_condition=None, or_condition=None,
-                             regex_and=None, regex_or=None, condition=None):
+                             regex_and=None, regex_or=None, condition=None,
+                             skip=0, count=None, order=None):
         pass
 
 def main(argv=sys.argv):

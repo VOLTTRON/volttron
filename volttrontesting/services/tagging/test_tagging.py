@@ -84,7 +84,21 @@ sqlite_config= {
             "database": "~/.volttron/data/volttron.tags.sqlite"
         }
     },
-    "tagging_source":"services/core/SQLiteTaggingService"
+    "source":"services/core/SQLiteTaggingService"
+}
+
+mongodb_config = {
+    "source": "services/core/MongodbTaggingService",
+    "connection": {
+        "type": "mongodb",
+        "params": {
+            "host": "localhost",
+            "port": 27017,
+            "database": "mongo_test",
+            "user": "test",
+            "passwd": "test"
+        }
+    }
 }
 
 def setup_sqlite(config):
@@ -136,10 +150,12 @@ def query_agent(request, volttron_instance):
     request.addfinalizer(stop_agent)
     return agent
 
+
 # Fixtures for setup and teardown of historian agent
 @pytest.fixture(scope="module",
                 params=[
-                    sqlite_config
+                    sqlite_config,
+                    pymongo_skipif(mongodb_config)
                 ])
 def tagging_service(request, volttron_instance):
     connection_type = request.param['connection']['type']
@@ -159,23 +175,24 @@ def tagging_service(request, volttron_instance):
 
     print ("request.param -- {}".format(request.param))
     # 2. Install agent
-    source = request.param.pop('tagging_source')
+    source = request.param.pop('source')
     tagging_service_id = volttron_instance.install_agent(
         vip_identity='platform.tagging',
         agent_dir=source, config_file=request.param,
-        start=True)
+        start=False)
+    volttron_instance.start_agent(tagging_service_id)
     request.param['source'] = source
     print("agent id: ", tagging_service_id)
+
+    # 3: add a tear down method to stop historian agent
+    def stop_agent():
+        print("In teardown method of tagging service")
+        if volttron_instance.is_running():
+            volttron_instance.stop_agent(tagging_service_id)
+        volttron_instance.remove_agent(tagging_service_id)
+
+    request.addfinalizer(stop_agent)
     return request.param
-
-@pytest.mark.tagging
-def test_init_success(tagging_service, query_agent):
-
-    result = query_agent.vip.rpc.call('platform.tagging',
-                                      'get_categories').get()
-    print("tag categories len:{}".format(len(result)))
-    assert result
-    pass
 
 @pytest.mark.tagging
 def test_init_failure(volttron_instance, tagging_service, query_agent):
@@ -190,7 +207,6 @@ def test_init_failure(volttron_instance, tagging_service, query_agent):
         new_config = copy.copy(tagging_service)
         new_config["resource_sub_dir"] = "bad_dir"
         source = new_config.pop('source')
-        #with pytest.raises(Exception) as e_info:
         try:
             agent_id = volttron_instance.install_agent(
                 vip_identity='test.tagging.init',
@@ -198,25 +214,27 @@ def test_init_failure(volttron_instance, tagging_service, query_agent):
             volttron_instance.start_agent(agent_id)
         except:
             pass
-
+        print ("Call back count {}".format(query_agent.callback.call_count))
         assert query_agent.callback.call_count == 1
-        assert query_agent.callback.call_args[1] == 'test.tagging.init'
+        print("Call args {}".format(query_agent.callback.call_args))
+        assert query_agent.callback.call_args[0][1] == 'test.tagging.init'
 
-    except Exception as e:
-        print(e.args)
     finally:
         if agent_id:
             volttron_instance.remove_agent(agent_id)
-
 
 @pytest.mark.tagging
 def test_get_categories(tagging_service, query_agent):
     result = query_agent.vip.rpc.call('platform.tagging',
                                       'get_categories',
-                                      skip=2,
+                                      skip=0,
                                       count=4,
-                                      order='LAST_TO_FIRST').get(timeout=10)
+                                      order="LAST_TO_FIRST").get(timeout=10)
     assert isinstance(result, dict)
     assert len(result) == 4
+    #rpc call changes order of dict returned. #TODO
+    print ("Categories returned: {}".format(result.keys()))
+    print ("Categories returned: {}".format(result.values()))
+    print ("Categories returned: {}".format(result))
 
 

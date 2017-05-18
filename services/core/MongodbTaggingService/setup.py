@@ -85,6 +85,7 @@ setup(
     version=__version__,
     install_requires=['volttron', 'ply'],
     packages=packages,
+    package_data={agent_package: ['resources/*']},
     entry_points={
         'setuptools.installation': [
             'eggsecutable = ' + agent_module + ':main',

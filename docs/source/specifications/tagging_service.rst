@@ -53,7 +53,7 @@ API
 ***
 
 1. Get the list of tag categories available
----------------------------------------
+-------------------------------------------
 rpc call to tagging service method **'get_categories'** with optional parameters:
 
     1. **skip** - number of categories to skip. this parameter along with count can be
@@ -63,7 +63,7 @@ rpc call to tagging service method **'get_categories'** with optional parameters
       ascending order
 
 2. Get the list of tags for a specific category
---------------------------------------------
+-----------------------------------------------
 rpc call to tagging service method **'get_tags_by_category'** with parameter:
 
     1. **category** - <category name>

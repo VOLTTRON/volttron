@@ -1,4 +1,4 @@
-Name,Description
+name,description
 Site,"Tags used to models a single building with its own street address"
 Equip,"Tags used to model physical or logical piece of equipment within a site"
 Point,"Tags used to model sensor, actuator or setpoint value for an equip"

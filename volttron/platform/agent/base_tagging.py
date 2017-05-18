@@ -111,14 +111,19 @@ class BaseTaggingService(Agent):
     @Core.receiver("onstart")
     def on_start(self, sender, **kwargs):
         """
-        Method to establish database connection, do any initial bootstrap 
-        necessary. Example - load master list of tags, units, categories etc. into 
-        datastore/memory   
+        Called on start of agent. Calls the setup method
         """
         self.setup()
 
     @abstractmethod
     def setup(self):
+        """
+        Method to establish database connection, do any initial 
+        bootstrap 
+        necessary. Example - load master list of tags, units, 
+        categories etc.  
+        into data store/memory   
+        """
         pass
 
     @RPC.export
@@ -134,7 +139,7 @@ class BaseTaggingService(Agent):
         :type count: int
         :type order: str
         :return: list of category names
-        :rtype: list
+        :rtype: OrderedDict
         """
         _log.debug("query params: skip:{} count:{} order:{}".format(skip,
                                                                     count,
@@ -270,7 +275,8 @@ class BaseTaggingService(Agent):
 
     @abstractmethod
     def query_topics_by_tags(self, and_condition=None, or_condition=None,
-                           regex_and=None, regex_or=None, condition=None):
+                             regex_and=None, regex_or=None, condition=None,
+                             skip=0, count=None, order=None):
         pass
 
     @RPC.export
