@@ -3,15 +3,19 @@
 Simulation Subsystem
 ~~~~~~~~~~~~~~~~~~~~
 
-This subsystem includes a set of simulated device drivers and a simulated clock
-that can run faster (or slower) than real time. It can be used
-to test VOLTTRON agents or drivers, and it could be particularly useful when simulating
+The simulation subsystem includes a set of device simulators and a clock
+that can run faster (or slower) than real time. It can be used to test VOLTTRON agents
+or drivers. It could be particularly useful when simulating
 multi-agent and/or multi-driver scenarios.
 
-The simulation subsystem has been delivered with a set of simulated energy devices,
-and reporting is primarily in terms of power (kilowatts) produced and consumed.
-It could easily be adapted, though, to simulate and report on devices that produce,
-consume and manage resources other than energy.
+The source code for the agents and drivers comprising this subsystem
+resides in the https://github.com/VOLTTRON/volttron-applications github repository,
+in https://github.com/VOLTTRON/volttron-applications/tree/master/kisensum/Simulation.
+
+This subsystem is designed to be extended easily. Its initial delivery includes a set of
+simulated energy devices that report status primarily in terms of power (kilowatts)
+produced and consumed. It could easily be adapted, though, to simulate and report data for
+devices that produce, consume and manage resources other than energy.
 
 Three agents work together to run a simulation:
 
@@ -30,7 +34,7 @@ Three agents work together to run a simulation:
    It furnishes a variety of configuration parameters to the other simulation agents,
    starts the clock, subscribes to scraped driver points, and generates a CSV output file.
 
-Four simulated device drivers have been provided:
+Four device drivers have been provided:
 
 1. **storage (simstorage).**  The storage driver simulates an energy storage device (i.e., a
    battery). When it receives a power dispatch value (positive to charge the battery,
@@ -51,13 +55,10 @@ Four simulated device drivers have been provided:
    report power as a function of (simulated) time, but it has no built-in default logic for
    deciding what particular power metrics to report.
 
-The source code for these agents and drivers is in github's ``VOLTTRON / volttron-applications``
-repository ("master" branch) under ``kisensum/Simulation``.
-
 Linux Installation
 ==================
 
-The following steps describe how to set up and run a simulation. They assumes that
+The following steps describe how to set up and run a simulation. They assume that
 ``VOLTTRON / volttron`` and ``VOLTTRON / volttron-applications`` repositories have been
 downloaded from github, and that Linux shell variables ``$VOLTTRON_ROOT`` and
 ``$VOLTTRON_APPLICATIONS_ROOT`` point at the root directories of these repositories.
@@ -379,7 +380,7 @@ The SimulationAgent also writes a CSV output file so that simulation results can
 by spreadsheets, for example this graph of the simulated storage device following an
 oscillating dispatch:
 
-.. image:: files/41-simulation-out.jpg
+.. image:: files/1-simulation-out.jpg
 
 Using the Simulation Framework to Test a Driver
 ===============================================

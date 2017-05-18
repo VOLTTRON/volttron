@@ -146,6 +146,7 @@ Contents:
    devguides/index
    core_services/index
    specifications/index
+   volttron_applications/index
    API Documentation <apidocs>
 
 
