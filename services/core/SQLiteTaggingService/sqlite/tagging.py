@@ -218,11 +218,11 @@ class SQLiteTaggingService(BaseTaggingService):
     def init_tags(self, con):
         file_name = self.resource_sub_dir + '/tags.csv'
         _log.debug("Loading file :" + file_name)
-        con.execute("CREATE TABLE {} "
-                    "(id INTEGER PRIMARY KEY AUTOINCREMENT  NOT NULL, "
-                    "name VARCHAR NOT NULL UNIQUE, "
+        con.execute("CREATE TABLE {}"
+                    "(name VARCHAR PRIMARY KEY, "
                     "kind VARCHAR NOT NULL, "
-                    "description VARCHAR)".format(self.tags_table))
+                    "description VARCHAR)".format(
+                        self.tags_table))
 
         _log.debug(self.resource_sub_dir+'/tags.csv')
         csv_str = resource_string(__name__, file_name)
@@ -238,9 +238,10 @@ class SQLiteTaggingService(BaseTaggingService):
     def init_categories(self, con):
         file_name = self.resource_sub_dir + '/categories.csv'
         _log.debug("Loading file :" + file_name)
-        con.execute("CREATE TABLE {} "
+        con.execute("CREATE TABLE {}"
                     "(name VARCHAR PRIMARY KEY NOT NULL,"
-                    "description VARCHAR)".format(self.categories_table))
+                    "description VARCHAR)".format(
+                        self.categories_table))
         _log.debug("created categories table")
         csv_str = resource_string(__name__, file_name)
         dr = csv.DictReader(csv_str.splitlines())
@@ -258,7 +259,7 @@ class SQLiteTaggingService(BaseTaggingService):
                     "(category VARCHAR NOT NULL,"
                     "tag VARCHAR NOT NULL,"
                     "PRIMARY KEY (category, tag))".format(
-            self.category_tags_table))
+                        self.category_tags_table))
         _log.debug("created {} table".format(self.category_tags_table))
         csv_str = resource_string(__name__, file_name)
         cursor = con.cursor()
@@ -293,7 +294,12 @@ class SQLiteTaggingService(BaseTaggingService):
     def init_topic_tags(self, con):
         con.execute(
             "CREATE TABLE {} (topic_prefix TEXT NOT NULL, "
-            "tag VARCHAR NOT NULL, value TEXT)".format(self.topic_tags_table))
+            "tag VARCHAR NOT NULL, value TEXT,"
+            "PRIMARY KEY (topic_prefix, tag))".format(
+                self.topic_tags_table))
+        con.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tag ON " +
+            self.topic_tags_table + "(tag ASC);")
         con.commit()
 
     def query_categories(self, include_description=False, skip=0, count=None,
@@ -302,12 +308,61 @@ class SQLiteTaggingService(BaseTaggingService):
         con = sqlite3.connect(self.connection['params']['database'],
                               detect_types=sqlite3.PARSE_DECLTYPES |
                                            sqlite3.PARSE_COLNAMES)
-        _log.debug("After connection. skip={}".format(skip))
         query = '''SELECT name, description FROM ''' \
                 + self.categories_table + '''
                 {order_by}
                 {limit}
                 {offset}'''
+        order_by = 'ORDER BY name ASC'
+        if order == 'LAST_TO_FIRST':
+            order_by = ' ORDER BY name DESC'
+        args = []
+
+        # can't have an offset without a limit
+        # -1 = no limit and allows the user to
+        # provide just an offset
+        if count is None:
+            count = -1
+
+        limit_statement = 'LIMIT ?'
+        args.append(count)
+
+        offset_statement = ''
+        if skip > 0:
+            offset_statement = 'OFFSET ?'
+            args.append(skip)
+        real_query = query.format(limit=limit_statement,
+                                  offset=offset_statement,
+                                  order_by=order_by)
+        _log.debug("Real Query: " + real_query)
+        _log.debug(args)
+        cursor = con.execute(real_query, args)
+        result = OrderedDict()
+        for row in cursor:
+            _log.debug(row[0])
+            result[row[0]] = row[1]
+        _log.debug(result.keys())
+        _log.debug(result.values())
+        con.close()
+        if include_description:
+            return result.items()
+        else:
+            return result.keys()
+
+    def query_tags_by_category(self, category, include_kind=False,
+                               include_description=False, skip=0, count=None,
+                               order="FIRST_TO_LAST"):
+        con = sqlite3.connect(self.connection['params']['database'],
+                              detect_types=sqlite3.PARSE_DECLTYPES |
+                                           sqlite3.PARSE_COLNAMES)
+        _log.debug("After connection. skip={}".format(skip))
+        query = 'SELECT name, kind, description FROM {tag} as t, ' \
+                '{category_tag} as c ' \
+                'WHERE ' \
+                't.name = c.tag AND c.category = "{category}" ' \
+                '{order_by} ' \
+                '{limit} ' \
+                '{offset}'
         order_by = 'ORDER BY name ASC'
         if order == 'LAST_TO_FIRST':
             order_by = ' ORDER BY name DESC'
@@ -328,28 +383,30 @@ class SQLiteTaggingService(BaseTaggingService):
             offset_statement = 'OFFSET ?'
             args.append(skip)
         _log.debug("before real querye")
-        real_query = query.format(limit=limit_statement,
-                                  offset=offset_statement,
-                                  order_by=order_by)
+        real_query = query.format(
+            tag=self.tags_table,
+            category_tag=self.category_tags_table,
+            category=category,
+            limit=limit_statement,
+            offset=offset_statement,
+            order_by=order_by)
         _log.debug("Real Query: " + real_query)
         _log.debug(args)
+
         cursor = con.execute(real_query, args)
-        result = OrderedDict()
+        result = []
         for row in cursor:
             _log.debug(row[0])
-            result[row[0]] = row[1]
-        _log.debug(result.keys())
-        _log.debug(result.values())
-        con.close()
-        if include_description:
-            return result.items()
-        else:
-            return result.keys()
-
-    def query_tags_by_category(self, category_name, include_kind=False,
-                             include_description=False, skip=0, count=None,
-                             order="FIRST_TO_LAST"):
-        pass
+            record = [row[0]]
+            if include_kind:
+                record.append(row[1])
+            if include_description:
+                record.append(row[2])
+            if include_description or include_kind:
+                result.append(record)
+            else:
+                result.append(row[0])
+        return result
 
     def query_tags_by_topic(self, topic_prefix, include_kind=False,
                             include_description=False, skip=0, count=None,

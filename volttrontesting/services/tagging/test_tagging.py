@@ -119,11 +119,10 @@ def setup_mongodb(config):
     mongo_conn_str = mongo_conn_str.format(**params)
     mongo_client = pymongo.MongoClient(mongo_conn_str)
     db = mongo_client[connection_params['database']]
-    tags =  'tags'
+    col = 'topic_tags'
     if config.get('table_prefix'):
-       tags = config['table_prefix'] +  "_tags"
-
-    db[tags].remove()
+       col = config['table_prefix'] +  col
+    db[col].drop()
     return db
 
 def cleanup_sqlite(db_connection, truncate_tables):
@@ -155,7 +154,7 @@ def query_agent(request, volttron_instance):
 @pytest.fixture(scope="module",
                 params=[
                     sqlite_config,
-                    #pymongo_skipif(mongodb_config)
+                    pymongo_skipif(mongodb_config)
                 ])
 def tagging_service(request, volttron_instance):
     connection_type = request.param['connection']['type']
@@ -210,7 +209,7 @@ def test_init_failure(volttron_instance, tagging_service, query_agent):
         try:
             agent_id = volttron_instance.install_agent(
                 vip_identity='test.tagging.init',
-            agent_dir=source, config_file=new_config, start=False)
+                agent_dir=source, config_file=new_config, start=False)
             volttron_instance.start_agent(agent_id)
         except:
             pass
@@ -223,14 +222,14 @@ def test_init_failure(volttron_instance, tagging_service, query_agent):
         if agent_id:
             volttron_instance.remove_agent(agent_id)
 
-@pytest.mark.dev
+
 @pytest.mark.tagging
-def test_get_categories(tagging_service, query_agent):
+def test_get_categories_no_desc(tagging_service, query_agent):
     result = query_agent.vip.rpc.call('platform.tagging',
                                       'get_categories',
                                       skip=0,
                                       count=4,
-                                      order="LAST_TO_FIRST").get(timeout=10)
+                                      order="FIRST_TO_LAST").get(timeout=10)
     assert isinstance(result, list)
     assert len(result) == 4
     print ("Categories returned: {}".format(result))
@@ -238,42 +237,124 @@ def test_get_categories(tagging_service, query_agent):
                                        'get_categories',
                                        skip=1,
                                        count=4,
-                                       order="LAST_TO_FIRST").get(timeout=10)
+                                       order="FIRST_TO_LAST").get(timeout=10)
     assert isinstance(result2, list)
     print ("result2 returned: {}".format(result2))
     assert len(result2) == 4
-    assert result[1] == result2[0]
+    assert isinstance(result, list)
+    assert isinstance(result[0], str)
+    assert result[1] == result2[0] #verify skip
 
-    result = query_agent.vip.rpc.call('platform.tagging', 'get_categories',
+
+@pytest.mark.tagging
+def test_get_categories_with_desc(tagging_service, query_agent):
+
+    result1 = query_agent.vip.rpc.call('platform.tagging', 'get_categories',
                                       include_description=True,
                                       skip=0, count=4,
                                       order="LAST_TO_FIRST").get(timeout=10)
-    assert isinstance(result, list)
-    assert len(result) == 4
-    print ("Categories returned: {}".format(result))
+    assert isinstance(result1, list)
+    assert isinstance(result1[0],list)
+    assert len(result1) == 4
+    assert len(result1[0]) == 2
+    print ("Categories returned: {}".format(result1))
     result2 = query_agent.vip.rpc.call('platform.tagging', 'get_categories',
                                        include_description=True,
                                        skip=1, count=4,
                                        order="LAST_TO_FIRST").get(timeout=10)
     assert isinstance(result2, list)
+    assert isinstance(result2[0], list)
     print ("result2 returned: {}".format(result2))
     assert len(result2) == 4
-    assert result[1][0] == result2[0][0]
+
+    #Verify skip param
+    assert result1[1][0] == result2[0][0]
+    assert result1[1][1] == result2[0][1]
+
+    #verify order
+    result3 = query_agent.vip.rpc.call('platform.tagging', 'get_categories',
+                                      include_description=True, skip=0,
+                                      count=4, order="FIRST_TO_LAST").get(
+        timeout=10)
+    assert isinstance(result3, list)
+    assert isinstance(result3[0], list)
+    assert len(result3) == 4
+    assert result3[0][0] != result1[0][0]
+    assert result3[0][1] != result1[0][1]
 
 
 @pytest.mark.tagging
-def test_tags_by_category(tagging_service, query_agent):
-    result = query_agent.vip.rpc.call('platform.tagging',
-                                      'get_tags_by_category',
-                                      skip=0,
-                                      count=4,
-                                      order="FIRST_TO_LAST").get(timeout=10)
-    assert isinstance(result, dict)
-    assert len(result) == 4
-    #rpc call changes order of dict returned. #TODO
-    print ("Categories returned: {}".format(result.keys()))
-    print ("Categories returned: {}".format(result.values()))
-    print ("Categories returned: {}".format(result))
+def test_tags_by_category_no_metadata(tagging_service, query_agent):
+    result1 = query_agent.vip.rpc.call(
+        'platform.tagging',
+        'get_tags_by_category',
+        category='AHU',
+        skip=0,
+        count=3,
+        order="FIRST_TO_LAST").get(timeout=10)
+    print ("tags returned: {}".format(result1))
+    assert isinstance(result1, list)
+    assert isinstance(result1[0], str)
+    assert len(result1) == 3
+
+    result2 = query_agent.vip.rpc.call('platform.tagging',
+                                       'get_tags_by_category',
+                                       category='AHU', skip=2, count=3,
+                                       order="FIRST_TO_LAST").get(timeout=10)
+    print ("tags returned: {}".format(result2))
+    assert isinstance(result2, list)
+    assert isinstance(result2[0], str)
+    assert len(result2) == 3  # verify count
+    assert result1[2] == result2[0]  # verify skip
+
+
+@pytest.mark.tagging
+def test_tags_by_category_with_metadata(tagging_service, query_agent):
+
+    result1 = query_agent.vip.rpc.call(
+        'platform.tagging',
+        'get_tags_by_category',
+        category='AHU',
+        include_kind=True,
+        skip=0,
+        count=3,
+        order="FIRST_TO_LAST").get(timeout=10)
+    print ("tags returned: {}".format(result1))
+    assert isinstance(result1, list)
+    assert isinstance(result1[0], list)
+    assert len(result1) == 3
+    assert len(result1[0]) == 2
+
+    result2 = query_agent.vip.rpc.call(
+        'platform.tagging',
+        'get_tags_by_category',
+        category='AHU',
+        include_description=True,
+        skip=0,
+        count=3,
+        order="FIRST_TO_LAST").get(timeout=10)
+    print ("tags returned: {}".format(result2))
+    assert isinstance(result2, list)
+    assert isinstance(result2[0], list)
+    assert len(result2) == 3
+    assert len(result2[0]) == 2
+
+    result3 = query_agent.vip.rpc.call('platform.tagging',
+                                       'get_tags_by_category', category='AHU',
+                                       include_kind=True,
+                                       include_description=True,
+                                       skip=0, count=3,
+                                       order="FIRST_TO_LAST").get(timeout=10)
+    print ("tags returned: {}".format(result3))
+    assert isinstance(result3, list)
+    assert isinstance(result3[0], list)
+    assert len(result3) == 3
+    assert len(result3[0]) == 3
+
+
+
+
+
 
 
 

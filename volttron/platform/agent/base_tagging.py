@@ -155,14 +155,14 @@ class BaseTaggingService(Agent):
         pass
 
     @RPC.export
-    def get_tags_by_category(self, category_name, include_kind=False,
+    def get_tags_by_category(self, category, include_kind=False,
                              include_description=False, skip=0, count=None,
                              order="FIRST_TO_LAST"):
         """
         Get the list of tags for a given category name. category can have 
         multiple tags and tags could belong to multiple categories
         
-        :param category_name: name of the category for which associated tags 
+        :param category: name of the category for which associated tags 
         should be returned
         :param include_kind: indicate if result should include the 
         kind/datatype for tags returned
@@ -180,19 +180,19 @@ class BaseTaggingService(Agent):
           - list of (tags, its data type/kind, description) if 
           include_kind is True and include_description is true
           
-        :type category_name: str
+        :type category: str
         :type skip: int
         :type count: int
         :type order: str
         :rtype: list
         """
 
-        return self.query_tags_by_category(category_name, include_kind,
+        return self.query_tags_by_category(category, include_kind,
                                            include_description, skip, count,
                                            order)
 
     @abstractmethod
-    def query_tags_by_category(self, category_name, include_kind=False,
+    def query_tags_by_category(self, category, include_kind=False,
                              include_description=False, skip=0, count=None,
                              order="FIRST_TO_LAST"):
         pass

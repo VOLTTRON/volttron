@@ -55,6 +55,7 @@
 # }}}
 from __future__ import absolute_import, print_function
 
+import collections
 import csv
 import logging
 import sys
@@ -169,6 +170,7 @@ class MongodbTaggingService(BaseTaggingService):
                           "been loaded".format(collection))
             else:
                 self.init_tags(db)
+                self.init_category_tags(db)
 
             collection = self.categories_collection
             if self.categories_collection in collections:
@@ -176,7 +178,6 @@ class MongodbTaggingService(BaseTaggingService):
                           "have been loaded".format(collection))
             else:
                 self.init_categories(db)
-                self.init_category_tags(db)
         except Exception as e:
             err_message = "Initialization of " + collection + \
                           " collection failed with exception: {}" \
@@ -235,31 +236,36 @@ class MongodbTaggingService(BaseTaggingService):
         file_name = self.resource_sub_dir + '/category_tags.txt'
         _log.debug("Loading file :" + file_name)
         txt_str = resource_string(__name__, file_name)
-        bulk_tags = db[
-            self.categories_collection].initialize_ordered_bulk_op()
+        bulk_tags = db[self.tags_collection].initialize_ordered_bulk_op()
         if txt_str:
             current_category = ""
             tags = set()
+            mapping = collections.defaultdict(set)
             for line in txt_str.splitlines():
                 if not line or line.startswith("##"):
                     continue
                 if line.startswith("#") and line.endswith("#"):
                     new_category = line.strip()[1:-1]
                     if len(tags) > 0:
-                        bulk_tags.find(
-                                    {"_id":current_category}).upsert(
-                            ).update({'$set': {"tags":list(tags)}})
+                        for tag in tags:
+                            mapping[tag].add(current_category)
                     current_category = new_category
                     tags = set()
-
                 else:
-                    temp= line.split(":") #ignore description
+                    temp= line.split(":")  # ignore description
                     tags.update(re.split(" +", temp[0]))
             if len(tags)>0:
-                bulk_tags.find({"_id": current_category}).upsert().update(
-                    {'$set': {"tags": list(tags)}})
+                for tag in tags:
+                    mapping[tag].add(current_category)
+
+            for tag in mapping.keys():
+                bulk_tags.find({"_id": tag}).update(
+                    {'$set': {"categories": list(mapping[tag])}})
 
             bulk_tags.execute()
+            db[self.tags_collection].create_index(
+                [('categories', pymongo.ASCENDING)], background=True)
+
         else:
             _log.warn("No category to tags mapping to initialize. No such "
                       "file " + file_name)
@@ -295,11 +301,46 @@ class MongodbTaggingService(BaseTaggingService):
         else:
             return results.keys()
 
-    def query_tags_by_category(self, category_name, include_kind=False,
-                             include_description=False, skip=0, count=None,
-                             order="FIRST_TO_LAST"):
-        pass
+    def query_tags_by_category(self, category, include_kind=False,
+                               include_description=False, skip=0, count=None,
+                               order="FIRST_TO_LAST"):
+        db = self._client.get_default_database()
+        order_by = pymongo.ASCENDING
+        if order == 'LAST_TO_FIRST':
+            order_by = pymongo.DESCENDING
+        skip_count = 0
+        if skip > 0:
+            skip_count = skip
 
+        _log.debug("category: {}".format(category))
+
+        if count is None:
+            cursor = db[self.tags_collection].find(
+                {'categories':{'$in':[category]}},
+                projection=['_id', 'kind','description'],
+                skip=skip_count,
+                sort=[('_id', order_by)])
+        else:
+            cursor = db[self.tags_collection].find(
+                {'categories': {'$in': [category]}},
+                projection=['_id', 'kind', 'description'],
+                skip=skip_count,
+                limit=count,
+                sort=[('_id', order_by)])
+
+        records = list(cursor)
+        results = []
+        for r in records:
+            results_element = [r['_id']]
+            if include_kind:
+                results_element.append(r['kind'])
+            if include_description:
+                results_element.append(r['description'])
+            if include_kind or include_description:
+                results.append(results_element)
+            else:
+                results.append(r['_id'])
+        return results
 
 
     def query_tags_by_topic(self, topic_prefix, include_kind=False,

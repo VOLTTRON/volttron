@@ -119,8 +119,6 @@ protocol: string enumeration communications protocol
 device1Ref: first device end point
 device2Ref: second device end point
 networkRef: network used for the communication
-device1Ref
-device2Ref
 
 #Energy#
 id
