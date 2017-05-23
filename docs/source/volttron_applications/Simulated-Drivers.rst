@@ -9,8 +9,7 @@ or drivers. It could be particularly useful when simulating
 multi-agent and/or multi-driver scenarios.
 
 The source code for the agents and drivers comprising this subsystem
-resides in the https://github.com/VOLTTRON/volttron-applications github repository,
-in https://github.com/VOLTTRON/volttron-applications/tree/master/kisensum/Simulation.
+resides in the https://github.com/VOLTTRON/volttron-applications github repository.
 
 This subsystem is designed to be extended easily. Its initial delivery includes a set of
 simulated energy devices that report status primarily in terms of power (kilowatts)
