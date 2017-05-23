@@ -73,12 +73,12 @@ def historian(config_path, **kwargs):
     """
     This method is called by the :py:func:`crate_historian.historian.main` to parse
     the passed config file or configuration dictionary object, validate the
-    configuration entries, and create an instance of MongodbHistorian
+    configuration entries, and create an instance of CSVHistorian
 
     :param config_path: could be a path to a configuration file or can be a
                         dictionary object
     :param kwargs: additional keyword arguments if any
-    :return: an instance of :py:class:`CrateHistorian`
+    :return: an instance of :py:class:`CSVHistorian`
     """
     if isinstance(config_path, dict):
         config_dict = config_path
