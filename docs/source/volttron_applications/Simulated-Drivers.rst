@@ -113,13 +113,6 @@ Install each simulation agent:
         --config       $SIMULATION_ROOT/SimulationAgent/simulationagent.config \
         --force
 
-Now restart VOLTTRON (to refresh the auth cache). To run the simulation, start the agents:
-::
-
-    $ volttron-ctl start --tag simulationclock
-    $ volttron-ctl start --tag simulation.driver
-    $ volttron-ctl start --tag simulationagent
-
 SimulationAgent Configuration Parameters
 ========================================
 
