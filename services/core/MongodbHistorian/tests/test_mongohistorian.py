@@ -1074,10 +1074,241 @@ def test_combined_results_from_rollup_and_raw_data(volttron_instance,
 @pytest.mark.historian
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
+def test_combined_results_from_rollup_and_raw_data(volttron_instance,
+                                            database_client):
+    """
+    Test querying data with start date earlier than available rollup data
+    and query end date greater than available rollup data. Historian should 
+    query available data from rolled up collection and get the rest 
+    from raw data collection
+    :param database_client:
+    :param volttron_instance: The instance against which the test is run
+    """
+    global query_points
+    agent_uuid = None
+    try:
+        # Clean data and roll up tables
+        db = database_client.get_default_database()
+        db['data'].drop()
+        db['topics'].drop()
+        db['meta'].drop()
+        db['hourly_data'].drop()
+        db['daily_data'].drop()
+
+        publish_t1 = datetime(year=2016, month=3, day=1, hour=1, minute=10,
+                       second=1, microsecond=0, tzinfo=tzutc())
+        publish_t2 = publish_t1 + timedelta(minutes=1)
+        publish_t3 = utils.get_aware_utc_now()
+        #query time period should be greater than 3 hours for historian to use
+        # hourly_data collection and  >= 1 day to use daily_data table
+        query_start_day = publish_t1 - timedelta(days=35)
+        query_end = publish_t3 + timedelta(seconds=2)
+
+        config = mongo_agent_config()
+        config['periodic_rollup_initial_wait'] = 0.1
+        config['rollup_query_end'] = 1
+        config['periodic_rollup_frequency'] = 1
+        config['rollup_query_start'] = publish_t2.strftime(
+            '%Y-%m-%dT%H:%M:%S.%f')
+        config['initial_rollup_start_time'] = publish_t2.strftime(
+            '%Y-%m-%dT%H:%M:%S.%f')
+
+        agent_uuid = install_historian_agent(volttron_instance, config)
+        # print('HOME', volttron_instance.volttron_home)
+        print("\n** test_data_rollup_insert **")
+
+        publish_agent = volttron_instance.build_agent()
+
+        version = publish_agent.vip.rpc.call('platform.historian',
+                                             'get_version').get(timeout=5)
+
+        version_nums = version.split(".")
+        if int(version_nums[0]) < 2:
+            pytest.skip("Only version >= 2.0 support rolled up data.")
+
+        expected1 = publish_fake_data(publish_agent, publish_t1)
+        expected2 = publish_fake_data(publish_agent, publish_t2)
+        expected3 = publish_fake_data(publish_agent, publish_t3)
+        gevent.sleep(6)
+
+        #Only publish_t2 should have gone into rollup collection.
+        # Remove publish_t2 entry from data collection
+        print("removing {}".format(publish_t2))
+        db['data'].remove({'ts':publish_t2})
+        db['daily_data'].remove({'ts':publish_t3.replace(hour=0,
+                                                         minute=0,
+                                                         second=0,
+                                                         microsecond=0)})
+
+        # Check query
+        result = publish_agent.vip.rpc.call('platform.historian', 'query',
+            topic=query_points['oat_point'], count=20,
+            start=query_start_day.isoformat(),
+            end= query_end.isoformat(),
+            order="LAST_TO_FIRST").get(timeout=10)
+        print(result)
+        compare_query_results(db, expected3, expected2, expected1,
+                              'oat_point', result)
+
+    finally:
+        if agent_uuid:
+            volttron_instance.stop_agent(agent_uuid)
+            volttron_instance.remove_agent(agent_uuid)
+
+
+@pytest.mark.historian
+@pytest.mark.mongodb
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
+def test_combined_results_rollup_and_raw_data_with_count(volttron_instance,
+                                            database_client):
+    """
+    Test querying data with start date earlier than available rollup data
+    and query end date greater than available rollup data. Historian should 
+    query available data from rolled up collection and get the rest 
+    from raw data collection
+    :param database_client:
+    :param volttron_instance: The instance against which the test is run
+    """
+    global query_points
+    agent_uuid = None
+    try:
+        # Clean data and roll up tables
+        db = database_client.get_default_database()
+        db['data'].drop()
+        db['topics'].drop()
+        db['meta'].drop()
+        db['hourly_data'].drop()
+        db['daily_data'].drop()
+
+        publish_t1 = datetime(year=2016, month=3, day=1, hour=1, minute=10,
+                       second=1, microsecond=0, tzinfo=tzutc())
+        publish_t2 = publish_t1 + timedelta(minutes=1)
+        publish_t3 = utils.get_aware_utc_now() - timedelta(minutes=1)
+        publish_t4 = utils.get_aware_utc_now()
+        #query time period should be greater than 3 hours for historian to use
+        # hourly_data collection and  >= 1 day to use daily_data table
+        query_start_day = publish_t1 - timedelta(days=35)
+        query_end = publish_t4 + timedelta(seconds=2)
+
+        config = mongo_agent_config()
+        config['periodic_rollup_initial_wait'] = 0.1
+        config['rollup_query_end'] = 1
+        config['periodic_rollup_frequency'] = 1
+        config['rollup_query_start'] = publish_t2.strftime(
+            '%Y-%m-%dT%H:%M:%S.%f')
+        config['initial_rollup_start_time'] = publish_t2.strftime(
+            '%Y-%m-%dT%H:%M:%S.%f')
+
+        agent_uuid = install_historian_agent(volttron_instance, config)
+        # print('HOME', volttron_instance.volttron_home)
+        print("\n** test_data_rollup_insert **")
+
+        publish_agent = volttron_instance.build_agent()
+
+        version = publish_agent.vip.rpc.call('platform.historian',
+                                             'get_version').get(timeout=5)
+
+        version_nums = version.split(".")
+        if int(version_nums[0]) < 2:
+            pytest.skip("Only version >= 2.0 support rolled up data.")
+
+        expected1 = publish_fake_data(publish_agent, publish_t1)
+        expected2 = publish_fake_data(publish_agent, publish_t2)
+        expected3 = publish_fake_data(publish_agent, publish_t3)
+        expected4 = publish_fake_data(publish_agent, publish_t4)
+        gevent.sleep(6)
+
+        #Only publish_t2 should have gone into rollup collection.
+        # Remove publish_t2 entry from data collection so that is is only
+        # available in hourly and daily  collections
+        print("removing {}".format(publish_t2))
+        db['data'].remove({'ts':publish_t2})
+        db['daily_data'].remove({'ts':publish_t3.replace(hour=0,
+                                                         minute=0,
+                                                         second=0,
+                                                         microsecond=0)})
+
+        # result from data table alone
+        result = publish_agent.vip.rpc.call(
+            'platform.historian',
+            'query',
+            topic=query_points['oat_point'],
+            count=1,
+            start=query_start_day.isoformat(),
+            end= query_end.isoformat(),
+            order="LAST_TO_FIRST").get(timeout=10)
+        print("Case 1: {}".format(result))
+        compare_query_results(db, expected4, None, None,
+                              'oat_point', result)
+
+        # result from data table alone
+        result = publish_agent.vip.rpc.call(
+            'platform.historian',
+            'query',
+            topic=query_points['oat_point'],
+            count=1,
+            start=query_start_day.isoformat(),
+            end=query_end.isoformat(),
+            order="FIRST_TO_LAST").get(timeout=10)
+        print("Case 2: {}".format(result))
+        compare_query_results(db, expected1, None, None, 'oat_point', result)
+
+        # result from rollup table alone
+        result = publish_agent.vip.rpc.call(
+            'platform.historian',
+            'query',
+            topic=query_points['oat_point'],
+            count=1,
+            start=publish_t2.isoformat(),
+            end=query_end.isoformat(),
+            order="FIRST_TO_LAST").get(timeout=10)
+        print("Case 3: {}".format(result))
+        compare_query_results(db, expected2, None, None, 'oat_point', result)
+
+        # combined result
+        result = publish_agent.vip.rpc.call(
+            'platform.historian', 'query',
+            topic=query_points['oat_point'], count=2,
+            start=query_start_day.isoformat(), end=query_end.isoformat(),
+            order="FIRST_TO_LAST").get(timeout=10)
+        print("Case 4: {}".format(result))
+        compare_query_results(db, expected1, expected2, None, 'oat_point',
+                              result)
+
+        # combined result
+        result = publish_agent.vip.rpc.call(
+            'platform.historian', 'query',
+            topic=query_points['oat_point'], count=3,
+            start=query_start_day.isoformat(), end=query_end.isoformat(),
+            order="LAST_TO_FIRST").get(timeout=10)
+        print("Case 5: {}".format(result))
+        compare_query_results(db, expected4, expected3, expected2, 'oat_point',
+                              result)
+
+        # results only from raw data
+        result = publish_agent.vip.rpc.call(
+            'platform.historian', 'query',
+            topic=query_points['oat_point'],
+            count=2,
+            start=query_start_day.isoformat(),
+            end=query_end.isoformat(),
+            order="LAST_TO_FIRST").get(timeout=10)
+        print("Case 6: {}".format(result))
+        compare_query_results(db, expected4, expected3, None, 'oat_point',
+                              result)
+
+    finally:
+        if agent_uuid:
+            volttron_instance.stop_agent(agent_uuid)
+            volttron_instance.remove_agent(agent_uuid)
+
+
+@pytest.mark.historian
+@pytest.mark.mongodb
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
 def test_dict_insert_special_character(volttron_instance, database_client):
     """
-    Test the query of rolled up data from hourly, daily and monthly data
-    tables
+    Test the inserting special characters
     :param database_client:
     :param volttron_instance: The instance against which the test is run
     """
@@ -1113,7 +1344,7 @@ def test_dict_insert_special_character(volttron_instance, database_client):
 
         agent_uuid = install_historian_agent(volttron_instance, config)
         # print('HOME', volttron_instance.volttron_home)
-        print("\n** test_data_rollup_insert **")
+        print("\n** test_dict_insert_special_character **")
 
         publish_agent = volttron_instance.build_agent()
 
@@ -1251,16 +1482,17 @@ def test_insert_multiple_data_per_minute(volttron_instance,
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
 
+
 def compare_query_results(db, expected1, expected2,
                           expected3, query_point,
                           result):
-
     expected_t1 = format_expected_time(expected1)
     assert expected_t1 == result['values'][0][0]
     assert result['values'][0][1] == expected1[query_point]
-    expected_t2 = format_expected_time(expected2)
-    assert expected_t2 == result['values'][1][0]
-    assert result['values'][1][1] == expected2[query_point]
+    if expected2:
+        expected_t2 = format_expected_time(expected2)
+        assert expected_t2 == result['values'][1][0]
+        assert result['values'][1][1] == expected2[query_point]
     if expected3:
         expected_t3 = format_expected_time(expected3)
         assert expected_t3 == result['values'][2][0]
