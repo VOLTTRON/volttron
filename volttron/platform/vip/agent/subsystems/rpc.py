@@ -347,7 +347,7 @@ class RPC(SubsystemBase):
         return results or None
 
     def call(self, peer, method, *args, **kwargs):
-        platform = kwargs.pop('platform', '')
+        platform = kwargs.pop('external_platform', '')
         request, result = self._dispatcher.call(method, args, kwargs)
         ident = '%s.%s' % (next(self._counter), hash(result))
         self._outstanding[ident] = result
@@ -366,29 +366,42 @@ class RPC(SubsystemBase):
 
     __call__ = call
 
-    def platform_call(self, peer, platform_id, method, *args, **kwargs):
+    def platform_call(self, peer, platform_name, method, *args, **kwargs):
         request, result = self._dispatcher.call(method, args, kwargs)
         ident = '%s.%s' % (next(self._counter), hash(result))
         self._outstanding[ident] = result
         #self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
         _log.debug("Args: {0}, Kwargs: {1}".format(args, kwargs))
 
-        if platform_id is None:
+        if platform_name is None:
             self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
         else:
             frames = []
-            frames[0] = b'send_platform'
-            frames[1] = jsonapi.dumps(dict(to_platform=platform_id, to_peer=peer,
-                                           from_platform='', from_peer='', args=[request]))
-            _log.debug("RPC subsystem: External platform RPC msg: {}".format(frames))
+            op = b'send_platform'
+            frames.append(op)
+            msg = jsonapi.dumps(dict(to_platform=platform_name, to_peer=peer,
+                                     from_platform='', from_peer='', args=[request]))
+            frames.append(msg)
+            # _log.debug("RPC subsystem: External platform RPC msg: {}".format(frames))
             self.core().socket.send_vip('', 'EXT_RPC', frames, msg_id=ident)
         return result
 
     #__call__ = call
 
     def notify(self, peer, method, *args, **kwargs):
+        platform = kwargs.pop('external_platform', '')
         request = self._dispatcher.notify(method, args, kwargs)
-        self.core().socket.send_vip(peer, 'RPC', [request])
+        if platform == '':
+            self.core().socket.send_vip(peer, 'RPC', [request])
+        else:
+            frames = []
+            op = b'send_platform'
+            frames.append(op)
+            msg = jsonapi.dumps(dict(to_platform=platform, to_peer=peer,
+                                     from_platform='', from_peer='', args=[request]))
+            frames.append(msg)
+            # _log.debug("RPC subsystem: External platform RPC msg: {}".format(frames))
+            self.core().socket.send_vip('', 'EXT_RPC', frames)
 
     @dualmethod
     def allow(self, method, capabilities):

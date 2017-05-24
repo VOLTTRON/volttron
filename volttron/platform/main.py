@@ -371,7 +371,8 @@ class Router(BaseRouter):
         if subsystem == b'quit':
             sender = bytes(frames[0])
             if sender == b'control' and user_id == self.default_user_id:
-                self._ext_routing.shutdown()
+                if self._ext_routing:
+                    self._ext_routing.close_external_connections()
                 raise KeyboardInterrupt()
         elif subsystem == b'agentstop':
             try:
@@ -429,6 +430,9 @@ class Router(BaseRouter):
         self._pubsub.peer_add(peer)
 
     def poll_sockets(self):
+        """
+        Poll for incoming messages through router socket or other external socket connections
+        """
         try:
             sockets = dict(self._poller.poll())
         except ZMQError as ex:
@@ -439,18 +443,19 @@ class Router(BaseRouter):
                 if sockets[sock] == zmq.POLLIN:
                     self.route()
             elif sock in self._ext_routing._ext_sockets:
-                _log.debug("External socket found {}".format(sock.identity))
                 if sockets[sock] == zmq.POLLIN:
                     self.ext_route(sock)
             else:
                 _log.debug("External ")
                 frames = sock.recv_multipart(copy=False)
-                # for f in frames:
-                #     _log.debug("f in frames {}".format(bytes(f)))
-
 
     def ext_route(self, socket):
-        # Expecting incoming frames:
+        """
+        Handler function for message received through external socket connection
+        :param socket: socket
+        :return:
+        """
+        # Expecting incoming frames to follow this VIP format:
         #   [SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
         frames = socket.recv_multipart(copy=False)
         # for f in frames:
@@ -461,18 +466,15 @@ class Router(BaseRouter):
         sender, proto, user_id, msg_id, subsystem = frames[:5]
         if proto.bytes != b'VIP1':
             return
-        #self._add_peer(sender.bytes)
 
-        # Handle requests directed at the router
+        # Handle 'EXT_RPC' subsystem messages
         name = subsystem.bytes
         if name == 'EXT_RPC':
-            _log.debug("EXT ROUTER::Received EXT_RPC sub system message from external platform")
             # Reframe the frames
             sender, proto, usr_id, msg_id, subsystem, msg = frames[:6]
             msg_data = jsonapi.loads(msg.bytes)
             peer = msg_data['to_peer']
-            _log.debug("EXT ROUTER::Send to: {}".format(peer))
-            #frames[0] = peer
+            #Send to destionation agent/peer
             #Form new frame for local
             frames[:9] = [peer, sender, proto, usr_id, msg_id, 'EXT_RPC', msg]
             try:
@@ -480,14 +482,16 @@ class Router(BaseRouter):
             except ZMQError as ex:
                 _log.debug("ZMQ error: {}".format(ex))
                 pass
+        #Handle 'pubsub' subsystem messages
         elif name == 'pubsub':
-            _log.debug("EXT ROUTER::Received external_pubsub")
             if bytes(frames[1]) == b'VIP1':
                 recipient = b''
                 frames[:1] = [zmq.Frame(b''), zmq.Frame(b'')]
-            # sender, proto, user_id, msg_id, subsystem, op, msg = frames[:7]
-            # frames[:8] = sender, recipient, proto, user_id, msg_id, subsystem, op, msg
+                # for f in frames:
+                #     _log.debug("frames: {}".format(bytes(f)))
             result = self._pubsub.handle_subsystem(frames, user_id)
+            return result
+        #Handle 'routing_table' subsystem messages
         elif name == 'routing_table':
             if bytes(frames[1]) == b'VIP1':
                 frames[:1] = [zmq.Frame(b''), zmq.Frame(b'')]

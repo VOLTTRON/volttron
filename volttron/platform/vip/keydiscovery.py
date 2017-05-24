@@ -63,7 +63,11 @@ class DiscoveryError(StandardError):
     """
     pass
 
+
 class KeyDiscoveryAgent(Agent):
+    """
+    Class to get server keys of external/remote platforms
+    """
     def __init__(self, address, serverkey, identity, external_address_config, bind_web_address, *args, **kwargs):
         super(KeyDiscoveryAgent, self).__init__(identity, address, **kwargs)
         self._external_address_file = external_address_config
@@ -74,52 +78,81 @@ class KeyDiscoveryAgent(Agent):
 
     @Core.receiver('onstart')
     def startup(self, sender, **kwargs):
+        """
+        Try to get server keys of all the remote platforms. If unsuccessful, setup events to try again later
+        :param sender: caller
+        :param kwargs: optional arguments
+        :return:
+        """
         self._vip_socket = self.core.socket
         self._read_platform_address_file()
         for name in self._ext_addresses:
             if self._ext_addresses[name]['bind-web-address'] not in self._my_web_address:
                 web_address = self._ext_addresses[name]['bind-web-address']
-                serverkey = ''
-                try:
-                    serverkey = self._get_serverkey(web_address)
-                except DiscoveryError:
-                    utc_now = utils.get_aware_utc_now()
-                    delay = utc_now + timedelta(seconds=30)
-                    self._grnlets[name] = self.core.schedule(delay, self._delayed_discovery, name, web_address)
-                except ConnectionError:
-                    pass
-
-                if serverkey:
-                    frames = [b'external_serverkey', bytes(serverkey), name]
-                    self._vip_socket.send_vip(b'', 'routing_table', frames, copy=False)
-                else:
-                    utc_now = utils.get_aware_utc_now()
-                    delay = utc_now + timedelta(seconds=30)
-                    self._grnlets[name] = self.core.schedule(delay, self._delayed_discovery, name, web_address)
+                self._distribute_key(name, web_address)
 
     def _delayed_discovery(self, name, web_address):
-        serverkey = self._get_serverkey(web_address)
+        """
+        Try to get serverkey of remote platform. If unsuccessful, try again later
+        :param name: name of remote instance
+        :param web_address: web address of remote instance
+        :return:
+        """
+        serverkey = ''
         self._grnlets[name].cancel()
         self._grnlets.pop(name, None)
+        self._distribute_key(name, web_address)
+
+
+    def _distribute_key(self, name, web_address):
+        """
+            Try to get serverkey of remote instance and send it to RoutingService to connect to the remote instance.
+            If unsuccessful, try again later.
+        :param name: instance name
+        :param web_address: web address of remote instance
+        :return:
+        """
+        serverkey = ''
+        try:
+            serverkey = self._get_serverkey(web_address)
+            _log.debug("Found key")
+        except DiscoveryError:
+            _log.debug("Try again later")
+            # If discovery error, try again later
+            utc_now = utils.get_aware_utc_now()
+            delay = utc_now + timedelta(seconds=2)
+            self._grnlets[name] = self.core.schedule(delay, self._delayed_discovery, name, web_address)
+        except ConnectionError:
+            pass
+
+        # Send the serverkey to RoutingService to establish socket connection with remote platform
         if serverkey:
             frames = [b'external_serverkey', bytes(serverkey), name]
             self._vip_socket.send_vip(b'', 'routing_table', frames, copy=False)
-        else:
-            utc_now = utils.get_aware_utc_now()
-            delay = utc_now + timedelta(seconds=60)
-            self._grnlets[name] = self.core.schedule(delay, self._delayed_discovery, name, web_address)
 
     def _read_platform_address_file(self):
-        # Read protected topics file and send to router
+        """
+        Read the external addresses file
+        :return:
+        """
+
         try:
             with open(self._external_address_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
                 data = FileObject(fil, close=False).read()
                 self._ext_addresses = jsonapi.loads(data) if data else {}
+        except IOError as e:
+            _log.error("Error opening file %", self._external_address_file)
         except Exception:
             _log.exception('error loading %s', self._external_address_file)
 
     def _get_serverkey(self, web_address):
+        """
+        Use http discovery call to get serverkey of remote instance
+        :param web_address: web address of remote instance
+        :return:
+        """
+
         r = {}
         try:
             parsed = urlparse(web_address)
@@ -146,4 +179,6 @@ class KeyDiscoveryAgent(Agent):
                 "Connection to {} not available".format(real_url)
             )
         except Exception as e:
-            return ''
+            raise DiscoveryError(
+                "Unknown Exception".format(e.message)
+            )
