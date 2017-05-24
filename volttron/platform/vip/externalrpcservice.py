@@ -85,13 +85,22 @@ _ROUTE_ERRORS = {
     for errnum in [zmq.EHOSTUNREACH, zmq.EAGAIN]
 }
 
+
 class ExternalRPCService(object):
+    """
+    Class to manage routing of RPC calls between external platforms and internal agents(peers).
+    """
     def __init__(self, socket, routing_service, *args, **kwargs):
         self._ext_router = routing_service
         self._vip_sock = socket
         _log.debug("ExternalRPCService")
 
     def handle_subsystem(self, frames):
+        """
+         EXT_RPC subsystem handler on the server end.
+        :frames list of frames
+        :type frames list
+        """
         response = []
         result = None
 
@@ -103,8 +112,10 @@ class ExternalRPCService(object):
         op = bytes(op)
 
         if subsystem == b'EXT_RPC':
+            #If operation is to send to external platform
             if op == b'send_platform':
                 result = self._send_to_platform(frames)
+            #If operation is to send to internal peer, use the internal router socket to send the frames
             elif op == b'send_peer':
                 result = self._send_to_peer(frames)
             if not result:
@@ -117,8 +128,13 @@ class ExternalRPCService(object):
         return response
 
     def _send_to_platform(self, frames):
+        """
+        Send frames to external platform
+        :param frames: frames following VIP format
+        :return:
+        """
         try:
-            # Reframe the frames
+            #Extract the frames and reorganize to add external platform and peer information
             sender, recipient, proto, usr_id, msg_id, subsystem, op, msg = frames[:9]
             msg_data = jsonapi.loads(bytes(msg))
             to_platform = msg_data['to_platform']
@@ -127,26 +143,26 @@ class ExternalRPCService(object):
             msg_data['from_peer'] = bytes(sender)
             msg = jsonapi.dumps(msg_data)
             op = b'send_peer'
-            # frames[7] = msg
-            # _log.debug(
-            #     "ROUTER: EXT RPC _send_to_platform : sender {0}, recipient {1}, proto {2}, usr_id {3}, msg_id {4}, subsystem {5}, op {6}, msg {7}".
-            #         format(bytes(sender), bytes(recipient), bytes(proto), bytes(usr_id), bytes(msg_id),
-            #                bytes(subsystem), bytes(op), msg))
+
             frames = [b'', proto, usr_id, msg_id, subsystem, op, msg]
-            #_log.debug("ROUTER: Sending EXT RPC message to: {}".format(to_platform))
+            #_log.debug("ROUTER: Sending EXT RernalPC message to: {}".format(to_platform))
+            #Use external socket to send the message
             self._ext_router.send_external(to_platform, frames)
             return False
         except IndexError:
             _log.error("Invalid EXT RPC message")
 
     def _send_to_peer(self, frames):
+        """
+        Send the external RPC message to local peer
+        :param frames: Frames following VIP format
+        :return: frames list
+        """
         try:
-            # Reframe the frames
+            # Extract the frames and reorganize to send to local peer
             sender, recipient, proto, usr_id, msg_id, subsystem, op, msg = frames[:9]
             msg_data = jsonapi.loads(bytes(msg))
             peer = msg_data['to_peer']
-            #_log.debug("EXT ROUTER::Send to peer : {}".format(peer))
-            # Form new frame for local
             frames[0] = bytes(peer)
             drop = self._send_internal(frames)
             return False
@@ -155,6 +171,11 @@ class ExternalRPCService(object):
             _log.error("Invalid EXT RPC message")
 
     def _send_internal(self, frames):
+        """
+        Send message to internal/local peer
+        :param frames: frames
+        :return: peer to be dropped if not reachable
+        """
         drop = []
         peer = bytes(frames[0])
         # Expecting outgoing frames:
