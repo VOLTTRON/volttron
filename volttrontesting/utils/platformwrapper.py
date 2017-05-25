@@ -386,9 +386,10 @@ class PlatformWrapper:
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
                          mode=UNRESTRICTED, bind_web_address=None,
                          volttron_central_address=None,
-                         volttron_central_serverkey=None):
+                         volttron_central_serverkey=None,
+                         msgdebug=False):
 
-        # if not isinstance(vip_address, list):
+      # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
         # else:
         #     self.vip_address = vip_address
@@ -404,6 +405,7 @@ class PlatformWrapper:
             self.jsonrpc_endpoint = "{}/jsonrpc".format(
                 self.bind_web_address)
 
+        msgdebug = self.env.get('MSG_DEBUG', False)
         enable_logging = self.env.get('ENABLE_LOGGING', False)
         debug_mode = self.env.get('DEBUG_MODE', False)
         if not debug_mode:
@@ -412,6 +414,7 @@ class PlatformWrapper:
         if debug_mode:
             self.skip_cleanup = True
             enable_logging = True
+            msgdebug = True
         self.logit(
             "In start up platform enable_logging is {} ".format(enable_logging))
         assert self.mode in MODES, 'Invalid platform mode set: ' + str(mode)
@@ -489,10 +492,13 @@ class PlatformWrapper:
                 "Invalid platform mode specified: {}".format(mode))
 
         log = os.path.join(self.volttron_home, 'volttron.log')
+
+        cmd = ['volttron']
+        if msgdebug:
+            cmd.append('--msgdebug')
         if enable_logging:
-            cmd = ['volttron', '-vv', '-l{}'.format(log)]
-        else:
-            cmd = ['volttron', '-l{}'.format(log)]
+            cmd.append('-vv')
+        cmd.append('-l{}'.format(log))
 
         print('process environment: {}'.format(self.env))
         print('popen params: {}'.format(cmd))
@@ -595,7 +601,7 @@ class PlatformWrapper:
         cmd = ['volttron-ctl', '-vv', 'install', wheel_file]
         if vip_identity:
             cmd.extend(['--vip-identity', vip_identity])
-        self.logit("cmd: {}".format(cmd))
+
         res = subprocess.check_output(cmd, env=env)
         assert res, "failed to install wheel:{}".format(wheel_file)
         agent_uuid = res.split(' ')[-2]
@@ -603,8 +609,10 @@ class PlatformWrapper:
 
         if start:
             self.start_agent(agent_uuid)
+        return agent_uuid
 
         return agent_uuid
+
 
     def install_multiple_agents(self, agent_configs):
         """

@@ -119,7 +119,7 @@ How to :ref:`contribute <contributing>` back:
 Support
 =======
 
-There are several options for VOLTTRON\ :sup:`TM` :ref:`support <VOLTTRON-Community>`.
+There are several options for VOLTTRON\ :sup:`TM` :ref:`support <community>`.
 
 - A VOLTTRON\ :sup:`TM` office hours telecon takes place every other Friday at 11am Pacific over Skype.
 - volttron-community.slack.com is where the VOLTTRON\ :sup:`TM` community at large can ask questions and meet with others using VOLTTRON\ :sup:`TM`.  Signup via https://volttron-community.signup.team/
@@ -146,6 +146,7 @@ Contents:
    devguides/index
    core_services/index
    specifications/index
+   volttron_applications/index
    API Documentation <apidocs>
 
 

@@ -75,8 +75,6 @@ from mock import MagicMock
 
 forwarder_uuid = None
 forwarder_config = {
-
-    "agentid": "forwarder",
     "destination-vip": "",
     "custom_topic_list": [],
     "services_topic_list": [
@@ -87,25 +85,10 @@ forwarder_config = {
     ]
 }
 sqlite_config = {
-    "agentid": "sqlhistorian-sqlite",
     "connection": {
         "type": "sqlite",
         "params": {
             "database": 'test.sqlite'
-        }
-    }
-}
-mysql_config = {
-    "agentid": "sqlhistorian-mysql-1",
-    "identity": "platform.historian",
-    "connection": {
-        "type": "mysql",
-        "params": {
-            "host": "localhost",
-            "port": 3306,
-            "database": "test_historian",
-            "user": "historian",
-            "passwd": "historian"
         }
     }
 }
@@ -603,6 +586,30 @@ def test_log_topic_no_header(publish_agent, query_agent):
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
 
+
+@pytest.mark.historian
+@pytest.mark.forwarder
+def test_old_config(volttron_instances, forwarder):
+    """
+    Test adding 'agentid' and 'identity' to config. identity should be 
+    supported with "deprecated warning" and "agentid" should get ignored with a
+    warning message
+    """
+
+    print("\n** test_old_config **")
+
+    global forwarder_config
+
+    forwarder_config['agentid'] = "test_forwarder_agent_id"
+    forwarder_config['identity'] = "second forwarder"
+
+    # 1: Install historian agent
+    # Install and start sqlhistorian agent in instance2
+    forwarder_uuid = volttron_instance1.install_agent(
+        agent_dir="services/core/ForwardHistorian",
+        config_file=forwarder_config, start=True)
+
+    print("forwarder agent id: ", forwarder_uuid)
 
 @pytest.mark.historian
 @pytest.mark.forwarder

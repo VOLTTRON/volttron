@@ -152,6 +152,43 @@ def load_config(config_path):
         _log.error("Problem parsing agent configuration")
         raise
 
+def update_kwargs_with_config(kwargs, config):
+    """
+    Loads the user defined configurations into kwargs.
+     
+      1. Converts any dash/hyphen in config variables into underscores
+      2. Checks for configured "identity" value. Prints a deprecation 
+      warning and uses it. 
+      3. Checks for configured "agentid" value. Prints a deprecation warning 
+      and ignores it
+      
+    :param kwargs: kwargs to be updated
+    :param config: dictionary of user/agent configuration
+    """
+
+    if config.get('identity') is not None:
+        _log.warning("DEPRECATION WARNING: Setting a historian's VIP IDENTITY"
+                     " from its configuration file will no longer be supported"
+                     " after VOLTTRON 4.0")
+        _log.warning(
+            "DEPRECATION WARNING: Using the identity configuration setting "
+            "will override the value provided by the platform. This new value "
+            "will not be reported correctly by 'volttron-ctl status'")
+        _log.warning("DEPRECATION WARNING: Please remove 'identity' from your "
+                     "configuration file and use the new method provided by "
+                     "the platform to set an agent's identity. See "
+                     "scripts/core/make-mongo-historian.sh for an example of "
+                     "how this is done.")
+
+    if config.get('agentid') is not None:
+        _log.warning("WARNING: Agent id cannot be configured. It is a unique "
+                     "id assigned by VOLTTRON platform. Ignoring configured "
+                     "agentid")
+        config.pop('agentid')
+
+    for k, v in config.items():
+        kwargs[k.replace("-","_")] = v
+
 def parse_json_config(config_str):
     """Parse a JSON-encoded configuration file."""
     return jsonapi.loads(strip_comments(config_str))

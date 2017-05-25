@@ -62,7 +62,8 @@ from csv import DictWriter
 import json
 from os.path import basename
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
-from bacpypes.app import LocalDeviceObject, BIPSimpleApplication
+from bacpypes.app import BIPSimpleApplication
+from bacpypes.service.device import LocalDeviceObject
 from bacpypes.consolelogging import ConfigArgumentParser
 from bacpypes.pdu import Address, GlobalBroadcast
 from bacpypes.core import run, stop
