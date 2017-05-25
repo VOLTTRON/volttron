@@ -728,7 +728,6 @@ class PubSubWithRPC(object):
             if result is not None:
                 result.set_exception(exc)
 
-
     def _unsubscribe(self, results_id, results, parameters):
         """Unsubscribe call using RPC
             param results_id: Asynchronous result ID required to the set response for the caller
