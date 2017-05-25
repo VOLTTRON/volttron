@@ -144,8 +144,7 @@ class RoutingService(object):
                 self._instances[name] = dict(platform_identity=sock.identity,
                                               status=STATUS_CONNECTING,
                                               socket=sock,
-                                              monitor_socket=sock.get_monitor_socket(),
-                                              address=None
+                                              monitor_socket=sock.get_monitor_socket()
                                               )
                 sock.zap_domain = 'vip'
 
@@ -183,7 +182,7 @@ class RoutingService(object):
         ext_platform_address = Address(address)
 
         try:
-            self._instances[instance_name] = address
+            #self._instances[instance_name] = address
             ext_platform_address.connect(sock)
             #Form VIP message to send to remote instance
             frames = [b'', 'VIP1', b'', b'', b'routing_table', b'hello', b'hello', self._my_instance_name]
@@ -277,7 +276,7 @@ class RoutingService(object):
         sock = instance_info['socket']
         mon_sock = instance_info['monitor_socket']
         mon_sock.close()
-        sock.disconnect(instance_info['address'])
+        #sock.disconnect(instance_info['address'])
         #sock.close()
         #del self._instances[instance_name]
 
@@ -413,7 +412,7 @@ class RoutingService(object):
             if op == b'update':
                 result = self._update_entry(frames)
             elif op == b'request_response':
-                _log.debug("Resonse to request")
+                pass
         if result:
             #Form response frame
             response = [sender, recipient, proto, usr_id, msg_id, subsystem]
@@ -439,14 +438,11 @@ class RoutingService(object):
             for vip_id in routing_table:
                 if vip_id in self._routing_table.keys():
                     if vip_id != self._my_vip_id:
-                        _log.debug("ROUTING SERVICE {}".format(vip_id))
                         my_route_list = self._routing_table[vip_id]
                         if len(routing_table[vip_id]) > 0 and len(routing_table[vip_id]) < len(my_route_list):
-                            _log.debug("kdldkfldfkl")
                             my_route_list = [sender]
                             self._routing_table[vip_id] = my_route_list.extend(routing_table[vip_id])
                 else:
-                    _log.debug("here??")
                     route_list = [sender]
                     self._routing_table[vip_id] = route_list.extend(routing_table[vip_id])
             _log.debug("ROUTING SERVICE my routing TABLE: {} ".format(self._routing_table))

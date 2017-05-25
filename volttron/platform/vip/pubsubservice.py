@@ -443,7 +443,7 @@ class PubSubService(object):
             frames[:] = []
             frames[0:7] = b'', proto, user_id, msg_id, subsystem, b'external_publish', topic, data
             for platform_id in external_subscribers:
-                self._logger.debug("PUBSUBSERVICE sending external publish {0}, subscriptions: {1}".format(platform_id, external_subscribers))
+                #self._logger.debug("PUBSUBSERVICE sending external publish {0}, subscriptions: {1}".format(platform_id, external_subscribers))
                 try:
                     if self._ext_router is not None:
                         # Send the message to the external platform

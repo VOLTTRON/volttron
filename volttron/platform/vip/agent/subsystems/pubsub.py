@@ -304,6 +304,25 @@ class PubSub(SubsystemBase):
             return method
         return decorate
 
+    def _peer_push(self, sender, bus, topic, headers, message):
+        """
+            Added for backward compatibility with old pubsub
+            param sender: publisher
+            type sender: str
+            param bus: bus
+            type callback: str
+            param topic: topic for the message
+            type topic: str
+            param headers: header for the message
+            type headers: dict
+            param message: actual message
+            type message: dict
+        """
+        peer = bytes(self.rpc().context.vip_message.peer)
+        handled = 0
+        sender = decode_peer(sender)
+        self._process_callback(sender, bus, topic, headers, message)
+
     def _drop_subscription(self, prefix, callback, bus='', platform='internal'):
         """
         Drop the subscription for the specified prefix, callback and bus.
@@ -415,9 +434,6 @@ class PubSub(SubsystemBase):
             unsub_msg = jsonapi.dumps(subscriptions)
             topics = self._drop_subscription(prefix, callback, bus)
 
-            unsub_msg = jsonapi.dumps(
-                dict(prefix=topics, bus=bus)
-            )
             frames = [b'unsubscribe', unsub_msg]
             self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
             return result
