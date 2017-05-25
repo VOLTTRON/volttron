@@ -204,7 +204,7 @@ def historian(config_path, **kwargs):
             pass
 
     OpenEISHistorian.__name__ = 'OpenEISHistorian'
-    return OpenEISHistorian(**kwargs)
+    return OpenEISHistorian(config, **kwargs)
 
 
 def main(argv=sys.argv):

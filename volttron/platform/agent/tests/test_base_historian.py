@@ -57,7 +57,7 @@ def test_base_historian(volttron_instance):
                                    config_file=master_config)
     gevent.sleep(2)
 
-    db = Historian(address=v1.vip_address[0],
+    db = Historian({}, address=v1.vip_address[0],
                    backup_storage_limit_gb=0.00002)
     gevent.spawn(db.core.run).join(0)
 
