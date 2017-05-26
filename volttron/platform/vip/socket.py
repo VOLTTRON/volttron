@@ -72,12 +72,15 @@ from __future__ import absolute_import
 import base64
 import binascii
 from contextlib import contextmanager
+import logging
+import re
+import sys
 import urllib
 import urlparse
 import uuid
 
 from zmq import (SNDMORE, RCVMORE, NOBLOCK, POLLOUT, DEALER, ROUTER,
-                 curve_keypair)
+                 curve_keypair, ZMQError)
 from zmq.error import Again
 from zmq.utils import z85
 
@@ -86,6 +89,7 @@ __all__ = ['Address', 'ProtocolError', 'Message', 'nonblocking']
 
 BASE64_ENCODED_CURVE_KEY_LEN = 43
 
+_log = logging.getLogger(__name__)
 
 @contextmanager
 def nonblocking(sock):
@@ -152,7 +156,16 @@ class Address(object):
             setattr(self, name, None)
         for name, value in defaults.iteritems():
             setattr(self, name, value)
+
         url = urlparse.urlparse(address, 'tcp')
+
+        # Old versions of python don't correctly parse queries for unknown
+        # schemes. This can cause ipc failures on outdated installations.
+        if not url.query and '?' in url.path:
+            path, query = url.path.split('?')
+            url = url._replace(path=path)
+            url = url._replace(query=query)
+
         self.base = '%s://%s%s' % url[:3]
         if url.fragment:
             self.identity = url.fragment
@@ -226,8 +239,15 @@ class Address(object):
             elif self.username:
                 sock.plain_username = self.username
                 sock.plain_password = self.password or b''
-        (bind_fn or sock.bind)(self.base)
-        self.base = sock.last_endpoint
+        try:
+            (bind_fn or sock.bind)(self.base)
+            self.base = sock.last_endpoint
+        except ZMQError:
+            message = 'Attempted to bind Volttron to already bound address {}, stopping'
+            message = message.format(self.base)
+            _log.error(message)
+            print("\n" + message + "\n")
+            sys.exit(1)
 
     def connect(self, sock, connect_fn=None):
         '''Extended zmq.Socket.connect() to include options in the address.'''

@@ -58,6 +58,7 @@ import ast
 import errno
 import logging
 import sqlite3
+import pytz
 import threading
 from collections import defaultdict
 from datetime import datetime
@@ -71,7 +72,9 @@ from zmq.utils import jsonapi
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-
+from volttron.platform.agent.utils import fix_sqlite3_datetime
+#Make sure sqlite3 datetime adapters are updated.
+fix_sqlite3_datetime()
 
 """
 Implementation of SQLite3 database operation for
@@ -250,19 +253,24 @@ class SqlLiteFuncts(DbDriver):
         where_clauses = ["WHERE topic_id = ?"]
         args = [topic_ids[0]]
 
-        if start is not None:
-            start_str = start.isoformat(' ')
-            where_clauses.append("ts >= ?")
-            if start_str[-6:] != "+00:00":
-                start_str += "+00:00"
-            args.append(start_str)
+        # base historian converts naive timestamps to UTC, but if the
+        # start and end had explicit timezone info then they need to get
+        # converted to UTC since sqlite3 only store naive timestamp
+        if start:
+            start = start.astimezone(pytz.UTC)
+        if end:
+            end = end.astimezone(pytz.UTC)
 
-        if end is not None:
-            end_str = end.isoformat(' ')
-            where_clauses.append("ts <= ?")
-            if end_str[-6:] != "+00:00":
-                end_str += "+00:00"
-            args.append(end_str)
+        if start and end and start == end:
+            where_clauses.append("ts = ?")
+            args.append(start)
+        elif start:
+            where_clauses.append("ts >= ?")
+            args.append(start)
+        elif end:
+            where_clauses.append("ts < ?")
+            args.append(end)
+
 
         where_statement = ' AND '.join(where_clauses)
 

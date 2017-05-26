@@ -62,7 +62,8 @@ import logging
 import argparse
 
 import gevent
-import os
+import json
+from os.path import basename
 
 from volttron.platform.keystore import KeyStore
 
@@ -73,7 +74,7 @@ from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import errors
 from bacpypes.object import get_datatype
-
+from volttron.platform.jsonrpc import RemoteError
 from gevent.event import AsyncResult
 
 from bacpypes.primitivedata import Enumerated, Unsigned, Boolean, Integer, Real, Double
@@ -109,7 +110,7 @@ agent = None
 
 
 def read_props(address, parameters):
-    return agent.vip.rpc.call("platform.bacnet_proxy", "read_properties", address,
+    return agent.vip.rpc.call(agent.proxy_id, "read_properties", address,
                                 parameters).get(timeout=5)
 
 
@@ -179,7 +180,7 @@ def process_object(address, obj_type, index, max_range_report, config_writer):
     try:
         object_name = read_prop(address, obj_type, index, "objectName")
         _log.debug('object name = ' + object_name)
-    except TypeError:
+    except (TypeError,RemoteError):
         object_name = "NO NAME! PLEASE NAME THIS."
         
 #         _log.debug('  object type = ' + obj_type)
@@ -188,7 +189,7 @@ def process_object(address, obj_type, index, max_range_report, config_writer):
     try:
         object_notes = read_prop(address, obj_type, index, "description")
         
-    except TypeError:
+    except (TypeError,RemoteError):
         object_notes = ''
         
     object_units_details = ''
@@ -217,6 +218,8 @@ def process_object(address, obj_type, index, max_range_report, config_writer):
                 pass
             except ValueError:
                 pass
+            except RemoteError:
+                pass
     
         if not object_notes:
             enum_strings=[]
@@ -238,6 +241,8 @@ def process_object(address, obj_type, index, max_range_report, config_writer):
                 object_units_details = 'State count: {}'.format(state_count)
             except TypeError:
                 pass
+            except RemoteError:
+                pass
             
             try:
                 enum_strings=[]
@@ -248,6 +253,8 @@ def process_object(address, obj_type, index, max_range_report, config_writer):
                 object_notes = ', '.join('{}={}'.format(x,y) for x,y in enumerate(enum_strings, start=1))
                     
             except TypeError:
+                pass
+            except RemoteError:
                 pass
             
             if obj_type != 'multiStateInput':
@@ -260,6 +267,8 @@ def process_object(address, obj_type, index, max_range_report, config_writer):
                     pass
                 except ValueError:
                     pass
+                except RemoteError:
+                    pass
                 
         elif obj_type == 'loop':
             object_units = 'Loop'
@@ -268,7 +277,7 @@ def process_object(address, obj_type, index, max_range_report, config_writer):
     else:
         try:
             object_units = read_prop(address, obj_type, index, "units")
-        except TypeError:
+        except (TypeError, RemoteError):
             object_units = 'UNKNOWN UNITS'
             
         if isinstance(object_units, (int, long)):
@@ -282,14 +291,16 @@ def process_object(address, obj_type, index, max_range_report, config_writer):
                     object_notes = 'Resolution: {resolution:.6g}'.format(resolution=res_value)
                 except TypeError:
                     pass
+                except RemoteError:
+                    pass
             
             if obj_type not in ('largeAnalogValue', 'integerValue', 'positiveIntegerValue'):    
                 try:
                     min_value = read_prop(address, obj_type, index, "minPresValue")
                     max_value = read_prop(address, obj_type, index, "maxPresValue")
-                    
-                    has_min = min_value > -max_range_report
-                    has_max = max_value <  max_range_report
+
+                    has_min = (min_value is not None) and (min_value > -max_range_report)
+                    has_max = (max_value is not None) and (max_value < max_range_report)
                     
                     if has_min and has_max:
                         object_units_details = '{min:.2f} to {max:.2f}'.format(min=min_value, max=max_value)
@@ -302,6 +313,8 @@ def process_object(address, obj_type, index, max_range_report, config_writer):
                     #object_units_details = '{min} to {max}'.format(min=min_value, max=max_value)            
                 except TypeError:
                     pass
+                except RemoteError:
+                    pass
             
             if obj_type != 'analogInput':
                 try:
@@ -312,6 +325,8 @@ def process_object(address, obj_type, index, max_range_report, config_writer):
                 except TypeError:
                     pass
                 except ValueError:
+                    pass
+                except RemoteError:
                     pass
    
     _log.debug('  object units = ' + str(object_units))
@@ -341,11 +356,15 @@ def main():
     arg_parser.add_argument("--address",
                             help="Address of target device, may be needed to help route initial request to device." )
     
-    arg_parser.add_argument("--out-file", type=argparse.FileType('wb'),
-                            help="Optional output file for configuration",
+    arg_parser.add_argument("--registry-out-file", type=argparse.FileType('wb'),
+                            help="Output registry to CSV file",
                             default=sys.stdout )
+
+    arg_parser.add_argument("--driver-out-file", type=argparse.FileType('wb'),
+                            help="Output driver configuration to JSON file.",
+                            default=sys.stdout)
     
-    arg_parser.add_argument("--max_range_report", nargs='?', type=float,
+    arg_parser.add_argument("--max-range-report", nargs='?', type=float,
                             help='Affects how very large numbers are reported in the "Unit Details" column of the output. ' 
                             'Does not affect driver behavior.',
                             default=1.0e+20 )
@@ -387,6 +406,17 @@ def main():
 
     target_address = results["address"]
     device_id = results["device_id"]
+
+    config_file_name = basename(args.registry_out_file.name)
+
+    config = {
+        "driver_config": {"device_address": str(target_address),
+                          "device_id": device_id},
+        "driver_type": "bacnet",
+        "registry_config": "config://registry_configs/{}".format(config_file_name)
+    }
+
+    json.dump(config, args.driver_out_file, indent=4)
     
     _log.debug('pduSource = ' + target_address)
     _log.debug('iAmDeviceIdentifier = ' + str(device_id))
@@ -408,7 +438,7 @@ def main():
     
     
     
-    config_writer = DictWriter(args.out_file, 
+    config_writer = DictWriter(args.registry_out_file,
                                ('Reference Point Name',
                                 'Volttron Point Name',
                                 'Units',

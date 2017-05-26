@@ -53,7 +53,7 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 from __future__ import absolute_import, print_function
 
@@ -73,7 +73,7 @@ import weakref
 
 import gevent.event
 from zmq import green as zmq
-from zmq.green import ZMQError, EAGAIN
+from zmq.green import ZMQError, EAGAIN, ENOTSOCK, EADDRINUSE
 from zmq.utils import jsonapi as json
 from zmq.utils.monitor import recv_monitor_message
 
@@ -86,14 +86,12 @@ from .... import platform
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.agent import utils
 
-
 __all__ = ['BasicCore', 'Core', 'killing']
-
 
 _log = logging.getLogger(__name__)
 
 
-class Periodic(object):   # pylint: disable=invalid-name
+class Periodic(object):  # pylint: disable=invalid-name
     '''Decorator to set a method up as a periodic callback.
 
     The decorated method will be called with the given arguments every
@@ -201,7 +199,7 @@ class BasicCore(object):
         del self._owner
         periodics = []
 
-        def setup(member):   # pylint: disable=redefined-outer-name
+        def setup(member):  # pylint: disable=redefined-outer-name
             periodics.extend(
                 periodic.get(member) for periodic in annotations(
                     member, list, 'core.periodics'))
@@ -211,14 +209,16 @@ class BasicCore(object):
                 annotations(member, list, 'core.schedule'))
             for name in annotations(member, set, 'core.signals'):
                 findsignal(self, owner, name).connect(member, owner)
+
         inspect.getmembers(owner, setup)
         heapq.heapify(self._schedule)
 
-        def start_periodics(sender, **kwargs):   # pylint: disable=unused-argument
+        def start_periodics(sender, **kwargs):  # pylint: disable=unused-argument
             for periodic in periodics:
                 sender.spawned_greenlets.add(periodic)
                 periodic.start()
             del periodics[:]
+
         self.onstart.connect(start_periodics)
 
     def loop(self, running_event):
@@ -236,14 +236,16 @@ class BasicCore(object):
         self.spawned_greenlets.add(greenlet)
         return greenlet
 
-    def run(self, running_event=None):   # pylint: disable=method-hidden
+    def run(self, running_event=None):  # pylint: disable=method-hidden
         '''Entry point for running agent.'''
 
         self.setup()
         self.greenlet = current = gevent.getcurrent()
+
         def kill_leftover_greenlets():
             for glt in self.spawned_greenlets:
                 glt.kill()
+
         self.greenlet.link(lambda _: kill_leftover_greenlets())
 
         def handle_async():
@@ -312,6 +314,7 @@ class BasicCore(object):
             self._stop_event.set()
             self.greenlet.join(timeout)
             return self.greenlet.ready()
+
         if gevent.get_hub() is self._stop_event.hub:
             return halt()
         return self.send_async(halt).get()
@@ -332,14 +335,16 @@ class BasicCore(object):
                 result.set(value)
             else:
                 result.set_exception(exc)
+
         async.start(receiver)
 
         def worker():
             try:
                 results[:] = [None, func(*args, **kwargs)]
-            except Exception as exc:   # pylint: disable=broad-except
+            except Exception as exc:  # pylint: disable=broad-except
                 results[:] = [exc, None]
             async.send()
+
         self.send(worker)
         return result
 
@@ -361,8 +366,9 @@ class BasicCore(object):
         def wrapper():
             try:
                 self.send(result.set, func(*args, **kwargs))
-            except Exception as exc:   # pylint: disable=broad-except
+            except Exception as exc:  # pylint: disable=broad-except
                 self.send(result.set_exception, exc)
+
         result.thread = thread = threading.Thread(target=wrapper)
         thread.daemon = True
         thread.start()
@@ -376,7 +382,7 @@ class BasicCore(object):
         return greenlet
 
     @periodic.classmethod
-    def periodic(cls, period, args=None, kwargs=None, wait=0):   # pylint: disable=no-self-argument
+    def periodic(cls, period, args=None, kwargs=None, wait=0):  # pylint: disable=no-self-argument
         return Periodic(period, args, kwargs, wait)
 
     @classmethod
@@ -384,6 +390,7 @@ class BasicCore(object):
         def decorate(method):
             annotate(method, set, 'core.signals', signal)
             return method
+
         return decorate
 
     @dualmethod
@@ -395,21 +402,22 @@ class BasicCore(object):
         return event
 
     @schedule.classmethod
-    def schedule(cls, deadline, *args, **kwargs):   # pylint: disable=no-self-argument
+    def schedule(cls, deadline, *args, **kwargs):  # pylint: disable=no-self-argument
         if hasattr(deadline, 'timetuple'):
-            #deadline = time.mktime(deadline.timetuple())
+            # deadline = time.mktime(deadline.timetuple())
             deadline = utils.get_utc_seconds_from_epoch(deadline)
 
         def decorate(method):
             annotate(method, list, 'core.schedule', (deadline, args, kwargs))
             return method
+
         return decorate
 
 
 class Core(BasicCore):
-    #We want to delay the calling of "onstart" methods until we have confirmation
-    # from the server that we have a connection. We will fire the event when
-    # we hear the response to the hello message.
+    # We want to delay the calling of "onstart" methods until we have
+    # confirmation from the server that we have a connection. We will fire
+    # the event when we hear the response to the hello message.
     delay_onstart_signal = True
 
     # Agents started before the router can set this variable
@@ -419,7 +427,9 @@ class Core(BasicCore):
     def __init__(self, owner, address=None, identity=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
-                 agent_uuid=None, developer_mode=False, reconnect_interval=None):
+                 agent_uuid=None, reconnect_interval=None,
+                 version='0.1'):
+
         self.volttron_home = volttron_home
 
         # These signals need to exist before calling super().__init__()
@@ -436,30 +446,27 @@ class Core(BasicCore):
         self.publickey = publickey
         self.secretkey = secretkey
         self.serverkey = serverkey
-        self.developer_mode = developer_mode
         self.reconnect_interval = reconnect_interval
-
+        self._reconnect_attempt = 0
         self._set_keys()
 
         _log.debug('address: %s', address)
         _log.debug('identity: %s', identity)
         _log.debug('agent_uuid: %s', agent_uuid)
-        _log.debug('severkey: %s', serverkey)
+        _log.debug('serverkey: %s', serverkey)
 
         self.socket = None
         self.subsystems = {'error': self.handle_error}
         self.__connected = False
+        self._version = version
+
+    def version(self):
+        return self._version
 
     def _set_keys(self):
         """Implements logic for setting encryption keys and putting
         those keys in the parameters of the VIP address
         """
-        if self.developer_mode:
-            self.publickey = None
-            self.secretkey = None
-            self.serverkey = None
-            return
-
         self._set_server_key()
         self._set_public_and_secret_keys()
 
@@ -492,17 +499,20 @@ class Core(BasicCore):
 
     def _set_server_key(self):
         if self.serverkey is None:
-           self.serverkey = self._get_keys_from_addr()[2]
+            self.serverkey = self._get_keys_from_addr()[2]
         known_serverkey = self._get_serverkey_from_known_hosts()
 
         if (self.serverkey is not None and known_serverkey is not None
-                and self.serverkey != known_serverkey):
+            and self.serverkey != known_serverkey):
             raise Exception("Provided server key ({}) for {} does "
-                "not match known serverkey ({}).".format(self.serverkey,
-                self.address, known_serverkey))
+                            "not match known serverkey ({}).".format(self.serverkey,
+                                                                     self.address, known_serverkey))
 
-        self.serverkey = known_serverkey
-
+        # Until we have containers for agents we should not require all
+        # platforms that connect to be in the known host file.
+        # See issue https://github.com/VOLTTRON/volttron/issues/1117
+        if known_serverkey is not None:
+            self.serverkey = known_serverkey
 
     def _get_serverkey_from_known_hosts(self):
         known_hosts_file = os.path.join(self.volttron_home, 'known_hosts')
@@ -547,6 +557,7 @@ class Core(BasicCore):
             def onerror(sender, error, **kwargs):
                 if error.subsystem == name:
                     error_handler(sender, error=error, **kwargs)
+
             self.onviperror.connect(onerror)
 
     def handle_error(self, message):
@@ -579,6 +590,8 @@ class Core(BasicCore):
                 return
             _log.error("No response to hello message after 10 seconds.")
             _log.error("A common reason for this is a conflicting VIP IDENTITY.")
+            _log.error("Another common reason is not having an auth entry on"
+                       "the target instance.")
             _log.error("Shutting down agent.")
             _log.error("Possible conflicting identity is: {}".format(
                 self.socket.identity
@@ -605,6 +618,14 @@ class Core(BasicCore):
             if running_event is not None:
                 running_event.set()
 
+        def close_socket(sender):
+            gevent.sleep(2)
+            try:
+                if self.socket is not None:
+                    self.socket.monitor(None, 0)
+                    self.socket.close(1)
+            finally:
+                self.socket = None
 
         def monitor():
             # Call socket.monitor() directly rather than use
@@ -612,23 +633,52 @@ class Core(BasicCore):
             # regular contexts (get_monitor_socket() uses
             # self.context.socket()).
             addr = 'inproc://monitor.v-%d' % (id(self.socket),)
-            self.socket.monitor(addr)
-            try:
-                sock = zmq.Socket(self.context, zmq.PAIR)
-                sock.connect(addr)
-                while True:
-                    message = recv_monitor_message(sock)
-                    self.onsockevent.send(self, **message)
-                    event = message['event']
-                    if event & zmq.EVENT_CONNECTED:
-                        hello()
-                    elif event & zmq.EVENT_DISCONNECTED:
-                        self.__connected = False
-                        self.ondisconnected.send(self)
-            finally:
-                self.socket.monitor(None, 0)
+            sock = None
+            if self.socket is not None:
+                try:
+                    self.socket.monitor(addr)
+                    sock = zmq.Socket(self.context, zmq.PAIR)
+
+                    sock.connect(addr)
+                    while True:
+                        try:
+                            message = recv_monitor_message(sock)
+                            self.onsockevent.send(self, **message)
+                            event = message['event']
+                            if event & zmq.EVENT_CONNECTED:
+                                hello()
+                            elif event & zmq.EVENT_DISCONNECTED:
+                                self.__connected = False
+                            elif event & zmq.EVENT_CONNECT_RETRIED:
+                                self._reconnect_attempt += 1
+                                if self._reconnect_attempt == 50:
+                                    self.__connected = False
+                                    sock.disable_monitor()
+                                    self.stop()
+                                    self.ondisconnected.send(self)
+                            elif event & zmq.EVENT_MONITOR_STOPPED:
+                                break
+                        except ZMQError as exc:
+                            if exc.errno == ENOTSOCK:
+                                break
+
+                except ZMQError as exc:
+                    raise
+                    # if exc.errno == EADDRINUSE:
+                    #     pass
+                finally:
+                    try:
+                        url = list(urlparse.urlsplit(self.address))
+                        if url[0] in ['tcp'] and sock is not None:
+                            sock.close()
+                        if self.socket is not None:
+                            self.socket.monitor(None, 0)
+                    except Exception as exc:
+                        _log.debug("Error in closing the socket: {}".format(exc.message))
+
 
         self.onconnected.connect(hello_response)
+        self.ondisconnected.connect(close_socket)
 
         if self.address[:4] in ['tcp:', 'ipc:']:
             self.spawn(monitor).join(0)
@@ -642,16 +692,21 @@ class Core(BasicCore):
                 try:
                     message = sock.recv_vip_object(copy=False)
                 except ZMQError as exc:
+
                     if exc.errno == EAGAIN:
                         continue
-                    raise
+                    elif exc.errno == ENOTSOCK:
+                        self.socket = None
+                        break
+                    else:
+                        raise
 
                 subsystem = bytes(message.subsystem)
                 # Handle hellos sent by CONNECTED event
                 if (subsystem == b'hello' and
-                        bytes(message.id) == state.ident and
-                        len(message.args) > 3 and
-                        bytes(message.args[0]) == b'welcome'):
+                            bytes(message.id) == state.ident and
+                            len(message.args) > 3 and
+                            bytes(message.args[0]) == b'welcome'):
                     version, server, identity = [
                         bytes(x) for x in message.args[1:4]]
                     self.__connected = True
@@ -678,9 +733,15 @@ class Core(BasicCore):
         # pre-finish
         try:
             self.socket.disconnect(self.address)
+            self.socket.monitor(None, 0)
+            self.socket.close(1)
+        except AttributeError:
+            pass
         except ZMQError as exc:
             if exc.errno != ENOENT:
                 _log.exception('disconnect error')
+        finally:
+            self.socket = None
         yield
 
 

@@ -1,0 +1,9 @@
+[ 
+    "NetworkStatus",
+    "InstantaneousDemand",
+    "PriceCluster",
+    "SummationDelivered",
+    "SummationReceived",
+    "PeakDelivered",
+    "PeakReceived"
+]

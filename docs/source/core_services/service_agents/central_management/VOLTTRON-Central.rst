@@ -18,6 +18,11 @@ VOLTTRON Central will allow you to
 -  Create dynamic graphs from the historians based upon points.
 -  Execute functions on remote platforms.
 
+.note::
+
+    see :ref:`VCM json-rpc web api <VCM-Webservice-API>` for how the web interface
+    works.
+
 Instance Configuration
 ======================
 
@@ -58,7 +63,10 @@ The following is the default configuration file for VOLTTRON Central
         "agentid": "volttron central",
         
         # Authentication for users is handled through a naive password algorithm
-        # Note in the following example the user and password are identical.
+        # Note in the following example the user and password are both admin.
+
+        # DO NOT USE IN PRODUCTION ENVIRONMENT!
+
         # import hashlib
         # hashlib.sha512(password).hexdigest() where password is the plain text password.
         "users" : {
@@ -104,4 +112,3 @@ shell in the root of the VOLTTRON repository execute
 
     # Start the agent
     volttron-ctl start --tag vc
-
