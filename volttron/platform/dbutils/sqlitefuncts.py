@@ -186,6 +186,7 @@ class SqlLiteFuncts(DbDriver):
                        ['meta_table', table_defs['meta_table'], table_prefix])
 
         conn.commit()
+        conn.close()
 
     def setup_aggregate_historian_tables(self, meta_table_name):
         table_names = self.read_tablenames_from_db(meta_table_name)
@@ -304,13 +305,15 @@ class SqlLiteFuncts(DbDriver):
             self.__database,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         values = defaultdict(list)
+        start_t = datetime.utcnow()
         for topic_id in topic_ids:
             rows = c.execute(real_query, args)
             for _id, ts, value in rows:
                 values[id_name_map[topic_id]].append(
                     (utils.format_timestamp(ts), jsonapi.loads(value)))
-
-        _log.debug("QueryResults: " + str(values))
+        _log.debug("Time taken to load results from db:{}".format(
+            datetime.utcnow()-start_t))
+        c.close()
         return values
 
     def insert_meta_query(self):
@@ -508,6 +511,7 @@ class SqlLiteFuncts(DbDriver):
 
         c.execute(stmt)
         c.commit()
+        c.close()
         return True
 
     def insert_aggregate_stmt(self, table_name):
@@ -568,6 +572,7 @@ class SqlLiteFuncts(DbDriver):
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         cursor = c.execute(real_query, args)
         results = cursor.fetchone()
+        c.close()
         if results:
             _log.debug("results got {}, {}".format(results[0], results[1]))
             return results[0], results[1]
