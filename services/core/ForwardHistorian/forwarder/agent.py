@@ -74,6 +74,7 @@ from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_GOOD, Status)
 from volttron.utils.docs import doc_inherit
+from zmq.green import ZMQError, ENOTSOCK
 
 FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()
@@ -303,43 +304,107 @@ class ForwardHistorian(BaseHistorian):
                     # as sent.
                     self.report_handled(handled_records)
                     return
-                else:
-                    handled_records.append(x)
 
-        _log.debug("handled: {} number of items".format(
-            len(to_publish_list)))
-        self.report_handled(handled_records)
+            for x in to_publish_list:
+                topic = x['topic']
+                value = x['value']
+                # payload = jsonapi.loads(value)
+                payload = value
+                headers = payload['headers']
+                headers['X-Forwarded'] = True
+                try:
+                    del headers['Origin']
+                except KeyError:
+                    pass
+                try:
+                    del headers['Destination']
+                except KeyError:
+                    pass
 
-        if timeout_occurred:
-            _log.debug('Sending alert from the ForwardHistorian')
-            status = Status.from_json(self.vip.health.get_status())
-            self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
-                                       status)
-        else:
-            self.vip.health.set_status(
-                STATUS_GOOD,"published {} items".format(
-                    len(to_publish_list)))
+                if gather_timing_data:
+                    add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity,"forwarded")
 
-    @doc_inherit
-    def historian_setup(self):
-        _log.debug("Setting up to forward to {}".format(self.destination_vip))
-        try:
-            agent = build_agent(address=self.destination_vip,
-                                serverkey=self.destination_serverkey,
-                                publickey=self.core.publickey,
-                                secretkey=self.core.secretkey,
-                                enable_store=False)
+                if timeout_occurred:
+                    _log.error(
+                        'A timeout has occurred so breaking out of publishing')
+                    break
+                with gevent.Timeout(30):
+                    try:
+                        _log.debug('debugger: {} {} {}'.format(topic,
+                                                               headers,
+                                                               payload))
 
-        except gevent.Timeout:
-            self.vip.health.set_status(
-                STATUS_BAD, "Timeout in setup of agent")
-            status = Status.from_json(self.vip.health.get_status_json())
-            self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
-                                       status)
-        else:
-            self._target_platform = agent
+                        self._target_platform.vip.pubsub.publish(
+                            peer='pubsub',
+                            topic=topic,
+                            headers=headers,
+                            message=payload['message']).get()
+                    except gevent.Timeout:
+                        _log.debug("Timeout occurred email should send!")
+                        timeout_occurred = True
+                        self._last_timeout = self.timestamp()
+                        self._num_failures += 1
+                        # Stop the current platform from attempting to
+                        # connect
+                        self._target_platform.core.stop()
+                        self._target_platform = None
+                        self.vip.health.set_status(
+                            STATUS_BAD, "Timeout occured")
+                    except Unreachable:
+                        _log.error("Target not reachable. Wait till it's ready!")
+                    except ZMQError as exc:
+                        if exc.errno == ENOTSOCK:
+                            # Stop the current platform from attempting to
+                            # connect
+                            _log.error("Target disconnected. Stopping target platform agent")
+                            self._target_platform = None
+                            self.vip.health.set_status(
+                                STATUS_BAD, "Target platform disconnected")
+                    except Exception as e:
+                        err = "Unhandled error publishing to target platfom."
+                        _log.error(err)
+                        _log.error(traceback.format_exc())
+                        self.vip.health.set_status(
+                            STATUS_BAD, err)
+                        # Before returning lets mark any that weren't errors
+                        # as sent.
+                        self.report_handled(handled_records)
+                        return
+                    else:
+                        handled_records.append(x)
 
+            _log.debug("handled: {} number of items".format(
+                len(to_publish_list)))
+            self.report_handled(handled_records)
 
+            if timeout_occurred:
+                _log.debug('Sending alert from the ForwardHistorian')
+                status = Status.from_json(self.vip.health.get_status())
+                self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
+                                           status)
+            else:
+                self.vip.health.set_status(
+                    STATUS_GOOD,"published {} items".format(
+                        len(to_publish_list)))
+
+        @doc_inherit
+        def historian_setup(self):
+            _log.debug("Setting up to forward to {}".format(destination_vip))
+            try:
+                agent = build_agent(address=destination_vip,
+                                    serverkey=destination_serverkey,
+                                    publickey=self.core.publickey,
+                                    secretkey=self.core.secretkey,
+                                    enable_store=False)
+
+            except gevent.Timeout:
+                self.vip.health.set_status(
+                    STATUS_BAD, "Timeout in setup of agent")
+                status = Status.from_json(self.vip.health.get_status_json())
+                self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
+                                           status)
+            else:
+                self._target_platform = agent
 
 
 def main(argv=sys.argv):

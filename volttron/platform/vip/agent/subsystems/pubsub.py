@@ -228,7 +228,10 @@ class PubSub(SubsystemBase):
 
     def _distribute(self, peer, topic, headers, message=None, bus=''):
         self._check_if_protected_topic(topic)
-        subscriptions = self._peer_subscriptions[bus]
+        try:
+            subscriptions = self._peer_subscriptions[bus]
+        except KeyError:
+            subscriptions = dict()
         subscribers = set()
         for prefix, subscription in subscriptions.iteritems():
             if subscription and topic.startswith(prefix):
