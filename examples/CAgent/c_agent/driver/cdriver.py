@@ -109,7 +109,6 @@ class Interface(BasicRevert, BaseInterface):
         register = self.get_register_by_name(point_name)
         so_get_point = so_lookup_function(self.shared_object,
                                           "get_" + register.point_name)
-
         return so_get_point()
 
     def _set_point(self, point_name, value):
@@ -130,13 +129,9 @@ class Interface(BasicRevert, BaseInterface):
 
         return result
 
-    def parse_config(self, config_string):
-        if config_string is None:
+    def parse_config(self, configDict):
+        if configDict is None:
             return
-
-        f = StringIO(config_string)
-
-        configDict = DictReader(f)
 
         for regDef in configDict:
             #Skip lines that have no address yet.

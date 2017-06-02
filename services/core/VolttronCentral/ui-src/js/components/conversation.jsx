@@ -2,6 +2,7 @@
 
 var $ = require('jquery');
 var React = require('react');
+var ReactDOM = require('react-dom');
 
 var Exchange = require('./exchange');
 var consoleStore = require('../stores/console-store');
@@ -9,7 +10,7 @@ var consoleStore = require('../stores/console-store');
 var Conversation = React.createClass({
     getInitialState: getStateFromStores,
     componentDidMount: function () {
-        var $conversation = $(this.refs.conversation.getDOMNode());
+        var $conversation = $(ReactDOM.findDOMNode(this.refs.conversation));
 
         if ($conversation.prop('scrollHeight') > $conversation.height()) {
             $conversation.scrollTop($conversation.prop('scrollHeight'));
@@ -18,7 +19,7 @@ var Conversation = React.createClass({
         consoleStore.addChangeListener(this._onChange);
     },
     componentDidUpdate: function () {
-        var $conversation = $(this.refs.conversation.getDOMNode());
+        var $conversation = $(ReactDOM.findDOMNode(this.refs.conversation));
 
         $conversation.stop().animate({ scrollTop: $conversation.prop('scrollHeight') }, 500);
     },

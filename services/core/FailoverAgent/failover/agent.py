@@ -297,7 +297,7 @@ class FailoverAgent(Agent):
 
 def main():
     try:
-        utils.vip_main(FailoverAgent)
+        utils.vip_main(FailoverAgent, version=__version__)
     except KeyboardInterrupt:
         pass
 

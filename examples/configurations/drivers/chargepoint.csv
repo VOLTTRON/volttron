@@ -1,0 +1,58 @@
+Volttron Point Name,Attribute Name,Register Name,Port #,Type,Units,Starting Value,Writable,Notes
+stationID,stationID,StationRegister,,string,Format similar to 1:00001,,FALSE,
+stationManufacturer,stationManufacturer,StationRegister,,string,String,,FALSE,
+stationModel,stationModel,StationRegister,,string,String,,FALSE,
+portNumber,portNumber,StationRegister,1,string,Integer,,FALSE,
+stationName,stationName,StationRegister,1,string,String,,FALSE,
+stationMacAddr,stationMacAddr,StationRegister,,string,String (colon separated mac address),,FALSE,
+stationSerialNum,stationSerialNum,StationRegister,,string,String,,FALSE,
+Address,Address,StationRegister,,string,String,,FALSE,
+City,City,StationRegister,,string,String,,FALSE,
+State,State,StationRegister,,string,String,,FALSE,
+Country,Country,StationRegister,,string,String,,FALSE,
+postalCode,postalCode,StationRegister,,string,US Postal code,,FALSE,
+Lat,Lat,StationRegister,1,float,Latitude Coordinate,,FALSE,
+Long,Long,StationRegister,1,float,Longitude Coordinate,,FALSE,
+Reservable,Reservable,StationRegister,1,bool,T/F,,FALSE,
+Level,Level,StationRegister,1,string,"L1, L2, L3",,FALSE,
+Mode,Mode,StationRegister,1,int,"1,2,3",,FALSE,
+Voltage,Voltage,StationRegister,1,float,Configured Voltage,,FALSE,
+Current,Current,StationRegister,1,float,Configured Current,,FALSE,
+Power,Power,StationRegister,1,float,Configured Power,,FALSE,Power supported (kW).
+numPorts,numPorts,StationRegister,,int,Integer,,FALSE,Number of Ports
+Type,Type,StationRegister,,int,Integer or None,,FALSE,
+startTime,startTime,StationRegister,,datetime,Datetime,,FALSE,
+endTime,endTime,StationRegister,,datetime,Datetime,,FALSE,
+minPrice,minPrice,StationRegister,,float,Dollar Amount,,FALSE,
+maxPrice,maxPrice,StationRegister,,float,Dollar Amount,,FALSE,
+unitPricePerHour,unitPricePerHour,StationRegister,,float,Dollar Amount,,FALSE,
+unitPricePerSession,unitPricePerSession,StationRegister,,float,Dollar Amount,,FALSE,
+unitPricePerKWh,unitPricePerKWh,StationRegister,,float,Dollar Amount,,FALSE,
+unitPriceForFirst,unitPriceForFirst,StationRegister,,float,Dollar Amount,,FALSE,
+unitPricePerHourThereafter,unitPricePerHourThereafter,StationRegister,,float,Dollar Amount,,FALSE,
+sessionTime,sessionTime,StationRegister,,datetime,,,FALSE,
+Description,Description,StationRegister,1,string,String,,FALSE,
+mainPhone,mainPhone,StationRegister,,string,Phone Number,,FALSE,
+orgID,orgID,StationRegister,,string,,,FALSE,
+organizationName,organizationName,StationRegister,,string,,,FALSE,
+sgID,sgID,StationRegister,,string,,,FALSE,
+sgName,sgName,StationRegister,,string,,,FALSE,
+currencyCode,currencyCode,StationRegister,,string,,,FALSE,
+Status,Status,StationStatusRegister,1,string,,,FALSE,"AVAILABLE, INUSE, UNREACHABLE, UNKNOWN "
+Status.TimeStamp,TimeStamp,StationStatusRegister,1,datetime,,,FALSE,Timestamp of the last communication between the station and ChargePoint
+Connector,Connector,StationRegister,1,string,,,FALSE,"Connector type. For example: NEMA 5-20R, J1772, ALFENL3, "
+shedState,shedState,LoadRegister,1,integer,0 or 1,0,TRUE,True when load shed limits are in place
+portLoad,portLoad,LoadRegister,1,float,kw,,FALSE,Load in kw
+allowedLoad,allowedLoad,LoadRegister,1,float,kw,,TRUE,Allowed load in kw when shedState is True
+percentShed,percentShed,LoadRegister,1,integer,percent,,TRUE,Percent of max power shed when shedState is True
+alarmType,alarmType,AlarmRegister,,string,,,FALSE,eg. 'GFCI Trip'
+alarmTime,alarmTime,AlarmRegister,,datetime,,,FALSE,
+clearAlarms,clearAlarms,AlarmRegister,,int,,0,TRUE,Sends the clearAlarms query when set to True
+stationRightsProfile,stationRightsProfile,StationRightsRegister,,dictionary,,,FALSE,"Dictionary of sgID, rights name tuples."
+sessionID,sessionID,ChargingSessionRegister,1,string,,,FALSE,
+startTime,startTime,ChargingSessionRegister,1,datetime,,,FALSE,
+endTime,endTime,ChargingSessionRegister,1,datetime,,,FALSE,
+Energy,Energy,ChargingSessionRegister,1,float,,,FALSE,
+rfidSerialNumber,rfidSerialNumber,ChargingSessionRegister,1,string,,,FALSE,
+driverAccountNumber,driverAccountNumber,ChargingSessionRegister,1,string,,,FALSE,
+driverName,driverName,ChargingSessionRegister,1,string,,,FALSE,

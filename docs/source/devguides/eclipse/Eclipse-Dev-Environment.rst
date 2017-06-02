@@ -40,28 +40,33 @@ must have Git :ref:`already installed <VOLTTRON-Prerequisites>` on the
 system and have :ref:`built VOLTTRON <Building-VOLTTRON>`):
 
 If your version of Eclipse does not have the marketplace follow these
-[[instructions\|Manual-Plugin-Install]].
+:ref:`instructions <Manual-Plugin-Install>`.
 
 The project can now be checked out from the repository into Eclipse.
 
-#. | Open the Git view
-   | |Select Git view|
+#. Open the Git view
 
-#. | Clone a Git Repository
-   | |Clone existing repo|
+   |Select Git view|
 
-#. | Fill out the URI: https://github.com/VOLTTRON/volttron
-   | |Clone existing repo|
+#. Clone a Git Repository
 
-#. | Select 3.x branch for latest release (**master for latest stable
-   version**)
-   | |Clone existing repo|
+   |Clone existing repo|
 
-#. | Import the cloned repository as a general project
-   | |Import project|
+#. Fill out the URI: https://github.com/VOLTTRON/volttron
 
-#. | Pick a project name (default volttron) and hit Finish
-   | |Finish import|
+   |Select repo|
+
+#. Select master for latest stable version
+
+   |Select branch repo|
+
+#. Import the cloned repository as a general project
+
+   |Import project|
+
+#. Pick a project name (default volttron) and hit Finish
+
+   |Finish import|
 
 #. Switch to the PyDev perspective
 
@@ -86,15 +91,19 @@ define the python version that PyDev will use for VOLTTRON
 #. Click New
 #. Click Browse and browse to the pydev-python file located in scripts
    directory off of the volttron source
-#. | Click Ok
-   | |Pick Python|
+#. Click Ok
 
-#. | Select All, then uncheck the VOLTTRON root like the picture below
-   | |Pick Python|
+   |Pick Python|
+
+#. Select All, then uncheck the VOLTTRON root like the picture below
+
+   |Select path|
 
 #. Click Ok
 
--  **You may need redo this stage after platform updates**
+.. note::
+
+   You may need redo this stage after platform updates
 
 Make Project a PyDev Project
 ----------------------------
@@ -103,7 +112,7 @@ Make Project a PyDev Project
    project, PyDev-> Set as PyDev Project
 #. Switch to the PyDev perspective (if it has not already switched),
    Window -> Open Perspective -> PyDev
-   |Pick Python|
+   |Set as Pydev|
 
 Eclipse should now be configured to use the project's environment.
 
@@ -119,10 +128,9 @@ Execute VOLTTRON Through Shell
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #. Open a console and cd into the root of the volttron repository.
-#. Execute
-    . env/bin/activate
-#. Execute
-    volttron -vv --developer-mode
+#. Execute `source env/bin/activate`
+#. Execute `volttron -vv`
+
    |Execute VOLTTRON in Shell|
 
 You now have a running VOLTTRON logging to standard out. The next step
@@ -132,25 +140,30 @@ Execute VOLTTRON Through Eclipse
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #. Click Run -> Run Configuration from the Eclipse Main Menu
-#. | Click the New Launch Configuration button
-   | |New Launch Configuration|
+#. Click the New Launch Configuration button
 
-#. | Change the name and select the main module
-   volttron/platform/main.py
-   | |Main Module|
+   |New Launch Configuration|
 
-#. Click the Arguments Tab add '-vv --developer-mode' as in the
-   following image.
+#. Change the name and select the main module `volttron/platform/main.py`
 
--  Change Working Directory to Default
+   |Main Module|
+
+#. Click the Arguments Tab add '-vv' to the arguments and change the working directory to default
+
    |Arguments|
 
-#. Click Run. The following image displays the output of a successfully
-   started platform
+#. Click Run. The following image displays the output of a successfully started platform
+
    |Successful Start|
 
+:ref: _Start-Listener-Eclipse:
 Start a ListenerAgent
 ~~~~~~~~~~~~~~~~~~~~~
+
+.. warning::
+    Before attempting to run an agent in Eclipse, please see the note in: :ref:`AgentDevelopment <Agent_Development>`
+
+
 
 The listener agent will listen to the message bus for any published
 messages. It will also publish a heartbeat message ever 10 seconds (by
@@ -164,13 +177,13 @@ Create a new run configuration entry for the listener agent.
    create a run configuration but fail)
 #. On the menu bar, pick Run -> Run Configurations...
 #. Under Python Run pick "volttron agent.py"
-#. Click on the Arguments tab
-
--  Change Working Directory to Default
+#. Click on the Arguments tab and Change Working Directory to Default
 
 #. In the Environment tab, click new set the variable to AGENT\_CONFIG
-   with the value of /home/\\/git/volttron/examples/ListenerAgent/config
-   |Pick Python|
+   with the value of /home/git/volttron/examples/ListenerAgent/config
+
+   |Listener Vars|
+
 #. Click Run, this launches the agent
 
 You should see the agent start to publish and receive its own heartbeat
@@ -192,4 +205,4 @@ message in the console.
 .. |Main Module| image:: files/volttron-pick-main.png
 .. |Arguments| image:: files/volttron-main-args.png
 .. |Successful Start| image:: files/run-results.png
-.. |Pick Python| image:: files/listener-all-vars.png
+.. |Listener Vars| image:: files/listener-all-vars.png

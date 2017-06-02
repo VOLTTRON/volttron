@@ -163,7 +163,8 @@ class FileWatchPublisher(Agent):
 
 def main(argv=sys.argv):
     """Main method called by the platform."""
-    utils.vip_main(file_watch_publisher, identity='platform.filewatchpublisher')
+    utils.vip_main(file_watch_publisher, identity='platform.filewatchpublisher'
+                   , version=__version__)
 
 
 if __name__ == '__main__':

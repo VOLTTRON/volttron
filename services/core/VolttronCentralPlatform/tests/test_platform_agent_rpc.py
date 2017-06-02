@@ -1,87 +1,166 @@
+import logging
+import pytest
+
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
+from volttron.platform.jsonrpc import RemoteError, UNAUTHORIZED
 from volttron.platform.messaging.health import STATUS_GOOD
 
-import pytest
 from volttrontesting.utils.core_service_installs import add_volttron_central, \
-    add_volttron_central_platform, add_listener
-from volttrontesting.utils.platformwrapper import start_wrapper_platform
+    add_volttron_central_platform, add_listener, add_sqlhistorian
+from volttrontesting.utils.platformwrapper import start_wrapper_platform, \
+    PlatformWrapper
 
-vcp = None
+SQLITE_HISTORIAN_CONFIG = {
+    "connection": {
+        "type": "sqlite",
+        "params": {
+            "database": "{volttron_home}/data/platform.historian.sqlite"
+        }
+    }
+}
+
+
+STANDARD_GET_TIMEOUT = 5
+_log = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="module")
-def setup_platform(request, get_volttron_instances):
-    """ Creates a single instance of VOLTTRON with a VOLTTRON Central Platform
+def setup_platform():
+    """
+    Creates a single instance of VOLTTRON with a VOLTTRON Central Platform,
+    a listener agent, and a sqlite historian that is a platform.historian.
 
     The VOLTTRON Central Platform agent is not registered with a VOLTTRON
     Central Platform.
     """
-    global vcp
-    vcp = get_volttron_instances(1, False)
+    vcp = PlatformWrapper()
 
-    if get_volttron_instances.param == "encrypted":
-        start_wrapper_platform(vcp, with_http=True)
-    else:
-        pytest.skip("Only testing encrypted")
-        start_wrapper_platform(vcp, with_http=False, with_tcp=False)
+    start_wrapper_platform(vcp, with_http=True)
 
     assert vcp
     assert vcp.is_running()
     vcp_uuid = add_volttron_central_platform(vcp)
+    historian_config = SQLITE_HISTORIAN_CONFIG.copy()
+    historian_config['connection']['params']['database'] = \
+        vcp.volttron_home + "/data/platform.historian.sqlite"
+
+    historian_uuid = add_sqlhistorian(vcp, config=historian_config,
+                                      vip_identity='platform.historian')
+    listeneer_uuid = add_listener(vcp, vip_identity="platform.listener")
 
     assert vcp_uuid, "Invalid vcp uuid returned"
     assert vcp.is_agent_running(vcp_uuid), "vcp wasn't running!"
 
-    return vcp
+    assert historian_uuid, "Invalid historian uuid returned"
+    assert vcp.is_agent_running(historian_uuid), "historian wasn't running!"
+
+    assert listeneer_uuid, "Invalid listener uuid returned"
+    assert vcp.is_agent_running(listeneer_uuid), "listener wasn't running!"
+
+    yield vcp
+
+    vcp.shutdown_platform()
+    vcp = None
+
+
+@pytest.fixture(scope="module")
+def vc_agent(setup_platform):
+    """
+    Gets the a volttron central proxy agent to test with.
+
+    The return value is a tuple with the 0th position the instances of the
+    proxy vc agent.  The 1st position will be the identity of the vcp agent
+    that vc should use as its identity for talking with the vcp instances.
+
+    . note::
+
+        Please note that the agent is merely a proxy (mock) type of vc agent.
+
+    :param setup_platform:
+    :return:
+    """
+    agent = setup_platform.build_agent(identity='volttron.central')
+
+    vcp_identity = None
+
+    for peer in agent.vip.peerlist().get(timeout=STANDARD_GET_TIMEOUT):
+        if peer.startswith("vcp"):
+            vcp_identity = peer
+            break
+    if vcp_identity is None:
+        pytest.fail("vcp_identity was not connected to the instance.")
+
+    yield agent, vcp_identity
+
+    agent.core.stop(timeout=STANDARD_GET_TIMEOUT)
 
 
 @pytest.mark.vcp
-def test_list_agents(setup_platform):
-    assert vcp.is_running()
+def test_list_agents(setup_platform, vc_agent, caplog):
 
-    connection = vcp.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM)
+    # split vc_agent into it's respective parts.
+    vc, vcp_identity = vc_agent
 
-    assert VOLTTRON_CENTRAL_PLATFORM in connection.peers()
-
-    agent_list = connection.call("list_agents")
-    assert agent_list and len(agent_list) == 1
+    agent_list = vc.vip.rpc.call(vcp_identity,
+                                 "list_agents").get(timeout=2)
+    assert agent_list and len(agent_list) == 3
 
     try:
-        listener_uuid = add_listener(vcp)
-        agent_list = connection.call("list_agents")
-        assert agent_list and len(agent_list) == 2
-
+        listener_uuid = add_listener(setup_platform)
+        agent_list = vc.vip.rpc.call(vcp_identity,
+                                           "list_agents").get(timeout=2)
+        assert agent_list and len(agent_list) == 4
+    except Exception as e:
+        _log.debug("EXCEPTION: {}".format(e.args))
     finally:
         if listener_uuid:
-            vcp.remove_agent(listener_uuid)
+            setup_platform.remove_agent(listener_uuid)
 
 
 @pytest.mark.vcp
-def test_can_inspect_agent(setup_platform):
-    connection = vcp.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM)
+def test_can_inspect_agent(setup_platform, vc_agent, caplog):
 
-    output = connection.call('inspect')
+    # split vc_agent into it's respective parts.
+    vc, vcp_identity = vc_agent
+
+    output = vc.vip.rpc.call(vcp_identity,
+                             'inspect').get(timeout=3)
+
     methods = output['methods']
+    _log.debug('The methods are {}'.format(methods))
     assert 'list_agents' in methods
     assert 'start_agent' in methods
     assert 'stop_agent' in methods
     assert 'restart_agent' in methods
     assert 'agent_status' in methods
-    assert 'get_device' in methods
     assert 'get_devices' in methods
-    assert 'route_request' in methods
-    assert 'manage' in methods
-    assert 'unmanage' in methods
+    # assert 'route_request' in methods
+    # assert 'manage' in methods
+    # assert 'unmanage' in methods
     assert 'get_health' in methods
-    assert 'reconfigure' in methods
     assert 'get_instance_uuid' in methods
-    assert 'get_manager_key' in methods
-    assert 'list_agent_methods' in methods
+    assert 'status_agents' in methods
 
 
 @pytest.mark.vcp
-def test_can_call_rpc_method(setup_platform):
-    connection = vcp.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM)
+def test_can_call_rpc_method(setup_platform, vc_agent):
+    # split vc_agent into it's respective parts.
+    vc, vcp_identity = vc_agent
 
-    health = connection.call('get_health', timeout=2)
+    health = vc.vip.rpc.call(vcp_identity,
+                             'get_health').get(timeout=STANDARD_GET_TIMEOUT)
     assert health['status'] == STATUS_GOOD
+
+
+@pytest.mark.vcp
+def test_can_get_version(setup_platform, vc_agent):
+    # split vc_agent into it's respective parts.
+    vc, vcp_identity = vc_agent
+
+    # Note this is using vcp because it has the version info not the
+    # vcp_identity
+    version = vc.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
+                               'agent.version').get(timeout=STANDARD_GET_TIMEOUT)
+    #version = setup_platform.call('agent.version', timeout=2)
+    assert version is not None
+    assert version == '4.0'

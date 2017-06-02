@@ -42,7 +42,7 @@ if [ ! -z "$VIP_ADDRESS" ]; then
 fi
 
 
-WHEEL=$(volttron-pkg package $1 | awk -F": " '{ print $2 }')
+WHEEL=$(volttron-pkg package $1 | awk -F"Package created at: " '{ print $2 }')
 
 #Remove newlines
 WHEEL=${WHEEL//$'\n'/}

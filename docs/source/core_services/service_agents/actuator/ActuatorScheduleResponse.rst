@@ -1,3 +1,4 @@
+.. _ActuatorScheduleResponse:
 ActuatorAgent Response
 ----------------------
 

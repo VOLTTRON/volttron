@@ -57,6 +57,7 @@
 
 import logging
 import argparse
+import csv
 
 import gevent
 from volttron.platform.keystore import KeyStore
@@ -74,9 +75,10 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 class BACnetInteraction(Agent):
-    def __init__(self, proxy_id, *args, **kwargs):
-        super(BACnetInteraction, self).__init__(*args, **kwargs)
+    def __init__(self, proxy_id, csv_writer=None, **kwargs):
+        super(BACnetInteraction, self).__init__(**kwargs)
         self.proxy_id = proxy_id
+        self.csv_writer = csv_writer
 
     def send_iam(self, low_device_id=None, high_device_id=None, address=None):
         self.vip.rpc.call(self.proxy_id, "who_is",
@@ -87,6 +89,8 @@ class BACnetInteraction(Agent):
     @PubSub.subscribe('pubsub', topics.BACNET_I_AM)
     def iam_handler(self, peer, sender, bus,  topic, headers, message):
         pprint(message)
+        if self.csv_writer is not None:
+            self.csv_writer.writerow(message)
 
 
 """
@@ -113,14 +117,30 @@ def main():
     arg_parser.add_argument("--proxy-id",
                             help="VIP IDENTITY of the BACnet proxy agent.",
                             default="platform.bacnet_proxy")
+
+    arg_parser.add_argument("--csv-out", dest="csv_out",
+                            help="Write results to the CSV file specified.")
     
     args = arg_parser.parse_args()
 
     _log.debug("initialization")
     _log.debug("    - args: %r", args)
 
+    csv_writer = None
+
+    if args.csv_out is not None:
+        f = open(args.csv_out, "wb")
+        field_names = ["address",
+                       "device_id",
+                       "max_apdu_length",
+                       "segmentation_supported",
+                       "vendor_id"]
+        csv_writer = csv.DictWriter(f, field_names)
+        csv_writer.writeheader()
+
     keystore = KeyStore()
     agent = BACnetInteraction(args.proxy_id,
+                              csv_writer=csv_writer,
                               address=get_address(),
                               volttron_home=get_home(),
                               publickey=keystore.public,

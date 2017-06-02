@@ -66,6 +66,7 @@ import sys
 import uuid
 import wheel
 import tempfile
+import traceback
 
 from wheel.install import WheelFile
 from .packages import *
@@ -116,7 +117,7 @@ def extract_package(wheel_file, install_dir,
     .. code-block:: python
 
         if include_uuid == True
-            install_dir/datadir_name/uuid
+            install_dir/uuid/datadir_name
         else
             install_dir/datadir_name
 
@@ -132,10 +133,10 @@ def extract_package(wheel_file, install_dir,
 
     # Only include the uuid if the caller wants it.
     if include_uuid:
-        if uuid == None:
-            real_dir = os.path.join(real_dir, uuid.uuid4())
+        if specific_uuid == None:
+            real_dir = os.path.join(real_dir, str(uuid.uuid4()))
         else:
-            real_dir = os.path.join(real_dir, uuid)
+            real_dir = os.path.join(real_dir, specific_uuid)
 
     if not os.path.isdir(real_dir):
         os.makedirs(real_dir)
@@ -156,6 +157,17 @@ def repackage(directory, dest=None):
     written in the current working directory if dest is None or in the
     directory given by dest otherwise.
     '''
+    if dest is not None:
+        try:
+            if not os.path.isdir(dest):
+                os.makedirs(dest)
+        except Exception as e:
+            raise AgentPackageError("Unable to create destination directory "
+                                    "{}. Exception {}".format(
+                                    dest, e.message))
+    if not os.path.exists(directory):
+        raise AgentPackageError("Agent directory {} does not "
+                                "exist".format(directory))
     try:
         pkg = UnpackedPackage(directory)
     except ValueError as exc:
@@ -206,12 +218,11 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
         distdir = os.path.join(builddir, 'dist')
         shutil.copytree(agent_dir_to_package, builddir)
         subprocess.check_call([sys.executable, 'setup.py', '--no-user-cfg',
-                               '--quiet', 'bdist_wheel'], cwd=builddir)
+                               'bdist_wheel'], cwd=builddir,
+                              stderr=subprocess.STDOUT)
 
         wheel_name = os.listdir(distdir)[0]
         wheel_path = os.path.join(distdir, wheel_name)
-
-        print "_create_initial_package"
 
         if identity is not None:
             tmp_identity_file_fd, identity_template_filename = tempfile.mkstemp(dir=builddir)
@@ -229,6 +240,8 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
         wheel_dest = os.path.join(wheelhouse, wheel_name)
         shutil.move(wheel_path, wheel_dest)
         return wheel_dest
+    except subprocess.CalledProcessError as ex:
+        traceback.print_last()
     finally:
         shutil.rmtree(tmpdir, True)
 
@@ -411,7 +424,7 @@ def main(argv=sys.argv):
                                        help = 'additional help',
                                        dest='subparser_name')
     package_parser = subparsers.add_parser('package',
-        help="Create agent package (whl) from a directory or installed agent name.")
+        help="Create agent package (whl) from a directory")
 
     package_parser.add_argument('agent_directory',
         help='Directory for packaging an agent for the first time (requires setup.py file).')

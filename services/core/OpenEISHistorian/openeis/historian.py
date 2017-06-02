@@ -66,6 +66,7 @@ import uuid
 import gevent
 import requests
 from requests import ConnectionError
+from volttron.utils.docs import doc_inherit
 from zmq.utils import jsonapi
 
 from volttron.platform.vip.agent import *
@@ -129,7 +130,8 @@ def historian(config_path, **kwargs):
         
         This service will publish to server/api/datasets/append endpoint.
         '''
-        
+
+        @doc_inherit
         def publish_to_historian(self, to_publish_list):
             _log.debug("publish_to_historian number of items: {}"
                        .format(len(to_publish_list)))
@@ -194,9 +196,9 @@ def historian(config_path, **kwargs):
                     "New building/OutdoorAirTemperature": [["2/5/2014 10:00",48.78], ["2/5/2014 10:05",10.12], ["2/5/2014 10:10",48.54]]
                 }
             }
-            '''           
+            '''
 
-
+        @doc_inherit
         def historian_setup(self):
             # TODO Setup connection to openeis.
             pass
@@ -205,15 +207,10 @@ def historian(config_path, **kwargs):
     return OpenEISHistorian(**kwargs)
 
 
-
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
-        utils.vip_main(historian)
-        #utils.default_main(historian,
-        #                   description='Historian agent that saves a history to a sqlite db.',
-        #                   argv=argv,
-        #                   no_pub_sub_socket=True)
+        utils.vip_main(historian, version=__version__)
     except Exception as e:
         print(e)
         _log.exception('unhandled exception')

@@ -1,45 +1,60 @@
 'use strict';
 
-var React = require('react');
-var Router = require('react-router');
+import React from 'react';
+import Router from 'react-router';
+import BaseComponent from './base-component';
+import ControlButton from './control-button';
+import EditSelectButton from './control_buttons/edit-select-button';
+import CheckBox from './check-box';
+import Immutable from 'immutable';
 
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
+var platformsStore = require('../stores/platforms-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
+var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
+var devicesActionCreators = require('../action-creators/devices-action-creators');
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+var wspubsub = require('../lib/wspubsub');
+var authorizationStore = require('../stores/authorization-store');
 
 
-var PlatformsPanelItem = React.createClass({
-    getInitialState: function () {
-        var state = {};
+class PlatformsPanelItem extends BaseComponent {
+    constructor(props) {
+        super(props);
+        this._bind('_onStoresChange', '_expandAll', '_handleArrowClick', '_showCancel', 
+            '_resumeLoad', '_checkItem', '_showTooltip', '_hideTooltip', '_moveTooltip',
+            '_onAddDevices', '_onDeviceConfig');
+
+        this.state = {};
         
-        state.showTooltip = false;
-        state.tooltipX = null;
-        state.tooltipY = null;
-        state.checked = (this.props.panelItem.hasOwnProperty("checked") ? this.props.panelItem.checked : false);
-        state.panelItem = this.props.panelItem;
-        state.children = this.props.panelChildren;
+        this.state.showTooltip = false;
+        this.state.tooltipX = null;
+        this.state.tooltipY = null;
+        this.state.checked = (typeof this.props.panelItem.checked !== "undefined" ? this.props.panelItem.checked : false);
+        this.state.panelItem = this.props.panelItem;
+        this.state.children = this.props.panelChildren;
 
         if (this.props.panelItem.type === "platform")
         {
-            state.notInitialized = true;
-            state.loading = false;
-            state.cancelButton = false;
+            this.state.notInitialized = true;
+            this.state.loading = false;
+            this.state.cancelButton = false;            
         }
-
-        return state;
-    },
-    componentDidMount: function () {
+    }
+    componentDidMount () {
+        var authorization = authorizationStore.getAuthorization();
         platformsPanelItemsStore.addChangeListener(this._onStoresChange);
-    },
-    componentWillUnmount: function () {
+    }
+    componentWillUnmount () {
         platformsPanelItemsStore.removeChangeListener(this._onStoresChange);
-    },
-    _onStoresChange: function () {
+    }
+    _onStoresChange () {
 
         var panelItem = platformsPanelItemsStore.getItem(this.props.itemPath);
-        var panelChildren = platformsPanelItemsStore.getChildren(this.props.panelItem, this.props.itemPath);
+        var panelChildren = platformsPanelItemsStore.getChildren(panelItem, this.props.itemPath);
 
-        var loadingComplete = platformsPanelItemsStore.getLoadingComplete(this.props.panelItem);
+        var loadingComplete = platformsPanelItemsStore.getLoadingComplete(panelItem.uuid);
 
         if (loadingComplete === true || loadingComplete === null)
         {
@@ -47,7 +62,7 @@ var PlatformsPanelItem = React.createClass({
             this.setState({children: panelChildren});
             this.setState({checked: panelItem.checked});
 
-            if (this.props.panelItem.type === "platform")
+            if (panelItem.type === "platform")
             {
                 if (loadingComplete === true)
                 {
@@ -61,15 +76,15 @@ var PlatformsPanelItem = React.createClass({
                 }
             }
         }
-    },
-    _expandAll: function () {
+    }
+    _expandAll () {
         
         platformsPanelActionCreators.expandAll(this.props.itemPath);
-    },
-    _handleArrowClick: function () {
+    }
+    _handleArrowClick () {
         
         if (!this.state.loading) // If not loading, treat it as just a regular toggle button
-        {
+        {   
             if (this.state.panelItem.expanded === null && this.state.panelItem.type === "platform") 
             {
                 this.setState({loading: true});
@@ -95,24 +110,22 @@ var PlatformsPanelItem = React.createClass({
                 this.setState({cancelButton: false});           // the toggle button back to an arrow icon
             }
         }
-    },
-    _showCancel: function () {
+    }
+    _showCancel () {
 
         if (this.state.hasOwnProperty("loading") && (this.state.loading === true))
         {
             this.setState({cancelButton: true});
         }
-    },
-    _resumeLoad: function () {
+    }
+    _resumeLoad () {
 
         if (this.state.hasOwnProperty("loading"))
         {
             this.setState({cancelButton: false});
         }
-    },
-    _checkItem: function (e) {
-
-        var checked = e.target.checked;
+    }
+    _checkItem (checked) {
 
         if (checked)
         {
@@ -124,20 +137,42 @@ var PlatformsPanelItem = React.createClass({
             this.setState({checked: null});
             platformChartActionCreators.removeFromChart(this.props.panelItem);
         }
-    },
-    _showTooltip: function (evt) {
+    }
+    _showTooltip (evt) {
         this.setState({showTooltip: true});
         this.setState({tooltipX: evt.clientX - 60});
         this.setState({tooltipY: evt.clientY - 70});
-    },
-    _hideTooltip: function () {
+    }
+    _hideTooltip () {
         this.setState({showTooltip: false});
-    },
-    _moveTooltip: function (evt) {
+    }
+    _moveTooltip (evt) {
         this.setState({tooltipX: evt.clientX - 60});
         this.setState({tooltipY: evt.clientY - 70});
-    },
-    render: function () {
+    }
+    _onAddDevices (evt) {
+
+        var bacnetProxies = platformsStore.getRunningBacnetProxies(this.state.panelItem.uuid);
+
+        if (bacnetProxies.length)
+        {
+            devicesActionCreators.configureDevices(this.state.panelItem);
+        }
+        else
+        {
+            statusIndicatorActionCreators.openStatusIndicator("error", 
+                "To scan for devices, a BACNet proxy agent for the platform must be installed and running.", null, "left");
+        }
+    }
+    _onDeviceConfig (panelItem) {
+
+        var deviceName = panelItem.path[panelItem.path.length - 1];
+        var platformUuid = panelItem.path[1];
+
+        devicesActionCreators.reconfigureDevice(deviceName, platformUuid);
+    }
+    render () {
+
         var panelItem = this.state.panelItem;
         var itemPath = this.props.itemPath;
         var propChildren = this.state.children;
@@ -170,26 +205,85 @@ var PlatformsPanelItem = React.createClass({
                 arrowClasses.push("loadingSpinner");
             }
         }
+
+        var DevicesButton;
+
+        if (panelItem.type === "platform")
+        {
+            var tooltipX = 20;
+            var tooltipY = 70;
+
+            var devicesTooltip = {
+                "content": "Add Devices",
+                "xOffset": tooltipX,
+                "yOffset": tooltipY
+            };
+
+            DevicesButton = (
+                <ControlButton 
+                    name="addDevicesButton"
+                    tooltip={devicesTooltip}
+                    controlclass="panelItemButton"
+                    nocentering={true}
+                    floatleft={true}
+                    fontAwesomeIcon="cogs"
+                    clickAction={this._onAddDevices}></ControlButton>
+            );
+        }
+
+        var ConfigureButton;
+
+        if (panelItem.type === "device")
+        {
+            var configureTooltip = {
+                content: "Reconfigure Device",
+                xOffset: 40,
+                yOffset: 65
+            }
+
+            ConfigureButton = (
+                <ControlButton 
+                    name={"config-device-" + panelItem.uuid}
+                    tooltip={configureTooltip}
+                    fontAwesomeIcon="wrench"
+                    controlclass="panelItemButton"
+                    nocentering={true}
+                    floatleft={true}
+                    clickAction={this._onDeviceConfig.bind(this, panelItem)}></ControlButton>
+            );
+        }
         
         var ChartCheckbox;
+        var inputStyle;
+        var spinnerStyle;
 
         if (["point"].indexOf(panelItem.type) > -1)
         {
             if (this.state.checked !== null)
             {
-                ChartCheckbox = (<input className="panelItemCheckbox"
-                                    type="checkbox"
-                                    onChange={this._checkItem}
-                                    checked={this.state.checked}></input>);
+                spinnerStyle = {
+                    display: "none"
+                }
             }
             else
             {
-                ChartCheckbox = (
-                    <div className="checkboxSpinner arrowButton">
+                inputStyle = {
+                    display: "none"
+                }
+            }
+
+            ChartCheckbox = (
+                <div>
+                    <CheckBox controlClass="panelItemCheckbox" 
+                        controlStyle={inputStyle}
+                        oncheck={this._checkItem}
+                        selected={((typeof this.state.checked === "undefined" || this.state.checked === null) ? false : this.state.checked)}></CheckBox>
+                    <div className="checkboxSpinner arrowButton"
+                        style={spinnerStyle}>                        
                         <span style={arrowContentStyle}><i className="fa fa-circle-o-notch fa-spin fa-fw"></i></span>
                     </div>
-                )
-            }
+                </div>
+            );            
         }
 
         var tooltipStyle = {
@@ -207,6 +301,13 @@ var PlatformsPanelItem = React.createClass({
                                 ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) );
         }
+
+        var agentInfo;
+
+        if (panelItem.type === "agent")
+        {
+            agentInfo = <div>Identity:&nbsp;{panelItem.identity}</div>;
+        } 
 
         if (this.state.cancelButton)
         {
@@ -249,10 +350,17 @@ var PlatformsPanelItem = React.createClass({
                         grandchildren.push(propChild[childString]);
                     });
 
+                    var itemKey = (typeof propChild.uuid !== "undefined" ? 
+                                    propChild.uuid : 
+                                        propChild.name + this.uuid);
+
                     return (
-                        <PlatformsPanelItem key={propChild.uuid} panelItem={propChild} itemPath={propChild.path} panelChildren={grandchildren}/>
+                        <PlatformsPanelItem key={itemKey} 
+                            panelItem={propChild} 
+                            itemPath={propChild.path} 
+                            panelChildren={grandchildren}/>
                     );
-                }); 
+                }, this.state.panelItem); 
 
             if (children.length > 0)
             {
@@ -270,7 +378,7 @@ var PlatformsPanelItem = React.createClass({
 
         var itemClasses = [];
 
-        if (!panelItem.hasOwnProperty("uuid"))
+        if (!panelItem.uuid)
         {
             itemClasses.push("item_type");
         }
@@ -289,6 +397,17 @@ var PlatformsPanelItem = React.createClass({
                     {panelItem.name}
                 </div>;
 
+        // if (this.state.panelItem.get("type") !== "platform" && 
+        //     this.arrowDiv && 
+        //     this.arrowDiv.classList.contains("loadingSpinner"))
+        // {
+        //     this.arrowDiv.classList.remove("loadingSpinner");
+
+        //     arrowClasses.forEach(function (className) {
+        //         this.arrowDiv.classList.add(className);
+        //     }.bind(this));
+        // }
+
         return (
             <li
                 key={panelItem.uuid}
@@ -296,19 +415,25 @@ var PlatformsPanelItem = React.createClass({
                 style={visibleStyle}
             >
                 <div className="platform-info">
-                    <div className={arrowClasses.join(' ')}
+                    <div ref={function (div){
+                        this.arrowDiv = div;
+                    }.bind(this) }
+                        className={arrowClasses.join(' ')}
                         onDoubleClick={this._expandAll}
                         onClick={this._handleArrowClick}
                         onMouseEnter={this._showCancel}
                         onMouseLeave={this._resumeLoad}>
                         {arrowContent}
-                    </div>  
+                    </div>
+                    {DevicesButton} 
+                    {ConfigureButton}  
                     {ChartCheckbox}                  
                     <div className={toolTipClasses}
                         style={tooltipStyle}>
                         <div className="tooltip_inner">
                             <div className="opaque_inner">
-                                {panelItem.name}:&nbsp;{(panelItem.context ? panelItem.context : panelItem.statusLabel)}
+                                {agentInfo}
+                                Status:&nbsp;{(panelItem.context) ? panelItem.context : panelItem.statusLabel}
                             </div>
                         </div>
                     </div>
@@ -326,7 +451,7 @@ var PlatformsPanelItem = React.createClass({
                 </div>
             </li>
         );
-    },
-});
+    }
+};
 
-module.exports = PlatformsPanelItem;
+export default PlatformsPanelItem;

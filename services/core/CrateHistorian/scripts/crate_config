@@ -1,0 +1,9 @@
+{
+    "connection": {
+        "type": "crate",
+        "schema": "test_import",
+        "params": {
+            "host": "localhost:4200"
+        }
+    }
+}

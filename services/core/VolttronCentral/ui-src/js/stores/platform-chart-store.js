@@ -22,7 +22,7 @@ chartStore.getPinnedCharts = function () {
 
     for (var key in _chartData)
     {
-        if (_chartData[key].hasOwnProperty("pinned") && (_chartData[key].pinned === true) && (_chartData[key].data.length > 0))
+        if (_chartData[key].hasOwnProperty("pinned") && (_chartData[key].pinned === true) && (_chartData[key].series.length > 0))
         {
             pinnedCharts.push(_chartData[key]);
         }
@@ -40,7 +40,7 @@ chartStore.getPinned = function (chartKey) {
 }
 
 chartStore.getType = function (chartKey) {
-    var type = "line";
+    var type = "lineChart";
 
     if (_chartData.hasOwnProperty(chartKey))
     {
@@ -53,36 +53,12 @@ chartStore.getType = function (chartKey) {
     return type;
 }
 
-chartStore.getMin = function (chartKey) {
-    var min;
-
-    if (_chartData.hasOwnProperty(chartKey))
-    {
-        if (_chartData[chartKey].hasOwnProperty("min"))
-        {
-            min = _chartData[chartKey].min;
-        }
-    }
-
-    return min;
-}
-
-chartStore.getMax = function (chartKey) {
-    var max;
-
-    if (_chartData.hasOwnProperty(chartKey))
-    {
-        if (_chartData[chartKey].hasOwnProperty("max"))
-        {
-            max = _chartData[chartKey].max;
-        }
-    }
-
-    return max;
-}
-
 chartStore.getRefreshRate = function (chartKey) {
     return (_chartData.hasOwnProperty(chartKey) ? _chartData[chartKey].refreshInterval : null);
+}
+
+chartStore.getDataLength = function (chartKey) {
+    return (_chartData.hasOwnProperty(chartKey) ? _chartData[chartKey].dataLength : null);
 }
 
 chartStore.showCharts = function () {
@@ -178,13 +154,11 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
                 {
                     var chartObj = {
                         refreshInterval: (action.panelItem.hasOwnProperty("refreshInterval") ? action.panelItem.refreshInterval :15000),
+                        dataLength: (action.panelItem.hasOwnProperty("dataLength") ? action.panelItem.dataLength : 20),
                         pinned: (action.panelItem.hasOwnProperty("pinned") ? action.panelItem.pinned : false),
-                        type: (action.panelItem.hasOwnProperty("chartType") ? action.panelItem.chartType : "line"),
-                        data: convertTimeToSeconds(action.panelItem.data),
+                        type: (action.panelItem.hasOwnProperty("chartType") ? action.panelItem.chartType : "lineChart"),
                         chartKey: action.panelItem.name,
-                        min: (action.panelItem.hasOwnProperty("min") ? action.panelItem.min : null),
-                        max: (action.panelItem.hasOwnProperty("max") ? action.panelItem.max : null),
-                        series: [ setChartItem(action.panelItem) ]
+                        series: [ setChartSeries(action.panelItem, convertTimeToSeconds(action.panelItem.data)) ]
                     };
 
                     _chartData[action.panelItem.name] = chartObj;
@@ -244,17 +218,12 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
             break;
 
-        case ACTION_TYPES.CHANGE_CHART_MIN:
+        case ACTION_TYPES.CHANGE_CHART_LENGTH:
 
-            _chartData[action.chartKey].min = action.min;
-
-            chartStore.emitChange();
-
-            break;
-
-        case ACTION_TYPES.CHANGE_CHART_MAX:
-
-            _chartData[action.chartKey].max = action.max;
+            if (_chartData[action.chartKey].hasOwnProperty("dataLength"))
+            {
+                _chartData[action.chartKey].dataLength = action.length;
+            }
 
             chartStore.emitChange();
 
@@ -360,7 +329,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             break;
     }
 
-    function setChartItem(item) {
+    function setChartSeries(item, data) {
 
         var chartItem = {
             name: item.name,
@@ -369,7 +338,8 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             parentUuid: item.parentUuid,
             parentType: item.parentType,
             parentPath: item.parentPath,
-            topic: item.topic
+            topic: item.topic,
+            data: data
         }
 
         return chartItem;
@@ -377,41 +347,22 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
     function insertSeries(item) {
 
-        var chartItems = _chartData[item.name].data.filter(function (datum) {
-            return datum.uuid === item.uuid
-        });
-
-        if (chartItems.length === 0)
-        {
-            if (item.hasOwnProperty("data"))
-            {
-                _chartData[item.name].data = _chartData[item.name].data.concat(convertTimeToSeconds(item.data));
-                _chartData[item.name].series.push(setChartItem(item));
-            }
+        if (item.hasOwnProperty("data"))
+        {   
+            _chartData[item.name].series.push(setChartSeries(item, convertTimeToSeconds(item.data)));
         }
 
     }
 
     function removeSeries(name, uuid) {
 
-        if (_chartData[name].data.length > 0)
+        for (var i = 0; i < _chartData[name].series.length; i++)
         {
-            for (var i = _chartData[name].data.length - 1; i >= 0; i--)
+            if (_chartData[name].series[i].uuid === uuid)
             {
-                if (_chartData[name].data[i].uuid === uuid)
-                {
-                    _chartData[name].data.splice(i, 1);
-                }                    
-            }
+                _chartData[name].series.splice(i, 1);
 
-            for (var i = 0; i < _chartData[name].series.length; i++)
-            {
-                if (_chartData[name].series[i].uuid === uuid)
-                {
-                    _chartData[name].series.splice(i, 1);
-
-                    break;
-                }
+                break;
             }
         }
     }
