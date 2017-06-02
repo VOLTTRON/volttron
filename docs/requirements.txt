@@ -8,3 +8,4 @@ psutil
 pymongo
 mysql-connector-python-rf
 pywsgi
+paho-mqtt
