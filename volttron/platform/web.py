@@ -72,7 +72,7 @@ from ws4py.websocket import WebSocket
 from ws4py.server.geventserver import (WebSocketWSGIApplication,
                                        WebSocketWSGIHandler,
                                        WSGIServer)
-
+import zlib
 
 import mimetypes
 
@@ -645,7 +645,7 @@ class MasterWebService(Agent):
                            [('Content-Type', 'application/json')])
             return jsonapi.dumps(res)
 
-        # If this is a tuple then we know we are goint to have a response
+        # If this is a tuple then we know we are going to have a response
         # and a headers portion of the data.
         if isinstance(res, tuple) or isinstance(res, list):
             if len(res) != 2:
@@ -655,8 +655,15 @@ class MasterWebService(Agent):
                 return [b'Invalid response tuple (must contain 2 elements)']
 
             response, headers = res
-            start_response('200 OK', headers)
-            return response
+            header_dict = dict(headers)
+            if header_dict.get('Content-Encoding', None) == 'gzip':
+                gzip_compress = zlib.compressobj(9, zlib.DEFLATED,
+                                                 zlib.MAX_WBITS | 16)
+                data = gzip_compress.compress(response) + gzip_compress.flush()
+                start_response('200 OK', headers)
+                return data
+            else:
+                return response
         else:
             start_response('200 OK',
                            [('Content-Type', 'application/json')])

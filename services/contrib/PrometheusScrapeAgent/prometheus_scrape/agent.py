@@ -4,6 +4,7 @@
 import logging
 import sys
 import re
+import zlib
 from collections import defaultdict
 
 from volttron.platform.agent import utils
@@ -28,9 +29,10 @@ class PrometheusScrapeAgent(Agent):
         else:
             self._config_dict = utils.load_config(config_path)
         self._cache = defaultdict(dict)
-        self._cache_time = self._config_dict.get('cache_timeout', 660)
-        self._tag_delimiter_re = self._config_dict.get('tag_delimiter_re',
-                                                       "\s+|:|_|\.|/")
+        if "cache_timeout" in self._config_dict:
+            self._cache_time = self._config_dict['cache_timeout']
+        else:
+            self._cache_time = 660
 
     @Core.receiver("onstart")
     def _starting(self, sender, **kwargs):
@@ -52,8 +54,7 @@ class PrometheusScrapeAgent(Agent):
                 device_tags = device.replace("-", "_").split('/')
                 for topic, value in device_topics.iteritems():
                     if value[1] + self._cache_time > scrape_time:
-                        metric_props = re.split(self._tag_delimiter_re,
-                                                topic.lower())
+                        metric_props = re.split("\s+|:|_|\.|/|>", topic.lower())
                         metric_tag_str = (
                             "campus=\"{}\",building=\"{}\","
                             "device=\"{}\",").format(*device_tags)
@@ -75,7 +76,8 @@ class PrometheusScrapeAgent(Agent):
             for topic in delete_topics:
                 del self._cache[device][topic]
 
-        return result, [('Content-Type', 'text/plain')]
+        return (result, [('Content-Type', 'text/plain'),
+                         ('Content-Encoding', 'gzip')])
 
     def _clean_compat(self, sender, topic, headers, message):
         try:
