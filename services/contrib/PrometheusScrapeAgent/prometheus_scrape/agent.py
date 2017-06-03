@@ -4,7 +4,6 @@
 import logging
 import sys
 import re
-import zlib
 from collections import defaultdict
 
 from volttron.platform.agent import utils
