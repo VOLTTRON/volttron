@@ -3,8 +3,6 @@ enum34==1.1.6
 funcsigs==1.0.2
 monotonic==1.2
 pbr==1.10.0
-ply==3.9
-psutil==4.3.1
 py==1.4.31
 pymodbus==1.2.0
 pyserial==3.1.1
