@@ -25,5 +25,5 @@ ply
 psutil
 pymongo
 mysql-connector-python-rf
-py4py
+ws4py
 paho-mqtt
