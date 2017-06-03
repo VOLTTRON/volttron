@@ -14,7 +14,6 @@ simplejson==3.8.2
 six==1.10.0
 Twisted==16.4.1
 ujson==1.35
-ws4py==0.3.5
 zope.interface==4.3.2
 tzlocal
 mock
