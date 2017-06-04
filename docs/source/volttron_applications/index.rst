@@ -14,4 +14,5 @@ provides user guides and other documents for those contributions.
     :maxdepth: 1
 
    Simulated-Drivers
+   ven_agent
    *
