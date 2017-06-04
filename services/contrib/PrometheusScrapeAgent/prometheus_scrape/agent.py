@@ -37,6 +37,7 @@ class PrometheusScrapeAgent(Agent):
     @Core.receiver("onstart")
     def _starting(self, sender, **kwargs):
         self.vip.web.register_endpoint('/promscrape', self.scrape, "raw")
+        self.vip.web.register_endpoint('/promscrapetest', self.web_test)
         self.vip.pubsub.subscribe(peer='pubsub',
                                   prefix=topics.DRIVER_TOPIC_BASE,
                                   callback=self._capture_device_data)
@@ -44,6 +45,9 @@ class PrometheusScrapeAgent(Agent):
     @Core.receiver("onstop")
     def _stopping(self, sender, **kwargs):
         pass
+
+    def web_test(self, env, data):
+        return {"data": "another test and stuff", "otherdata": "more testing yo"}
 
     def scrape(self, env, data):
         scrape_time = get_utc_seconds_from_epoch()
