@@ -120,7 +120,7 @@ class WebSubSystem(SubsystemBase):
 
     def register_path(self, prefix, static_path):
         """
-        The :meth:`register_endpoint` method registers a prefix that can be used
+        The :meth:`register_path` method registers a prefix that can be used
         for routing static files.
 
         .. versionadded:: VOLTTRON 4.0.1
@@ -132,7 +132,7 @@ class WebSubSystem(SubsystemBase):
         :type prefix: str
         :type static_path: str
         """
-        _log.info('Registirng path prefix: {}, path: {}'.format(
+        _log.info('Registering path prefix: {}, path: {}'.format(
             prefix, static_path
         ))
         self._rpc().call(MASTER_WEB, 'register_path_route', prefix,

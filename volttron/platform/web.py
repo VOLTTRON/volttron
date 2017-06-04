@@ -474,8 +474,10 @@ class MasterWebService(Agent):
             self.registeredroutes = out
         del self.pathroutes[peer]
 
+        _log.debug(self.endpoints)
         endpoints = self.endpoints.copy()
         endpoints = {i:endpoints[i] for i in endpoints if endpoints[i][0] != peer}
+        _log.debug(endpoints)
         self.endpoints = endpoints
 
     @RPC.export
@@ -610,13 +612,14 @@ class MasterWebService(Agent):
                            .format(k.pattern, path_info, v))
                 _log.debug('registered route t is: {}'.format(t))
                 if t == 'callable':  # Generally for locally called items.
-                   return v(env, start_response, data)
-                elif t == 'peer_route':  # RPC calls from agents on the platform.
+                    return v(env, start_response, data)
+                elif t == 'peer_route':  # RPC calls from agents on the platform
                     _log.debug('Matched peer_route with pattern {}'.format(
                         k.pattern))
                     peer, fn = (v[0], v[1])
                     res = self.vip.rpc.call(peer, fn, passenv, data).get(
                         timeout=120)
+                    _log.debug(res)
                     return self.create_response(res, start_response)
 
                 elif t == 'path':  # File service from agents on the platform.
@@ -666,7 +669,7 @@ class MasterWebService(Agent):
                            [('Content-Type', 'application/json')])
             return jsonapi.dumps(res)
 
-        # If this is a tuple then we know we are goint to have a response
+        # If this is a tuple then we know we are going to have a response
         # and a headers portion of the data.
         if isinstance(res, tuple) or isinstance(res, list):
             if len(res) != 2:
