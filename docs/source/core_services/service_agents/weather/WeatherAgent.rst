@@ -1,3 +1,5 @@
+.. _WeatherAgent:
+
 Weather Agent
 =============
 

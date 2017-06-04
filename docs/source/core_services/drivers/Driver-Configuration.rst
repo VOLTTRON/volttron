@@ -328,6 +328,7 @@ The following columns are required for each row:
             
     - **Writable** - Either "TRUE" or "FALSE". Determines if the point can be written to. Only points labeled TRUE can be written to through the ActuatorAgent.
     - **Point Address** - Modbus address of the point. Cannot include any offset value, it must be the exact value of the address.
+    - **Mixed Endian** - (Optional) Either "TRUE" or "FALSE". For mixed endian values. This will reverse the order of the MODBUS registers that make up this point before parsing the value or writing it out to the device. Has no effect on bit values.
 
 The following column is optional:
 

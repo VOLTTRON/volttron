@@ -23,5 +23,9 @@
     "--databases": {
         "help": "Installs support for all known databases",
         "packages": ["pymongo", "mysql-connector-python-rf"]
+    },
+    "--documentation": {
+        "help": "Installs requirements for building the documentation",
+        "packages": ["sphinx", "mock", "psutil","pymongo","mysql-connector-python-rf"]
     }
 }

@@ -332,6 +332,7 @@ class BaseHistorianAgent(Agent):
                  backup_storage_limit_gb=None,
                  topic_replace_list=None,
                  gather_timing_data=False,
+                 readonly=False,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -354,6 +355,7 @@ class BaseHistorianAgent(Agent):
         self._successful_published = set()
         self._topic_replace_map = {}
         self._event_queue = Queue()
+        self._readonly = readonly
         self._process_thread = Thread(target=self._process_loop)
         self._process_thread.daemon = True  # Don't wait on thread to exit.
         self._process_thread.start()
@@ -404,9 +406,13 @@ class BaseHistorianAgent(Agent):
         Subscribes to the platform message bus on the actuator, record,
         datalogger, and device topics to capture data.
         """
-        _log.debug("Starting base historian")
+        if self._readonly:
+            _log.debug("Starting base historian in readonly mode. Historian"
+                       "will not subscribe to any topic")
+        else:
+            self._create_subscriptions()
+            _log.debug("Starting base historian")
 
-        self._create_subscriptions()
 
         self._started = True
 
@@ -418,21 +424,21 @@ class BaseHistorianAgent(Agent):
         Release subscription to the message bus because we are no longer able
         to respond to messages now.
         """
-        try:
-            # unsubscribes to all topics that we are subscribed to.
-            self.vip.pubsub.unsubscribe(peer='pubsub', prefix=None,
-                                        callback=None)
-        except KeyError:
-            # means that the agent didn't start up properly so the pubsub
-            # subscriptions never got finished.
-            pass
+        if not self._readonly:
+            try:
+                # unsubscribes to all topics that we are subscribed to.
+                self.vip.pubsub.unsubscribe(peer='pubsub', prefix=None,
+                                            callback=None)
+            except KeyError:
+                # means that the agent didn't start up properly so the pubsub
+                # subscriptions never got finished.
+                pass
 
-    def parse_table_def(self, config):
+    def parse_table_def(self, tables_def):
         default_table_def = {"table_prefix": "",
                              "data_table": "data",
                              "topics_table": "topics",
                              "meta_table": "meta"}
-        tables_def = config.get('tables_def', None)
         if not tables_def:
             tables_def = default_table_def
         table_names = dict(tables_def)
@@ -448,35 +454,48 @@ class BaseHistorianAgent(Agent):
             "aggregate_" + tables_def["meta_table"]
         return tables_def, table_names
 
-    def _get_topic(self, input_topic):
+    def get_renamed_topic(self, input_topic):
+        """
+        replace topic name based on configured topic replace list, is any
+        :param input_topic: 
+        :return: 
+        """
         output_topic = input_topic
+        _log.debug(
+            "_topic_replace_list  is {}".format(self._topic_replace_list))
+        input_topic_lower = input_topic.lower()
         # Only if we have some topics to replace.
         if self._topic_replace_list:
             # if we have already cached the topic then return it.
-            if input_topic in self._topic_replace_map.keys():
-                output_topic = self._topic_replace_map[input_topic]
+            if input_topic_lower in self._topic_replace_map.keys():
+                output_topic = self._topic_replace_map[input_topic_lower]
             else:
-                self._topic_replace_map[input_topic] = input_topic
+                self._topic_replace_map[input_topic_lower] = input_topic
                 temptopics = {}
                 for x in self._topic_replace_list:
-                    if x['from'] in input_topic:
+                    if x['from'].lower() in input_topic_lower:
                         # this allows multiple things to be replaced from
                         # from a given topic.
-                        new_topic = temptopics.get(input_topic, input_topic)
-                        temptopics[input_topic] = new_topic.replace(
-                            x['from'], x['to'])
+                        new_topic = temptopics.get(input_topic_lower,
+                                                   input_topic)
+                        # temptopics[input_topic] = new_topic.replace(
+                        #     x['from'], x['to'])
+
+                        temptopics[input_topic_lower] = re.compile(
+                            re.escape(x['from']), re.IGNORECASE).sub(x['to'],
+                            new_topic)
 
                 for k, v in temptopics.items():
                     self._topic_replace_map[k] = v
-                output_topic = self._topic_replace_map[input_topic]
-
+                output_topic = self._topic_replace_map[input_topic_lower]
+        _log.debug("Output topic after replacements {}".format(output_topic))
         return output_topic
 
     def _capture_record_data(self, peer, sender, bus, topic, headers,
                              message):
         _log.debug('Capture record data {}'.format(topic))
         # Anon the topic if necessary.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
         timestamp_string = headers.get(headers_mod.DATE, None)
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
@@ -499,7 +518,7 @@ class BaseHistorianAgent(Agent):
         """Capture log data and submit it to be published by a historian."""
 
         # Anon the topic if necessary.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
         try:
             # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
@@ -562,7 +581,7 @@ class BaseHistorianAgent(Agent):
             return
 
         # Anon the topic if necessary.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
 
         # Because of the above if we know that all is in the topic so
         # we strip it off to get the base device
@@ -578,7 +597,7 @@ class BaseHistorianAgent(Agent):
         """
 
         # Anon the topic.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
 
         if topic.endswith('/'):
             topic = topic[:-1]
@@ -595,7 +614,7 @@ class BaseHistorianAgent(Agent):
     def _capture_data(self, peer, sender, bus, topic, headers, message,
                       device):
         # Anon the topic if necessary.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
         timestamp_string = headers.get(headers_mod.DATE, None)
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
@@ -651,7 +670,7 @@ class BaseHistorianAgent(Agent):
         """Capture actuation data and submit it to be published by a historian.
         """
         # Anon the topic if necessary.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
         timestamp_string = headers.get('time')
         if timestamp_string is None:
             _log.error(
@@ -701,13 +720,19 @@ class BaseHistorianAgent(Agent):
 
         _log.debug("Starting process loop.")
 
-        backupdb = BackupDatabase(self, self._backup_storage_limit_gb)
-
         # Sets up the concrete historian
+        # call this method even in case of readonly mode in case historian
+        # is setting up connections that are shared for both query and write
+        # operations
         self.historian_setup()
+
+        if self._readonly:
+            _log.info("Historian setup in readonly mode.")
+            return
 
         # Record the names of data, topics, meta tables in a metadata table
         self.record_table_definitions(self.volttron_table_defs)
+        backupdb = BackupDatabase(self, self._backup_storage_limit_gb)
 
         # now that everything is setup we need to make sure that the topics
         # are synchronized between

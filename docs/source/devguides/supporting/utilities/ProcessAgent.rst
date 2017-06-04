@@ -1,3 +1,5 @@
+.. _ProcessAgent:
+
 Process Agent
 =============
 

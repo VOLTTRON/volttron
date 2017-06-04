@@ -6,7 +6,7 @@ import logging
 _log = logging.getLogger(__name__)
 __version__ = '0.1'
 
-def get_mongo_client(connection_params):
+def get_mongo_client(connection_params, **kwargs):
 
             database_name = connection_params['database']
             hosts = connection_params['host']
@@ -41,7 +41,7 @@ def get_mongo_client(connection_params):
                 mongo_uri = mongo_uri + '?authSource={authSource}'
                 params['authSource'] = connection_params['authSource']
             mongo_uri = mongo_uri.format(**params)
-            mongoclient = pymongo.MongoClient(mongo_uri)
+            mongoclient = pymongo.MongoClient(mongo_uri, **kwargs)
 
             return mongoclient
 

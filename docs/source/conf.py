@@ -337,8 +337,9 @@ def generate_apidoc(app):
     os.makedirs(apidocs_base_dir, 0755)
     file_name = os.path.join(script_dir,"../docs_exclude_list.txt" )
     services_excludes = []
-    volttron_excludes = []
+    volttron_excludes = ['tests/**/*']
     examples_excludes = []
+
     if os.path.exists(file_name):
         print "file_name {} exists".format(file_name)
         with open(file_name,'r') as file:
@@ -365,7 +366,6 @@ def generate_apidoc(app):
     run_apidoc(docs_subdir, agent_dirs, examples_excludes)
 
     # generate api-docs for platform core and drivers
-
     sys.path.insert(0,
                     os.path.abspath(script_dir + "/../../volttron"))
     print("Added to sys path***: {}".format(os.path.abspath(script_dir + "/../..")))
