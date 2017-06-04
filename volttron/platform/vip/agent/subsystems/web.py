@@ -91,7 +91,7 @@ class WebSubSystem(SubsystemBase):
 
         core.onstop.connect(onstop, self)
 
-    def register_endpoint(self, endpoint, callback):
+    def register_endpoint(self, endpoint, callback, res_type="jsonrpc"):
         """
         The :meth:`register_endpoint` method registers an endpoint with the
         :class:`volttron.platform.web.MasterWebService` on the VOLTTRON
@@ -116,7 +116,7 @@ class WebSubSystem(SubsystemBase):
         """
         _log.info('Registering route endpoint: {}'.format(endpoint))
         self._endpoints[endpoint] = callback
-        self._rpc().call(MASTER_WEB, 'register_endpoint', endpoint)
+        self._rpc().call(MASTER_WEB, 'register_endpoint', endpoint, res_type)
 
     def register_path(self, prefix, static_path):
         """

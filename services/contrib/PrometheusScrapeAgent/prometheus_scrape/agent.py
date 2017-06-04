@@ -4,6 +4,8 @@
 import logging
 import sys
 import re
+import zlib
+import base64
 from collections import defaultdict
 
 from volttron.platform.agent import utils
@@ -34,7 +36,7 @@ class PrometheusScrapeAgent(Agent):
 
     @Core.receiver("onstart")
     def _starting(self, sender, **kwargs):
-        self.vip.web.register_endpoint('/promscrape', self.scrape)
+        self.vip.web.register_endpoint('/promscrape', self.scrape, "raw")
         self.vip.pubsub.subscribe(peer='pubsub',
                                   prefix=topics.DRIVER_TOPIC_BASE,
                                   callback=self._capture_device_data)
@@ -74,8 +76,12 @@ class PrometheusScrapeAgent(Agent):
         for device, delete_topics in keys_to_delete.iteritems():
             for topic in delete_topics:
                 del self._cache[device][topic]
+        gzip_compress = zlib.compressobj(9, zlib.DEFLATED,
+                                         zlib.MAX_WBITS | 16)
+        data = gzip_compress.compress(result) + gzip_compress.flush()
 
-        return result, [('Content-Type', 'text/plain')]
+        return "200 OK", base64.b64encode(data), [('Content-Type', 'text/plain'),
+                                ('Content-Encoding', 'gzip')]
 
     def _clean_compat(self, sender, topic, headers, message):
         try:
