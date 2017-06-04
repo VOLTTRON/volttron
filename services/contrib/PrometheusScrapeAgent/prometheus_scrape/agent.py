@@ -80,8 +80,9 @@ class PrometheusScrapeAgent(Agent):
                                          zlib.MAX_WBITS | 16)
         data = gzip_compress.compress(result) + gzip_compress.flush()
 
-        return "200 OK", base64.b64encode(data), [('Content-Type', 'text/plain'),
-                                ('Content-Encoding', 'gzip')]
+        return "200 OK", base64.b64encode(data), [
+            ('Content-Type', 'text/plain'),
+            ('Content-Encoding', 'gzip')]
 
     def _clean_compat(self, sender, topic, headers, message):
         try:

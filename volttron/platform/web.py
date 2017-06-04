@@ -475,12 +475,12 @@ class MasterWebService(Agent):
         del self.pathroutes[peer]
 
         endpoints = self.endpoints.copy()
-        endpoints = {i:endpoints[i] for i in endpoints if endpoints[i] != peer}
+        endpoints = {i:endpoints[i] for i in endpoints if endpoints[i][0] != peer}
         self.endpoints = endpoints
 
     @RPC.export
     def register_path_route(self, regex, root_dir):
-        _log.info('Registiering path route: {}'.format(root_dir))
+        _log.info('Registering path route: {}'.format(root_dir))
 
         # Get calling peer from the rpc context
         peer = bytes(self.vip.rpc.context.vip_message.peer)
