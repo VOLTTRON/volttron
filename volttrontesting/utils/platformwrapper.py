@@ -724,7 +724,7 @@ class PlatformWrapper:
             new_results = ""
             found_wheel = False
             for line in results.split("\n"):
-                if line.endswith("WHEEL"):
+                if line.endswith("RECORD'"):
                     found_wheel = True
                 elif found_wheel:
                     new_results += line
