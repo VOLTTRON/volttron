@@ -590,7 +590,7 @@ class MasterWebService(Agent):
         _log.debug('PATH IS: {}'.format(path_info))
         # Get the peer responsible for dealing with the endpoint.  If there
         # isn't a peer then fall back on the other methods of routing.
-        (peer, res_type) = self.endpoints.get(path_info)
+        (peer, res_type) = self.endpoints.get(path_info, (None, None))
         _log.debug('Peer we path_info is associated with: {}'.format(peer))
 
         # if we have a peer then we expect to call that peer's web subsystem
