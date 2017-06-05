@@ -189,6 +189,32 @@ def is_ip_private(vip_address):
         ip) is not None
 
 
+class WebResponse(object):
+    """ The WebResponse object is a serializable representation of
+    a response to an http(s) client request that can be transmitted
+    through the RPC subsystem to the appropriate platform's MasterWebAgent
+    """
+
+    def __init__(self, status, data, headers):
+        self.status = status
+        self.headers = self.process_headers(headers)
+        self.data = self.process_data(data)
+
+    def process_headers(self, headers):
+        return [(key, value) for key, value in headers.items()]
+
+    def process_data(self, data):
+        if type(data) == bytes:
+            self.base64 = True
+            data = base64.b64encode(data)
+        elif type(data) == str:
+            self.base64 = False
+        else:
+            raise TypeError("Response data is neither bytes nor string type")
+        return data
+
+
+
 class VolttronWebSocket(WebSocket):
 
     def __init__(self, *args, **kwargs):
