@@ -582,7 +582,8 @@ class MasterWebService(Agent):
         # only expose a partial list of the env variables to the registered
         # agents.
         envlist = ['HTTP_USER_AGENT', 'PATH_INFO', 'QUERY_STRING',
-                   'REQUEST_METHOD', 'SERVER_PROTOCOL', 'REMOTE_ADDR']
+                   'REQUEST_METHOD', 'SERVER_PROTOCOL', 'REMOTE_ADDR',
+                   'HTTP_ACCEPT_ENCODING']
         data = env['wsgi.input'].read()
         passenv = dict(
             (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)) if envlist[i] in env.keys())
