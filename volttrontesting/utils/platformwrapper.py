@@ -7,6 +7,7 @@ import shutil
 import sys
 import tempfile
 import time
+import re
 from contextlib import closing
 from os.path import dirname
 from subprocess import CalledProcessError
@@ -719,20 +720,20 @@ class PlatformWrapper:
 
             # Because we are no longer silencing output from the install, the
             # the results object is now much more verbose.  Our assumption is
-            # the line before the output we care about has WHEEL at the end
-            # of it.
-            new_results = ""
-            found_wheel = False
-            for line in results.split("\n"):
-                if line.endswith("RECORD'"):
-                    found_wheel = True
-                elif found_wheel:
-                    new_results += line
-            results = new_results
+            # that the result we are looking for is the only JSON block in
+            # the output
+
+            match = re.search(r'^({.*})', results, flags=re.M | re.S)
+            if match:
+                results = match.group(0)
+            else:
+                raise ValueError(
+                    "The results were not found in the command output")
+            self.logit("here are the results: {}".format(results))
 
             #
             # Response from results is expected as follows depending on
-            # parameters, note this is a json string so parse to get dictionary.
+            # parameters, note this is a json string so parse to get dictionary
             # {
             #     "started": true,
             #     "agent_pid": 26241,
