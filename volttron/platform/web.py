@@ -494,7 +494,13 @@ class MasterWebService(Agent):
         identity = bytes(self.vip.rpc.context.vip_message.peer)
         _log.debug('Caller identity: {}'.format(identity))
         _log.debug('REGISTERING ENDPOINT: {}'.format(endpoint))
-        self.appContainer.create_ws_endpoint(endpoint, identity)
+        if self.appContainer:
+            self.appContainer.create_ws_endpoint(endpoint, identity)
+        else:
+            _log.debug('Attempting to register endpoint without web'
+                       'subsystem initialized')
+            raise AttributeError("self does not contain"
+                                 " attribute appContainer")
 
     @RPC.export
     def unregister_websocket(self, endpoint):
