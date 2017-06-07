@@ -56,28 +56,25 @@
 
 # }}}
 
-import gevent
-from volttron.platform.agent.utils import get_aware_utc_now
+class MarketRegistration(object):
+    def __init__(self, market_name, buyer_seller, reservation_callback, offer_callback, aggregate_callback, price_callback, error_callback):
+        self.market_name = market_name
+        self.buyer_seller = buyer_seller
+        self.reservation_callback = reservation_callback
+        self.offer_callback = offer_callback
+        self.aggregate_callback = aggregate_callback
+        self.price_callback = price_callback
+        self.error_callback = error_callback
 
-class Director(object):
-    def __init__(self, market_period, reservation_delay, offer_delay, clear_delay):
-        self.market_period = market_period
-        self.reservation_delay = reservation_delay
-        self.offer_delay = offer_delay
-        self.clear_delay = clear_delay
- 
-    def start(self, sender):
-        self.sender = sender
-        self.sender.core.periodic(self.market_period, self.trigger)
+    def request_reservations(self, timestamp):
+        self.reservation_callback(timestamp, self.market_name, self.buyer_seller)
 
-    def trigger(self):
-        gevent.sleep(self.reservation_delay)
-        self.sender.sendCollectReservationsRequest(self.get_time())
-        gevent.sleep(self.offer_delay)
-        self.sender.sendCollectOffersRequest(self.get_time())
-        gevent.sleep(self.clear_delay)
-        self.sender.sendClearRequest(self.get_time())
+    def request_offers(self, timestamp):
+        self.offer_callback(timestamp, self.market_name, self.buyer_seller)
 
-    def get_time(self):
-        now = get_aware_utc_now()
-        return now
+    def request_clear_price(self, timestamp, price, quantity):
+        self.price_callback(timestamp, self.market_name, self.buyer_seller, price, quantity)
+
+
+
+

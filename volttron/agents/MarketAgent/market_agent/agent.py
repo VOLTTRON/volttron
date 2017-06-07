@@ -56,28 +56,52 @@
 
 # }}}
 
-import gevent
-from volttron.platform.agent.utils import get_aware_utc_now
+import logging
 
-class Director(object):
-    def __init__(self, market_period, reservation_delay, offer_delay, clear_delay):
-        self.market_period = market_period
-        self.reservation_delay = reservation_delay
-        self.offer_delay = offer_delay
-        self.clear_delay = clear_delay
- 
-    def start(self, sender):
-        self.sender = sender
-        self.sender.core.periodic(self.market_period, self.trigger)
+from volttron.platform.agent import utils
+from volttron.platform.vip.agent import Core, PubSub
+from volttron.platform.vip.agent import Agent
+from market_agent.market_registration import MarketRegistration
 
-    def trigger(self):
-        gevent.sleep(self.reservation_delay)
-        self.sender.sendCollectReservationsRequest(self.get_time())
-        gevent.sleep(self.offer_delay)
-        self.sender.sendCollectOffersRequest(self.get_time())
-        gevent.sleep(self.clear_delay)
-        self.sender.sendClearRequest(self.get_time())
+_log = logging.getLogger(__name__)
+utils.setup_logging()
+__version__ = "0.01"
 
-    def get_time(self):
-        now = get_aware_utc_now()
-        return now
+
+class MarketAgent(Agent):
+    def __init__(self, **kwargs):
+        super(MarketAgent, self).__init__(**kwargs)
+        _log.debug("vip_identity: " + self.core.identity)
+        self.registrations = []
+
+    @Core.receiver("onstart")
+    def onstart(self, sender, **kwargs):
+        pass
+
+    @PubSub.subscribe('pubsub', 'platform.market.reserve')
+    def match_reservation(self, peer, sender, bus, topic, headers, message):
+        for registration in self.registrations:
+            timestamp = message[0]
+            registration.request_reservations(timestamp)
+
+    @PubSub.subscribe('pubsub', 'platform.market.bid')
+    def match_make_offer(self, peer, sender, bus, topic, headers, message):
+        for registration in self.registrations:
+            timestamp = message[0]
+            registration.request_offers(timestamp)
+
+    @PubSub.subscribe('pubsub', 'platform.market.clear')
+    def match_clear_price(self, peer, sender, bus, topic, headers, message):
+        for registration in self.registrations:
+            timestamp = message[0]
+            price = message[1]
+            quantity = message[2]
+            registration.request_clear_price(timestamp, price, quantity)
+
+    def join_market (self, market_name, buyer_seller, reservation_callback,
+                     offer_callback, aggregate_callback, price_callback, error_callback):
+        registration = MarketRegistration(market_name, buyer_seller,
+                                          reservation_callback, offer_callback,
+                                          aggregate_callback, price_callback, error_callback)
+        self.registrations.append(registration)
+        pass
