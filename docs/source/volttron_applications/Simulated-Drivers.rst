@@ -86,7 +86,7 @@ With VOLTTRON running, load each simulation driver's configuration into a "simul
     $ volttron-ctl config store simulation.driver simstorage.csv $SIMULATION_DRIVER_ROOT/simstorage.csv --csv
     $ volttron-ctl config store simulation.driver devices/simstorage $SIMULATION_DRIVER_ROOT/simstorage.config
 
-Install each simulation agent:
+Install and start each simulation agent:
 ::
 
     $ export SIMULATION_ROOT=$VOLTTRON_ROOT/applications/kisensum/Simulation
@@ -97,28 +97,24 @@ Install each simulation agent:
         --tag          simulation.driver \
         --agent-source $SIMULATION_ROOT/SimulationDriverAgent \
         --config       $SIMULATION_ROOT/SimulationDriverAgent/simulationdriver.config \
-        --force
+        --force \
+        --start
 
     $ python scripts/install-agent.py \
         --vip-identity simulationclock \
         --tag          simulationclock \
         --agent-source $SIMULATION_ROOT/SimulationClockAgent \
         --config       $SIMULATION_ROOT/SimulationClockAgent/simulationclock.config \
-        --force
+        --force \
+        --start
 
     $ python scripts/install-agent.py \
         --vip-identity simulationagent \
         --tag          simulationagent \
         --agent-source $SIMULATION_ROOT/SimulationAgent \
         --config       $SIMULATION_ROOT/SimulationAgent/simulationagent.config \
-        --force
-
-Now restart VOLTTRON (to refresh the auth cache). To run the simulation, start the agents:
-::
-
-    $ volttron-ctl start --tag simulationclock
-    $ volttron-ctl start --tag simulation.driver
-    $ volttron-ctl start --tag simulationagent
+        --force \
+        --start
 
 SimulationAgent Configuration Parameters
 ========================================
