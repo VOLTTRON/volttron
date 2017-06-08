@@ -1,8 +1,12 @@
 {
-    "devices/fakedriver0/all": 90,
+    "group1": {
+        "devices/fakedriver0/all": 10
+    },
 
-    "devices/fakedriver1/all": {
-        "seconds": 90,
-        "points": ["temperature", "PowerState"]
+    "device_group": {
+        "devices/fakedriver1/all": {
+            "seconds": 10,
+            "points": ["temperature", "PowerState"]
+        }
     }
 }

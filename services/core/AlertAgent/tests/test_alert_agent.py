@@ -62,10 +62,12 @@ import json
 from volttron.platform.agent.known_identities import PLATFORM_ALERTER
 
 ALERT_CONFIG = {
-    "fakedevice": 5,
-    "fakedevice2": {
-        "seconds": 5,
-        "points": ["point"]
+    "group1": {
+        "fakedevice": 5,
+        "fakedevice2": {
+            "seconds": 5,
+            "points": ["point"]
+        }
     }
 }
 
@@ -116,34 +118,33 @@ def test_alert_agent(agent):
     assert not alert_messages
     gevent.sleep(6)
 
-    assert len(alert_messages) == 3
+    assert len(alert_messages) == 1
 
 
 def test_ignore_topic(agent):
     global alert_messages
 
-    agent.vip.rpc.call(PLATFORM_ALERTER, 'ignore_topic', 'fakedevice2').get()
+    agent.vip.rpc.call(PLATFORM_ALERTER, 'ignore_topic', 'group1', 'fakedevice2').get()
     alert_messages.clear()
     gevent.sleep(6)
 
     assert len(alert_messages) == 1
-    assert u'fakedevice not published within time limit' in alert_messages
+    assert u"Topic(s) not published within time limit: ['fakedevice']" in alert_messages
 
 
 def test_watch_topic(agent):
     global alert_messages
 
-    agent.vip.rpc.call(PLATFORM_ALERTER, 'watch_topic', 'newtopic', 5).get()
+    agent.vip.rpc.call(PLATFORM_ALERTER, 'watch_topic', 'group1', 'newtopic', 5).get()
     gevent.sleep(6)
 
-    assert u'newtopic not published within time limit' in alert_messages
+    assert u"Topic(s) not published within time limit: ['newtopic']" in alert_messages
 
 
 def test_watch_device(agent):
     global alert_messages
 
-    agent.vip.rpc.call(PLATFORM_ALERTER, 'watch_device', 'newdevice', 5, ['point']).get()
+    agent.vip.rpc.call(PLATFORM_ALERTER, 'watch_device', 'group1', 'newdevice', 5, ['point']).get()
     gevent.sleep(6)
 
-    assert u'newdevice not published within time limit' in alert_messages
-    assert u'newdevice(point) not published within time limit' in alert_messages
+    assert u"Topic(s) not published within time limit: ['newdevice', ('newdevice', 'point')]" in alert_messages

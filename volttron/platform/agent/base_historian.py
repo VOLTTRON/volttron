@@ -247,11 +247,23 @@ import re
 from dateutil.parser import parse
 from volttron.platform.agent.base_aggregate_historian import AggregateHistorian
 from volttron.platform.agent.utils import process_timestamp, \
-    fix_sqlite3_datetime, get_aware_utc_now
+    fix_sqlite3_datetime, get_aware_utc_now, parse_timestamp_string
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
-from zmq.utils import jsonapi
+
+
+
+try:
+    import ujson
+    def dumps(data):
+        return ujson.dumps(data, double_precision=15)
+    def loads(data_string):
+        return ujson.loads(data_string, precise_float=True)
+except ImportError:
+    from zmq.utils.jsonapi import dumps, loads
+
+from volttron.platform.agent import utils
 
 _log = logging.getLogger(__name__)
 
@@ -261,6 +273,30 @@ ALL_REX = re.compile('.*/all$')
 # Register a better datetime parser in sqlite3.
 fix_sqlite3_datetime()
 
+
+def add_timing_data_to_header(headers, agent_id, phase):
+    if "timing_data" not in headers:
+        headers["timing_data"] = timing_data = {}
+    else:
+        timing_data = headers["timing_data"]
+
+    if agent_id not in timing_data:
+        timing_data[agent_id] = agent_timing_data = {}
+    else:
+        agent_timing_data = timing_data[agent_id]
+
+    agent_timing_data[phase] = utils.format_timestamp(utils.get_aware_utc_now())
+
+    values = agent_timing_data.values()
+
+    if len(values) < 2:
+        return 0.0
+
+    #Assume 2 phases and proper format.
+    time1 = datetime.strptime(values[0][11:26], "%H:%M:%S.%f")
+    time2 = datetime.strptime(values[1][11:26], "%H:%M:%S.%f")
+
+    return abs((time1 - time2).total_seconds())
 
 class BaseHistorianAgent(Agent):
     """This is the base agent for historian Agents.
@@ -295,6 +331,7 @@ class BaseHistorianAgent(Agent):
                  max_time_publishing=30,
                  backup_storage_limit_gb=None,
                  topic_replace_list=None,
+                 gather_timing_data=False,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -305,6 +342,8 @@ class BaseHistorianAgent(Agent):
 
         _log.info('Topic string replace list: {}'
                   .format(self._topic_replace_list))
+
+        self._gather_timing_data = gather_timing_data
 
         self.volttron_table_defs = 'volttron_table_definitions'
         self._backup_storage_limit_gb = backup_storage_limit_gb
@@ -318,6 +357,30 @@ class BaseHistorianAgent(Agent):
         self._process_thread = Thread(target=self._process_loop)
         self._process_thread.daemon = True  # Don't wait on thread to exit.
         self._process_thread.start()
+
+    @RPC.export
+    def insert(self, records):
+        """RPC method to allow remote inserts to the local cache
+
+        :param records: List of items to be added to the local event queue
+        :type records: list of dictionaries
+        """
+        for r in records:
+            topic = r['topic']
+            headers = r['headers']
+            message = r['message']
+
+            if topic.startswith(topics.DRIVER_TOPIC_BASE):
+                capture_func = self._capture_device_data
+            elif topic.startswith(topics.LOGGER_BASE):
+                capture_func = self._capture_log_data
+            elif topic.startswith(topics.ANALYSIS_TOPIC_BASE):
+                capture_func = self._capture_analysis_data
+            elif topic.startswith(topics.RECORD_BASE):
+                capture_func = self._capture_record_data
+
+            capture_func(peer=None, sender=None, bus=None,
+                         topic=topic, headers=headers, message=message)
 
     def _create_subscriptions(self):
 
@@ -421,11 +484,16 @@ class BaseHistorianAgent(Agent):
 
         if sender == 'pubsub.compat':
             message = compat.unpack_legacy_message(headers, message)
+
+        if self._gather_timing_data:
+            add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
+
         self._event_queue.put(
             {'source': 'record',
              'topic': topic,
              'readings': [(timestamp, message)],
-             'meta': {}})
+             'meta': {},
+             'headers': headers})
 
     def _capture_log_data(self, peer, sender, bus, topic, headers, message):
         """Capture log data and submit it to be published by a historian."""
@@ -433,7 +501,7 @@ class BaseHistorianAgent(Agent):
         # Anon the topic if necessary.
         topic = self._get_topic(topic)
         try:
-            # 2.0 agents compatability layer makes sender == pubsub.compat so 
+            # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
             if sender == 'pubsub.compat':
                 data = compat.unpack_legacy_message(headers, message)
@@ -449,13 +517,10 @@ class BaseHistorianAgent(Agent):
                 topic=topic))
             return
 
-        source = 'log'
-        # _log.debug(
-        #     "Queuing {topic} from {source} for publish".format(topic=topic,
-        #
-        # source=source))
+        if self._gather_timing_data:
+            add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
+
         for point, item in data.iteritems():
-            #             ts_path = location + '/' + point
             if 'Readings' not in item or 'Units' not in item:
                 _log.error("logging request for {topic} missing Readings "
                            "or Units".format(topic=topic))
@@ -480,10 +545,11 @@ class BaseHistorianAgent(Agent):
                 elif my_tz:
                     meta['tz'] = my_tz
 
-            self._event_queue.put({'source': source,
+            self._event_queue.put({'source': 'log',
                                    'topic': topic + '/' + point,
                                    'readings': readings,
-                                   'meta': meta})
+                                   'meta': meta,
+                                   'headers': headers})
 
     def _capture_device_data(self, peer, sender, bus, topic, headers,
                              message):
@@ -528,7 +594,6 @@ class BaseHistorianAgent(Agent):
 
     def _capture_data(self, peer, sender, bus, topic, headers, message,
                       device):
-
         # Anon the topic if necessary.
         topic = self._get_topic(topic)
         timestamp_string = headers.get(headers_mod.DATE, None)
@@ -539,7 +604,6 @@ class BaseHistorianAgent(Agent):
             # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
             if sender == 'pubsub.compat':
-                # message = jsonapi.loads(message[0])
                 message = compat.unpack_legacy_message(headers, message)
 
             if isinstance(message, dict):
@@ -572,12 +636,16 @@ class BaseHistorianAgent(Agent):
             "Queuing {topic} from {source} for publish".format(topic=topic,
                                                                source=source))
 
+        if self._gather_timing_data:
+            add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
+
         for key, value in values.iteritems():
             point_topic = device + '/' + key
             self._event_queue.put({'source': source,
                                    'topic': point_topic,
                                    'readings': [(timestamp, value)],
-                                   'meta': meta.get(key, {})})
+                                   'meta': meta.get(key, {}),
+                                   'headers': headers})
 
     def _capture_actuator_data(self, topic, headers, message, match):
         """Capture actuation data and submit it to be published by a historian.
@@ -616,10 +684,14 @@ class BaseHistorianAgent(Agent):
             "Queuing {topic} from {source} for publish".format(topic=topic,
                                                                source=source))
 
+        if self._gather_timing_data:
+            add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
+
         self._event_queue.put({'source': source,
                                'topic': topic,
                                'readings': [timestamp, value],
-                               'meta': {}})
+                               'meta': {},
+                               'headers': headers})
 
     def _process_loop(self):
         """
@@ -664,6 +736,7 @@ class BaseHistorianAgent(Agent):
                     except Empty:
                         break
 
+
             backupdb.backup_new_data(new_to_publish)
 
             wait_for_input = True
@@ -693,6 +766,7 @@ class BaseHistorianAgent(Agent):
                 if now - start_time > self._max_time_publishing:
                     wait_for_input = False
                     break
+
         _log.debug("Finished processing")
 
     def report_handled(self, record):
@@ -787,6 +861,72 @@ class BaseHistorianAgent(Agent):
         """
 
 
+
+#TODO: Finish this.
+# from collections import deque
+#
+# class MemoryDatabase:
+#     def __init__(self, owner, backup_storage_limit_gb):
+#         # The topic cache is only meant as a local lookup and should not be
+#         # accessed via the implemented historians.
+#         self._backup_cache = {}
+#         self._meta_data = defaultdict(dict)
+#         self._owner = weakref.ref(owner)
+#         self._backup_storage_limit_gb = backup_storage_limit_gb
+#         self._deque = deque()
+#
+#     def get_outstanding_to_publish(self, size_limit):
+#         _log.debug("Getting oldest outstanding to publish.")
+#         results = []
+#
+#         count = 0
+#         for row in self._deque:
+#             timestamp = row[0]
+#             source = row[1]
+#             topic = row[2]
+#             value = row[3]
+#             headers = {} if row[4] is None else row[4]
+#             meta = self._meta_data[(source, topic)].copy()
+#             results.append({'timestamp': timestamp.replace(tzinfo=pytz.UTC),
+#                             'source': source,
+#                             'topic': topic,
+#                             'value': value,
+#                             'headers': headers,
+#                             'meta': meta})
+#             count += 1
+#             if count >= size_limit:
+#                 break
+#
+#         return results
+#
+#     def backup_new_data(self, new_publish_list):
+#         _log.debug("Backing up unpublished values.")
+#         for item in new_publish_list:
+#             source = item['source']
+#             topic = item['topic']
+#             readings = item['readings']
+#             headers = item.get('headers', {})
+#
+#             for timestamp, value in readings:
+#                 if timestamp is None:
+#                     timestamp = get_aware_utc_now()
+#
+#                 self._deque.append((timestamp, source, topic, value, headers))
+#
+#
+#     def remove_successfully_published(self, successful_publishes,
+#                                       submit_size):
+#         _log.debug("Cleaning up successfully published values.")
+#         if len(self._deque) <= submit_size:
+#             self._deque.clear()
+#             return
+#         my_deque = self._deque
+#         for i in xrange(submit_size):
+#             my_deque.popleft()
+
+
+
+
 class BackupDatabase:
     """
     A creates and manages backup cache for the
@@ -831,7 +971,8 @@ class BackupDatabase:
             source = item['source']
             topic = item['topic']
             meta = item.get('meta', {})
-            values = item['readings']
+            readings = item['readings']
+            headers = item.get('headers', {})
 
             topic_id = self._backup_cache.get(topic)
 
@@ -853,13 +994,19 @@ class BackupDatabase:
                               (source, topic_id, name, value))
                     meta_dict[name] = value
 
-            for timestamp, value in values:
+            for timestamp, value in readings:
                 if timestamp is None:
                     timestamp = get_aware_utc_now()
-                c.execute(
-                    '''INSERT OR REPLACE INTO outstanding
-                    values(NULL, ?, ?, ?, ?)''',
-                    (timestamp, source, topic_id, jsonapi.dumps(value)))
+                try:
+                    c.execute(
+                        '''INSERT INTO outstanding
+                        values(NULL, ?, ?, ?, ?, ?)''',
+                        (timestamp, source, topic_id, dumps(value), dumps(headers)))
+                except sqlite3.IntegrityError:
+                    #In the case where we are upgrading an existing installed historian the
+                    #unique constraint may still exist on the outstanding database.
+                    #Ignore this case.
+                    pass
 
         self._connection.commit()
 
@@ -910,20 +1057,21 @@ class BackupDatabase:
         c = self._connection.cursor()
         c.execute('select * from outstanding order by ts limit ?',
                   (size_limit,))
-
         results = []
         for row in c:
             _id = row[0]
             timestamp = row[1]
             source = row[2]
             topic_id = row[3]
-            value = jsonapi.loads(row[4])
+            value = loads(row[4])
+            headers = {} if row[5] is None else loads(row[5])
             meta = self._meta_data[(source, topic_id)].copy()
             results.append({'_id': _id,
                             'timestamp': timestamp.replace(tzinfo=pytz.UTC),
                             'source': source,
                             'topic': self._backup_cache[topic_id],
                             'value': value,
+                            'headers': headers,
                             'meta': meta})
 
         c.close()
@@ -949,7 +1097,7 @@ class BackupDatabase:
                   "AND name='outstanding';")
 
         if c.fetchone() is None:
-            _log.debug("Configuring backup BD for the first time.")
+            _log.debug("Configuring backup DB for the first time.")
             self._connection.execute('''PRAGMA auto_vacuum = FULL''')
             self._connection.execute('''CREATE TABLE outstanding
                                         (id INTEGER PRIMARY KEY,
@@ -957,7 +1105,28 @@ class BackupDatabase:
                                          source TEXT NOT NULL,
                                          topic_id INTEGER NOT NULL,
                                          value_string TEXT NOT NULL,
-                                         UNIQUE(ts, topic_id, source))''')
+                                         header_string TEXT)''')
+        else:
+            #Check to see if we have a header_string column.
+            c.execute("pragma table_info(outstanding);")
+            name_index = 0
+            for description in c.description:
+                if description[0] == "name":
+                    break
+                name_index += 1
+
+            found_header_column = False
+            for row in c:
+                if row[name_index] == "header_string":
+                    found_header_column = True
+                    break
+
+            if not found_header_column:
+                _log.info("Updating cache database to support storing header data.")
+                c.execute("ALTER TABLE outstanding ADD COLUMN header_string text;")
+
+        c.execute('''CREATE INDEX IF NOT EXISTS outstanding_ts_index
+                                           ON outstanding (ts)''')
 
         c.execute("SELECT name FROM sqlite_master WHERE type='table' "
                   "AND name='metadata';")
@@ -997,6 +1166,22 @@ class BaseQueryHistorianAgent(Agent):
     """This is the base agent for historian Agents that support querying of
     their data stores.
     """
+
+    @RPC.export
+    def get_version(self):
+        """RPC call to get the version of the historian
+
+        :return: version number of the historian used
+        :rtype: string
+        """
+        return self.version()
+
+    @abstractmethod
+    def version(self):
+        """
+        Return the current version number of the historian
+        :return: version number
+        """
 
     @RPC.export
     def get_topic_list(self):
@@ -1157,15 +1342,19 @@ class BaseQueryHistorianAgent(Agent):
                 agg_period)
         if start is not None:
             try:
-                start = parse(start)
+                start = parse_timestamp_string(start)
             except TypeError:
                 start = time_parser.parse(start)
+            if start and start.tzinfo is None:
+                start = start.replace(tzinfo=pytz.UTC)
 
         if end is not None:
             try:
-                end = parse(end)
+                end = parse_timestamp_string(end)
             except TypeError:
                 end = time_parser.parse(end)
+            if end and end.tzinfo is None:
+                end = end.replace(tzinfo=pytz.UTC)
 
         if start:
             _log.debug("start={}".format(start))

@@ -182,7 +182,8 @@ class SysMonAgent(Agent):
 
 def main(argv=sys.argv):
     """Main method called by the platform."""
-    utils.vip_main(sysmon_agent, identity='platform.sysmon')
+    utils.vip_main(sysmon_agent, identity='platform.sysmon',
+                   version=__version__)
 
 
 if __name__ == '__main__':

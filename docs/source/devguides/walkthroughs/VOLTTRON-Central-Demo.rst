@@ -1,6 +1,5 @@
 .. _VOLTTRON-Central-Demo:
 
-=====================
 VOLTTRON Central Demo
 =====================
 

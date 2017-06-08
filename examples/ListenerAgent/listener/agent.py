@@ -67,9 +67,6 @@ from volttron.platform.vip.agent import Agent, Core, PubSub, compat
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 
-from . import settings
-
-
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '3.2'
@@ -113,6 +110,7 @@ class ListenerAgent(Agent):
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
+        _log.debug("VERSION IS: {}".format(self.core.version()))
         if self._heartbeat_period != 0:
             self.vip.heartbeat.start_with_period(self._heartbeat_period)
             self.vip.health.set_status(STATUS_GOOD, self._message)
@@ -130,7 +128,7 @@ class ListenerAgent(Agent):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
-        utils.vip_main(ListenerAgent)
+        utils.vip_main(ListenerAgent, version=__version__)
     except Exception as e:
         _log.exception('unhandled exception')
 

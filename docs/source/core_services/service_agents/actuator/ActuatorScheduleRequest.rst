@@ -1,3 +1,4 @@
+.. _ActuatorScheduleRequest:
 Requesting Schedule Changes
 ---------------------------
 
@@ -44,6 +45,12 @@ with the following message:
          "2013-12-06 16:20:00"],    #End of time slot.
         #etc...
     ]
+
+.. warning::
+
+   If time zones are not included in schedule requests then the Actuator will
+   interpret them as being in local time. This may cause remote interaction
+   with the actuator to malfunction.
 
 Points on Task Scheduling
 ^^^^^^^^^^^^^^^^^^^^^^^^^

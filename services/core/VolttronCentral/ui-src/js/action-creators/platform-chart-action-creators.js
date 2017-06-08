@@ -32,30 +32,26 @@ var platformChartActionCreators = {
             chartKey: chartKey
         });
     },
-    setMin: function (min, chartKey) {
+    changeDataLength: function (length, chartKey) {
         dispatcher.dispatch({
-            type: ACTION_TYPES.CHANGE_CHART_MIN,
-            min: min,
+            type: ACTION_TYPES.CHANGE_CHART_LENGTH,
+        length: length,
             chartKey: chartKey
         });
     },
-    setMax: function (max, chartKey) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CHANGE_CHART_MAX,
-            max: max,
-            chartKey: chartKey
-        });
-    },
-	refreshChart: function (series) {
+	refreshChart: function (series, length) {
 
 		var authorization = authorizationStore.getAuthorization();
 
-		series.forEach(function (item) {            
+		series.forEach(function (item) { 
+
+            var topic = prepTopic(item.topic);
+
             new rpc.Exchange({
                 method: 'historian.query',
                 params: {
-                    topic: item.topic,
-                    count: 20,
+                    topic: topic,
+                    count: (length > 0 ? length : 20),
                     order: 'LAST_TO_FIRST',
                 },
                 authorization: authorization,
@@ -64,7 +60,7 @@ var platformChartActionCreators = {
 
                     if (result.hasOwnProperty("values"))
                     {
-                    	item.data = result.values;
+                    	item.data = result.values.reverse();
 
                         item.data.forEach(function (datum) {
                             datum.name = item.name;
@@ -75,10 +71,6 @@ var platformChartActionCreators = {
                             type: ACTION_TYPES.REFRESH_CHART,
                             item: item
                         });
-                    }
-                    else
-                    {
-                        console.log("chart " + item.name + " isn't being refreshed");
                     }
                 })
                 .catch(rpc.Error, function (error) {
@@ -91,98 +83,17 @@ var platformChartActionCreators = {
 
         var authorization = authorizationStore.getAuthorization();
 
-        new rpc.Exchange({
-            method: 'historian.query',
-            params: {
-                topic: panelItem.topic,
-                count: 20,
-                order: 'LAST_TO_FIRST',
-            },
-            authorization: authorization,
-        }).promise
-            .then(function (result) {
+        loadChart(panelItem, emitChange, authorization);
 
-                if (result.hasOwnProperty("values"))
-                {    
-                    panelItem.data = result.values;
+    },
+    addToCharts: function(panelItems) {
 
-                    panelItem.data.forEach(function (datum) {
-                        datum.name = panelItem.name;
-                        datum.parent = panelItem.parentPath;
-                        datum.uuid = panelItem.uuid;
-                    });
+        var authorization = authorizationStore.getAuthorization();
+        var emitChange = false;
 
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.SHOW_CHARTS,
-                        emitChange: (emitChange === null || typeof emitChange === "undefined" ? true : emitChange)
-                    });
-
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.ADD_TO_CHART,
-                        panelItem: panelItem
-                    });
-
-                    platformsPanelActionCreators.checkItem(panelItem.path, true);
-
-                    var savedCharts = platformChartStore.getPinnedCharts();
-                    var inSavedChart = savedCharts.find(function (chart) {
-                        return chart.chartKey === panelItem.name;
-                    });
-                    
-                    if (inSavedChart)
-                    {
-                        platformActionCreators.saveCharts(savedCharts);
-                    }
-                }
-                else
-                {
-                    var message = "Unable to load chart: An unknown problem occurred.";
-                    var orientation = "center";
-                    var error = {};
-
-                    if (panelItem.path && panelItem.path.length > 1)
-                    {
-                        var platformUuid = panelItem.path[1];
-                        var forwarderRunning = platformsStore.getForwarderRunning(platformUuid);
-
-                        if (!forwarderRunning)
-                        {
-                            message = "Unable to load chart: The forwarder agent for the device's platform isn't available.";
-                            orientation = "left";
-                        }             
-                    }
-
-                    platformsPanelActionCreators.checkItem(panelItem.path, false);
-                    handle401(error, message, null, orientation);
-                }
-            })
-            .catch(rpc.Error, function (error) {
-
-                var message = "Unable to load chart: " + error.message;
-                var orientation;
-
-                if (error.code === -32602)
-                {
-                    if (error.message === "historian unavailable")
-                    {
-                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
-                        orientation = "left";
-                    }
-                }
-                else
-                {
-                    var historianRunning = platformsStore.getVcHistorianRunning();
-
-                    if (!historianRunning)
-                    {
-                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
-                        orientation = "left";
-                    }
-                }
-
-                platformsPanelActionCreators.checkItem(panelItem.path, false);
-                handle401(error, message, null, orientation);
-           });
+        panelItems.forEach(function (panelItem) {
+            loadChart(panelItem, emitChange, authorization);            
+        });
     },
     removeFromChart: function(panelItem) {
 
@@ -211,6 +122,129 @@ var platformChartActionCreators = {
             name: chartName
         });
     }
+};
+
+function prepTopic(itemTopic) {
+    var topic = itemTopic;
+
+    var index = itemTopic.indexOf("devices/");
+
+    if (index === 0)
+    {
+        topic = itemTopic.replace("devices/", "");
+    }
+
+    return topic;
+}
+
+function loadChart(panelItem, emitChange, authorization) {
+
+    var topic = prepTopic(panelItem.topic);
+
+    new rpc.Exchange({
+        method: 'historian.query',
+        params: {
+            topic: topic,
+            count: 20,
+            order: 'LAST_TO_FIRST',
+        },
+        authorization: authorization,
+    }).promise
+        .then(function (result) {
+
+            if (result.hasOwnProperty("values"))
+            {    
+                panelItem.data = result.values.reverse();
+
+                panelItem.data.forEach(function (datum) {
+                    datum.name = panelItem.name;
+                    datum.parent = panelItem.parentPath;
+                    datum.uuid = panelItem.uuid;
+                });
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.SHOW_CHARTS,
+                    emitChange: (emitChange === null || typeof emitChange === "undefined" ? true : emitChange)
+                });
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.ADD_TO_CHART,
+                    panelItem: panelItem
+                });
+
+                platformsPanelActionCreators.checkItem(panelItem.path, true);
+
+                var savedCharts = platformChartStore.getPinnedCharts();
+                var inSavedChart = savedCharts.find(function (chart) {
+                    return chart.chartKey === panelItem.name;
+                });
+                
+                if (inSavedChart)
+                {
+                    platformActionCreators.saveCharts(savedCharts);
+                }
+            }
+            else
+            {
+                var message = "Unable to load chart: An unknown problem occurred.";
+                var orientation = "center";
+                var error = {};
+                var highlight = null;
+
+                if (panelItem.path && panelItem.path.length > 1)
+                {
+                    var platformPath = panelItem.path.slice(0, 1);
+                    var uuid = panelItem.path[1];
+
+                    var platform = platformsPanelItemsStore.getItem(platformPath);
+
+                    message = "Unable to load chart: No data was retrieved for " + topic + ". Check for proper configuration " +
+                        " of any forwarder, master driver, and platform agents on platform '" + platform[uuid].name + "'.";
+                    orientation = "left";
+                    highlight = topic;                        
+                }
+
+                platformsPanelActionCreators.checkItem(panelItem.path, false);
+                handle401(error, message, highlight, orientation);
+            }
+        })
+        .catch(rpc.Error, function (error) {
+
+            var message = "Unable to load chart: " + error.message;
+            var orientation;
+
+            if (error.code === -32602)
+            {
+                if (error.message === "historian unavailable")
+                {
+                    message = "Unable to load chart: The platform historian is unavailable on the VOLTTRON Central platform.";
+                    orientation = "left";
+                }
+            }
+            else
+            {
+                var vcInstance = platformsStore.getVcInstance();
+
+                if (vcInstance)
+                {
+                    var historianRunning = platformsStore.getVcHistorianRunning(vcInstance);
+
+                    if (!historianRunning)
+                    {
+                        message = "Unable to load chart: The platform historian is unavailable on the VOLTTRON Central platform.";
+                        orientation = "left";
+                    }
+                }
+                else
+                {
+                    message = "Unable to load chart: An unknown problem occurred.";
+                    orientation = "left";
+                }
+            }
+
+            platformsPanelActionCreators.checkItem(panelItem.path, false);
+            handle401(error, message, null, orientation);
+       });
 };
 
 function handle401(error, message, highlight, orientation) {

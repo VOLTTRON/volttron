@@ -5,7 +5,6 @@ from contextlib import contextmanager
 import pytest
 import gevent
 
-from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.keystore import KeyStore
 
 primary_config = {
@@ -33,9 +32,6 @@ secondary_failover = None
 vc_uuid = None
 
 def tcp_to(instance):
-
-    if not instance.encrypt:
-        return instance.vip_address
 
     tmp = tempfile.NamedTemporaryFile()
     key = KeyStore(tmp.name)

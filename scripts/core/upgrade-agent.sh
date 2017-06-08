@@ -55,7 +55,7 @@ if [ -z "$CONFIG" ]; then
 fi
 
 # Attempt to package the wheel file.
-WHEEL=$(volttron-pkg package $SOURCE | awk -F": " '{ print $2 }')
+WHEEL=$(volttron-pkg package $SOURCE | awk -F"Package created at: " '{ print $2 }')
 
 #Remove newlines
 WHEEL=${WHEEL//$'\n'/}

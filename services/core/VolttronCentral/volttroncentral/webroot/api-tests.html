@@ -10,6 +10,9 @@
 </head>
 <body>
 <h1>Webservice api exercise</h1>
+<div>
+    <a href="api-tests2.html">Tests Part 2</a>
+</div>
 <h3>Authorization</h3>
 <div>
     Username: <input id="username" type="text" /><br />
@@ -32,9 +35,13 @@
     <button id="set_setting">Save Value</button>
     <button id="set_null_setting">Save Null Value (remove key)</button>
     <button id="get_setting">Get Value</button>
-    <button id="get_setting_keys">Get Keys</button>
+    <button id="get_setting_keys">Get Keys</button><br/>
+    <p>These will return a 401 error if the user is not in the admin group.</p>
+    <button id="enable_setup_mode">Enable Setup Mode</button>
+    <button id="disable_setup_mode">Disable Setup Mode</button>
+
 </div>
-<h3>Platform Listings</h3>
+<h3>Platform Methods</h3>
 <div>
     <button id="list_platforms">List Platforms</button>
     <button id="list_deivces">List Devices</button>
@@ -125,9 +132,9 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
     etc.
     
     */
-    function do_request_platform_method(method, callback=null) {
+    function do_request_platform_method(method, callback) {
         var platform_uuid = $('#agent_platform_uuid').val();
-        var req_method = 'platform.uuid.'+platform_uuid+'.'+method;
+        var req_method = 'platforms.uuid.'+platform_uuid+'.'+method;
         console.log("Method is: "+req_method);
         var token = $('#token').val();
         var pdata = {
@@ -144,7 +151,8 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
             dataType: 'json',
             success: function(data){
                 $('#output_data').val(JSON.stringify(data));
-                if (callback !== null){
+
+                if (typeof callback == "function") {
                     callback(data)
                 }
             },
@@ -163,10 +171,10 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
     etc.
     
     */
-    function do_request_agent_method(method, data={}, callback) {
+    function do_request_agent_method(method, data, callback) {
         var platform_uuid = $('#agent_platform_uuid').val();
         var agent_uuid = $('#agent_uuid').val()
-        var req_method = 'platform.uuid.'+platform_uuid+'.agent.uuid.'+
+        var req_method = 'platforms.uuid.'+platform_uuid+'.agent.uuid.'+
             agent_uuid+'.'+method;
         console.log("Method is: "+req_method);
         var token = $('#token').val();
@@ -187,7 +195,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
             dataType: 'json',
             success: function(data){
                 $('#output_data').val(JSON.stringify(data));
-                if (callback !== null){
+                if (typeof callback == "function"){
                     callback(data)
                 }
             },
@@ -277,6 +285,14 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
             value: null
         }
         do_request('set_setting', data)
+    });
+
+    $('#enable_setup_mode').click(function(){
+        do_request('enable_setup_mode')
+    });
+
+    $('#disable_setup_mode').click(function(){
+        do_request('disable_setup_mode')
     });
 
 
@@ -457,7 +473,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
    /*
    $('#list_agents').click(function(){
         var platform_uuid = $('#agent_platform_uuid').val();
-        var method = 'platform.uuid.'+platform_uuid;
+        var method = 'platforms.uuid.'+platform_uuid;
 
         var token = $('#token').val();
         var pdata = {
