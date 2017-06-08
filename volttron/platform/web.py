@@ -663,7 +663,9 @@ class MasterWebService(Agent):
         if isinstance(res, tuple) or isinstance(res, list):
             if len(res) == 1:
                 status, = res
+                headers = ()
             if len(res) == 2:
+                headers = ()
                 status, response = res
             if len(res) == 3:
                 status, response, headers = res
