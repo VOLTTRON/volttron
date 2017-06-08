@@ -497,7 +497,7 @@ class MasterWebService(Agent):
         if self.appContainer:
             self.appContainer.create_ws_endpoint(endpoint, identity)
         else:
-            _log.debug('Attempting to register endpoint without web'
+            _log.error('Attempting to register endpoint without web'
                        'subsystem initialized')
             raise AttributeError("self does not contain"
                                  " attribute appContainer")
