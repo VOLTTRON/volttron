@@ -1,0 +1,25 @@
+Using the agent:
+The weather agent will publish a requested weather report periodically until it is told to stop publishing that request. It can publish multiple reports from different geological locations at independent time periods. (i.e. a conditions report from SF, CA every 5 min starting at 2:00pm and a almanac report from NYC, NY every 10 min starting at 2:01 pm).
+To begin using the agent, make sure you insert your wunderground API key either directly into the agent.py file in the subdirectory [weather], or using the volttron configuration store (field name is 'api_key'). 
+In order to begin a periodic report, publish a topic to the local volttron bus where the topic name is 'Add Weather Service' and the payload message is a json containing the following fields: time, city, state, type. (type being the weather report type, found on wunderground's api page). Note for now, the time field must map to a value > 30. This is to prevent reports being published too frequently (less than every 30 seconds).
+An example:
+self.vip.pubsub.publish('pubsub', 'Add Weather Service', {}, json.dumps({"time": 35, "city": "Cleveland", "state": "Ohio", "type":"hourly"}))
+Some common weather report types include: 'hourly', 'almanac', 'conditions'
+
+After this publish is made, the requesting agent can then subscribe to the report by subscribing to the topic name format: 'city/state/type'.
+So for the example above:
+self.vip.pubsub.subscribe('pubsub', 'Cleveland/Ohio/hourly', callback=self.your_callback_function)
+your_callback_function will receive a json message containing the requested weather data, and will be recalled periodically until told to stop.
+
+In order to stop a weather report, simply publish a topic with the name 'Stop Weather Service' and the payload message is a json containing the following fields: city, state, type, time(optional). (Note this may be changed to be done with only a topic name, no payload needed)
+Example:
+self.vip.pubsub.publish('pubsub', 'Stop Weather Service', {}, json.dumps({"time": 35, "city": "Cleveland", "state": "Ohio", "type":"hourly"}))
+
+Note that this may not necessarily stop the publishing of the weather report, but it simply lets the weather agent know that the requester of the topic is no longer using it. (Once no requesters are using it, then it will stop being published)
+
+In the future the agent will be able to produce single, non periodic reports as well.
+
+The weatheragent keeps track of which users are subscribed to which topics and makes sure it only stops publishing a topic if there are no users which are still requesting it to be published. The weatheragent does some error handling for the weather data itself (if the weather data contains an error tag from wunderground it will report it and not publish the topic), but sometimes the weather data is missing data and without an error tag. This error handling should be done on the requesting agent (make sure relevant data is there) since it is somewhat impractical to have the weatheragent account for (and have knowledge of) every single possible field/subfield in the data. 
+If there is no internet connection or the request to wunderground times out, the weatheragent will report it and not publish the topic at this time period. It will retry to request the weather data at the next user provided time period.  
+
+If two+ reports are requested for the same city/state/type, this report will be published at the shortest period requested (i.e. if one requests every 40 min and one requests every 15 min, the report will be published every 15 min). 
