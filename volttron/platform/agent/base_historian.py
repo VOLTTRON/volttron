@@ -256,10 +256,17 @@ from volttron.platform.vip.agent import compat
 
 try:
     import ujson
+    from zmq.utils.jsonapi import _dumps, _loads
     def dumps(data):
-        return ujson.dumps(data, double_precision=15)
+        try:
+            return ujson.dumps(data, double_precision=15)
+        except:
+            return _dumps(data)
     def loads(data_string):
-        return ujson.loads(data_string, precise_float=True)
+        try:
+            return ujson.loads(data_string, precise_float=True)
+        except:
+            return _loads(data_string)
 except ImportError:
     from zmq.utils.jsonapi import dumps, loads
 
