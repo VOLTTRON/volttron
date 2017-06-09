@@ -199,7 +199,6 @@ def publish(publish_agent, topic, header, message):
 
 @pytest.mark.historian
 @pytest.mark.forwarder
-@pytest.mark.dev
 def test_devices_topic(publish_agent, query_agent):
     """
     Test if devices topic message is getting forwarded to historian running on
@@ -704,7 +703,6 @@ def test_actuator_topic(publish_agent, query_agent):
 
 @pytest.mark.historian
 @pytest.mark.forwarder
-@pytest.mark.dev
 def test_nan_value(publish_agent, query_agent):
     """
     Test if devices topic message is getting forwarded to historian running on
