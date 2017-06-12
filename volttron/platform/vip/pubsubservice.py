@@ -408,7 +408,6 @@ class PubSubService(object):
             subscriptions = self._peer_subscriptions['internal'][bus]
         subscribers = set()
         # Check for local subscribers
-        #frames[3] = bytes(user_id) -----Check, there is purpose for this
         for prefix, subscription in subscriptions.iteritems():
             if subscription and topic.startswith(prefix):
                 subscribers |= subscription

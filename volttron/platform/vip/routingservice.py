@@ -60,10 +60,6 @@ from __future__ import print_function, absolute_import
 import os
 import threading
 
-import requests
-import random
-import gevent
-from gevent.fileobject import FileObject
 import zmq
 import logging
 from zmq import SNDMORE, EHOSTUNREACH, ZMQError, EAGAIN, NOBLOCK
@@ -71,9 +67,6 @@ from ..keystore import KeyStore
 from zmq.utils import jsonapi
 from ..vip.socket import Address
 from zmq.utils.monitor import recv_monitor_message
-from requests.packages.urllib3.connection import (ConnectionError,
-                                                  NewConnectionError)
-from urlparse import urlparse, urljoin
 import random
 
 STATUS_CONNECTING = "CONNECTING"
@@ -104,7 +97,6 @@ class RoutingService(object):
         self._context = context
         self._socket = socket
         self._socket_class = socket_class
-        self._read_platform_address_file()
         self._my_addr = my_addr
         self._my_instance_name = ''
         self._monitor_poller = zmq.Poller()
@@ -163,47 +155,24 @@ class RoutingService(object):
         :param serverkey: serverkey for establishing connection with remote instance
         :return:
         """
-        def build_vip_address(vip_address, serverkey):
-            """
-            Create a usable vip address with zap parameters embedded in the uri.
 
-            :return:
-            """
-            keystore = KeyStore()
-            return "{0}?serverkey={1}&publickey={2}&secretkey={3}".format(
-                vip_address, str(serverkey),
+        keystore = KeyStore()
+        sock = self._instances[instance_name]['socket']
+        address = self._ext_addresses[instance_name]['vip-address']
+        vip_address = "{0}?serverkey={1}&publickey={2}&secretkey={3}".format(
+                address, str(serverkey),
                 str(keystore.public), str(keystore.secret)
             )
 
-        sock = self._instances[instance_name]['socket']
-        address = self._ext_addresses[instance_name]['vip-address']
-        address = build_vip_address(address, serverkey)
-
-        ext_platform_address = Address(address)
+        ext_platform_address = Address(vip_address)
 
         try:
-            #self._instances[instance_name] = address
             ext_platform_address.connect(sock)
             #Form VIP message to send to remote instance
             frames = [b'', 'VIP1', b'', b'', b'routing_table', b'hello', b'hello', self._my_instance_name]
             self.send_external(instance_name, frames)
         except zmq.error.ZMQError as ex:
             _log.error("ZMQ error on external connection {}".format(ex))
-
-    def _read_platform_address_file(self):
-        """
-        Read external address file
-        :return:
-        """
-        try:
-            with open(self._external_address_file) as fil:
-                # Use gevent FileObject to avoid blocking the thread
-                data = FileObject(fil, close=False).read()
-                self._ext_addresses = jsonapi.loads(data) if data else {}
-        except IOError:
-            _log.exception("Error opening %s", self._external_address_file)
-        except Exception:
-            _log.exception('error loading %s', self._external_address_file)
 
     def _monitor_external_sockets(self):
         """
@@ -383,6 +352,10 @@ class RoutingService(object):
             except IndexError:
                 return False
             #If serverkey received from KeyDiscoveryService, build connection with remote instance
+            if op == b'external_addresses':
+                addr = bytes(frames[7])
+                self._ext_addresses = jsonapi.loads(addr)
+                self.setup()
             if op == b'external_serverkey':
                 serverkey = bytes(frames[7])
                 name = bytes(frames[8])

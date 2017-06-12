@@ -334,7 +334,6 @@ class Router(BaseRouter):
         self._ext_routing = RoutingService(self.socket, self.context,
                                            self._socket_class, self._poller,
                                            self._external_address_file, self._addr)
-        self._ext_routing.setup()
         self._pubsub = PubSubService(self.socket, self._protected_topics, self._ext_routing)
         self._ext_rpc = ExternalRPCService(self.socket, self._ext_routing)
         self._poller.register(sock, zmq.POLLIN)

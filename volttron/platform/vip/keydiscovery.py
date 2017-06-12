@@ -57,6 +57,7 @@ from urlparse import urlparse, urljoin
 from gevent.fileobject import FileObject
 _log = logging.getLogger(__name__)
 from datetime import datetime, timedelta
+from zmq import ZMQError
 
 class DiscoveryError(StandardError):
     """ Raised when a different volttron central tries to register.
@@ -86,33 +87,30 @@ class KeyDiscoveryAgent(Agent):
         """
         self._vip_socket = self.core.socket
         self._read_platform_address_file()
+        try:
+            addresses = jsonapi.dumps(self._ext_addresses)
+            frames = [b'external_addresses', bytes(addresses)]
+            self._vip_socket.send_vip(b'', 'routing_table', frames, copy=False)
+        except ZMQError as ex:
+            # Try sending later
+            _log.error("ZMQ error: {}".format(ex))
+            pass
+        gevent.sleep(0.2)
         for name in self._ext_addresses:
             if self._ext_addresses[name]['bind-web-address'] not in self._my_web_address:
                 web_address = self._ext_addresses[name]['bind-web-address']
-                self._distribute_key(name, web_address)
+                self._collect_key(name, web_address)
 
-    def _delayed_discovery(self, name, web_address):
+    def _collect_key(self, name, web_address):
         """
-        Try to get serverkey of remote platform. If unsuccessful, try again later
-        :param name: name of remote instance
-        :param web_address: web address of remote instance
-        :return:
-        """
-        serverkey = ''
-        self._grnlets[name].cancel()
-        self._grnlets.pop(name, None)
-        self._distribute_key(name, web_address)
-
-
-    def _distribute_key(self, name, web_address):
-        """
-            Try to get serverkey of remote instance and send it to RoutingService to connect to the remote instance.
-            If unsuccessful, try again later.
+        Try to get serverkey of remote instance and send it to RoutingService to connect to the remote instance.
+        If unsuccessful, try again later.
         :param name: instance name
         :param web_address: web address of remote instance
         :return:
         """
         serverkey = ''
+
         try:
             serverkey = self._get_serverkey(web_address)
             _log.debug("Found key")
@@ -121,14 +119,20 @@ class KeyDiscoveryAgent(Agent):
             # If discovery error, try again later
             utc_now = utils.get_aware_utc_now()
             delay = utc_now + timedelta(seconds=2)
-            self._grnlets[name] = self.core.schedule(delay, self._delayed_discovery, name, web_address)
+            self._grnlets.pop(name, None)
+            self._grnlets[name] = self.core.schedule(delay, self._collect_key, name, web_address)
         except ConnectionError:
             pass
 
         # Send the serverkey to RoutingService to establish socket connection with remote platform
         if serverkey:
             frames = [b'external_serverkey', bytes(serverkey), name]
-            self._vip_socket.send_vip(b'', 'routing_table', frames, copy=False)
+            try:
+                self._vip_socket.send_vip(b'', 'routing_table', frames, copy=False)
+            except ZMQError as ex:
+                #Try sending later
+                _log.error("ZMQ error: {}".format(ex))
+                pass
 
     def _read_platform_address_file(self):
         """
@@ -162,13 +166,13 @@ class KeyDiscoveryAgent(Agent):
 
             real_url = urljoin(web_address, "/discovery/")
             response = requests.get(real_url)
-
-            if not response.ok:
-                raise DiscoveryError(
-                    "Invalid discovery response from {}".format(real_url)
-                )
+            response.raise_for_status()
             r = response.json()
             return r['serverkey']
+        except requests.exceptions.HTTPError:
+            raise DiscoveryError(
+                    "Invalid discovery response from {}".format(real_url)
+                )
         except AttributeError as e:
             raise DiscoveryError(
                 "Invalid web_address passed {}"
