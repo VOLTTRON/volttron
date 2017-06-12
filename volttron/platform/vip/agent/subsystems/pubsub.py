@@ -177,6 +177,128 @@ class PubSub(SubsystemBase):
             # No callbacks for topic; synchronize with sender
             self.synchronize()
 
+    def _viperror(self, sender, error, **kwargs):
+        if isinstance(error, Unreachable):
+            self._peer_drop(self, error.peer)
+
+    def _peer_add(self, sender, peer, **kwargs):
+        # Delay sync by some random amount to prevent reply storm.
+        delay = random.random()
+        self.core().spawn_later(delay, self.synchronize, peer)
+
+    def _peer_drop(self, sender, peer, **kwargs):
+        self._sync(peer, {})
+
+    def _sync(self, peer, items):
+        items = {(bus, prefix) for bus, topics in items.iteritems()
+                 for prefix in topics}
+        remove = []
+        for bus, subscriptions in self._peer_subscriptions.iteritems():
+            for prefix, subscribers in subscriptions.iteritems():
+                item = bus, prefix
+                try:
+                    items.remove(item)
+                except KeyError:
+                    subscribers.discard(peer)
+                    if not subscribers:
+                        remove.append(item)
+                else:
+                    subscribers.add(peer)
+        for bus, prefix in remove:
+            subscriptions = self._peer_subscriptions[bus]
+            assert not subscriptions.pop(prefix)
+        for bus, prefix in items:
+            self._add_peer_subscription(peer, bus, prefix)
+
+    def _peer_sync(self, items):
+        peer = bytes(self.rpc().context.vip_message.peer)
+        assert isinstance(items, dict)
+        self._sync(peer, items)
+
+    def _add_peer_subscription(self, peer, bus, prefix):
+        subscriptions = self._peer_subscriptions[bus]
+        try:
+            subscribers = subscriptions[prefix]
+        except KeyError:
+            subscriptions[prefix] = subscribers = set()
+        subscribers.add(peer)
+
+    def _peer_subscribe(self, prefix, bus=''):
+        peer = bytes(self.rpc().context.vip_message.peer)
+        for prefix in prefix if isinstance(prefix, list) else [prefix]:
+            self._add_peer_subscription(peer, bus, prefix)
+
+    def _peer_unsubscribe(self, prefix, bus=''):
+        peer = bytes(self.rpc().context.vip_message.peer)
+        subscriptions = self._peer_subscriptions[bus]
+        if prefix is None:
+            remove = []
+            for topic, subscribers in subscriptions.iteritems():
+                subscribers.discard(peer)
+                if not subscribers:
+                    remove.append(topic)
+            for topic in remove:
+                del subscriptions[topic]
+        else:
+            for prefix in prefix if isinstance(prefix, list) else [prefix]:
+                subscribers = subscriptions[prefix]
+                subscribers.discard(peer)
+                if not subscribers:
+                    del subscriptions[prefix]
+
+    def _peer_list(self, prefix='', bus='', subscribed=True, reverse=False):
+        peer = bytes(self.rpc().context.vip_message.peer)
+        if bus is None:
+            buses = self._peer_subscriptions.iteritems()
+        else:
+            buses = [(bus, self._peer_subscriptions[bus])]
+        if reverse:
+            test = prefix.startswith
+        else:
+            test = lambda t: t.startswith(prefix)
+        results = []
+        for bus, subscriptions in buses:
+            for topic, subscribers in subscriptions.iteritems():
+                if test(topic):
+                    member = peer in subscribers
+                    if not subscribed or member:
+                        results.append((bus, topic, member))
+        return results
+
+    def _peer_publish(self, topic, headers, message=None, bus=''):
+        peer = bytes(self.rpc().context.vip_message.peer)
+        self._distribute(peer, topic, headers, message, bus)
+
+    def _distribute(self, peer, topic, headers, message=None, bus=''):
+        self._check_if_protected_topic(topic)
+        try:
+            subscriptions = self._peer_subscriptions[bus]
+        except KeyError:
+            subscriptions = dict()
+        subscribers = set()
+        for prefix, subscription in subscriptions.iteritems():
+            if subscription and topic.startswith(prefix):
+                subscribers |= subscription
+        if subscribers:
+            sender = encode_peer(peer)
+            json_msg = jsonapi.dumps(jsonrpc.json_method(
+                None, 'pubsub.push',
+                [sender, bus, topic, headers, message], None))
+            frames = [zmq.Frame(b''), zmq.Frame(b''),
+                      zmq.Frame(b'RPC'), zmq.Frame(json_msg)]
+            socket = self.core().socket
+            for subscriber in subscribers:
+                socket.send(subscriber, flags=SNDMORE)
+                socket.send_multipart(frames, copy=False)
+        return len(subscribers)
+
+    def _peer_push(self, sender, bus, topic, headers, message):
+        '''Handle incoming subscription pushes from peers.'''
+        peer = bytes(self.rpc().context.vip_message.peer)
+        handled = 0
+        sender = decode_peer(sender)
+        self._process_callback(sender, bus, topic, headers, message)
+
     def synchronize(self):
         """Synchronize local subscriptions with the PubSubService.
         """

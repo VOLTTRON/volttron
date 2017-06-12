@@ -372,6 +372,7 @@ class Router(BaseRouter):
             if sender == b'control' and user_id == self.default_user_id:
                 if self._ext_routing:
                     self._ext_routing.close_external_connections()
+                self.stop()
                 raise KeyboardInterrupt()
         elif subsystem == b'agentstop':
             try:
