@@ -67,13 +67,15 @@ from bacpypes.consolecmd import ConsoleCmd
 from bacpypes.core import run, stop
 
 from bacpypes.pdu import Address, GlobalBroadcast
-from bacpypes.app import LocalDeviceObject, BIPSimpleApplication
-
+from bacpypes.app import BIPSimpleApplication
+from bacpypes.service.device import LocalDeviceObject
 from bacpypes.apdu import WhoIsRequest, IAmRequest
 from bacpypes.basetypes import ServicesSupported
 from bacpypes.errors import DecodingError
 
 import threading, time, sys
+
+import csv
 
 # some debugging
 _debug = 0
@@ -87,6 +89,8 @@ this_console = None
 #
 #   WhoIsIAmApplication
 #
+
+this_csv_file = None
 
 @bacpypes_debugging
 class WhoIsIAmApplication(BIPSimpleApplication):
@@ -136,6 +140,13 @@ class WhoIsIAmApplication(BIPSimpleApplication):
                 sys.stdout.write('segmentationSupported = ' + str(apdu.segmentationSupported) + '\n')
                 sys.stdout.write('vendorID              = ' + str(apdu.vendorID) + '\n')
                 sys.stdout.flush()
+                if this_csv_file is not None:
+                    row = {"address":apdu.pduSource,
+                           "device_id": device_instance,
+                           "max_apdu_length": apdu.maxAPDULengthAccepted,
+                           "segmentation_supported": apdu.segmentationSupported,
+                           "vendor_id": apdu.vendorID}
+                    this_csv_file.writerow(row)
 
         # forward it along
         BIPSimpleApplication.indication(self, apdu)
@@ -176,57 +187,75 @@ class WhoIsIAmConsoleCmd(ConsoleCmd):
 #   __main__
 #
 
+
+# parse the command line arguments
+arg_parser = ConfigArgumentParser(description=__doc__)
+
+arg_parser.add_argument("--address",
+                        help="Target only device(s) at <address> for request" )
+
+arg_parser.add_argument("--range", type=int, nargs=2, metavar=('LOW', 'HIGH'),
+                        help="Lower and upper limit on device ID in results" )
+
+arg_parser.add_argument("--timeout", type=int, metavar=('SECONDS'),
+                        help="Time, in seconds, to wait for responses. Default: %(default)s",
+                        default = 5)
+
+arg_parser.add_argument("--csv-out", dest="csv_out",
+                        help="Write results to the CSV file specified.")
+
+
+
+args = arg_parser.parse_args()
+
+f = None
+
+if args.csv_out is not None:
+    f = open(args.csv_out, "wb")
+    field_names = ["address",
+                   "device_id",
+                   "max_apdu_length",
+                   "segmentation_supported",
+                   "vendor_id"]
+    this_csv_file = csv.DictWriter(f, field_names)
+    this_csv_file.writeheader()
+
+if _debug: _log.debug("initialization")
+if _debug: _log.debug("    - args: %r", args)
+
+# make a device object
+this_device = LocalDeviceObject(
+    objectName=args.ini.objectname,
+    objectIdentifier=int(args.ini.objectidentifier),
+    maxApduLengthAccepted=int(args.ini.maxapdulengthaccepted),
+    segmentationSupported=args.ini.segmentationsupported,
+    vendorIdentifier=int(args.ini.vendoridentifier),
+    )
+
+# build a bit string that knows about the bit names
+pss = ServicesSupported()
+pss['whoIs'] = 1
+pss['iAm'] = 1
+
+# set the property value to be just the bits
+this_device.protocolServicesSupported = pss.value
+
+# make a simple application
+this_application = WhoIsIAmApplication(this_device, args.ini.address)
+_log.debug("running")
+
+request = WhoIsRequest()
+
+if args.address is not None:
+    request.pduDestination = Address(args.address)
+else:
+    request.pduDestination = GlobalBroadcast()
+
+if args.range is not None:
+    request.deviceInstanceRangeLowLimit = int(args.range[0])
+    request.deviceInstanceRangeHighLimit = int(args.range[1])
+
 try:
-    # parse the command line arguments
-    arg_parser = ConfigArgumentParser(description=__doc__)
-
-    arg_parser.add_argument("--address", 
-                            help="Target only device(s) at <address> for request" )
-
-    arg_parser.add_argument("--range", type=int, nargs=2, metavar=('LOW', 'HIGH'),
-                            help="Lower and upper limit on device ID in results" )
-
-    arg_parser.add_argument("--timeout", type=int, metavar=('SECONDS'),
-                            help="Time, in seconds, to wait for responses. Default: %(default)s",
-                            default = 5)
-
-    args = arg_parser.parse_args()
-
-    if _debug: _log.debug("initialization")
-    if _debug: _log.debug("    - args: %r", args)
-
-    # make a device object
-    this_device = LocalDeviceObject(
-        objectName=args.ini.objectname,
-        objectIdentifier=int(args.ini.objectidentifier),
-        maxApduLengthAccepted=int(args.ini.maxapdulengthaccepted),
-        segmentationSupported=args.ini.segmentationsupported,
-        vendorIdentifier=int(args.ini.vendoridentifier),
-        )
-
-    # build a bit string that knows about the bit names
-    pss = ServicesSupported()
-    pss['whoIs'] = 1
-    pss['iAm'] = 1
-
-    # set the property value to be just the bits
-    this_device.protocolServicesSupported = pss.value
-
-    # make a simple application
-    this_application = WhoIsIAmApplication(this_device, args.ini.address)
-    _log.debug("running")
-
-    request = WhoIsRequest()
-
-    if args.address is not None:
-        request.pduDestination = Address(args.address)
-    else:
-        request.pduDestination = GlobalBroadcast()
-
-    if args.range is not None:
-        request.deviceInstanceRangeLowLimit = int(args.range[0])
-        request.deviceInstanceRangeHighLimit = int(args.range[1])
-
     #set timeout timer
     def time_out():
         time.sleep(args.timeout)
@@ -243,4 +272,6 @@ except Exception, e:
     _log.exception("an error has occurred: %s", e)
 finally:
     _log.debug("finally")
+    if f is not None:
+        f.close()
 

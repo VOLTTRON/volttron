@@ -1,5 +1,7 @@
-Scheduler Example
-=================
+.. _SchedulerExampleAgent:
+
+SchedulerExampleAgent
+=====================
 
 The SchedulerExampleAgent demonstrates how to use the scheduling feature
 of the [[ActuatorAgent]] as well as how to send a command. This agent

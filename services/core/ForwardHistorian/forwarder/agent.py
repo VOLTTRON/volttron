@@ -74,6 +74,7 @@ from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_GOOD, Status)
 from volttron.utils.docs import doc_inherit
+from zmq.green import ZMQError, ENOTSOCK
 
 FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()
@@ -266,6 +267,7 @@ def historian(config_path, **kwargs):
                         _log.debug('debugger: {} {} {}'.format(topic,
                                                                headers,
                                                                payload))
+
                         self._target_platform.vip.pubsub.publish(
                             peer='pubsub',
                             topic=topic,
@@ -282,6 +284,16 @@ def historian(config_path, **kwargs):
                         self._target_platform = None
                         self.vip.health.set_status(
                             STATUS_BAD, "Timeout occured")
+                    except Unreachable:
+                        _log.error("Target not reachable. Wait till it's ready!")
+                    except ZMQError as exc:
+                        if exc.errno == ENOTSOCK:
+                            # Stop the current platform from attempting to
+                            # connect
+                            _log.error("Target disconnected. Stopping target platform agent")
+                            self._target_platform = None
+                            self.vip.health.set_status(
+                                STATUS_BAD, "Target platform disconnected")
                     except Exception as e:
                         err = "Unhandled error publishing to target platfom."
                         _log.error(err)

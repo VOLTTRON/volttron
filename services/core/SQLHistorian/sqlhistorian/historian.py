@@ -95,33 +95,9 @@ def historian(config_path, **kwargs):
     params = connection.get('params', None)
     assert params is not None
 
-    identity_from_platform = kwargs.pop('identity', None)
-    identity = config_dict.get('identity')
-
-    if identity is not None:
-        _log.warning("DEPRECATION WARNING: Setting a historian's VIP IDENTITY"
-                     " from its configuration file will no longer be "
-                     "supported after VOLTTRON 4.0")
-        _log.warning("DEPRECATION WARNING: Using the identity configuration "
-                     "setting will override the value provided by the "
-                     "platform. This new value will not be reported correctly"
-                     " by 'volttron-ctl status'")
-        _log.warning("DEPRECATION WARNING: Please remove 'identity' from your "
-                     "configuration file and use the new method provided by "
-                     "the platform to set an agent's identity. See "
-                     "scripts/core/make-sqlite-historian.sh for an example "
-                     "of how this is done.")
-    else:
-        identity = identity_from_platform
-
-    topic_replace_list = config_dict.get("topic_replace_list", None)
-    if topic_replace_list:
-        _log.debug("topic replace list is: {}".format(topic_replace_list))
-
-
     SQLHistorian.__name__ = 'SQLHistorian'
-    return SQLHistorian(config_dict, identity=identity,
-                        topic_replace_list=topic_replace_list, **kwargs)
+    utils.update_kwargs_with_config(kwargs, config_dict)
+    return SQLHistorian(**kwargs)
 
 
 class SQLHistorian(BaseHistorian):
@@ -135,7 +111,7 @@ class SQLHistorian(BaseHistorian):
 
     """
 
-    def __init__(self, config, **kwargs):
+    def __init__(self, connection, tables_def = None, **kwargs):
         """Initialise the historian.
 
         The historian makes two connections to the data store.  Both of
@@ -143,17 +119,33 @@ class SQLHistorian(BaseHistorian):
         thread of the historian.  topic_map and topic_meta are used as
         cache for the meta data and topic maps.
 
-        :param config: dictionary object containing the configurations for
-                       this historian
-        :param kwargs: additional keyword arguments. (optional identity and
-                       topic_replace_list used by parent classes)
+        :param connection: dictionary that contains necessary information to
+        establish a connection to the sql database. The dictionary should 
+        contain two entries - 
+        
+          1. 'type' - describe the type of database (sqlite or mysql) 
+          2. 'params' - parameters for connecting to the database. 
+          
+        :param tables_def: optional parameter. dictionary containing the 
+        names to be used for historian tables. Should contain the following 
+        keys
+        
+          1. "table_prefix": - if specified tables names are prefixed with 
+          this value followed by a underscore
+          2."data_table": name of the table that stores historian data,
+          3."topics_table": name of the table that stores the list of topics 
+          for which historian contains data data
+          4. "meta_table": name of the table that stores the metadata data 
+          for topics
+          
+        :param kwargs: additional keyword arguments. 
         """
-        self.config = config
+        self.connection = connection
+        self.tables_def, self.table_names = self.parse_table_def(tables_def)
         self.topic_id_map = {}
         self.topic_name_map = {}
         self.topic_meta = {}
         self.agg_topic_id_map = {}
-        self.tables_def = {}
         self.reader = None
         self.writer = None
         super(SQLHistorian, self).__init__(**kwargs)
@@ -345,18 +337,21 @@ class SQLHistorian(BaseHistorian):
         thread_name = threading.currentThread().getName()
         _log.debug("historian_setup on Thread: {}".format(thread_name))
 
-        database_type = self.config['connection']['type']
-        self.tables_def, table_names = self.parse_table_def(self.config)
+        database_type = self.connection['type']
+
         db_functs_class = sqlutils.get_dbfuncts_class(database_type)
-        self.reader = db_functs_class(self.config['connection']['params'],
-                                      table_names)
-        self.writer = db_functs_class(self.config['connection']['params'],
-                                      table_names)
-        self.writer.setup_historian_tables()
+        self.reader = db_functs_class(self.connection['params'],
+                                      self.table_names)
+        self.writer = db_functs_class(self.connection['params'],
+                                      self.table_names)
+
+        if not self._readonly:
+            self.writer.setup_historian_tables()
 
         topic_id_map, topic_name_map = self.reader.get_topic_map()
         self.topic_id_map.update(topic_id_map)
         self.topic_name_map.update(topic_name_map)
+        _log.debug("updated topic name map. {}".format(self.topic_name_map))
         self.agg_topic_id_map = self.reader.get_agg_topic_map()
 
 

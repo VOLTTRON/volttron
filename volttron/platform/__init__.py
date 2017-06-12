@@ -58,11 +58,12 @@
 
 """ Core package."""
 
-
+import logging
 import os
+import psutil
 import sys
 
-__version__ = '4.0.1'
+__version__ = '4.1'
 
 
 def set_home(home=None):
@@ -72,7 +73,7 @@ def set_home(home=None):
     Otherwise, the default value of '~/.volttron' is used.
     """
     os.environ["VOLTTRON_HOME"] = home or get_home()
-    
+
 
 def get_home():
     """ Return the home directory with user and variables expanded.
@@ -80,11 +81,19 @@ def get_home():
     If the VOLTTRON_HOME environment variable is set, it used.
     Otherwise, the default value of '~/.volttron' is used.
     """
-    return os.path.abspath(
+
+    vhome = os.path.abspath(
         os.path.normpath(
             os.path.expanduser(
                 os.path.expandvars(
                     os.environ.get('VOLTTRON_HOME', '~/.volttron')))))
+    if vhome.endswith('/'):
+        vhome = vhome[:-1]
+        if os.environ.get('VOLTTRON_HOME') is not None:
+            log = logging.getLogger('volttron')
+            log.warn("Removing / from the end of VOLTTRON_HOME")
+            os.environ['VOLTTRON_HOME'] = vhome
+    return vhome
 
 
 def get_address():
@@ -112,3 +121,28 @@ def get_volttron_root():
             )
         )
     )
+
+
+def is_instance_running(volttron_home=None):
+    from zmq.utils import jsonapi
+
+    if volttron_home is None:
+        volttron_home = get_home()
+
+    instance_file = os.path.expanduser("~/.volttron_instances")
+    if not os.path.isfile(instance_file):
+        return False
+
+    with open(instance_file, 'r') as fp:
+        jsonobj = jsonapi.loads(fp.read())
+
+    if volttron_home not in jsonobj:
+        return False
+
+    obj = jsonobj[volttron_home]
+    pid = obj.get('pid', None)
+
+    if not pid:
+        return False
+
+    return psutil.pid_exists(pid)
