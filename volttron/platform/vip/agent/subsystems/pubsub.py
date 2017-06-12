@@ -487,7 +487,7 @@ class PubSub(SubsystemBase):
                 self._pubsubwithrpc.clear_parameters()
                 del self._pubsubwithrpc
             response = message.args[1].bytes
-            _log.debug("Message result: {}".format(response))
+            #_log.debug("Message result: {}".format(response))
             result.set(response)
         elif op == 'publish':
             try:
