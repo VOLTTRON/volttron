@@ -135,6 +135,7 @@ class BaseRouter(object):
         sock.tcp_keepalive_idle = 180
         sock.tcp_keepalive_intvl = 20
         sock.tcp_keepalive_cnt = 6
+        sock.set_hwm(2000)
         self.setup()
 
     def stop(self, linger=1):

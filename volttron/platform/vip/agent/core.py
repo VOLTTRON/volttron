@@ -563,7 +563,7 @@ class Core(BasicCore):
     def loop(self, running_event):
         # pre-setup
         self.socket = vip.Socket(self.context)
-
+        #self.socket.set_hwm(5000)
         if self.reconnect_interval:
             self.socket.setsockopt(zmq.RECONNECT_IVL, self.reconnect_interval)
         if self.identity:
