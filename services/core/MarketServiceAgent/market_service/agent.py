@@ -59,10 +59,12 @@
 import logging
 import sys
 
+from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Core
 from volttron.platform.vip.agent import Agent
-from market_service.director import Director
+from services.core.market_service.director import Director
+from services.core.market_service.market_registry import MarketRegistry
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
@@ -96,6 +98,7 @@ class MarketServiceAgent(Agent):
         super(MarketServiceAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
         self.director = Director(market_period, reservation_delay, offer_delay, clear_delay)
+        self.registry = MarketRegistry()
 
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
@@ -103,27 +106,30 @@ class MarketServiceAgent(Agent):
 
     def sendCollectReservationsRequest(self, timestamp):
         self.vip.pubsub.publish(peer='pubsub',
-                                topic='platform.market.reserve',
+                                topic=self.topic('reserve'),
                                 message=timestamp)
 
     def sendCollectOffersRequest(self, timestamp):
         self.vip.pubsub.publish(peer='pubsub',
-                                topic='platform.market.bid',
+                                topic=self.topic('bid'),
                                 message=timestamp)
 
     def sendClearRequest(self, timestamp):
         self.vip.pubsub.publish(peer='pubsub',
-                                topic='platform.market.clear',
+                                topic=self.topic('clear'),
                                 message=timestamp)
 
     def output(self, message, value, hash, timestamp):
         print timestamp, message, value
         return "output done"
 
+    def topic(sub_topic):
+        return format('%s.%s', PLATFORM_MARKET_SERVICE, sub_topic)
+
 
 def main():
     """Main method called to start the agent."""
-    utils.vip_main(market_service_agent, identity='platform.market',
+    utils.vip_main(market_service_agent, identity=PLATFORM_MARKET_SERVICE,
                    version=__version__)
 
 

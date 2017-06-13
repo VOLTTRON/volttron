@@ -56,52 +56,11 @@
 
 # }}}
 
-import logging
+from market_agent.agent import MarketAgent
+from market_agent.buy_sell import BuyerSeller
 
-from volttron.platform.agent import utils
-from volttron.platform.vip.agent import Core, PubSub
-from volttron.platform.vip.agent import Agent
-from volttron.agents.market_agent.market_registration import MarketRegistration
-
-_log = logging.getLogger(__name__)
-utils.setup_logging()
-__version__ = "0.01"
-
-
-class MarketAgent(Agent):
-    def __init__(self, **kwargs):
-        super(MarketAgent, self).__init__(**kwargs)
-        _log.debug("vip_identity: " + self.core.identity)
-        self.registrations = []
-
-    @Core.receiver("onstart")
-    def onstart(self, sender, **kwargs):
-        pass
-
-    @PubSub.subscribe('pubsub', 'platform.market.reserve')
-    def match_reservation(self, peer, sender, bus, topic, headers, message):
-        for registration in self.registrations:
-            timestamp = message[0]
-            registration.request_reservations(timestamp)
-
-    @PubSub.subscribe('pubsub', 'platform.market.bid')
-    def match_make_offer(self, peer, sender, bus, topic, headers, message):
-        for registration in self.registrations:
-            timestamp = message[0]
-            registration.request_offers(timestamp)
-
-    @PubSub.subscribe('pubsub', 'platform.market.clear')
-    def match_clear_price(self, peer, sender, bus, topic, headers, message):
-        for registration in self.registrations:
-            timestamp = message[0]
-            price = message[1]
-            quantity = message[2]
-            registration.request_clear_price(timestamp, price, quantity)
-
-    def join_market (self, market_name, buyer_seller, reservation_callback,
-                     offer_callback, aggregate_callback, price_callback, error_callback):
-        registration = MarketRegistration(market_name, buyer_seller,
-                                          reservation_callback, offer_callback,
-                                          aggregate_callback, price_callback, error_callback)
-        self.registrations.append(registration)
+@pytest.mark.market_agent
+def test_market_seller_registration():
+    agent = MarketAgent
+    agent.join_market('test_market', BuyerSeller.SELLER, None, None, None, None, None)
 
