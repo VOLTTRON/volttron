@@ -611,10 +611,9 @@ def test_old_config(volttron_instances, forwarder):
 
     print("forwarder agent id: ", forwarder_uuid)
 
+
 @pytest.mark.historian
 @pytest.mark.forwarder
-@pytest.mark.skipif(True,
-                    reason="This passes in develop.  Comment out when necessary.")
 def test_actuator_topic(publish_agent, query_agent):
     print("\n** test_actuator_topic **")
     global volttron_instance1, volttron_instance2
@@ -627,7 +626,7 @@ def test_actuator_topic(publish_agent, query_agent):
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
-    print result
+    print(result)
     assert result == 0
 
     # Start the master driver agent which would intern start the fake driver

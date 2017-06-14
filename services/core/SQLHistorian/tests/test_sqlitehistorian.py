@@ -385,7 +385,7 @@ def test_multiple_writes(request, historian, publish_agent, query_agent,
     assert (result['values'][0][1] == oat_reading)
     assert set(result['metadata'].items()) == set(float_meta.items())
 
-@pytest.mark.dev
+
 @pytest.mark.historian
 def test_sqlite_timeout(request, historian, publish_agent, query_agent,
                         clean, volttron_instance):
