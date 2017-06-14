@@ -113,8 +113,9 @@ class SqlLiteFuncts(DbDriver):
         if 'detect_types' not in connect_params.keys():
             connect_params['detect_types'] = \
                 sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        if 'timeout' not in connect_params.keys():
+            connect_params['timeout'] = 10
 
-        print (connect_params)
         self.data_table = None
         self.topics_table = None
         self.meta_table = None
@@ -127,7 +128,7 @@ class SqlLiteFuncts(DbDriver):
             self.meta_table = table_names['meta_table']
             self.agg_topics_table = table_names['agg_topics_table']
             self.agg_meta_table = table_names['agg_meta_table']
-        _log.debug("In sqlite3 connect. connect params {}".format(connect_params))
+        _log.debug("In sqlitefuncts connect params {}".format(connect_params))
         super(SqlLiteFuncts, self).__init__('sqlite3', **connect_params)
 
     def setup_historian_tables(self):

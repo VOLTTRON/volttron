@@ -68,6 +68,7 @@ import sys
 from abc import abstractmethod
 from volttron.platform.agent import utils
 from zmq.utils import jsonapi
+import sqlite3
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -369,8 +370,24 @@ class DbDriver(object):
         """
         successful = False
         if self.__connection is not None:
-            self.__connection.commit()
-            successful = True
+            try:
+                self.__connection.commit()
+                successful = True
+            except sqlite3.OperationalError as e:
+                if "database is locked" in e.message:
+                    _log.error("EXCEPTION: SQLITE3 Database is locked. This "
+                               "error could occur when there are multiple "
+                               "simultaneous read and write requests, making "
+                               "individual request to wait more than the "
+                               "default timeout period. If you are using "
+                               "sqlite for frequent reads and write, please "
+                               "configure a higher timeout in agent "
+                               "configuration under \n"
+                               "config[\"connection\"][\"params\"]["
+                               "\"timeout\"]  "
+                               "Default value is 10. Timeout units is seconds")
+                raise
+
         else:
             _log.warning('connection was null during commit phase.')
 
