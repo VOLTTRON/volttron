@@ -64,12 +64,18 @@ import importlib
 import logging
 import threading
 
+import sys
 from abc import abstractmethod
 from volttron.platform.agent import utils
 from zmq.utils import jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+
+
+class ConnectionError(Exception):
+    """Custom class for connection errors"""
+    pass
 
 
 class DbDriver(object):
@@ -89,21 +95,22 @@ class DbDriver(object):
 
         self.__dbmodule = importlib.import_module(dbapimodule)
         self.__connection = None
-        self.__cursor = None
         self.__connect_params = kwargs
+        _log.debug("kwargs for connect is {}".format(kwargs))
 
     def __connect(self):
         try:
             if self.__connection is None:
                 self.__connection = self.__dbmodule.connect(
                     **self.__connect_params)
-            if self.__cursor is None:
-                self.__cursor = self.__connection.cursor()
 
         except Exception as e:
-            _log.warning(e.__class__.__name__ + "couldn't connect to database")
+            _log.error("Could not connect to database. Raise ConnectionError")
+            raise ConnectionError(e), None, sys.exc_info()[2]
 
-        return self.__connection is not None
+        if self.__connection is None:
+            raise ConnectionError(
+                "Unknown error. Could not connect to database")
 
     def read_tablenames_from_db(self, meta_table_name):
         """
@@ -241,27 +248,13 @@ class DbDriver(object):
         pass
 
     @abstractmethod
-    def insert_agg_meta_stmt(self):
+    def replace_agg_meta_stmt(self):
         """
         :return: query string to insert metadata for an aggregate topic into
         database
         """
         pass
 
-    def insert_stmt(self, stmt, args):
-        """
-        Executes an insert statement with arguments
-
-        :param stmt: insert statement
-        :param args: insert arguments
-        :return: True if execution completes. False if unable to connect to
-                 database
-        """
-        if not self.__connect():
-            return False
-
-        self.__cursor.execute(stmt, args)
-        return True
 
     def insert_meta(self, topic_id, metadata):
         """
@@ -269,14 +262,12 @@ class DbDriver(object):
 
         :param topic_id: topic id for which metadata is inserted
         :param metadata: metadata
-        :return: True if execution completes. False if unable to connect to
-                 database
+        :return: True if execution completes. Raises exception if unable to
+        connect to database
         """
-        if not self.__connect():
-            return False
-
-        self.__cursor.execute(self.insert_meta_query(),
-                              (topic_id, jsonapi.dumps(metadata)))
+        self.__connect()
+        self.execute_stmt(self.insert_meta_query(),
+                       (topic_id, jsonapi.dumps(metadata)), commit=False)
         return True
 
     def insert_data(self, ts, topic_id, data):
@@ -286,14 +277,12 @@ class DbDriver(object):
         :param ts: timestamp
         :param topic_id: topic id for which data is inserted
         :param metadata: data values
-        :return: True if execution completes. False if unable to connect to
-                 database
+        :return: True if execution completes. raises Exception if unable to
+        connect to database
         """
-        if not self.__connect():
-            return False
-
-        self.__cursor.execute(self.insert_data_query(),
-                              (ts, topic_id, jsonapi.dumps(data)))
+        self.__connect()
+        self.execute_stmt(self.insert_data_query(),
+                       (ts, topic_id, jsonapi.dumps(data)), commit=False)
         return True
 
     def insert_topic(self, topic):
@@ -302,13 +291,13 @@ class DbDriver(object):
 
         :param topic: topic to insert
         :return: id of the topic inserted if insert was successful.
-                 False if unable to connect to database
+                 Raises exception if unable to connect to database
         """
-        if not self.__connect():
-            return False
-
-        self.__cursor.execute(self.insert_topic_query(), (topic,))
-        row = [self.__cursor.lastrowid]
+        self.__connect()
+        cursor = self.__connection.cursor()
+        cursor.execute(self.insert_topic_query(), (topic,))
+        row = [cursor.lastrowid]
+        cursor.close()
         return row
 
     def update_topic(self, topic, topic_id):
@@ -317,20 +306,13 @@ class DbDriver(object):
 
         :param topic: new topic name
         :param topic_id: topic id for which update is done
-        :return: True if execution is complete. False if unable to connect
-        to database
+        :return: True if execution is complete. Raises exception if unable to
+        connect to database
         """
 
         self.__connect()
-
-        if self.__connection is None:
-            return False
-
-        if not self.__cursor:
-            self.__cursor = self.__connection.cursor()
-
-        self.__cursor.execute(self.update_topic_query(), (topic, topic_id))
-
+        self.execute_stmt(self.update_topic_query(), (topic, topic_id),
+                          commit=False)
         return True
 
     def insert_agg_meta(self, topic_id, metadata):
@@ -339,19 +321,12 @@ class DbDriver(object):
 
         :param topic_id: aggregate topic id for which metadata is inserted
         :param metadata: metadata
-        :return: True if execution completes. False if unable to connect to
-                 database
+        :return: True if execution completes. Raises exception if connection to
+        database fails
         """
-        if not self.__connect():
-            return False
-
-        if self.__connection is None:
-            return False
-
-        if not self.__cursor:
-            self.__cursor = self.__connection.cursor()
-        self.__cursor.execute(self.insert_agg_meta_stmt(),
-                              (topic_id, jsonapi.dumps(metadata)))
+        self.__connect()
+        self.execute_stmt(self.replace_agg_meta_stmt(),
+                       (topic_id, jsonapi.dumps(metadata)), commit=False)
         return True
 
     def insert_agg_topic(self, topic, agg_type, agg_time_period):
@@ -362,20 +337,14 @@ class DbDriver(object):
         :param agg_type: type of aggregation
         :param agg_time_period: time period of aggregation
         :return: id of the topic inserted if insert was successful.
-                 False if unable to connect to database
+                 Raises exception if unable to connect to database
         """
-        if not self.__connect():
-            return False
-
-        if self.__connection is None:
-            return False
-
-        if not self.__cursor:
-            self.__cursor = self.__connection.cursor()
-
-        self.__cursor.execute(self.insert_agg_topic_stmt(),
-                              (topic, agg_type, agg_time_period))
-        row = [self.__cursor.lastrowid]
+        self.__connect()
+        cursor = self.__connection.cursor()
+        cursor.execute(self.insert_agg_topic_stmt(),
+                       (topic, agg_type, agg_time_period))
+        row = [cursor.lastrowid]
+        cursor.close()
         return row
 
     def update_agg_topic(self, agg_id, agg_topic_name):
@@ -384,21 +353,13 @@ class DbDriver(object):
 
         :param agg_id: topic id for which update is done
         :param agg_topic_name: new aggregate topic name
-        :return: True if execution is complete. False if unable to
+        :return: True if execution is complete. Raises exception if unable to
         connect to database
         """
-        if not self.__connect():
-            return False
-
-        if self.__connection is None:
-            return False
-
-        if not self.__cursor:
-            self.__cursor = self.__connection.cursor()
-
-        self.__cursor.execute(self.update_agg_topic_stmt(),
-                              (agg_id, agg_topic_name))
-        self.commit()
+        self.__connect()
+        self.execute_stmt(self.update_agg_topic_stmt(),
+                              (agg_id, agg_topic_name),commit=False)
+        return True
 
     def commit(self):
         """
@@ -409,13 +370,10 @@ class DbDriver(object):
         successful = False
         if self.__connection is not None:
             self.__connection.commit()
-            self.__connection.close()
             successful = True
         else:
             _log.warning('connection was null during commit phase.')
 
-        self.__cursor = None
-        self.__connection = None
         return successful
 
     def rollback(self):
@@ -427,61 +385,63 @@ class DbDriver(object):
         successful = False
         if self.__connection is not None:
             self.__connection.rollback()
-            self.__connection.close()
             successful = True
         else:
             _log.warning('connection was null during rollback phase.')
 
-        self.__cursor = None
-        self.__connection = None
         return successful
 
-    def select(self, query, args):
+    def close(self):
+        """
+        Close connection to database
+        :return:
+        """
+        if self.__connection is not None:
+            self.__connection.close()
+
+    def select(self, query, args, fetch_all=True):
         """
         Execute a select statement
 
         :param query: select statement
         :param args: arguments for the where clause
-        :return: resultant rows
+        :param fetch_all: Set to True if function should return retrieve all
+        the records from cursors and return it. Set to False to return cursor.
+        :return: resultant rows if fetch_all is True else returns the cursor
+        It is up to calling method to close the cursor
         """
-        try:
-            conn = self.__dbmodule.connect(**self.__connect_params)
-        except Exception as e:
-            _log.warning(e.__class__.__name__ + "couldn't connect to database")
-            conn = None
-
-        if conn is None:
-            return []
-
-        cursor = conn.cursor()
+        self.__connect()
+        cursor = self.__connection.cursor()
         if args is not None:
             cursor.execute(query, args)
         else:
             cursor.execute(query)
-        rows = cursor.fetchall()
-        conn.close()
+        if fetch_all:
+            rows = cursor.fetchall()
+            cursor.close()
+        else:
+            rows = cursor
         return rows
 
-    def execute_stmt(self, stmt):
+    def execute_stmt(self, stmt, args=None, commit=False):
         """
         Execute a sql statement
 
         :param stmt: the statement to execute
+        :param args: optional arguments
+        :param commit: True if transaction should be committed. Defaults to
+        False
         :return: True if successful, False otherwise
         """
-        try:
-            conn = self.__dbmodule.connect(**self.__connect_params)
-        except Exception as e:
-            _log.warning(e.__class__.__name__ + "couldn't connect to database")
-            conn = None
 
-        if conn is None:
-            return []
-
-        cursor = conn.cursor()
-        cursor.execute(stmt)
-        conn.commit()
-        conn.close()
+        self.__connect()
+        cursor = self.__connection.cursor()
+        if args is not None:
+            cursor.execute(stmt, args)
+        else:
+            cursor.execute(stmt)
+        if commit:
+            self.commit()
         return True
 
     @abstractmethod
@@ -567,19 +527,18 @@ class DbDriver(object):
         :param data: computed aggregate
         :param topic_ids: topic ids or topic ids for which aggregate was
                           computed
-        :return: True if execution was successful, False otherwise
+        :return: True if execution was successful, raises exception
+        in case of connection failures
         """
 
-        if not self.__connect():
-            print("connect to database failed.......")
-            return False
+        self.__connect()
         table_name = agg_type + '_' + period
         _log.debug("Inserting aggregate: {} {} {} {} into table {}".format(
             ts, agg_topic_id, jsonapi.dumps(data), str(topic_ids), table_name))
-        self.__cursor.execute(
+        self.execute_stmt(
             self.insert_aggregate_stmt(table_name),
-            (ts, agg_topic_id, jsonapi.dumps(data), str(topic_ids)))
-        self.commit()
+            (ts, agg_topic_id, jsonapi.dumps(data), str(topic_ids)),
+            commit=True)
         return True
 
     @abstractmethod
