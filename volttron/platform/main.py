@@ -352,6 +352,7 @@ class Router(BaseRouter):
         if subsystem == b'quit':
             sender = bytes(frames[0])
             if sender == b'control' and user_id == self.default_user_id:
+                self.stop()
                 raise KeyboardInterrupt()
         elif subsystem == b'agentstop':
             try:
