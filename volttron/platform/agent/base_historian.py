@@ -256,7 +256,7 @@ from volttron.platform.vip.agent import compat
 
 try:
     import ujson
-    from zmq.utils.jsonapi import _dumps, _loads
+    from zmq.utils.jsonapi import dumps as _dumps, loads as _loads
     def dumps(data):
         try:
             return ujson.dumps(data, double_precision=15)
