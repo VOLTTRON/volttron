@@ -79,7 +79,8 @@ _log = logging.getLogger(__name__)
 
 class DriverAgent(BasicAgent):
     def __init__(self, parent, config, time_slot, driver_scrape_interval, device_path,
-                 default_publish_depth_first_all = True,
+                 group, group_offset_interval,
+                 default_publish_depth_first_all=True,
                  default_publish_breadth_first_all=True,
                  default_publish_depth_first=True,
                  default_publish_breadth_first=True,
@@ -110,7 +111,7 @@ class DriverAgent(BasicAgent):
         self.interval = interval
         self.periodic_read_event = None
 
-        self.update_scrape_schedule(time_slot, driver_scrape_interval)
+        self.update_scrape_schedule(time_slot, driver_scrape_interval, group, group_offset_interval)
 
     def update_publish_types(self, publish_depth_first_all,
                                    publish_breadth_first_all,
@@ -124,13 +125,14 @@ class DriverAgent(BasicAgent):
         self.publish_breadth_first = bool(self.config.get("publish_breadth_first", publish_breadth_first))
 
 
-    def update_scrape_schedule(self, time_slot, driver_scrape_interval):
+    def update_scrape_schedule(self, time_slot, driver_scrape_interval, group, group_offset_interval):
+        self.time_slot_offset = (time_slot * driver_scrape_interval) + (group * group_offset_interval)
         self.time_slot = time_slot
-        self.time_slot_offset = time_slot * driver_scrape_interval
+        self.group = group
 
-        _log.debug("{} time_slot: {}, offset: {}".format(self.device_path, time_slot, self.time_slot_offset))
+        _log.debug("{} group: {}, time_slot: {}, offset: {}".format(self.device_path, group,
+                                                                    time_slot, self.time_slot_offset))
 
-        self.time_slot_offset = time_slot * driver_scrape_interval
         if self.time_slot_offset >= self.interval:
             _log.warning(
                 "Scrape offset exceeds interval. Required adjustment will cause scrapes to double up with other devices.")
