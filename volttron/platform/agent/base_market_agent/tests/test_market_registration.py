@@ -56,6 +56,52 @@
 
 # }}}
 
-class BuyerSeller(Enum):
-    BUYER = 1
-    SELLER = 2
+import pytest
+
+from volttron.platform.agent.base_market_agent import MarketRegistration
+from volttron.platform.agent.base_market_agent.buy_sell import SELLER
+from volttron.platform.agent.utils import get_aware_utc_now
+
+@pytest.mark.market
+def test_market_registration_no_reservation_callback():
+    registration = MarketRegistration('test_market', SELLER, None, null_callback, None, None, None)
+    registration.request_reservations(get_time)
+    assert registration.wants_reservation() == True
+
+@pytest.mark.market
+def test_market_registration_true_reservation_callback():
+    registration = MarketRegistration('test_market', SELLER, wants_registration_true_callback, null_callback, None, None, None)
+    registration.request_reservations(get_time)
+    assert registration.wants_reservation() == True
+
+@pytest.mark.market
+def test_market_registration_false_reservation_callback():
+    registration = MarketRegistration('test_market', SELLER, wants_registration_false_callback, null_callback, None, None, None)
+    registration.request_reservations(get_time)
+    assert registration.wants_reservation() == False
+
+@pytest.mark.market
+def test_market_registration_no_offer_no_aggregate_callback():
+    with pytest.raises(TypeError) as error_info:
+        MarketRegistration('test_market', SELLER, None, None, None, None, None)
+    assert 'You must provide either an offer callback' in error_info.value.message
+
+@pytest.mark.market
+def test_market_registration_both_offer_and_aggregate_callback():
+    with pytest.raises(TypeError) as error_info:
+        MarketRegistration('test_market', SELLER, None, null_callback, null_callback, None, None)
+    assert 'You must only provide an offer callback' in error_info.value.message
+
+def wants_registration_true_callback(*unused):
+    return True
+
+def wants_registration_false_callback(*unused):
+    return False
+
+def null_callback(*unused):
+    pass
+
+
+def get_time():
+    now = get_aware_utc_now()
+    return now

@@ -61,10 +61,10 @@ import sys
 
 from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
 from volttron.platform.agent import utils
-from volttron.platform.vip.agent import Core
-from volttron.platform.vip.agent import Agent
-from services.core.market_service.director import Director
-from services.core.market_service.market_registry import MarketRegistry
+from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID, MARKET_CLEAR, MARKET_ERROR
+from volttron.platform.vip.agent import Agent, Core, RPC
+from market_service.director import Director
+from market_service.market_list import MarketList
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
@@ -98,7 +98,7 @@ class MarketServiceAgent(Agent):
         super(MarketServiceAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
         self.director = Director(market_period, reservation_delay, offer_delay, clear_delay)
-        self.registry = MarketRegistry()
+        self.market_list = MarketList()
 
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
@@ -106,25 +106,41 @@ class MarketServiceAgent(Agent):
 
     def sendCollectReservationsRequest(self, timestamp):
         self.vip.pubsub.publish(peer='pubsub',
-                                topic=self.topic('reserve'),
+                                topic=MARKET_RESERVE,
                                 message=timestamp)
 
     def sendCollectOffersRequest(self, timestamp):
+        self.sendUnformedMarketErrors(timestamp)
         self.vip.pubsub.publish(peer='pubsub',
-                                topic=self.topic('bid'),
+                                topic=MARKET_BID,
                                 message=timestamp)
 
     def sendClearRequest(self, timestamp):
         self.vip.pubsub.publish(peer='pubsub',
-                                topic=self.topic('clear'),
+                                topic=MARKET_CLEAR,
                                 message=timestamp)
 
     def output(self, message, value, hash, timestamp):
         print timestamp, message, value
         return "output done"
 
-    def topic(sub_topic):
-        return format('%s.%s', PLATFORM_MARKET_SERVICE, sub_topic)
+    @RPC.export
+    def register_market(self, market_name, buyer_seller):
+        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        self.market_list.register_market(market_name, buyer_seller, identity)
+
+    @RPC.export
+    def reserve_market(self, market_name, buyer_seller):
+        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        self.market_list.reserve_market(market_name, buyer_seller, identity)
+
+    def sendUnformedMarketErrors(self, timestamp):
+        unformed_markets = self.market_list.unformed_market_list()
+        for market_name in unformed_markets:
+            self.vip.pubsub.publish(peer='pubsub',
+                                    topic=MARKET_ERROR,
+                                    message={'timestamp' : timestamp,
+                                             'error_message': 'Market %s did not form.' % (market_name)})
 
 
 def main():

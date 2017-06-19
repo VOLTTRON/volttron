@@ -79,7 +79,7 @@ def market_agent(volttron_instance, test_id):
         agent.core.stop()
     print datetime.now().isoformat() + "Exit " + test_id
 
-@pytest.mark.market_service
+@pytest.mark.market
 def test_market_service_agent(volttron_instance):
     with market_agent(volttron_instance, "test1") as agent:
         gevent.sleep(4)

@@ -56,19 +56,21 @@
 
 # }}}
 
-from market_service.market_registration import MarketRegistration
+class Market(object):
+    def __init__(self, market_name):
+        self.participants = []
+        self.market_name = market_name
 
-class MarketRegistry(object):
-    def __init__(self):
-        self.registrations = []
+    def add_participant(self, participant):
+        self.participants.append(participant)
 
-    def register_market(self, market_name, buyer_seller):
-        registration = MarketRegistration(market_name, buyer_seller)
-        self.registrations.append(registration)
-
-    def has_market(self, market_name):
-        return market_name in self.registrations
-
-    # def has_market_formed(self, market_name):
-    #     return market_name in self.registrations
+    def has_market_formed(self):
+        has_buyer = False
+        has_seller = False
+        for participant in self.participants:
+            if participant.is_buyer():
+                has_buyer = True
+            if participant.is_seller():
+                has_seller = True
+        return has_buyer and has_seller
 

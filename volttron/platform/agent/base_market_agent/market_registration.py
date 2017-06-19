@@ -56,11 +56,49 @@
 
 # }}}
 
-from market_agent.agent import MarketAgent
-from market_agent.buy_sell import BuyerSeller
+class MarketRegistration(object):
+    def __init__(self, market_name, buyer_seller, reservation_callback, offer_callback,
+                 aggregate_callback, price_callback, error_callback):
+        self.market_name = market_name
+        self.buyer_seller = buyer_seller
+        self.reservation_callback = reservation_callback
+        self.offer_callback = offer_callback
+        self.aggregate_callback = aggregate_callback
+        self.price_callback = price_callback
+        self.error_callback = error_callback
+        self.__wants_reservation = self.reservation_callback == None
+        self.validate_callbacks()
 
-@pytest.mark.market_agent
-def test_market_seller_registration():
-    agent = MarketAgent
-    agent.join_market('test_market', BuyerSeller.SELLER, None, None, None, None, None)
+    def validate_callbacks(self):
+        if self.offer_callback is None and self.aggregate_callback is None:
+            raise TypeError('You must provide either an offer callback or an aggregate callback.')
+        if self.offer_callback is not None and self.aggregate_callback is not None:
+            raise TypeError('You must only provide an offer callback or an aggregate callback, but not both.')
+
+    def request_reservations(self, timestamp):
+        if self.reservation_callback is not None:
+            self.__wants_reservation = self.reservation_callback(timestamp, self.market_name, self.buyer_seller)
+        return self.__wants_reservation
+
+    def request_offers(self, timestamp):
+        if self.offer_callback is not None:
+            self.offer_callback(timestamp, self.market_name, self.buyer_seller)
+
+    def request_clear_price(self, timestamp, price, quantity):
+        if self.price_callback is not None:
+            self.price_callback(timestamp, self.market_name, self.buyer_seller, price, quantity)
+
+    def report_aggregate(self, timestamp, aggregate_curve):
+        if self.aggregate_callback is not None:
+            self.aggregate_callback(timestamp, self.market_name, self.buyer_seller, aggregate_curve)
+
+    def report_error(self, timestamp, error_message):
+        if self.error_callback is not None:
+            self.error_callback(timestamp, self.market_name, self.buyer_seller, error_message)
+
+    def wants_reservation(self):
+        return self.__wants_reservation
+
+
+
 

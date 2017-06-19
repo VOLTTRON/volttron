@@ -53,25 +53,8 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 # }}}
 
-"""
-Pytest test cases for testing market service agent.
-"""
-
-import pytest
-
-from services.core.MarketServiceAgent.market_service.market_registry import MarketRegistry
-from volttron.agents.MarketAgent.market_agent.buy_sell import BuyerSeller
-
-@pytest.mark.market_service
-def test_market_registry_no_market():
-    registry = MarketRegistry()
-    assert registry.has_market('no_market') == False
-
-def test_market_registry_has_market():
-    registry = MarketRegistry()
-    market_name = 'test_market'
-    registry.register_market(market_name, BuyerSeller.SELLER)
-    assert registry.has_market(market_name) == True
-
+BUYER = 'buyer'
+SELLER = 'seller'
