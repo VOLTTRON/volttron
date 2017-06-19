@@ -715,8 +715,11 @@ class PlatformWrapper:
                 cmd.extend(["--vip-identity", vip_identity])
             if start:
                 cmd.extend(["--start"])
-
-            results = subprocess.check_output(cmd)
+            try:
+                results = subprocess.check_output(cmd)
+            except Exception as e:
+                _log.error("Exception:{}".format(e))
+                raise e
 
             # Because we are no longer silencing output from the install, the
             # the results object is now much more verbose.  Our assumption is
