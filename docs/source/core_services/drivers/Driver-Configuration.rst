@@ -32,10 +32,12 @@ The following example sets the driver_scrape_interval to 0.05 seconds or 20 devi
         "publish_breadth_first_all": false,
         "publish_depth_first": false,
         "publish_breadth_first": false,
-        "publish_depth_first_all": true
+        "publish_depth_first_all": true,
+        "group_offset_interval": 0.0
     }
     
 * **driver_scrape_interval** - Sets the interval between devices scrapes. Defaults to 0.02 or 50 devices per second. Useful for when the platform scrapes too many devices at once resulting in failed scrapes.
+* **group_offset_interval** - Sets the interval between when groups of devices are scraped. Has no effect if all devices are in the same group.
 
 In order to improve the scalability of the platform unneeded device state publishes for all devices can be turned off.
 All of the following setting are optional and default to `True`.
@@ -66,7 +68,8 @@ Each device configuration has the following form:
         "driver_type": "bacnet",
         "registry_config":"config://registry_configs/vav.csv",
         "interval": 60,
-        "heart_beat_point": "heartbeat"
+        "heart_beat_point": "heartbeat",
+        "group": 0
     }
 
 The following settings are required for all device configurations:
@@ -79,10 +82,23 @@ These settings are optional:
 
     - **interval** - Period which to scrape the device and publish the results in seconds. Defaults to 60 seconds.
     - **heart_beat_point** - A Point which to toggle to indicate a heartbeat to the device. A point with this Volttron Point Name must exist in the registry. If this setting is missing the driver will not send a heart beat signal to the device. Heart beats are triggered by the Actuator Agent which must be running to use this feature.
+    - **group** - Group this device belongs to. Defaults to 0
 
 These settings are used to create the topic that this device will be referenced by following the VOLTTRON convention of {campus}/{building}/{unit}. This will also be the topic published on, when the device is periodically scraped for it's current state.
 
 The topic used to reference the device is derived from the name of the device configuration in the store. See the  `Adding Device Configurations to the Configuration Store`_ section.
+
+Device Grouping
+...............
+
+Devices may be placed into groups to separate them logically when they are scraped. This is done by setting the `group` in the device configuration. `group` is a number greater than or equal to 0.
+Only number of devices in the same group and the `group_offset_interval` are considered when determining when to scrape a device.
+
+This is useful in two cases. First, if you need to ensure that certain devices are scraped in close proximity to each other you can put them in their own group.
+If this causes devices to be scraped too quickly the groups can be separated out time wise using the `group_offset_interval` setting.
+Second, you may scrape devices on different networks in parallel for performance. For instance BACnet devices behind a single MSTP router need to be scraped slowly and serially, but devices behind different routers may be scraped in parallel. Grouping devices by router will do this automatically.
+
+The `group_offset_interval` is applied by multiplying it by the `group` number. If you intent to use `group_offset_interval` only use consecutive `group` values that start with 0.
 
 
 Registry Configuration File
