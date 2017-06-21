@@ -1,0 +1,6 @@
+{
+	"requirements":{
+		"cpu.bogomips": 100,
+		"memory.soft_limit_in_bytes": 200
+	}
+}
