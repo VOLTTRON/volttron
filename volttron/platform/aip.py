@@ -88,7 +88,7 @@ from .messaging import topics
 from .packages import UnpackedPackage
 from .vip.agent import Agent
 from .keystore import KeyStore
-from .auth import AuthFile, AuthEntry
+from .auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
 
 try:
     from volttron.restricted import auth
@@ -285,7 +285,7 @@ class AIPplatform(object):
         return agent_uuid
 
     def install_agent(self, agent_wheel, vip_identity=None, publickey=None,
-                      secretkey=None, add_auth=True):
+                      secretkey=None):
         while True:
             agent_uuid = str(uuid.uuid4())
             if agent_uuid in self.agents:
@@ -306,14 +306,12 @@ class AIPplatform(object):
 
             final_identity = self._setup_agent_vip_id(agent_uuid,
                                                       vip_identity=vip_identity)
-
             if publickey is not None and secretkey is not None:
                 keystore = self.get_agent_keystore(agent_uuid)
                 keystore.public = publickey
                 keystore.secret = secretkey
 
-            if add_auth:
-                self._authorize_agent_keys(agent_uuid, final_identity)
+            self._authorize_agent_keys(agent_uuid, final_identity)
 
         except Exception:
             shutil.rmtree(agent_path)
@@ -383,7 +381,10 @@ class AIPplatform(object):
         publickey = self.get_agent_keystore(agent_uuid).public
         entry = AuthEntry(credentials=publickey, user_id=identity,
                           comments='Automatically added on agent install')
-        AuthFile().add(entry)
+        try:
+            AuthFile().add(entry)
+        except AuthFileEntryAlreadyExists:
+            pass
 
     def _unauthorize_agent_keys(self, agent_uuid):
         publickey = self.get_agent_keystore(agent_uuid).public
@@ -508,6 +509,30 @@ class AIPplatform(object):
         with ignore_enoent, open(tag_file, 'r') as file:
             return file.readline(64)
 
+    def agent_version(self, agent_uuid):
+        if '/' in agent_uuid or agent_uuid in ['.', '..']:
+            raise ValueError('invalid agent')
+        agent_path = os.path.join(self.install_dir, agent_uuid)
+        name = self.agent_name(agent_uuid)
+        pkg = UnpackedPackage(os.path.join(agent_path, name))
+        return pkg.version
+
+    def agent_dir(self, agent_uuid):
+        if '/' in agent_uuid or agent_uuid in ['.', '..']:
+            raise ValueError('invalid agent')
+        return os.path.join(self.install_dir, agent_uuid,
+                            self.agent_name(agent_uuid))
+
+    def agent_versions(self):
+        agents = {}
+        for agent_uuid in os.listdir(self.install_dir):
+            try:
+                agents[agent_uuid] = (self.agent_name(agent_uuid),
+                                      self.agent_version(agent_uuid))
+            except KeyError:
+                pass
+        return agents
+
     def _agent_priority(self, agent_uuid):
         autostart = os.path.join(self.install_dir, agent_uuid, 'AUTOSTART')
         with ignore_enoent, open(autostart) as file:
@@ -629,8 +654,6 @@ class AIPplatform(object):
         environ['AGENT_PUB_ADDR'] = self.publish_address
         environ['AGENT_UUID'] = agent_uuid
         environ['_LAUNCHED_BY_PLATFORM'] = '1'
-        if self.env.developer_mode:
-            environ['_DEVELOPER_MODE'] = '1'
 
         #For backwards compatibility create the identity file if it does not exist.
         identity_file = os.path.join(self.install_dir, agent_uuid, "IDENTITY")
@@ -671,6 +694,8 @@ class AIPplatform(object):
         gevent.spawn(log_stream, 'agents.stdout', name, proc.pid, argv[0],
                      ((logging.INFO, line.rstrip('\r\n'))
                       for line in proc.stdout))
+
+        return self.agent_status(agent_uuid)
 
     def agent_status(self, agent_uuid):
         execenv = self.agents.get(agent_uuid)

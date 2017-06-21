@@ -28,7 +28,7 @@ FORWARDER_CONFIG = {
 }
 
 # Module level variables
-ALL_TOPIC = "devices/Building/LAB/Device/all"
+DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
 query_points = {
     "oat_point": "Building/LAB/Device/OutsideAirTemperature",
     "mixed_point": "Building/LAB/Device/MixedAirTemperature",
@@ -70,10 +70,10 @@ def do_publish(agent1):
     }
     print("Published time in header: " + now)
 
-    print('ALL TOPIC IS: {}'.format(ALL_TOPIC))
+    print('ALL TOPIC IS: {}'.format(DEVICES_ALL_TOPIC))
     # Publish messages
     agent1.vip.pubsub.publish(
-        'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
+        'pubsub', DEVICES_ALL_TOPIC, headers, all_message).get(timeout=10)
     publishedmessages.append(all_message)
     gevent.sleep(1)
 

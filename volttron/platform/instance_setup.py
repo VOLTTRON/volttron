@@ -56,6 +56,7 @@
 # }}}
 from ConfigParser import ConfigParser
 import argparse
+import getpass
 import hashlib
 import os
 import sys
@@ -66,6 +67,8 @@ from gevent import subprocess
 from gevent.subprocess import Popen
 from zmq.utils import jsonapi
 from zmq import green as zmq
+
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 from . import get_home
 
@@ -113,21 +116,24 @@ def _install_config_file():
         config.write(configfile)
 
 
-def prompt_response(prompt, valid_answers=None, default=None):
+def prompt_response(prompt, valid_answers=None, default=None, echo=True):
 
     prompt += ' '
     if default is not None:
         prompt += '[{}]: '.format(default)
-
-    while True:
-        resp = raw_input(prompt)
-        if resp == '' and default is not None:
-            return default
-        if valid_answers is None or resp in valid_answers:
-            return resp
-        else:
-            print('Invalid response. Proper responses are:')
-            print(valid_answers)
+    if echo:
+        while True:
+            resp = raw_input(prompt)
+            if resp == '' and default is not None:
+                return default
+            if valid_answers is None or resp in valid_answers:
+                return resp
+            else:
+                print('Invalid response. Proper responses are:')
+                print(valid_answers)
+    else:
+        resp = getpass.getpass(prompt)
+        return resp
 
 
 def _cmd(cmdargs):
@@ -184,7 +190,8 @@ volttron-cfg needs to be run from the volttron top level source directory.
 
 
 def _start_platform():
-    cmd = ['volttron', '-vv']
+    cmd = ['volttron', '-vv',
+           '-l', os.path.join(get_home(), 'volttron.cfg.log')]
     if verbose:
         print('Starting platform...')
     pid = Popen(cmd, env=os.environ.copy(), stdout=subprocess.PIPE,
@@ -360,7 +367,9 @@ internal address such as 127.0.0.1.
 
     config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
 
-    return vc_config()
+    resp = vc_config()
+    print('Installing volttron central')
+    return resp
 
 
 def vc_config():
@@ -370,10 +379,20 @@ def vc_config():
         if not username:
             print('ERROR Invalid username')
     password = ''
+    password2 = ''
     while not password:
-        password = prompt_response('Enter volttron central admin password:')
+        password = prompt_response('Enter volttron central admin password:',
+                                   echo=False)
         if not password:
             print('ERROR: Invalid password')
+            continue
+
+        password2 = prompt_response('Retype password:',
+                                    echo=False)
+        if password2 != password:
+            print("ERROR: Passwords don't match")
+
+            password = ''
 
     config = {
         'users': {
@@ -460,10 +479,11 @@ def add_fake_device_to_configstore():
     prompt = 'Install a fake device on the master driver?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
-        _cmd(['volttron-ctl', 'config', 'store', 'platform.driver',
+        _cmd(['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
               'fake.csv', 'examples/configurations/drivers/fake.csv', '--csv'])
-        _cmd(['volttron-ctl', 'config', 'store', 'platform.driver',
-              'devices/fake', 'examples/configurations/drivers/fake.config'])
+        _cmd(['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
+              'devices/fake-campus/fake-building/fake-device',
+              'examples/configurations/drivers/fake.config'])
 
 
 @installs('services/core/MasterDriverAgent', 'master_driver',

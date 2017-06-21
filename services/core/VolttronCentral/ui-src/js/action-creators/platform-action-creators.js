@@ -24,43 +24,14 @@ var platformActionCreators = {
             .then(function (agentsList) {
                 platform.agents = agentsList;
 
+                platform.agents.forEach(function (agent) {
+                   agent.actionPending = false;
+                });
+
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_PLATFORM,
                     platform: platform,
                 });
-
-                if (!agentsList.length) { return; }
-
-                new rpc.Exchange({
-                    method: 'platforms.uuid.' + platform.uuid + '.status_agents',
-                    authorization: authorization,
-                }).promise
-                    .then(function (agentStatuses) {
-                        platform.agents.forEach(function (agent) {
-                            if (!agentStatuses.some(function (status) {
-                                if (agent.uuid === status.uuid) {
-                                    agent.actionPending = false;
-                                    agent.process_id = status.process_id;
-                                    agent.return_code = status.return_code;
-
-                                    return true;
-                                }
-                            })) {
-                                agent.actionPending = false;
-                                agent.process_id = null;
-                                agent.return_code = null;
-                            }
-
-                        });
-
-                        dispatcher.dispatch({
-                            type: ACTION_TYPES.RECEIVE_PLATFORM,
-                            platform: platform,
-                        });
-                    })            
-                    .catch(rpc.Error, function (error) {
-                        handle401(error);
-                    });
             })            
             .catch(rpc.Error, function (error) {
                 handle401(error);
@@ -84,6 +55,7 @@ var platformActionCreators = {
             .then(function (status) {
                 agent.process_id = status.process_id;
                 agent.return_code = status.return_code;
+                agent.is_running = status.return_code === null;
             })                        
             .catch(rpc.Error, function (error) {
                 handle401(error, "Unable to start agent " + agent.name + ": " + error.message, agent.name);
@@ -115,6 +87,7 @@ var platformActionCreators = {
             .then(function (status) {
                 agent.process_id = status.process_id;
                 agent.return_code = status.return_code;
+                agent.is_running = false;
             })                      
             .catch(rpc.Error, function (error) {
                 handle401(error, "Unable to stop agent " + agent.name + ": " + error.message, agent.name);
@@ -394,7 +367,7 @@ var platformActionCreators = {
                 .catch(rpc.Error, function (error) {
                     handle401(error, "Unable to delete chart: " + error.message);
                 });
-        }.find(chartToDelete);
+        }.bind(chartToDelete);
 
         platformActionCreators.handleChartsForUser(doDeleteChart);
     },

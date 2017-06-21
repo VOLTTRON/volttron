@@ -1,3 +1,4 @@
+.. _ActuatorConfig:
 ActuatorAgent Configuration
 ---------------------------
 

@@ -9,6 +9,7 @@ var PlatformChart = require('./platform-chart');
 var Dashboard = React.createClass({
     getInitialState: function () {
         var state = getStateFromStores();
+
         return state;
     },
     componentDidMount: function () {
@@ -20,6 +21,9 @@ var Dashboard = React.createClass({
     _onStoreChange: function () {
         this.setState(getStateFromStores());
     },
+    _reloadPage: function () {
+        location.reload(true);
+    },
     render: function () {
         
         var pinnedCharts = this.state.platformCharts; 
@@ -27,9 +31,9 @@ var Dashboard = React.createClass({
         var platformCharts = [];
 
         pinnedCharts.forEach(function (pinnedChart) {
-            if (pinnedChart.data.length > 0)
+            if (pinnedChart.series.length > 0)
             {
-                var platformChart = <PlatformChart chart={pinnedChart} chartKey={pinnedChart.chartKey} hideControls={true}/>
+                var platformChart = <PlatformChart key={pinnedChart.chartKey} chart={pinnedChart} chartKey={pinnedChart.chartKey} hideControls={true}/>
                 platformCharts.push(platformChart);
             }
         });        
