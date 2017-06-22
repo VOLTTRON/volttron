@@ -1,0 +1,32 @@
+<DERCapability xmlns="http://zigbee.org/sep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <modesSupported>01</modesSupported>
+    <rtgAh>
+        <multiplier>1</multiplier>
+        <value>35</value>
+    </rtgAh>
+    <rtgA>
+        <multiplier>1</multiplier>
+        <value>33</value>
+    </rtgA>
+    <rtgMaxChargeRate>
+        <multiplier>1</multiplier>
+        <value>22</value>
+    </rtgMaxChargeRate>
+    <rtgMaxDischargeRate>
+        <multiplier>1</multiplier>
+        <value>1</value>
+    </rtgMaxDischargeRate>
+    <rtgMinPF>
+        <multiplier>1</multiplier>
+        <value>1</value>
+    </rtgMinPF>
+    <rtgW>
+        <multiplier>1</multiplier>
+        <value>1</value>
+    </rtgW>
+    <rtgWh>
+        <multiplier>1</multiplier>
+        <value>123</value>
+    </rtgWh>
+    <type>85</type>
+</DERCapability>
