@@ -1,0 +1,11 @@
+<DERAvailability xmlns="http://zigbee.org/sep">
+    <availabilityDuration>55036</availabilityDuration>
+    <maxChargeDuration>3</maxChargeDuration>
+    <readingTime>1416304442</readingTime>
+    <reserveChargePercent>10000</reserveChargePercent>
+    <reservePercent>10000</reservePercent>
+    <statWAvail>
+        <multiplier>1</multiplier>
+        <value>1</value>
+    </statWAvail>
+</DERAvailability>

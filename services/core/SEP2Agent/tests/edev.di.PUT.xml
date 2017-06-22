@@ -1,0 +1,14 @@
+<DeviceInformation xmlns="http://zigbee.org/sep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <functionsImplemented>0145</functionsImplemented>
+    <lFDI>5509D69F8B353595206AD71B47E27906318EA367</lFDI>
+    <mfDate>1388566800</mfDate>
+    <mfHwVer>MF-HW: 1.0.0</mfHwVer>
+    <mfID>37250</mfID>
+    <mfInfo>Mf Information</mfInfo>
+    <mfModel>Mf Model</mfModel>
+    <mfSerNum>1234567890</mfSerNum>
+    <primaryPower>2</primaryPower>
+    <secondaryPower>0</secondaryPower>
+    <swActTime>1416107035</swActTime>
+    <swVer>9bc8e7b_modified</swVer>
+</DeviceInformation>
