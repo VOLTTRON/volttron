@@ -264,7 +264,7 @@ class Router(BaseRouter):
                  default_user_id=None, monitor=False, tracker=None,
                  volttron_central_address=None, instance_name=None,
                  bind_web_address=None, volttron_central_serverkey=None,
-                 protected_topics={}
+                 protected_topics={},
                  msgdebug=None):
       
         super(Router, self).__init__(
