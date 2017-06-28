@@ -174,25 +174,24 @@ def weather_service(config_path, **kwargs):
     config = utils.load_config(config_path)
 
     def get_config(name):
-        try:
-            return kwargs.pop(name)
-        except KeyError:
-            return config.get(name, '')
+		try:
+			return config[name]
+		except KeyError:
+			_log.debug("Config does not have keyword = %s"%name)
+			return ''
 
     agent_id = get_config('agentid')
     poll_time = get_config('poll_time')
     zip_code = get_config("zip")
+    state = get_config("state")
+    country = get_config("country")
+    city = get_config("city")
     key = get_config('key')
     on_request_only = get_config('on_request_only')
 
-    state = ''
-    country = ''
-    city = ''
     region = state if state != "" else country
-    city = city
     max_requests_per_day = get_config('daily_threshold')
     max_requests_per_minute = get_config('minute_threshold')
-
     class WeatherAgent(Agent):
         """Agent for querying WeatherUndergrounds API"""
 
@@ -216,7 +215,7 @@ def weather_service(config_path, **kwargs):
             self.requestUrl = self.baseUrl
             if(zip_code != ""):
                 self.requestUrl += zip_code + ".json"
-            elif self.region != "":
+            elif region != "":
                 self.requestUrl += region + "/" + city + ".json"
             else:
                 # Error Need to handle this
@@ -301,9 +300,9 @@ def weather_service(config_path, **kwargs):
             # Identify if a zipcode or region/city was sent
             # Build request URL
             if 'zipcode' in msg:
-                request_url += msg['zipcode'] + '.json'
+                request_url = self.build_url_with_zipcode(msg['zipcode'])
             elif ('region' in msg) and ('city' in msg):
-                self.requestUrl += msg['region'] + "/" + msg['city'] + ".json"
+                request_url = self.build_url_with_city(msg['region'], msg['city'])
             else:
                 _log.error('Invalid request, no zipcode '
                            'or region/city in request')
@@ -333,7 +332,7 @@ def weather_service(config_path, **kwargs):
         def request_data(self, requestUrl):
             if self.requestCounter.request_available():
                 try:
-                    r = requests.get(self.requestUrl)
+                    r = requests.get(requestUrl)
                     r.raise_for_status()
                     parsed_json = r.json()
 
