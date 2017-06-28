@@ -113,8 +113,9 @@ class SqlLiteFuncts(DbDriver):
         if 'detect_types' not in connect_params.keys():
             connect_params['detect_types'] = \
                 sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        if 'timeout' not in connect_params.keys():
+            connect_params['timeout'] = 10
 
-        print (connect_params)
         self.data_table = None
         self.topics_table = None
         self.meta_table = None
@@ -127,46 +128,36 @@ class SqlLiteFuncts(DbDriver):
             self.meta_table = table_names['meta_table']
             self.agg_topics_table = table_names['agg_topics_table']
             self.agg_meta_table = table_names['agg_meta_table']
-
+        _log.debug("In sqlitefuncts connect params {}".format(connect_params))
         super(SqlLiteFuncts, self).__init__('sqlite3', **connect_params)
 
     def setup_historian_tables(self):
 
-        conn = sqlite3.connect(
-            self.__database,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-        )
-        cursor = conn.cursor()
-        cursor.execute('''CREATE TABLE IF NOT EXISTS ''' + self.data_table +
-                       ''' (ts timestamp NOT NULL,
-                       topic_id INTEGER NOT NULL,
-                       value_string TEXT NOT NULL,
-                       UNIQUE(topic_id, ts))''')
-        cursor.execute('''CREATE INDEX IF NOT EXISTS data_idx
-                                ON ''' + self.data_table + ''' (ts ASC)''')
-        cursor.execute('''CREATE TABLE IF NOT EXISTS ''' +
-                       self.topics_table +
-                       ''' (topic_id INTEGER PRIMARY KEY,
-                            topic_name TEXT NOT NULL,
-                            UNIQUE(topic_name))''')
-        cursor.execute('''CREATE TABLE IF NOT EXISTS ''' + self.meta_table +
-                       '''(topic_id INTEGER PRIMARY KEY,
-                        metadata TEXT NOT NULL)''')
+        self.execute_stmt(
+            '''CREATE TABLE IF NOT EXISTS ''' + self.data_table +
+            ''' (ts timestamp NOT NULL,
+                 topic_id INTEGER NOT NULL,
+                 value_string TEXT NOT NULL,
+                 UNIQUE(topic_id, ts))''',commit=False)
+        self.execute_stmt(
+            '''CREATE INDEX IF NOT EXISTS data_idx 
+            ON ''' + self.data_table + ''' (ts ASC)''', commit=False)
+        self.execute_stmt(
+            '''CREATE TABLE IF NOT EXISTS ''' + self.topics_table +
+            ''' (topic_id INTEGER PRIMARY KEY,
+                 topic_name TEXT NOT NULL,
+                 UNIQUE(topic_name))''', commit=False)
+        self.execute_stmt(
+            '''CREATE TABLE IF NOT EXISTS ''' + self.meta_table +
+            '''(topic_id INTEGER PRIMARY KEY,
+                metadata TEXT NOT NULL)''', commit=True)
         _log.debug("Created data topics and meta tables")
 
-        conn.commit()
-        conn.close()
 
     def record_table_definitions(self, table_defs, meta_table_name):
         _log.debug(
             "In record_table_def {} {}".format(table_defs, meta_table_name))
-        conn = sqlite3.connect(
-            self.__database,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-        )
-        cursor = conn.cursor()
-
-        cursor.execute(
+        self.execute_stmt(
             'CREATE TABLE IF NOT EXISTS ' + meta_table_name +
             ' (table_id TEXT PRIMARY KEY, \
                table_name TEXT NOT NULL, \
@@ -174,18 +165,17 @@ class SqlLiteFuncts(DbDriver):
 
         table_prefix = table_defs.get('table_prefix', "")
 
-        cursor.execute('INSERT OR REPLACE INTO ' + meta_table_name
-                       + ' VALUES (?, ?, ?)',
-                       ['data_table', table_defs['data_table'], table_prefix])
-        cursor.execute('INSERT OR REPLACE INTO ' + meta_table_name
-                       + ' VALUES (?, ?, ?)',
-                       ['topics_table', table_defs['topics_table'],
-                        table_prefix])
-        cursor.execute('INSERT OR REPLACE INTO ' + meta_table_name +
-                       ' VALUES (?, ?, ?)',
-                       ['meta_table', table_defs['meta_table'], table_prefix])
+        self.execute_stmt(
+            'INSERT OR REPLACE INTO ' + meta_table_name + ' VALUES (?, ?, ?)',
+            ['data_table', table_defs['data_table'], table_prefix])
+        self.execute_stmt(
+            'INSERT OR REPLACE INTO ' + meta_table_name + ' VALUES (?, ?, ?)',
+            ['topics_table', table_defs['topics_table'], table_prefix])
+        self.execute_stmt(
+            'INSERT OR REPLACE INTO ' + meta_table_name + ' VALUES (?, ?, ?)',
+            ['meta_table', table_defs['meta_table'], table_prefix])
+        self.commit()
 
-        conn.commit()
 
     def setup_aggregate_historian_tables(self, meta_table_name):
         table_names = self.read_tablenames_from_db(meta_table_name)
@@ -196,26 +186,20 @@ class SqlLiteFuncts(DbDriver):
         self.agg_topics_table = table_names.get('agg_topics_table', None)
         self.agg_meta_table = table_names.get('agg_meta_table', None)
 
-        conn = sqlite3.connect(
-            self.__database,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-        )
-        cursor = conn.cursor()
-
-        cursor.execute(
+        self.execute_stmt(
             'CREATE TABLE IF NOT EXISTS ' + self.agg_topics_table +
             ' (agg_topic_id INTEGER PRIMARY KEY, \
                agg_topic_name TEXT NOT NULL, \
                agg_type TEXT NOT NULL, \
                agg_time_period TEXT NOT NULL, \
                UNIQUE(agg_topic_name, agg_type, agg_time_period));')
-        cursor.execute(
+        self.execute_stmt(
             'CREATE TABLE IF NOT EXISTS ' + self.agg_meta_table +
             '(agg_topic_id INTEGER NOT NULL PRIMARY KEY, \
               metadata TEXT NOT NULL);')
         _log.debug("Created aggregate topics and meta tables")
-        conn.commit()
-        conn.close()
+        self.commit()
+
 
     def query(self, topic_ids, id_name_map, start=None, end=None,
               agg_type=None, agg_period=None, skip=0, count=None,
@@ -300,17 +284,18 @@ class SqlLiteFuncts(DbDriver):
         _log.debug("Real Query: " + real_query)
         _log.debug("args: " + str(args))
 
-        c = sqlite3.connect(
-            self.__database,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-        values = defaultdict(list)
-        for topic_id in topic_ids:
-            rows = c.execute(real_query, args)
-            for _id, ts, value in rows:
-                values[id_name_map[topic_id]].append(
-                    (utils.format_timestamp(ts), jsonapi.loads(value)))
 
-        _log.debug("QueryResults: " + str(values))
+        values = defaultdict(list)
+        start_t = datetime.utcnow()
+        for topic_id in topic_ids:
+            cursor = self.select(real_query, args, fetch_all=False)
+            if cursor:
+                for _id, ts, value in cursor:
+                    values[id_name_map[topic_id]].append(
+                        (utils.format_timestamp(ts), jsonapi.loads(value)))
+                cursor.close()
+        _log.debug("Time taken to load results from db:{}".format(
+            datetime.utcnow()-start_t))
         return values
 
     def insert_meta_query(self):
@@ -332,66 +317,16 @@ class SqlLiteFuncts(DbDriver):
     def get_aggregation_list(self):
         return ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'TOTAL', 'GROUP_CONCAT']
 
-    def insert_agg_topic(self, topic, agg_type, agg_time_period):
-        _log.debug("In sqlitefuncts insert aggregate topic")
-        conn = sqlite3.connect(
-            self.__database,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-
-        if conn is None:
-            return False
-
-        cursor = conn.cursor()
-
-        cursor.execute(self.insert_agg_topic_stmt(),
-                       (topic, agg_type, agg_time_period))
-        row = [cursor.lastrowid]
-        conn.commit()
-        conn.close()
-        return row
-
     def insert_agg_topic_stmt(self):
         return '''INSERT INTO ''' + self.agg_topics_table + '''
                (agg_topic_name, agg_type, agg_time_period )
                values (?, ?, ?)'''
 
-    def update_agg_topic(self, agg_id, agg_topic_name):
-        _log.debug("In sqlitefuncts update aggregate topic")
-        conn = sqlite3.connect(
-            self.__database,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-
-        if conn is None:
-            return False
-
-        cursor = conn.cursor()
-
-        cursor.execute(self.update_agg_topic_stmt(),
-                       (agg_id, agg_topic_name))
-        conn.commit()
-        conn.close()
-
     def update_agg_topic_stmt(self):
         return '''UPDATE ''' + self.agg_topics_table + ''' SET
         agg_topic_name = ? WHERE agg_topic_id = ? '''
 
-    def insert_agg_meta(self, topic_id, metadata):
-        _log.debug("In sqlitefuncts insert aggregate meta")
-        conn = sqlite3.connect(
-            self.__database,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-
-        if conn is None:
-            return False
-
-        cursor = conn.cursor()
-        cursor.execute(self.insert_agg_meta_stmt(),
-                       (topic_id, jsonapi.dumps(metadata)))
-        conn.commit()
-        conn.close()
-        return True
-
-    def insert_agg_meta_stmt(self):
+    def replace_agg_meta_stmt(self):
         return '''INSERT OR REPLACE INTO ''' + self.agg_meta_table + '''
         values(?, ?)'''
 
@@ -498,16 +433,12 @@ class SqlLiteFuncts(DbDriver):
                " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
                "value_string TEXT NOT NULL, topics TEXT, " \
                "UNIQUE(topic_id, ts)); "
-        c = sqlite3.connect(
-            self.__database,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-        c.execute(stmt)
+        self.execute_stmt(stmt)
 
         stmt = "CREATE INDEX IF NOT EXISTS idx_" + table_name + " ON " + \
                table_name + "(ts ASC);"
 
-        c.execute(stmt)
-        c.commit()
+        self.execute_stmt(stmt, commit=True)
         return True
 
     def insert_aggregate_stmt(self, table_name):
@@ -543,19 +474,24 @@ class SqlLiteFuncts(DbDriver):
             where_clauses = [where_str]
             args = topic_ids[:]
 
-        if start is not None:
-            start_str = start.isoformat(' ')
-            where_clauses.append("ts >= ?")
-            if start_str[-6:] != "+00:00":
-                start_str += "+00:00"
-            args.append(start_str)
+        # base historian converts naive timestamps to UTC, but if the
+        # start and end had explicit timezone info then they need to get
+        # converted to UTC since sqlite3 only store naive timestamp
+        if start:
+            start = start.astimezone(pytz.UTC)
+        if end:
+            end = end.astimezone(pytz.UTC)
 
-        if end is not None:
-            end_str = end.isoformat(' ')
-            where_clauses.append("ts < ?")
-            if end_str[-6:] != "+00:00":
-                end_str += "+00:00"
-            args.append(end_str)
+        if start and end and start == end:
+            where_clauses.append("ts = ?")
+            args.append(start)
+        else:
+            if start:
+                where_clauses.append("ts >= ?")
+                args.append(start)
+            if end:
+                where_clauses.append("ts < ?")
+                args.append(end)
 
         where_statement = ' AND '.join(where_clauses)
 
@@ -563,14 +499,11 @@ class SqlLiteFuncts(DbDriver):
         _log.debug("Real Query: " + real_query)
         _log.debug("args: " + str(args))
 
-        c = sqlite3.connect(
-            self.__database,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-        cursor = c.execute(real_query, args)
-        results = cursor.fetchone()
+        results = self.select(real_query, args)
         if results:
-            _log.debug("results got {}, {}".format(results[0], results[1]))
-            return results[0], results[1]
+            _log.debug("results got {}, {}".format(results[0][0],
+                                                   results[0][1]))
+            return results[0][0], results[0][1]
         else:
             return 0, 0
 
