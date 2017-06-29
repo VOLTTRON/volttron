@@ -60,12 +60,14 @@ import logging
 import sys
 import sqlite3
 
+import gevent
 import re
 from pkg_resources import resource_string, resource_exists
 from collections import OrderedDict
 
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_tagging import BaseTaggingService
+from volttron.platform.dbutils.sqlitefuncts import SqlLiteFuncts
 from volttron.utils.docs import doc_inherit
 
 from volttron.platform.messaging.health import (STATUS_BAD,
@@ -98,7 +100,6 @@ def tagging_service(config_path, **kwargs):
     assert database is not None
 
     SQLiteTaggingService.__name__ = 'SQLiteTaggingService'
-    #TODO replace with utils.update_kwargs_with_config
     utils.update_kwargs_with_config(kwargs,config_dict)
     return SQLiteTaggingService(**kwargs)
 
@@ -128,8 +129,8 @@ class SQLiteTaggingService(BaseTaggingService):
             self.topic_tags_table = table_prefix + "_" + self.topic_tags_table
             self.category_tags_table = table_prefix + "_" + \
                                        self.category_tags_table
-
-
+        self.sqlite_utils = SqlLiteFuncts(self.connection['params'], None)
+        self.valid_tags = dict()
         super(SQLiteTaggingService, self).__init__(**kwargs)
 
     @doc_inherit
@@ -148,20 +149,14 @@ class SQLiteTaggingService(BaseTaggingService):
                           "agent".format(self.resource_sub_dir)
 
         table_names = []
-        con = None
         try:
-            con = sqlite3.connect(
-                self.connection['params']['database'],
-                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-
-            cursor = con.execute(
-                "SELECT name FROM sqlite_master "
-                "WHERE type='table' AND name='{}' OR "
+            stmt = "SELECT name FROM sqlite_master " \
+                "WHERE type='table' AND name='{}' OR " \
                 "name='{}' OR name='{}';".format(self.tags_table,
                                                  self.categories_table,
                                                  self.category_tags_table,
-                                                 self.topic_tags_table))
-            table_names = cursor.fetchall()
+                                                 self.topic_tags_table)
+            table_names = self.sqlite_utils.select(stmt, None, fetch_all=True)
             _log.debug(table_names)
         except Exception as e:
             err_message = "Unable to query list of existing tables from the " \
@@ -174,30 +169,34 @@ class SQLiteTaggingService(BaseTaggingService):
                 _log.info("{} table exists. Assuming initial values have been "
                           "loaded".format(table_name))
             else:
-                self.init_tags(con)
+                self.init_tags()
 
             table_name = self.topic_tags_table
             if self.topic_tags_table in table_names:
                 _log.info("{} table exists. Assuming initial values "
                           "have been loaded".format(table_name))
             else:
-                self.init_topic_tags(con)
+                self.init_topic_tags()
 
             table_name = self.categories_table
             if self.categories_table in table_names:
                 _log.info("{} table exists. Assuming initial values "
                           "have been loaded".format(table_name))
             else:
-                self.init_categories(con)
+                self.init_categories()
 
             table_name = self.category_tags_table
             if self.category_tags_table in table_names:
                 _log.info("{} table exists. Assuming initial values "
                           "have been loaded".format(table_name))
             else:
-                self.init_category_tags(con)
+                self.init_category_tags()
 
-            con.close()
+            #Now cache list of tags and kind/type for validation during insert
+            cursor = self.sqlite_utils.select(
+                "SELECT name, kind from "+ self.tags_table, fetch_all=False)
+            for record in cursor:
+                self.valid_tags[record[0]] = record[1]
         except Exception as e:
             err_message = "Initialization of " + table_name + \
                           " table failed with exception: {}" \
@@ -215,10 +214,11 @@ class SQLiteTaggingService(BaseTaggingService):
             self.vip.health.send_alert(TAGGING_SERVICE_SETUP_FAILED, status)
             self.core.stop()
 
-    def init_tags(self, con):
+
+    def init_tags(self):
         file_name = self.resource_sub_dir + '/tags.csv'
         _log.debug("Loading file :" + file_name)
-        con.execute("CREATE TABLE {}"
+        self.sqlite_utils.execute_stmt("CREATE TABLE {}"
                     "(name VARCHAR PRIMARY KEY, "
                     "kind VARCHAR NOT NULL, "
                     "description VARCHAR)".format(
@@ -230,39 +230,39 @@ class SQLiteTaggingService(BaseTaggingService):
         # by default
         dr = csv.DictReader(csv_str.splitlines())  # comma is default delimiter
         to_db = [(i['name'], i['kind'], i['description'].decode('utf8')) for i in dr]
-        cursor = con.cursor()
-        cursor.executemany("INSERT INTO {} (name, kind, description) "
-                           "VALUES (?, ?, ?);".format(self.tags_table), to_db)
-        con.commit()
+        self.sqlite_utils.execute_many(
+            "INSERT INTO {} (name, kind, description) "
+            "VALUES (?, ?, ?);".format(self.tags_table),
+            to_db)
+        self.sqlite_utils.commit()
 
-    def init_categories(self, con):
+    def init_categories(self):
         file_name = self.resource_sub_dir + '/categories.csv'
         _log.debug("Loading file :" + file_name)
-        con.execute("CREATE TABLE {}"
+        self.sqlite_utils.execute_stmt("CREATE TABLE {}"
                     "(name VARCHAR PRIMARY KEY NOT NULL,"
-                    "description VARCHAR)".format(
-                        self.categories_table))
+                    "description VARCHAR)".format(self.categories_table))
         _log.debug("created categories table")
         csv_str = resource_string(__name__, file_name)
         dr = csv.DictReader(csv_str.splitlines())
         to_db = [(i['name'], i['description'].decode('utf8')) for i in dr]
-        cursor = con.cursor()
-        cursor.executemany("INSERT INTO {} (name, description) "
-                           "VALUES (?, ?);".format(
-            self.categories_table), to_db)
-        con.commit()
+        _log.debug("Categories in: {}".format(to_db))
+        self.sqlite_utils.execute_many(
+            "INSERT INTO {} (name, description) "
+                "VALUES (?, ?);".format(self.categories_table),
+            to_db)
+        self.sqlite_utils.commit()
 
-    def init_category_tags(self, con):
+    def init_category_tags(self):
         file_name = self.resource_sub_dir + '/category_tags.txt'
         _log.debug("Loading file :" + file_name)
-        con.execute("CREATE TABLE {} "
+        self.sqlite_utils.execute_stmt("CREATE TABLE {} "
                     "(category VARCHAR NOT NULL,"
                     "tag VARCHAR NOT NULL,"
                     "PRIMARY KEY (category, tag))".format(
                         self.category_tags_table))
         _log.debug("created {} table".format(self.category_tags_table))
         csv_str = resource_string(__name__, file_name)
-        cursor = con.cursor()
         to_db = []
         if csv_str:
             current_category = ""
@@ -283,31 +283,29 @@ class SQLiteTaggingService(BaseTaggingService):
             # insert last category after loop
             if len(tags)>0:
                 to_db.extend([(current_category, x) for x in tags])
-            cursor.executemany(
+            self.sqlite_utils.execute_many(
                 "INSERT INTO {} (category, tag) "
                 "VALUES (?, ?);".format(self.category_tags_table), to_db)
-            con.commit()
+            self.sqlite_utils.commit()
         else:
             _log.warn("No category to tags mapping to initialize. No such "
                       "file " + file_name)
 
-    def init_topic_tags(self, con):
-        con.execute(
+    def init_topic_tags(self):
+        self.sqlite_utils.execute_stmt(
             "CREATE TABLE {} (topic_prefix TEXT NOT NULL, "
-            "tag VARCHAR NOT NULL, value TEXT,"
+            "tag VARCHAR NOT "
+            "NULL, value TEXT,"
             "PRIMARY KEY (topic_prefix, tag))".format(
-                self.topic_tags_table))
-        con.execute(
+                self.topic_tags_table, self.tags_table))
+        self.sqlite_utils.execute_stmt(
             "CREATE INDEX IF NOT EXISTS idx_tag ON " +
             self.topic_tags_table + "(tag ASC);")
-        con.commit()
+        self.sqlite_utils.commit()
 
     def query_categories(self, include_description=False, skip=0, count=None,
                        order="FIRST_TO_LAST"):
 
-        con = sqlite3.connect(self.connection['params']['database'],
-                              detect_types=sqlite3.PARSE_DECLTYPES |
-                                           sqlite3.PARSE_COLNAMES)
         query = '''SELECT name, description FROM ''' \
                 + self.categories_table + '''
                 {order_by}
@@ -336,14 +334,14 @@ class SQLiteTaggingService(BaseTaggingService):
                                   order_by=order_by)
         _log.debug("Real Query: " + real_query)
         _log.debug(args)
-        cursor = con.execute(real_query, args)
+        cursor = self.sqlite_utils.select(real_query, args, fetch_all=False)
         result = OrderedDict()
         for row in cursor:
             _log.debug(row[0])
             result[row[0]] = row[1]
         _log.debug(result.keys())
         _log.debug(result.values())
-        con.close()
+        cursor.close()
         if include_description:
             return result.items()
         else:
@@ -352,10 +350,6 @@ class SQLiteTaggingService(BaseTaggingService):
     def query_tags_by_category(self, category, include_kind=False,
                                include_description=False, skip=0, count=None,
                                order="FIRST_TO_LAST"):
-        con = sqlite3.connect(self.connection['params']['database'],
-                              detect_types=sqlite3.PARSE_DECLTYPES |
-                                           sqlite3.PARSE_COLNAMES)
-        _log.debug("After connection. skip={}".format(skip))
         query = 'SELECT name, kind, description FROM {tag} as t, ' \
                 '{category_tag} as c ' \
                 'WHERE ' \
@@ -392,32 +386,100 @@ class SQLiteTaggingService(BaseTaggingService):
             order_by=order_by)
         _log.debug("Real Query: " + real_query)
         _log.debug(args)
-
-        cursor = con.execute(real_query, args)
-        result = []
-        for row in cursor:
-            _log.debug(row[0])
-            record = [row[0]]
-            if include_kind:
-                record.append(row[1])
-            if include_description:
-                record.append(row[2])
-            if include_description or include_kind:
-                result.append(record)
-            else:
-                result.append(row[0])
-        return result
+        cursor = None
+        try:
+            cursor = self.sqlite_utils.select(real_query, args,
+                                              fetch_all=False)
+            result = []
+            for row in cursor:
+                _log.debug(row[0])
+                record = [row[0]]
+                if include_kind:
+                    record.append(row[1])
+                if include_description:
+                    record.append(row[2])
+                if include_description or include_kind:
+                    result.append(record)
+                else:
+                    result.append(row[0])
+            return result
+        finally:
+            if cursor:
+                cursor.close()
 
     def query_tags_by_topic(self, topic_prefix, include_kind=False,
                             include_description=False, skip=0, count=None,
                             order="FIRST_TO_LAST"):
-        pass
+
+        query = 'SELECT name, value, kind, description FROM {tags} as t1, ' \
+                '{topic_tags} as t2 ' \
+                'WHERE ' \
+                't1.name = t2.tag ' \
+                'AND t2.topic_prefix = "{topic_prefix}" ' \
+                '{order_by} ' \
+                '{limit} ' \
+                '{offset}'
+        order_by = 'ORDER BY name ASC'
+        if order == 'LAST_TO_FIRST':
+            order_by = ' ORDER BY name DESC'
+        args = []
+
+        # can't have an offset without a limit
+        # -1 = no limit and allows the user to
+        # provide just an offset
+        if count is None:
+            count = -1
+
+        limit_statement = 'LIMIT ?'
+        args.append(count)
+
+        offset_statement = ''
+        if skip > 0:
+            offset_statement = 'OFFSET ?'
+            args.append(skip)
+        _log.debug("before real query")
+        real_query = query.format(
+            tags=self.tags_table, topic_tags=self.topic_tags_table,
+            topic_prefix=topic_prefix, limit=limit_statement,
+            offset=offset_statement, order_by=order_by)
+        _log.debug("Real Query: " + real_query)
+        _log.debug(args)
+        cursor = None
+        try:
+            cursor = self.sqlite_utils.select(real_query, args,
+                                              fetch_all=False)
+            result = []
+            for row in cursor:
+                _log.debug(row[0])
+                record = [row[0], row[1]]
+                if include_kind:
+                    record.append(row[2])
+                if include_description:
+                    record.append(row[3])
+                result.append(record)
+
+            return result
+        finally:
+            if cursor:
+                cursor.close()
 
     def insert_tags(self, tags, update_version=False):
-        pass
+        t = dict()
+        to_db =[]
+        for topic_name, topic_tags in tags.iteritems():
+            for tag_name, tag_value in topic_tags.iteritems():
+                if not self.valid_tags.has_key(tag_name):
+                    raise ValueError("Invalid tag name:{}".format(tag_name))
+                # TODO: Validate and convert values based on tag kind/type
+                #tag_value = get_tag_value(tag_value,
+                #                          self.valid_tags[tag_name])
+                to_db.append((topic_name, tag_name, tag_value))
 
-    def insert_topic_tags(self, topic_prefix, tags, update_version=False):
-        pass
+        self.sqlite_utils.execute_many(
+            "INSERT INTO {} (topic_prefix, tag, value) "
+                "VALUES (?, ?, ?);".format(self.topic_tags_table),
+            to_db)
+        self.sqlite_utils.commit()
 
     def query_topics_by_tags(self, and_condition=None, or_condition=None,
                              regex_and=None, regex_or=None, condition=None,

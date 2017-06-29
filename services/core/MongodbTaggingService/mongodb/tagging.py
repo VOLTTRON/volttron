@@ -160,8 +160,8 @@ class MongodbTaggingService(BaseTaggingService):
             _log.debug(collections)
         except Exception as e:
             err_message = "Unable to query list of existing tables from the " \
-                      "database. Exception in init of tagging service: {}. " \
-                      "Stopping tagging service agent".format(e.args)
+                          "database. Exception in init of tagging service: {}. " \
+                          "Stopping tagging service agent".format(e.args)
         collection = ""
         try:
             collection = self.tags_collection
@@ -227,7 +227,7 @@ class MongodbTaggingService(BaseTaggingService):
                 self.categories_collection].initialize_ordered_bulk_op()
             for i in dr:
                 bulk.insert({"_id": i['name'],
-                                  "description": i['description']})
+                             "description": i['description']})
             bulk.execute()
         else:
             _log.warn("No categories to initialize. No such file "+ file_name)
@@ -271,7 +271,7 @@ class MongodbTaggingService(BaseTaggingService):
                       "file " + file_name)
 
     def query_categories(self, include_description=False, skip=0, count=None,
-                       order="FIRST_TO_LAST"):
+                         order="FIRST_TO_LAST"):
         db = self._client.get_default_database()
         order_by = pymongo.ASCENDING
         if order == 'LAST_TO_FIRST':
@@ -279,10 +279,11 @@ class MongodbTaggingService(BaseTaggingService):
         skip_count = 0
         if skip > 0:
             skip_count = skip
+
         if count is None:
             cursor = db[self.categories_collection].find(
                 projection=['_id', 'description'], skip=skip_count,
-                sort=[('_id',order_by)])
+                sort=[('_id', order_by)])
         else:
             cursor = db[self.categories_collection].find(
                 projection=['_id', 'description'], skip=skip_count,
@@ -316,17 +317,14 @@ class MongodbTaggingService(BaseTaggingService):
 
         if count is None:
             cursor = db[self.tags_collection].find(
-                {'categories':{'$in':[category]}},
-                projection=['_id', 'kind','description'],
-                skip=skip_count,
+                {'categories': {'$in': [category]}},
+                projection=['_id', 'kind', 'description'], skip=skip_count,
                 sort=[('_id', order_by)])
         else:
             cursor = db[self.tags_collection].find(
                 {'categories': {'$in': [category]}},
-                projection=['_id', 'kind', 'description'],
-                skip=skip_count,
-                limit=count,
-                sort=[('_id', order_by)])
+                projection=['_id', 'kind', 'description'], skip=skip_count,
+                limit=count, sort=[('_id', order_by)])
 
         records = list(cursor)
         results = []
@@ -343,13 +341,65 @@ class MongodbTaggingService(BaseTaggingService):
         return results
 
 
+    def insert_tags(self, tags, update_version=False):
+        pass
+
     def query_tags_by_topic(self, topic_prefix, include_kind=False,
                             include_description=False, skip=0, count=None,
                             order="FIRST_TO_LAST"):
-        pass
+        db = self._client.get_default_database()
+        _log.debug("topic_prefix: {}".format(topic_prefix))
+        cursor = db[self.topic_tags_collection].find(
+            {"topic_prefix":topic_prefix})
+        l = list(cursor)
+        if l and len(l) == 1:
+            d = l[0]
+        else:
+            _log.debug("tags for topic_prefix {} is {}".format(topic_prefix,
+                                                               l))
+            return []
 
-    def insert_tags(self, tags, update_version=False):
-        pass
+        reverse = False
+        if order == 'LAST_TO_FIRST':
+            reverse = True
+        d['id'] = d.pop('_id')
+        ordered_result_dict = OrderedDict(sorted(d.items(), reverse=reverse))
+        _log.debug("Ordered tags: {}".format(ordered_result_dict))
+        #Now get the kind and description for each of the tag in earlier
+        # result dict
+        skip_count = 0
+        if skip:
+            skip_count = skip
+        if count is None:
+            count = -1
+        meta = {}
+        if include_description or include_kind:
+            cursor = db[self.tags_collection].find(
+                {"_id":{"$in":d.keys()}})
+            records = list(cursor)
+            for r in records:
+                meta[r['_id']] = (r['kind'], r['description'])
+        _log.debug("meta is {}".format(meta))
+        _log.debug("count is {}".format(count))
+        results = []
+        counter = 0
+        for tag, value in ordered_result_dict.items():
+            _log.debug("counter: {}, skip:{}".format(counter, skip))
+            counter = counter + 1
+            if counter <= skip:
+                continue
+            if count < 0 or counter <= (count + skip_count):
+                results_element = [tag, value]
+                if include_kind:
+                    results_element.append(meta[tag][0])
+                if include_description:
+                    results_element.append(meta[tag][1])
+                _log.debug("result element {}".format(results_element))
+                results.append(results_element)
+            elif counter > (count+skip_count):
+                break
+
+        return results
 
     def insert_topic_tags(self, topic_prefix, tags, update_version=False):
         pass

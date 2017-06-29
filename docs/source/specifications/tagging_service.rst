@@ -56,11 +56,13 @@ API
 -------------------------------------------
 rpc call to tagging service method **'get_categories'** with optional parameters:
 
-    1. **skip** - number of categories to skip. this parameter along with count can be
-      used for paginating results
-    2. **count** - limit the total number of tag categories returned to given count
-    3. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
-      ascending order
+    1. **include_description** - set to True to return available description
+       for each category. Default = False
+    2. **skip** - number of categories to skip. this parameter along with count can be
+       used for paginating results
+    3. **count** - limit the total number of tag categories returned to given count
+    4. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
+       ascending order
 
 2. Get the list of tags for a specific category
 -----------------------------------------------
@@ -70,10 +72,14 @@ rpc call to tagging service method **'get_tags_by_category'** with parameter:
 
     and optional parameters:
 
-    2. **skip** - number of tags to skip. this parameter along with count can be
+    2. **include_kind** - indicate if result should include the
+        kind/data type for tags returned. Defaults to False
+    3. **include_description** - indicate if result should include
+        available description for tags returned. Defaults to False
+    4. **skip** - number of tags to skip. this parameter along with count can be
        used for paginating results
-    3. **count** - limit the total number of tags returned to given count
-    4. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
+    5. **count** - limit the total number of tags returned to given count
+    6. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
        ascending order
 
 3. Get the list of tags for a topic_name or topic_name_prefix
@@ -85,10 +91,14 @@ with parameter
 
 and optional parameters:
 
-    2. **skip** - number of tags to skip. this parameter along with count can be
+    2. **include_kind** - indicate if result should include the
+        kind/data type for tags returned. Defaults to False
+    3. **include_description** - indicate if result should include
+        available description for tags returned. Defaults to False
+    4. **skip** - number of tags to skip. this parameter along with count can be
        used for paginating results
-    3. **count** - limit the total number of tags returned to given count
-    4. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
+    5. **count** - limit the total number of tags returned to given count
+    6. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
        ascending order
 
 4. Find topic names by tags

@@ -62,6 +62,8 @@ Base class for tagging service implementation.
 from __future__ import absolute_import, print_function
 
 import logging
+
+import sys
 from abc import abstractmethod
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -91,7 +93,9 @@ _log = logging.getLogger(__name__)
 # Register a better datetime parser in sqlite3.
 fix_sqlite3_datetime()
 
-
+class TagInsertionError(Exception):
+    """Custom class for Tag insertion errors"""
+    pass
 
 class BaseTaggingService(Agent):
     """This is the base class for tagging service implementations. There can
@@ -117,11 +121,10 @@ class BaseTaggingService(Agent):
     @abstractmethod
     def setup(self):
         """
+        Called on start of agent
         Method to establish database connection, do any initial 
-        bootstrap 
-        necessary. Example - load master list of tags, units, 
-        categories etc.  
-        into data store/memory   
+        bootstrap necessary. Example - load master list of tags, units,
+        categories etc. into data store/memory
         """
         pass
 
@@ -131,6 +134,7 @@ class BaseTaggingService(Agent):
         """
         Get the available list tag categories. category can have multiple tags 
         and tags could belong to multiple categories
+
         :param include_description: indicate if result should include 
         available description for categories returned
         :param skip: number of tags to skip. usually used with order
@@ -215,10 +219,10 @@ class BaseTaggingService(Agent):
                       "LAST_TO_FIRST"
         :return: Will return one of the following
         
-          - list of tag names  
-          - list of (tags, its data type/kind) if include_kind is True 
-          - list of (tags, description) if include_description is True
-          - list of (tags, its data type/kind, description) if 
+          - list of (tag name, value)
+          - list of (tag name, value, data type/kind) if include_kind is True
+          - list of (tag name, value, description) if include_description is True
+          - list of (tags, value, data type/kind, description) if
           include_kind is True and include_description is true
           
         :type topic_prefix: str
@@ -321,18 +325,13 @@ class BaseTaggingService(Agent):
         :param tags: dictionary of tag and value in the format 
         {<valid tag>:value, <valid_tag>: value,... }
         :param update_version: True/False. Default to False. 
-        If set to True and if any of the tags update an existing tag value 
-        the older value would be preserved as part of tag version history
+        If set to True and if any of the tags update an existing tag 
+        value the older value would be preserved as part of tag version history
         :type topic_prefix: str
         :type tags: dict
         :type update_version: bool
         """
-        self.insert_topic_tags(topic_prefix, tags, update_version)
-
-    @abstractmethod
-    def insert_topic_tags(self, topic_prefix, tags, update_version=False):
-        pass
-
+        self.add_tags({topic_prefix: tags})
 
     @RPC.export
     def add_tags(self, tags, update_version=False):
@@ -352,7 +351,12 @@ class BaseTaggingService(Agent):
         :type tags: dict
         :type update_version: bool
         """
-        self.insert_tags(tags, update_version)
+        try:
+            self.insert_tags(tags, update_version)
+        except Exception as e:
+            _log.error("Error inserting tags into database. {}".format(e))
+            raise TagInsertionError(e.message), None, sys.exc_info()[2]
+
 
     @abstractmethod
     def insert_tags(self, tags, update_version=False):
