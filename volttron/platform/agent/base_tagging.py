@@ -76,6 +76,8 @@ from volttron.platform.agent.utils import process_timestamp, \
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
+from volttron.platform.agent.known_identities import (PLATFORM_HISTORIAN)
+
 
 try:
     import ujson
@@ -93,9 +95,6 @@ _log = logging.getLogger(__name__)
 # Register a better datetime parser in sqlite3.
 fix_sqlite3_datetime()
 
-class TagInsertionError(Exception):
-    """Custom class for Tag insertion errors"""
-    pass
 
 class BaseTaggingService(Agent):
     """This is the base class for tagging service implementations. There can
@@ -104,6 +103,7 @@ class BaseTaggingService(Agent):
     """
 
     def __init__(self, resource_sub_dir='resources', **kwargs):
+        self.valid_tags = dict()
         self.resource_sub_dir = "resources"
         if resource_sub_dir:
             self.resource_sub_dir = resource_sub_dir
@@ -117,6 +117,7 @@ class BaseTaggingService(Agent):
         Called on start of agent. Calls the setup method
         """
         self.setup()
+        self.load_valid_tags()
 
     @abstractmethod
     def setup(self):
@@ -128,6 +129,12 @@ class BaseTaggingService(Agent):
         """
         pass
 
+    @abstractmethod
+    def load_valid_tags(self):
+        """
+        Called right after setup to load a dictionary of valid tags
+        :return:
+        """
     @RPC.export
     def get_categories(self, include_description=False, skip=0, count=None,
                        order="FIRST_TO_LAST"):
@@ -331,7 +338,7 @@ class BaseTaggingService(Agent):
         :type tags: dict
         :type update_version: bool
         """
-        self.add_tags({topic_prefix: tags})
+        return self.add_tags({topic_prefix: tags})
 
     @RPC.export
     def add_tags(self, tags, update_version=False):
@@ -351,19 +358,42 @@ class BaseTaggingService(Agent):
         :type tags: dict
         :type update_version: bool
         """
-        try:
-            self.insert_tags(tags, update_version)
-        except Exception as e:
-            _log.error("Error inserting tags into database. {}".format(e))
-            raise TagInsertionError(e.message), None, sys.exc_info()[2]
+        _log.debug("add_tags: tags:{}".format(tags))
+        return self.insert_topic_tags(tags, update_version)
 
 
     @abstractmethod
-    def insert_tags(self, tags, update_version=False):
+    def insert_topic_tags(self, tags, update_version=False):
         pass
 
+    def get_matching_topic_prefixes(self, topic_pattern):
+        # replace * with .* so regex would match correctly
+        topic_pattern = topic_pattern.replace("*", ".*")
+        topic_map = self.vip.rpc.call(
+            PLATFORM_HISTORIAN,
+            "get_topics_by_pattern",
+            topic_pattern=topic_pattern).get(timeout=5)
+        point_topics = topic_map.keys()
+        topic_prefixes = set()
+        if len(point_topics) == 1 and point_topics[0] == topic_pattern:
+            # fixed string topic name
+            topic_prefixes.add(topic_pattern)
+        else:
+            # topic name pattern
+            for topic in point_topics:
+                # tag could be for a topic prefix and not the whole topic.
+                # eg. pattern could be 'campus/building1/device*'
+                # returned topic from get_matching_topics could be
+                # campus/building1/device1/p1, but we want to return
+                # campus/building1/device1
+                # Works only if separator is /. Else tags are always applied
+                # to full topic names
+                topic_parts = topic.split("/")
+                pattern_parts = topic_pattern.split("/")
+                topic_prefixes.add(
+                    '/'.join(topic_parts[ :len(pattern_parts)]))
 
-
-
+        _log.debug("topic prefixes {}".format(topic_prefixes))
+        return topic_prefixes
 
 

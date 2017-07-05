@@ -59,14 +59,18 @@
 pytest test cases for tagging service
 """
 import copy
+
+import gevent
 import pytest
 import sqlite3
+from datetime import datetime, timedelta
 
 import sys
 from mock import MagicMock
 
 from volttron.platform.messaging import topics
-from volttron.platform.agent.base_tagging import TagInsertionError
+from volttron.platform.messaging import headers as headers_mod
+
 
 try:
     import pymongo
@@ -76,7 +80,8 @@ except:
     HAS_PYMONGO = False
 pymongo_skipif = pytest.mark.skipif(not HAS_PYMONGO,
                                     reason='No pymongo client available.')
-
+connection_type= ""
+db_connection = None
 sqlite_config= {
     "connection": {
         "type": "sqlite",
@@ -119,12 +124,13 @@ def setup_mongodb(config):
     mongo_conn_str = mongo_conn_str.format(**params)
     mongo_client = pymongo.MongoClient(mongo_conn_str)
     db = mongo_client[connection_params['database']]
+    db['topic_tags'].remove()
     return db
 
 def cleanup_sqlite(db_connection, truncate_tables):
     cursor = db_connection.cursor()
-    # for table in truncate_tables:
-    #     cursor.execute("DELETE FROM " + table)
+    for table in truncate_tables:
+        cursor.execute("DELETE FROM " + table)
     db_connection.commit()
 
 def cleanup_mongodb(db_connection, truncate_tables):
@@ -150,15 +156,16 @@ def query_agent(request, volttron_instance):
 @pytest.fixture(scope="module",
                 params=[
                     sqlite_config,
-                    #pymongo_skipif(mongodb_config)
+                    pymongo_skipif(mongodb_config)
                 ])
 def tagging_service(request, volttron_instance):
+    global connection_type, db_connection
     connection_type = request.param['connection']['type']
     if connection_type == 'sqlite':
         request.param['connection']['params']['database'] = \
             volttron_instance.volttron_home + "/test_tagging.sqlite"
     # 2: Open db connection that can be used for row deletes after
-    # each test method. Create tables
+    # each test method. Create tables, clean up records from previous test runs
     function_name = "setup_" + connection_type
     try:
         setup_function = globals()[function_name]
@@ -188,6 +195,7 @@ def tagging_service(request, volttron_instance):
 
     request.addfinalizer(stop_agent)
     return request.param
+
 
 @pytest.mark.tagging
 def test_init_failure(volttron_instance, tagging_service, query_agent):
@@ -347,186 +355,373 @@ def test_tags_by_category_with_metadata(tagging_service, query_agent):
     assert isinstance(result3[0], list)
     assert len(result3[0]) == 3
 
+@pytest.mark.tagging
+def test_insert_topic_tags(tagging_service, query_agent):
+    global connection_type, db_connection
+    try:
+        query_agent.vip.rpc.call('platform.tagging', 'add_topic_tags',
+            topic_prefix='test_insert_topic',
+            tags={'campus': True, 'dis': "Test description"}).get(timeout=10)
 
+        result3 = query_agent.vip.rpc.call(
+            'platform.tagging', 'get_tags_by_topic',
+            topic_prefix='test_insert_topic', include_kind=True,
+            include_description=True, skip=0, count=2,
+            order="LAST_TO_FIRST").get(timeout=10)
 
+        # [['dis', 'Test description', 'Str', 'Short display name for an entity.'],
+        #  ['campus', '1', 'Marker',
+        #   'Marks a campus that might have one or more site/building']]
+        print result3
+        assert len(result3) == 2
+        assert len(result3[0]) == len(result3[1]) == 4
+        assert result3[0][0] == 'dis'
+        assert result3[0][1] == 'Test description'
+        assert result3[0][2] == 'Str'
+        assert result3[0][3] == 'Short display name for an entity.'
+        assert result3[1][0] == 'campus'
+        assert result3[1][1]
+        assert result3[1][2] == 'Marker'
+        assert result3[1][3] == \
+            'Marks a campus that might have one or more site/building'
+    finally:
+        cleanup_function = globals()["cleanup_" + connection_type]
+        cleanup_function(db_connection,['topic_tags'])
 
 @pytest.mark.dev
 @pytest.mark.tagging
-def test_insert_topic_tags(tagging_service, query_agent):
+def test_insert_topic_pattern_tags(volttron_instance, tagging_service,
+                                   query_agent):
+    global connection_type, db_connection
+    hist_id = None
+    try:
+        hist_config = {
+            "connection": {
+                "type": "sqlite",
+                "params": {
+                    "database":
+                        volttron_instance.volttron_home +
+                        "/test_platform_historian.sqlite"
+                }
+            }
+
+        }
+        to_send = []
+        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        to_send.append(
+            {'topic': 'devices/campus1/d1/all', 'headers': headers,
+             'message':[{'p1':2,'p2':2}]})
+        to_send.append(
+            {'topic': 'devices/campus2/d1/all', 'headers': headers,
+             'message': [{'p1':2,'p2':2}]})
+        to_send.append(
+            {'topic': 'devices/campus1/d2/all', 'headers': headers,
+             'message': [{'p1':2,'p2':2}]})
+        to_send.append(
+            {'topic': 'devices/campus2/d2/all', 'headers': headers,
+             'message': [{'p1':2,'p2':2}]})
+
+
+        hist_id = volttron_instance.install_agent(
+            vip_identity='platform.historian',
+            agent_dir='services/core/SQLHistorian',
+            config_file=hist_config, start=True)
+        query_agent.vip.rpc.call('platform.historian', 'insert',
+                                 to_send).get(timeout=10)
+        gevent.sleep(3)
+
+        # specific campus
+        tags = {'campus1': {'geoCity': 'Richland'}}
+        # all campus
+        tags['campus*'] = {'campus': True, 'dis': "Test description"}
+        # all device
+        tags['campus*/d*'] = {'device': True, 'dis': "Test description"}
+        # all points
+        tags['campus*/d*/p*'] = {'point': True}
+        # all device1 points
+        tags['campus*/d1/p*'] = {'dis': 'd1 points'}
+        # all points p2 points in d1 and d2
+        tags['campus*/d*/p2'] = {'air': True}
+        # invalid topic
+        tags['asbaskuhdf/asdfasdf'] = {'equip': True}
+
+        result = query_agent.vip.rpc.call('platform.tagging', 'add_tags',
+            tags=tags).get(timeout=10)
+        print(result)
+
+        exepected_info = \
+            {'campus*': ['campus2', 'campus1'],
+             'campus*/d*/p*': ['campus2/d2/p1', 'campus2/d1/p2',
+                              'campus2/d1/p1', 'campus2/d2/p2',
+                               'campus1/d1/p1', 'campus1/d1/p2',
+                               'campus1/d2/p1', 'campus1/d2/p2'],
+             'campus*/d1/p*': ['campus2/d1/p2', 'campus2/d1/p1',
+                              'campus1/d1/p1', 'campus1/d1/p2'],
+             'campus*/d*': ['campus1/d1', 'campus2/d1',
+                            'campus2/d2', 'campus1/d2'],
+             'campus*/d*/p2': ['campus2/d2/p2', 'campus2/d1/p2',
+                               'campus1/d2/p2', 'campus1/d1/p2']
+             }
+        expected_err = {'asbaskuhdf/asdfasdf': 'No matching topic found'}
+        assert cmp(expected_err, result['error']) == 0
+        assert cmp(exepected_info,result['info']) == 0
+
+        result1 = query_agent.vip.rpc.call('platform.tagging',
+                                           'get_tags_by_topic',
+                                           topic_prefix='campus2/d2/p2',
+                                           skip=0,
+                                           count=3,
+                                           order="FIRST_TO_LAST").get()
+        print result1
+        assert len(result1) == 2
+        assert len(result1[0]) == len(result1[1]) == 2
+        assert result1[0][0] == 'air'
+        assert result1[0][1]
+        assert result1[1][0] == 'point'
+        assert result1[1][1]
+
+        result1 = query_agent.vip.rpc.call('platform.tagging',
+                                           'get_tags_by_topic',
+                                           topic_prefix='campus2',
+                                           skip=0, count=3,
+                                           order="FIRST_TO_LAST").get()
+        print result1
+        assert len(result1) == 2
+        assert len(result1[0]) == len(result1[1]) == 2
+        assert result1[0][0] == 'campus'
+        assert result1[0][1]
+        assert result1[1][0] == 'dis'
+        assert result1[1][1] == "Test description"
+    finally:
+        cleanup_function = globals()["cleanup_" + connection_type]
+        cleanup_function(db_connection,['topic_tags'])
+        if hist_id:
+            volttron_instance.remove_agent(hist_id)
+
+
+@pytest.mark.tagging
+def test_update_topic_tags(tagging_service, query_agent):
+    global connection_type, db_connection
+    try:
+        query_agent.vip.rpc.call('platform.tagging', 'add_topic_tags',
+            topic_prefix='test_update_topic',
+            tags={'campus': True, 'dis': "Test description"}).get(timeout=10)
+
+        result3 = query_agent.vip.rpc.call('platform.tagging', 'get_tags_by_topic',
+                                           topic_prefix='test_update_topic',
+                                           include_kind=True,
+                                           include_description=True, skip=0,
+                                           count=2, order="LAST_TO_FIRST").get(
+            timeout=10)
+
+        # [['dis', 'Test description', 'Str', 'Short display name for an entity.'],
+        #  ['campus', '1', 'Marker',
+        #   'Marks a campus that might have one or more site/building']]
+        print result3
+        assert len(result3) == 2
+        assert len(result3[0]) == len(result3[1]) == 4
+        assert result3[0][0] == 'dis'
+        assert result3[0][1] == 'Test description'
+        assert result3[0][2] == 'Str'
+        assert result3[0][3] == 'Short display name for an entity.'
+        assert result3[1][0] == 'campus'
+        assert result3[1][1]
+        assert result3[1][2] == 'Marker'
+        assert result3[1][3] == \
+            'Marks a campus that might have one or more site/building'
+
+        query_agent.vip.rpc.call('platform.tagging', 'add_topic_tags',
+                                 topic_prefix='test_update_topic',
+                                 tags={'campus': True,
+                                       'dis': "New description",
+                                       'geoCountry': "US"}).get(timeout=10)
+
+        result3 = query_agent.vip.rpc.call(
+            'platform.tagging', 'get_tags_by_topic',
+            topic_prefix='test_update_topic', include_kind=True,
+            include_description=True, skip=0, count=5,
+            order="LAST_TO_FIRST").get(timeout=10)
+
+        # [['geoCountry', 'US', 'Str',
+        #   'Geographic country as ISO 3166-1 two letter code.'],
+        #  ['dis', 'New description', 'Str', 'Short display name for an entity.'],
+        #  ['campus', '1', 'Marker',
+        #   'Marks a campus that might have one or more site/building']]
+        print result3
+        assert len(result3) == 3
+        assert len(result3[0]) == len(result3[1]) == 4
+        assert result3[0][0] == 'geoCountry'
+        assert result3[0][1] == 'US'
+        assert result3[0][2] == 'Str'
+        assert result3[0][3] == \
+            'Geographic country as ISO 3166-1 two letter code.'
+        assert result3[1][0] == 'dis'
+        assert result3[1][1] == 'New description'
+        assert result3[1][2] == 'Str'
+        assert result3[1][3] == 'Short display name for an entity.'
+        assert result3[2][0] == 'campus'
+        assert result3[2][1]
+        assert result3[2][2] == 'Marker'
+        assert result3[2][3] == \
+            'Marks a campus that might have one or more site/building'
+    finally:
+        cleanup_function = globals()["cleanup_" + connection_type]
+        cleanup_function(db_connection,['topic_tags'])
+
+@pytest.mark.tagging
+def test_insert_topic_tags_error(tagging_service, query_agent):
     try:
         query_agent.vip.rpc.call(
             'platform.tagging', 'add_topic_tags', topic_prefix='test_topic',
             tags={'t1':1, 't2':'val'}).get(timeout=10)
         pytest.fail("Expecting exception for invalid tags but got none")
     except Exception as e:
-        assert e.exc_info['exc_type'] == \
-               'volttron.platform.agent.base_tagging.TagInsertionError'
+        assert e.exc_info['exc_type'] == 'ValueError'
         assert e.message == 'Invalid tag name:t2'
-
-    query_agent.vip.rpc.call(
-        'platform.tagging', 'add_topic_tags', topic_prefix='test_topic',
-        tags={'campus': True, 'dis': "Test description"}).get(timeout=10)
-
-    result1 = query_agent.vip.rpc.call('platform.tagging', 'get_tags_by_topic',
-        topic_prefix='test_topic', include_description=True, skip=0, count=3,
-        order="FIRST_TO_LAST").get(timeout=10)
-    # [['campus', '1', 'Marks a campus that might have one or more site/building'],
-    # ['dis', 'Test description', 'Short display name for an entity.']]
-    print result1
-    assert len(result1) == 2
-    assert len(result1[0]) == len(result1[1]) == 3
-    assert result1[0][0] == 'campus'
-    assert result1[0][1]
-    assert result1[0][2] == 'Marks a campus that might have one or more ' \
-                            'site/building'
-    assert result1[1][0] == 'dis'
-    assert result1[1][1] == 'Test description'
-    assert result1[1][2] == 'Short display name for an entity.'
-
-
-    result2 = query_agent.vip.rpc.call('platform.tagging', 'get_tags_by_topic',
-                                       topic_prefix='test_topic',
-                                       include_kind=True, skip=0,
-                                       count=1,
-                                       order="LAST_TO_FIRST").get(timeout=10)
-    # [['dis', 'Test description', 'Str']]
-    print result2
-    assert len(result2) == 1
-    assert len(result2[0]) == 3
-    assert result2[0][0] == 'dis'
-    assert result2[0][1] == 'Test description'
-    assert result2[0][2] == 'Str'
-
-
-    result3 = query_agent.vip.rpc.call('platform.tagging', 'get_tags_by_topic',
-                                       topic_prefix='test_topic',
-                                       include_kind=True,
-                                       include_description=True,
-                                       skip=0, count=2,
-                                       order="LAST_TO_FIRST").get(timeout=10)
-
-    # [['dis', 'Test description', 'Str', 'Short display name for an entity.'],
-    #  ['campus', '1', 'Marker',
-    #   'Marks a campus that might have one or more site/building']]
-    print result3
-    assert len(result3) == 2
-    assert len(result3[0]) == len(result3[1]) == 4
-    assert result3[0][0] == 'dis'
-    assert result3[0][1] == 'Test description'
-    assert result3[0][2] == 'Str'
-    assert result3[0][3] == 'Short display name for an entity.'
-    assert result3[1][0] == 'campus'
-    assert result3[1][1]
-    assert result3[1][2] == 'Marker'
-    assert result3[1][3] == \
-           'Marks a campus that might have one or more site/building'
-
-    result4 = query_agent.vip.rpc.call('platform.tagging', 'get_tags_by_topic',
-                                       topic_prefix='test_topic',
-                                       skip=0, count=2,
-                                       order="LAST_TO_FIRST").get(timeout=10)
-    # [['dis', 'Test description'],['campus', '1']]
-    assert len(result4) == 2
-    assert len(result4[0]) == len(result4[1]) == 2
-    assert result4[0][0] == 'dis'
-    assert result4[0][1] == 'Test description'
-    assert result4[1][0] == 'campus'
-    assert result4[1][1]
-
-
-
 
 
 @pytest.mark.tagging
 def test_tags_by_topic_no_metadata(tagging_service, query_agent):
+    global connection_type, db_connection
+    try:
+        query_agent.vip.rpc.call('platform.tagging', 'add_topic_tags',
+            topic_prefix='test_topic',
+            tags={'campus': True, 'dis': "Test description",
+                  "geoCountry": "US"}).get(timeout=10)
 
-    result1 = query_agent.vip.rpc.call(
-        'platform.tagging',
-        'get_tags_by_topic',
-        topic_prefix='PNNL-SEQUIM',
-        skip=0,
-        count=3,
-        order="FIRST_TO_LAST").get(timeout=10)
-    print ("tags returned: {}".format(result1))
-    assert isinstance(result1, list)
-    assert len(result1) == 3
-    assert isinstance(result1[0], list)
-    assert len(result1[0]) == 2
+        result1 = query_agent.vip.rpc.call('platform.tagging',
+            'get_tags_by_topic', topic_prefix='test_topic',
+            skip=0, count=3,
+            order="FIRST_TO_LAST").get(timeout=10)
+        # [['campus', '1'],
+        # ['dis', 'Test description'],
+        # ['geoCountry', 'US']]
+        print result1
+        assert len(result1) == 3
+        assert len(result1[0]) == len(result1[1]) == 2
+        assert result1[0][0] == 'campus'
+        assert result1[0][1]
+        assert result1[1][0] == 'dis'
+        assert result1[1][1] == 'Test description'
+        assert result1[2][0] == 'geoCountry'
+        assert result1[2][1] == 'US'
 
-    # verify skip
-    result2 = query_agent.vip.rpc.call('platform.tagging',
-                                       'get_tags_by_topic',
-                                       topic_prefix='PNNL-SEQUIM',
-                                       skip=2,
-                                       count=3,
-                                       order="FIRST_TO_LAST").get(timeout=10)
-    print ("tags returned: {}".format(result2))
-    assert isinstance(result2, list)
-    assert len(result2) == 3  # verify count
-    assert isinstance(result2[0], list)
-    assert len(result2[0]) == 2
-    assert result1[2] == result2[0]  # verify skip
+        #verify skip and count
+        result2 = query_agent.vip.rpc.call(
+            'platform.tagging',
+            'get_tags_by_topic',
+            topic_prefix='test_topic',
+            skip=1,
+            count=3, order="FIRST_TO_LAST").get(timeout=10)
+        # [['dis', 'Test description'],
+        # ['geoCountry', 'US']]
+        print result2
+        assert len(result2) == 2
+        assert len(result2[0]) == len(result2[1]) == 2
+        assert result2[0][0] == 'dis'
+        assert result2[0][1] == 'Test description'
+        assert result2[1][0] == 'geoCountry'
+        assert result2[1][1] == 'US'
 
-    # query without count
-    result3 = query_agent.vip.rpc.call(
-        'platform.tagging', 'get_tags_by_topic', topic_prefix='PNNL-SEQUIM',
-        skip=2, order="FIRST_TO_LAST").get(timeout=10)
-    assert isinstance(result2, list)
-    assert isinstance(result2[0], list)
-    assert len(result2[0]) == 2
-    assert result1[2] == result2[0] == result3[0]  # verify skip
+        # query without count
+        # verify skip and count
+        result3 = query_agent.vip.rpc.call(
+            'platform.tagging','get_tags_by_topic', topic_prefix='test_topic',
+            skip=1,
+            order="FIRST_TO_LAST").get(timeout=10)
+        # [['dis', 'Test description'],
+        # ['geoCountry', 'US']]
+        print result3
+        assert len(result3) == 2
+        assert len(result3[0]) == len(result3[1]) == 2
+        assert result3[0][0] == 'dis'
+        assert result3[0][1] == 'Test description'
+        assert result3[1][0] == 'geoCountry'
+        assert result3[1][1] == 'US'
 
-    # verify sort
-    result4 = query_agent.vip.rpc.call('platform.tagging', 'get_tags_by_topic',
-        topic_prefix='PNNL-SEQUIM', order="LAST_TO_FIRST").get(timeout=10)
-    assert isinstance(result4, list)
-    assert isinstance(result4[0], list)
-    assert len(result4[0]) == 2
-    assert result3[0] == result4[-3]  # verify reverse order
+        # verify sort
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging',
+            'get_tags_by_topic',
+            topic_prefix='test_topic',
+            skip=0,
+            count=3, order="LAST_TO_FIRST").get(timeout=10)
+
+        print result1
+        assert len(result1) == 3
+        assert len(result1[0]) == len(result1[1]) == 2
+        assert result1[2][0] == 'campus'
+        assert result1[2][1]
+        assert result1[1][0] == 'dis'
+        assert result1[1][1] == 'Test description'
+        assert result1[0][0] == 'geoCountry'
+        assert result1[0][1] == 'US'
+    finally:
+        cleanup_function = globals()["cleanup_" + connection_type]
+        cleanup_function(db_connection,['topic_tags'])
+
 
 @pytest.mark.tagging
 def test_tags_by_topic_with_metadata(tagging_service, query_agent):
+    global connection_type, db_connection
+    try:
+        query_agent.vip.rpc.call(
+            'platform.tagging', 'add_topic_tags', topic_prefix='test_topic',
+            tags={'campus': True, 'dis': "Test description"}).get(timeout=10)
 
-    result1 = query_agent.vip.rpc.call(
-        'platform.tagging',
-        'get_tags_by_topic',
-        topic_prefix='PNNL-SEQUIM',
-        include_kind=True,
-        skip=0,
-        count=3,
-        order="FIRST_TO_LAST").get(timeout=10)
-    print ("tags returned: {}".format(result1))
-    assert isinstance(result1, list)
-    assert isinstance(result1[0], list)
-    assert len(result1) == 3
-    assert len(result1[0]) == 3
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging', 'get_tags_by_topic', topic_prefix='test_topic',
+            include_description=True, skip=0, count=3,
+            order="FIRST_TO_LAST").get(timeout=10)
+        # [['campus', '1', 'Marks a campus that might have one or more
+        # site/building'],
+        # ['dis', 'Test description', 'Short display name for an entity.']]
+        print result1
+        assert len(result1) == 2
+        assert len(result1[0]) == len(result1[1]) == 3
+        assert result1[0][0] == 'campus'
+        assert result1[0][1]
+        assert result1[0][2] == 'Marks a campus that might have one or more ' \
+                                'site/building'
+        assert result1[1][0] == 'dis'
+        assert result1[1][1] == 'Test description'
+        assert result1[1][2] == 'Short display name for an entity.'
 
-    result2 = query_agent.vip.rpc.call(
-        'platform.tagging',
-        'get_tags_by_topic',
-        topic_prefix='PNNL-SEQUIM',
-        include_description=True,
-        skip=0,
-        count=3,
-        order="FIRST_TO_LAST").get(timeout=10)
-    print ("tags returned: {}".format(result2))
-    assert isinstance(result2, list)
-    assert isinstance(result2[0], list)
-    assert len(result2) == 3
-    assert len(result2[0]) == 3
+        result2 = query_agent.vip.rpc.call(
+            'platform.tagging', 'get_tags_by_topic', topic_prefix='test_topic',
+            include_kind=True, skip=0, count=1,
+            order="LAST_TO_FIRST").get(timeout=10)
+        # [['dis', 'Test description', 'Str']]
+        print result2
+        assert len(result2) == 1
+        assert len(result2[0]) == 3
+        assert result2[0][0] == 'dis'
+        assert result2[0][1] == 'Test description'
+        assert result2[0][2] == 'Str'
 
-    result3 = query_agent.vip.rpc.call('platform.tagging',
-                                       'get_tags_by_topic',
-                                       topic_prefix='PNNL-SEQUIM',
-                                       include_kind=True,
-                                       include_description=True,
-                                       skip=0, count=3,
-                                       order="FIRST_TO_LAST").get(timeout=10)
-    print ("tags returned: {}".format(result3))
-    assert isinstance(result3, list)
-    assert isinstance(result3[0], list)
-    assert len(result3) == 3
-    assert len(result3[0]) == 4
+        result3 = query_agent.vip.rpc.call(
+            'platform.tagging', 'get_tags_by_topic', topic_prefix='test_topic',
+            include_kind=True, include_description=True, skip=0, count=2,
+            order="LAST_TO_FIRST").get(timeout=10)
+
+        # [['dis', 'Test description', 'Str', 'Short display name for an entity.'],
+        #  ['campus', '1', 'Marker',
+        #   'Marks a campus that might have one or more site/building']]
+        print result3
+        assert len(result3) == 2
+        assert len(result3[0]) == len(result3[1]) == 4
+        assert result3[0][0] == 'dis'
+        assert result3[0][1] == 'Test description'
+        assert result3[0][2] == 'Str'
+        assert result3[0][3] == 'Short display name for an entity.'
+        assert result3[1][0] == 'campus'
+        assert result3[1][1]
+        assert result3[1][2] == 'Marker'
+        assert result3[1][3] == \
+            'Marks a campus that might have one or more site/building'
+    finally:
+        cleanup_function = globals()["cleanup_" + connection_type]
+        cleanup_function(db_connection,['topic_tags'])
 
 
 

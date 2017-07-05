@@ -130,7 +130,6 @@ class SQLiteTaggingService(BaseTaggingService):
             self.category_tags_table = table_prefix + "_" + \
                                        self.category_tags_table
         self.sqlite_utils = SqlLiteFuncts(self.connection['params'], None)
-        self.valid_tags = dict()
         super(SQLiteTaggingService, self).__init__(**kwargs)
 
     @doc_inherit
@@ -192,11 +191,6 @@ class SQLiteTaggingService(BaseTaggingService):
             else:
                 self.init_category_tags()
 
-            #Now cache list of tags and kind/type for validation during insert
-            cursor = self.sqlite_utils.select(
-                "SELECT name, kind from "+ self.tags_table, fetch_all=False)
-            for record in cursor:
-                self.valid_tags[record[0]] = record[1]
         except Exception as e:
             err_message = "Initialization of " + table_name + \
                           " table failed with exception: {}" \
@@ -214,6 +208,12 @@ class SQLiteTaggingService(BaseTaggingService):
             self.vip.health.send_alert(TAGGING_SERVICE_SETUP_FAILED, status)
             self.core.stop()
 
+    def load_valid_tags(self):
+        # Now cache list of tags and kind/type for validation during insert
+        cursor = self.sqlite_utils.select(
+            "SELECT name, kind from " + self.tags_table, fetch_all=False)
+        for record in cursor:
+            self.valid_tags[record[0]] = record[1]
 
     def init_tags(self):
         file_name = self.resource_sub_dir + '/tags.csv'
@@ -463,20 +463,29 @@ class SQLiteTaggingService(BaseTaggingService):
             if cursor:
                 cursor.close()
 
-    def insert_tags(self, tags, update_version=False):
+    def insert_topic_tags(self, tags, update_version=False):
         t = dict()
         to_db =[]
         for topic_name, topic_tags in tags.iteritems():
             for tag_name, tag_value in topic_tags.iteritems():
                 if not self.valid_tags.has_key(tag_name):
                     raise ValueError("Invalid tag name:{}".format(tag_name))
+                if tag_name == 'id':
+                    _log.warn("id tags are not explicitly stored. "
+                              "topic_prefix servers as unique identifier for"
+                              "an entity. id value sent({}) will not be "
+                              "stored".format(tag_value))
+                    continue
                 # TODO: Validate and convert values based on tag kind/type
+                # for example, for Marker tags set value as true even if
+                # value passed is None.
                 #tag_value = get_tag_value(tag_value,
                 #                          self.valid_tags[tag_name])
+
                 to_db.append((topic_name, tag_name, tag_value))
 
         self.sqlite_utils.execute_many(
-            "INSERT INTO {} (topic_prefix, tag, value) "
+            "REPLACE INTO {} (topic_prefix, tag, value) "
                 "VALUES (?, ?, ?);".format(self.topic_tags_table),
             to_db)
         self.sqlite_utils.commit()

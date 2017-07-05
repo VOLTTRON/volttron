@@ -134,7 +134,6 @@ class MongodbTaggingService(BaseTaggingService):
                                          self.categories_collection
             self.topic_tags_collection = table_prefix + "_" + \
                                          self.topic_tags_collection
-
         super(MongodbTaggingService, self).__init__(**kwargs)
 
     @doc_inherit
@@ -178,6 +177,7 @@ class MongodbTaggingService(BaseTaggingService):
                           "have been loaded".format(collection))
             else:
                 self.init_categories(db)
+
         except Exception as e:
             err_message = "Initialization of " + collection + \
                           " collection failed with exception: {}" \
@@ -195,6 +195,14 @@ class MongodbTaggingService(BaseTaggingService):
             # _log.debug("status:{}".format(status))
             self.vip.health.send_alert(TAGGING_SERVICE_SETUP_FAILED, status)
             self.core.stop()
+
+    def load_valid_tags(self):
+        # Now cache list of tags and kind/type for validation during
+        # insert
+        db = self._client.get_default_database()
+        cursor = db[self.tags_collection].find({}, projection=['_id', 'kind'])
+        for record in cursor:
+            self.valid_tags[record['_id']] = record['kind']
 
     def init_tags(self, db):
         tags_file = self.resource_sub_dir+'/tags.csv'
@@ -340,17 +348,73 @@ class MongodbTaggingService(BaseTaggingService):
                 results.append(r['_id'])
         return results
 
+    def insert_topic_tags(self, tags, update_version=False):
+        db = self._client.get_default_database()
+        bulk = db[self.topic_tags_collection].initialize_unordered_bulk_op()
+        result = dict()
+        result['info'] = dict()
+        result['error'] = dict()
+        execute = False
+        _log.debug("IN INSERT tags {}".format(tags))
+        for topic_pattern, topic_tags in tags.items():
+            _log.debug("Outer loop: {}".format(topic_pattern))
+            for tag_name, tag_value in topic_tags.items():
+                if not self.valid_tags.has_key(tag_name):
+                    raise ValueError(
+                        "Invalid tag name:{}".format(tag_name))
+                # TODO: Validate and convert values based on tag kind/type
+                # for example, for Marker tags set value as true even if
+                # value passed is None.
+                # tag_value = get_tag_value(tag_value,
+                #                          self.valid_tags[tag_name])
+                if tag_name == 'id' and tag_value is not None:
+                    _log.warn("id tags are not explicitly stored. "
+                              "topic prefix servers as unique identifier for"
+                              "an entity. id value sent({}) will not be "
+                              "stored".format(tag_value))
+            topic_tags.pop('id', None)
+            _log.debug("topic pattern is {}".format(topic_pattern))
+            prefixes = self.get_matching_topic_prefixes(topic_pattern)
+            if not prefixes:
+                result['error'][topic_pattern] = "No matching topic found"
+                continue
+            result['info'][topic_pattern] = []
+            for prefix in prefixes:
+                temp = topic_tags.copy()
+                temp['_id'] = prefix
+                execute = True
+                bulk.find({'_id': prefix}).upsert().update_one(
+                    {'$set': temp})
+                result['info'][topic_pattern].append(prefix)
+            if len(result['info'][topic_pattern]) == 1 and \
+                topic_pattern == result['info'][topic_pattern][0]:
+                # means value sent was actually some pattern so add
+                # info to tell user the list of topic prefix that matched
+                # the pattern sent
+                _log.debug("topic passed is exact name. Not pattern. "
+                           "removing from result info: {}".format(topic_pattern))
+                result['info'].pop(topic_pattern)
+        if execute:
+            try:
+                bulk.execute()
+            except BulkWriteError as bwe:
+                errors = bwe.details['writeErrors']
+                _log.error("bwe error count {}".format(len(errors)))
+                for e in errors:
+                    _log.error(e['op'])
+                    result['error'][e['op']['q']['_id']] = e['errmsg']
 
-    def insert_tags(self, tags, update_version=False):
-        pass
+        return result
+
+
 
     def query_tags_by_topic(self, topic_prefix, include_kind=False,
                             include_description=False, skip=0, count=None,
                             order="FIRST_TO_LAST"):
         db = self._client.get_default_database()
         _log.debug("topic_prefix: {}".format(topic_prefix))
-        cursor = db[self.topic_tags_collection].find(
-            {"topic_prefix":topic_prefix})
+        cursor = db[self.topic_tags_collection].find({"_id": topic_prefix},
+                                                     projection={'_id': False})
         l = list(cursor)
         if l and len(l) == 1:
             d = l[0]
@@ -362,7 +426,6 @@ class MongodbTaggingService(BaseTaggingService):
         reverse = False
         if order == 'LAST_TO_FIRST':
             reverse = True
-        d['id'] = d.pop('_id')
         ordered_result_dict = OrderedDict(sorted(d.items(), reverse=reverse))
         _log.debug("Ordered tags: {}".format(ordered_result_dict))
         #Now get the kind and description for each of the tag in earlier
@@ -400,9 +463,6 @@ class MongodbTaggingService(BaseTaggingService):
                 break
 
         return results
-
-    def insert_topic_tags(self, topic_prefix, tags, update_version=False):
-        pass
 
     def query_topics_by_tags(self, and_condition=None, or_condition=None,
                              regex_and=None, regex_or=None, condition=None,

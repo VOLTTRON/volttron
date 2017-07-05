@@ -47,7 +47,7 @@ sqlite_max_batch_size = 100
 
 def get_campus_tags(campus):
     tags = {
-        "id":"@"+campus,
+        "id":campus,
         "dis": "campus description {}".format(random.randint(5000, 10000)),
         "campus":True,
         "geoCountry": "US",
@@ -62,9 +62,9 @@ def get_campus_tags(campus):
 def get_site_tags(campus, site):
     n = random.randint(1000, 2000)
     tags = {
-        "id": "@" + site,
+        "id": site,
         "site":True,
-        "campusRef":"@" + campus,
+        "campusRef": campus,
         "dis": "site description {}".format(random.randint(5000, 10000)),
         "yearBuilt": random.randint(1990, 2014),
         "area": random.randint(2000, 4000),
@@ -85,10 +85,10 @@ def get_equip_tags(campus, site, parent_equip, equip):
     tag1 = "equip_tag {}".format(random.randint(1, 5))
     tag2 = "equip_tag {}".format(random.randint(6, 10))
     tag3 = "equip_tag {}".format(random.randint(6, 10))
-    tags =  {"id": "@" + equip,
+    tags =  {"id": equip,
             "equip": True,
-            "campusRef": "@" + campus,
-            "siteRef": "@" + site,
+            "campusRef": campus,
+            "siteRef": site,
             "dis":"random description {}".format(random.randint(1,5000)),
             equip_type : True,
             tag1: random.randint(1, 5),
@@ -96,7 +96,7 @@ def get_equip_tags(campus, site, parent_equip, equip):
             tag3: random.randint(1, 5)
             }
     if parent_equip:
-        tags["equipRef"] = "@" + parent_equip
+        tags["equipRef"] = parent_equip
     #print tags["id"]
     return tags
 
@@ -107,11 +107,11 @@ def get_point_tags(campus, site, equip, point):
     tag3 = "tag_{}".format(random.randint(51, 55))
     tag4 = "tag_{}".format(random.randint(60, 65))
     tag5 = "tag_{}".format(random.randint(70, 75))
-    tags =  {"id": "@" + point,
+    tags =  {"id": point,
             "point": True,
-            "campusRef": "@" + campus,
-            "siteRef": "@" + site,
-            "equipRef": "@"+equip,
+            "campusRef": campus,
+            "siteRef": site,
+            "equipRef": equip,
             "dis": "random description {}".format(random.randint(1, 5000)),
             tag1 : random.randint(1, 500),
             tag2: random.randint(1, 500),
@@ -124,7 +124,7 @@ def get_point_tags(campus, site, equip, point):
 
 def db_insert(tags, execute_now=False):
     r1 = r2 = True
-    #r2 = sqlite_insert(tags, execute_now)
+    r2 = sqlite_insert(tags, execute_now)
     r1 = mongo_insert(tags, execute_now)
     return r1 and r2
 
@@ -133,10 +133,10 @@ def mongo_insert(tags, execute_now=False):
     errors = False
     if tags:
         tags['_id'] = tags.pop('id')
-        if not tags.get('topic_prefix'):
-            tags['topic_prefix'] = tags['_id'][1:]
+        # if not tags.get('topic_prefix'):
+        #     tags['topic_prefix'] = tags['_id'][1:]
         mongo_bulk.insert(tags)
-        mongo_batch_size +=  1
+        mongo_batch_size += 1
     if mongo_batch_size > mongo_max_batch_size or execute_now:
         try:
             result = mongo_bulk.execute()
@@ -155,7 +155,8 @@ def sqlite_insert(tags, execute_now=False):
     global sqlite_bulk, sqlite_batch_size, sqlite_max_batch_size
 
     if tags:
-        topic_prefix = tags["id"][1:] #remove @ symbol
+        #topic_prefix = tags["id"][1:] #remove @ symbol
+        topic_prefix = tags["id"]
         for k, v in tags.items():
             if isinstance(v, bool):
                 if v:
