@@ -379,6 +379,7 @@ class BaseHistorianAgent(Agent):
             headers = r['headers']
             message = r['message']
 
+            capture_func = None
             if topic.startswith(topics.DRIVER_TOPIC_BASE):
                 capture_func = self._capture_device_data
             elif topic.startswith(topics.LOGGER_BASE):
@@ -388,8 +389,11 @@ class BaseHistorianAgent(Agent):
             elif topic.startswith(topics.RECORD_BASE):
                 capture_func = self._capture_record_data
 
-            capture_func(peer=None, sender=None, bus=None,
-                         topic=topic, headers=headers, message=message)
+            if capture_func:
+                capture_func(peer=None, sender=None, bus=None,
+                             topic=topic, headers=headers, message=message)
+            else:
+                raise ValueError("Unrecognized topic: {}".format(topic))
 
     def _create_subscriptions(self):
 
@@ -652,7 +656,8 @@ class BaseHistorianAgent(Agent):
 
         meta = {}
         if not isinstance(message, dict):
-            meta = message[1]
+            if len(message) == 2:
+                meta = message[1]
 
         if topic.startswith('analysis'):
             source = 'analysis'
@@ -1223,6 +1228,20 @@ class BaseQueryHistorianAgent(Agent):
         :rtype: list
         """
         return self.query_topic_list()
+
+    @RPC.export
+    def get_topics_by_pattern(self, topic_pattern):
+        """ Find the list of topics and its id for a given topic_pattern
+
+        :return: returns list of dictionary object {topic_name:id}"""
+        return self.query_topics_by_pattern(topic_pattern)
+
+    @abstractmethod
+    def query_topics_by_pattern(topic_pattern):
+        """ Find the list of topics and its id for a given topic_pattern
+
+            :return: returns list of dictionary object {topic_name:id}"""
+        pass
 
     @abstractmethod
     def query_topic_list(self):

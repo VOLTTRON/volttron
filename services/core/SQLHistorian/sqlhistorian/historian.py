@@ -261,6 +261,10 @@ class SQLHistorian(BaseHistorian):
             return []
 
     @doc_inherit
+    def query_topics_by_pattern(self, topic_pattern):
+        return self.main_thread_dbutils.query_topics_by_pattern(topic_pattern)
+
+    @doc_inherit
     def query_topics_metadata(self, topics):
         meta = {}
         if isinstance(topics, str):

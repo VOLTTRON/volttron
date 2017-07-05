@@ -389,27 +389,39 @@ class SqlLiteFuncts(DbDriver):
         return re.search(expr, item, re.IGNORECASE) is not None
 
     def regex_select(self, query, args):
-        conn = sqlite3.connect(
-            self.__database,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+        conn = None
+        cursor = None
+        try:
+            conn = sqlite3.connect(
+                self.__database,
+                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
 
-        if conn is None:
-            _log.error("Unable to connect to sqlite database {} ".format(
-                self.__database))
-            return []
+            if conn is None:
+                _log.error("Unable to connect to sqlite database {} ".format(
+                    self.__database))
+                return []
 
-        conn.create_function("REGEXP", 2, SqlLiteFuncts.regexp)
-        _log.debug(" REGEXP query {}  ARGS: {}".format(query, args))
-        cursor = conn.cursor()
-        if args is not None:
-            cursor.execute(query, args)
-        else:
-            cursor.execute(query)
-        rows = cursor.fetchall()
-        conn.close()
-        return rows
+            conn.create_function("REGEXP", 2, SqlLiteFuncts.regexp)
+            _log.debug(" REGEXP query {}  ARGS: {}".format(query, args))
+            cursor = conn.cursor()
+            if args is not None:
+                cursor.execute(query, args)
+            else:
+                _log.debug("executing query")
+                cursor.execute(query)
+            rows = cursor.fetchall()
+            _log.debug("Regex returning {}".format(rows))
+            return rows
+        except Exception as e:
+            _log.error("Exception querying database based on regular "
+                       "expression:{}".format(e.args))
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
 
-    def find_topics_by_pattern(self, topic_pattern):
+    def query_topics_by_pattern(self, topic_pattern):
         id_map, name_map = self.get_topic_map()
         _log.debug("Contents of topics table {}".format(id_map.keys()))
         q = "SELECT topic_id, topic_name FROM " + self.topics_table + \
@@ -419,7 +431,7 @@ class SqlLiteFuncts(DbDriver):
         _log.debug("loading topic map from db")
         id_map = dict()
         for t, n in rows:
-            id_map[n.lower()] = t
+            id_map[n] = t
         _log.debug("topics that matched the pattern {} : {}".format(
             topic_pattern, id_map))
         return id_map

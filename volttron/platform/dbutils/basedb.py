@@ -188,7 +188,7 @@ class DbDriver(object):
         pass
 
     @abstractmethod
-    def find_topics_by_pattern(self, topic_pattern):
+    def query_topics_by_pattern(self, topic_pattern):
         """
         Return a map of {topi_name.lower():topic_id} that matches the given
         pattern
