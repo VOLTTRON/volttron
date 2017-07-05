@@ -17,7 +17,7 @@ device_topics = "^PNNL"
 topics_mongodb = MongoClient(topics_connection_string).get_default_database()
 
 tags_connection_string = "mongodb://test:test@localhost:27017/mongo_test"
-tags_table = "topic_tags"
+tags_table = "topic_tags_2"
 tags_client = MongoClient(tags_connection_string)
 tags_mongodb = tags_client.get_default_database()
 mongo_bulk = tags_mongodb[tags_table].initialize_ordered_bulk_op()
@@ -25,7 +25,7 @@ mongo_batch_size = 0
 mongo_max_batch_size = 5000
 
 sqlite_connection = sqlite3.connect(
-    "/home/velo/tags_test.sqlite",
+    "/home/velo/tags_test2.sqlite",
     detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
 )
 sqlite_connection.execute("PRAGMA CACHE_SIZE=-2000")
@@ -193,12 +193,12 @@ def test_mongo_tags():
     tags_cursor = tags_mongodb[tags_table].find(
         {"campus": True, "geoPostalCode": "20501"}, {"_id": 1})
     refs = [record['_id'] for record in tags_cursor]
-    print refs
+    print("campus:True geoPostalCode:20501 result:{}".format(refs))
     tags_cursor = tags_mongodb[tags_table].find(
         {"campusRef": {"$in": refs}, "equip": True, "ahu": True,
          "equip_tag 7": {"$gt": 2}}, {"topic_prefix": 1})
     topics = [record['_id'] for record in tags_cursor]
-    print topics
+    print("example query result: {}".format(topics))
     print ("Time taken by mongo for result: {}".format(
         datetime.datetime.now() - start))
 
