@@ -372,7 +372,6 @@ class MongodbTaggingService(BaseTaggingService):
                               "topic prefix servers as unique identifier for"
                               "an entity. id value sent({}) will not be "
                               "stored".format(tag_value))
-            topic_tags.pop('id', None)
             _log.debug("topic pattern is {}".format(topic_pattern))
             prefixes = self.get_matching_topic_prefixes(topic_pattern)
             if not prefixes:
@@ -382,6 +381,7 @@ class MongodbTaggingService(BaseTaggingService):
             for prefix in prefixes:
                 temp = topic_tags.copy()
                 temp['_id'] = prefix
+                temp['id'] = prefix
                 execute = True
                 bulk.find({'_id': prefix}).upsert().update_one(
                     {'$set': temp})

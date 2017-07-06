@@ -132,7 +132,7 @@ def mongo_insert(tags, execute_now=False):
     global mongo_bulk, mongo_batch_size, mongo_max_batch_size
     errors = False
     if tags:
-        tags['_id'] = tags.pop('id')
+        tags['_id'] = tags['id']
         # if not tags.get('topic_prefix'):
         #     tags['topic_prefix'] = tags['_id'][1:]
         mongo_bulk.insert(tags)

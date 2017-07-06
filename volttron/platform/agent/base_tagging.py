@@ -77,7 +77,7 @@ from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
 from volttron.platform.agent.known_identities import (PLATFORM_HISTORIAN)
-
+from volttron.platform.vip.agent.errors import Unreachable
 
 try:
     import ujson
@@ -369,31 +369,44 @@ class BaseTaggingService(Agent):
     def get_matching_topic_prefixes(self, topic_pattern):
         # replace * with .* so regex would match correctly
         topic_pattern = topic_pattern.replace("*", ".*")
-        topic_map = self.vip.rpc.call(
-            PLATFORM_HISTORIAN,
-            "get_topics_by_pattern",
-            topic_pattern=topic_pattern).get(timeout=5)
-        point_topics = topic_map.keys()
         topic_prefixes = set()
-        if len(point_topics) == 1 and point_topics[0] == topic_pattern:
-            # fixed string topic name
-            topic_prefixes.add(topic_pattern)
-        else:
-            # topic name pattern
-            for topic in point_topics:
-                # tag could be for a topic prefix and not the whole topic.
-                # eg. pattern could be 'campus/building1/device*'
-                # returned topic from get_matching_topics could be
-                # campus/building1/device1/p1, but we want to return
-                # campus/building1/device1
-                # Works only if separator is /. Else tags are always applied
-                # to full topic names
-                topic_parts = topic.split("/")
-                pattern_parts = topic_pattern.split("/")
-                topic_prefixes.add(
-                    '/'.join(topic_parts[ :len(pattern_parts)]))
+        try:
+            topic_map = self.vip.rpc.call(
+                PLATFORM_HISTORIAN,
+                "get_topics_by_pattern",
+                topic_pattern=topic_pattern).get(timeout=5)
+            point_topics = topic_map.keys()
+            if len(point_topics) == 1 and point_topics[0] == topic_pattern:
+                # fixed string topic name
+                topic_prefixes.add(topic_pattern)
+            else:
+                # topic name pattern
+                for topic in point_topics:
+                    # tag could be for a topic prefix and not the whole topic.
+                    # eg. pattern could be 'campus/building1/device*'
+                    # returned topic from get_matching_topics could be
+                    # campus/building1/device1/p1, but we want to return
+                    # campus/building1/device1
+                    # Works only if separator is /. Else tags are always applied
+                    # to full topic names
+                    topic_parts = topic.split("/")
+                    pattern_parts = topic_pattern.split("/")
+                    topic_prefixes.add(
+                        '/'.join(topic_parts[ :len(pattern_parts)]))
 
-        _log.debug("topic prefixes {}".format(topic_prefixes))
+            _log.debug("topic prefixes {}".format(topic_prefixes))
+        except Unreachable:
+            _log.error("add_topic_tags and add_tags "
+                       "operations need plaform.historian to be running."
+                       "Topics and topic patterns sent are matched against "
+                       "list of valid topics queried from platform.historian")
+            raise
+
+        except Exception as e:
+            _log.error("Unknown exception while get list of topic prefix for "
+                       "given topic/topic_pattern({}). Exception:{}".format(
+                topic_pattern, e.args))
+            raise
         return topic_prefixes
 
 
