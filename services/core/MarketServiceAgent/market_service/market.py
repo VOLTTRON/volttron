@@ -56,21 +56,93 @@
 
 # }}}
 
-class Market(object):
-    def __init__(self, market_name):
-        self.participants = []
-        self.market_name = market_name
+ACCEPT_RESERVATIONS = 'accept_resevations'
+ACCEPT_OFFERS = 'accept_offers'
+ACCEPT_BUY_OFFERS = 'accept_buy_offers'
+ACCEPT_SELL_OFFERS = 'accept_sell_offers'
+WAIT_FOR_CLEAR = 'wait_for_clear'
+WAIT_FOR_RESERVATIONS = 'wait_for_reservations'
 
-    def add_participant(self, participant):
-        self.participants.append(participant)
+from market_service.offer_manager import OfferManager
+from market_service.reservation_manager import ReservationManager
+from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
+
+class MarketFailureError(StandardError):
+    """Base class for exceptions in this module."""
+    def __init__(self, market_name, market_state, object_type):
+        super(MarketFailureError, self).__init__('The market %s is not accepting %s '
+                                                 'at this time. The state is %s.' % market_name,
+                                                 object_type, market_state)
+
+
+class Market(object):
+
+    def __init__(self, market_name, participant):
+        self.reservations = ReservationManager()
+        self.offers = OfferManager()
+        self.market_name = market_name
+        self.market_state = ACCEPT_RESERVATIONS
+        self.make_reservation(participant)
+
+    def make_reservation(self, participant):
+        if self.market_state != ACCEPT_RESERVATIONS:
+            raise MarketFailureError(self.market_name, self.market_state, 'reservations')
+
+        self.reservations.make_reservation(participant)
+
+    def make_offer(self, participant, curve):
+        if self.market_state not in [ACCEPT_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]:
+            raise MarketFailureError(self.market_name, self.market_state, 'offers')
+
+
+        aggregate_curve = None
+        self.reservations.take_reservation(participant)
+        self.offers.make_offer(participant.buyer_seller, curve)
+        if self.reservations.all_satisfied(participant.buyer_seller):
+            self.market_state = self.next_offer_state(participant.buyer_seller)
+            aggregate_curve = self.offers.aggregate_curves(participant.buyer_seller)
+        return aggregate_curve
+
+    def collect_offers(self):
+        self.market_state = ACCEPT_OFFERS
+
+    def clear_market(self):
+        cleared_price = None
+        error_message = None
+        if (self.market_state in [ACCEPT_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]):
+            error_message = 'The market %s failed to recieve all the expected offers. The state is %s.' % \
+                            self.market_name, self.market_state
+        elif (self.market_state != WAIT_FOR_CLEAR):
+            error_message = 'Programming error in Market class. State of $s and clear market signal arrived. ' \
+                            'This represents a logic error.', self.market_state
+        else:
+            if not self.has_market_formed():
+                error_message = 'The market %s has not received a buy and a sell reservation.' % self.market_name
+            else:
+                self.market_state = WAIT_FOR_RESERVATIONS
+                cleared_price = self.offers.settle()
+
+        return [cleared_price, error_message]
+
+    def reject_reservation(self, participant):
+        raise MarketFailureError('The market %s is not accepting reservations at this time. The state is %s.' %
+                                 self.market_name, self.market_state)
+
+    def reject_offer(self, participant):
+        raise MarketFailureError('The market %s is not accepting offers at this time. The state is %s.' %
+                                 self.market_name, self.market_state)
 
     def has_market_formed(self):
-        has_buyer = False
-        has_seller = False
-        for participant in self.participants:
-            if participant.is_buyer():
-                has_buyer = True
-            if participant.is_seller():
-                has_seller = True
-        return has_buyer and has_seller
+        return self.reservations.has_market_formed()
 
+    def next_offer_state(self, buyer_seller):
+        if self.market_state == ACCEPT_OFFERS:
+            next_state = ACCEPT_BUY_OFFERS if buyer_seller == BUYER else ACCEPT_SELL_OFFERS
+        elif self.market_state == ACCEPT_BUY_OFFERS and buyer_seller == SELLER:
+            next_state = WAIT_FOR_CLEAR
+        elif self.market_state == ACCEPT_SELL_OFFERS and buyer_seller == BUYER:
+            next_state = WAIT_FOR_CLEAR
+        else:
+            raise MarketFailureError('Programming error in Market class. State of $s and completed %s offers. '
+                                     'This represents a logic error.', self.market_state, buyer_seller)
+        return next_state

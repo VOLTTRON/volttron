@@ -9,9 +9,9 @@
 # are met:
 #
 # 1. Redistributions of source code must retain the above copyright
-#    notice, this market_list of conditions and the following disclaimer.
+#    notice, this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this market_list of conditions and the following disclaimer in
+#    notice, this list of conditions and the following disclaimer in
 #    the documentation and/or other materials provided with the
 #    distribution.
 #
@@ -53,62 +53,58 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 # }}}
 
-"""
-Pytest test cases for testing market service agent.
-"""
+from __builtin__ import property as _property, tuple as _tuple
+from operator import itemgetter as _itemgetter
+from collections import OrderedDict
 
-import pytest
+class Point(tuple):
+    'Point(x, y)'
+    __slots__ = ()
 
-from market_service.market_list import MarketList
-from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
+    _fields = ('x', 'y')
 
-@pytest.mark.market
-def test_market_participants_no_market():
-    market_list = MarketList()
-    assert market_list.has_market('no_market') == False
+    def __new__(_cls, x, y):
+        'Create new instance of Point(x, y)'
+        float_x = float(x) if x is not None else None
+        float_y = float(y) if y is not None else None
+        return _tuple.__new__(_cls, (float_x, float_y))
 
-@pytest.mark.market
-def test_market_participants_has_market():
-    market_list = MarketList()
-    market_name = 'test_market'
-    market_list.make_reservation(market_name, SELLER, 'agent_id')
-    assert market_list.has_market(market_name) == True
+    @classmethod
+    def _make(cls, iterable, new=tuple.__new__, len=len):
+        'Make a new Point object from a sequence or iterable'
+        result = new(cls, iterable)
+        if len(result) != 2:
+            raise TypeError('Expected 2 arguments, got %d' % len(result))
+        return result
 
-@pytest.mark.market
-def test_market_participants_market_not_formed_no_market():
-    market_list = MarketList()
-    market_name = 'test_market'
-    assert market_list.has_market_formed(market_name) == False
+    def __repr__(self):
+        'Return a nicely formatted representation string'
+        return 'Point(x=%r, y=%r)' % self
 
-@pytest.mark.market
-def test_market_participants_market_not_formed_one_seller():
-    market_list = MarketList()
-    market_name = 'test_market'
-    market_list.make_reservation(market_name, SELLER, 'agent_id')
-    assert market_list.has_market_formed(market_name) == False
+    def _asdict(self):
+        'Return a new OrderedDict which maps field names to their values'
+        return OrderedDict(zip(self._fields, self))
 
-@pytest.mark.market
-def test_market_participants_market_bad_seller_argument():
-    market_list = MarketList()
-    market_name = 'test_market'
-    with pytest.raises(ValueError) as error_info:
-        market_list.make_reservation(market_name, 'bob is cool', 'agent_id')
-    assert 'bob is cool' in error_info.value.message
+    def _replace(_self, **kwds):
+        'Return a new Point object replacing specified fields with new values'
+        result = _self._make(map(kwds.pop, ('x', 'y'), _self))
+        if kwds:
+            raise ValueError('Got unexpected field names: %r' % kwds.keys())
+        return result
 
-@pytest.mark.market
-def test_market_participants_market_not_formed_one_buyer():
-    market_list = MarketList()
-    market_name = 'test_market'
-    market_list.make_reservation(market_name, BUYER, 'agent_id')
-    assert market_list.has_market_formed(market_name) == False
+    def __getnewargs__(self):
+        'Return self as a plain tuple.  Used by copy and pickle.'
+        return tuple(self)
 
-@pytest.mark.market
-def test_market_participants_market_formed_one_buyer_one_seller():
-    market_list = MarketList()
-    market_name = 'test_market'
-    market_list.make_reservation(market_name, BUYER, 'agent_id')
-    market_list.make_reservation(market_name, SELLER, 'agent_id')
-    assert market_list.has_market_formed(market_name) == True
+    __dict__ = _property(_asdict)
 
+    def __getstate__(self):
+        'Exclude the OrderedDict from pickling'
+        pass
+
+    x = _property(_itemgetter(0), doc='Alias for field number 0')
+
+    y = _property(_itemgetter(1), doc='Alias for field number 1')

@@ -9,9 +9,9 @@
 # are met:
 #
 # 1. Redistributions of source code must retain the above copyright
-#    notice, this market_list of conditions and the following disclaimer.
+#    notice, this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this market_list of conditions and the following disclaimer in
+#    notice, this list of conditions and the following disclaimer in
 #    the documentation and/or other materials provided with the
 #    distribution.
 #
@@ -53,62 +53,61 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 # }}}
 
-"""
-Pytest test cases for testing market service agent.
-"""
-
-import pytest
-
-from market_service.market_list import MarketList
 from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
 
-@pytest.mark.market
-def test_market_participants_no_market():
-    market_list = MarketList()
-    assert market_list.has_market('no_market') == False
+class MarketReservationError(StandardError):
+    """Base class for exceptions in this module."""
+    pass
 
-@pytest.mark.market
-def test_market_participants_has_market():
-    market_list = MarketList()
-    market_name = 'test_market'
-    market_list.make_reservation(market_name, SELLER, 'agent_id')
-    assert market_list.has_market(market_name) == True
+class ReservationManager(object):
 
-@pytest.mark.market
-def test_market_participants_market_not_formed_no_market():
-    market_list = MarketList()
-    market_name = 'test_market'
-    assert market_list.has_market_formed(market_name) == False
+    def __init__(self):
+        self._buy_reservations = {}
+        self._sell_reservations = {}
 
-@pytest.mark.market
-def test_market_participants_market_not_formed_one_seller():
-    market_list = MarketList()
-    market_name = 'test_market'
-    market_list.make_reservation(market_name, SELLER, 'agent_id')
-    assert market_list.has_market_formed(market_name) == False
+    def make_reservation(self, participant):
+        if (participant.buyer_seller == BUYER):
+            self._make_buy_reservation(participant.agent_id)
+        else:
+            self._make_sell_reservation(participant.agent_id)
 
-@pytest.mark.market
-def test_market_participants_market_bad_seller_argument():
-    market_list = MarketList()
-    market_name = 'test_market'
-    with pytest.raises(ValueError) as error_info:
-        market_list.make_reservation(market_name, 'bob is cool', 'agent_id')
-    assert 'bob is cool' in error_info.value.message
+    def _make_buy_reservation(self, owner):
+        self._add_reservation(self._buy_reservations, owner, 'buy')
 
-@pytest.mark.market
-def test_market_participants_market_not_formed_one_buyer():
-    market_list = MarketList()
-    market_name = 'test_market'
-    market_list.make_reservation(market_name, BUYER, 'agent_id')
-    assert market_list.has_market_formed(market_name) == False
+    def _add_reservation(self, collection, owner, type):
+        if owner not in collection:
+            collection[owner] = False
+        else:
+            raise MarketReservationError('Market participant %s made more than a single %s reservation.' % owner, type)
 
-@pytest.mark.market
-def test_market_participants_market_formed_one_buyer_one_seller():
-    market_list = MarketList()
-    market_name = 'test_market'
-    market_list.make_reservation(market_name, BUYER, 'agent_id')
-    market_list.make_reservation(market_name, SELLER, 'agent_id')
-    assert market_list.has_market_formed(market_name) == True
+    def _make_sell_reservation(self, owner):
+        self._add_reservation(self._sell_reservations, owner, 'sell')
+
+    def take_reservation(self, participant):
+        if (participant.buyer_seller == BUYER):
+            self._take_buy_reservation(participant.agent_id)
+        else:
+            self._take_sell_reservation(participant.agent_id)
+
+    def _take_buy_reservation(self, owner):
+        self._take_reservation(self._buy_reservations, owner, 'buy')
+
+    def _take_sell_reservation(self, owner):
+        self._take_reservation(self._sell_reservations, owner, 'sell')
+
+    def _take_reservation(self, collection, owner, type):
+        if owner in collection and not collection[owner]:
+            collection[owner] = True
+        else:
+            raise MarketReservationError('Market participant %s made no %s reservation.' % owner, type)
+
+    def has_market_formed(self):
+        has_buyer  = len(self._buy_reservations) > 0
+        has_seller = len(self._sell_reservations) > 0
+        return has_buyer and has_seller
+
+
 

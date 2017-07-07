@@ -9,9 +9,9 @@
 # are met:
 #
 # 1. Redistributions of source code must retain the above copyright
-#    notice, this market_list of conditions and the following disclaimer.
+#    notice, this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this market_list of conditions and the following disclaimer in
+#    notice, this list of conditions and the following disclaimer in
 #    the documentation and/or other materials provided with the
 #    distribution.
 #
@@ -53,62 +53,79 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 # }}}
 
-"""
-Pytest test cases for testing market service agent.
-"""
-
 import pytest
-
-from market_service.market_list import MarketList
-from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
-
-@pytest.mark.market
-def test_market_participants_no_market():
-    market_list = MarketList()
-    assert market_list.has_market('no_market') == False
+from market_service.point import Point
+from market_service.poly_line import PolyLine
 
 @pytest.mark.market
-def test_market_participants_has_market():
-    market_list = MarketList()
-    market_name = 'test_market'
-    market_list.make_reservation(market_name, SELLER, 'agent_id')
-    assert market_list.has_market(market_name) == True
+def test_poly_line_min():
+    min = PolyLine.min(1,2)
+    assert min == 1
 
 @pytest.mark.market
-def test_market_participants_market_not_formed_no_market():
-    market_list = MarketList()
-    market_name = 'test_market'
-    assert market_list.has_market_formed(market_name) == False
+def test_poly_line_min_first_none():
+    min = PolyLine.min(None,2)
+    assert min == 2
 
 @pytest.mark.market
-def test_market_participants_market_not_formed_one_seller():
-    market_list = MarketList()
-    market_name = 'test_market'
-    market_list.make_reservation(market_name, SELLER, 'agent_id')
-    assert market_list.has_market_formed(market_name) == False
+def test_poly_line_min_second_none():
+    min = PolyLine.min(1,None)
+    assert min == 1
 
 @pytest.mark.market
-def test_market_participants_market_bad_seller_argument():
-    market_list = MarketList()
-    market_name = 'test_market'
-    with pytest.raises(ValueError) as error_info:
-        market_list.make_reservation(market_name, 'bob is cool', 'agent_id')
-    assert 'bob is cool' in error_info.value.message
+def test_poly_line_max():
+    max = PolyLine.max(1,2)
+    assert max == 2
 
 @pytest.mark.market
-def test_market_participants_market_not_formed_one_buyer():
-    market_list = MarketList()
-    market_name = 'test_market'
-    market_list.make_reservation(market_name, BUYER, 'agent_id')
-    assert market_list.has_market_formed(market_name) == False
+def test_poly_line_max_first_none():
+    max = PolyLine.max(None,2)
+    assert max == 2
 
 @pytest.mark.market
-def test_market_participants_market_formed_one_buyer_one_seller():
-    market_list = MarketList()
-    market_name = 'test_market'
-    market_list.make_reservation(market_name, BUYER, 'agent_id')
-    market_list.make_reservation(market_name, SELLER, 'agent_id')
-    assert market_list.has_market_formed(market_name) == True
+def test_poly_line_max_second_none():
+    max = PolyLine.max(1,None)
+    assert max == 1
 
+@pytest.mark.market
+def test_poly_line_sum():
+    sum = PolyLine.sum(1,2)
+    assert sum == 3
+
+@pytest.mark.market
+def test_poly_line_sum_first_none():
+    sum = PolyLine.sum(None,2)
+    assert sum == 2
+
+@pytest.mark.market
+def test_poly_line_sum_second_none():
+    sum = PolyLine.sum(1,None)
+    assert sum == 1
+
+@pytest.mark.market
+def test_poly_line_init_points_none():
+    line = PolyLine()
+    assert line.points is None
+
+@pytest.mark.market
+def test_poly_line_add_one_point():
+    line = PolyLine()
+    line.add(Point(4,8))
+    assert len(line.points) == 1
+
+@pytest.mark.market
+def test_poly_line_add_two_points():
+    line = PolyLine()
+    line.add(Point(4,8))
+    line.add(Point(2,4))
+    assert len(line.points) == 2
+
+@pytest.mark.market
+def test_poly_line_add_points_is_sorted():
+    line = PolyLine()
+    line.add(Point(4,8))
+    line.add(Point(2,4))
+    assert line.points[0].x == 2

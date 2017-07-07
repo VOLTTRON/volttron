@@ -56,21 +56,62 @@
 
 # }}}
 
+from volttron.platform.messaging.topics import MARKET_AGGREGATE, MARKET_CLEAR, MARKET_ERROR
 from market_service.market_participant import MarketParticipant
 from market_service.market import Market
 
-class MarketList(object):
-    def __init__(self):
-        self.markets = {}
+class NoSuchMarketError(StandardError):
+    """Base class for exceptions in this module."""
+    pass
 
-    def reserve_participant_slot(self, market_name, buyer_seller, agent_id):
-        participant = MarketParticipant(market_name, buyer_seller, agent_id)
+class MarketList(object):
+    def __init__(self, publisher = None):
+        self.markets = {}
+        self.publisher = publisher
+
+    def make_reservation(self, market_name, buyer_seller, agent_id):
+        participant = MarketParticipant(buyer_seller, agent_id)
+        if self.has_market(market_name):
+            market = self.markets[market_name]
+            market.make_reservation(participant)
+        else:
+            market = Market(market_name, participant)
+            self.markets[market_name] = market
+
+    def make_offer(self, market_name, buyer_seller, agent_id, curve):
+        participant = MarketParticipant(buyer_seller, agent_id)
+        market = self.get_market(market_name)
+        aggregate_curve = market.make_offer(participant, curve)
+        if aggregate_curve is not None:
+            self.publisher.publish(peer='pubsub',
+                                topic=MARKET_AGGREGATE,
+                                message=aggregate_curve)
+
+    def collect_reservations(self):
+        self.markets.clear
+
+    def collect_offers(self):
+        for market in self.markets:
+            market.collect_offers()
+
+    def clear_market(self):
+        for market in self.markets:
+            cleared_price, error_message = market.clear_market()
+            if cleared_price is not None:
+                self.publisher.publish(peer='pubsub',
+                                    topic=MARKET_CLEAR,
+                                    message=cleared_price)
+            elif error_message is not None:
+                self.publisher.publish(peer='pubsub',
+                                       topic=MARKET_ERROR,
+                                       message=error_message)
+
+    def get_market(self, market_name):
         if self.has_market(market_name):
             market = self.markets[market_name]
         else:
-            market = Market(market_name)
-            self.markets[market_name] = market
-        market.add_participant(participant)
+            raise NoSuchMarketError('Market %s does not exist.' % market_name)
+        return market
 
     def has_market(self, market_name):
         return market_name in self.markets

@@ -9,9 +9,9 @@
 # are met:
 #
 # 1. Redistributions of source code must retain the above copyright
-#    notice, this market_list of conditions and the following disclaimer.
+#    notice, this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this market_list of conditions and the following disclaimer in
+#    notice, this list of conditions and the following disclaimer in
 #    the documentation and/or other materials provided with the
 #    distribution.
 #
@@ -53,62 +53,26 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 # }}}
 
-"""
-Pytest test cases for testing market service agent.
-"""
-
-import pytest
-
-from market_service.market_list import MarketList
 from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
 
-@pytest.mark.market
-def test_market_participants_no_market():
-    market_list = MarketList()
-    assert market_list.has_market('no_market') == False
+class OfferManager(object):
 
-@pytest.mark.market
-def test_market_participants_has_market():
-    market_list = MarketList()
-    market_name = 'test_market'
-    market_list.make_reservation(market_name, SELLER, 'agent_id')
-    assert market_list.has_market(market_name) == True
+    def __init__(self):
+        self._buy_offers = []
+        self._sell_offers = []
 
-@pytest.mark.market
-def test_market_participants_market_not_formed_no_market():
-    market_list = MarketList()
-    market_name = 'test_market'
-    assert market_list.has_market_formed(market_name) == False
+    def make_offer(self, buyer_seller, curve):
+        if (buyer_seller == BUYER):
+            self._buy_offers.append(curve)
+        else:
+            self._sell_offers.append(curve)
 
-@pytest.mark.market
-def test_market_participants_market_not_formed_one_seller():
-    market_list = MarketList()
-    market_name = 'test_market'
-    market_list.make_reservation(market_name, SELLER, 'agent_id')
-    assert market_list.has_market_formed(market_name) == False
+    def aggregate_curves(self, buyer_seller):
+        return None
 
-@pytest.mark.market
-def test_market_participants_market_bad_seller_argument():
-    market_list = MarketList()
-    market_name = 'test_market'
-    with pytest.raises(ValueError) as error_info:
-        market_list.make_reservation(market_name, 'bob is cool', 'agent_id')
-    assert 'bob is cool' in error_info.value.message
-
-@pytest.mark.market
-def test_market_participants_market_not_formed_one_buyer():
-    market_list = MarketList()
-    market_name = 'test_market'
-    market_list.make_reservation(market_name, BUYER, 'agent_id')
-    assert market_list.has_market_formed(market_name) == False
-
-@pytest.mark.market
-def test_market_participants_market_formed_one_buyer_one_seller():
-    market_list = MarketList()
-    market_name = 'test_market'
-    market_list.make_reservation(market_name, BUYER, 'agent_id')
-    market_list.make_reservation(market_name, SELLER, 'agent_id')
-    assert market_list.has_market_formed(market_name) == True
+    def settle(self):
+        return None
 

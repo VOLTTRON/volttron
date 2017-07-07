@@ -56,18 +56,95 @@
 
 # }}}
 
-from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
+from market_service.point import Point
 
-class MarketParticipant(object):
-    def __init__(self, buyer_seller, agent_id):
-        self.buyer_seller = buyer_seller
-        self.agent_id = agent_id
-        if not self.is_buyer() and not self.is_seller():
-            raise ValueError('expected either %s or %s, but got %s instead.' % (BUYER, SELLER, buyer_seller))
+class PolyLine:
+    def __init__(self):
+        self.points = None
+        self.xs = None
+        self.ys = None
+        self.xsSortedByY = None
+        self.ysSortedByY = None
+        self._min_x = None
+        self._max_x = None
+        self._min_y = None
+        self._max_y = None
 
-    def is_buyer(self):
-        return self.buyer_seller == BUYER
+    def add(self, point):
+        if self.points is None:
+            self.points = []
+        if len(self.points) > 0:
+            for p in reversed(self.points):
+                if p.x == point.x and p.y == point.y:
+                    return
+        doSort = False
+        # if len(self.points) > 0 and point.y < self.points[-1].y:
+        if len(self.points) > 0 and point.x < self.points[-1].x:
+            doSort = True
 
-    def is_seller(self):
-        return self.buyer_seller == SELLER
+        self.points.append(point)
+        if doSort:
+            self.points.sort()
+        self.xs = None
+        self.ys = None
+        if point.x is not None and point.y is not None:
+            self._min_x = PolyLine.min(self._min_x, point.x)
+            self._min_y = PolyLine.min(self._min_y, point.y)
+            self._max_x = PolyLine.max(self._max_x, point.x)
+            self._max_y = PolyLine.max(self._max_y, point.y)
 
+    @staticmethod
+    def min(x1, x2):
+        if x1 is None:
+            return x2
+        if x2 is None:
+            return x1
+        return min(x1, x2)
+
+    @staticmethod
+    def max(x1, x2):
+        if x1 is None:
+            return x2
+        if x2 is None:
+            return x1
+        return max(x1, x2)
+
+    @staticmethod
+    def sum(x1, x2):
+        if x1 is None:
+            return x2
+        if x2 is None:
+            return x1
+        return x1 + x2
+
+    @staticmethod
+    def intersection(pl_1, pl_2):
+
+        # we have two points
+        if len(pl_1) == 1 and len(pl_2) == 1:
+            if pl_1[0][0] == pl_2[0][0] and pl_1[0][1] == pl_2[0][1]:
+                return pl_1[0][0], pl_1[0][1]
+
+        # we have one point and line segments
+        elif len(pl_1) == 1 or len(pl_2) == 1:
+            if len(pl_1) == 1:
+                point = pl_1[0]
+                line = pl_2
+            else:
+                point = pl_2[0]
+                line = pl_1
+            for j, pl_2_1 in enumerate(line[:-1]):
+                pl_2_2 = line[j + 1]
+                if PolyLine.between(pl_2_1, pl_2_2, point):
+                    return point[0], point[1]
+
+        # we have line segments
+        elif len(pl_1) > 1 and len(pl_2) > 1:
+            for i, pl_1_1 in enumerate(pl_1[:-1]):
+                pl_1_2 = pl_1[i + 1]
+                for j, pl_2_1 in enumerate(pl_2[:-1]):
+                    pl_2_2 = pl_2[j + 1]
+                    if PolyLine.segment_intersects((pl_1_1, pl_1_2), (pl_2_1, pl_2_2)):
+                        return PolyLine.segment_intersection((pl_1_1, pl_1_2), (pl_2_1, pl_2_2))
+
+        return None, None
