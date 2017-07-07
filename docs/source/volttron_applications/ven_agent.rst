@@ -111,6 +111,7 @@ PubSub: telemetry parameters update
     Telemetry value definitions such as power_kw and energy_kwh come from the agent config.
 
 RPC calls:
+
 .. code-block:: python
 
     @RPC.export

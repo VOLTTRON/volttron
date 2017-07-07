@@ -1,0 +1,14 @@
+{
+
+    "agentid": "puller",
+#    "source-vip": "ipc://@/home/volttron/.volttron/run/vip.socket",
+    "source-vip": "tcp://127.0.0.1:22916",
+    "source-serverkey": "KEY",
+    "custom_topic_list": [],
+    "services_topic_list": [
+        "devices", "analysis", "record", "datalogger", "actuators"
+    ],
+    "topic_replace_list": [
+	    #{"from": "FromString", "to": "ToString"}
+    ]
+}
