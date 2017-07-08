@@ -75,7 +75,8 @@ class PrometheusScrapeAgent(Agent):
             for topic in delete_topics:
                 del self._cache[device][topic]
 
-        return result, [('Content-Type', 'text/plain')]
+        return (result, [('Content-Type', 'text/plain'),
+                         ('Content-Encoding', 'gzip')])
 
     def _clean_compat(self, sender, topic, headers, message):
         try:
