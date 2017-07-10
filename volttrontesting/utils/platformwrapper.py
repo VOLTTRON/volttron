@@ -308,7 +308,8 @@ class PlatformWrapper:
             secretkey = keys.secret
 
         if address is None:
-            self.logit('Using vip-address ' + self.vip_address)
+            self.logit('Using vip-address {address}'.format(
+                address=self.vip_address))
             address = self.vip_address
 
         if publickey and not serverkey:
