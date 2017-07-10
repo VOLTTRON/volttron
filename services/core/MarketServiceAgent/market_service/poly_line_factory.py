@@ -53,7 +53,7 @@
 
 #}}}
 
-# import numpy as np
+import numpy as np
 from market_service.point import Point
 from market_service.poly_line import PolyLine
 

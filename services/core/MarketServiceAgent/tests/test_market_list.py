@@ -63,6 +63,7 @@ import pytest
 
 from market_service.market_list import MarketList
 from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
+from market_service.market_participant import MarketParticipant
 
 @pytest.mark.market
 def test_market_participants_no_market():
@@ -73,7 +74,8 @@ def test_market_participants_no_market():
 def test_market_participants_has_market():
     market_list = MarketList()
     market_name = 'test_market'
-    market_list.make_reservation(market_name, SELLER, 'agent_id')
+    seller_participant = MarketParticipant(SELLER, 'agent_id')
+    market_list.make_reservation(market_name, seller_participant)
     assert market_list.has_market(market_name) == True
 
 @pytest.mark.market
@@ -86,7 +88,8 @@ def test_market_participants_market_not_formed_no_market():
 def test_market_participants_market_not_formed_one_seller():
     market_list = MarketList()
     market_name = 'test_market'
-    market_list.make_reservation(market_name, SELLER, 'agent_id')
+    seller_participant = MarketParticipant(SELLER, 'agent_id')
+    market_list.make_reservation(market_name, seller_participant)
     assert market_list.has_market_formed(market_name) == False
 
 @pytest.mark.market
@@ -94,21 +97,25 @@ def test_market_participants_market_bad_seller_argument():
     market_list = MarketList()
     market_name = 'test_market'
     with pytest.raises(ValueError) as error_info:
-        market_list.make_reservation(market_name, 'bob is cool', 'agent_id')
+        bad_participant = MarketParticipant('bob is cool', 'agent_id')
+        market_list.make_reservation(market_name, bad_participant)
     assert 'bob is cool' in error_info.value.message
 
 @pytest.mark.market
 def test_market_participants_market_not_formed_one_buyer():
     market_list = MarketList()
     market_name = 'test_market'
-    market_list.make_reservation(market_name, BUYER, 'agent_id')
+    buyer_participant = MarketParticipant(BUYER, 'agent_id')
+    market_list.make_reservation(market_name, buyer_participant)
     assert market_list.has_market_formed(market_name) == False
 
 @pytest.mark.market
 def test_market_participants_market_formed_one_buyer_one_seller():
     market_list = MarketList()
     market_name = 'test_market'
-    market_list.make_reservation(market_name, BUYER, 'agent_id')
-    market_list.make_reservation(market_name, SELLER, 'agent_id')
+    buyer_participant = MarketParticipant(BUYER, 'agent_id1')
+    market_list.make_reservation(market_name, buyer_participant)
+    seller_participant = MarketParticipant(SELLER, 'agent_id2')
+    market_list.make_reservation(market_name, seller_participant)
     assert market_list.has_market_formed(market_name) == True
 

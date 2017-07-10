@@ -56,13 +56,16 @@
 
 # }}}
 
-from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
+from volttron.platform.agent.base_market_agent.buy_sell import BUYER
+from market_service.poly_line import PolyLine
+from market_service.poly_line_factory import PolyLineFactory
 
 class OfferManager(object):
 
     def __init__(self):
         self._buy_offers = []
         self._sell_offers = []
+        self.increment = 100
 
     def make_offer(self, buyer_seller, curve):
         if (buyer_seller == BUYER):
@@ -71,8 +74,35 @@ class OfferManager(object):
             self._sell_offers.append(curve)
 
     def aggregate_curves(self, buyer_seller):
-        return None
+        if (buyer_seller == BUYER):
+            curve = self._aggregate(self._buy_offers)
+        else:
+            curve = self._aggregate(self._sell_offers)
+        return curve
+
+    def _aggregate(self, collection):
+        curve = PolyLineFactory.combine(collection, self.increment)
+        return curve
 
     def settle(self):
-        return None
+        enough_buys = len(self._buy_offers) > 0
+        enough_sells = len(self._sell_offers) > 0
+        if enough_buys:
+            demand_curve = self._aggregate(self._buy_offers)
+        if enough_sells:
+            supply_curve = self._aggregate(self._sell_offers)
+
+        if enough_buys and enough_sells:
+            intersection = PolyLine.intersection(demand_curve, supply_curve)
+        else:
+            intersection = None
+
+        if intersection is not None:
+            price = intersection[1]
+            quantity = intersection[0]
+        else:
+            price = None
+            quantity = None
+
+        return quantity, price
 

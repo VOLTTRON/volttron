@@ -65,6 +65,7 @@ from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID, MARKE
 from volttron.platform.vip.agent import Agent, Core, RPC
 from market_service.director import Director
 from market_service.market_list import MarketList
+from market_service.market_participant import MarketParticipant
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
@@ -98,24 +99,27 @@ class MarketServiceAgent(Agent):
         super(MarketServiceAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
         self.director = Director(market_period, reservation_delay, offer_delay, clear_delay)
-        self.market_list = MarketList()
 
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
+        self.market_list = MarketList(self.vip.pubsub.publish)
         self.director.start(self)
 
-    def sendCollectReservationsRequest(self, timestamp):
+    def send_collect_reservations_request(self, timestamp):
+        self.market_list.collect_reservations()
         self.vip.pubsub.publish(peer='pubsub',
                                 topic=MARKET_RESERVE,
                                 message=timestamp)
 
-    def sendCollectOffersRequest(self, timestamp):
-        self.sendUnformedMarketErrors(timestamp)
+    def send_collect_offers_request(self, timestamp):
+        self.market_list.collect_offers()
+        self._send_unformed_market_errors(timestamp)
         self.vip.pubsub.publish(peer='pubsub',
                                 topic=MARKET_BID,
                                 message=timestamp)
 
-    def sendClearRequest(self, timestamp):
+    def send_clear_request(self, timestamp):
+        self.market_list.clear_market()
         self.vip.pubsub.publish(peer='pubsub',
                                 topic=MARKET_CLEAR,
                                 message=timestamp)
@@ -125,16 +129,18 @@ class MarketServiceAgent(Agent):
         return "output done"
 
     @RPC.export
-    def register_market(self, market_name, buyer_seller):
+    def make_reservation(self, market_name, buyer_seller):
         identity = bytes(self.vip.rpc.context.vip_message.peer)
-        self.market_list.register_market(market_name, buyer_seller, identity)
+        participant = MarketParticipant(buyer_seller, identity)
+        self.market_list.make_reservation(market_name, participant)
 
     @RPC.export
-    def reserve_market(self, market_name, buyer_seller):
+    def make_offer(self, market_name, buyer_seller, offer):
         identity = bytes(self.vip.rpc.context.vip_message.peer)
-        self.market_list.reserve_market(market_name, buyer_seller, identity)
+        participant = MarketParticipant(buyer_seller, identity)
+        self.market_list.make_offer(market_name, participant, offer)
 
-    def sendUnformedMarketErrors(self, timestamp):
+    def _send_unformed_market_errors(self, timestamp):
         unformed_markets = self.market_list.unformed_market_list()
         for market_name in unformed_markets:
             self.vip.pubsub.publish(peer='pubsub',

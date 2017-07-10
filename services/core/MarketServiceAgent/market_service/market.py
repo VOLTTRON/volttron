@@ -99,7 +99,7 @@ class Market(object):
         self.reservations.take_reservation(participant)
         self.offers.make_offer(participant.buyer_seller, curve)
         if self.reservations.all_satisfied(participant.buyer_seller):
-            self.market_state = self.next_offer_state(participant.buyer_seller)
+            self.market_state = self._next_offer_state(participant)
             aggregate_curve = self.offers.aggregate_curves(participant.buyer_seller)
         return aggregate_curve
 
@@ -107,7 +107,8 @@ class Market(object):
         self.market_state = ACCEPT_OFFERS
 
     def clear_market(self):
-        cleared_price = None
+        price = None
+        quantity = None
         error_message = None
         if (self.market_state in [ACCEPT_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]):
             error_message = 'The market %s failed to recieve all the expected offers. The state is %s.' % \
@@ -120,9 +121,9 @@ class Market(object):
                 error_message = 'The market %s has not received a buy and a sell reservation.' % self.market_name
             else:
                 self.market_state = WAIT_FOR_RESERVATIONS
-                cleared_price = self.offers.settle()
+                quantity, price = self.offers.settle()
 
-        return [cleared_price, error_message]
+        return [quantity, price, error_message]
 
     def reject_reservation(self, participant):
         raise MarketFailureError('The market %s is not accepting reservations at this time. The state is %s.' %
@@ -135,14 +136,14 @@ class Market(object):
     def has_market_formed(self):
         return self.reservations.has_market_formed()
 
-    def next_offer_state(self, buyer_seller):
+    def _next_offer_state(self, participant):
         if self.market_state == ACCEPT_OFFERS:
-            next_state = ACCEPT_BUY_OFFERS if buyer_seller == BUYER else ACCEPT_SELL_OFFERS
-        elif self.market_state == ACCEPT_BUY_OFFERS and buyer_seller == SELLER:
+            next_state = ACCEPT_BUY_OFFERS if participant.is_buyer else ACCEPT_SELL_OFFERS
+        elif self.market_state == ACCEPT_BUY_OFFERS and participant.is_seller:
             next_state = WAIT_FOR_CLEAR
-        elif self.market_state == ACCEPT_SELL_OFFERS and buyer_seller == BUYER:
+        elif self.market_state == ACCEPT_SELL_OFFERS and participant.is_buyer:
             next_state = WAIT_FOR_CLEAR
         else:
             raise MarketFailureError('Programming error in Market class. State of $s and completed %s offers. '
-                                     'This represents a logic error.', self.market_state, buyer_seller)
+                                     'This represents a logic error.', self.market_state, participant.buyer_seller)
         return next_state

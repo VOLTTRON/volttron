@@ -68,16 +68,16 @@ class Director(object):
  
     def start(self, sender):
         self.sender = sender
-        self.sender.core.periodic(self.market_period, self.trigger)
+        self.sender.core.periodic(self.market_period, self._trigger)
 
-    def trigger(self):
+    def _trigger(self):
         gevent.sleep(self.reservation_delay)
-        self.sender.sendCollectReservationsRequest(self.get_time())
+        self.sender.send_collect_reservations_request(self._get_time())
         gevent.sleep(self.offer_delay)
-        self.sender.sendCollectOffersRequest(self.get_time())
+        self.sender.send_collect_offers_request(self._get_time())
         gevent.sleep(self.clear_delay)
-        self.sender.sendClearRequest(self.get_time())
+        self.sender.send_clear_request(self._get_time())
 
-    def get_time(self):
+    def _get_time(self):
         now = get_aware_utc_now()
         return now

@@ -59,9 +59,9 @@
 from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
 
 class MarketParticipant(object):
-    def __init__(self, buyer_seller, agent_id):
+    def __init__(self, buyer_seller, identity):
         self.buyer_seller = buyer_seller
-        self.agent_id = agent_id
+        self.identity = identity
         if not self.is_buyer() and not self.is_seller():
             raise ValueError('expected either %s or %s, but got %s instead.' % (BUYER, SELLER, buyer_seller))
 

@@ -56,8 +56,6 @@
 
 # }}}
 
-from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
-
 class MarketReservationError(StandardError):
     """Base class for exceptions in this module."""
     pass
@@ -69,10 +67,10 @@ class ReservationManager(object):
         self._sell_reservations = {}
 
     def make_reservation(self, participant):
-        if (participant.buyer_seller == BUYER):
-            self._make_buy_reservation(participant.agent_id)
+        if (participant.is_buyer()):
+            self._make_buy_reservation(participant.identity)
         else:
-            self._make_sell_reservation(participant.agent_id)
+            self._make_sell_reservation(participant.identity)
 
     def _make_buy_reservation(self, owner):
         self._add_reservation(self._buy_reservations, owner, 'buy')
@@ -81,16 +79,17 @@ class ReservationManager(object):
         if owner not in collection:
             collection[owner] = False
         else:
-            raise MarketReservationError('Market participant %s made more than a single %s reservation.' % owner, type)
+            message = 'Market participant {0} made more than a single {1} reservation.'.format(owner, type)
+            raise MarketReservationError(message)
 
     def _make_sell_reservation(self, owner):
         self._add_reservation(self._sell_reservations, owner, 'sell')
 
     def take_reservation(self, participant):
-        if (participant.buyer_seller == BUYER):
-            self._take_buy_reservation(participant.agent_id)
+        if (participant.is_buyer()):
+            self._take_buy_reservation(participant.identity)
         else:
-            self._take_sell_reservation(participant.agent_id)
+            self._take_sell_reservation(participant.identity)
 
     def _take_buy_reservation(self, owner):
         self._take_reservation(self._buy_reservations, owner, 'buy')
@@ -102,7 +101,8 @@ class ReservationManager(object):
         if owner in collection and not collection[owner]:
             collection[owner] = True
         else:
-            raise MarketReservationError('Market participant %s made no %s reservation.' % owner, type)
+            message = 'Market participant {0} made no {1} reservation.'.format(owner, type)
+            raise MarketReservationError(message)
 
     def has_market_formed(self):
         has_buyer  = len(self._buy_reservations) > 0

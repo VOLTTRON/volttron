@@ -57,7 +57,6 @@
 # }}}
 
 from volttron.platform.messaging.topics import MARKET_AGGREGATE, MARKET_CLEAR, MARKET_ERROR
-from market_service.market_participant import MarketParticipant
 from market_service.market import Market
 
 class NoSuchMarketError(StandardError):
@@ -65,12 +64,11 @@ class NoSuchMarketError(StandardError):
     pass
 
 class MarketList(object):
-    def __init__(self, publisher = None):
+    def __init__(self, publish = None):
         self.markets = {}
-        self.publisher = publisher
+        self.publish = publish
 
-    def make_reservation(self, market_name, buyer_seller, agent_id):
-        participant = MarketParticipant(buyer_seller, agent_id)
+    def make_reservation(self, market_name, participant):
         if self.has_market(market_name):
             market = self.markets[market_name]
             market.make_reservation(participant)
@@ -78,12 +76,11 @@ class MarketList(object):
             market = Market(market_name, participant)
             self.markets[market_name] = market
 
-    def make_offer(self, market_name, buyer_seller, agent_id, curve):
-        participant = MarketParticipant(buyer_seller, agent_id)
+    def make_offer(self, market_name, participant, curve):
         market = self.get_market(market_name)
         aggregate_curve = market.make_offer(participant, curve)
         if aggregate_curve is not None:
-            self.publisher.publish(peer='pubsub',
+            self.publish(peer='pubsub',
                                 topic=MARKET_AGGREGATE,
                                 message=aggregate_curve)
 
@@ -98,13 +95,13 @@ class MarketList(object):
         for market in self.markets:
             cleared_price, error_message = market.clear_market()
             if cleared_price is not None:
-                self.publisher.publish(peer='pubsub',
-                                    topic=MARKET_CLEAR,
-                                    message=cleared_price)
+                self.publish(peer='pubsub',
+                             topic=MARKET_CLEAR,
+                             message=cleared_price)
             elif error_message is not None:
-                self.publisher.publish(peer='pubsub',
-                                       topic=MARKET_ERROR,
-                                       message=error_message)
+                self.publish(peer='pubsub',
+                             topic=MARKET_ERROR,
+                             message=error_message)
 
     def get_market(self, market_name):
         if self.has_market(market_name):
