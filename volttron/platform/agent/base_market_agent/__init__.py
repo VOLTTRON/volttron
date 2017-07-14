@@ -63,7 +63,7 @@ from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Core, PubSub
 from volttron.platform.vip.agent import Agent
 from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID, MARKET_CLEAR, MARKET_AGGREGATE, MARKET_ERROR
-from volttron.platform.agent.base_market_agent.market_registration import MarketRegistration
+from volttron.platform.agent.base_market_agent.registration_manager import RegistrationManager
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
@@ -74,7 +74,7 @@ class MarketAgent(Agent):
     def __init__(self, **kwargs):
         super(MarketAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
-        self.registrations = []
+        self.registrations = RegistrationManager(self)
 
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
@@ -82,18 +82,14 @@ class MarketAgent(Agent):
 
     @PubSub.subscribe('pubsub', MARKET_RESERVE)
     def match_reservation(self, peer, sender, bus, topic, headers, message):
-        for registration in self.registrations:
-            timestamp = message[0]
-            wants_reservation = registration.request_reservations(timestamp)
-            if wants_reservation:
-                self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'reserve_market',
-                                  registration.market_name, registration.buyer_seller)
+        timestamp = message[0]
+        self.registrations.request_reservations(timestamp)
+
 
     @PubSub.subscribe('pubsub', MARKET_BID)
     def match_make_offer(self, peer, sender, bus, topic, headers, message):
-        for registration in self.registrations:
-            timestamp = message[0]
-            registration.request_offers(timestamp)
+        timestamp = message[0]
+        self.registrations.request_offers(timestamp)
 
     @PubSub.subscribe('pubsub', MARKET_CLEAR)
     def match_clear_price(self, peer, sender, bus, topic, headers, message):
@@ -101,7 +97,7 @@ class MarketAgent(Agent):
             timestamp = message[0]
             price = message[1]
             quantity = message[2]
-            registration.request_clear_price(timestamp, price, quantity)
+            registration.report_clear_price(timestamp, price, quantity)
 
     @PubSub.subscribe('pubsub', MARKET_AGGREGATE)
     def match_make_offer(self, peer, sender, bus, topic, headers, message):
@@ -119,8 +115,13 @@ class MarketAgent(Agent):
 
     def join_market (self, market_name, buyer_seller, reservation_callback,
                      offer_callback, aggregate_callback, price_callback, error_callback):
-        registration = MarketRegistration(market_name, buyer_seller,
+        self.registrations.make_registration(market_name, buyer_seller,
                                           reservation_callback, offer_callback,
                                           aggregate_callback, price_callback, error_callback)
-        self.registrations.append(registration)
+
+    def make_reservation(self, market_name, buyer_seller):
+        self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_reservation', market_name, buyer_seller).get(timeout=5.0)
+
+    def make_offer(self, market_name, buyer_seller, curve):
+        self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller, curve).get(timeout=5.0)
 
