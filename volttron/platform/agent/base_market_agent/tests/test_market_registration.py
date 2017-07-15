@@ -58,27 +58,32 @@
 
 import pytest
 
-from volttron.platform.agent.base_market_agent import MarketRegistration
+from volttron.platform.agent.base_market_agent.market_registration import MarketRegistration
 from volttron.platform.agent.base_market_agent.buy_sell import SELLER
 from volttron.platform.agent.utils import get_aware_utc_now
+from volttron.platform.agent.base_market_agent.point import Point
+from volttron.platform.agent.base_market_agent.poly_line import PolyLine
 
 @pytest.mark.market
 def test_market_registration_no_reservation_callback():
+    agent = MockAgent()
     registration = MarketRegistration('test_market', SELLER, None, null_callback, None, None, None)
-    registration.request_reservations(get_time)
-    assert registration.wants_reservation() == True
+    registration.request_reservations(get_time, agent)
+    assert agent.reservation_made == True
 
 @pytest.mark.market
 def test_market_registration_true_reservation_callback():
+    agent = MockAgent()
     registration = MarketRegistration('test_market', SELLER, wants_registration_true_callback, null_callback, None, None, None)
-    registration.request_reservations(get_time)
-    assert registration.wants_reservation() == True
+    registration.request_reservations(get_time, agent)
+    assert agent.reservation_made == True
 
 @pytest.mark.market
 def test_market_registration_false_reservation_callback():
+    agent = MockAgent()
     registration = MarketRegistration('test_market', SELLER, wants_registration_false_callback, null_callback, None, None, None)
-    registration.request_reservations(get_time)
-    assert registration.wants_reservation() == False
+    registration.request_reservations(get_time, agent)
+    assert agent.reservation_made == False
 
 @pytest.mark.market
 def test_market_registration_no_offer_no_aggregate_callback():
@@ -92,6 +97,13 @@ def test_market_registration_both_offer_and_aggregate_callback():
         MarketRegistration('test_market', SELLER, None, null_callback, null_callback, None, None)
     assert 'You must only provide an offer callback' in error_info.value.message
 
+@pytest.mark.market
+def test_market_registration_offer_callback():
+    agent = MockAgent()
+    registration = MarketRegistration('test_market', SELLER, None, make_offer_callback, None, None, None)
+    registration.request_offers(get_time, agent)
+    assert agent.offer_made == True
+
 def wants_registration_true_callback(*unused):
     return True
 
@@ -101,7 +113,25 @@ def wants_registration_false_callback(*unused):
 def null_callback(*unused):
     pass
 
+def make_offer_callback(*unused):
+    curve = PolyLine()
+    point = Point(100, 0)
+    curve.add(point)
+    point = Point(0, 100)
+    curve.add(point)
+    return curve
 
 def get_time():
     now = get_aware_utc_now()
     return now
+
+class MockAgent(object):
+    def __init__(self):
+        self.reservation_made = False
+        self.offer_made = False
+
+    def make_reservation(self, market_name, buyer_seller):
+        self.reservation_made = True
+
+    def make_offer(self, market_name, buyer_seller, curve):
+        self.offer_made = True

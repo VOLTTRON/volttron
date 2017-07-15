@@ -57,75 +57,27 @@
 # }}}
 
 import pytest
-from market_service.point import Point
-from market_service.poly_line import PolyLine
+from volttron.platform.agent.base_market_agent.point import Point
 
 @pytest.mark.market
-def test_poly_line_min():
-    min = PolyLine.min(1,2)
-    assert min == 1
+def test_point_init():
+    p = Point(4,8)
+    assert p.x == 4.0
+    assert p.y == 8.0
 
 @pytest.mark.market
-def test_poly_line_min_first_none():
-    min = PolyLine.min(None,2)
-    assert min == 2
+def test_point_x_none():
+    p = Point(None,8)
+    assert p.x is None
+    assert p.y == 8.0
 
 @pytest.mark.market
-def test_poly_line_min_second_none():
-    min = PolyLine.min(1,None)
-    assert min == 1
-
+def test_point_y_none():
+    p = Point(4,None)
+    assert p.y is None
+    assert p.x == 4.0
 @pytest.mark.market
-def test_poly_line_max():
-    max = PolyLine.max(1,2)
-    assert max == 2
+def test_point_tuppleize():
+    p = Point(4,8)
+    assert p == (4.0,8.0)
 
-@pytest.mark.market
-def test_poly_line_max_first_none():
-    max = PolyLine.max(None,2)
-    assert max == 2
-
-@pytest.mark.market
-def test_poly_line_max_second_none():
-    max = PolyLine.max(1,None)
-    assert max == 1
-
-@pytest.mark.market
-def test_poly_line_sum():
-    sum = PolyLine.sum(1,2)
-    assert sum == 3
-
-@pytest.mark.market
-def test_poly_line_sum_first_none():
-    sum = PolyLine.sum(None,2)
-    assert sum == 2
-
-@pytest.mark.market
-def test_poly_line_sum_second_none():
-    sum = PolyLine.sum(1,None)
-    assert sum == 1
-
-@pytest.mark.market
-def test_poly_line_init_points_none():
-    line = PolyLine()
-    assert line.points is None
-
-@pytest.mark.market
-def test_poly_line_add_one_point():
-    line = PolyLine()
-    line.add(Point(4,8))
-    assert len(line.points) == 1
-
-@pytest.mark.market
-def test_poly_line_add_two_points():
-    line = PolyLine()
-    line.add(Point(4,8))
-    line.add(Point(2,4))
-    assert len(line.points) == 2
-
-@pytest.mark.market
-def test_poly_line_add_points_is_sorted():
-    line = PolyLine()
-    line.add(Point(4,8))
-    line.add(Point(2,4))
-    assert line.points[0].x == 2

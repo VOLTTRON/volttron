@@ -56,28 +56,35 @@
 
 # }}}
 
-import pytest
-from market_service.point import Point
+from volttron.platform.agent.base_market_agent.market_registration import MarketRegistration
 
-@pytest.mark.market
-def test_point_init():
-    p = Point(4,8)
-    assert p.x == 4.0
-    assert p.y == 8.0
+class RegistrationManager(object):
+    def __init__(self, agent):
+        self.registrations = []
+        self.agent = agent
 
-@pytest.mark.market
-def test_point_x_none():
-    p = Point(None,8)
-    assert p.x is None
-    assert p.y == 8.0
+    def make_registration(self, market_name, buyer_seller, reservation_callback, offer_callback,
+                          aggregate_callback, price_callback, error_callback):
+        registration = MarketRegistration(market_name, buyer_seller, reservation_callback, offer_callback,
+                                          aggregate_callback, price_callback, error_callback)
+        self.registrations.append(registration)
 
-@pytest.mark.market
-def test_point_y_none():
-    p = Point(4,None)
-    assert p.y is None
-    assert p.x == 4.0
-@pytest.mark.market
-def test_point_tuppleize():
-    p = Point(4,8)
-    assert p == (4.0,8.0)
+    def request_reservations(self, timestamp):
+        for registration in self.registrations:
+            registration.request_reservations(timestamp, self.agent)
 
+    def request_offers(self, timestamp):
+        for registration in self.registrations:
+            registration.request_offers(timestamp, self.agent)
+
+    def report_clear_price(self, timestamp, price, quantity):
+        for registration in self.registrations:
+            registration.report_clear_price(timestamp, price, quantity)
+
+    def report_aggregate(self, timestamp, aggregate_curve):
+        for registration in self.registrations:
+            registration.report_aggregate(timestamp, aggregate_curve)
+
+    def report_error(self, timestamp, error_message):
+        for registration in self.registrations:
+            registration.report_error(timestamp, error_message)

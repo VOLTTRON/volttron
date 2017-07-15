@@ -56,53 +56,76 @@
 
 # }}}
 
-from volttron.platform.agent.base_market_agent.buy_sell import BUYER
+import pytest
+from volttron.platform.agent.base_market_agent.point import Point
 from volttron.platform.agent.base_market_agent.poly_line import PolyLine
-from volttron.platform.agent.base_market_agent.poly_line_factory import PolyLineFactory
 
-class OfferManager(object):
+@pytest.mark.market
+def test_poly_line_min():
+    min = PolyLine.min(1,2)
+    assert min == 1
 
-    def __init__(self):
-        self._buy_offers = []
-        self._sell_offers = []
-        self.increment = 100
+@pytest.mark.market
+def test_poly_line_min_first_none():
+    min = PolyLine.min(None,2)
+    assert min == 2
 
-    def make_offer(self, buyer_seller, curve):
-        if (buyer_seller == BUYER):
-            self._buy_offers.append(curve)
-        else:
-            self._sell_offers.append(curve)
+@pytest.mark.market
+def test_poly_line_min_second_none():
+    min = PolyLine.min(1,None)
+    assert min == 1
 
-    def aggregate_curves(self, buyer_seller):
-        if (buyer_seller == BUYER):
-            curve = self._aggregate(self._buy_offers)
-        else:
-            curve = self._aggregate(self._sell_offers)
-        return curve
+@pytest.mark.market
+def test_poly_line_max():
+    max = PolyLine.max(1,2)
+    assert max == 2
 
-    def _aggregate(self, collection):
-        curve = PolyLineFactory.combine(collection, self.increment)
-        return curve
+@pytest.mark.market
+def test_poly_line_max_first_none():
+    max = PolyLine.max(None,2)
+    assert max == 2
 
-    def settle(self):
-        enough_buys = len(self._buy_offers) > 0
-        enough_sells = len(self._sell_offers) > 0
-        if enough_buys:
-            demand_curve = self._aggregate(self._buy_offers)
-        if enough_sells:
-            supply_curve = self._aggregate(self._sell_offers)
+@pytest.mark.market
+def test_poly_line_max_second_none():
+    max = PolyLine.max(1,None)
+    assert max == 1
 
-        if enough_buys and enough_sells:
-            intersection = PolyLine.intersection(demand_curve, supply_curve)
-        else:
-            intersection = None
+@pytest.mark.market
+def test_poly_line_sum():
+    sum = PolyLine.sum(1,2)
+    assert sum == 3
 
-        if intersection is not None:
-            price = intersection[1]
-            quantity = intersection[0]
-        else:
-            price = None
-            quantity = None
+@pytest.mark.market
+def test_poly_line_sum_first_none():
+    sum = PolyLine.sum(None,2)
+    assert sum == 2
 
-        return quantity, price
+@pytest.mark.market
+def test_poly_line_sum_second_none():
+    sum = PolyLine.sum(1,None)
+    assert sum == 1
 
+@pytest.mark.market
+def test_poly_line_init_points_none():
+    line = PolyLine()
+    assert line.points is None
+
+@pytest.mark.market
+def test_poly_line_add_one_point():
+    line = PolyLine()
+    line.add(Point(4,8))
+    assert len(line.points) == 1
+
+@pytest.mark.market
+def test_poly_line_add_two_points():
+    line = PolyLine()
+    line.add(Point(4,8))
+    line.add(Point(2,4))
+    assert len(line.points) == 2
+
+@pytest.mark.market
+def test_poly_line_add_points_is_sorted():
+    line = PolyLine()
+    line.add(Point(4,8))
+    line.add(Point(2,4))
+    assert line.points[0].x == 2

@@ -66,25 +66,31 @@ class MarketRegistration(object):
         self.aggregate_callback = aggregate_callback
         self.price_callback = price_callback
         self.error_callback = error_callback
-        self.__wants_reservation = self.reservation_callback == None
-        self.validate_callbacks()
+        self.always_wants_reservation = self.reservation_callback == None
+        self._validate_callbacks()
 
-    def validate_callbacks(self):
+    def _validate_callbacks(self):
         if self.offer_callback is None and self.aggregate_callback is None:
             raise TypeError('You must provide either an offer callback or an aggregate callback.')
         if self.offer_callback is not None and self.aggregate_callback is not None:
             raise TypeError('You must only provide an offer callback or an aggregate callback, but not both.')
 
-    def request_reservations(self, timestamp):
+    def request_reservations(self, timestamp, agent):
         if self.reservation_callback is not None:
-            self.__wants_reservation = self.reservation_callback(timestamp, self.market_name, self.buyer_seller)
-        return self.__wants_reservation
+            wants_reservation_this_time = self.reservation_callback(timestamp, self.market_name, self.buyer_seller)
+        else:
+            wants_reservation_this_time = self.always_wants_reservation
+        if wants_reservation_this_time:
+            agent.make_reservation(self.market_name, self.buyer_seller)
 
-    def request_offers(self, timestamp):
+
+    def request_offers(self, timestamp, agent):
         if self.offer_callback is not None:
-            self.offer_callback(timestamp, self.market_name, self.buyer_seller)
+            curve = self.offer_callback(timestamp, self.market_name, self.buyer_seller)
+            if curve is not None:
+                agent.make_offer(self.market_name, self.buyer_seller, curve)
 
-    def request_clear_price(self, timestamp, price, quantity):
+    def report_clear_price(self, timestamp, price, quantity):
         if self.price_callback is not None:
             self.price_callback(timestamp, self.market_name, self.buyer_seller, price, quantity)
 
@@ -95,9 +101,6 @@ class MarketRegistration(object):
     def report_error(self, timestamp, error_message):
         if self.error_callback is not None:
             self.error_callback(timestamp, self.market_name, self.buyer_seller, error_message)
-
-    def wants_reservation(self):
-        return self.__wants_reservation
 
 
 

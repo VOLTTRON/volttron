@@ -56,7 +56,7 @@
 
 # }}}
 
-from market_service.point import Point
+from volttron.platform.agent.base_market_agent.point import Point
 
 class PolyLine:
     def __init__(self):

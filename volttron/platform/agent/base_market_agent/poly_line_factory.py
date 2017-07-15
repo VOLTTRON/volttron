@@ -54,8 +54,8 @@
 #}}}
 
 import numpy as np
-from market_service.point import Point
-from market_service.poly_line import PolyLine
+from volttron.platform.agent.base_market_agent.point import Point
+from volttron.platform.agent.base_market_agent.poly_line import PolyLine
 
 class PolyLineFactory(object):
     @staticmethod
