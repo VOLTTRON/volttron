@@ -308,7 +308,8 @@ class PlatformWrapper:
             secretkey = keys.secret
 
         if address is None:
-            self.logit('Using vip-address ' + self.vip_address)
+            self.logit('Using vip-address {address}'.format(
+                address=self.vip_address))
             address = self.vip_address
 
         if publickey and not serverkey:
@@ -715,8 +716,11 @@ class PlatformWrapper:
                 cmd.extend(["--vip-identity", vip_identity])
             if start:
                 cmd.extend(["--start"])
-
-            results = subprocess.check_output(cmd)
+            try:
+                results = subprocess.check_output(cmd)
+            except Exception as e:
+                _log.error("Exception:{}".format(e))
+                raise e
 
             # Because we are no longer silencing output from the install, the
             # the results object is now much more verbose.  Our assumption is

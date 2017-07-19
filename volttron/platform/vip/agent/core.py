@@ -124,7 +124,7 @@ class Periodic(object):  # pylint: disable=invalid-name
         while True:
             try:
                 method(*self.args, **self.kwargs)
-            except Exception:
+            except (Exception, gevent.Timeout):
                 _log.exception('unhandled exception in periodic callback')
             deadline += period
             timeout = deadline - now()
