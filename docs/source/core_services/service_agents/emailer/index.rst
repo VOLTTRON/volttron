@@ -1,6 +1,6 @@
-===========
-Alert Agent
-===========
+=============
+Emailer Agent
+=============
 
 .. toctree::
     :glob:
