@@ -71,14 +71,15 @@ __version__ = "0.01"
 
 
 class MarketAgent(Agent):
+    """
+    The MarketAgent serves as the base class for any agent that wants to praticipate in
+    an auction market.  By inheriting from this agent all the remote communication
+    with the MarketService is handled and the sub-class can be unconcerned with those details.
+    """
     def __init__(self, **kwargs):
         super(MarketAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
         self.registrations = RegistrationManager(self)
-
-    @Core.receiver("onstart")
-    def onstart(self, sender, **kwargs):
-        pass
 
     @PubSub.subscribe('pubsub', MARKET_RESERVE)
     def match_reservation(self, peer, sender, bus, topic, headers, message):
@@ -115,13 +116,69 @@ class MarketAgent(Agent):
 
     def join_market (self, market_name, buyer_seller, reservation_callback,
                      offer_callback, aggregate_callback, price_callback, error_callback):
+        """
+        This routine is called once to join a market as a buyer or a seller.
+        The agent supplies call-back functions that the MarketAgent calls as the market process proceeds.
+
+        :param market_name: The name of the market commodity.
+
+        :param buyer_seller: A string indicating whether the agent is buying from or selling to the market.
+        The agent shall use the pre-defined strings provided.
+
+        :param reservation_callback: This callback is called at the beginning of each round of bidding and clearing.
+        The agent can choose whether or not to participate in this round.
+        If the agent wants to participate it returns true otherwise it returns false.
+        If the agent does not specify a callback routine a reservation will be made for each round automatically.
+        A market will only exist if there are reservations for at least one buyer and at least one seller.
+        If the market fails to achieve the minimum participation the error callback will be called.
+
+        :param offer_callback: If the agent has made a reservation for the market this routine is called.
+        If the agent wishes to make an offer at this time the market agent computes either supply or demand curves
+        as appropriate and offers them to the market service by calling the make offer method.
+        For each market joined either an offer callback or an aggregate callback is required.
+        You can’t supply both for any single market.
+
+        :param aggregate_callback: When a market has received all its buy offers it calculates an aggregate
+        demand curve.  When the market receives all of its sell offers it calculates an aggregate supply curve.
+        This callback delivers the aggregate curve to the market agent whenever the appropriate curve
+        becomes available.  If the market agent want to use this to make an offer it would do that using
+        the make offer method.  For each market joined either an offer callback or an aggregate callback is required.
+        You can’t supply both for any single market.
+
+        :param price_callback: This callback is called when the market clears. The price callback is optional.
+
+        :param error_callback: This callback is called at appropriate time points or when an error occurs.
+        If a market fails to form this will be called at the offer time.
+        If the market doesn’t receive all its offers this will be called at market clear time.
+        If the market fails to clear this would be called at the next reservation time.
+        This allows agents to respond at or near the normal time points.  The error callback is optional.
+        """
         self.registrations.make_registration(market_name, buyer_seller,
                                           reservation_callback, offer_callback,
                                           aggregate_callback, price_callback, error_callback)
 
     def make_reservation(self, market_name, buyer_seller):
+        """
+        This call makes a reservation with the MarketService.  This allows the agent to submit a bid and receive
+        a cleared market price.
+
+        :param market_name: The name of the market commodity.
+
+        :param buyer_seller: A string indicating whether the agent is buying from or selling to the market.
+        The agent shall use the pre-defined strings provided.
+        """
         self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_reservation', market_name, buyer_seller).get(timeout=5.0)
 
     def make_offer(self, market_name, buyer_seller, curve):
+        """
+        This call makes an offer with the MarketService.
+
+        :param market_name: The name of the market commodity.
+
+        :param buyer_seller: A string indicating whether the agent is buying from or selling to the market.
+        The agent shall use the pre-defined strings provided.
+
+        :param curve: The demand curve for buyers or the supply curve for sellers.
+        """
         self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller, curve).get(timeout=5.0)
 

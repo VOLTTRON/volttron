@@ -101,6 +101,7 @@ def test_market_registration_both_offer_and_aggregate_callback():
 def test_market_registration_offer_callback():
     agent = MockAgent()
     registration = MarketRegistration('test_market', SELLER, None, make_offer_callback, None, None, None)
+    registration.request_reservations(get_time, agent)
     registration.request_offers(get_time, agent)
     assert agent.offer_made == True
 

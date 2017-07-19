@@ -59,7 +59,17 @@
 from volttron.platform.agent.base_market_agent.market_registration import MarketRegistration
 
 class RegistrationManager(object):
+    """
+    The ReservationManager manages a list of MarketReservations for the MarketAgent.
+    This class exists to hide the features of the underlying collection that are not relevant to
+    managing market reservations.
+    """
     def __init__(self, agent):
+        """
+        The initalization needs the agent to grant access to the RPC calls needed to
+        communicate with the marketService.
+        :param agent: The MarketAgent that owns this object.
+        """
         self.registrations = []
         self.agent = agent
 
