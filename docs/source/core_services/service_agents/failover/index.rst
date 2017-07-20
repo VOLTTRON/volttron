@@ -1,6 +1,6 @@
-===========
-Alert Agent
-===========
+==============
+Failover Agent
+==============
 
 .. toctree::
     :glob:
