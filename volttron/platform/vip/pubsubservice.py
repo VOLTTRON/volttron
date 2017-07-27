@@ -464,6 +464,10 @@ class PubSubService(object):
                         except ZMQError as exc:
                             # raise
                             pass
+                    # If external platform is unreachable, drop the all subscriptions
+                    if exc.errno == EHOSTUNREACH:
+                        self._logger.debug("Host not reachable: {}".format(platform_id))
+                        #self.external_platform_drop(platform_id)
                     else:
                         raise
         return len(external_subscribers)
@@ -736,6 +740,7 @@ class PubSubService(object):
             # Make it an internal publish
             frames[6] = 'publish'
             subscribers_count = self._distribute_internal(frames)
+            self._logger.debug("Number of subscribers {}".format(subscribers_count))
             # There are no subscribers, send error message back to source platform
             if subscribers_count == 0:
                 try:
@@ -746,6 +751,8 @@ class PubSubService(object):
                     self._ext_router.send_external(publisher, frames)
                 except ValueError:
                     self._logger.debug("Value error")
+        else:
+            self._logger.debug("Incorrect frames {}".format(len(frames)))
         return subscribers_count
 
     def _handle_error(self, frames):

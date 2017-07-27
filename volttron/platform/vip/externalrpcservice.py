@@ -111,7 +111,7 @@ class ExternalRPCService(object):
         subsystem = bytes(subsystem)
         op = bytes(op)
 
-        if subsystem == b'EXT_RPC':
+        if subsystem == b'external_rpc':
             #If operation is to send to external platform
             if op == b'send_platform':
                 result = self._send_to_platform(frames)

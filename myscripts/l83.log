@@ -1,0 +1,107 @@
+2017-07-24 17:28:41,287 () volttron.platform.main DEBUG: open file resource limit increased from 1024 to 4096
+2017-07-24 17:28:41,287 () volttron.platform.agent.utils DEBUG: missing file /home/volttron/.volttron83/keystore
+2017-07-24 17:28:41,287 () volttron.platform.agent.utils INFO: creating file /home/volttron/.volttron83/keystore
+2017-07-24 17:28:41,289 () volttron.platform.main DEBUG: using key-store file /home/volttron/.volttron83/keystore
+2017-07-24 17:28:41,289 () volttron.platform.main INFO: public key: 4MQKbrd038603rDw8QCI82KhPuW3FdFqSnwj8SXa11U
+2017-07-24 17:28:41,289 () volttron.platform.agent.utils DEBUG: missing file /home/volttron/.volttron83/auth.json
+2017-07-24 17:28:41,289 () volttron.platform.agent.utils INFO: creating file /home/volttron/.volttron83/auth.json
+2017-07-24 17:28:41,290 () volttron.platform.auth INFO: Created backup of /home/volttron/.volttron83/auth.json at /home/volttron/.volttron83/auth.json.5f8442f0-e8cc-4073-ac21-e74e3462746d.bak
+2017-07-24 17:28:41,291 () volttron.platform.agent.utils DEBUG: missing file /home/volttron/.volttron83/known_hosts
+2017-07-24 17:28:41,291 () volttron.platform.agent.utils INFO: creating file /home/volttron/.volttron83/known_hosts
+2017-07-24 17:28:41,292 () volttron.platform.main DEBUG: protected topics file /home/volttron/.volttron83/protected_topics.json
+2017-07-24 17:28:41,292 () volttron.platform.main DEBUG: external_address_file file /home/volttron/.volttron83/external_address.json
+2017-07-24 17:28:41,292 () volttron.platform.agent.utils DEBUG: missing file /home/volttron/.volttron83/keystores/config.store/keystore.json
+2017-07-24 17:28:41,292 () volttron.platform.agent.utils INFO: creating file /home/volttron/.volttron83/keystores/config.store/keystore.json
+2017-07-24 17:28:41,294 () volttron.platform.vip.agent.core DEBUG: address: inproc://vip
+2017-07-24 17:28:41,294 () volttron.platform.vip.agent.core DEBUG: identity: config.store
+2017-07-24 17:28:41,294 () volttron.platform.vip.agent.core DEBUG: agent_uuid: None
+2017-07-24 17:28:41,294 () volttron.platform.vip.agent.core DEBUG: serverkey: None
+2017-07-24 17:28:41,296 () volttron.platform.store INFO: Initializing configuration store service.
+2017-07-24 17:28:41,297 () volttron.platform.agent.utils DEBUG: missing file /home/volttron/.volttron83/keystores/platform.auth/keystore.json
+2017-07-24 17:28:41,297 () volttron.platform.agent.utils INFO: creating file /home/volttron/.volttron83/keystores/platform.auth/keystore.json
+2017-07-24 17:28:41,299 () volttron.platform.vip.agent.core DEBUG: address: inproc://vip
+2017-07-24 17:28:41,299 () volttron.platform.vip.agent.core DEBUG: identity: platform.auth
+2017-07-24 17:28:41,299 () volttron.platform.vip.agent.core DEBUG: agent_uuid: None
+2017-07-24 17:28:41,299 () volttron.platform.vip.agent.core DEBUG: serverkey: None
+2017-07-24 17:28:41,301 () volttron.platform.auth INFO: loading auth file /home/volttron/.volttron83/auth.json
+2017-07-24 17:28:41,301 () volttron.platform.auth INFO: auth file /home/volttron/.volttron83/auth.json loaded
+2017-07-24 17:28:41,301 () volttron.platform.agent.utils DEBUG: missing file /home/volttron/.volttron83/protected_topics.json
+2017-07-24 17:28:41,301 () volttron.platform.agent.utils INFO: creating file /home/volttron/.volttron83/protected_topics.json
+2017-07-24 17:28:41,302 () volttron.platform.main DEBUG: MAIN: protected topics content {}
+2017-07-24 17:28:41,303 () volttron.platform.main DEBUG: In-process VIP router bound to inproc://vip
+2017-07-24 17:28:41,303 () volttron.platform.main DEBUG: Local VIP router bound to ipc://@/home/volttron/.volttron83/run/vip.socket?secretkey=XXXXX&domain=vip&server=CURVE#8232da92-3cfc-4d1e-a1df-69e702b7fda7
+2017-07-24 17:28:41,304 () volttron.platform.main DEBUG: Additional VIP router bound to tcp://127.0.0.83:22916?secretkey=XXXXX&domain=vip&server=CURVE#8232da92-3cfc-4d1e-a1df-69e702b7fda7
+2017-07-24 17:28:41,304 () volttron.platform.vip.pubsubservice INFO: protected-topics loaded
+2017-07-24 17:28:41,304 () volttron.platform.vip.externalrpcservice DEBUG: ExternalRPCService
+2017-07-24 17:28:41,304 () volttron.platform.main DEBUG: ZMQ version: 4.1.5
+2017-07-24 17:28:41,304 () volttron.platform.vip.pubsubservice DEBUG: PUBSUBSERVICE peer add config.store
+2017-07-24 17:28:41,306 () volttron.platform.vip.agent.core INFO: Connected to platform: router: 8232da92-3cfc-4d1e-a1df-69e702b7fda7 version: 1.0 identity: config.store
+2017-07-24 17:28:41,306 () volttron.platform.vip.agent.core DEBUG: Running onstart methods.
+2017-07-24 17:28:41,307 () volttron.platform.vip.pubsubservice DEBUG: PUBSUBSERVICE peer add platform.auth
+2017-07-24 17:28:41,311 () volttron.platform.vip.agent.core INFO: Connected to platform: router: 8232da92-3cfc-4d1e-a1df-69e702b7fda7 version: 1.0 identity: platform.auth
+2017-07-24 17:28:41,311 () volttron.platform.vip.agent.core DEBUG: Running onstart methods.
+2017-07-24 17:28:41,315 () volttron.platform.vip.agent.subsystems.configstore DEBUG: Processing callbacks for affected files: {}
+2017-07-24 17:28:41,432 () volttron.platform.main DEBUG: protected topics file /home/volttron/.volttron83/protected_topics.json
+2017-07-24 17:28:41,432 () volttron.platform.main DEBUG: external_address_file file /home/volttron/.volttron83/external_address.json
+2017-07-24 17:28:41,433 () volttron.platform.agent.utils DEBUG: missing file /home/volttron/.volttron83/keystores/control/keystore.json
+2017-07-24 17:28:41,433 () volttron.platform.agent.utils INFO: creating file /home/volttron/.volttron83/keystores/control/keystore.json
+2017-07-24 17:28:41,435 () volttron.platform.vip.agent.core DEBUG: address: inproc://vip
+2017-07-24 17:28:41,435 () volttron.platform.vip.agent.core DEBUG: identity: control
+2017-07-24 17:28:41,435 () volttron.platform.vip.agent.core DEBUG: agent_uuid: None
+2017-07-24 17:28:41,435 () volttron.platform.vip.agent.core DEBUG: serverkey: None
+2017-07-24 17:28:41,438 () volttron.platform.agent.utils DEBUG: missing file /home/volttron/.volttron83/keystores/pubsub.compat/keystore.json
+2017-07-24 17:28:41,439 () volttron.platform.agent.utils INFO: creating file /home/volttron/.volttron83/keystores/pubsub.compat/keystore.json
+2017-07-24 17:28:41,441 () volttron.platform.vip.agent.core DEBUG: address: inproc://vip
+2017-07-24 17:28:41,441 () volttron.platform.vip.agent.core DEBUG: identity: pubsub.compat
+2017-07-24 17:28:41,441 () volttron.platform.vip.agent.core DEBUG: agent_uuid: None
+2017-07-24 17:28:41,441 () volttron.platform.vip.agent.core DEBUG: serverkey: None
+2017-07-24 17:28:41,442 () volttron.platform.agent.utils DEBUG: missing file /home/volttron/.volttron83/keystores/master.web/keystore.json
+2017-07-24 17:28:41,442 () volttron.platform.agent.utils INFO: creating file /home/volttron/.volttron83/keystores/master.web/keystore.json
+2017-07-24 17:28:41,444 () volttron.platform.vip.agent.core DEBUG: address: inproc://vip
+2017-07-24 17:28:41,444 () volttron.platform.vip.agent.core DEBUG: identity: master.web
+2017-07-24 17:28:41,444 () volttron.platform.vip.agent.core DEBUG: agent_uuid: None
+2017-07-24 17:28:41,445 () volttron.platform.vip.agent.core DEBUG: serverkey: None
+2017-07-24 17:28:41,452 () volttron.platform.agent.utils DEBUG: missing file /home/volttron/.volttron83/keystores/keydiscovery/keystore.json
+2017-07-24 17:28:41,452 () volttron.platform.agent.utils INFO: creating file /home/volttron/.volttron83/keystores/keydiscovery/keystore.json
+2017-07-24 17:28:41,455 () volttron.platform.vip.agent.core DEBUG: address: inproc://vip
+2017-07-24 17:28:41,455 () volttron.platform.vip.agent.core DEBUG: identity: keydiscovery
+2017-07-24 17:28:41,455 () volttron.platform.vip.agent.core DEBUG: agent_uuid: None
+2017-07-24 17:28:41,455 () volttron.platform.vip.agent.core DEBUG: serverkey: None
+2017-07-24 17:28:41,462 () volttron.platform.vip.pubsubservice DEBUG: PUBSUBSERVICE peer add control
+2017-07-24 17:28:41,465 () volttron.platform.vip.pubsubservice DEBUG: PUBSUBSERVICE peer add pubsub.compat
+2017-07-24 17:28:41,467 () volttron.platform.vip.agent.core INFO: Connected to platform: router: 8232da92-3cfc-4d1e-a1df-69e702b7fda7 version: 1.0 identity: control
+2017-07-24 17:28:41,467 () volttron.platform.vip.agent.core DEBUG: Running onstart methods.
+2017-07-24 17:28:41,471 () volttron.platform.vip.pubsubservice DEBUG: PUBSUBSERVICE peer add master.web
+2017-07-24 17:28:41,473 () volttron.platform.vip.pubsubservice DEBUG: PUBSUBSERVICE peer add keydiscovery
+2017-07-24 17:28:41,480 () volttron.platform.vip.agent.core INFO: Connected to platform: router: 8232da92-3cfc-4d1e-a1df-69e702b7fda7 version: 1.0 identity: keydiscovery
+2017-07-24 17:28:41,481 () volttron.platform.vip.agent.core DEBUG: Running onstart methods.
+2017-07-24 17:28:41,484 () volttron.platform.vip.agent.core INFO: Connected to platform: router: 8232da92-3cfc-4d1e-a1df-69e702b7fda7 version: 1.0 identity: master.web
+2017-07-24 17:28:41,484 () volttron.platform.vip.agent.core DEBUG: Running onstart methods.
+2017-07-24 17:28:41,487 () volttron.platform.vip.agent.core INFO: Connected to platform: router: 8232da92-3cfc-4d1e-a1df-69e702b7fda7 version: 1.0 identity: pubsub.compat
+2017-07-24 17:28:41,487 () volttron.platform.vip.agent.core DEBUG: Running onstart methods.
+2017-07-24 17:28:41,492 () volttron.platform.vip.keydiscovery ERROR: Error opening file /home/volttron/.volttron83/external_address.json
+2017-07-24 17:28:41,493 () volttron.platform.web INFO: Starting web server binding to 127.0.0.83:8080.
+2017-07-24 17:28:41,510 () volttron.platform.vip.agent.subsystems.configstore DEBUG: Processing callbacks for affected files: {}
+2017-07-24 17:28:50,634 () volttron.platform.auth INFO: loading auth file /home/volttron/.volttron83/auth.json
+2017-07-24 17:28:50,636 () volttron.platform.auth INFO: auth file /home/volttron/.volttron83/auth.json loaded
+2017-07-24 17:28:50,639 () volttron.platform.auth DEBUG: AUTH new capabilities update: {'platform': [], '082e3fab-413a-4bc9-a12b-c2d62881e8fc': []}
+2017-07-24 17:28:50,670 () volttron.platform.auth INFO: loading auth file /home/volttron/.volttron83/auth.json
+2017-07-24 17:28:50,671 () volttron.platform.auth INFO: auth file /home/volttron/.volttron83/auth.json loaded
+2017-07-24 17:28:50,702 () volttron.platform.auth DEBUG: AUTH new capabilities update: {'platform': [], '082e3fab-413a-4bc9-a12b-c2d62881e8fc': []}
+2017-07-24 17:42:29,709 () volttron.platform.auth INFO: loading auth file /home/volttron/.volttron83/auth.json
+2017-07-24 17:42:30,124 () volttron.platform.auth INFO: auth file /home/volttron/.volttron83/auth.json loaded
+2017-07-24 17:42:30,406 () volttron.platform.auth DEBUG: AUTH new capabilities update: {'platform': [], '082e3fab-413a-4bc9-a12b-c2d62881e8fc': []}
+2017-07-24 17:42:31,459 () volttron.platform.web DEBUG: PATH IS: /discovery/
+2017-07-24 17:42:31,461 () volttron.platform.web DEBUG: Peer we path_info is associated with: None
+2017-07-24 17:42:31,462 () volttron.platform.web DEBUG: MATCHED:
+pattern: ^/discovery/$, path_info: /discovery/
+ v: <bound method MasterWebService._get_discovery of <volttron.platform.web.MasterWebService object at 0x7f453c08f190>>
+2017-07-24 17:42:31,463 () volttron.platform.web DEBUG: registered route t is: callable
+2017-07-24 17:42:31,559 () volttron.platform.auth INFO: authentication success: domain='vip', address='127.0.0.1', mechanism='CURVE', credentials=['TCMNFHwXpXpqFp-XwbNSJgCnYn30ra7oXZB8veV4WUk'], user_id='082e3fab-413a-4bc9-a12b-c2d62881e8fc'
+2017-07-24 17:42:31,569 () volttron.platform.vip.pubsubservice DEBUG: PUBSUBSERVICE peer add platform83-0.354797229863
+2017-07-24 17:42:31,577 () volttron.platform.vip.routingservice DEBUG: HELLO Recieved hello, sending welcome to platform1
+2017-07-24 17:42:31,577 () volttron.platform.vip.routingservice DEBUG: Sending welcome message to sender platform1
+2017-07-24 17:42:31,578 () volttron.platform.vip.routingservice DEBUG: Key error for platform platform1
+2017-07-24 17:42:31,578 () volttron.platform.vip.pubsubservice DEBUG: PUBSUBSERVICE external_list
+2017-07-24 17:42:31,578 () volttron.platform.vip.pubsubservice DEBUG: PUBSUBSERVICE external_subscriptions from external platforms: platform83-0.354797229863
+2017-07-24 17:42:31,579 () volttron.platform.vip.pubsubservice DEBUG: PUBSUBSERVICE New external list from platform1: List: defaultdict(<type 'set'>, {'platform1': []})

@@ -114,7 +114,7 @@ class ListenerAgent(Agent):
         if self._heartbeat_period != 0:
             self.vip.heartbeat.start_with_period(self._heartbeat_period)
             self.vip.health.set_status(STATUS_GOOD, self._message)
-            self.vip.pubsub.subscribe('pubsub', 'devices', self.on_match, all_platforms=True)
+            self.vip.pubsub.subscribe('pubsub', 'devices/fake-campus', self.on_match, all_platforms=True)
             self.counter = 0
 
     #@PubSub.subscribe('pubsub', '')
@@ -139,7 +139,7 @@ class ListenerAgent(Agent):
 
     @Core.receiver("onstop")
     def listener_stop(self, sender, **kwargs):
-        self.vip.pubsub.unsubscribe('pubsub', 'devices', self.on_match, all_platforms=True)
+        self.vip.pubsub.unsubscribe('pubsub', 'devices/fake-campus', self.on_match, all_platforms=True)
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''

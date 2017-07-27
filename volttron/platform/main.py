@@ -419,7 +419,7 @@ class Router(BaseRouter):
         elif subsystem == b'routing_table':
             result = self._ext_routing.handle_subsystem(frames)
             return result
-        elif subsystem == b'EXT_RPC':
+        elif subsystem == b'ext_rpc':
             result = self._ext_rpc.handle_subsystem(frames)
             return result
 
@@ -442,9 +442,12 @@ class Router(BaseRouter):
             if sock == self.socket:
                 if sockets[sock] == zmq.POLLIN:
                     self.route()
-            elif sock in self._ext_routing._ext_sockets:
+            elif sock in self._ext_routing._vip_sockets:
                 if sockets[sock] == zmq.POLLIN:
+                    _log.debug("From Ext Socket")
                     self.ext_route(sock)
+            elif sock in self._ext_routing._monitor_sockets:
+                self._ext_routing.handle_monitor_event(sock)
             else:
                 _log.debug("External ")
                 frames = sock.recv_multipart(copy=False)
@@ -469,14 +472,14 @@ class Router(BaseRouter):
 
         # Handle 'EXT_RPC' subsystem messages
         name = subsystem.bytes
-        if name == 'EXT_RPC':
+        if name == 'external_rpc':
             # Reframe the frames
             sender, proto, usr_id, msg_id, subsystem, msg = frames[:6]
             msg_data = jsonapi.loads(msg.bytes)
             peer = msg_data['to_peer']
             #Send to destionation agent/peer
             #Form new frame for local
-            frames[:9] = [peer, sender, proto, usr_id, msg_id, 'EXT_RPC', msg]
+            frames[:9] = [peer, sender, proto, usr_id, msg_id, 'external_rpc', msg]
             try:
                 self.socket.send_multipart(frames, flags=NOBLOCK, copy=False)
             except ZMQError as ex:
@@ -706,7 +709,6 @@ def start_volttron_process(opts):
             ControlService(opts.aip, address=address, identity='control',
                            tracker=tracker, heartbeat_autostart=True,
                            enable_store=False, enable_channel=True),
-            KeyDiscoveryAgent(address=address, serverkey=publickey, identity='keydiscovery', external_address_config=external_address_file, bind_web_address=opts.bind_web_address),
             # PubSubService(protected_topics_file, address=address,
             #               identity='pubsub', heartbeat_autostart=True,
             #               enable_store=False),
@@ -719,7 +721,12 @@ def start_volttron_process(opts):
                 address=address,
                 bind_web_address=opts.bind_web_address,
                 volttron_central_address=opts.volttron_central_address,
-                aip=opts.aip, enable_store=False)
+                aip=opts.aip, enable_store=False),
+
+            KeyDiscoveryAgent(address=address, serverkey=publickey,
+                              identity='keydiscovery',
+                              external_address_config=external_address_file,
+                              bind_web_address=opts.bind_web_address)
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)

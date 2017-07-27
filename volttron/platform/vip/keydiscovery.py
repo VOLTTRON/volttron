@@ -47,7 +47,8 @@ from __future__ import print_function, absolute_import
 import logging
 import requests
 import gevent
-import zmq
+import random
+
 from volttron.platform.agent import utils
 from .agent import Agent, Core, RPC
 from requests.packages.urllib3.connection import (ConnectionError,
@@ -55,9 +56,13 @@ from requests.packages.urllib3.connection import (ConnectionError,
 from zmq.utils import jsonapi
 from urlparse import urlparse, urljoin
 from gevent.fileobject import FileObject
-_log = logging.getLogger(__name__)
 from datetime import datetime, timedelta
 from zmq import ZMQError
+import grequests
+
+_log = logging.getLogger(__name__)
+
+__version__ = '0.1'
 
 class DiscoveryError(StandardError):
     """ Raised when a different volttron central tries to register.
@@ -76,6 +81,7 @@ class KeyDiscoveryAgent(Agent):
         self._grnlets = dict()
         self._vip_socket = None
         self._my_web_address = bind_web_address
+        self.r = random.random()
 
     @Core.receiver('onstart')
     def startup(self, sender, **kwargs):
@@ -86,19 +92,29 @@ class KeyDiscoveryAgent(Agent):
         :return:
         """
         self._vip_socket = self.core.socket
-        self._read_platform_address_file()
+        if self._my_web_address is None:
+            _log.error("Web address is NOT set")
+            return
+        try:
+            self._read_platform_address_file()
+        except IOError as exc:
+            return
         try:
             addresses = jsonapi.dumps(self._ext_addresses)
             frames = [b'external_addresses', bytes(addresses)]
+
             self._vip_socket.send_vip(b'', 'routing_table', frames, copy=False)
         except ZMQError as ex:
             # Try sending later
             _log.error("ZMQ error: {}".format(ex))
-            pass
-        gevent.sleep(0.2)
-        for name in self._ext_addresses:
-            if self._ext_addresses[name]['bind-web-address'] not in self._my_web_address:
-                web_address = self._ext_addresses[name]['bind-web-address']
+        sec = random.random()*self.r + 10
+        delay = utils.get_aware_utc_now() + timedelta(seconds=sec)
+        grnlt = self.core.schedule(delay, self._key_collection)
+
+    def _key_collection(self):
+        for name, value in self._ext_addresses.iteritems():
+            if value['bind-web-address'] not in self._my_web_address:
+                web_address = value['bind-web-address']
                 self._collect_key(name, web_address)
 
     def _collect_key(self, name, web_address):
@@ -113,18 +129,16 @@ class KeyDiscoveryAgent(Agent):
 
         try:
             serverkey = self._get_serverkey(web_address)
-            _log.debug("Found key")
         except DiscoveryError:
-            _log.debug("Try again later")
             # If discovery error, try again later
-            utc_now = utils.get_aware_utc_now()
-            delay = utc_now + timedelta(seconds=2)
-            self._grnlets.pop(name, None)
-            self._grnlets[name] = self.core.schedule(delay, self._collect_key, name, web_address)
-        except ConnectionError:
-            pass
+            sec = random.random()*self.r + 30
+            delay = utils.get_aware_utc_now() + timedelta(seconds=sec)
+            grnlet = self.core.schedule(delay, self._collect_key, name, web_address)
+        except ConnectionError as e:
+            _log.error("HTTP connection error {}".format(e))
 
-        # Send the serverkey to RoutingService to establish socket connection with remote platform
+
+        # /if serverykey found, send the key to RoutingService to establish socket connection with remote platform
         if serverkey:
             frames = [b'external_serverkey', bytes(serverkey), name]
             try:
@@ -132,7 +146,7 @@ class KeyDiscoveryAgent(Agent):
             except ZMQError as ex:
                 #Try sending later
                 _log.error("ZMQ error: {}".format(ex))
-                pass
+
 
     def _read_platform_address_file(self):
         """
@@ -146,9 +160,11 @@ class KeyDiscoveryAgent(Agent):
                 data = FileObject(fil, close=False).read()
                 self._ext_addresses = jsonapi.loads(data) if data else {}
         except IOError as e:
-            _log.error("Error opening file %", self._external_address_file)
+            _log.error("Error opening file {}".format(self._external_address_file))
+            raise
         except Exception:
             _log.exception('error loading %s', self._external_address_file)
+            raise
 
     def _get_serverkey(self, web_address):
         """
@@ -165,13 +181,18 @@ class KeyDiscoveryAgent(Agent):
             assert not parsed.path
 
             real_url = urljoin(web_address, "/discovery/")
-            response = requests.get(real_url)
-            response.raise_for_status()
-            r = response.json()
+            req = grequests.get(real_url)
+            responses = grequests.map([req])
+            responses[0].raise_for_status()
+            r = responses[0].json()
             return r['serverkey']
         except requests.exceptions.HTTPError:
             raise DiscoveryError(
                     "Invalid discovery response from {}".format(real_url)
+                )
+        except requests.exceptions.Timeout:
+            raise DiscoveryError(
+                    "Timeout error from {}".format(real_url)
                 )
         except AttributeError as e:
             raise DiscoveryError(
