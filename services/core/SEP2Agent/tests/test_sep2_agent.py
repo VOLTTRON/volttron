@@ -122,7 +122,7 @@ def agent(request, volttron_instance_module_web):
 
     # Install and start a SEP2Agent
     sep2_id = volttron_instance_module_web.install_agent(agent_dir='services/core/SEP2Agent',
-                                               config_file='testagent.config',
+                                               config_file='services/core/SEP2Agent/tests/testagent.config',
                                                vip_identity='test_sep2agent',
                                                start=True)
     print('sep2 agent id: ', sep2_id)
