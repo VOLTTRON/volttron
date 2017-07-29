@@ -122,7 +122,7 @@ def agent(request, volttron_instance_module_web):
 
     # Install and start a SEP2Agent
     sep2_id = volttron_instance_module_web.install_agent(agent_dir='services/core/SEP2Agent',
-                                               config_file='services/core/SEP2Agent/tests/testagent.config',
+                                               config_file='testagent.config',
                                                vip_identity='test_sep2agent',
                                                start=True)
     print('sep2 agent id: ', sep2_id)
@@ -206,8 +206,7 @@ class TestSEP2Agent:
         assert self.get_point(agent, 'b1_Vr') is None
         assert self.get_point(agent, 'b1_Md') is None
 
-        headers = {'content-type': 'application/sep+xml'}
-        r = requests.post(url, data=open('edev.di.PUT.xml', 'rb'), headers=headers)
+        r = self.put_sep2_data('edev/0/di', 'edev.di')
         assert r.status_code == 204
         time.sleep(5)
         r = requests.get(url)
@@ -221,8 +220,7 @@ class TestSEP2Agent:
         r = requests.get(url)
         assert r.status_code == 200
 
-        headers = {'content-type': 'application/sep+xml'}
-        r = requests.post(url, data=open('edev.dstat.PUT.xml', 'rb'), headers=headers)
+        r = self.put_sep2_data('edev/0/dstat', 'edev.dstat')
         assert r.status_code == 204
 
         r = requests.get(url)
@@ -236,8 +234,7 @@ class TestSEP2Agent:
         xml_data = SEP2Parser.parse(r.text.encode('ascii', 'ignore'))
         assert xml_data.totalTimeOnBattery is None
 
-        headers = {'content-type': 'application/sep+xml'}
-        r = requests.post(url, data=open('edev.ps.PUT.xml', 'rb'), headers=headers)
+        r = self.put_sep2_data('edev/0/ps', 'edev.ps')
         assert r.status_code == 204
 
         r = requests.get(url)
@@ -268,8 +265,7 @@ class TestSEP2Agent:
         xml_data = SEP2Parser.parse(r.text.encode('ascii', 'ignore'))
         assert xml_data.type_ is None
 
-        headers = {'content-type': 'application/sep+xml'}
-        r = requests.post(url, data=open('der.dercap.PUT.xml', 'rb'), headers=headers)
+        r = self.put_sep2_data('edev/0/der/1/dercap', 'der.dercap')
         assert r.status_code == 204
 
         r = requests.get(url)
@@ -284,8 +280,7 @@ class TestSEP2Agent:
         assert xml_data.setGradW is None
         assert self.get_point(agent, 'b121_WMax') is None
 
-        headers = {'content-type': 'application/sep+xml'}
-        r = requests.post(url, data=open('der.derg.PUT.xml', 'rb'), headers=headers)
+        r = self.put_sep2_data('edev/0/der/1/derg', 'der.derg')
         assert r.status_code == 204
 
         time.sleep(5)
@@ -303,15 +298,14 @@ class TestSEP2Agent:
         assert xml_data.maxChargeDuration is None
         assert self.get_point(agent, 'b404_DCWh') is None
 
-        headers = {'content-type': 'application/sep+xml'}
-        r = requests.post(url, data=open('der.dera.PUT.xml', 'rb'), headers=headers)
+        r = self.put_sep2_data('edev/0/der/1/dera', 'der.dera')
         assert r.status_code == 204
 
         time.sleep(5)
         r = requests.get(url)
         xml_data = SEP2Parser.parse(r.text.encode('ascii','ignore'))
         assert xml_data.maxChargeDuration == 3
-        r = requests.get(url2)
+        requests.get(url2)
         assert self.get_point(agent, 'b404_DCWh') == 305.7555555555556
 
     def test_set_ders(self, agent):
@@ -325,8 +319,7 @@ class TestSEP2Agent:
         assert self.get_point(agent, 'b802_SoC') is None
         assert self.get_point(agent, 'b122_StorConn') is None
 
-        headers = {'content-type': 'application/sep+xml'}
-        r = requests.post(url, data=open('der.ders.PUT.xml', 'rb'), headers=headers)
+        r = self.put_sep2_data('edev/0/der/1/ders', 'der.ders')
         assert r.status_code == 204
 
         time.sleep(5)
@@ -343,20 +336,30 @@ class TestSEP2Agent:
         r = requests.get(url)
         assert r.status_code == 200
 
-        headers = {'content-type': 'application/sep+xml'}
-        r = requests.post(url, data=open('mup.mup.PUT.xml', 'rb'), headers=headers)
+        r = self.put_sep2_data('mup', 'mup.mup')
         assert r.status_code == 201
 
         r = requests.get(url)
         xml_data = SEP2Parser.parse(r.text.encode('ascii','ignore'))
         assert xml_data.MirrorUsagePoint[0].description == 'Gas Mirroring'
 
-        url2 = '{}/dcap/mup/0'.format(web_address)
-        r = requests.post(url2, data=open('mup.mmr.PUT.xml', 'rb'), headers=headers)
-        r = requests.get(url)
+        self.put_sep2_data('mup/0', 'mup.mmr')
+        requests.get(url)
         assert self.get_point(agent, 'b113_A') == 24.0
 
         assert self.get_point(agent, 'b122_ActWh') is None
-        r = requests.post(url2, data=open('mup.mup2.PUT.xml', 'rb'), headers=headers)
+        self.put_sep2_data('mup/0', 'mup.mup2')
         time.sleep(5)
         assert self.get_point(agent, 'b122_ActWh') == 128
+
+    @staticmethod
+    def put_sep2_data(sep2_resource_name, sep2_filename):
+        """
+            PUT data for a SEP2 resource, using the contents of an XML file in the current directory.
+
+        @param sep2_resource_name: The distinguishing part of the name of the SEP2 resource as it appears in the URL.
+        @param sep2_filename: The distinguishing part of the SEP2 sample data file name.
+        """
+        url = '{}/dcap/{}'.format(web_address, sep2_resource_name)
+        headers = {'content-type': 'application/sep+xml'}
+        return requests.post(url, data=open('tests/{}.PUT.xml'.format(sep2_filename), 'rb'), headers=headers)
