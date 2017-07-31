@@ -59,6 +59,28 @@ import requests
 DRIVER_NAME = 'sep2'
 DEVICE_ID = "097935300833"
 
+TEST_CONFIG = {
+    "agentid": "test_sep2agent",
+    "devices": [
+                    {
+                        "sfdi": "097935300833",
+                        "lfdi": "247bd68e3378fe57ba604e3c8bdf9e3f78a3d743",
+                        "load_shed_device_category": "0200",
+                        "pin_code": "130178"
+                    },
+                    {
+                        "sfdi": "111576577659",
+                        "lfdi": "2990c58a59935a7d5838c952b1a453c967341a07",
+                        "load_shed_device_category": "0200",
+                        "pin_code": "130178"
+                    }
+               ],
+    "sep2_server_sfdi": "413707194130",
+    "sep2_server_lfdi": "29834592834729384728374562039847629",
+    "load_shed_device_category": "0020",
+    "timezone": "America/Los_Angeles"
+}
+
 REGISTRY_CONFIG_STRING = """Volttron Point Name,Point Name,Units,Writable,Default
 b1_Md,b1_Md,NA,FALSE,NA
 b1_Opt,b1_Opt,NA,FALSE,NA
@@ -154,7 +176,7 @@ def agent(request, volttron_instance_module_web):
 
     # Install and start a SEP2Agent
     sep2_id = volttron_instance_module_web.install_agent(agent_dir='services/core/SEP2Agent',
-                                                         config_file='testagent.config',
+                                                         config_file=TEST_CONFIG,
                                                          vip_identity='test_sep2agent',
                                                          start=True)
     print('sep2 agent id: ', sep2_id)
@@ -219,4 +241,6 @@ class TestSEP2Driver:
         """
         url = '{}/dcap/{}'.format(web_address, sep2_resource_name)
         headers = {'content-type': 'application/sep+xml'}
-        requests.post(url, data=open('tests/{}.PUT.xml'.format(sep2_filename), 'rb'), headers=headers)
+        requests.post(url,
+                      data=open('services/core/SEP2Agent/tests/{}.PUT.xml'.format(sep2_filename), 'rb'),
+                      headers=headers)
