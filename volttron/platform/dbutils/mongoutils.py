@@ -1,3 +1,4 @@
+import _sre
 import re
 
 import pymongo
@@ -94,3 +95,100 @@ def get_agg_topics(client, agg_topics_collection, agg_meta_collection):
              meta_map[document['_id']]['configured_topics']))
     _log.debug('returning agg topics for rpc call')
     return agg_topics
+
+
+def get_mongo_query_condition(tup):
+    mongo_operators = {'and': "$and", "or": "$or", 'not': '$not',
+                       'like': '$regex'}
+    _log.debug("In get mongo query condition. tup: {}".format(tup))
+    condition = dict()
+    if tup is None:
+        return tup
+    if not isinstance(tup[1], tuple):
+        left = tup[1]
+    else:
+        left = get_mongo_query_condition(tup[1])
+    if not isinstance(tup[2], tuple):
+        right = tup[2]
+    else:
+        right = get_mongo_query_condition(tup[2])
+
+    assert isinstance(tup[0], str)
+    lower_tup0 = tup[0].lower()
+    if lower_tup0 == 'not':
+        return _negate_condition(right)
+    elif mongo_operators.has_key(lower_tup0):
+        if lower_tup0 == 'like':
+            # LIKE is a special case. To negate {operator:{$regex:value}}
+            # {operator:{$not:{$regex:value}}} since $not doesn't support
+            # regex string. To negate use{operator:{$not:/value/}}
+            # To keep it consistent, we compile the pattern in python for both
+            # LIKE and NOT (LIKE operation)
+            pass
+            return {left:re.compile(right)}
+        else:
+            return {mongo_operators.get(lower_tup0): [left, right]}
+    else:
+        condition[left] = _get_mongo_comp_expr(tup[0], right)
+        return condition
+
+
+def _get_mongo_comp_expr(operator, operand):
+    """
+    Return the mongo syntax for given comparison operator.
+    :param operator: comparison operator. >,<.>= etc.
+    :param operand: rhs of the operation
+    :return: mongo syntax for rhs of expression.
+    """
+    if operator == ">=":
+        return {'$gte': operand}
+    elif operator == "<=":
+        return {'$lte': operand}
+    elif operator == ">":
+        return {'$gt': operand}
+    elif operator == "<":
+        return {'$lt': operand}
+    elif operator == "=":
+        return operand
+    elif operator == "!=":
+        return {'$ne': operand}
+
+
+def _negate_condition(condition):
+    """
+    change not:{left:right} to left:{not:right}
+    if right is a expression change and operator to or and vice versa.
+
+    # Should be an instance of dic always
+
+    :param condition:
+    :return:
+    """
+
+    if isinstance(condition, dict):
+        key, value = condition.popitem()
+        process_values = False
+        # check for NOT(key=value)
+        if not isinstance(value, dict) and not isinstance(value, list) and \
+                not isinstance(value, type(re.compile("test"))):
+            return {key: {'$ne': value}}
+
+        # any other case (>, <, like etc) will be a dict
+        if key == '$and':
+            key = '$or'
+            process_values = True  # value would be a list
+        elif key == '$or':
+            key = '$and'
+            process_values = True  # value would be a list
+
+        new_value = []
+        if process_values and isinstance(value, list):
+            for v in value:
+                if isinstance(v, dict):
+                    # nested expression with and or or
+                    new_value.append(_negate_condition(v))
+                else:
+                    new_value.append(v)
+            return {key: new_value}
+        else:
+            return {key: {'$not': value}}

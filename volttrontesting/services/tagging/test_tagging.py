@@ -59,18 +59,16 @@
 pytest test cases for tagging service
 """
 import copy
+import sqlite3
+from datetime import datetime
 
 import gevent
 import pytest
-import sqlite3
-from datetime import datetime, timedelta
-
-import sys
 from mock import MagicMock
 
-from volttron.platform.messaging import topics
+from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import headers as headers_mod
-
+from volttron.platform.messaging import topics
 
 try:
     import pymongo
@@ -80,31 +78,20 @@ except:
     HAS_PYMONGO = False
 pymongo_skipif = pytest.mark.skipif(not HAS_PYMONGO,
                                     reason='No pymongo client available.')
-connection_type= ""
+connection_type = ""
 db_connection = None
-sqlite_config= {
-    "connection": {
-        "type": "sqlite",
-        "params": {
-            "database": "~/.volttron/data/volttron.tags.sqlite"
-        }
-    },
-    "source":"services/core/SQLiteTaggingService"
-}
+sqlite_config = {"connection": {"type": "sqlite",
+                 "params": {"database":
+                                "~/.volttron/data/volttron.tags.sqlite"}},
+                 "source": "services/core/SQLiteTaggingService"}
 
-mongodb_config = {
-    "source": "services/core/MongodbTaggingService",
-    "connection": {
-        "type": "mongodb",
-        "params": {
-            "host": "localhost",
-            "port": 27017,
-            "database": "mongo_test",
-            "user": "test",
-            "passwd": "test"
-        }
-    }
-}
+mongodb_config = {"source": "services/core/MongodbTaggingService",
+                  "connection": {"type": "mongodb",
+                                 "params": {"host": "localhost", "port": 27017,
+                                            "database": "mongo_test",
+                                            "user": "test",
+                                            "passwd": "test"}}}
+
 
 def setup_sqlite(config):
     print ("setup sqlite")
@@ -127,15 +114,19 @@ def setup_mongodb(config):
     db['topic_tags'].remove()
     return db
 
+
 def cleanup_sqlite(db_connection, truncate_tables):
     cursor = db_connection.cursor()
     for table in truncate_tables:
         cursor.execute("DELETE FROM " + table)
     db_connection.commit()
 
+
 def cleanup_mongodb(db_connection, truncate_tables):
-    for collection in truncate_tables:
-        db_connection[collection].remove()
+    # for collection in truncate_tables:
+    # db_connection[collection].remove()
+    pass
+
 
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
@@ -153,17 +144,15 @@ def query_agent(request, volttron_instance):
 
 
 # Fixtures for setup and teardown of historian agent
-@pytest.fixture(scope="module",
-                params=[
-                    sqlite_config,
-                    #pymongo_skipif(mongodb_config)
-                ])
+@pytest.fixture(scope="module", params=[  # sqlite_config,
+    pymongo_skipif(mongodb_config)])
 def tagging_service(request, volttron_instance):
     global connection_type, db_connection
     connection_type = request.param['connection']['type']
     if connection_type == 'sqlite':
-        request.param['connection']['params']['database'] = \
-            volttron_instance.volttron_home + "/test_tagging.sqlite"
+        request.param['connection']['params'][
+            'database'] = volttron_instance.volttron_home + \
+                          "/test_tagging.sqlite"
     # 2: Open db connection that can be used for row deletes after
     # each test method. Create tables, clean up records from previous test runs
     function_name = "setup_" + connection_type
@@ -179,9 +168,8 @@ def tagging_service(request, volttron_instance):
     # 2. Install agent
     source = request.param.pop('source')
     tagging_service_id = volttron_instance.install_agent(
-        vip_identity='platform.tagging',
-        agent_dir=source, config_file=request.param,
-        start=False)
+        vip_identity='platform.tagging', agent_dir=source,
+        config_file=request.param, start=False)
     volttron_instance.start_agent(tagging_service_id)
     request.param['source'] = source
     print("agent id: ", tagging_service_id)
@@ -212,8 +200,8 @@ def test_init_failure(volttron_instance, tagging_service, query_agent):
         source = new_config.pop('source')
         try:
             agent_id = volttron_instance.install_agent(
-                vip_identity='test.tagging.init',
-                agent_dir=source, config_file=new_config, start=False)
+                vip_identity='test.tagging.init', agent_dir=source,
+                config_file=new_config, start=False)
             volttron_instance.start_agent(agent_id)
         except:
             pass
@@ -229,56 +217,51 @@ def test_init_failure(volttron_instance, tagging_service, query_agent):
 
 @pytest.mark.tagging
 def test_get_categories_no_desc(tagging_service, query_agent):
-    result = query_agent.vip.rpc.call('platform.tagging',
-                                      'get_categories',
-                                      skip=0,
-                                      count=4,
+    result = query_agent.vip.rpc.call('platform.tagging', 'get_categories',
+                                      skip=0, count=4,
                                       order="FIRST_TO_LAST").get(timeout=10)
     assert isinstance(result, list)
     assert len(result) == 4
     print ("Categories returned: {}".format(result))
-    result2 = query_agent.vip.rpc.call('platform.tagging',
-                                       'get_categories',
-                                       skip=1,
-                                       count=4,
+    result2 = query_agent.vip.rpc.call('platform.tagging', 'get_categories',
+                                       skip=1, count=4,
                                        order="FIRST_TO_LAST").get(timeout=10)
     assert isinstance(result2, list)
     print ("result2 returned: {}".format(result2))
     assert len(result2) == 4
     assert isinstance(result, list)
     assert isinstance(result[0], str)
-    assert result[1] == result2[0] #verify skip
+    assert result[1] == result2[0]  # verify skip
 
 
 @pytest.mark.tagging
 def test_get_categories_with_desc(tagging_service, query_agent):
-
     result1 = query_agent.vip.rpc.call('platform.tagging', 'get_categories',
-                                      include_description=True,
-                                      skip=0, count=4,
-                                      order="LAST_TO_FIRST").get(timeout=10)
+                                       include_description=True, skip=0,
+                                       count=4, order="LAST_TO_FIRST").get(
+        timeout=10)
     assert isinstance(result1, list)
-    assert isinstance(result1[0],list)
+    assert isinstance(result1[0], list)
     assert len(result1) == 4
     assert len(result1[0]) == 2
     print ("Categories returned: {}".format(result1))
     result2 = query_agent.vip.rpc.call('platform.tagging', 'get_categories',
-                                       include_description=True,
-                                       skip=1, count=4,
-                                       order="LAST_TO_FIRST").get(timeout=10)
+                                       include_description=True, skip=1,
+                                       count=4, order="LAST_TO_FIRST").get(
+        timeout=10)
     assert isinstance(result2, list)
     assert len(result2) == 4
     assert isinstance(result2[0], list)
     print ("result2 returned: {}".format(result2))
 
-    #Verify skip param
+    # Verify skip param
     assert result1[1][0] == result2[0][0]
     assert result1[1][1] == result2[0][1]
 
-    #verify order
+    # verify order
     result3 = query_agent.vip.rpc.call('platform.tagging', 'get_categories',
-                                      include_description=True, skip=0,
-                                      count=4, order="FIRST_TO_LAST").get(
+                                       include_description=True, skip=0,
+                                       count=4, order="FIRST_TO_LAST").get(
         timeout=10)
     assert isinstance(result3, list)
     assert len(result3) == 4
@@ -290,20 +273,16 @@ def test_get_categories_with_desc(tagging_service, query_agent):
 @pytest.mark.tagging
 def test_tags_by_category_no_metadata(tagging_service, query_agent):
     result1 = query_agent.vip.rpc.call(
-        'platform.tagging',
-        'get_tags_by_category',
-        category='AHU',
-        skip=0,
-        count=3,
-        order="FIRST_TO_LAST").get(timeout=10)
+        'platform.tagging', 'get_tags_by_category', category='AHU', skip=0,
+        count=3, order="FIRST_TO_LAST").get(timeout=10)
     print ("tags returned: {}".format(result1))
     assert isinstance(result1, list)
     assert len(result1) == 3
     assert isinstance(result1[0], str)
 
     result2 = query_agent.vip.rpc.call('platform.tagging',
-                                       'get_tags_by_category',
-                                       category='AHU', skip=2, count=3,
+                                       'get_tags_by_category', category='AHU',
+                                       skip=2, count=3,
                                        order="FIRST_TO_LAST").get(timeout=10)
     print ("tags returned: {}".format(result2))
     assert isinstance(result2, list)
@@ -314,14 +293,9 @@ def test_tags_by_category_no_metadata(tagging_service, query_agent):
 
 @pytest.mark.tagging
 def test_tags_by_category_with_metadata(tagging_service, query_agent):
-
     result1 = query_agent.vip.rpc.call(
-        'platform.tagging',
-        'get_tags_by_category',
-        category='AHU',
-        include_kind=True,
-        skip=0,
-        count=3,
+        'platform.tagging', 'get_tags_by_category', category='AHU',
+        include_kind=True, skip=0, count=3,
         order="FIRST_TO_LAST").get(timeout=10)
     print ("tags returned: {}".format(result1))
     assert isinstance(result1, list)
@@ -330,25 +304,19 @@ def test_tags_by_category_with_metadata(tagging_service, query_agent):
     assert len(result1[0]) == 2
 
     result2 = query_agent.vip.rpc.call(
-        'platform.tagging',
-        'get_tags_by_category',
-        category='AHU',
-        include_description=True,
-        skip=0,
-        count=3,
-        order="FIRST_TO_LAST").get(timeout=10)
+        'platform.tagging', 'get_tags_by_category',
+        category='AHU', include_description=True,
+        skip=0, count=3, order="FIRST_TO_LAST").get(timeout=10)
     print ("tags returned: {}".format(result2))
     assert isinstance(result2, list)
     assert len(result2) == 3
     assert isinstance(result2[0], list)
     assert len(result2[0]) == 2
 
-    result3 = query_agent.vip.rpc.call('platform.tagging',
-                                       'get_tags_by_category', category='AHU',
-                                       include_kind=True,
-                                       include_description=True,
-                                       skip=0, count=3,
-                                       order="FIRST_TO_LAST").get(timeout=10)
+    result3 = query_agent.vip.rpc.call(
+        'platform.tagging', 'get_tags_by_category', category='AHU',
+        include_kind=True, include_description=True, skip=0,
+        count=3, order="FIRST_TO_LAST").get(timeout=10)
     print ("tags returned: {}".format(result3))
     assert isinstance(result3, list)
     assert len(result3) == 3
@@ -361,11 +329,12 @@ def test_insert_topic_tags(volttron_instance, tagging_service, query_agent):
     global connection_type, db_connection
     hist_id = None
     try:
-        hist_config = {"connection": {"type": "sqlite", "params": {
-            "database": volttron_instance.volttron_home +
-                        "/test_platform_historian.sqlite"}}
-
-        }
+        hist_config = {"connection":
+                       {"type": "sqlite",
+                        "params": {"database":
+                                   volttron_instance.volttron_home +
+                                   "/test_platform_historian.sqlite"}}
+                       }
         hist_id = volttron_instance.install_agent(
             vip_identity='platform.historian',
             agent_dir='services/core/SQLHistorian', config_file=hist_config,
@@ -373,14 +342,16 @@ def test_insert_topic_tags(volttron_instance, tagging_service, query_agent):
         gevent.sleep(1)
         headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
         to_send = [{'topic': 'devices/campus1/d1/all', 'headers': headers,
-                        'message': [{'p1': 2, 'p2': 2}]}]
+                    'message': [{'p1': 2, 'p2': 2}]}]
         query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
             timeout=10)
         gevent.sleep(2)
 
         query_agent.vip.rpc.call('platform.tagging', 'add_topic_tags',
-            topic_prefix='campus1/d1',
-            tags={'campus': True, 'dis': "Test description"}).get(timeout=10)
+                                 topic_prefix='campus1/d1',
+                                 tags={'campus': True,
+                                       'dis': "Test description"}).get(
+            timeout=10)
 
         result3 = query_agent.vip.rpc.call(
             'platform.tagging', 'get_tags_by_topic',
@@ -388,7 +359,8 @@ def test_insert_topic_tags(volttron_instance, tagging_service, query_agent):
             include_description=True, skip=0, count=3,
             order="LAST_TO_FIRST").get(timeout=10)
 
-        # [['dis', 'Test description', 'Str', 'Short display name for an entity.'],
+        # [['dis', 'Test description', 'Str', 'Short display name for an
+        # entity.'],
         #  ['campus', '1', 'Marker',
         #   'Marks a campus that might have one or more site/building']]
         print result3
@@ -407,13 +379,15 @@ def test_insert_topic_tags(volttron_instance, tagging_service, query_agent):
         assert result3[2][0] == 'campus'
         assert result3[2][1]
         assert result3[2][2] == 'Marker'
-        assert result3[2][3] == \
-            'Marks a campus that might have one or more site/building'
+        assert result3[2][
+                   3] == 'Marks a campus that might have one or more ' \
+                         'site/building'
     finally:
         if hist_id:
             volttron_instance.remove_agent(hist_id)
         cleanup_function = globals()["cleanup_" + connection_type]
-        cleanup_function(db_connection,['topic_tags'])
+        cleanup_function(db_connection, ['topic_tags'])
+
 
 @pytest.mark.tagging
 def test_insert_topic_pattern_tags(volttron_instance, tagging_service,
@@ -421,83 +395,71 @@ def test_insert_topic_pattern_tags(volttron_instance, tagging_service,
     global connection_type, db_connection
     hist_id = None
     try:
-        hist_config = {
-            "connection": {
-                "type": "sqlite",
-                "params": {
-                    "database":
-                        volttron_instance.volttron_home +
-                        "/test_platform_historian.sqlite"
-                }
-            }
+        hist_config = {"connection":
+                       {"type": "sqlite",
+                        "params": {
+                            "database": volttron_instance.volttron_home +
+                            "/test_platform_historian.sqlite"}}
 
-        }
+                       }
         to_send = []
         headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
-        to_send.append(
-            {'topic': 'devices/campus1/d1/all', 'headers': headers,
-             'message':[{'p1':2,'p2':2}]})
-        to_send.append(
-            {'topic': 'devices/campus2/d1/all', 'headers': headers,
-             'message': [{'p1':2,'p2':2}]})
-        to_send.append(
-            {'topic': 'devices/campus1/d2/all', 'headers': headers,
-             'message': [{'p1':2,'p2':2}]})
-        to_send.append(
-            {'topic': 'devices/campus2/d2/all', 'headers': headers,
-             'message': [{'p1':2,'p2':2}]})
-
+        to_send.append({'topic': 'devices/campus1/d1/all', 'headers': headers,
+                        'message': [{'p1': 2, 'p2': 2}]})
+        to_send.append({'topic': 'devices/campus2/d1/all', 'headers': headers,
+                        'message': [{'p1': 2, 'p2': 2}]})
+        to_send.append({'topic': 'devices/campus1/d2/all', 'headers': headers,
+                        'message': [{'p1': 2, 'p2': 2}]})
+        to_send.append({'topic': 'devices/campus2/d2/all', 'headers': headers,
+                        'message': [{'p1': 2, 'p2': 2}]})
 
         hist_id = volttron_instance.install_agent(
             vip_identity='platform.historian',
-            agent_dir='services/core/SQLHistorian',
-            config_file=hist_config, start=True)
+            agent_dir='services/core/SQLHistorian', config_file=hist_config,
+            start=True)
         gevent.sleep(1)
         query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
             timeout=10)
         gevent.sleep(2)
 
         # specific campus
-        tags = {'campus1': {'geoCity': 'Richland', 'id':'overwrite'}}
+        tags = {'campus1': {'geoCity': 'Richland', 'id': 'overwrite'},
+                'campus*': {'campus': True, 'dis': "Test description"},
+                'campus*/d*': {'device': True, 'dis': "Test description"},
+                'campus*/d*/p*': {'point': True},
+                'campus*/d1/p*': {'dis': 'd1 points'},
+                'campus*/d*/p2': {'air': True},
+                'asbaskuhdf/asdfasdf': {'equip': True}}
         # all campus
-        tags['campus*'] = {'campus': True, 'dis': "Test description"}
         # all device
-        tags['campus*/d*'] = {'device': True, 'dis': "Test description"}
         # all points
-        tags['campus*/d*/p*'] = {'point': True}
         # all device1 points
-        tags['campus*/d1/p*'] = {'dis': 'd1 points'}
         # all points p2 points in d1 and d2
-        tags['campus*/d*/p2'] = {'air': True}
         # invalid topic
-        tags['asbaskuhdf/asdfasdf'] = {'equip': True}
 
         result = query_agent.vip.rpc.call('platform.tagging', 'add_tags',
-            tags=tags).get(timeout=10)
+                                          tags=tags).get(timeout=10)
         print(result)
 
-        exepected_info = \
-            {'campus*': ['campus2', 'campus1'],
-             'campus*/d*/p*': ['campus2/d2/p1', 'campus2/d1/p2',
-                              'campus2/d1/p1', 'campus2/d2/p2',
-                               'campus1/d1/p1', 'campus1/d1/p2',
-                               'campus1/d2/p1', 'campus1/d2/p2'],
-             'campus*/d1/p*': ['campus2/d1/p2', 'campus2/d1/p1',
-                              'campus1/d1/p1', 'campus1/d1/p2'],
-             'campus*/d*': ['campus1/d1', 'campus2/d1',
-                            'campus2/d2', 'campus1/d2'],
-             'campus*/d*/p2': ['campus2/d2/p2', 'campus2/d1/p2',
-                               'campus1/d2/p2', 'campus1/d1/p2']
-             }
+        exepected_info = {'campus*': ['campus2', 'campus1'],
+                          'campus*/d*/p*': ['campus2/d2/p1', 'campus2/d1/p2',
+                                            'campus2/d1/p1', 'campus2/d2/p2',
+                                            'campus1/d1/p1', 'campus1/d1/p2',
+                                            'campus1/d2/p1', 'campus1/d2/p2'],
+                          'campus*/d1/p*': ['campus2/d1/p2', 'campus2/d1/p1',
+                                            'campus1/d1/p1', 'campus1/d1/p2'],
+                          'campus*/d*': ['campus1/d1', 'campus2/d1',
+                                         'campus2/d2', 'campus1/d2'],
+                          'campus*/d*/p2': ['campus2/d2/p2', 'campus2/d1/p2',
+                                            'campus1/d2/p2', 'campus1/d1/p2']}
         expected_err = {'asbaskuhdf/asdfasdf': 'No matching topic found'}
         assert cmp(expected_err, result['error']) == 0
-        assert cmp(exepected_info,result['info']) == 0
+        assert cmp(exepected_info, result['info']) == 0
 
         result1 = query_agent.vip.rpc.call('platform.tagging',
                                            'get_tags_by_topic',
                                            topic_prefix='campus2/d2/p2',
-                                           skip=0,
-                                           count=3,
+                                           skip=0, count=3,
                                            order="FIRST_TO_LAST").get()
         print result1
         assert len(result1) == 3
@@ -511,8 +473,8 @@ def test_insert_topic_pattern_tags(volttron_instance, tagging_service,
 
         result1 = query_agent.vip.rpc.call('platform.tagging',
                                            'get_tags_by_topic',
-                                           topic_prefix='campus2',
-                                           skip=0, count=3,
+                                           topic_prefix='campus2', skip=0,
+                                           count=3,
                                            order="FIRST_TO_LAST").get()
         print ("Result1: {} ".format(result1))
         assert len(result1) == 3
@@ -541,21 +503,24 @@ def test_insert_topic_pattern_tags(volttron_instance, tagging_service,
 
     finally:
         cleanup_function = globals()["cleanup_" + connection_type]
-        cleanup_function(db_connection,['topic_tags'])
+        cleanup_function(db_connection, ['topic_tags'])
         if hist_id:
             volttron_instance.remove_agent(hist_id)
 
+
 @pytest.mark.tagging
 def test_insert_topic_tags_update(volttron_instance, tagging_service,
-                                   query_agent):
+                                  query_agent):
     global connection_type, db_connection
     hist_id = None
     try:
-        hist_config = {"connection": {"type": "sqlite", "params": {
-            "database": volttron_instance.volttron_home +
-                        "/test_platform_historian.sqlite"}}
+        hist_config = {"connection":
+                       {"type": "sqlite",
+                        "params": {
+                            "database": volttron_instance.volttron_home +
+                            "/test_platform_historian.sqlite"}}
 
-        }
+                       }
         to_send = []
         headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
         to_send.append({'topic': 'devices/campus1/d1/all', 'headers': headers,
@@ -618,9 +583,11 @@ def test_update_topic_tags(volttron_instance, tagging_service, query_agent):
     global connection_type, db_connection
     hist_id = None
     try:
-        hist_config = {"connection": {"type": "sqlite", "params": {
-            "database": volttron_instance.volttron_home +
-                        "/test_platform_historian.sqlite"}}
+        hist_config = {"connection":
+                       {"type": "sqlite",
+                        "params": {
+                            "database": volttron_instance.volttron_home +
+                            "/test_platform_historian.sqlite"}}
 
                        }
         hist_id = volttron_instance.install_agent(
@@ -636,17 +603,21 @@ def test_update_topic_tags(volttron_instance, tagging_service, query_agent):
         gevent.sleep(2)
 
         query_agent.vip.rpc.call('platform.tagging', 'add_topic_tags',
-            topic_prefix='campus1/d2',
-            tags={'campus': True, 'dis': "Test description"}).get(timeout=10)
+                                 topic_prefix='campus1/d2',
+                                 tags={'campus': True,
+                                       'dis': "Test description"}).get(
+            timeout=10)
 
-        result3 = query_agent.vip.rpc.call('platform.tagging', 'get_tags_by_topic',
+        result3 = query_agent.vip.rpc.call('platform.tagging',
+                                           'get_tags_by_topic',
                                            topic_prefix='campus1/d2',
                                            include_kind=True,
                                            include_description=True, skip=0,
                                            count=2, order="LAST_TO_FIRST").get(
             timeout=10)
 
-        # [['dis', 'Test description', 'Str', 'Short display name for an entity.'],
+        # [['dis', 'Test description', 'Str', 'Short display name for an
+        # entity.'],
         #  ['campus', '1', 'Marker',
         #   'Marks a campus that might have one or more site/building']]
         print result3
@@ -662,7 +633,6 @@ def test_update_topic_tags(volttron_instance, tagging_service, query_agent):
         assert result3[1][2] == 'Str'
         assert result3[1][3] == 'Short display name for an entity.'
 
-
         query_agent.vip.rpc.call('platform.tagging', 'add_topic_tags',
                                  topic_prefix='campus1/d2',
                                  tags={'campus': True,
@@ -677,7 +647,8 @@ def test_update_topic_tags(volttron_instance, tagging_service, query_agent):
 
         # [['geoCountry', 'US', 'Str',
         #   'Geographic country as ISO 3166-1 two letter code.'],
-        #  ['dis', 'New description', 'Str', 'Short display name for an entity.'],
+        #  ['dis', 'New description', 'Str', 'Short display name for an
+        # entity.'],
         #  ['campus', '1', 'Marker',
         #   'Marks a campus that might have one or more site/building']]
         print result3
@@ -691,8 +662,8 @@ def test_update_topic_tags(volttron_instance, tagging_service, query_agent):
         assert result3[1][0] == 'geoCountry'
         assert result3[1][1] == 'US'
         assert result3[1][2] == 'Str'
-        assert result3[1][3] == \
-            'Geographic country as ISO 3166-1 two letter code.'
+        assert result3[1][
+                   3] == 'Geographic country as ISO 3166-1 two letter code.'
 
         assert result3[2][0] == 'dis'
         assert result3[2][1] == 'New description'
@@ -702,24 +673,28 @@ def test_update_topic_tags(volttron_instance, tagging_service, query_agent):
         assert result3[3][0] == 'campus'
         assert result3[3][1]
         assert result3[3][2] == 'Marker'
-        assert result3[3][3] == \
-            'Marks a campus that might have one or more site/building'
+        assert result3[3][
+                   3] == 'Marks a campus that might have one or more ' \
+                         'site/building'
     finally:
         if hist_id:
             volttron_instance.remove_agent(hist_id)
         cleanup_function = globals()["cleanup_" + connection_type]
-        cleanup_function(db_connection,['topic_tags'])
+        cleanup_function(db_connection, ['topic_tags'])
+
 
 @pytest.mark.tagging
 def test_insert_tags_invalid_tag_error(tagging_service, query_agent):
     try:
         query_agent.vip.rpc.call(
-            'platform.tagging', 'add_topic_tags', topic_prefix='test_topic',
-            tags={'t1':1, 't2':'val'}).get(timeout=10)
+            'platform.tagging', 'add_topic_tags',
+            topic_prefix='test_topic',
+            tags={'t1': 1, 't2': 'val'}).get(timeout=10)
         pytest.fail("Expecting exception for invalid tags but got none")
     except Exception as e:
         assert e.exc_info['exc_type'] == 'ValueError'
         assert e.message == 'Invalid tag name:t2'
+
 
 @pytest.mark.tagging
 def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
@@ -727,9 +702,11 @@ def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
     global connection_type, db_connection
     hist_id = None
     try:
-        hist_config = {"connection": {"type": "sqlite", "params": {
-            "database": volttron_instance.volttron_home +
-                        "/test_platform_historian.sqlite"}}
+        hist_config = {"connection":
+                       {"type": "sqlite",
+                        "params": {
+                            "database": volttron_instance.volttron_home +
+                            "/test_platform_historian.sqlite"}}
 
                        }
         hist_id = volttron_instance.install_agent(
@@ -745,14 +722,16 @@ def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
         gevent.sleep(2)
 
         query_agent.vip.rpc.call('platform.tagging', 'add_topic_tags',
-            topic_prefix='campus1/d2',
-            tags={'campus': True, 'dis': "Test description",
-                  "geoCountry": "US"}).get(timeout=10)
+                                 topic_prefix='campus1/d2',
+                                 tags={'campus': True,
+                                       'dis': "Test description",
+                                       "geoCountry": "US"}).get(timeout=10)
 
         result1 = query_agent.vip.rpc.call('platform.tagging',
-            'get_tags_by_topic', topic_prefix='campus1/d2',
-            skip=0, count=3,
-            order="FIRST_TO_LAST").get(timeout=10)
+                                           'get_tags_by_topic',
+                                           topic_prefix='campus1/d2', skip=0,
+                                           count=3, order="FIRST_TO_LAST").get(
+            timeout=10)
         # [['campus', '1'],
         # ['dis', 'Test description'],
         # ['geoCountry', 'US']]
@@ -766,13 +745,11 @@ def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
         assert result1[2][0] == 'geoCountry'
         assert result1[2][1] == 'US'
 
-        #verify skip and count
+        # verify skip and count
         result2 = query_agent.vip.rpc.call(
-            'platform.tagging',
-            'get_tags_by_topic',
-            topic_prefix='campus1/d2',
-            skip=1,
-            count=3, order="FIRST_TO_LAST").get(timeout=10)
+            'platform.tagging', 'get_tags_by_topic',
+            topic_prefix='campus1/d2', skip=1, count=3,
+            order="FIRST_TO_LAST").get(timeout=10)
         # [['dis', 'Test description'],
         # ['geoCountry', 'US']]
         print result2
@@ -788,8 +765,8 @@ def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
         # query without count
         # verify skip and count
         result3 = query_agent.vip.rpc.call(
-            'platform.tagging','get_tags_by_topic', topic_prefix='campus1/d2',
-            skip=1,
+            'platform.tagging', 'get_tags_by_topic',
+            topic_prefix='campus1/d2', skip=1,
             order="FIRST_TO_LAST").get(timeout=10)
         # [['dis', 'Test description'],
         # ['geoCountry', 'US']]
@@ -805,11 +782,9 @@ def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
 
         # verify sort
         result1 = query_agent.vip.rpc.call(
-            'platform.tagging',
-            'get_tags_by_topic',
-            topic_prefix='campus1/d2',
-            skip=0,
-            count=3, order="LAST_TO_FIRST").get(timeout=10)
+            'platform.tagging', 'get_tags_by_topic',
+            topic_prefix='campus1/d2', skip=0, count=3,
+            order="LAST_TO_FIRST").get(timeout=10)
 
         print result1
         assert len(result1) == 3
@@ -824,7 +799,8 @@ def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
         if hist_id:
             volttron_instance.remove_agent(hist_id)
         cleanup_function = globals()["cleanup_" + connection_type]
-        cleanup_function(db_connection,['topic_tags'])
+        cleanup_function(db_connection, ['topic_tags'])
+
 
 @pytest.mark.tagging
 def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
@@ -832,9 +808,11 @@ def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
     global connection_type, db_connection
     hist_id = None
     try:
-        hist_config = {"connection": {"type": "sqlite", "params": {
-            "database": volttron_instance.volttron_home +
-                        "/test_platform_historian.sqlite"}}
+        hist_config = {"connection":
+                       {"type": "sqlite",
+                        "params": {
+                            "database": volttron_instance.volttron_home +
+                            "/test_platform_historian.sqlite"}}
 
                        }
         hist_id = volttron_instance.install_agent(
@@ -877,9 +855,9 @@ def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
         assert result1[2][2] == 'Unique identifier for an entity.'
 
         result2 = query_agent.vip.rpc.call(
-            'platform.tagging', 'get_tags_by_topic', topic_prefix='campus1/d2',
-            include_kind=True, skip=0, count=1,
-            order="LAST_TO_FIRST").get(timeout=10)
+            'platform.tagging', 'get_tags_by_topic',
+            topic_prefix='campus1/d2', include_kind=True,
+            skip=0, count=1, order="LAST_TO_FIRST").get(timeout=10)
         # [['dis', 'Test description', 'Str']]
         print result2
         assert len(result2) == 1
@@ -889,11 +867,13 @@ def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
         assert result2[0][2] == 'Ref'
 
         result3 = query_agent.vip.rpc.call(
-            'platform.tagging', 'get_tags_by_topic', topic_prefix='campus1/d2',
-            include_kind=True, include_description=True, skip=0, count=2,
+            'platform.tagging', 'get_tags_by_topic',
+            topic_prefix='campus1/d2', include_kind=True,
+            include_description=True, skip=0, count=2,
             order="LAST_TO_FIRST").get(timeout=10)
 
-        # [['dis', 'Test description', 'Str', 'Short display name for an entity.'],
+        # [['dis', 'Test description', 'Str', 'Short display name for an
+        # entity.'],
         #  ['campus', '1', 'Marker',
         #   'Marks a campus that might have one or more site/building']]
         print result3
@@ -911,10 +891,319 @@ def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
         if hist_id:
             volttron_instance.remove_agent(hist_id)
         cleanup_function = globals()["cleanup_" + connection_type]
-        cleanup_function(db_connection,['topic_tags'])
+        cleanup_function(db_connection, ['topic_tags'])
+
+@pytest.mark.dev
+@pytest.mark.tagging
+def test_topic_by_tags_param_and_or(volttron_instance, tagging_service,
+                                 query_agent):
+    global connection_type, db_connection
+    hist_id = None
+    try:
+
+        # 1. Start historian to get some valid topics in. tagging service
+        # add tag api uses historian to get topic name by pattern
+        hist_config = {"connection":
+                       {"type": "sqlite",
+                        "params": {
+                            "database": volttron_instance.volttron_home +
+                            "/test_platform_historian.sqlite"}}
+
+                       }
+        hist_id = volttron_instance.install_agent(
+            vip_identity='platform.historian',
+            agent_dir='services/core/SQLHistorian', config_file=hist_config,
+            start=True)
+        gevent.sleep(2)
+        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
+                    'message': [
+                        {'p1': 2, 'p2': 2, 'p3': 1, 'p4': 2, 'p5': 2}]}]
+        query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
+            timeout=10)
+        to_send = [{'topic': 'devices/campus1/d1/all', 'headers': headers,
+                    'message': [
+                        {'p1': 2, 'p2': 2, 'p3': 1, 'p4': 2, 'p5': 2}]}]
+        query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
+            timeout=10)
+
+        to_send = [{'topic': 'devices/campus2/d1/all', 'headers': headers,
+                    'message': [
+                        {'p1': 2, 'p2': 2, 'p3': 1, 'p4': 2, 'p5': 2}]}]
+        query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
+            timeout=10)
+        gevent.sleep(2)
+
+        # 2. Add tags to topics and topic_prefix that can be used for queries
+        query_agent.vip.rpc.call('platform.tagging', 'add_topic_tags',
+                                 topic_prefix='campus1',
+                                 tags={'campus': True,
+                                       'dis': "Test campus description",
+                                       'geoCountry': "US"}).get(timeout=10)
+
+        query_agent.vip.rpc.call('platform.tagging', 'add_topic_tags',
+                                 topic_prefix='campus2',
+                                 tags={'campus': True,
+                                       "geoCountry": "UK"}).get(timeout=10)
+
+        query_agent.vip.rpc.call(
+            'platform.tagging', 'add_tags',
+            tags={
+                'campus.*/d.*/p1': {'point': True, 'maxVal': 15, 'minVal': -1},
+                'campus.*/d.*/p2': {'point': True, 'maxVal': 10, 'minVal': 0,
+                                    'dis': "Test description"},
+                'campus.*/d.*/p3': {'point': True, 'maxVal': 5, 'minVal': 1,
+                                    'dis': "Test description"},
+                'campus.*/d1': {'equip': True, 'elec': True, 'phase': 'p1_1',
+                                'dis': "Test description"},
+                'campus.*/d2': {'equip': True, 'elec': True,
+                                'phase': 'p2'}}).get(timeout=10)
+
+        query_agent.vip.rpc.call('platform.tagging', 'add_topic_tags',
+                                 topic_prefix='campus2/d1',
+                                 tags={'phase': "p1_2"}).get(timeout=10)
+        gevent.sleep(2)
+
+        # 3. Query topic prefix by tags
+
+        # AND condition
+        # Dict
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging', 'get_topics_by_tags',
+            and_condition={'campus':True, 'geoCountry':'US'}).get(timeout=10)
+        print ("Results of simple AND query: {} ".format(result1))
+        assert result1 == ['campus1']
+
+        # Array
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging', 'get_topics_by_tags',
+            and_condition=['equip','elec']).get(timeout=10)
+        assert result1 == ['campus1/d1', 'campus1/d2', 'campus2/d1']
+
+        # OR condition
+        result1 = query_agent.vip.rpc.call('platform.tagging',
+            'get_topics_by_tags',
+            or_condition={"geoCountry": "UK",
+                          'dis': "Test campus description"}).get(timeout=10)
+        print ("Results of simple AND query: {} ".format(result1))
+        assert result1 == ['campus1', 'campus2']
+
+        # Array
+        result1 = query_agent.vip.rpc.call('platform.tagging',
+            'get_topics_by_tags', or_condition=['campus', 'equip']).get(
+            timeout=10)
+        assert result1 == ['campus1', 'campus1/d1', 'campus1/d2',
+                           'campus2', 'campus2/d1']
+
+        # AND AND OR
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging',
+            'get_topics_by_tags',
+            and_condition={'campus': True,
+                           'geoCountry': "US"},
+            or_condition=['campus', 'equip']).get(timeout=10)
+        assert result1 == ['campus1', 'campus2']
+
+    finally:
+        if hist_id:
+            volttron_instance.remove_agent(hist_id)
+        cleanup_function = globals()["cleanup_" + connection_type]
+        cleanup_function(db_connection, ['topic_tags'])
+
+@pytest.mark.dev
+@pytest.mark.tagging
+def test_topic_by_tags_custom_condition(volttron_instance, tagging_service,
+                                        query_agent):
+    global connection_type, db_connection
+    hist_id = None
+    try:
+
+        # 1. Start historian to get some valid topics in. tagging service
+        # add tag api uses historian to get topic name by pattern
+        hist_config = {"connection":
+                       {"type": "sqlite",
+                        "params": {
+                            "database": volttron_instance.volttron_home +
+                            "/test_platform_historian.sqlite"}}
+
+                       }
+        hist_id = volttron_instance.install_agent(
+            vip_identity='platform.historian',
+            agent_dir='services/core/SQLHistorian', config_file=hist_config,
+            start=True)
+        gevent.sleep(2)
+        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
+                    'message': [
+                        {'p1': 2, 'p2': 2, 'p3': 1, 'p4': 2, 'p5': 2}]}]
+        query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
+            timeout=10)
+        to_send = [{'topic': 'devices/campus1/d1/all', 'headers': headers,
+                    'message': [
+                        {'p1': 2, 'p2': 2, 'p3': 1, 'p4': 2, 'p5': 2}]}]
+        query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
+            timeout=10)
+
+        to_send = [{'topic': 'devices/campus2/d1/all', 'headers': headers,
+                    'message': [
+                        {'p1': 2, 'p2': 2, 'p3': 1, 'p4': 2, 'p5': 2}]}]
+        query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
+            timeout=10)
+        gevent.sleep(2)
+
+        # 2. Add tags to topics and topic_prefix that can be used for queries
+        query_agent.vip.rpc.call(
+            'platform.tagging', 'add_topic_tags', topic_prefix='campus1',
+            tags={'campus': True, 'dis': "Test description",
+                  "geoCountry": "US"}).get(timeout=10)
+
+        query_agent.vip.rpc.call(
+            'platform.tagging', 'add_topic_tags', topic_prefix='campus2',
+            tags={'campus': True, "geoCountry": "UK"}).get(timeout=10)
+
+        query_agent.vip.rpc.call(
+            'platform.tagging', 'add_tags',
+            tags={
+                'campus.*/d.*/p1': {'point': True, 'maxVal': 15, 'minVal': -1},
+                'campus.*/d.*/p2': {'point': True, 'maxVal': 10, 'minVal': 0,
+                                    'dis': "Test description"},
+                'campus.*/d.*/p3': {'point': True, 'maxVal': 5, 'minVal': 1,
+                                    'dis': "Test description"},
+                'campus.*/d1': {'equip': True, 'elec': True, 'phase': 'p1_1',
+                                'dis': "Test description"},
+                'campus.*/d2': {'equip': True, 'elec': True,
+                                'phase': 'p2'}}).get(timeout=10)
+
+        query_agent.vip.rpc.call('platform.tagging', 'add_topic_tags',
+                                 topic_prefix='campus2/d1',
+                                 tags={'phase': "p1_2"}).get(timeout=10)
+        gevent.sleep(2)
+
+        # 3. Query topic prefix by tags
+        # Simple AND
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging', 'get_topics_by_tags',
+            condition="campus AND geoCountry='US'").get(timeout=10)
+        print ("Results of simple AND query: {} ".format(result1))
+        assert len(result1) == 1
+        assert result1[0] == 'campus1'
+
+        # AND and OR precedence
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging', 'get_topics_by_tags',
+            condition='minVal<0 OR maxVal>=5 AND maxVal<10').get(timeout=10)
+        print ("Results of AND and OR query: {} ".format(result1))
+        assert len(result1) == 6
+        # Check  default order
+        assert result1 == ['campus1/d1/p1', 'campus1/d1/p3', 'campus1/d2/p1',
+                           'campus1/d2/p3', 'campus2/d1/p1', 'campus2/d1/p3']
+
+        # Change precedence with parenthesis
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging', 'get_topics_by_tags',
+            condition='(minVal<0 OR maxVal>=5) AND maxVal<10').get(timeout=10)
+        print ("Results of AND and OR query with parenthesis: {} ".format(
+            result1))
+        assert len(result1) == 3
+        assert result1 == ['campus1/d1/p3', 'campus1/d2/p3', 'campus2/d1/p3']
+
+        # Verify skip, count and order
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging', 'get_topics_by_tags',
+            condition='(minVal<0 OR maxVal>=5) AND maxVal<10', skip=1,
+            count=2, order="LAST_TO_FIRST").get(timeout=10)
+        print("Results of query with skip and count: {}".format(result1))
+        assert result1 == ['campus1/d2/p3', 'campus1/d1/p3']
+
+        # Verify NOT
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging', 'get_topics_by_tags',
+            condition='NOT campus AND NOT point AND dis="Test '
+                      'description"').get(timeout=10)
+        print("Results of NOT query1: {}".format(result1))
+        assert result1 == ['campus1/d1', 'campus2/d1']
+
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging', 'get_topics_by_tags',
+            condition='point AND NOT(maxVal>=5 AND minVal=1)').get(timeout=10)
+        print("Results of NOT query2: {}".format(result1))
+        assert result1 == ['campus1/d1/p1', 'campus1/d1/p2', 'campus1/d2/p1',
+                           'campus1/d2/p2', 'campus2/d1/p1', 'campus2/d1/p2']
+
+        # Verify unary minus
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging', 'get_topics_by_tags',
+            condition='minVal=-1').get(timeout=10)
+        print("Results of unary minus query: {}".format(result1))
+        assert result1 == ['campus1/d1/p1', 'campus1/d2/p1', 'campus2/d1/p1']
+
+        # Verify LIKE
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging',
+            'get_topics_by_tags',
+            condition='equip AND phase LIKE "p1.*"').get(timeout=10)
+        print("Results of LIKE query: {}".format(result1))
+        assert result1 == ['campus1/d1', 'campus2/d1']
+
+        # NOT LIKE
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging',
+            'get_topics_by_tags',
+            condition='equip AND NOT (phase LIKE "p1.*")').get(timeout=10)
+        print("Result of NOT LIKE query: {}".format(result1))
+        assert result1 == ['campus1/d2']
+
+        # NOT LIKE
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging', 'get_topics_by_tags',
+            condition='equip AND phase="p2"').get(timeout=10)
+        print("Result of string = query: {}".format(result1))
+        assert result1 == ['campus1/d2']
+
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging', 'get_topics_by_tags',
+            condition="equip AND phase='p2'").get(timeout=10)
+        print("Result of string = query: {}".format(result1))
+        assert result1 == ['campus1/d2']
+
+    finally:
+        if hist_id:
+            volttron_instance.remove_agent(hist_id)
+        cleanup_function = globals()["cleanup_" + connection_type]
+        cleanup_function(db_connection, ['topic_tags'])
 
 
+@pytest.mark.dev
+@pytest.mark.tagging
+def test_topic_by_tags_condition_errors(volttron_instance, tagging_service,
+                                        query_agent):
+    # Invalid tag name
+    try:
+        query_agent.vip.rpc.call(
+            'platform.tagging', 'get_topics_by_tags',
+            condition='minValue<0 OR maxVal>=5').get(timeout=10)
+        pytest.fail("Expected value error. Got none")
+    except RemoteError as e:
+        assert e.message == 'Invalid tag minValue at line number 1 and ' \
+                            'column number 0'
+        assert e.exc_info['exc_type'] == 'ValueError'
 
+    # Missing parenthesis
+    try:
+        query_agent.vip.rpc.call(
+            'platform.tagging', 'get_topics_by_tags',
+            condition='(equip OR ahu AND maxVal<10').get(timeout=10)
+        pytest.fail("Expected value error. Got none")
+    except RemoteError as e:
+        pass
 
-
-
+    # Invalid type after LIKE
+    try:
+        query_agent.vip.rpc.call('platform.tagging', 'get_topics_by_tags',
+                                 condition='maxVal like 10').get(timeout=10)
+        pytest.fail("Expected value error. Got none")
+    except Exception as e:
+        assert e.message == 'Syntax error in query condition. ' \
+                            'Invalid token 10 at line ' \
+                            'number 1 and column number 12'
+        assert e.exc_info['exc_type'] == 'ValueError'

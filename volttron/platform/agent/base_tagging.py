@@ -63,20 +63,11 @@ from __future__ import absolute_import, print_function
 
 import logging
 
-import sys
 from abc import abstractmethod
-from collections import defaultdict
-from datetime import datetime, timedelta
 
-import pytz
-import re
-from dateutil.parser import parse
-from volttron.platform.agent.utils import process_timestamp, \
-    fix_sqlite3_datetime, get_aware_utc_now, parse_timestamp_string
-from volttron.platform.messaging import topics, headers as headers_mod
-from volttron.platform.vip.agent import *
-from volttron.platform.vip.agent import compat
 from volttron.platform.agent.known_identities import (PLATFORM_HISTORIAN)
+from volttron.platform.agent.utils import fix_sqlite3_datetime
+from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent.errors import Unreachable
 
 try:
@@ -87,8 +78,6 @@ try:
         return ujson.loads(data_string, precise_float=True)
 except ImportError:
     from zmq.utils.jsonapi import dumps, loads
-
-from volttron.platform.agent import utils
 
 _log = logging.getLogger(__name__)
 
@@ -251,28 +240,21 @@ class BaseTaggingService(Agent):
 
     @RPC.export
     def get_topics_by_tags(self, and_condition=None, or_condition=None,
-                           regex_and=None, regex_or=None, condition=None,
-                           skip=0, count=None, order=None):
+                           condition=None, skip=0, count=None, order=None):
         """
         
         :param and_condition: dictionary of tag and its corresponding values 
-        that should be matched using equality operator and combined with AND 
-        condition.only topics that match all the tags in the list would be 
-        returned
-        :param or_condition: dictionary of tag and its corresponding values 
-        that should be matched using equality operator and combined with OR 
-        condition. topics that match any of the tags in the list would be 
-        returned.
-        :param regex_and: dictionary of tag and its corresponding values that 
-        should be matched using a regular expression match and combined with 
-        AND condition. only topics that match all the tags in the list would 
-        be returned
-        :param regex_or: dictionary of tag and its corresponding values that 
-        should be matched using a regular expression match and combined with 
-        OR condition. topics that match any of the tags in the list would be 
-        returned.
-        :param condition: conditional statement to be used for matching tags. 
-        If this parameter is provided the above four parameters are ignored. 
+        that should be matched using equality operator or a list of tags that
+        should exists/be true. Tag conditions are combined with AND condition.
+        Only topics that match all the tags in the list would be returned
+        :param or_condition: dictionary of tag and its corresponding values
+        that should be matched using equality operator or a list tags that
+        should exist/be true. Tag conditions are combined with OR condition.
+        Topics that match any of the tags in the list would be returned.
+        If both and_condition and or_condition are provided then they
+        are combined using AND operator.
+        :param condition: conditional statement to be used for matching tags.
+        If this parameter is provided the above two parameters are ignored.
         The value for this parameter should be an expression that contains one 
         or more query conditions combined together with an "AND" or "OR".
         Query conditions can be grouped together using parenthesis.
@@ -281,7 +263,7 @@ class BaseTaggingService(Agent):
 
         1. <tag name/ parent.tag_name> <binary_operator> <value>
         2. <tag name/ parent.tag_name> 
-        3. <tag name/ parent.tag_name> REGEXP <regular expression within single 
+        3. <tag name/ parent.tag_name> LIKE <regular expression within single
            quotes
         4. the word NOT can be prefixed before any of the above three to negate
            the condition.
@@ -289,7 +271,11 @@ class BaseTaggingService(Agent):
         
           .. code-block:: python
         
-            condition="(tag1 = 1 or tag1 = 2) and not (tag2 < '' and tag2 > '') and tag3 and tag4 REGEXP '^a.*b$'"
+            condition="(tag1 = 1 or tag1 = 2) and (tag2 < '' and tag2 >
+            '') and tag3 and  (tag4 LIKE '^a.*b$')"
+            condition="NOT (tag5='US' OR tag5='UK') AND NOT tag3 AND NOT (tag4
+            LIKE 'a.*')"
+
         :param skip: number of tags to skip. usually used with order
         :param count: limit on the number of tags to return
         :param order: order of result - "FIRST_TO_LAST" or
@@ -308,21 +294,35 @@ class BaseTaggingService(Agent):
         :rtype: list
         """
 
-        if and_condition or or_condition or regex_and or regex_or or condition:
-            self.query_topics_by_tags(and_condition, or_condition,
-                                      regex_and, regex_or, condition, skip,
-                                      count, order)
-        else:
+        if not (and_condition or or_condition or condition):
             raise ValueError("Please provide a valid query criteria using "
                              "one or more of the api parameters(and_condition,"
-                             " or_condition, regex_and, regex_or, condition)")
+                             " or_condition, condition)")
+        if not condition:
+            if and_condition and not isinstance(and_condition, list) and \
+                    not isinstance(and_condition, dict):
+                raise ValueError("Invalid data type ({}) for "
+                                 "param and_condition.  Expecting list or "
+                                 "dict".format(type(and_condition)))
+
+            if or_condition and not isinstance(or_condition, list) and \
+                    not isinstance(or_condition, dict):
+                raise ValueError("Invalid data type ({}) for "
+                                 "param or_condition.  Expecting list or "
+                                 "dict".format(type(or_condition)))
+
+            condition = self.process_and_or_param(and_condition,
+                                                  or_condition)
+
+        ast = parse_query(condition, self.valid_tags)
+        return self.query_topics_by_tags(self, ast=ast, skip=skip, count=count,
+                                         order=order)
 
 
     @abstractmethod
-    def query_topics_by_tags(self, and_condition=None, or_condition=None,
-                             regex_and=None, regex_or=None, condition=None,
-                             skip=0, count=None, order=None):
+    def query_topics_by_tags(self, ast, skip=0, count=None, order=None):
         pass
+
 
     @RPC.export
     def add_topic_tags(self, topic_prefix, tags, update_version=False):
@@ -408,5 +408,386 @@ class BaseTaggingService(Agent):
                 topic_pattern, e.args))
             raise
         return topic_prefixes
+
+    @staticmethod
+    def process_and_or_param(query_and_cond, query_or_cond):
+        """
+        Generates query string based on list/dict objects
+        :param query_and_cond: list/dict of criteria that get combined using
+        AND operator
+        :param query_or_cond: list/dict of criteria that get combined using
+        OR operator
+        :return: generated query string
+        :rtype: str
+        """
+        and_str = None
+        or_str = None
+
+        if query_and_cond:
+            and_dict = query_and_cond
+            _log.debug("and_dict: {}".format(and_dict))
+            if isinstance(query_and_cond, list):
+                and_dict = {key: True for key in query_and_cond}
+                _log.debug("and_dict after loop: {}".format(and_dict))
+            and_str = BaseTaggingService.get_condition_str(and_dict, 'AND')
+            _log.debug("and_str is " + and_str)
+
+        if query_or_cond:
+            or_dict = query_or_cond
+            _log.debug("or_dict: {}".format(or_dict))
+            if isinstance(query_or_cond, list):
+                or_dict = {key: True for key in query_or_cond}
+                _log.debug("or_dict: after loop:{}".format(or_dict))
+            or_str = BaseTaggingService.get_condition_str(or_dict, 'OR')
+
+        condition = None
+        if and_str and or_str:
+            condition = and_str + ' AND ' + or_str
+        elif and_str:
+            condition = and_str
+        elif or_str:
+            condition = or_str
+
+        _log.debug("Query condition generated based on and and or params: "
+                   "{}".format(condition))
+        return condition
+
+    @staticmethod
+    def get_condition_str(condition_dict, operator):
+        where_clause = list()
+        for key in condition_dict:
+            value = condition_dict[key]
+            where_clause.append(str(key))
+            if not isinstance(value, bool):
+                if isinstance(value, str):
+                    where_clause.append("=")
+                    where_clause.append(repr(value))
+                else:
+                    where_clause.append("=")
+                    where_clause.append(str(value))
+            where_clause.append(operator)
+
+        where_clause.pop(-1)
+        return " ".join(where_clause)
+
+
+
+
+'''
+"(tag1 = 1 or tag1 = 2) and not (tag2 < '' and tag2 > '') and tag3 and tag4 LIKE '^a.*b$'"
+
++
+-
+*
+/
+unary - 
+
+=
+!=
+>=
+<=
+>
+<
+LIKE
+
+AND
+OR
+NOT
+
+INTEGER
+FLOATING_POINT
+STRING (single or double-quoted)
+
+
+'''
+
+# Query parser
+import ply.yacc as yacc
+import ply.lex as lex
+
+# Tokens
+
+'''
+()
+uminus
+* / %
++ -
+>= <= > <
+= != not like
+and
+or
+'''
+
+reserved = {'and': 'AND', 'or': 'OR', 'not': 'NOT', 'like': 'LIKE'}
+
+tokens = ['ID', 'NUMBER', 'FPOINT', 'SQUOTE_STRING', 'DQUOTE_STRING','PLUS',
+          'MINUS', 'TIMES', 'DIVIDE', 'MOD', 'EQ', 'GE', 'LE', 'LT', 'GT',
+          'NEQ', 'LPAREN', 'RPAREN'] + list(reserved.values())
+valid_tags = dict()
+
+t_PLUS = r'\+'
+t_MINUS = r'-'
+t_TIMES = r'\*'
+t_DIVIDE = r'/'
+t_MOD = r'\%'
+t_EQ = r'='
+t_NEQ = r'!='
+t_GE = r'>='
+t_LE = r'<='
+t_GT = r'>'
+t_LT = r'<'
+t_LPAREN = r'\('
+t_RPAREN = r'\)'
+
+
+# ignored characters
+t_ignore = ' \t'
+
+
+def t_ID(t):
+    r'[a-zA-Z_][a-zA-Z_0-9]*'
+    t.type = reserved.get(t.value.lower(), 'ID')  # Check for reserved words
+    global valid_tags
+    if valid_tags and t.type == 'ID':
+        if not valid_tags.has_key(t.value):
+            raise ValueError("Invalid tag {} at line number {} and column "
+                             "number {}".format(t.value, t.lineno, t.lexpos))
+    return t
+
+# TODO - find the right regex for single or double quote string.
+# r'([\'\"])([^\\\n]|(\\.))*?\1' does not work.
+def t_SQUOTE_STRING(t):
+    r'\'([^\\\n]|(\\.))*?\''
+    return t
+
+def t_DQUOTE_STRING(t):
+    r'\"([^\\\n]|(\\.))*?\"'
+    return t
+
+
+def t_FPOINT(t):
+    '[-+]?\d+(\.(\d+)?([eE][-+]?\d+)?|[eE][-+]?\d+)'
+    try:
+        t.value = float(t.value)
+        pass
+    except ValueError:
+        raise ValueError("Floating point conversion error for %d", t.value)
+    return t
+
+
+def t_NUMBER(t):
+    r'(-)?\d+'
+    try:
+        t.value = int(t.value)
+        pass
+    except ValueError:
+        raise ValueError("Integer value too large: %d", t.value)
+    return t
+
+
+def t_newline(t):
+    r'\n+'
+    t.lexer.lineno += t.value.count("\n")
+
+
+def t_error(t):
+    raise ValueError("Illegal character '%s'" % t.value[0])
+    #t.lexer.skip(1)
+
+
+# Parsing rules
+'''
+()
+uminus
+* / %
++ -
+>= <= > <
+= != not like
+and
+or
+'''
+
+precedence = (
+    ('left', 'OR'), ('left', 'AND'), ('left', 'EQ', 'NEQ', 'NOT', 'LIKE'),
+    ('left', 'GT', 'LT', 'GE', 'LE'), ('left', 'PLUS', 'MINUS'),
+    ('left', 'TIMES', 'DIVIDE', 'MOD'), ('right', 'UMINUS'),
+    ('left', 'PAREN'),)
+
+
+def p_clause(p):
+    r'clause : bool_expr'
+    p[0] = p[1]
+
+
+def p_clause_error(p):
+    r'clause : error'
+    raise ValueError("Syntax error in query condition. Line number %d and "
+                     "column number %d" % (p.lineno(1), p.lexpos(1)))
+
+
+def p_bool_expr_id(p):
+    r'bool_expr : ID'
+    #p[0] = p[1]
+    p[0] = ('=', p[1], True)
+
+
+def p_bool_expr_eq(p):
+    r'bool_expr : ID EQ expr'
+    p[0] = ('=', p[1], p[3])
+
+
+def p_bool_expr_neq(p):
+    r'bool_expr : ID NEQ expr'
+    p[0] = ('!=', p[1], p[3])
+
+
+def p_bool_expr_like1(p):
+    r'bool_expr : ID LIKE SQUOTE_STRING'
+    p[0] = ('LIKE', p[1], p[3][1:-1])
+
+def p_bool_expr_like2(p):
+    r'bool_expr : ID LIKE DQUOTE_STRING'
+    p[0] = ('LIKE', p[1], p[3][1:-1])
+
+
+def p_bool_expr_gt(p):
+    r'bool_expr : ID GT expr'
+    p[0] = ('>', p[1], p[3])
+
+
+def p_bool_expr_ge(p):
+    r'bool_expr : ID GE expr'
+    p[0] = ('>=', p[1], p[3])
+
+
+def p_bool_expr_lt(p):
+    r'bool_expr : ID LT expr'
+    p[0] = ('<', p[1], p[3])
+
+
+def p_bool_expr_le(p):
+    r'bool_expr : ID LE expr'
+    p[0] = ('<=', p[1], p[3])
+
+
+def p_bool_expr_not(p):
+    r'bool_expr : NOT bool_expr'
+    p[0] = ('NOT', '', p[2])
+
+
+def p_bool_expr_or(p):
+    r'bool_expr : bool_expr OR bool_expr'
+    p[0] = ('OR', p[1], p[3])
+
+
+def p_bool_expr_and(p):
+    r'bool_expr : bool_expr AND bool_expr'
+    p[0] = ('AND', p[1], p[3])
+
+
+def p_bool_expr_paren(p):
+    r'bool_expr : LPAREN bool_expr RPAREN %prec PAREN'
+    p[0] = p[2]
+
+
+def p_expr_minus(p):
+    r'expr : expr MINUS expr'
+    p[0] = ('-', p[1], p[3])
+
+
+def p_expr_plus(p):
+    r'expr : expr PLUS expr'
+    p[0] = ('+', p[1], p[3])
+
+
+def p_expr_times(p):
+    r'expr : expr TIMES expr'
+    p[0] = ('*', p[1], p[3])
+
+
+def p_expr_div(p):
+    r'expr : expr DIVIDE expr'
+    p[0] = ('/', p[1], p[3])
+
+
+def p_expr_mod(p):
+    r'expr : expr MOD expr'
+    p[0] = ('%', p[1], p[3])
+
+
+def p_expr_uminus(p):
+    r'expr : MINUS expr %prec UMINUS'
+    p[0] = ('*', '-1', p[2])
+
+
+def p_expr_paren(p):
+    r'expr : LPAREN expr RPAREN %prec PAREN'
+    p[0] = p[2]
+
+
+def p_expr_number(p):
+    r'expr : NUMBER'
+    p[0] = p[1]
+
+
+def p_expr_fp(p):
+    r'expr : FPOINT'
+    p[0] = p[1]
+
+
+def p_expr_single_quote_string(p):
+    r'expr : SQUOTE_STRING'
+    p[0] = p[1][1:-1]
+
+def p_expr_double_quote_string(p):
+    r'expr : DQUOTE_STRING'
+    p[0] = p[1][1:-1]
+
+def p_error(p):
+    raise ValueError("Syntax error in query condition. Invalid token %s "
+                     "at line number %d and column number %d" % (p.value,
+                                                                   p.lineno,
+                                                                   p.lexpos))
+
+
+def pretty_print(tup):
+    if tup is None:
+        return tup
+    if not isinstance(tup, tuple):
+        return tup
+    assert len(tup) == 3
+    left = ""
+    if isinstance(tup[1], str):
+        left = tup[1]
+    else:
+        left = pretty_print(tup[1])
+    right = ""
+    if isinstance(tup[2], str):
+        right = tup[2]
+    else:
+        right = pretty_print(tup[2])
+    assert isinstance(tup[0], str)
+    return "( {} {} {})".format(left, tup[0], right)
+
+
+def parse_query(query, tags):
+    global valid_tags
+    valid_tags = tags
+    query_parser = yacc.yacc()
+    lexer = lex.lex()
+    ast = query_parser.parse(query)
+    return ast
+
+
+if __name__ == "__main__":
+    from volttron.platform.dbutils import mongoutils
+    ast = parse_query('tag1 AND tag2 AND tag3 OR tag4',
+                {'tag1': 'str', 'tag2': 'str', 'tag3': 'str','tag4': 'str'})
+    ast = parse_query("geoCountry = 'US' AND campus",
+                      {"geoCountry":"str","campus":'str'})
+    print(pretty_print(ast))
+    c = mongoutils.get_mongo_query_condition(ast)
+    print(c)
+
 
 

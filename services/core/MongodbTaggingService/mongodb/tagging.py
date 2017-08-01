@@ -61,25 +61,23 @@ import logging
 import sys
 from collections import OrderedDict
 
+import pymongo
 import re
 from pkg_resources import resource_string, resource_exists
-
-import pymongo
-from pymongo import ReplaceOne
-from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_tagging import BaseTaggingService
-from volttron.utils.docs import doc_inherit
 from volttron.platform.dbutils import mongoutils
-from volttron.platform.messaging.health import (STATUS_BAD,
-                                                STATUS_GOOD, Status)
+from volttron.platform.messaging.health import (STATUS_BAD, Status)
+from volttron.utils.docs import doc_inherit
+
 __version__ = "1.0"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 TAGGING_SERVICE_SETUP_FAILED = 'TAGGING_SERVICE_SETUP_FAILED'
+
 
 def tagging_service(config_path, **kwargs):
     """
@@ -464,10 +462,28 @@ class MongodbTaggingService(BaseTaggingService):
 
         return results
 
-    def query_topics_by_tags(self, and_condition=None, or_condition=None,
-                             regex_and=None, regex_or=None, condition=None,
-                             skip=0, count=None, order=None):
-        pass
+    def query_topics_by_tags(self, ast, skip=0, count=None, order=None):
+
+        if count is None:
+            count = 100
+        skip_count = 0
+        if skip > 0:
+            skip_count = skip
+        order_by = 1
+        if order == 'LAST_TO_FIRST':
+            order_by = -1
+
+        find_cond = mongoutils.get_mongo_query_condition(ast)
+
+        _log.debug("condition: {}".format(find_cond))
+        db = self._client.get_default_database()
+        cursor = db[self.topic_tags_collection].find(find_cond, ['_id'])
+        cursor = cursor.skip(skip_count).limit(count)
+        cursor = cursor.sort([("_id", order_by)])
+        topic_prefix = [(row['_id']) for row in cursor]
+        return topic_prefix
+
+
 
 def main(argv=sys.argv):
     """ Main entry point for the agent.

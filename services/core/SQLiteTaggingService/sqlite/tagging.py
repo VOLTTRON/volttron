@@ -516,10 +516,41 @@ class SQLiteTaggingService(BaseTaggingService):
             self.sqlite_utils.commit()
         return result
 
-    def query_topics_by_tags(self, and_condition=None, or_condition=None,
-                             regex_and=None, regex_or=None, condition=None,
-                             skip=0, count=None, order=None):
-        pass
+    def query_topics_by_tags(self, ast, skip=0, count=None, order=None):
+
+        query = self.get_sqlite_query_condition(ast)
+
+        order_by = 'ORDER BY topic_prefix ASC'
+        if order == 'LAST_TO_FIRST':
+            order_by = ' ORDER BY topic_prefix DESC'
+
+        # can't have an offset without a limit
+        # -1 = no limit and allows the user to
+        # provide just an offset
+        if count is None:
+            count = -1
+
+        limit_statement = 'LIMIT ' + str(count)
+
+        offset_statement = ''
+        if skip > 0:
+            offset_statement = 'OFFSET ' + str(skip)
+
+        real_query = query + order_by + limit_statement + offset_statement
+
+        _log.debug("Real Query: " + real_query)
+        return self.sqlite_utils.select(query, fetch_all=True)
+
+def get_sqlite_query_condition(self, ast):
+    """
+    Get a query condition syntax tree and generate sqlite query to query
+    topic names by tags
+    :param self:
+    :param ast: parsed query string (abstract syntax tree)
+    :return: sqlite query's where condition
+    :rtype str
+    """
+    return ""
 
 def main(argv=sys.argv):
     """ Main entry point for the agent.

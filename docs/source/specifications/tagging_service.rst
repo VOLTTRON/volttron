@@ -107,34 +107,34 @@ rpc call to tagging service method **'get_topics_by_tags'** with the one or
 more of the following parameters
 
     1. **and_condition** - dictionary of tag and its corresponding values that
-       should be matched using equality operator and combined with AND condition.
-       only topics that match all the tags in the list would be returned
+       should be matched using equality operator or a list of tags that should
+       exists/be true. Tag conditions are combined with AND condition. Only
+       topics that match all the tags in the list would be returned
     2. **or_condition** -  dictionary of tag and its corresponding values that
-       should be matched using equality operator and combined with OR condition.
-       topics that match any of the tags in the list would be returned.
-    3. **regex_and** - dictionary of tag and its corresponding values that should be
-       matched using a regular expression match and combined with AND condition.
-       only topics that match all the tags in the list would be returned
-    4. **regex_or** -  dictionary of tag and its corresponding values that should be
-       matched using a regular expression match and combined with OR condition.
-       topics that match any of the tags in the list would be returned.
-    5. **condition** - conditional statement to be used for matching tags. If this
-       parameter is provided the above four parameters are ignored. The value
-       for this parameter should be an expression that contains one or more
-       query conditions combined together with an "AND" or "OR".
+       should be matched using equality operator or a list tags that should
+       exist/be true. Tag conditions are combined with OR condition.
+       Topics that match any of the tags in the list would be returned.
+       If both **and_condition** and **or_condition** are provided then they
+       are combined using AND operator.
+    3. **condition** - conditional statement to be used for matching tags. If
+       this parameter is provided the above two parameters are ignored. The
+       value for this parameter should be an expression that contains one or
+       more query conditions combined together with an "AND" or "OR".
        Query conditions can be grouped together using parenthesis.
        Each condition in the expression should conform to one of the following format:
 
        1. <tag name/ parent.tag_name> <binary_operator> <value>
        2. <tag name/ parent.tag_name>
-       3. <tag name/ parent.tag_name> REGEXP <regular expression within single quotes
+       3. <tag name/ parent.tag_name> LIKE <regular expression within single quotes
        4. the word NOT can be prefixed before any of the above three to negate
           the condition.
-       5. expressions can be grouped with parenthesis. For example
+       5. expressions can be grouped with parenthesis.
+
+       For example
 
           .. code-block:: python
 
-            condition="(tag1 = 1 or tag1 = 2) and not (tag2 < '' and tag2 > '') and tag3 and tag4 REGEXP '^a.*b$'"
+            condition="tag1 = 1 and not (tag2 < '' and tag2 > '') and tag3 and NOT tag4 LIKE '^a.*b$'"
 
     6. **skip** - number of topics to skip. this parameter along with count can be
        used for paginating results
