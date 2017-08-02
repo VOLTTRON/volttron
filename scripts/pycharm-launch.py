@@ -20,6 +20,8 @@ import argparse
 import sys
 import os
 import runpy
+import subprocess
+import json
 
 __author__ = 'Craig Allwardt<craig.allwardt@pnnl.gov>'
 __version__ = '1.0.0'
@@ -57,4 +59,51 @@ if not os.environ.get('AGENT_CONFIG'):
                          'put a config file in the root of the agent dir.')
         sys.exit()
     os.environ['AGENT_CONFIG'] = os.path.join(abspath, 'config')
+
+volttron_home = os.environ.get('VOLTTRON_HOME')
+
+if not volttron_home:
+    os.environ['VOLTTRON_HOME'] = os.path.join(os.path.expandvars("~"), '.volttron')
+
+# Now register the
+agent_identity = os.environ.get('AGENT_VIP_IDENTITY')
+if agent_identity:
+    new_dir = os.path.join(volttron_home, 'keystores', agent_identity)
+    if not os.path.exists(new_dir):
+        os.makedirs(new_dir)
+        try:
+            output = subprocess.check_output(['vctl', 'auth', 'keypair'],
+                                             env=os.environ.copy())
+        except subprocess.CalledProcessError:
+            sys.stderr.write("Couldn't get key pair for identity: {}\n".format(
+                agent_identity
+            ))
+            sys.stderr.write("Call was:\n\tvctl auth keypair\n")
+            sys.stderr.write("Your environment might not be setup correctly!")
+            os.rmdir(new_dir)
+            sys.exit(20)
+        else:
+            keystore_file = os.path.join(new_dir, "keystore.json")
+            json_obj = json.loads(output)
+            with open(keystore_file, 'w') as fout:
+                fout.write(output)
+
+        pubkey = json_obj['public']
+        try:
+            params = ['vctl', 'auth', 'add',
+                      '--credentials', "{}".format(pubkey),
+                      '--user_id', "{}".format(agent_identity),
+                      '--comments', "Added from pycharm-launch.py script."
+                      ]
+            output = subprocess.check_output(params, env=os.environ.copy())
+        except subprocess.CalledProcessError as e:
+            os.rmdir(new_dir)
+            sys.stderr.write(e.message)
+            sys.stderr.write("Couldn't authenticate agent id: {}\n".format(
+                agent_identity
+            ))
+            sys.stderr.write("Call was: {}\n".format(params))
+            sys.stderr.write("Your environment might not be setup correctly!")
+            sys.exit(20)
+
 runpy.run_module(mod_name, run_name="__main__")
