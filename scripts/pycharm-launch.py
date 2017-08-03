@@ -17,6 +17,7 @@ the script input box select scripts/pycharm-launcy.py.  In the script parameters
 input box put services/core/VolttronCentral/volttroncentral/agent.py.
 """
 import argparse
+import string
 import sys
 import os
 import runpy
@@ -71,6 +72,14 @@ agent_identity = os.environ.get('AGENT_VIP_IDENTITY')
 if not agent_identity:
     sys.stderr.write("AGENT_VIP_IDENTITY MUST be set in environment\n")
     sys.exit(10)
+
+valid_chars = "_.%s%s" % (string.ascii_letters, string.digits)
+
+for c in agent_identity:
+    if c not in valid_chars:
+        sys.stderr.write("Invalid character found in AGENT_VIP_IDENTITY\n")
+        sys.stderr.write("Valid characters are:\n\t{}".format(valid_chars))
+        sys.exit(10)
 
 if agent_identity:
     new_dir = os.path.join(volttron_home, 'keystores', agent_identity)
