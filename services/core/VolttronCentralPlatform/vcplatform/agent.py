@@ -116,21 +116,35 @@ RegistrationStates = Enum('AgentStates',
                                'Registering')
 
 
+def vcp_init(config_path, **kwargs):
+
+    config = utils.load_config(config_path)
+
+    reconnect_interval = config.get(
+            'volttron-central-reconnect-interval', 5)
+    vc_address = config.get('volttron-central-address')
+    vc_serverkey = config.get('volttron-central-serverkey')
+    instance_name = config.get('instance-name')
+    stats_publish_interval = config.get('stats-publish-interval', 30)
+    topic_replace_map = config.get('topic-replace-map', {})
+
+    return VolttronCentralPlatform(reconnect_interval=reconnect_interval,
+                                   vc_address=vc_address,
+                                   vc_serverkey=vc_serverkey,
+                                   instance_name=instance_name,
+                                   stats_publish_interval=stats_publish_interval,
+                                   topic_replace_map=topic_replace_map,
+                                   **kwargs)
+
+
 class VolttronCentralPlatform(Agent):
     __name__ = 'VolttronCentralPlatform'
 
-    def __init__(self, config_path, **kwargs):
+    def __init__(self, reconnect_interval, vc_address,
+                 vc_serverkey, instance_name, stats_publish_interval,
+                 topic_replace_map, **kwargs):
         super(VolttronCentralPlatform, self).__init__(**kwargs)
 
-        config = utils.load_config(config_path)
-
-        vc_reconnect_interval = config.get(
-            'volttron-central-reconnect-interval', 5)
-        vc_address = config.get('volttron-central-address')
-        vc_serverkey = config.get('volttron-central-serverkey')
-        instance_name = config.get('instance-name')
-        stats_publish_interval = config.get('stats-publish-interval', 30)
-        topic_replace_map = config.get('topic-replace-map', {})
 
         # This is scheduled after first call to the reconnect function
         self._scheduled_connection_event = None
@@ -139,14 +153,12 @@ class VolttronCentralPlatform(Agent):
         # default_configuration is what is specified if there isn't a "config"
         # sent in through the volttron-ctl config store command.
         self.default_config = dict(
-            volttron_central_reconnect_interval=vc_reconnect_interval,
-            volttron_central_address=vc_address,
-            volttron_central_serverkey=vc_serverkey,
+            reconnect_interval=reconnect_interval,
+            vc_address=vc_address,
+            vc_serverkey=vc_serverkey,
             instance_name=instance_name,
             stats_publish_interval=stats_publish_interval,
-            topic_replace_map=topic_replace_map,
-            local_serverkey=None,
-            local_external_addresses=None
+            topic_replace_map=topic_replace_map
         )
 
         # current_config can be used an manipulated at runtime, while
@@ -154,10 +166,10 @@ class VolttronCentralPlatform(Agent):
         self.current_config = None
 
         # Start using config store.
-        self.vip.config.set_default("default_config", self.default_config)
+        self.vip.config.set_default("config", self.default_config)
         self.vip.config.subscribe(self._configure_main,
-                                  actions=["NEW", "UPDATE", "DELETE"],
-                                  pattern="default_config")
+                                  actions=["NEW", "UPDATE"],
+                                  pattern="config")
         # self.vip.config.subscribe(self._configure_main,
         #                           actions=["NEW", "UPDATE", "DELETE"],
         #                           pattern="config")
@@ -1132,7 +1144,7 @@ def main(argv=sys.argv):
     :return:
     """
     # utils.vip_main(platform_agent)
-    utils.vip_main(VolttronCentralPlatform, identity=VOLTTRON_CENTRAL_PLATFORM,
+    utils.vip_main(vcp_init, identity=VOLTTRON_CENTRAL_PLATFORM,
                    version=__version__)
 
 
