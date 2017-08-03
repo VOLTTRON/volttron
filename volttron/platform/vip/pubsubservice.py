@@ -91,6 +91,14 @@ _ROUTE_ERRORS = {
     for errnum in [zmq.EHOSTUNREACH, zmq.EAGAIN]
 }
 
+try:
+    import ujson
+    def dumps(data):
+        return ujson.dumps(data, double_precision=15)
+    def loads(data_string):
+        return ujson.loads(data_string, precise_float=True)
+except ImportError:
+    from zmq.utils.jsonapi import dumps, loads
 
 class PubSubService(object):
     def __init__(self, socket, protected_topics, *args, **kwargs):
@@ -169,7 +177,8 @@ class PubSubService(object):
             conn = frames[7].bytes
             if conn == b'connected':
                 data = frames[8].bytes
-                msg = jsonapi.loads(data)
+                #msg = jsonapi.loads(data)
+                msg = loads(data)
                 peer = frames[0].bytes
                 items = msg['subscriptions']
                 assert isinstance(items, dict)
@@ -185,7 +194,8 @@ class PubSubService(object):
             return False
         else:
             data = frames[7].bytes
-            msg = jsonapi.loads(data)
+            #msg = jsonapi.loads(data)
+            msg = loads(data)
             peer = frames[0].bytes
             prefix = msg['prefix']
             bus = msg['bus']
@@ -208,7 +218,8 @@ class PubSubService(object):
             return False
         else:
             data = frames[7].bytes
-            msg = jsonapi.loads(data)
+            #msg = jsonapi.loads(data)
+            msg = loads(data)
             peer = frames[0].bytes
             prefix = msg['prefix']
             bus = msg['bus']
@@ -246,15 +257,18 @@ class PubSubService(object):
             topic = frames[7].bytes
             data = frames[8].bytes
             try:
-                msg = jsonapi.loads(data)
+                #msg = jsonapi.loads(data)
+                msg = loads(data)
                 headers = msg['headers']
                 message = msg['message']
                 bus = ''
                 peer = frames[0].bytes
                 bus = msg['bus']
-                pub_msg = jsonapi.dumps(
-                    dict(sender=peer, bus=bus, headers=headers, message=message)
-                )
+                # pub_msg = jsonapi.dumps(
+                #     dict(sender=peer, bus=bus, headers=headers, message=message)
+                # )
+                pub_msg = dumps(dict(sender=peer, bus=bus, headers=headers, message=message))
+                #self._logger.debug("PLATFORM PUBSUB: Publish msg: {}".format(pub_msg))
                 frames[8] = zmq.Frame(str(pub_msg))
             except ValueError:
                 self._logger.debug("JSON decode error. Invalid character")
@@ -275,7 +289,8 @@ class PubSubService(object):
         results = []
         if len(frames) > 7:
             data = frames[7].bytes
-            msg = jsonapi.loads(data)
+            #msg = jsonapi.loads(data)
+            msg = loads(data)
             peer = frames[0].bytes
             prefix = msg['prefix']
             bus = msg['bus']
@@ -408,7 +423,8 @@ class PubSubService(object):
         if len(frames) > 7:
             data = frames[7].bytes
             try:
-                msg = jsonapi.loads(data)
+                #msg = jsonapi.loads(data)
+                msg = loads(data)
                 self._user_capabilities = msg['capabilities']
             except ValueError:
                 pass
@@ -423,7 +439,8 @@ class PubSubService(object):
         if len(frames) > 7:
             data = frames[7].bytes
             try:
-                msg = jsonapi.loads(data)
+                #msg = jsonapi.loads(data)
+                msg  = loads(data)
                 self._load_protected_topics(msg)
             except ValueError:
                 pass

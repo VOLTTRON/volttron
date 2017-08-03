@@ -477,6 +477,7 @@ def start_volttron_process(opts):
     # Increase open files resource limit to max or 8192 if unlimited
     try:
         soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+
     except OSError:
         _log.exception('error getting open file limits')
     else:
@@ -489,7 +490,8 @@ def start_volttron_process(opts):
             else:
                 _log.debug('open file resource limit increased from %d to %d',
                            soft, limit)
-
+        _log.debug('open file resource limit %d to %d',
+                   soft, hard)
     # Set configuration
     if HAVE_RESTRICTED:
         if opts.verify_agents:
@@ -530,6 +532,7 @@ def start_volttron_process(opts):
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
     zmq.Context.instance()   # DO NOT REMOVE LINE!!
+    zmq.Context.instance().set(zmq.MAX_SOCKETS, 2046)
 
     tracker = Tracker()
     protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')

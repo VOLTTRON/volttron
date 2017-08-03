@@ -136,7 +136,11 @@ class BaseRouter(object):
         sock.tcp_keepalive_idle = 180
         sock.tcp_keepalive_intvl = 20
         sock.tcp_keepalive_cnt = 6
-        sock.set_hwm(2000)
+        # sock.setsockopt(zmq.SNDBUF, 40000)
+        # sock.setsockopt(zmq.RCVBUF, 40000)
+        # sock.set_hwm(60000)
+        sock.set_hwm(6000)
+        _log.debug("ROUTER SENDBUF: {0}, {1}".format(sock.getsockopt(zmq.SNDBUF), sock.getsockopt(zmq.RCVBUF)))
         self.setup()
 
     def stop(self, linger=1):

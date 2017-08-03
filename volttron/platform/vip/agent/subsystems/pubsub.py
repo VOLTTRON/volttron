@@ -86,6 +86,15 @@ max_compatible_version = ''
 #utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+try:
+    import ujson
+    def dumps(data):
+        return ujson.dumps(data, double_precision=15)
+    def loads(data_string):
+        return ujson.loads(data_string, precise_float=True)
+except ImportError:
+    from zmq.utils.jsonapi import dumps, loads
+
 def encode_peer(peer):
     if peer.startswith('\x00'):
         return peer[:1] + b64encode(peer[1:])
@@ -178,9 +187,8 @@ class PubSub(SubsystemBase):
         items = [{bus: subscriptions.keys()
                          for bus, subscriptions in self._my_subscriptions.items()}]
         for subscriptions in items:
-            sync_msg = jsonapi.dumps(
-                        dict(subscriptions=subscriptions)
-                    )
+            #sync_msg = jsonapi.dumps(dict(subscriptions=subscriptions))
+            sync_msg = dumps(dict(subscriptions=subscriptions))
             frames = [b'synchronize', b'connected', sync_msg]
             # For backward compatibility with old pubsub
             if self._send_via_rpc:
@@ -223,7 +231,8 @@ class PubSub(SubsystemBase):
                 kwargs = dict(op='list', prefix=prefix, subscribed=subscribed, reverse=reverse, bus=bus)
                 self._save_parameters(result.ident, **kwargs)
 
-            list_msg = jsonapi.dumps(dict(prefix=prefix, subscribed=subscribed, reverse=reverse, bus=bus))
+            #list_msg = jsonapi.dumps(dict(prefix=prefix, subscribed=subscribed, reverse=reverse, bus=bus))
+            list_msg = dumps(dict(prefix=prefix, subscribed=subscribed, reverse=reverse, bus=bus))
             frames = [b'list', list_msg]
             self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
             return result
@@ -275,7 +284,8 @@ class PubSub(SubsystemBase):
                 self._save_parameters(result.ident, **kwargs)
 
             self._add_subscription(prefix, callback, bus)
-            sub_msg = jsonapi.dumps(dict(prefix=prefix, bus=bus))
+            #sub_msg = jsonapi.dumps(dict(prefix=prefix, bus=bus))
+            sub_msg = dumps(dict(prefix=prefix, bus=bus))
             frames = [b'subscribe', sub_msg]
             self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
             return result
@@ -395,9 +405,11 @@ class PubSub(SubsystemBase):
                 kwargs = dict(op='unsubscribe', prefix=topics, bus=bus)
                 self._save_parameters(result.ident, **kwargs)
 
-            unsub_msg = jsonapi.dumps(
-                dict(prefix=topics, bus=bus)
-            )
+            # unsub_msg = jsonapi.dumps(
+            #     dict(prefix=topics, bus=bus)
+            # )
+            #unsub_msg = jsonapi.dumps(dict(prefix=topics, bus=bus))
+            unsub_msg = dumps(dict(prefix=topics, bus=bus))
             frames = [b'unsubscribe', unsub_msg]
             self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
             return result
@@ -446,7 +458,9 @@ class PubSub(SubsystemBase):
                                                                 headers=headers, message=message)
                 self._save_parameters(result.ident, **kwargs)
 
-            json_msg = jsonapi.dumps(dict(bus=bus, headers=headers, message=message))
+            #json_msg = jsonapi.dumps(dict(bus=bus, headers=headers, message=message))
+            json_msg = dumps(dict(bus=bus, headers=headers, message=message))
+            #_log.debug("AGENT PUBSUB: Publish msg: {}".format(json_msg))
             frames = [zmq.Frame(b'publish'), zmq.Frame(str(topic)), zmq.Frame(str(json_msg))]
             #<recipient, subsystem, args, msg_id, flags>
             self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
@@ -495,7 +509,8 @@ class PubSub(SubsystemBase):
                 data = message.args[2].bytes
             except IndexError:
                 return
-            msg = jsonapi.loads(data)
+            #msg = jsonapi.loads(data)
+            msg = loads(data)
             headers = msg['headers']
             message = msg['message']
             sender = msg['sender']
