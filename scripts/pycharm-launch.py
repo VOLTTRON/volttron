@@ -25,11 +25,13 @@ import subprocess
 import json
 
 __author__ = 'Craig Allwardt<craig.allwardt@pnnl.gov>'
-__version__ = '1.0.0'
+__version__ = '1.2.0'
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument("agent", help="Path to the agent file to be executed.")
+parser.add_argument("-s", "--silence", const=True, dest="silence", nargs="?",
+                    help="Silence the help message.")
 parsed = parser.parse_args()
 
 mod_name = [os.path.basename(parsed.agent)]
@@ -53,6 +55,17 @@ while True:
 mod_name = '.'.join(mod_name)
 mod_name = mod_name[:-3]
 
+
+def write_required_statement(out=sys.stderr):
+    out.write(
+        """Required Environment Variables
+    AGENT_VIP_IDENTITY - Required 
+Optional Environmental Variables
+    AGENT_CONFIG            - Set to <agent directory>/config by default
+    VOLTTRON_HOME           - Set to ~/.volttron by default
+"""
+    )
+
 sys.path.insert(0, abspath)
 if not os.environ.get('AGENT_CONFIG'):
     if not os.path.exists(os.path.join(abspath, 'config')):
@@ -64,7 +77,9 @@ if not os.environ.get('AGENT_CONFIG'):
 volttron_home = os.environ.get('VOLTTRON_HOME')
 
 if not volttron_home:
-    os.environ['VOLTTRON_HOME'] = os.path.join(os.path.expandvars("~"), '.volttron')
+    os.environ['VOLTTRON_HOME'] = os.path.abspath(
+        os.path.join(os.path.expanduser("~"), '.volttron'))
+    volttron_home = os.environ.get('VOLTTRON_HOME')
 
 # Now register the
 agent_identity = os.environ.get('AGENT_VIP_IDENTITY')
@@ -78,7 +93,8 @@ valid_chars = "_.%s%s" % (string.ascii_letters, string.digits)
 for c in agent_identity:
     if c not in valid_chars:
         sys.stderr.write("Invalid character found in AGENT_VIP_IDENTITY\n")
-        sys.stderr.write("Valid characters are:\n\t{}".format(valid_chars))
+        sys.stderr.write("Valid characters are:\n\t{}\n".format(valid_chars))
+        write_required_statement()
         sys.exit(10)
 
 if agent_identity:
@@ -95,6 +111,7 @@ if agent_identity:
             sys.stderr.write("Call was:\n\tvctl auth keypair\n")
             sys.stderr.write("Your environment might not be setup correctly!")
             os.rmdir(new_dir)
+            write_required_statement()
             sys.exit(20)
         else:
             keystore_file = os.path.join(new_dir, "keystore.json")
@@ -106,11 +123,11 @@ if agent_identity:
         try:
             params = ['vctl', 'auth', 'add',
                       '--credentials', "{}".format(pubkey),
-                      '--user_id', "{}".format(agent_identity),
                       '--comments', "Added from pycharm-launch.py script."
                       ]
             output = subprocess.check_output(params, env=os.environ.copy())
         except subprocess.CalledProcessError as e:
+            sys.stderr.write(e.message)
             os.rmdir(new_dir)
             sys.stderr.write(e.message)
             sys.stderr.write("Couldn't authenticate agent id: {}\n".format(
@@ -118,6 +135,11 @@ if agent_identity:
             ))
             sys.stderr.write("Call was: {}\n".format(params))
             sys.stderr.write("Your environment might not be setup correctly!")
+            write_required_statement()
             sys.exit(20)
+
+if not parsed.silence:
+    sys.stdout.write("For your information (-s) to not print this message.")
+    write_required_statement(sys.stdout)
 
 runpy.run_module(mod_name, run_name="__main__")
