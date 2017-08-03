@@ -67,6 +67,11 @@ if not volttron_home:
 
 # Now register the
 agent_identity = os.environ.get('AGENT_VIP_IDENTITY')
+
+if not agent_identity:
+    sys.stderr.write("AGENT_VIP_IDENTITY MUST be set in environment\n")
+    sys.exit(10)
+
 if agent_identity:
     new_dir = os.path.join(volttron_home, 'keystores', agent_identity)
     if not os.path.exists(new_dir):
