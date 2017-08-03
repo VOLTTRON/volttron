@@ -62,7 +62,6 @@ DRIVER_NAME = 'sep2'
 DEVICE_ID = "097935300833"
 
 TEST_CONFIG = {
-    "agentid": "test_sep2agent",
     "devices": [
                     {
                         "sfdi": "097935300833",

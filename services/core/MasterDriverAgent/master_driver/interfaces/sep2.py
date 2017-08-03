@@ -144,12 +144,12 @@ class Interface(BasicRevert, BaseInterface):
         self.sep2_agent_id = DEFAULT_SEP2_AGENT_ID
         self.cache_expiration_secs = DEFAULT_CACHE_EXPIRATION_SECS
 
-    def configure(self, config_dict, registry_config_str):
+    def configure(self, config_dict, registry_config):
         for label, config_val in config_dict.items():
             _log.debug('from config: {} = {}'.format(label, config_val))
             setattr(self, label, config_val)
-        if registry_config_str:
-            for regDef in registry_config_str:
+        if registry_config:
+            for regDef in registry_config:
                 default_value = regDef.get('Starting Value', None)
                 register = SEP2Register(regDef['Writable'].lower() != 'true',
                                         regDef['Volttron Point Name'],

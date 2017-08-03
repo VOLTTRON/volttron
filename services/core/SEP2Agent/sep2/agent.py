@@ -91,15 +91,13 @@ def sep2_agent(config_path, **kwargs):
     if not config:
         _log.info("Using SEP2 Agent defaults for starting configuration.")
 
-    agentid = config.get('agentid', 'SEP2-agent')
     devices = config.get('devices', [])  # To add devices, include them in a config file
     sep2_server_sfdi = config.get('sep2_server_sfdi', 'foo')  # This default should be overridden in config file
     sep2_server_lfdi = config.get('sep2_server_lfdi', 'bar')  # This defauly should be overridden in config file
     load_shed_device_category = config.get('load_shed_device_category', '0020')
     timezone = config.get('timezone', 'America/Los_Angeles')
 
-    return SEP2Agent(agentid,
-                     devices,
+    return SEP2Agent(devices,
                      sep2_server_sfdi,
                      sep2_server_lfdi,
                      load_shed_device_category,
@@ -123,31 +121,28 @@ class SEP2Agent(Agent):
         under specifications/sep2_agent.html.
 
         This agent can be installed as follows:
-            export VIP_SOCKET="ipc://$VOLTTRON_HOME/run/vip.socket"
             export SEP2_ROOT=$VOLTTRON_ROOT/services/core/SEP2Agent
             cd $VOLTTRON_ROOT
             python scripts/install-agent.py -s $SEP2_ROOT -i sep2agent -c $SEP2_ROOT/sep2.config -t sep2agent -f
     """
 
-    def __init__(self, agentid='SEP2-agent', device_config=[], sep2_server_sfdi='foo', sep2_server_lfdi='bar',
+    def __init__(self, device_config=[], sep2_server_sfdi='foo', sep2_server_lfdi='bar',
                  load_shed_device_category='0020', timezone='America/Los_Angeles', **kwargs):
         super(SEP2Agent, self).__init__(enable_web=True, **kwargs)
 
-        self.agentid = agentid
         self.device_config = device_config
         self.sep2_server_sfdi = sep2_server_sfdi
         self.sep2_server_lfdi = sep2_server_lfdi
         self.load_shed_device_category = load_shed_device_category
         self.timezone = timezone
+        self.devices = {}
 
-        self.default_config = {"agentid": agentid,
-                               "device_config": device_config,
+        self.default_config = {"device_config": device_config,
                                "sep2_server_sfdi": sep2_server_sfdi,
                                "sep2_server_lfdi": sep2_server_lfdi,
                                "load_shed_device_category": load_shed_device_category,
                                "timezone": timezone}
-
-        self.devices = {}
+        self.vip.config.set_default("config", self.default_config)
         self.devices = self.register_devices(device_config)
         self.mups = []
 
@@ -158,7 +153,6 @@ class SEP2Agent(Agent):
         config.update(contents)
         _log.debug("Configuring SEP2 Agent")
 
-        self.agentid = config["agentid"]
         self.device_config = config["devices"]
         self.sep2_server_sfdi = config["sep2_server_sfdi"]
         self.sep2_server_lfdi = config["sep2_server_lfdi"]
@@ -319,7 +313,7 @@ class SEP2Agent(Agent):
             end_device_points = {}
             for point in sep2.ALL_POINTS:
                 end_device_points[point] = getattr(end_device, point)
-            return json.dumps(end_device_points)
+            return end_device_points
         except Exception as e:
             raise SEP2Exception(e.message)
 
