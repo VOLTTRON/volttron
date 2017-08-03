@@ -56,35 +56,47 @@
 
 # }}}
 
-import logging
-import gevent
-from volttron.platform.agent import utils
+import pytest
+from volttron.platform.agent.base_market_agent.point import Point
+from volttron.platform.agent.base_market_agent.poly_line import PolyLine
+from volttron.platform.agent.base_market_agent.poly_line_factory import PolyLineFactory
 
-_log = logging.getLogger(__name__)
-utils.setup_logging()
+@pytest.mark.market
+def test_poly_line_combine_supply():
+    supply_curve = create_supply_curve()
+    curves = [supply_curve, supply_curve]
+    combined_curves = PolyLineFactory.combine(curves, 100)
+    assert combined_curves.min_x() == 0
+    assert combined_curves.max_x() == 2000
+    assert combined_curves.min_y() == 0
+    assert combined_curves.max_y() == 1000
 
-class Director(object):
-    def __init__(self, market_period, reservation_delay, offer_delay, clear_delay):
-        _log.debug("Creating Director for MarketServiceAgent")
-        self.market_period = market_period
-        self.reservation_delay = reservation_delay
-        self.offer_delay = offer_delay
-        self.clear_delay = clear_delay
- 
-    def start(self, sender):
-        _log.debug("Starting Director for MarketServiceAgent")
-        self.sender = sender
-        self.sender.core.periodic(self.market_period, self._trigger)
+def test_poly_line_combine_demand():
+    demand_curve = create_demand_curve()
+    curves = [demand_curve, demand_curve]
+    combined_curves = PolyLineFactory.combine(curves, 100)
+    assert combined_curves.min_x() == 0
+    assert combined_curves.max_x() == 2000
+    assert combined_curves.min_y() == 0
+    assert combined_curves.max_y() == 1000
 
-    def _trigger(self):
-        _log.debug("Trigger market period in Director for MarketServiceAgent")
-        gevent.sleep(self.reservation_delay)
-        self.sender.send_collect_reservations_request(self._get_time())
-        gevent.sleep(self.offer_delay)
-        self.sender.send_collect_offers_request(self._get_time())
-        gevent.sleep(self.clear_delay)
-        self.sender.send_clear_request(self._get_time())
 
-    def _get_time(self):
-        now = utils.get_aware_utc_now()
-        return now
+def create_supply_curve():
+    supply_curve = PolyLine()
+    price = 0
+    quantity = 0
+    supply_curve.add(Point(price,quantity))
+    price = 1000
+    quantity = 1000
+    supply_curve.add(Point(price,quantity))
+    return supply_curve
+
+def create_demand_curve():
+    demand_curve = PolyLine()
+    price = 0
+    quantity = 1000
+    demand_curve.add(Point(price,quantity))
+    price = 1000
+    quantity = 0
+    demand_curve.add(Point(price,quantity))
+    return demand_curve

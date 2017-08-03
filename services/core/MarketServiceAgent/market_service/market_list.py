@@ -84,8 +84,8 @@ class MarketList(object):
                                 topic=MARKET_AGGREGATE,
                                 message=aggregate_curve)
 
-    def collect_reservations(self):
-        self.markets.clear
+    def clear_reservations(self):
+        self.markets.clear()
 
     def collect_offers(self):
         for market in self.markets:

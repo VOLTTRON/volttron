@@ -106,36 +106,39 @@ class MarketServiceAgent(Agent):
         self.director.start(self)
 
     def send_collect_reservations_request(self, timestamp):
-        self.market_list.collect_reservations()
+        _log.debug("send_collect_reservations_request")
+        self.market_list.clear_reservations()
         self.vip.pubsub.publish(peer='pubsub',
                                 topic=MARKET_RESERVE,
-                                message=timestamp)
+                                message=utils.format_timestamp(timestamp))
 
     def send_collect_offers_request(self, timestamp):
+        _log.debug("send_collect_offers_request")
         self.market_list.collect_offers()
         self._send_unformed_market_errors(timestamp)
         self.vip.pubsub.publish(peer='pubsub',
                                 topic=MARKET_BID,
-                                message=timestamp)
+                                message=utils.format_timestamp(timestamp))
 
     def send_clear_request(self, timestamp):
+        _log.debug("send_clear_request")
         self.market_list.clear_market()
         self.vip.pubsub.publish(peer='pubsub',
                                 topic=MARKET_CLEAR,
-                                message=timestamp)
-
-    def output(self, message, value, hash, timestamp):
-        print timestamp, message, value
-        return "output done"
+                                message=utils.format_timestamp(timestamp))
 
     @RPC.export
     def make_reservation(self, market_name, buyer_seller):
+        log_message = "Received {0} reservation from {1}".format(buyer_seller, market_name)
+        _log.debug(log_message)
         identity = bytes(self.vip.rpc.context.vip_message.peer)
         participant = MarketParticipant(buyer_seller, identity)
         self.market_list.make_reservation(market_name, participant)
 
     @RPC.export
     def make_offer(self, market_name, buyer_seller, offer):
+        log_message = "Received {0} offer from {1}".format(buyer_seller, market_name)
+        _log.debug(log_message)
         identity = bytes(self.vip.rpc.context.vip_message.peer)
         participant = MarketParticipant(buyer_seller, identity)
         self.market_list.make_offer(market_name, participant, offer)
@@ -143,6 +146,8 @@ class MarketServiceAgent(Agent):
     def _send_unformed_market_errors(self, timestamp):
         unformed_markets = self.market_list.unformed_market_list()
         for market_name in unformed_markets:
+            log_message = "Sent unformed market error for market {0}".format(market_name)
+            _log.debug(log_message)
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=MARKET_ERROR,
                                     message={'timestamp' : timestamp,

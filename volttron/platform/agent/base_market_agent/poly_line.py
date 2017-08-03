@@ -56,7 +56,7 @@
 
 # }}}
 
-from volttron.platform.agent.base_market_agent.point import Point
+import numpy as np
 
 class PolyLine:
     def __init__(self):
@@ -92,6 +92,18 @@ class PolyLine:
             self._min_y = PolyLine.min(self._min_y, point.y)
             self._max_x = PolyLine.max(self._max_x, point.x)
             self._max_y = PolyLine.max(self._max_y, point.y)
+
+    def min_y(self):
+        return self._min_y
+
+    def max_y(self):
+        return self._max_y
+
+    def min_x(self):
+        return self._min_x
+
+    def max_x(self):
+        return self._max_x
 
     @staticmethod
     def min(x1, x2):
@@ -148,3 +160,51 @@ class PolyLine:
                         return PolyLine.segment_intersection((pl_1_1, pl_1_2), (pl_2_1, pl_2_2))
 
         return None, None
+
+    def x(self, y, left=None, right=None):
+        if self.points == None:
+            return None
+        if y is None:
+            return None
+        self.vectorize()
+        # return np.interp(y, self.ys, self.xs) #, right=0.) .. we learned that this gave weird results previously
+        # ascending = self.ys[0]<self.ys[-1]
+        # ys = self.ys if ascending else self.ys[::-1]
+        # xs = self.xs if ascending else self.xs[::-1]
+        r = np.interp(y, self.ysSortedByY, self.xsSortedByY, left=left, right=right)
+        return None if np.isnan(r) else r
+
+    def y(self, x, left=None, right=None):
+        if self.points == None:
+            return None
+        if x is None:
+            return None
+        self.vectorize()
+        # return np.interp(x, self.xs, self.ys) # this probably doesn't work b/c the xs are not neccesarily in the right order...
+        # ascending = self.xs[0]<self.xs[-1]
+        # ys = self.ys if ascending else self.ys[::-1]
+        # xs = self.xs if ascending else self.xs[::-1]
+        r = np.interp(x, self.xs, self.ys, left=left, right=right)
+        return None if np.isnan(r) else r
+
+    # probably replace w/ zip()
+    def vectorize(self):
+        if self.points == None:
+            return None, None
+        if (self.xs == None or self.ys == None):
+            xs = [None] * len(self.points)
+            ys = [None] * len(self.points)
+            c = 0
+            for p in self.points:
+                xs[c] = p.x
+                ys[c] = p.y
+                c += 1
+            self.xs = xs
+            self.ys = ys
+            if self.ys[0] < self.ys[-1]:
+                self.xsSortedByY = self.xs
+                self.ysSortedByY = self.ys
+            else:
+                self.xsSortedByY = self.xs[::-1]
+                self.ysSortedByY = self.ys[::-1]
+        return self.xs, self.ys

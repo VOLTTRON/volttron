@@ -68,7 +68,7 @@ from datetime import datetime
 
 @contextmanager
 def market_agent(volttron_instance, test_id):
-    print ""
+    print("")
     print datetime.now().isoformat() + "Enter " + test_id
     try:
         agent = volttron_instance.build_agent(identity='platform.market',
