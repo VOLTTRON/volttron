@@ -116,15 +116,17 @@ def setup_mongodb(config):
 
 
 def cleanup_sqlite(db_connection, truncate_tables):
-    cursor = db_connection.cursor()
-    for table in truncate_tables:
-        cursor.execute("DELETE FROM " + table)
-    db_connection.commit()
+    # cursor = db_connection.cursor()
+    # for table in truncate_tables:
+    #     cursor.execute("DELETE FROM " + table)
+    # db_connection.commit()
+    pass
+
 
 
 def cleanup_mongodb(db_connection, truncate_tables):
-    # for collection in truncate_tables:
-    # db_connection[collection].remove()
+    for collection in truncate_tables:
+        db_connection[collection].remove()
     pass
 
 
@@ -144,8 +146,10 @@ def query_agent(request, volttron_instance):
 
 
 # Fixtures for setup and teardown of historian agent
-@pytest.fixture(scope="module", params=[  # sqlite_config,
-    pymongo_skipif(mongodb_config)])
+@pytest.fixture(scope="module",
+                params=[sqlite_config,
+                       # pymongo_skipif(mongodb_config)
+                       ])
 def tagging_service(request, volttron_instance):
     global connection_type, db_connection
     connection_type = request.param['connection']['type']
@@ -577,7 +581,7 @@ def test_insert_topic_tags_update(volttron_instance, tagging_service,
         if hist_id:
             volttron_instance.remove_agent(hist_id)
 
-
+@pytest.mark.dev
 @pytest.mark.tagging
 def test_update_topic_tags(volttron_instance, tagging_service, query_agent):
     global connection_type, db_connection
@@ -801,7 +805,7 @@ def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
         cleanup_function = globals()["cleanup_" + connection_type]
         cleanup_function(db_connection, ['topic_tags'])
 
-
+@pytest.mark.dev
 @pytest.mark.tagging
 def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
                                      query_agent):
@@ -1152,20 +1156,6 @@ def test_topic_by_tags_custom_condition(volttron_instance, tagging_service,
             condition='equip AND NOT (phase LIKE "p1.*")').get(timeout=10)
         print("Result of NOT LIKE query: {}".format(result1))
         assert result1 == ['campus1/d2']
-
-        # NOT LIKE
-        result1 = query_agent.vip.rpc.call(
-            'platform.tagging', 'get_topics_by_tags',
-            condition='equip AND phase="p2"').get(timeout=10)
-        print("Result of string = query: {}".format(result1))
-        assert result1 == ['campus1/d2']
-
-        result1 = query_agent.vip.rpc.call(
-            'platform.tagging', 'get_topics_by_tags',
-            condition="equip AND phase='p2'").get(timeout=10)
-        print("Result of string = query: {}".format(result1))
-        assert result1 == ['campus1/d2']
-
     finally:
         if hist_id:
             volttron_instance.remove_agent(hist_id)
@@ -1173,7 +1163,6 @@ def test_topic_by_tags_custom_condition(volttron_instance, tagging_service,
         cleanup_function(db_connection, ['topic_tags'])
 
 
-@pytest.mark.dev
 @pytest.mark.tagging
 def test_topic_by_tags_condition_errors(volttron_instance, tagging_service,
                                         query_agent):

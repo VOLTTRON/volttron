@@ -294,8 +294,8 @@ class SQLiteTaggingService(BaseTaggingService):
     def init_topic_tags(self):
         self.sqlite_utils.execute_stmt(
             "CREATE TABLE {} (topic_prefix TEXT NOT NULL, "
-            "tag VARCHAR NOT "
-            "NULL, value TEXT,"
+            "tag STRING NOT NULL, "
+            "value STRING, "
             "PRIMARY KEY (topic_prefix, tag))".format(
                 self.topic_tags_table, self.tags_table))
         self.sqlite_utils.execute_stmt(
@@ -307,11 +307,11 @@ class SQLiteTaggingService(BaseTaggingService):
                        order="FIRST_TO_LAST"):
 
         query = '''SELECT name, description FROM ''' \
-                + self.categories_table + '''
-                {order_by}
-                {limit}
+                + self.categories_table + ''' 
+                {order_by} 
+                {limit} 
                 {offset}'''
-        order_by = 'ORDER BY name ASC'
+        order_by = ' ORDER BY name ASC'
         if order == 'LAST_TO_FIRST':
             order_by = ' ORDER BY name DESC'
         args = []
@@ -518,11 +518,12 @@ class SQLiteTaggingService(BaseTaggingService):
 
     def query_topics_by_tags(self, ast, skip=0, count=None, order=None):
 
-        query = self.get_sqlite_query_condition(ast)
+        query = self.sqlite_utils.get_tagging_query_from_ast(
+            self.topic_tags_table, ast)
 
-        order_by = 'ORDER BY topic_prefix ASC'
+        order_by = ' \nORDER BY topic_prefix ASC'
         if order == 'LAST_TO_FIRST':
-            order_by = ' ORDER BY topic_prefix DESC'
+            order_by = ' \nORDER BY topic_prefix DESC'
 
         # can't have an offset without a limit
         # -1 = no limit and allows the user to
@@ -530,27 +531,30 @@ class SQLiteTaggingService(BaseTaggingService):
         if count is None:
             count = -1
 
-        limit_statement = 'LIMIT ' + str(count)
+        limit_statement = ' \nLIMIT ' + str(count)
 
         offset_statement = ''
         if skip > 0:
-            offset_statement = 'OFFSET ' + str(skip)
+            offset_statement = ' \nOFFSET ' + str(skip)
 
         real_query = query + order_by + limit_statement + offset_statement
+        _log.debug("#Real Query: \n" + real_query)
+        conn = None
+        cursor = None
+        if "REGEXP" in real_query:
+            cursor, conn = self.sqlite_utils.regex_select(real_query, None,
+                                                          fetch_all=False)
+        else:
+            cursor = self.sqlite_utils.select(real_query, fetch_all=False)
+        result =[]
+        if cursor:
+            result = [r[0] for r in cursor]
+            cursor.close()
+        if conn:
+            conn.close()
+        _log.debug("#Query result: {}".format(result))
+        return result
 
-        _log.debug("Real Query: " + real_query)
-        return self.sqlite_utils.select(query, fetch_all=True)
-
-def get_sqlite_query_condition(self, ast):
-    """
-    Get a query condition syntax tree and generate sqlite query to query
-    topic names by tags
-    :param self:
-    :param ast: parsed query string (abstract syntax tree)
-    :return: sqlite query's where condition
-    :rtype str
-    """
-    return ""
 
 def main(argv=sys.argv):
     """ Main entry point for the agent.

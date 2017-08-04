@@ -473,7 +473,7 @@ class MongodbTaggingService(BaseTaggingService):
         if order == 'LAST_TO_FIRST':
             order_by = -1
 
-        find_cond = mongoutils.get_mongo_query_condition(ast)
+        find_cond = mongoutils.get_tagging_query_from_ast(ast)
 
         _log.debug("condition: {}".format(find_cond))
         db = self._client.get_default_database()

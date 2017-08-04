@@ -388,7 +388,7 @@ class SqlLiteFuncts(DbDriver):
         _log.debug("item {} matched against expr {}".format(item, expr))
         return re.search(expr, item, re.IGNORECASE) is not None
 
-    def regex_select(self, query, args):
+    def regex_select(self, query, args, fetch_all=True):
         conn = None
         cursor = None
         try:
@@ -409,17 +409,21 @@ class SqlLiteFuncts(DbDriver):
             else:
                 _log.debug("executing query")
                 cursor.execute(query)
-            rows = cursor.fetchall()
-            _log.debug("Regex returning {}".format(rows))
-            return rows
+            if fetch_all:
+                rows = cursor.fetchall()
+                _log.debug("Regex returning {}".format(rows))
+                return rows
+            else:
+                return cursor, conn
         except Exception as e:
             _log.error("Exception querying database based on regular "
                        "expression:{}".format(e.args))
         finally:
-            if cursor:
-                cursor.close()
-            if conn:
-                conn.close()
+            if fetch_all:
+                if cursor:
+                    cursor.close()
+                if conn:
+                    conn.close()
 
     def query_topics_by_pattern(self, topic_pattern):
         id_map, name_map = self.get_topic_map()
@@ -520,6 +524,184 @@ class SqlLiteFuncts(DbDriver):
             return 0, 0
 
 
+    @staticmethod
+    def get_tagging_query_from_ast(topic_tags_table, tup):
+        """
+        Get a query condition syntax tree and generate sqlite query to query
+        topic names by tags. It calls the get_compound_query to parse the
+        abstract syntax tree tuples and then fixes the precedence
+
+        Example:
+        # User input query string :
+        campus.geoPostalCode="20500" and equip and boiler and "equip_tag 7" > 4
+
+
+        SELECT topic_prefix from test_topic_tags WHERE tag="campusRef"
+         and value  IN(
+          SELECT topic_prefix from test_topic_tags WHERE tag="campus" and
+          value=1
+          INTERSECT
+          SELECT topic_prefix  from test_topic_tags WHERE tag="dis"  and
+          value="campus description 5227"
+         )
+        INTERSECT
+        SELECT topic_prefix from test_tags WHERE tag="equip" and value=1
+        INTERSECT
+        SELECT topic_prefix from test_tags WHERE tag="boiler" and value=1
+        INTERSECT
+        SELECT topic_prefix from test_tags WHERE tag = "equip_tag 7" and
+        value > 4
+
+        :param topic_tags_table: table to query
+        :param tup: parsed query string (abstract syntax tree)
+        :return: sqlite query
+        :rtype str
+        """
+        return SqlLiteFuncts._get_compound_query(topic_tags_table, tup)
+
+    @staticmethod
+    def _get_compound_query(topic_tags_table, tup, root=True):
+        """
+        Get a query condition syntax tree and generate sqlite query to query
+        topic names by tags
+
+        Example:
+        # User input query string :
+        campus.geoPostalCode="20500" and equip and boiler and "equip_tag 7" > 4
+
+
+        SELECT topic_prefix FROM test_topic_tags WHERE tag="campusRef"
+         and value  IN(
+          SELECT topic_prefix FROM test_topic_tags WHERE tag="campus" and value=1
+          INTERSECT
+          SELECT topic_prefix  FROM test_topic_tags WHERE tag="dis"  and
+          value="campus description 5227"
+         )
+        INTERSECT
+        SELECT topic_prefix FROM test_tags WHERE tag="equip" and value=1
+        INTERSECT
+        SELECT topic_prefix FROM test_tags WHERE tag="boiler" and value=1
+        INTERSECT
+        SELECT topic_prefix FROM test_tags WHERE tag = "equip_tag 7" and value > 4
+
+        :param topic_tags_table: table to query
+        :param tup: parsed query string (abstract syntax tree)
+        :return: sqlite query
+        :rtype str
+        """
+
+        # Instead of using sqlite LIKE operator we use python regular
+        # expression and sqlite REGEXP operator
+        reserved_words = {'and':'INTERSECT', "or":'UNION', 'not':'NOT',
+                          'like':'REGEXP'}
+        prefix = 'SELECT topic_prefix FROM {} WHERE '.format(topic_tags_table)
+        _log.debug("In get sqlite query condition. tup: {}".format(tup))
+
+        if tup is None:
+            return tup
+        if not isinstance(tup[1], tuple):
+            left = repr(tup[1]) # quote the tag
+        else:
+            left = SqlLiteFuncts._get_compound_query(topic_tags_table,
+                                                     tup[1],
+                                                     False)
+        if not isinstance(tup[2], tuple):
+            if isinstance(tup[2],str):
+                right = repr(tup[2])
+            elif isinstance(tup[2],bool):
+                right = 1 if tup[2] else 0
+            else:
+                right = tup[2]
+        else:
+            right = SqlLiteFuncts._get_compound_query(topic_tags_table,
+                                                      tup[2],
+                                                      False)
+
+        assert isinstance(tup[0], str)
+        lower_tup0 = tup[0].lower()
+        operator = lower_tup0
+        if reserved_words.has_key(lower_tup0):
+            operator = reserved_words[lower_tup0]
+
+        query = ""
+        if operator == 'NOT':
+            return SqlLiteFuncts._negate_condition(right, topic_tags_table)
+        elif operator == 'INTERSECT' or operator == 'UNION':
+            if root:
+                query = "{left}\n{operator}\n{right}".format(left=left,
+                                                             operator=operator,
+                                                             right=right)
+            else:
+                query = 'SELECT topic_prefix FROM ({left} \n{operator}\n{' \
+                        'right})'.format(
+                    left=left, operator=operator, right=right)
+        else:
+            query = "{prefix} tag={tag} AND value {operator} {value}".format(
+                prefix=prefix, tag=left, operator=operator, value=right)
+
+        _log.debug("In get sqlite query condition. returning: {}".format(query))
+        return query
+
+    @staticmethod
+    def _negate_condition(condition, table_name):
+        """
+        change NOT(bool_expr AND bool_expr) to NOT(bool_expr) OR NOT(bool_expr)
+        recursively. In sqlite syntax:
+        TO negate the following sql query:
+
+        SELECT * FROM
+          (SELECT * FROM
+            (SELECT topic_prefix FROM topic_tags WHERE  tag='tag3' AND value > 1
+            INTERSECT
+            SELECT topic_prefix FROM topic_tags WHERE  tag='tag2' AND value > 2)
+          UNION
+          SELECT topic_prefix FROM topic_tags WHERE  tag='tag4' AND value < 2)
+
+        We have to change it to:
+
+        SELECT * FROM
+          (SELECT * FROM
+            (SELECT topic_prefix FROM topic_tags WHERE topic_prefix NOT IN
+              (SELECT topic_prefix FROM topic_tags WHERE tag='tag3' AND
+                value > 1)
+            UNION
+            SELECT topic_prefix FROM topic_tags WHERE topic_prefix NOT IN
+             (SELECT topic_prefix FROM topic_tags WHERE  tag='tag2' AND
+                value > 2))
+          INTERSECT
+          SELECT topic_prefix FROM topic_tags WHERE topic_prefix NOT IN(
+            SELECT topic_prefix FROM topic_tags WHERE  tag='tag4' AND
+             value < 2))
+
+        :param condition: select query that needs to be negated. It could be a
+        compound query.
+        :return: negated select query
+        :rtype str
+        """
+
+        _log.debug("Query condition to negate: {}".format(condition))
+        # Change and to or and or to and
+        condition = condition.replace('INTERSECT\n', 'UNION_1\n')
+        condition = condition.replace('UNION\n', 'INTERSECT\n')
+        condition = condition.replace('UNION_1\n', 'UNION\n')
+        # Now negate all SELECT... value<operator><value> with
+        # SELECT topic_prefix FROM topic_tags WHERE topic_prefix NOT IN (
+        #     SELECT....value<operator><value>)
+
+        search_pattern = r'(SELECT\s+topic_prefix\s+FROM\s+' + table_name + \
+                         r'\s+WHERE\s+tag=\'.*\'\s+AND\s+value.*($|\n))'
+
+        replace_pattern = r'SELECT topic_prefix FROM ' + table_name + \
+                          r' WHERE topic_prefix NOT IN (\1)\2'
+        c = re.search(search_pattern, condition)
+        condition = re.sub(search_pattern,
+                           replace_pattern,
+                           condition,
+                           flags=re.I
+                           )
+        _log.debug("Condition after negation: {}".format(condition))
+        return condition
+
 if __name__ == '__main__':
     con = {
         "database": '/tmp/tmpgLzWr3/historian.sqlite'
@@ -530,7 +712,6 @@ if __name__ == '__main__':
         "topics_table": "topics_table",
         "meta_table": "meta_table"
     }
-
     functs = SqlLiteFuncts(con, tables_def)
     functs.collect_aggregate('device1/in_temp',
                              'sum',

@@ -97,21 +97,21 @@ def get_agg_topics(client, agg_topics_collection, agg_meta_collection):
     return agg_topics
 
 
-def get_mongo_query_condition(tup):
+def get_tagging_query_from_ast(tup):
     mongo_operators = {'and': "$and", "or": "$or", 'not': '$not',
                        'like': '$regex'}
-    _log.debug("In get mongo query condition. tup: {}".format(tup))
+    #_log.debug("In get mongo query condition. tup: {}".format(tup))
     condition = dict()
     if tup is None:
         return tup
     if not isinstance(tup[1], tuple):
         left = tup[1]
     else:
-        left = get_mongo_query_condition(tup[1])
+        left = get_tagging_query_from_ast(tup[1])
     if not isinstance(tup[2], tuple):
         right = tup[2]
     else:
-        right = get_mongo_query_condition(tup[2])
+        right = get_tagging_query_from_ast(tup[2])
 
     assert isinstance(tup[0], str)
     lower_tup0 = tup[0].lower()

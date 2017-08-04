@@ -315,7 +315,7 @@ class BaseTaggingService(Agent):
                                                   or_condition)
 
         ast = parse_query(condition, self.valid_tags)
-        return self.query_topics_by_tags(self, ast=ast, skip=skip, count=count,
+        return self.query_topics_by_tags(ast=ast, skip=skip, count=count,
                                          order=order)
 
 
@@ -781,13 +781,22 @@ def parse_query(query, tags):
 
 if __name__ == "__main__":
     from volttron.platform.dbutils import mongoutils
-    ast = parse_query('tag1 AND tag2 AND tag3 OR tag4',
-                {'tag1': 'str', 'tag2': 'str', 'tag3': 'str','tag4': 'str'})
-    ast = parse_query("geoCountry = 'US' AND campus",
-                      {"geoCountry":"str","campus":'str'})
-    print(pretty_print(ast))
-    c = mongoutils.get_mongo_query_condition(ast)
+    from volttron.platform.dbutils.sqlitefuncts import  SqlLiteFuncts
+    tags = {'tag1': 'str', 'tag2': 'str', 'tag3': 'str','tag4': 'str'}
+    query = 'tag1 OR tag2 AND (tag3 OR tag4) OR tag2 LIKE "a.*"'
+    query = 'tag1 AND tag2 OR tag4'
+    query = '(tag1 OR tag2) AND tag3'
+    # query = 'tag1 AND NOT (tag3>1 AND tag2>2 OR tag4<2)'
+    # query = 'tag1 AND NOT(tag3="value1" OR tag1>2 AND tag3 LIKE "a.*b")'
+    ast = parse_query(query, tags)
+    # ast = parse_query("geoCountry = 'US' AND campus",
+    #                   {"geoCountry":"str","campus":'str'})
+    print("USER QUERY:\n{}".format(query))
+    print("pretty print:\n{}".format(pretty_print(ast)))
+    c = mongoutils.get_tagging_query_from_ast(ast)
     print(c)
+    print ("SQLITE QUERY:\n")
+    print(SqlLiteFuncts.get_tagging_query_from_ast("topic_tags", ast))
 
 
 
