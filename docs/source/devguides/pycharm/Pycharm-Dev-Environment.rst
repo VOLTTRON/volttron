@@ -19,6 +19,11 @@ the cloned project. Pycharm also has options to access remote repositories.
 
 Subsequent instances of Pycharm will automatically load the VOLTTRON project.
 
+.. note::
+
+   When getting started make sure to search for `gevent` in the settings and
+   ensure that support for it is enabled.
+
 |Open Pycharm|
 |Load Volttron|
 
@@ -53,48 +58,24 @@ VOLTTRON can then be run from the Run menu.
 Running an Agent
 ----------------
 
-Before running any agents in Pycharm we must allow VOLTTRON to talk to them.
-Standalone agents do not have encryption keys set up  up as do agents installed
-on the platform, so VOLTTRON will reject communications from them.
-
-In a terminal window, cd to the VOLTTRON repository and activate the
-virtual environment before starting VOLTTRON.
-
-.. code-block:: shell
-
-   $ source env/bin/activate
-   (volttron)$ volttron -vv -l volttron.log&
-
-We can now tell VOLTTRON to accept messages from any standalone agent run with
-Pycharm. This id done with an `auth` command. This interactive command will ask
-for information about who can connect to VOLTTRON. Accept all of the default
-fields except for **credentials**. There enter `/.*/`
-
-.. code-block:: shell
-
-   (volttron)$ volttron-ctl auth add
-   domain []: 
-   address []: 
-   user_id []: 
-   capabilities (delimit multiple entries with comma) []: 
-   roles (delimit multiple entries with comma) []: 
-   groups (delimit multiple entries with comma) []: 
-   mechanism [CURVE]: 
-   credentials []: /.*/
-   comments []: 
-   enabled [True]:
-
-.. warning::
-
-   Allowing agent communications from any key is not secure and should never
-   be done in a real life deployment.
-
 Running an agent is configured similarly to running VOLTTRON proper. In
 **Run > Edit Configurations** add a configuration and give it the same name
-as your agent. In the Environment Variables field add the variable
-`AGENT_CONFIG` that has the path to the agent's configuration file as its value.
+as your agent. The script should be the path to `scripts/pycharm-launch.py` and
+and the script parameter must be the path to your agent's `agent.py` file.
+
+In the Environment Variables field add the variable
+`AGENT_CONFIG` that has the path to the agent's configuration file as its value,
+as well as `AGENT_VIP_IDENTITY`, which must be unique on the platform.
+
 A good place to keep configuration files is in a directory called `config` in
 top level source directory; git will ignore changes to these files.
+
+.. note::
+
+   There is an issue with imports in Pycharm when there is a secondary file
+   (i.e. not `agent.py` but another module within the same
+   package). When that happens right click on the directory in the file tree
+   and select **Mark Directory As -> Source Root**
 
 |Listener Settings|
 |Run Listener|
@@ -104,7 +85,8 @@ Testing an Agent
 ----------------
 
 Agent tests written in py.test can be run simply by right-clicking the tests
-directory and selecting `Run 'py.test in tests`.
+directory and selecting `Run 'py.test in tests`, so long as the root directory
+is set as the VOLTTRON source root.
 
 |Run Tests|
 
