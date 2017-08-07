@@ -494,6 +494,9 @@ class VolttronCentralPlatform(Agent):
         except gevent.Timeout:
             self._vc_connection = None
             self._establish_connection_to_vc()
+        except AttributeError as ae:
+            self._vc_connection = None
+            self._establish_connection_to_vc()
         else:
             next_update_time = self._next_update_time(seconds=10)
 
