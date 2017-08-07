@@ -163,4 +163,4 @@ def test_can_get_version(setup_platform, vc_agent):
                                'agent.version').get(timeout=STANDARD_GET_TIMEOUT)
     #version = setup_platform.call('agent.version', timeout=2)
     assert version is not None
-    assert version == '4.0'
+    assert version == '4.4'
