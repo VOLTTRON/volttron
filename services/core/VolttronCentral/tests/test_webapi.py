@@ -222,6 +222,7 @@ def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms
 
 
 @pytest.mark.vc
+@pytest.fail("Fix Tests")
 def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
