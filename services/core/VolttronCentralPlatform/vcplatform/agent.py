@@ -165,7 +165,6 @@ class VolttronCentralPlatform(Agent):
                  topic_replace_map, **kwargs):
         super(VolttronCentralPlatform, self).__init__(**kwargs)
 
-
         # This is scheduled after first call to the reconnect function
         self._scheduled_connection_event = None
         self._publish_bacnet_iam = False
@@ -173,7 +172,7 @@ class VolttronCentralPlatform(Agent):
         d = {}
         d['volttron-central-reconnect-interval'] = reconnect_interval
         d['volttron-central-address'] = vc_address
-        d['volttron-central-address'] = vc_serverkey
+        d['volttron-central-serverkey'] = vc_serverkey
         d['instance-name'] = instance_name
         d['stats-publish-interval'] = stats_publish_interval
         d['topic-replace-map'] = topic_replace_map
@@ -237,7 +236,6 @@ class VolttronCentralPlatform(Agent):
 
         config = self.default_config.copy()
         config.update(contents)
-
         self.enable_registration = False
 
         # get the instance variables from the router.  The instance variables
@@ -255,16 +253,31 @@ class VolttronCentralPlatform(Agent):
         qry_bind_web_address = q.query('bind-web-address').get(timeout=5)
 
         cfg_vc_address = config.get("volttron-central-address")
-        cfg_vc_serverkey = config.get("volttron-central-address")
+        cfg_vc_serverkey = config.get("volttron-central-serverkey")
 
         try:
             a, s = self._determine_vc_address_and_serverkey(cfg_vc_address,
                                                             cfg_vc_serverkey,
                                                             qry_bind_web_address)
         except AttributeError:
-            a, s = self._determine_vc_address_and_serverkey(qry_vc_address,
-                                                            qry_vc_serverkey,
-                                                            qry_bind_web_address)
+            try:
+                a, s = self._determine_vc_address_and_serverkey(qry_vc_address,
+                                                                qry_vc_serverkey,
+                                                                qry_bind_web_address)
+            except AttributeError:
+                error = """The global configuration contains an invalid/unavailable
+reference to an volttron discovery server and there was not a configuration
+for the platform agent that contains a volttron-central-agent and 
+volttron-central-serverkey."""
+                _log.error(error)
+                return
+
+        try:
+            if not a or not s:
+                _log.error("Couldn't determine server key and address")
+        except NameError:
+            _log.error("Couldn't determine server key and address")
+            return
 
         # Reset the connection if necessary.  The case that we are changing
         # configuration to a new vc.
@@ -317,6 +330,11 @@ class VolttronCentralPlatform(Agent):
         if vc_address is None and local_web_address is None:
             raise AttributeError("Must have local or vc address specified.")
 
+        _log.debug("Determining vc_address and serverkey")
+        _log.debug("\nvc_address={}\nvc_serverkey={}\nlocal_web_address={}".format(
+            vc_address, vc_serverkey, local_web_address
+        ))
+
         if vc_address is None:
             try:
                 address = local_web_address
@@ -334,7 +352,11 @@ class VolttronCentralPlatform(Agent):
                 raise
 
         if parsed_address.scheme in ('https', 'http'):
-            a, s = self._retrieve_address_and_serverkey(address)
+            try:
+                a, s = self._retrieve_address_and_serverkey(address)
+            except DiscoveryError:
+                raise AttributeError(
+                    "Cannot retrieve data from address: {}".format(address))
         else:
             if parsed_address.scheme not in ('tcp', 'ipc'):
                 raise AttributeError("Invalid scheme detected for vc_address "
@@ -456,7 +478,8 @@ class VolttronCentralPlatform(Agent):
             self._establish_connection_event.cancel()
 
         if self._vc_connection is None:
-            _log.debug("Attempting to reconnect with volttron central.")
+            _log.debug("Attempting to connect with volttron central.")
+            _log.debug("Serverkey is going to be: {}".format(self._vc_serverkey))
 
             try:
 
@@ -468,6 +491,11 @@ class VolttronCentralPlatform(Agent):
                     secretkey=self.core.secretkey,
                     agent_class=VCConnection
                 )
+            except ValueError as ex:
+                _log.warn("Unable to connect to volttron central due to "
+                          "invalid configuration.")
+                _log.warn("Value Error! {}".format(ex.message))
+                self._vc_connection = None
 
             except gevent.Timeout:
                 _log.warn("No connection to volttron central instance.")

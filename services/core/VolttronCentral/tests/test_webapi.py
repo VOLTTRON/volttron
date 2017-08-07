@@ -169,7 +169,6 @@ def test_store_list_get_configuration(vc_vcp_platforms):
 
 
 @pytest.mark.vc
-@pytest.mark.skip("Fix Test!")
 def test_correct_reader_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
@@ -197,7 +196,6 @@ def test_correct_reader_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platform
 
 
 @pytest.mark.vc
-@pytest.mark.skip("Fix Test!")
 def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
@@ -222,7 +220,6 @@ def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms
 
 
 @pytest.mark.vc
-@pytest.fail("Fix Tests")
 def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
@@ -254,7 +251,6 @@ def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms
 
 
 @pytest.mark.vc
-@pytest.mark.skip("Fix Test!")
 def test_listagent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
@@ -270,7 +266,6 @@ def test_listagent(vc_vcp_platforms):
 
 
 @pytest.mark.vc
-@pytest.mark.skip("Fix Test!")
 def test_installagent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
