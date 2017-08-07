@@ -145,13 +145,14 @@ def vcp_init(config_path, **kwargs):
 
 
 # All valid characters for identities should be in this string
-valid_string_values = string.letters + '-._0123456789'
+valid_string_values = string.letters + '-_0123456789'
 
 
 def normalize_id(data):
     response = ''
     for c in data:
         if c not in valid_string_values:
+            response += '_'
             continue
         response += c
     return response
