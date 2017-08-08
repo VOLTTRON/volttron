@@ -1,5 +1,6 @@
-Actuator Agent
-==============
+=========================
+Threshold Detection Agent
+=========================
 
 .. toctree::
     :glob:

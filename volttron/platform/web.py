@@ -61,6 +61,7 @@ import os
 import re
 import requests
 import sys
+import base64
 from urlparse import urlparse, urljoin
 
 from gevent import pywsgi
@@ -72,7 +73,7 @@ from ws4py.websocket import WebSocket
 from ws4py.server.geventserver import (WebSocketWSGIApplication,
                                        WebSocketWSGIHandler,
                                        WSGIServer)
-
+import zlib
 
 import mimetypes
 
@@ -186,6 +187,32 @@ def is_ip_private(vip_address):
     return priv_lo.match(ip) is not None or priv_24.match(
         ip) is not None or priv_20.match(ip) is not None or priv_16.match(
         ip) is not None
+
+
+class WebResponse(object):
+    """ The WebResponse object is a serializable representation of
+    a response to an http(s) client request that can be transmitted
+    through the RPC subsystem to the appropriate platform's MasterWebAgent
+    """
+
+    def __init__(self, status, data, headers):
+        self.status = status
+        self.headers = self.process_headers(headers)
+        self.data = self.process_data(data)
+
+    def process_headers(self, headers):
+        return [(key, value) for key, value in headers.items()]
+
+    def process_data(self, data):
+        if type(data) == bytes:
+            self.base64 = True
+            data = base64.b64encode(data)
+        elif type(data) == str:
+            self.base64 = False
+        else:
+            raise TypeError("Response data is neither bytes nor string type")
+        return data
+
 
 
 class VolttronWebSocket(WebSocket):
@@ -418,7 +445,7 @@ class MasterWebService(Agent):
         return self.volttron_central_address
 
     @RPC.export
-    def register_endpoint(self, endpoint):
+    def register_endpoint(self, endpoint, res_type):
         """
         RPC method to register a dynamic route.
 
@@ -436,8 +463,7 @@ class MasterWebService(Agent):
             raise DuplicateEndpointError(
                 "Endpoint {} is already an endpoint".format(endpoint))
 
-        self.endpoints[endpoint] = peer
-
+        self.endpoints[endpoint] = (peer, res_type)
 
     @RPC.export
     def register_agent_route(self, regex, fn):
@@ -474,13 +500,15 @@ class MasterWebService(Agent):
             self.registeredroutes = out
         del self.pathroutes[peer]
 
+        _log.debug(self.endpoints)
         endpoints = self.endpoints.copy()
-        endpoints = {i:endpoints[i] for i in endpoints if endpoints[i] != peer}
+        endpoints = {i:endpoints[i] for i in endpoints if endpoints[i][0] != peer}
+        _log.debug(endpoints)
         self.endpoints = endpoints
 
     @RPC.export
     def register_path_route(self, regex, root_dir):
-        _log.info('Registiering path route: {}'.format(root_dir))
+        _log.info('Registering path route: {}'.format(root_dir))
 
         # Get calling peer from the rpc context
         peer = bytes(self.vip.rpc.context.vip_message.peer)
@@ -586,7 +614,8 @@ class MasterWebService(Agent):
         # only expose a partial list of the env variables to the registered
         # agents.
         envlist = ['HTTP_USER_AGENT', 'PATH_INFO', 'QUERY_STRING',
-                   'REQUEST_METHOD', 'SERVER_PROTOCOL', 'REMOTE_ADDR']
+                   'REQUEST_METHOD', 'SERVER_PROTOCOL', 'REMOTE_ADDR',
+                   'HTTP_ACCEPT_ENCODING']
         data = env['wsgi.input'].read()
         passenv = dict(
             (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)) if envlist[i] in env.keys())
@@ -594,7 +623,7 @@ class MasterWebService(Agent):
         _log.debug('PATH IS: {}'.format(path_info))
         # Get the peer responsible for dealing with the endpoint.  If there
         # isn't a peer then fall back on the other methods of routing.
-        peer = self.endpoints.get(path_info)
+        (peer, res_type) = self.endpoints.get(path_info, (None, None))
         _log.debug('Peer we path_info is associated with: {}'.format(peer))
 
         # if we have a peer then we expect to call that peer's web subsystem
@@ -605,7 +634,10 @@ class MasterWebService(Agent):
             ))
             res = self.vip.rpc.call(peer, 'route.callback',
                                     passenv, data).get(timeout=60)
-            return self.create_response(res, start_response)
+            if res_type == "jsonrpc":
+                return self.create_response(res, start_response)
+            elif res_type == "raw":
+                return self.create_raw_response(res, start_response)
 
         for k, t, v in self.registeredroutes:
             if k.match(path_info):
@@ -614,12 +646,13 @@ class MasterWebService(Agent):
                 _log.debug('registered route t is: {}'.format(t))
                 if t == 'callable':  # Generally for locally called items.
                     return v(env, start_response, data)
-                elif t == 'peer_route':  # RPC calls from agents on the platform.
+                elif t == 'peer_route':  # RPC calls from agents on the platform
                     _log.debug('Matched peer_route with pattern {}'.format(
                         k.pattern))
                     peer, fn = (v[0], v[1])
                     res = self.vip.rpc.call(peer, fn, passenv, data).get(
                         timeout=120)
+                    _log.debug(res)
                     return self.create_response(res, start_response)
 
                 elif t == 'path':  # File service from agents on the platform.
@@ -629,6 +662,26 @@ class MasterWebService(Agent):
 
         start_response('404 Not Found', [('Content-Type', 'text/html')])
         return [b'<h1>Not Found</h1>']
+
+    def create_raw_response(self, res, start_response):
+        # If this is a tuple then we know we are going to have a response
+        # and a headers portion of the data.
+        if isinstance(res, tuple) or isinstance(res, list):
+            if len(res) == 1:
+                status, = res
+                headers = ()
+            if len(res) == 2:
+                headers = ()
+                status, response = res
+            if len(res) == 3:
+                status, response, headers = res
+            start_response(status, headers)
+            return base64.b64decode(response)
+        else:
+            start_response("500 Programming Error",
+                           [('Content-Type', 'text/html')])
+            _log.error("Invalid length of response tuple (must be 1-3)")
+            return [b'Invalid response tuple (must contain 1-3 elements)']
 
     def create_response(self, res, start_response):
 
@@ -645,13 +698,13 @@ class MasterWebService(Agent):
                     message = res['error']['message']
                     code = res['error']['code']
                     return [b'<h1>{}</h1>\n<h2>CODE:{}</h2>'
-                                .format(message, code)]
+                            .format(message, code)]
 
             start_response('200 OK',
                            [('Content-Type', 'application/json')])
             return jsonapi.dumps(res)
 
-        # If this is a tuple then we know we are goint to have a response
+        # If this is a tuple then we know we are going to have a response
         # and a headers portion of the data.
         if isinstance(res, tuple) or isinstance(res, list):
             if len(res) != 2:
@@ -661,8 +714,15 @@ class MasterWebService(Agent):
                 return [b'Invalid response tuple (must contain 2 elements)']
 
             response, headers = res
-            start_response('200 OK', headers)
-            return response
+            header_dict = dict(headers)
+            if header_dict.get('Content-Encoding', None) == 'gzip':
+                gzip_compress = zlib.compressobj(9, zlib.DEFLATED,
+                                                 zlib.MAX_WBITS | 16)
+                data = gzip_compress.compress(response) + gzip_compress.flush()
+                start_response('200 OK', headers)
+                return data
+            else:
+                return response
         else:
             start_response('200 OK',
                            [('Content-Type', 'application/json')])

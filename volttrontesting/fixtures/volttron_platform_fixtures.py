@@ -145,6 +145,20 @@ def volttron_instance2_web(request):
     request.addfinalizer(cleanup)
     return wrapper
 
+@pytest.fixture(scope="module")
+def volttron_instance_module_web(request):
+    print("building module instance (using web)")
+    address = get_rand_vip()
+    web_address = "http://{}".format(get_rand_ip_and_port())
+    wrapper = build_wrapper(address, bind_web_address=web_address)
+
+    def cleanup():
+        cleanup_wrapper(wrapper)
+
+    request.addfinalizer(cleanup)
+    return wrapper
+
+
 
 # Generic fixtures. Ideally we want to use the below instead of
 # Use this fixture when you want a single instance of volttron platform for

@@ -1,0 +1,21 @@
+<MirrorMeterReading xmlns="http://zigbee.org/sep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <mRID>6D6D72099BBDE9156400000000009182</mRID>
+    <description>PhaseCurrentAvg</description>
+    <Reading subscribable="0">
+        <timePeriod>
+            <duration>0</duration>
+            <start>2216441</start>
+        </timePeriod>
+        <value>24</value>
+    </Reading>
+    <ReadingType>
+        <accumulationBehaviour>12</accumulationBehaviour>
+        <commodity>0</commodity>
+        <dataQualifier>12</dataQualifier>
+        <flowDirection>0</flowDirection>
+        <kind>0</kind>
+        <phase>0</phase>
+        <powerOfTenMultiplier>0</powerOfTenMultiplier>
+        <uom>23</uom>
+    </ReadingType>
+</MirrorMeterReading>
