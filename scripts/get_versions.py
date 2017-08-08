@@ -112,10 +112,6 @@ def get_agent_version(agent_path):
     return agent_path, version
 
 
-
-
-os.chdir("..")
-
 search_dirs = ["examples", "services", "applications"]
 
 agent_paths = []
