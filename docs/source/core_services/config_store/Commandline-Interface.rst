@@ -77,8 +77,8 @@ To get the current list of configurations for an agent include the Agent's VIP I
 - **agent vip identity** - The agent store to retrieve the configuration from.
 
 
- Configuration
--------------------
+Edit Configuration
+------------------
 
 To edit a configuration in the Configuration Store use the `edit` sub-command:
 
