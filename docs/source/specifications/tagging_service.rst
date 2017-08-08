@@ -136,6 +136,8 @@ more of the following parameters
 
             condition="tag1 = 1 and not (tag2 < '' and tag2 > '') and tag3 and NOT tag4 LIKE '^a.*b$'"
 
+            condition="campusRef.geoPostalCode='20500' and equip and boiler"
+
     6. **skip** - number of topics to skip. this parameter along with count can be
        used for paginating results
     7. **count** - limit the total number of tag topics returned to given count
