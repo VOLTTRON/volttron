@@ -61,13 +61,13 @@ import logging
 
 import gevent
 from zmq import green as zmq
-from zmq.utils import jsonapi
+from collections import defaultdict
 from base64 import b64encode, b64decode
 from zmq import SNDMORE
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform import jsonrpc
-from collections import defaultdict
+from volttron.platform.agent import json as jsonapi
 
 _log = logging.getLogger(__name__)
 
