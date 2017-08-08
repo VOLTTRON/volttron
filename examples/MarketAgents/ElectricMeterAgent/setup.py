@@ -56,45 +56,37 @@
 
 # }}}
 
-from volttron.platform.agent.base_market_agent.market_registration import MarketRegistration
+from os import path
+from setuptools import setup, find_packages
 
-class RegistrationManager(object):
-    """
-    The ReservationManager manages a list of MarketReservations for the MarketAgents.
-    This class exists to hide the features of the underlying collection that are not relevant to
-    managing market reservations.
-    """
-    def __init__(self, agent):
-        """
-        The initalization needs the agent to grant access to the RPC calls needed to
-        communicate with the marketService.
-        :param agent: The MarketAgents that owns this object.
-        """
-        self.registrations = []
-        self.agent = agent
+MAIN_MODULE = 'agent'
 
-    def make_registration(self, market_name, buyer_seller, reservation_callback, offer_callback,
-                          aggregate_callback, price_callback, error_callback):
-        registration = MarketRegistration(market_name, buyer_seller, reservation_callback, offer_callback,
-                                          aggregate_callback, price_callback, error_callback)
-        self.registrations.append(registration)
+# Find the agent package that contains the main module
+packages = find_packages('.')
+agent_package = ''
+for package in find_packages():
+    # Because there could be other packages such as tests
+    if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
+        agent_package = package
+if not agent_package:
+    raise RuntimeError('None of the packages under {dir} contain the file '
+                       '{main_module}'.format(main_module=MAIN_MODULE + '.py',
+                                              dir=path.abspath('.')))
 
-    def request_reservations(self, timestamp):
-        for registration in self.registrations:
-            registration.request_reservations(timestamp, self.agent)
+# Find the version number from the main module
+agent_module = agent_package + '.' + MAIN_MODULE
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
+__version__ = _temp.__version__
 
-    def request_offers(self, timestamp):
-        for registration in self.registrations:
-            registration.request_offers(timestamp, self.agent)
-
-    def report_clear_price(self, timestamp, price, quantity):
-        for registration in self.registrations:
-            registration.report_clear_price(timestamp, price, quantity)
-
-    def report_aggregate(self, timestamp, aggregate_curve):
-        for registration in self.registrations:
-            registration.report_aggregate(timestamp, aggregate_curve)
-
-    def report_error(self, timestamp, error_message):
-        for registration in self.registrations:
-            registration.report_error(timestamp, error_message)
+# Setup
+setup(
+    name=agent_package + 'agent',
+    version=__version__,
+    install_requires=['volttron'],
+    packages=packages,
+    entry_points={
+        'setuptools.installation': [
+            'eggsecutable = ' + agent_module + ':main',
+        ]
+    }
+)

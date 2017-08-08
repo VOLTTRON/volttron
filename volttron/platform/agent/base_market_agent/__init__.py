@@ -72,7 +72,7 @@ __version__ = "0.01"
 
 class MarketAgent(Agent):
     """
-    The MarketAgent serves as the base class for any agent that wants to praticipate in
+    The MarketAgents serves as the base class for any agent that wants to praticipate in
     an auction market.  By inheriting from this agent all the remote communication
     with the MarketService is handled and the sub-class can be unconcerned with those details.
     """
@@ -118,7 +118,7 @@ class MarketAgent(Agent):
                      offer_callback, aggregate_callback, price_callback, error_callback):
         """
         This routine is called once to join a market as a buyer or a seller.
-        The agent supplies call-back functions that the MarketAgent calls as the market process proceeds.
+        The agent supplies call-back functions that the MarketAgents calls as the market process proceeds.
 
         :param market_name: The name of the market commodity.
 

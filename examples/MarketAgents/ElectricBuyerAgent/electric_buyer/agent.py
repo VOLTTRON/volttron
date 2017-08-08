@@ -56,45 +56,62 @@
 
 # }}}
 
-from volttron.platform.agent.base_market_agent.market_registration import MarketRegistration
+import logging
+from volttron.platform.agent import utils
+from volttron.platform.agent.base_market_agent import MarketAgent
+from volttron.platform.agent.base_market_agent.poly_line import PolyLine
+from volttron.platform.agent.base_market_agent.point import Point
+from volttron.platform.agent.base_market_agent.buy_sell import BUYER
 
-class RegistrationManager(object):
+_log = logging.getLogger(__name__)
+utils.setup_logging()
+__version__ = "0.01"
+
+def electric_buyer_agent(config_path, **kwargs):
+    """Parses the Electric Meter Agent configuration and returns an instance of
+    the agent created using that configuation.
+
+    :param config_path: Path to a configuation file.
+
+    :type config_path: str
+    :returns: Market Service Agent
+    :rtype: MarketServiceAgent
     """
-    The ReservationManager manages a list of MarketReservations for the MarketAgents.
-    This class exists to hide the features of the underlying collection that are not relevant to
-    managing market reservations.
+    _log.debug("Starting SampleElectricMeterAgent")
+    try:
+        config = utils.load_config(config_path)
+    except StandardError:
+        config = {}
+
+    if not config:
+        _log.info("Using Sample Electric Meter Agent defaults for starting configuration.")
+
+    market_name = int(config.get('market_name', 'electric'))
+
+    return SampleElectricBuyerAgent(market_name, **kwargs)
+
+
+class SampleElectricBuyerAgent(MarketAgent):
     """
-    def __init__(self, agent):
-        """
-        The initalization needs the agent to grant access to the RPC calls needed to
-        communicate with the marketService.
-        :param agent: The MarketAgents that owns this object.
-        """
-        self.registrations = []
-        self.agent = agent
+    The SampleElectricMeterAgent serves as a sample of an electric meter that
+    sells electricity for a single building at a fixed price.
+    """
+    def __init__(self, market_name, **kwargs):
+        super(SampleElectricBuyerAgent, self).__init__(**kwargs)
+        self.market_name = market_name
+        self.join_market(self.market_name, BUYER, None, self.offer_callback, None, None, None)
 
-    def make_registration(self, market_name, buyer_seller, reservation_callback, offer_callback,
-                          aggregate_callback, price_callback, error_callback):
-        registration = MarketRegistration(market_name, buyer_seller, reservation_callback, offer_callback,
-                                          aggregate_callback, price_callback, error_callback)
-        self.registrations.append(registration)
+    def offer_callback(self):
+        demand_curve = self.create_demand_curve()
+        self.make_offer(self.market_name, BUYER, demand_curve)
 
-    def request_reservations(self, timestamp):
-        for registration in self.registrations:
-            registration.request_reservations(timestamp, self.agent)
+    def create_demand_curve(self):
+        supply_curve = PolyLine()
+        price = 100
+        quantity = 0
+        supply_curve.add(Point(price,quantity))
+        price = 100
+        quantity = 1000
+        supply_curve.add(Point(price,quantity))
+        return supply_curve
 
-    def request_offers(self, timestamp):
-        for registration in self.registrations:
-            registration.request_offers(timestamp, self.agent)
-
-    def report_clear_price(self, timestamp, price, quantity):
-        for registration in self.registrations:
-            registration.report_clear_price(timestamp, price, quantity)
-
-    def report_aggregate(self, timestamp, aggregate_curve):
-        for registration in self.registrations:
-            registration.report_aggregate(timestamp, aggregate_curve)
-
-    def report_error(self, timestamp, error_message):
-        for registration in self.registrations:
-            registration.report_error(timestamp, error_message)
