@@ -119,12 +119,14 @@ class SQLiteTaggingService(BaseTaggingService):
 
         self.connection = connection
         self.tags_table = "tags"
+        self.tag_refs_table = "tag_refs"
         #self.units_table = "units"  #in version 2
         self.categories_table = "categories"
         self.topic_tags_table = "topic_tags"
         self.category_tags_table = "category_tags"
         if table_prefix:
             self.tags_table = table_prefix + "_" + self.tags_table
+            self.tag_refs_table = table_prefix + "_" + self.tag_refs_table
             self.categories_table = table_prefix + "_" + self.categories_table
             self.topic_tags_table = table_prefix + "_" + self.topic_tags_table
             self.category_tags_table = table_prefix + "_" + \
@@ -134,6 +136,12 @@ class SQLiteTaggingService(BaseTaggingService):
 
     @doc_inherit
     def setup(self):
+        """
+        Read resource files and load list of valid tags, categories,
+        tags grouped by categories, list of reference tags and its
+        parent.
+        :return:
+        """
         _log.debug("Setup of sqlite tagging agent")
         err_message = ""
         if not resource_exists(__name__, self.resource_sub_dir):
@@ -169,6 +177,13 @@ class SQLiteTaggingService(BaseTaggingService):
                           "loaded".format(table_name))
             else:
                 self.init_tags()
+
+            table_name = self.tag_refs_table
+            if self.tag_refs_table in table_names:
+                _log.info("{} table exists. Assuming initial values have been "
+                          "loaded".format(table_name))
+            else:
+                self.init_tag_refs()
 
             table_name = self.topic_tags_table
             if self.topic_tags_table in table_names:
@@ -215,6 +230,13 @@ class SQLiteTaggingService(BaseTaggingService):
         for record in cursor:
             self.valid_tags[record[0]] = record[1]
 
+    def load_tag_refs(self):
+        # Now cache ref tags and its parent
+        cursor = self.sqlite_utils.select(
+            "SELECT tag, parent from " + self.tag_refs_table, fetch_all=False)
+        for record in cursor:
+            self.tag_refs[record[0]] = record[1]
+
     def init_tags(self):
         file_name = self.resource_sub_dir + '/tags.csv'
         _log.debug("Loading file :" + file_name)
@@ -224,7 +246,6 @@ class SQLiteTaggingService(BaseTaggingService):
                     "description VARCHAR)".format(
                         self.tags_table))
 
-        _log.debug(self.resource_sub_dir+'/tags.csv')
         csv_str = resource_string(__name__, file_name)
         # csv.DictReader uses first line in file for column headings
         # by default
@@ -233,6 +254,25 @@ class SQLiteTaggingService(BaseTaggingService):
         self.sqlite_utils.execute_many(
             "INSERT INTO {} (name, kind, description) "
             "VALUES (?, ?, ?);".format(self.tags_table),
+            to_db)
+        self.sqlite_utils.commit()
+
+    def init_tag_refs(self):
+        file_name = self.resource_sub_dir + '/tag_refs.csv'
+        _log.debug("Loading file :" + file_name)
+        self.sqlite_utils.execute_stmt("CREATE TABLE {}"
+                    "(tag VARCHAR NOT NULL, "
+                    "parent VARCHAR NOT NULL, "               
+                    "PRIMARY KEY (tag, parent)".format(self.tag_refs_table))
+
+        csv_str = resource_string(__name__, file_name)
+        # csv.DictReader uses first line in file for column headings
+        # by default
+        dr = csv.DictReader(csv_str.splitlines())  # comma is default delimiter
+        to_db = [(i['tag'], i['parent']) for i in dr]
+        self.sqlite_utils.execute_many(
+            "INSERT INTO {} (tag, parent) "
+            "VALUES (?, ?, ?);".format(self.tag_refs_table),
             to_db)
         self.sqlite_utils.commit()
 

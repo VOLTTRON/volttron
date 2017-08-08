@@ -97,9 +97,8 @@ def get_agg_topics(client, agg_topics_collection, agg_meta_collection):
     return agg_topics
 
 
-def get_tagging_query_from_ast(tup):
-    mongo_operators = {'and': "$and", "or": "$or", 'not': '$not',
-                       'like': '$regex'}
+def get_tagging_queries_from_ast(tup, tag_refs, sub_queries):
+    mongo_operators = {'and': "$and", "or": "$or"}
     #_log.debug("In get mongo query condition. tup: {}".format(tup))
     condition = dict()
     if tup is None:
@@ -107,27 +106,43 @@ def get_tagging_query_from_ast(tup):
     if not isinstance(tup[1], tuple):
         left = tup[1]
     else:
-        left = get_tagging_query_from_ast(tup[1])
+        left = get_tagging_queries_from_ast(tup[1], tag_refs, sub_queries)
     if not isinstance(tup[2], tuple):
         right = tup[2]
     else:
-        right = get_tagging_query_from_ast(tup[2])
+        right = get_tagging_queries_from_ast(tup[2], tag_refs, sub_queries)
 
     assert isinstance(tup[0], str)
+
+    # Verify first for parent tag
+    if isinstance(left, str):
+        tags = left.split(".")
+        if len(tags) == 2:
+            # Process parent tag first
+            # Convert campusRef.geoPostalCode="20500" to
+            # sub query - campus=True AND geoPostalCode="20500", results of
+            # this would get place in campusRef in [<result>]
+            new_tup = ('AND', ('=', tag_refs[tags[0]], True), (tup[0], tags[1],
+                                                            right))
+            sub_queries.append(get_tagging_queries_from_ast(new_tup,
+                                                                tag_refs,
+                                                                None))
+            return {tags[0]:{"$in":"##VOLTTRON_Q"+str(len(sub_queries))}}
+
     lower_tup0 = tup[0].lower()
+    # Check for negation. negation needs to be handled as special case
     if lower_tup0 == 'not':
         return _negate_condition(right)
     elif mongo_operators.has_key(lower_tup0):
-        if lower_tup0 == 'like':
-            # LIKE is a special case. To negate {operator:{$regex:value}}
-            # {operator:{$not:{$regex:value}}} since $not doesn't support
-            # regex string. To negate use{operator:{$not:/value/}}
-            # To keep it consistent, we compile the pattern in python for both
-            # LIKE and NOT (LIKE operation)
-            pass
-            return {left:re.compile(right)}
-        else:
-            return {mongo_operators.get(lower_tup0): [left, right]}
+        # if or/and rhs should be array
+        return {mongo_operators.get(lower_tup0): [left, right]}
+    elif lower_tup0 == 'like':
+        # LIKE is a special case. To negate {operator:{$regex:value}}
+        # {operator:{$not:{$regex:value}}} since $not doesn't support
+        # regex string. To negate use{operator:{$not:/value/}}
+        # To keep it consistent, we compile the pattern in python for both
+        # LIKE and NOT (LIKE operation)
+        return {left: re.compile(right)}
     else:
         condition[left] = _get_mongo_comp_expr(tup[0], right)
         return condition
@@ -185,7 +200,7 @@ def _negate_condition(condition):
         if process_values and isinstance(value, list):
             for v in value:
                 if isinstance(v, dict):
-                    # nested expression with and or or
+                    # nested expression with and/or
                     new_value.append(_negate_condition(v))
                 else:
                     new_value.append(v)

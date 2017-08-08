@@ -122,12 +122,15 @@ class MongodbTaggingService(BaseTaggingService):
         self.connection = connection
         self._client = mongoutils.get_mongo_client(connection['params'])
         self.tags_collection = "tags"
+        self.tag_refs_collection = "tag_refs"
         #self.units_table = "units"  #in version 2
         self.categories_collection = "categories"
         self.topic_tags_collection = "topic_tags"
         if table_prefix:
             self.tags_collection = table_prefix + "_" + \
                                    self.tags_collection
+            self.tag_refs_collection = table_prefix + "_" + \
+                                       self.tag_refs_collection
             self.categories_collection = table_prefix + "_" + \
                                          self.categories_collection
             self.topic_tags_collection = table_prefix + "_" + \
@@ -136,6 +139,11 @@ class MongodbTaggingService(BaseTaggingService):
 
     @doc_inherit
     def setup(self):
+        """
+        Read resource files and load list of valid tags, categories,
+        tags grouped by categories, list of reference tags and its parent.
+        :return:
+        """
         _log.debug("Setup of mongodb tagging agent")
         err_message = ""
         if not resource_exists(__name__, self.resource_sub_dir):
@@ -168,6 +176,13 @@ class MongodbTaggingService(BaseTaggingService):
             else:
                 self.init_tags(db)
                 self.init_category_tags(db)
+
+            collection = self.tag_refs_collection
+            if self.tag_refs_collection in collections:
+                _log.info("{} collection exists. Assuming initial values have "
+                          "been loaded".format(collection))
+            else:
+                self.init_tag_refs(db)
 
             collection = self.categories_collection
             if self.categories_collection in collections:
@@ -202,6 +217,15 @@ class MongodbTaggingService(BaseTaggingService):
         for record in cursor:
             self.valid_tags[record['_id']] = record['kind']
 
+    def load_tag_refs(self):
+        # Now cache ref tags and its parent
+        db = self._client.get_default_database()
+        cursor = db[self.tag_refs_collection].find({}, projection=['_id',
+                                                                   'parent'])
+        for record in cursor:
+            self.tag_refs[record['_id']] = record['parent']
+        _log.debug("After load tag_refs is {}".format(self.tag_refs))
+
     def init_tags(self, db):
         tags_file = self.resource_sub_dir+'/tags.csv'
         _log.debug("Loading file :" + tags_file)
@@ -218,8 +242,27 @@ class MongodbTaggingService(BaseTaggingService):
             bulk_tags.execute()
         else:
             raise ValueError(
-                "Unable to load list of valid tags. No such file: {}"
-                "".format(tags_file))
+                "Unable to load list of reference tags and its parent. No "
+                "such file: {}".format(tags_file))
+
+    def init_tag_refs(self, db):
+        tags_file = self.resource_sub_dir+'/tag_refs.csv'
+        _log.debug("Loading file :" + tags_file)
+        csv_str = resource_string(__name__, tags_file)
+        if csv_str:
+            # csv.DictReader uses first line in file for column headings
+            # by default
+            dr = csv.DictReader(csv_str.splitlines())
+            bulk_tags = db[
+                self.tag_refs_collection].initialize_ordered_bulk_op()
+            for i in dr:
+                bulk_tags.insert({"_id":i['tag'],
+                                  "parent":i['parent_tag']})
+            bulk_tags.execute()
+        else:
+            raise ValueError(
+                "Unable to load list of reference tags and its parent. No "
+                "such file: {}".format(tags_file))
 
 
     def init_categories(self, db):
@@ -296,13 +339,10 @@ class MongodbTaggingService(BaseTaggingService):
                 limit=count, sort=[('_id',order_by)])
 
         result_dict = list(cursor)
-        _log.debug(result_dict)
         results = OrderedDict()
         for r in  result_dict:
-            _log.debug(r['_id'])
             results[r['_id']] = r.get('description',"")
-        _log.debug(results.keys())
-        _log.debug(results.values())
+
         if include_description:
             return results.items()
         else:
@@ -353,9 +393,7 @@ class MongodbTaggingService(BaseTaggingService):
         result['info'] = dict()
         result['error'] = dict()
         execute = False
-        _log.debug("IN INSERT tags {}".format(tags))
         for topic_pattern, topic_tags in tags.items():
-            _log.debug("Outer loop: {}".format(topic_pattern))
             for tag_name, tag_value in topic_tags.items():
                 if not self.valid_tags.has_key(tag_name):
                     raise ValueError(
@@ -370,7 +408,6 @@ class MongodbTaggingService(BaseTaggingService):
                               "topic prefix servers as unique identifier for"
                               "an entity. id value sent({}) will not be "
                               "stored".format(tag_value))
-            _log.debug("topic pattern is {}".format(topic_pattern))
             prefixes = self.get_matching_topic_prefixes(topic_pattern)
             if not prefixes:
                 result['error'][topic_pattern] = "No matching topic found"
@@ -389,8 +426,8 @@ class MongodbTaggingService(BaseTaggingService):
                 # means value sent was actually some pattern so add
                 # info to tell user the list of topic prefix that matched
                 # the pattern sent
-                _log.debug("topic passed is exact name. Not pattern. "
-                           "removing from result info: {}".format(topic_pattern))
+                _log.debug("topic passed is exact name. Not pattern. Removing"
+                           " from result info: {}".format(topic_pattern))
                 result['info'].pop(topic_pattern)
         if execute:
             try:
@@ -440,12 +477,10 @@ class MongodbTaggingService(BaseTaggingService):
             records = list(cursor)
             for r in records:
                 meta[r['_id']] = (r['kind'], r['description'])
-        _log.debug("meta is {}".format(meta))
-        _log.debug("count is {}".format(count))
+
         results = []
         counter = 0
         for tag, value in ordered_result_dict.items():
-            _log.debug("counter: {}, skip:{}".format(counter, skip))
             counter = counter + 1
             if counter <= skip:
                 continue
@@ -455,7 +490,6 @@ class MongodbTaggingService(BaseTaggingService):
                     results_element.append(meta[tag][0])
                 if include_description:
                     results_element.append(meta[tag][1])
-                _log.debug("result element {}".format(results_element))
                 results.append(results_element)
             elif counter > (count+skip_count):
                 break
@@ -472,17 +506,62 @@ class MongodbTaggingService(BaseTaggingService):
         order_by = 1
         if order == 'LAST_TO_FIRST':
             order_by = -1
+        sub_queries = list()
+        find_cond = mongoutils.get_tagging_queries_from_ast(ast,
+                                                            self.tag_refs,
+                                                            sub_queries)
 
-        find_cond = mongoutils.get_tagging_query_from_ast(ast)
-
-        _log.debug("condition: {}".format(find_cond))
+        _log.debug("main query condition: {}".format(find_cond))
+        _log.debug("sub queries: {}".format(sub_queries))
         db = self._client.get_default_database()
+        if sub_queries:
+            i = 1
+            for sub_query in sub_queries:
+                cursor = db[self.topic_tags_collection].find(sub_query,
+                                                             ['_id'])
+                result = [(row['_id']) for row in cursor]
+                cursor.close()
+                _log.debug("Subquery result is: {}".format(result))
+                _log.debug("Calling find replace for "
+                           "temp val {}".format("##VOLTTRON_Q" + str(i)))
+                self._find_replace(find_cond, "##VOLTTRON_Q" + str(i), result)
+                _log.debug("condition after replace : {}".format(find_cond))
+                i += 1
+
         cursor = db[self.topic_tags_collection].find(find_cond, ['_id'])
         cursor = cursor.skip(skip_count).limit(count)
         cursor = cursor.sort([("_id", order_by)])
         topic_prefix = [(row['_id']) for row in cursor]
+        cursor.close()
         return topic_prefix
 
+    def _find_replace(self, obj, temp_value, new_value):
+        _log.debug("In find_replace. obj ={} temp_val={} "
+                   "new_val={}".format(obj, temp_value, new_value))
+        if not isinstance(obj, dict):
+            return
+        for k, v in obj.items():
+            _log.debug("k={} v={}".format(k, v))
+            if isinstance(v, dict):
+                _log.debug("Calling with obj {}".format(v))
+                found = self._find_replace(v, temp_value, new_value)
+                if found:
+                    return
+            elif isinstance(v, list):
+                # and/or/in condition
+                for list_item in v:
+                    found = self._find_replace(list_item, temp_value,
+                                               new_value)
+                    if found:
+                        return
+
+            else:
+                _log.debug("In find_replace. k={} v={} temp_val={} "
+                           "new_val={}".format(
+                           k, v, temp_value, new_value))
+                if v == temp_value:
+                    obj[k] = new_value
+                    return True
 
 
 def main(argv=sys.argv):

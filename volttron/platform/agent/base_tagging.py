@@ -93,6 +93,7 @@ class BaseTaggingService(Agent):
 
     def __init__(self, resource_sub_dir='resources', **kwargs):
         self.valid_tags = dict()
+        self.tag_refs = dict()
         self.resource_sub_dir = "resources"
         if resource_sub_dir:
             self.resource_sub_dir = resource_sub_dir
@@ -107,6 +108,7 @@ class BaseTaggingService(Agent):
         """
         self.setup()
         self.load_valid_tags()
+        self.load_tag_refs()
 
     @abstractmethod
     def setup(self):
@@ -121,9 +123,19 @@ class BaseTaggingService(Agent):
     @abstractmethod
     def load_valid_tags(self):
         """
-        Called right after setup to load a dictionary of valid tags
-        :return:
+        Called right after setup to load a dictionary of valid tags. It
+        should load self.valid_tags with tag and type information
+
         """
+
+    @abstractmethod
+    def load_tag_refs(self):
+        """
+        Called right after setup to load a dictionary of reference tags and
+        its corresponding parent tag. Implementing methods should load
+        self.tag_refs with tag and parent tag information
+        """
+
     @RPC.export
     def get_categories(self, include_description=False, skip=0, count=None,
                        order="FIRST_TO_LAST"):
@@ -314,7 +326,7 @@ class BaseTaggingService(Agent):
             condition = self.process_and_or_param(and_condition,
                                                   or_condition)
 
-        ast = parse_query(condition, self.valid_tags)
+        ast = parse_query(condition, self.valid_tags, self.tag_refs)
         return self.query_topics_by_tags(ast=ast, skip=skip, count=count,
                                          order=order)
 
@@ -524,6 +536,7 @@ tokens = ['ID', 'NUMBER', 'FPOINT', 'SQUOTE_STRING', 'DQUOTE_STRING','PLUS',
           'MINUS', 'TIMES', 'DIVIDE', 'MOD', 'EQ', 'GE', 'LE', 'LT', 'GT',
           'NEQ', 'LPAREN', 'RPAREN'] + list(reserved.values())
 valid_tags = dict()
+tag_refs = dict()
 
 t_PLUS = r'\+'
 t_MINUS = r'-'
@@ -545,13 +558,34 @@ t_ignore = ' \t'
 
 
 def t_ID(t):
-    r'[a-zA-Z_][a-zA-Z_0-9]*'
+    r'[a-zA-Z_][a-zA-Z_0-9]*\.*[a-zA-Z_][a-zA-Z_0-9]*'
+    tags = t.value.split('.')
     t.type = reserved.get(t.value.lower(), 'ID')  # Check for reserved words
-    global valid_tags
+    global valid_tags, tag_refs
     if valid_tags and t.type == 'ID':
-        if not valid_tags.has_key(t.value):
+        if len(tags) == 1:
+            child_tag = tags[0]
+        elif len(tags) == 2:
+            child_tag = tags[1]
+            if not tag_refs.has_key(tags[0]):
+                raise ValueError("{} is not a valid reference tag. Only "
+                                 "reference tags (kind/type=Ref) can be "
+                                 "parent tags. Also make sure "
+                                 "reference tags and its corresponding "
+                                 "parent tags are loaded correctly during "
+                                 "init of your tagging service"
+                                 "".format(tags[0]))
+        else:
+            raise ValueError("Left hand side of expression can only be of "
+                             "the format tag or parent_tag.tag where "
+                             "parent_tag should be a valid tag with "
+                             "type/kind as Ref")
+
+        if not valid_tags.has_key(child_tag):
             raise ValueError("Invalid tag {} at line number {} and column "
-                             "number {}".format(t.value, t.lineno, t.lexpos))
+                             "number {}".format(child_tag,
+                                                t.lineno,
+                                                t.lexpos))
     return t
 
 # TODO - find the right regex for single or double quote string.
@@ -770,9 +804,10 @@ def pretty_print(tup):
     return "( {} {} {})".format(left, tup[0], right)
 
 
-def parse_query(query, tags):
-    global valid_tags
+def parse_query(query, tags, refs):
+    global valid_tags, tag_refs
     valid_tags = tags
+    tag_refs = refs
     query_parser = yacc.yacc()
     lexer = lex.lex()
     ast = query_parser.parse(query)
@@ -782,21 +817,26 @@ def parse_query(query, tags):
 if __name__ == "__main__":
     from volttron.platform.dbutils import mongoutils
     from volttron.platform.dbutils.sqlitefuncts import  SqlLiteFuncts
-    tags = {'tag1': 'str', 'tag2': 'str', 'tag3': 'str','tag4': 'str'}
+    tags = {'tag1': 'str', 'tag2': 'str', 'tag3': 'str', 'tag4': 'ref'}
+    tag_refs= {'tag4': 'tag3'}
     query = 'tag1 OR tag2 AND (tag3 OR tag4) OR tag2 LIKE "a.*"'
     query = 'tag1 AND tag2 OR tag4'
-    query = '(tag1 OR tag2) AND tag3'
+    query = '(tag4.tag2 OR tag2) AND tag3'
     # query = 'tag1 AND NOT (tag3>1 AND tag2>2 OR tag4<2)'
     # query = 'tag1 AND NOT(tag3="value1" OR tag1>2 AND tag3 LIKE "a.*b")'
-    ast = parse_query(query, tags)
+    ast = parse_query(query, tags, tag_refs)
     # ast = parse_query("geoCountry = 'US' AND campus",
     #                   {"geoCountry":"str","campus":'str'})
     print("USER QUERY:\n{}".format(query))
     print("pretty print:\n{}".format(pretty_print(ast)))
-    c = mongoutils.get_tagging_query_from_ast(ast)
+    sub = list()
+    c = mongoutils.get_tagging_queries_from_ast(ast, tag_refs, sub)
     print(c)
+    print(sub)
+
     print ("SQLITE QUERY:\n")
     print(SqlLiteFuncts.get_tagging_query_from_ast("topic_tags", ast))
+
 
 
 

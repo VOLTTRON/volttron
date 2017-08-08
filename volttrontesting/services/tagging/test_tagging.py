@@ -116,10 +116,10 @@ def setup_mongodb(config):
 
 
 def cleanup_sqlite(db_connection, truncate_tables):
-    # cursor = db_connection.cursor()
-    # for table in truncate_tables:
-    #     cursor.execute("DELETE FROM " + table)
-    # db_connection.commit()
+    cursor = db_connection.cursor()
+    for table in truncate_tables:
+        cursor.execute("DELETE FROM " + table)
+    db_connection.commit()
     pass
 
 
@@ -147,9 +147,10 @@ def query_agent(request, volttron_instance):
 
 # Fixtures for setup and teardown of historian agent
 @pytest.fixture(scope="module",
-                params=[sqlite_config,
-                       # pymongo_skipif(mongodb_config)
-                       ])
+                params=[
+                    #sqlite_config,
+                    pymongo_skipif(mongodb_config)
+                    ])
 def tagging_service(request, volttron_instance):
     global connection_type, db_connection
     connection_type = request.param['connection']['type']
@@ -581,7 +582,6 @@ def test_insert_topic_tags_update(volttron_instance, tagging_service,
         if hist_id:
             volttron_instance.remove_agent(hist_id)
 
-@pytest.mark.dev
 @pytest.mark.tagging
 def test_update_topic_tags(volttron_instance, tagging_service, query_agent):
     global connection_type, db_connection
@@ -805,7 +805,7 @@ def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
         cleanup_function = globals()["cleanup_" + connection_type]
         cleanup_function(db_connection, ['topic_tags'])
 
-@pytest.mark.dev
+
 @pytest.mark.tagging
 def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
                                      query_agent):
@@ -1076,7 +1076,9 @@ def test_topic_by_tags_custom_condition(volttron_instance, tagging_service,
                 'campus.*/d1': {'equip': True, 'elec': True, 'phase': 'p1_1',
                                 'dis': "Test description"},
                 'campus.*/d2': {'equip': True, 'elec': True,
-                                'phase': 'p2'}}).get(timeout=10)
+                                'phase': 'p2'},
+                'campus1/d.*': {'campusRef': 'campus1'},
+                'campus2/d.*': {'campusRef': 'campus2'} }).get(timeout=10)
 
         query_agent.vip.rpc.call('platform.tagging', 'add_topic_tags',
                                  topic_prefix='campus2/d1',
@@ -1156,12 +1158,116 @@ def test_topic_by_tags_custom_condition(volttron_instance, tagging_service,
             condition='equip AND NOT (phase LIKE "p1.*")').get(timeout=10)
         print("Result of NOT LIKE query: {}".format(result1))
         assert result1 == ['campus1/d2']
+
+
     finally:
         if hist_id:
             volttron_instance.remove_agent(hist_id)
         cleanup_function = globals()["cleanup_" + connection_type]
         cleanup_function(db_connection, ['topic_tags'])
 
+
+@pytest.mark.dev
+@pytest.mark.tagging
+def test_topic_by_tags_parent_topic_query(volttron_instance, tagging_service,
+                                        query_agent):
+    global connection_type, db_connection
+    hist_id = None
+    try:
+
+        # 1. Start historian to get some valid topics in. tagging service
+        # add tag api uses historian to get topic name by pattern
+        hist_config = {"connection":
+                       {"type": "sqlite",
+                        "params": {
+                            "database": volttron_instance.volttron_home +
+                            "/test_platform_historian.sqlite"}}
+
+                       }
+        hist_id = volttron_instance.install_agent(
+            vip_identity='platform.historian',
+            agent_dir='services/core/SQLHistorian', config_file=hist_config,
+            start=True)
+        gevent.sleep(2)
+        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
+                    'message': [
+                        {'p1': 2, 'p2': 2, 'p3': 1, 'p4': 2, 'p5': 2}]}]
+        query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
+            timeout=10)
+        to_send = [{'topic': 'devices/campus1/d1/all', 'headers': headers,
+                    'message': [
+                        {'p1': 2, 'p2': 2, 'p3': 1, 'p4': 2, 'p5': 2}]}]
+        query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
+            timeout=10)
+
+        to_send = [{'topic': 'devices/campus2/d1/all', 'headers': headers,
+                    'message': [
+                        {'p1': 2, 'p2': 2, 'p3': 1, 'p4': 2, 'p5': 2}]}]
+        query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
+            timeout=10)
+        gevent.sleep(2)
+
+        # 2. Add tags to topics and topic_prefix that can be used for queries
+        query_agent.vip.rpc.call(
+            'platform.tagging', 'add_topic_tags', topic_prefix='campus1',
+            tags={'campus': True, 'dis': "Test description",
+                  "geoCountry": "US"}).get(timeout=10)
+
+        query_agent.vip.rpc.call(
+            'platform.tagging', 'add_topic_tags', topic_prefix='campus2',
+            tags={'campus': True, "geoCountry": "UK",
+                  'dis': "United Kingdom"}).get(timeout=10)
+
+        query_agent.vip.rpc.call(
+            'platform.tagging', 'add_tags',
+            tags={
+                'campus.*/d.*/p1': {'point': True, 'maxVal': 15, 'minVal': -1},
+                'campus.*/d.*/p2': {'point': True, 'maxVal': 10, 'minVal': 0,
+                                    'dis': "Test description"},
+                'campus.*/d.*/p3': {'point': True, 'maxVal': 5, 'minVal': 1,
+                                    'dis': "Test description"},
+                'campus.*/d1': {'equip': True, 'elec': True, 'phase': 'p1_1',
+                                'dis': "Test description"},
+                'campus.*/d2': {'equip': True, 'elec': True,
+                                'phase': 'p2'},
+                'campus1/d.*': {'campusRef': 'campus1'},
+                'campus2/d.*': {'campusRef': 'campus2'} }).get(timeout=10)
+
+        query_agent.vip.rpc.call('platform.tagging', 'add_topic_tags',
+                                 topic_prefix='campus2/d1',
+                                 tags={'phase': "p1_2"}).get(timeout=10)
+        gevent.sleep(2)
+
+        # 3. Query topic prefix by tags
+        # Verify parent topic query
+        result1 = query_agent.vip.rpc.call(
+            'platform.tagging',
+            'get_topics_by_tags',
+            condition='equip AND elec AND campusRef.geoCountry="UK"').get(
+            timeout=10)
+        print("Result of NOT LIKE query: {}".format(result1))
+        assert result1 == ['campus2/d1']
+
+        result1 = query_agent.vip.rpc.call('platform.tagging',
+            'get_topics_by_tags',
+            condition='equip AND elec AND campusRef.geoCountry LIKE '
+                      '"UK.*"').get(timeout=10)
+        print("Result of NOT LIKE query: {}".format(result1))
+        assert result1 == ['campus2/d1']
+
+        result1 = query_agent.vip.rpc.call('platform.tagging',
+            'get_topics_by_tags',
+            condition='equip AND elec AND campusRef.geoCountry="UK" AND '
+                      'campusRef.dis="United Kingdom"').get(timeout=10)
+        print("Result of NOT LIKE query: {}".format(result1))
+        assert result1 == ['campus2/d1']
+
+    finally:
+        if hist_id:
+            volttron_instance.remove_agent(hist_id)
+        cleanup_function = globals()["cleanup_" + connection_type]
+        cleanup_function(db_connection, ['topic_tags'])
 
 @pytest.mark.tagging
 def test_topic_by_tags_condition_errors(volttron_instance, tagging_service,
