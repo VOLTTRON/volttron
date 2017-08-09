@@ -135,7 +135,7 @@ more of the following parameters
           .. code-block:: python
 
             condition="tag1 = 1 and not (tag2 < '' and tag2 > '') and tag3 and NOT tag4 LIKE '^a.*b$'"
-
+            condition="NOT (tag5='US' OR tag5='UK') AND NOT tag3 AND NOT (tag4 LIKE 'a.*')"
             condition="campusRef.geoPostalCode='20500' and equip and boiler"
 
     6. **skip** - number of topics to skip. this parameter along with count can be
