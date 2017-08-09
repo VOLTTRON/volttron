@@ -525,7 +525,7 @@ class SqlLiteFuncts(DbDriver):
 
 
     @staticmethod
-    def get_tagging_query_from_ast(topic_tags_table, tup):
+    def get_tagging_query_from_ast(topic_tags_table, tup, tag_refs):
         """
         Get a query condition syntax tree and generate sqlite query to query
         topic names by tags. It calls the get_compound_query to parse the
@@ -535,14 +535,14 @@ class SqlLiteFuncts(DbDriver):
         # User input query string :
         campus.geoPostalCode="20500" and equip and boiler and "equip_tag 7" > 4
 
-
+        # Example output sqlite query
         SELECT topic_prefix from test_topic_tags WHERE tag="campusRef"
          and value  IN(
           SELECT topic_prefix from test_topic_tags WHERE tag="campus" and
           value=1
           INTERSECT
-          SELECT topic_prefix  from test_topic_tags WHERE tag="dis"  and
-          value="campus description 5227"
+          SELECT topic_prefix  from test_topic_tags WHERE tag="geoPostalCode"
+          and value="20500"
          )
         INTERSECT
         SELECT topic_prefix from test_tags WHERE tag="equip" and value=1
@@ -554,13 +554,53 @@ class SqlLiteFuncts(DbDriver):
 
         :param topic_tags_table: table to query
         :param tup: parsed query string (abstract syntax tree)
+        :param tag_refs: dictionary of ref tags and its parent tag
         :return: sqlite query
         :rtype str
         """
-        return SqlLiteFuncts._get_compound_query(topic_tags_table, tup)
+        query = SqlLiteFuncts._get_compound_query(topic_tags_table, tup,
+                                                  tag_refs)
+
+        # Verify for parent tag finally. if present convert to subquery
+        # Process parent tag
+        # Convert
+        # WHERE tag='campusRef.geoPostalCode' AND value="20500"
+        # to
+        # where tag='campusRef' and value  IN (
+        #  SELECT topic_prefix FROM test_topic_tags
+        #    WHERE tag='campus' AND value=1
+        #  INTERSECT
+        #  SELECT topic_prefix  FROM test_topic_tags
+        #    WHERE tag='geoPostalCode'  and value="20500"
+        # )
+        parent = ""
+
+        search_pattern = r"WHERE\s+tag='(.+)\.(" \
+                         r".+)'\s+AND\s+value\s+(.+)($|\n)"
+        results = re.findall(search_pattern, query, flags=re.IGNORECASE)
+        # Example result :<type 'list'>: [('campusRef', 'tag1', '= 2', '\n'),
+        #                                 ('siteRef', 'tag2', '= 3 ', '\n')]
+        # Loop through and replace comparison operation with sub query
+        for result in results:
+            parent = tag_refs[result[0]]
+            replace_pattern = r"WHERE tag = '\1' AND value IN \n  (" \
+                              r"SELECT topic_prefix " \
+                              r"FROM {table} WHERE tag = '{parent}' AND " \
+                              r"value = 1\n  " \
+                              r"INTERSECT\n  " \
+                              r"SELECT topic_prefix FROM {table} WHERE " \
+                              r"tag = '\2' " \
+                              r"AND " \
+                              r"value \3 \4)".format(table=topic_tags_table,
+                                                     parent=parent)
+            query = re.sub(search_pattern, replace_pattern, query, count=1,
+                           flags=re.I)
+
+        _log.debug("Returning sqlite query condition {}".format(query))
+        return query
 
     @staticmethod
-    def _get_compound_query(topic_tags_table, tup, root=True):
+    def _get_compound_query(topic_tags_table, tup, tag_refs, root=True):
         """
         Get a query condition syntax tree and generate sqlite query to query
         topic names by tags
@@ -572,20 +612,25 @@ class SqlLiteFuncts(DbDriver):
 
         SELECT topic_prefix FROM test_topic_tags WHERE tag="campusRef"
          and value  IN(
-          SELECT topic_prefix FROM test_topic_tags WHERE tag="campus" and value=1
+          SELECT topic_prefix FROM test_topic_tags WHERE tag="campus" AND
+            value=1
           INTERSECT
-          SELECT topic_prefix  FROM test_topic_tags WHERE tag="dis"  and
-          value="campus description 5227"
+          SELECT topic_prefix  FROM test_topic_tags WHERE tag="geoPostalCode"
+            AND value="20500"
          )
         INTERSECT
-        SELECT topic_prefix FROM test_tags WHERE tag="equip" and value=1
+        SELECT topic_prefix FROM test_tags WHERE tag="equip" AND value=1
         INTERSECT
-        SELECT topic_prefix FROM test_tags WHERE tag="boiler" and value=1
+        SELECT topic_prefix FROM test_tags WHERE tag="boiler" AND value=1
         INTERSECT
-        SELECT topic_prefix FROM test_tags WHERE tag = "equip_tag 7" and value > 4
+        SELECT topic_prefix FROM test_tags WHERE tag = "equip_tag 7" AND
+          value > 4
 
         :param topic_tags_table: table to query
         :param tup: parsed query string (abstract syntax tree)
+        :param tag_refs: dictionary of ref tags and its parent tag
+        :param root: Boolean to indicate if it is the top most tuple in the
+        abstract syntax tree.
         :return: sqlite query
         :rtype str
         """
@@ -595,7 +640,7 @@ class SqlLiteFuncts(DbDriver):
         reserved_words = {'and':'INTERSECT', "or":'UNION', 'not':'NOT',
                           'like':'REGEXP'}
         prefix = 'SELECT topic_prefix FROM {} WHERE '.format(topic_tags_table)
-        _log.debug("In get sqlite query condition. tup: {}".format(tup))
+        # _log.debug("In get sqlite query condition. tup: {}".format(tup))
 
         if tup is None:
             return tup
@@ -603,7 +648,7 @@ class SqlLiteFuncts(DbDriver):
             left = repr(tup[1]) # quote the tag
         else:
             left = SqlLiteFuncts._get_compound_query(topic_tags_table,
-                                                     tup[1],
+                                                     tup[1], tag_refs,
                                                      False)
         if not isinstance(tup[2], tuple):
             if isinstance(tup[2],str):
@@ -615,9 +660,11 @@ class SqlLiteFuncts(DbDriver):
         else:
             right = SqlLiteFuncts._get_compound_query(topic_tags_table,
                                                       tup[2],
+                                                      tag_refs,
                                                       False)
 
         assert isinstance(tup[0], str)
+
         lower_tup0 = tup[0].lower()
         operator = lower_tup0
         if reserved_words.has_key(lower_tup0):
@@ -625,7 +672,7 @@ class SqlLiteFuncts(DbDriver):
 
         query = ""
         if operator == 'NOT':
-            return SqlLiteFuncts._negate_condition(right, topic_tags_table)
+            query = SqlLiteFuncts._negate_condition(right, topic_tags_table)
         elif operator == 'INTERSECT' or operator == 'UNION':
             if root:
                 query = "{left}\n{operator}\n{right}".format(left=left,
@@ -639,7 +686,6 @@ class SqlLiteFuncts(DbDriver):
             query = "{prefix} tag={tag} AND value {operator} {value}".format(
                 prefix=prefix, tag=left, operator=operator, value=right)
 
-        _log.debug("In get sqlite query condition. returning: {}".format(query))
         return query
 
     @staticmethod

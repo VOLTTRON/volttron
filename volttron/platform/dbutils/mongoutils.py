@@ -122,11 +122,11 @@ def get_tagging_queries_from_ast(tup, tag_refs, sub_queries):
             # Convert campusRef.geoPostalCode="20500" to
             # sub query - campus=True AND geoPostalCode="20500", results of
             # this would get place in campusRef in [<result>]
-            new_tup = ('AND', ('=', tag_refs[tags[0]], True), (tup[0], tags[1],
-                                                            right))
+            new_tup = ('AND', ('=', tag_refs[tags[0]], True),
+                       (tup[0], tags[1], right))
             sub_queries.append(get_tagging_queries_from_ast(new_tup,
-                                                                tag_refs,
-                                                                None))
+                                                            tag_refs,
+                                                            None))
             return {tags[0]:{"$in":"##VOLTTRON_Q"+str(len(sub_queries))}}
 
     lower_tup0 = tup[0].lower()

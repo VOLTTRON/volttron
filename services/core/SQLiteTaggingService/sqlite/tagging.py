@@ -216,10 +216,6 @@ class SQLiteTaggingService(BaseTaggingService):
                                        "Initialization of tagging service "
                                        "failed")
             status = Status.from_json(self.vip.health.get_status_json())
-            # status.context = status.context + \
-            #                  " Exception: {}".format(e.args) + \
-            #                  " Stopping tagging service agent"
-            # _log.debug("status:{}".format(status))
             self.vip.health.send_alert(TAGGING_SERVICE_SETUP_FAILED, status)
             self.core.stop()
 
@@ -260,28 +256,30 @@ class SQLiteTaggingService(BaseTaggingService):
     def init_tag_refs(self):
         file_name = self.resource_sub_dir + '/tag_refs.csv'
         _log.debug("Loading file :" + file_name)
-        self.sqlite_utils.execute_stmt("CREATE TABLE {}"
-                    "(tag VARCHAR NOT NULL, "
-                    "parent VARCHAR NOT NULL, "               
-                    "PRIMARY KEY (tag, parent)".format(self.tag_refs_table))
+        self.sqlite_utils.execute_stmt(
+            "CREATE TABLE {} "
+            "(tag VARCHAR NOT NULL, "
+            " parent VARCHAR NOT NULL,"
+            "PRIMARY KEY (tag, parent))".format(self.tag_refs_table))
 
         csv_str = resource_string(__name__, file_name)
         # csv.DictReader uses first line in file for column headings
         # by default
         dr = csv.DictReader(csv_str.splitlines())  # comma is default delimiter
-        to_db = [(i['tag'], i['parent']) for i in dr]
+        to_db = [(i['tag'], i['parent_tag']) for i in dr]
         self.sqlite_utils.execute_many(
             "INSERT INTO {} (tag, parent) "
-            "VALUES (?, ?, ?);".format(self.tag_refs_table),
+            "VALUES (?, ?);".format(self.tag_refs_table),
             to_db)
         self.sqlite_utils.commit()
 
     def init_categories(self):
         file_name = self.resource_sub_dir + '/categories.csv'
         _log.debug("Loading file :" + file_name)
-        self.sqlite_utils.execute_stmt("CREATE TABLE {}"
-                    "(name VARCHAR PRIMARY KEY NOT NULL,"
-                    "description VARCHAR)".format(self.categories_table))
+        self.sqlite_utils.execute_stmt(
+            "CREATE TABLE {}"
+            "(name VARCHAR PRIMARY KEY NOT NULL,"
+            "description VARCHAR)".format(self.categories_table))
         _log.debug("created categories table")
         csv_str = resource_string(__name__, file_name)
         dr = csv.DictReader(csv_str.splitlines())
@@ -289,18 +287,17 @@ class SQLiteTaggingService(BaseTaggingService):
         _log.debug("Categories in: {}".format(to_db))
         self.sqlite_utils.execute_many(
             "INSERT INTO {} (name, description) "
-                "VALUES (?, ?);".format(self.categories_table),
-            to_db)
+            "VALUES (?, ?);".format(self.categories_table), to_db)
         self.sqlite_utils.commit()
 
     def init_category_tags(self):
         file_name = self.resource_sub_dir + '/category_tags.txt'
         _log.debug("Loading file :" + file_name)
-        self.sqlite_utils.execute_stmt("CREATE TABLE {} "
-                    "(category VARCHAR NOT NULL,"
-                    "tag VARCHAR NOT NULL,"
-                    "PRIMARY KEY (category, tag))".format(
-                        self.category_tags_table))
+        self.sqlite_utils.execute_stmt(
+            "CREATE TABLE {} "
+            "(category VARCHAR NOT NULL,"
+            "tag VARCHAR NOT NULL,"
+            "PRIMARY KEY (category, tag))".format(self.category_tags_table))
         _log.debug("created {} table".format(self.category_tags_table))
         csv_str = resource_string(__name__, file_name)
         to_db = []
@@ -558,8 +555,9 @@ class SQLiteTaggingService(BaseTaggingService):
 
     def query_topics_by_tags(self, ast, skip=0, count=None, order=None):
 
+
         query = self.sqlite_utils.get_tagging_query_from_ast(
-            self.topic_tags_table, ast)
+            self.topic_tags_table, ast, self.tag_refs)
 
         order_by = ' \nORDER BY topic_prefix ASC'
         if order == 'LAST_TO_FIRST':

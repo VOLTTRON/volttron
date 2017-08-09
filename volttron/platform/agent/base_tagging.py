@@ -817,25 +817,28 @@ def parse_query(query, tags, refs):
 if __name__ == "__main__":
     from volttron.platform.dbutils import mongoutils
     from volttron.platform.dbutils.sqlitefuncts import  SqlLiteFuncts
-    tags = {'tag1': 'str', 'tag2': 'str', 'tag3': 'str', 'tag4': 'ref'}
-    tag_refs= {'tag4': 'tag3'}
+    tags = {'tag1': 'str', 'tag2': 'str', 'tag3': 'str', 'campusRef': 'ref',
+            'campus':'str', 'siteRef':'ref', 'site':'str'}
+    tag_refs= {'siteRef': 'site', 'campusRef': 'campus'}
     query = 'tag1 OR tag2 AND (tag3 OR tag4) OR tag2 LIKE "a.*"'
     query = 'tag1 AND tag2 OR tag4'
-    query = '(tag4.tag2 OR tag2) AND tag3'
-    # query = 'tag1 AND NOT (tag3>1 AND tag2>2 OR tag4<2)'
-    # query = 'tag1 AND NOT(tag3="value1" OR tag1>2 AND tag3 LIKE "a.*b")'
+    query = 'tag1 AND NOT (tag3>1 AND tag2>2 OR tag4<2)'
+    query = 'tag1 AND NOT(tag3="value1" OR tag1>2 AND tag3 LIKE "a.*b")'
+    query = 'campusRef.tag1 = 2 OR siteRef.tag2=3 AND tag3'
+    query = 'NOT(campusRef.tag1 = 2 OR siteRef.tag2=3) AND tag3'
     ast = parse_query(query, tags, tag_refs)
-    # ast = parse_query("geoCountry = 'US' AND campus",
-    #                   {"geoCountry":"str","campus":'str'})
+
     print("USER QUERY:\n{}".format(query))
     print("pretty print:\n{}".format(pretty_print(ast)))
-    sub = list()
-    c = mongoutils.get_tagging_queries_from_ast(ast, tag_refs, sub)
-    print(c)
-    print(sub)
+    # print ("MONGO QUERY AND SUB QUERIES")
+    # sub = list()
+    # c = mongoutils.get_tagging_queries_from_ast(ast, tag_refs, sub)
+    # print("Main query: {}".format(c))
+    # print("Sub query:{}".format(sub))
 
-    print ("SQLITE QUERY:\n")
-    print(SqlLiteFuncts.get_tagging_query_from_ast("topic_tags", ast))
+    print ("SQLITE QUERY:")
+    print(SqlLiteFuncts.get_tagging_query_from_ast("topic_tags", ast,
+                                                   tag_refs))
 
 
 
