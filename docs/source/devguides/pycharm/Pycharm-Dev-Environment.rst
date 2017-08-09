@@ -34,7 +34,7 @@ Set the Project Interpreter
 This step should be completed after running the bootstrap script in the VOLTTRON
 source directory. Pycharm needs to know which python environment it should  use
 when running and debugging code. This also tells Pycharm where to find python
-dependencies. Settings menu can be found under the File option in Pycharm
+dependencies. Settings menu can be found under the File option in Pycharm.
 
 |Set Project Interpreter|
 
