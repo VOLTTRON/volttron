@@ -570,8 +570,14 @@ class Core(BasicCore):
 
     def loop(self, running_event):
         # pre-setup
+        self.context.set(zmq.MAX_SOCKETS, 30690)
         self.socket = vip.Socket(self.context)
-
+        _log.debug("CORE::MAx allowable sockets: {}".format(self.context.get(zmq.MAX_SOCKETS)))
+        _log.debug("AGENT SENDBUF: {0}, {1}".format(self.socket.getsockopt(zmq.SNDBUF), self.socket.getsockopt(zmq.RCVBUF)))
+        # self.socket.setsockopt(zmq.SNDBUF, 302400)
+        # self.socket.setsockopt(zmq.RCVBUF, 302400)
+        # self.socket.set_hwm(500000)
+        self.socket.set_hwm(6000)
         if self.reconnect_interval:
             self.socket.setsockopt(zmq.RECONNECT_IVL, self.reconnect_interval)
         if self.identity:

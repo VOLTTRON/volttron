@@ -785,7 +785,6 @@ class MasterDriverAgent(Agent):
             if device in self._override_devices:
                 self._override_devices.remove(device)
 
-
 def main(argv=sys.argv):
     """Main method called to start the agent."""
     utils.vip_main(master_driver_agent, identity=PLATFORM_DRIVER,

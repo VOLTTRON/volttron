@@ -185,10 +185,12 @@ class ControlService(BaseAgent):
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
+
         identity = self.agent_vip_identity(uuid)
         self._aip.stop_agent(uuid)
         #Send message to router that agent is shutting down
         frames = [bytes(identity)]
+
         self.core.socket.send_vip(b'', 'agentstop', frames, copy=False)
 
     @RPC.export
