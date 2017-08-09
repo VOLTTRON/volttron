@@ -469,6 +469,8 @@ import datetime
 import logging
 import sys
 
+import gevent
+
 from actuator.scheduler import ScheduleManager
 
 from tzlocal import get_localzone
@@ -677,10 +679,10 @@ class ActuatorAgent(Agent):
         _log.debug("sending heartbeat")
         try:
             self.vip.rpc.call(self.driver_vip_identity, 'heart_beat').get(
-                timeout=5.0)
+                timeout=20.0)
         except Unreachable:
             _log.warning("Master driver is not running")
-        except Exception as e:
+        except (Exception, gevent.Timeout) as e:
             _log.warning(''.join([e.__class__.__name__, '(', e.message, ')']))
 
 

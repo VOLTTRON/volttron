@@ -1,0 +1,6 @@
+<DeviceStatus xmlns="http://zigbee.org/sep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <changedTime>1416266460</changedTime>
+    <onCount>5</onCount>
+    <opState>0</opState>
+    <opTime>0</opTime>
+</DeviceStatus>

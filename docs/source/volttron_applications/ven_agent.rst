@@ -14,10 +14,7 @@ in conformance with a subset of the OpenADR 2.0b specification.  This document's
 "VOLTTRON Interface" section defines how the VENAgent relays information to,
 and receives data from, other VOLTTRON agents.
 
-This specification was developed as part of a project implementing VOLTTRON
-participation in PG&E’s Capacity Bidding Program
-(https://www.pge.com/tariffs/tm2/pdf/ELEC_SCHEDS_E-CBP.pdf).
-It follows the DR program characteristics of the Capacity Program
+This specification follows the DR program characteristics of the Capacity Program
 described in Section 9.2 of the OpenADR Program Guide
 (http://www.openadr.org/assets/openadr_drprogramguide_v1.0.pdf).
 A specification for OpenADR 2.0b can be downloaded from the OpenADR Alliance
@@ -26,7 +23,7 @@ A specification for OpenADR 2.0b can be downloaded from the OpenADR Alliance
 DR Capacity Bidding and Events
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-PG&E's Capacity Bidding program relies on a pre-committed agreement about the
+The OpenADR Capacity Bidding program relies on a pre-committed agreement about the
 VEN’s load shed capacity. This agreement is reached in a bidding process
 transacted outside of the OpenADR interaction, typically with a long-term scope,
 perhaps a month or longer.
