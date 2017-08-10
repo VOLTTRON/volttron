@@ -91,7 +91,12 @@ def market_service_agent(config_path, **kwargs):
     if not config:
         _log.info("Using Market Service Agent defaults for starting configuration.")
 
-    return MarketServiceAgent(**kwargs)
+    market_period = int(config.get('market_period', 300))
+    reservation_delay = int(config.get('reservation_delay', 0))
+    offer_delay = int(config.get('offer_delay', 120))
+    clear_delay = int(config.get('clear_delay', 120))
+
+    return MarketServiceAgent(market_period, reservation_delay, offer_delay, clear_delay, **kwargs)
 
 
 class MarketServiceAgent(Agent):

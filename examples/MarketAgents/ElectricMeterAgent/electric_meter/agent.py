@@ -101,9 +101,9 @@ class SampleElectricMeterAgent(MarketAgent):
         self.market_name = market_name
         self.join_market(self.market_name, SELLER, None, self.offer_callback, None, None, None)
 
-    def offer_callback(self):
+    def offer_callback(self, timestamp, market_name, buyer_seller):
         supply_curve = self.create_supply_curve()
-        self.make_offer(self.market_name, SELLER, supply_curve)
+        self.make_offer(market_name, buyer_seller, supply_curve)
 
     def create_supply_curve(self):
         supply_curve = PolyLine()

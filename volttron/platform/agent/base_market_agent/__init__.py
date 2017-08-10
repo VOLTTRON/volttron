@@ -93,26 +93,23 @@ class MarketAgent(Agent):
         self.registrations.request_offers(timestamp)
 
     @PubSub.subscribe('pubsub', MARKET_CLEAR)
-    def match_clear_price(self, peer, sender, bus, topic, headers, message):
-        for registration in self.registrations:
-            timestamp = message[0]
-            price = message[1]
-            quantity = message[2]
-            registration.report_clear_price(timestamp, price, quantity)
+    def match_report_clear_price(self, peer, sender, bus, topic, headers, message):
+        timestamp = message[0]
+        price = message[1]
+        quantity = message[2]
+        self.registrations.report_clear_price(timestamp, price, quantity)
 
     @PubSub.subscribe('pubsub', MARKET_AGGREGATE)
-    def match_make_offer(self, peer, sender, bus, topic, headers, message):
-        for registration in self.registrations:
-            timestamp = message[0]
-            aggregate_curve = message[1]
-            registration.report_aggregate(timestamp, aggregate_curve)
+    def match_report_aggregate(self, peer, sender, bus, topic, headers, message):
+        timestamp = message[0]
+        aggregate_curve = message[1]
+        self.registrations.report_aggregate(timestamp, aggregate_curve)
 
     @PubSub.subscribe('pubsub', MARKET_ERROR)
-    def match_make_offer(self, peer, sender, bus, topic, headers, message):
-        for registration in self.registrations:
-            timestamp = message[0]
-            error_message = message[1]
-            registration.report_error(timestamp, error_message)
+    def match_report_error(self, peer, sender, bus, topic, headers, message):
+        timestamp = message[0]
+        error_message = message[1]
+        self.registrations.report_error(timestamp, error_message)
 
     def join_market (self, market_name, buyer_seller, reservation_callback,
                      offer_callback, aggregate_callback, price_callback, error_callback):
