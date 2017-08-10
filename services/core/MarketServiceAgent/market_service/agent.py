@@ -103,6 +103,10 @@ class MarketServiceAgent(Agent):
     def __init__(self, market_period=300, reservation_delay=0, offer_delay=120, clear_delay=120, **kwargs):
         super(MarketServiceAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
+        _log.debug("market_period: " + market_period)
+        _log.debug("reservation_delay: " + reservation_delay)
+        _log.debug("offer_delay: " + offer_delay)
+        _log.debug("clear_delay: " + clear_delay)
         self.director = Director(market_period, reservation_delay, offer_delay, clear_delay)
 
     @Core.receiver("onstart")

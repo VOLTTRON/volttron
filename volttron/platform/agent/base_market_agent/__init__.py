@@ -83,31 +83,31 @@ class MarketAgent(Agent):
 
     @PubSub.subscribe('pubsub', MARKET_RESERVE)
     def match_reservation(self, peer, sender, bus, topic, headers, message):
-        timestamp = message[0]
+        timestamp = utils.parse_timestamp_string(message[0])
         self.registrations.request_reservations(timestamp)
 
 
     @PubSub.subscribe('pubsub', MARKET_BID)
     def match_make_offer(self, peer, sender, bus, topic, headers, message):
-        timestamp = message[0]
+        timestamp = utils.parse_timestamp_string(message[0])
         self.registrations.request_offers(timestamp)
 
     @PubSub.subscribe('pubsub', MARKET_CLEAR)
     def match_report_clear_price(self, peer, sender, bus, topic, headers, message):
-        timestamp = message[0]
+        timestamp = utils.parse_timestamp_string(message[0])
         price = message[1]
         quantity = message[2]
         self.registrations.report_clear_price(timestamp, price, quantity)
 
     @PubSub.subscribe('pubsub', MARKET_AGGREGATE)
     def match_report_aggregate(self, peer, sender, bus, topic, headers, message):
-        timestamp = message[0]
+        timestamp = utils.parse_timestamp_string(message[0])
         aggregate_curve = message[1]
         self.registrations.report_aggregate(timestamp, aggregate_curve)
 
     @PubSub.subscribe('pubsub', MARKET_ERROR)
     def match_report_error(self, peer, sender, bus, topic, headers, message):
-        timestamp = message[0]
+        timestamp = utils.parse_timestamp_string(message[0])
         error_message = message[1]
         self.registrations.report_error(timestamp, error_message)
 

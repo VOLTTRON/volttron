@@ -132,6 +132,7 @@ class _config_test_agent(MarketAgent):
 
     def error_callback(self, timestamp, market_name, buyer_seller, error_message):
         self.error_callback_results.append((timestamp, market_name, buyer_seller, error_message))
+        _log.debug(error_message)
 
 
 @pytest.fixture(scope="module")
@@ -173,8 +174,8 @@ def test_simple_market_reservations(_function_config_test_seller, _function_conf
     seller_agent.join_market_as_simple_seller(market_name)
     buyer_agent.join_market_as_simple_buyer(market_name)
     gevent.sleep(1)
-    assert len(seller_agent.reservation_callback_results) == 1, "expected that the seller got a reservation callback"
-    assert len(buyer_agent.reservation_callback_results) == 1, "expected that the buyer got a reservation callback"
+    assert len(seller_agent.reservation_callback_results) >= 1, "expected that the seller got a reservation callback"
+    assert len(buyer_agent.reservation_callback_results) >= 1, "expected that the buyer got a reservation callback"
 
 @pytest.mark.market
 def test_simple_market_offers(_function_config_test_seller, _function_config_test_buyer):
@@ -184,6 +185,28 @@ def test_simple_market_offers(_function_config_test_seller, _function_config_tes
     seller_agent.join_market_as_simple_seller(market_name)
     buyer_agent.join_market_as_simple_buyer(market_name)
     gevent.sleep(2)
-    assert len(seller_agent.offer_callback_results) == 1, "expected that the seller got an offer callback"
-    assert len(buyer_agent.offer_callback_results) == 1, "expected that the buyer got an offer callback"
+    assert len(seller_agent.offer_callback_results) >= 1, "expected that the seller got an offer callback"
+    assert len(buyer_agent.offer_callback_results) >= 1, "expected that the buyer got an offer callback"
+
+@pytest.mark.market
+def test_simple_market_prices(_function_config_test_seller, _function_config_test_buyer):
+    seller_agent = _function_config_test_seller
+    buyer_agent = _function_config_test_buyer
+    market_name = 'electricity'
+    seller_agent.join_market_as_simple_seller(market_name)
+    buyer_agent.join_market_as_simple_buyer(market_name)
+    gevent.sleep(3)
+    assert len(seller_agent.price_callback_results) >= 1, "expected that the seller got a price callback"
+    assert len(buyer_agent.price_callback_results) >= 1, "expected that the buyer got a price callback"
+
+@pytest.mark.market
+def test_simple_market_errors(_function_config_test_seller, _function_config_test_buyer):
+    seller_agent = _function_config_test_seller
+    buyer_agent = _function_config_test_buyer
+    market_name = 'electricity'
+    seller_agent.join_market_as_simple_seller(market_name)
+    buyer_agent.join_market_as_simple_buyer(market_name)
+    gevent.sleep(3)
+    assert len(seller_agent.error_callback_results) == 0, "expected that the seller got no error callbacks"
+    assert len(buyer_agent.error_callback_results) == 0, "expected that the buyer got no error callbacks"
 

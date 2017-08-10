@@ -88,11 +88,11 @@ class MarketList(object):
         self.markets.clear()
 
     def collect_offers(self):
-        for market in self.markets:
+        for market in self.markets.itervalues():
             market.collect_offers()
 
     def clear_market(self):
-        for market in self.markets:
+        for market in self.markets.itervalues():
             cleared_price, error_message = market.clear_market()
             if cleared_price is not None:
                 self.publish(peer='pubsub',
@@ -111,7 +111,7 @@ class MarketList(object):
         return market
 
     def has_market(self, market_name):
-        return market_name in self.markets
+        return self.markets.has_key(market_name)
 
     def has_market_formed(self, market_name):
         market_has_formed = False
@@ -122,7 +122,7 @@ class MarketList(object):
 
     def unformed_market_list(self):
         list = []
-        for market in self.markets:
+        for market in self.markets.itervalues():
            if not market.has_market_formed:
                list << market.market_name
         return list
