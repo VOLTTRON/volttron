@@ -532,7 +532,7 @@ def start_volttron_process(opts):
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
     zmq.Context.instance()   # DO NOT REMOVE LINE!!
-    zmq.Context.instance().set(zmq.MAX_SOCKETS, 2046)
+    #zmq.Context.instance().set(zmq.MAX_SOCKETS, 2046)
 
     tracker = Tracker()
     protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')

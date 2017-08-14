@@ -63,15 +63,22 @@ deserialization of data.
 
 try:
     import ujson
+    from zmq.utils.strtypes import bytes, unicode
     from zmq.utils.jsonapi import dumps as _dumps, loads as _loads
     def dumps(data):
         try:
-            return ujson.dumps(data, double_precision=15)
+            s = ujson.dumps(data, double_precision=15)
+            if isinstance(s, unicode):
+
+                s = s.encode('utf8')
+            return s
         except:
             return _dumps(data)
     def loads(data_string):
         try:
-            return ujson.loads(data_string, precise_float=True)
+            if str is unicode and isinstance(data_string, bytes):
+                s = data_string.decode('utf8')
+            return ujson.loads(s, precise_float=True)
         except:
             return _loads(data_string)
 except ImportError:

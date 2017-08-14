@@ -570,7 +570,7 @@ class Core(BasicCore):
 
     def loop(self, running_event):
         # pre-setup
-        self.context.set(zmq.MAX_SOCKETS, 30690)
+        #self.context.set(zmq.MAX_SOCKETS, 30690)
         self.socket = vip.Socket(self.context)
         _log.debug("CORE::MAx allowable sockets: {}".format(self.context.get(zmq.MAX_SOCKETS)))
         _log.debug("AGENT SENDBUF: {0}, {1}".format(self.socket.getsockopt(zmq.SNDBUF), self.socket.getsockopt(zmq.RCVBUF)))
