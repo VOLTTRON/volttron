@@ -133,6 +133,7 @@ class Platforms(object):
         for k, o in self._platforms.items():
             self._log.debug("vip: {}, identity: {}".format(o.address,
                                                            o.vip_identity))
+
     @property
     def vc(self):
         return self._vc
@@ -573,7 +574,7 @@ class PlatformHandler(object):
     def get_devices(self, session_user, params):
         self._log.debug('handling get_devices platform: {} ({})'.format(
             self.vip_identity, self.address))
-
+        # return self.call("get_devices")
         return self._current_devices or {}
 
     def get_stats(self, stat_type):
@@ -737,7 +738,7 @@ class PlatformHandler(object):
         the agent_list and other interesting things that the volttron
         central shsould want to know.
         """
-        self._log.debug('ON PLATFORM MESSAGE!')
+        self._log.debug('ON PLATFORM MESSAGE! {}'.format(message))
         expected_prefix = "platforms/{}/".format(self.vip_identity)
 
         if not topic.startswith(expected_prefix):
@@ -774,8 +775,8 @@ class PlatformHandler(object):
 
         _, platform_uuid, op_or_datatype, other = topicsplit[0], \
                                                   topicsplit[1], \
-                                                  topicsplit[2], topicsplit[
-                                                                 3:]
+                                                  topicsplit[2], \
+                                                  topicsplit[3:]
 
         if op_or_datatype in ('iam', 'configure'):
             if not other:

@@ -92,7 +92,7 @@ from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.web import DiscoveryInfo, DiscoveryError
 from . bacnet_proxy_reader import BACnetReader
 
-__version__ = '4.4'
+__version__ = '4.5'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -133,6 +133,9 @@ def vcp_init(config_path, **kwargs):
     vc_serverkey = config.get('volttron-central-serverkey')
     instance_name = config.get('instance-name')
     stats_publish_interval = config.get('stats-publish-interval', 30)
+    # Interval to wait before publishing the status of the devices on this
+    # instance up to volttron central
+    device_status_interval = config.get('device-status-interval', 60)
     topic_replace_map = config.get('topic-replace-map', {})
 
     return VolttronCentralPlatform(reconnect_interval=reconnect_interval,
@@ -141,6 +144,7 @@ def vcp_init(config_path, **kwargs):
                                    instance_name=instance_name,
                                    stats_publish_interval=stats_publish_interval,
                                    topic_replace_map=topic_replace_map,
+                                   device_status_interval=device_status_interval,
                                    **kwargs)
 
 
@@ -163,7 +167,7 @@ class VolttronCentralPlatform(Agent):
 
     def __init__(self, reconnect_interval, vc_address,
                  vc_serverkey, instance_name, stats_publish_interval,
-                 topic_replace_map, **kwargs):
+                 topic_replace_map, device_status_interval, **kwargs):
         super(VolttronCentralPlatform, self).__init__(**kwargs)
 
         # This is scheduled after first call to the reconnect function
@@ -177,6 +181,7 @@ class VolttronCentralPlatform(Agent):
         d['instance-name'] = instance_name
         d['stats-publish-interval'] = stats_publish_interval
         d['topic-replace-map'] = topic_replace_map
+        d['device-status-interval'] = device_status_interval
 
         # default_configuration is what is specified if there isn't a "config"
         # sent in through the volttron-ctl config store command.
@@ -184,7 +189,7 @@ class VolttronCentralPlatform(Agent):
 
         # Start using config store.
         self.vip.config.set_default("config", self.default_config)
-        self.vip.config.subscribe(self._configure_main,
+        self.vip.config.subscribe(self._configure,
                                   actions=["NEW", "UPDATE"],
                                   pattern="config")
 
@@ -205,6 +210,7 @@ class VolttronCentralPlatform(Agent):
 
         self._still_connected_event = None
         self._establish_connection_event = None
+        self._device_status_event = None
         self._stat_publish_event = None
 
         # This becomes a connection to the vc instance either specified from the
@@ -216,6 +222,8 @@ class VolttronCentralPlatform(Agent):
         self._local_external_address = None
         self._local_serverkey = None
         self._stats_publish_interval = None
+        self._device_status_interval = None
+        self._device_publishes = {}
         # instance id is the vip identity of this agent on the remote platform.
         self._instance_id = None
         # where on the vc this instance will publish things
@@ -225,7 +233,7 @@ class VolttronCentralPlatform(Agent):
         info = DiscoveryInfo.request_discovery_info(discovery_address)
         return info.vip_address, info.serverkey
 
-    def _configure_main(self, config_name, action, contents):
+    def _configure(self, config_name, action, contents):
         """
         This is the main configuration point for the agent.
 
@@ -311,9 +319,13 @@ volttron-central-serverkey."""
         self._local_serverkey = qry_local_serverkey
         self._stats_publish_interval = config['stats-publish-interval']
 
+        self._device_status_interval = config['device-status-interval']
+
         # Begin a connection loop that will automatically attempt to reconnect
         # and publish stats to volttron central if the connection is successful.
         self._establish_connection_to_vc()
+
+
 
     def _stop_event_timers(self):
         if self._establish_connection_event is not None:
@@ -325,6 +337,9 @@ volttron-central-serverkey."""
         if self._still_connected_event is not None:
             self._still_connected_event.cancel()
             self._still_connected_event = None
+        if self._device_status_event is not None:
+            self._device_status_event.cancel()
+            self._device_status_event = None
 
     def _determine_vc_address_and_serverkey(self, vc_address, vc_serverkey,
                                             local_web_address):
