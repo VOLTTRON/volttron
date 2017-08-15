@@ -1,7 +1,11 @@
+import json
 import logging
 import pytest
 
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
+import gevent
+
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, \
+    CONFIGURATION_STORE
 from volttron.platform.jsonrpc import RemoteError, UNAUTHORIZED
 from volttron.platform.messaging.health import STATUS_GOOD
 
@@ -161,6 +165,61 @@ def test_can_get_version(setup_platform, vc_agent):
     # vcp_identity
     version = vc.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
                                'agent.version').get(timeout=STANDARD_GET_TIMEOUT)
-    #version = setup_platform.call('agent.version', timeout=2)
+    # version = setup_platform.call('agent.version', timeout=2)
     assert version is not None
-    assert version == '4.0'
+    assert version == '4.4'
+
+@pytest.mark.vcp
+def test_can_change_topic_map(setup_platform, vc_agent):
+    vc, vcp_identity = vc_agent
+
+    topic_map = vc.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
+                                'get_replace_map').get(timeout=STANDARD_GET_TIMEOUT)
+
+    assert topic_map == {}
+
+    replace_map = {
+        "topic-replace-map": {
+            "fudge": "ball"
+        }
+    }
+
+    # now update the config store for vcp
+    vc.vip.rpc.call(CONFIGURATION_STORE,
+                    'manage_store',
+                    VOLTTRON_CENTRAL_PLATFORM,
+                    'config',
+                    json.dumps(replace_map),
+                    'json').get(timeout=STANDARD_GET_TIMEOUT)
+
+    gevent.sleep(2)
+
+    topic_map = vc.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
+                                'get_replace_map').get(timeout=STANDARD_GET_TIMEOUT)
+
+    assert 'fudge' in topic_map
+    assert topic_map['fudge'] == 'ball'
+
+    replace_map = {
+        "topic-replace-map": {
+            "map2": "it"
+        }
+    }
+
+    # now update the config store for vcp
+    vc.vip.rpc.call(CONFIGURATION_STORE,
+                    'manage_store',
+                    VOLTTRON_CENTRAL_PLATFORM,
+                    'config',
+                    json.dumps(replace_map),
+                    'json').get(timeout=STANDARD_GET_TIMEOUT)
+
+    gevent.sleep(2)
+
+    topic_map = vc.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
+                                'get_replace_map').get(
+        timeout=STANDARD_GET_TIMEOUT)
+
+    assert 'fudge' not in topic_map
+    assert 'map2' in topic_map
+    assert topic_map['map2'] == 'it'

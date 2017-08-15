@@ -261,7 +261,7 @@ def test_listagent(vc_vcp_platforms):
 
     agent_list = api.list_agents(platform_uuid=platform['uuid'])
     print('The agent list is: {}'.format(agent_list))
-    assert len(agent_list) > 1
+    assert len(agent_list) >= 1
     assert agent_list[0]['version']
 
 
@@ -299,10 +299,14 @@ def test_installagent(vc_vcp_platforms):
 
     api = APITester(vc.jsonrpc_endpoint)
 
-    platform = api.list_platforms()[0]
+    platforms = api.list_platforms()
+    assert isinstance(platforms, list)
+
+    platform = platforms[0]
+    assert platform['uuid'] is not None
 
     agents = api.list_agents(platform['uuid'])
-    assert agents
+    assert isinstance(agents, list)
 
     agent = api.install_agent(platform['uuid'], fileargs=file)
 

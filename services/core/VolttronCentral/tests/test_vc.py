@@ -1,13 +1,6 @@
-import os
-import tempfile
-
-import gevent
 import pytest
-import requests
 
-from volttron.platform.keystore import KeyStore
 from volttron.platform.web import DiscoveryInfo
-from volttrontesting.fixtures.vc_fixtures import PLATFORM_AGENT_CONFIG
 
 
 def validate_instances(wrapper1, wrapper2):
