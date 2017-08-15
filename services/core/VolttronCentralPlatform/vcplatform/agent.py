@@ -169,6 +169,7 @@ def normalize_id(data):
 class VolttronCentralPlatform(Agent):
     __name__ = 'VolttronCentralPlatform'
 
+
     def __init__(self, reconnect_interval, vc_address,
                  vc_serverkey, instance_name, stats_publish_interval,
                  topic_replace_map, device_status_interval, **kwargs):
@@ -238,6 +239,15 @@ class VolttronCentralPlatform(Agent):
         # where on the vc this instance will publish things
         self._publish_topic = None
 
+        # topic_replace_map is a key value dictionary with strings to be
+        # replaced with values for all topics.
+        #
+        self._replace_map = {}
+
+        # This is used internally so we don't have to do replacements more
+        # than one time.
+        self._topic_replacement = {}
+
     def _retrieve_address_and_serverkey(self, discovery_address):
         info = DiscoveryInfo.request_discovery_info(discovery_address)
         return info.vip_address, info.serverkey
@@ -305,6 +315,8 @@ volttron-central-serverkey."""
                 self._vc_connection.core.stop()
                 self._vc_connection = None
 
+        self._topic_replacement.clear()
+        self._replace_map = config['topic-replace-map']
         self._vc_address = a
         self._vc_serverkey = s
         self._registration_state = RegistrationStates.NotRegistered
@@ -807,6 +819,10 @@ volttron-central-serverkey."""
         return self._instance_id
 
     @RPC.export
+    def get_replace_map(self):
+        return self._replace_map
+
+    @RPC.export
     def publish_bacnet_props(self, proxy_identity, publish_topic, address,
                              device_id, filter=[]):
         _log.debug('Publishing bacnet props to topic: {}'.format(publish_topic))
@@ -1046,6 +1062,26 @@ volttron-central-serverkey."""
         device_dict['health'] = status.as_dict()
         device_dict['last_publish_utc'] = ts
 
+    def _replace_topic(self, original):
+        # only need to replace if we have some items in the list.
+        if not self._replace_map:
+            return original
+
+        if original in self._topic_replacement:
+            return self._topic_replacement
+
+        new_value = original
+
+        for x in self._replace_map:
+            new_value = new_value.replace(x, self._replace_map[x])
+
+        if new_value == original:
+            return None
+
+        self._topic_replacement[original] = new_value
+
+        return new_value
+
     def get_devices(self):
         """
         RPC method for retrieving device data from the platform.
@@ -1086,6 +1122,12 @@ volttron-central-serverkey."""
                 continue
 
             _log.debug('Reading config store for device {}'.format(cfg_name))
+            anon_config_name = self._replace_topic(cfg_name)
+
+            # Don's show the non-anonimized devices if nothing has been replaced
+            # in the data.
+            if anon_config_name is None:
+                continue
 
             device_config = self.vip.rpc.call('config.store', 'manage_get',
                                               'platform.driver',
