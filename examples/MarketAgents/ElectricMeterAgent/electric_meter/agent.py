@@ -56,6 +56,7 @@
 
 # }}}
 
+import sys
 import logging
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_market_agent import MarketAgent
@@ -115,3 +116,14 @@ class SampleElectricMeterAgent(MarketAgent):
         supply_curve.add(Point(price,quantity))
         return supply_curve
 
+def main():
+    """Main method called to start the agent."""
+    utils.vip_main(electric_meter_agent)
+
+
+if __name__ == '__main__':
+    # Entry point for script
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        pass
