@@ -208,3 +208,14 @@ class PolyLine:
                 self.xsSortedByY = self.xs[::-1]
                 self.ysSortedByY = self.ys[::-1]
         return self.xs, self.ys
+
+    def tuppleize(self):
+        if self.points == None:
+            return None
+        ps = [None] * len(self.points)
+        c = 0
+        for p in self.points:
+            ps[c] = p.tuppleize()
+            c += 1
+        return ps
+

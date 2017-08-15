@@ -109,5 +109,9 @@ class ReservationManager(object):
         has_seller = len(self._sell_reservations) > 0
         return has_buyer and has_seller
 
+    def buyer_count(self):
+        return len(self._buy_reservations)
 
+    def seller_count(self):
+        return len(self._sell_reservations)
 

@@ -105,6 +105,10 @@ class Point(tuple):
         'Exclude the OrderedDict from pickling'
         pass
 
+    def tuppleize(self):
+        return (self.x, self.y)
+
+
     x = _property(_itemgetter(0), doc='Alias for field number 0')
 
     y = _property(_itemgetter(1), doc='Alias for field number 1')

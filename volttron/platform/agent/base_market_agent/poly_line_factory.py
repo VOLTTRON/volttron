@@ -54,8 +54,13 @@
 #}}}
 
 import numpy as np
+import logging
 from volttron.platform.agent.base_market_agent.point import Point
 from volttron.platform.agent.base_market_agent.poly_line import PolyLine
+from volttron.platform.agent import utils
+
+_log = logging.getLogger(__name__)
+utils.setup_logging()
 
 class PolyLineFactory(object):
     @staticmethod

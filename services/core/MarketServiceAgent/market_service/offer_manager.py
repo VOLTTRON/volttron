@@ -106,3 +106,9 @@ class OfferManager(object):
 
         return quantity, price
 
+    def buyer_count(self):
+        return len(self._buy_offers)
+
+    def seller_count(self):
+        return len(self._sell_offers)
+

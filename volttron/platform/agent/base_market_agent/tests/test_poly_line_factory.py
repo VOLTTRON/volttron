@@ -81,6 +81,14 @@ def test_poly_line_combine_demand():
     assert combined_curves.max_y() == 1000
 
 
+def test_poly_line_from_tupples():
+    demand_curve = create_demand_curve()
+    tupples = demand_curve.points
+    new_curve = PolyLineFactory.fromTupples(tupples)
+    expected_length = len(demand_curve.points)
+    actual_length = len(new_curve.points)
+    assert actual_length == expected_length
+
 def create_supply_curve():
     supply_curve = PolyLine()
     price = 0

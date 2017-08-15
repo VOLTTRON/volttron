@@ -60,10 +60,12 @@ import logging
 
 from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
 from volttron.platform.agent import utils
-from volttron.platform.vip.agent import Core, PubSub
+from volttron.platform.vip.agent import PubSub
 from volttron.platform.vip.agent import Agent
 from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID, MARKET_CLEAR, MARKET_AGGREGATE, MARKET_ERROR
 from volttron.platform.agent.base_market_agent.registration_manager import RegistrationManager
+from volttron.platform.agent.base_market_agent.poly_line_factory import PolyLineFactory
+from volttron.platform.jsonrpc import RemoteError
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
@@ -80,6 +82,7 @@ class MarketAgent(Agent):
         super(MarketAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
         self.registrations = RegistrationManager(self)
+        self.has_reservation = False
 
     @PubSub.subscribe('pubsub', MARKET_RESERVE)
     def match_reservation(self, peer, sender, bus, topic, headers, message):
@@ -94,19 +97,23 @@ class MarketAgent(Agent):
 
     @PubSub.subscribe('pubsub', MARKET_CLEAR)
     def match_report_clear_price(self, peer, sender, bus, topic, headers, message):
+        _log.debug("match_report_clear_price, message {}".format(message))
         timestamp = utils.parse_timestamp_string(message[0])
-        price = message[1]
-        quantity = message[2]
+        quantity = message[1]
+        price = message[2]
         self.registrations.report_clear_price(timestamp, price, quantity)
 
     @PubSub.subscribe('pubsub', MARKET_AGGREGATE)
     def match_report_aggregate(self, peer, sender, bus, topic, headers, message):
+        _log.debug("match_report_aggregate, message {}".format(message))
         timestamp = utils.parse_timestamp_string(message[0])
-        aggregate_curve = message[1]
+        aggregate_curve_points = message[1]
+        aggregate_curve = PolyLineFactory.fromTupples(aggregate_curve_points)
         self.registrations.report_aggregate(timestamp, aggregate_curve)
 
     @PubSub.subscribe('pubsub', MARKET_ERROR)
     def match_report_error(self, peer, sender, bus, topic, headers, message):
+        _log.debug("match_report_error, message {}".format(message))
         timestamp = utils.parse_timestamp_string(message[0])
         error_message = message[1]
         self.registrations.report_error(timestamp, error_message)
@@ -164,7 +171,11 @@ class MarketAgent(Agent):
         :param buyer_seller: A string indicating whether the agent is buying from or selling to the market.
         The agent shall use the pre-defined strings provided.
         """
-        self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_reservation', market_name, buyer_seller).get(timeout=5.0)
+        try:
+            self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_reservation', market_name, buyer_seller).get(timeout=5.0)
+            self.has_reservation = True
+        except RemoteError as e:
+            self.has_reservation = False
 
     def make_offer(self, market_name, buyer_seller, curve):
         """
@@ -177,5 +188,10 @@ class MarketAgent(Agent):
 
         :param curve: The demand curve for buyers or the supply curve for sellers.
         """
-        self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller, curve).get(timeout=5.0)
+        try:
+            self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller, curve.tuppleize()).get(timeout=5.0)
+            result = True
+        except RemoteError as e:
+            result = False
+        return result
 

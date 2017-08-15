@@ -57,22 +57,28 @@
 # }}}
 
 ACCEPT_RESERVATIONS = 'accept_resevations'
+ACCEPT_RESERVATIONS_HAS_FORMED = 'accept_resevations_market_has_formed'
 ACCEPT_OFFERS = 'accept_offers'
 ACCEPT_BUY_OFFERS = 'accept_buy_offers'
 ACCEPT_SELL_OFFERS = 'accept_sell_offers'
 WAIT_FOR_CLEAR = 'wait_for_clear'
 WAIT_FOR_RESERVATIONS = 'wait_for_reservations'
 
+import logging
+from volttron.platform.agent import utils
 from market_service.offer_manager import OfferManager
 from market_service.reservation_manager import ReservationManager
 from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
 
+_log = logging.getLogger(__name__)
+utils.setup_logging()
+
 class MarketFailureError(StandardError):
     """Base class for exceptions in this module."""
     def __init__(self, market_name, market_state, object_type):
-        super(MarketFailureError, self).__init__('The market %s is not accepting %s '
-                                                 'at this time. The state is %s.' % market_name,
-                                                 object_type, market_state)
+        super(MarketFailureError, self).__init__('The market {0} is not accepting {1} '
+                                                 'at this time. The state is {2}.'.format(market_name,
+                                                 object_type, market_state))
 
 
 class Market(object):
@@ -81,7 +87,7 @@ class Market(object):
         self.reservations = ReservationManager()
         self.offers = OfferManager()
         self.market_name = market_name
-        self.market_state = ACCEPT_RESERVATIONS
+        self.set_initial_state(ACCEPT_RESERVATIONS)
         self.make_reservation(participant)
 
     def make_reservation(self, participant):
@@ -89,6 +95,9 @@ class Market(object):
             raise MarketFailureError(self.market_name, self.market_state, 'reservations')
 
         self.reservations.make_reservation(participant)
+        if self.has_market_formed():
+            self.change_state(ACCEPT_RESERVATIONS_HAS_FORMED)
+
 
     def make_offer(self, participant, curve):
         if self.market_state not in [ACCEPT_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]:
@@ -98,40 +107,42 @@ class Market(object):
         aggregate_curve = None
         self.reservations.take_reservation(participant)
         self.offers.make_offer(participant.buyer_seller, curve)
-        if self.reservations.all_satisfied(participant.buyer_seller):
-            self.market_state = self._next_offer_state(participant)
+        if self.all_satisfied(participant.buyer_seller):
+            self.change_state(self._next_offer_state(participant))
             aggregate_curve = self.offers.aggregate_curves(participant.buyer_seller)
         return aggregate_curve
 
     def collect_offers(self):
-        self.market_state = ACCEPT_OFFERS
+        if self.market_state == ACCEPT_RESERVATIONS_HAS_FORMED:
+            self.change_state(ACCEPT_OFFERS)
+        elif self.market_state == ACCEPT_RESERVATIONS:
+            self.change_state(WAIT_FOR_RESERVATIONS)
+        else:
+            self.log_market_failure('Programming error in Market class. State of {0} and collect offers signal arrived. This represents a logic error.'.format(self.market_state))
+            self.change_state(WAIT_FOR_RESERVATIONS)
 
     def clear_market(self):
         price = None
         quantity = None
         error_message = None
         if (self.market_state in [ACCEPT_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]):
-            error_message = 'The market %s failed to recieve all the expected offers. The state is %s.' % \
-                            self.market_name, self.market_state
+            error_message = 'The market {0} failed to recieve all the expected offers. The state is {1}.'.format(self.market_name, self.market_state)
         elif (self.market_state != WAIT_FOR_CLEAR):
-            error_message = 'Programming error in Market class. State of $s and clear market signal arrived. ' \
-                            'This represents a logic error.', self.market_state
+            error_message = 'Programming error in Market class. State of {0} and clear market signal arrived. This represents a logic error.'.format(self.market_state)
         else:
             if not self.has_market_formed():
-                error_message = 'The market %s has not received a buy and a sell reservation.' % self.market_name
+                error_message = 'The market {0} has not received a buy and a sell reservation.'.format(self.market_name)
             else:
-                self.market_state = WAIT_FOR_RESERVATIONS
+                self.change_state(WAIT_FOR_RESERVATIONS)
                 quantity, price = self.offers.settle()
 
         return [quantity, price, error_message]
 
     def reject_reservation(self, participant):
-        raise MarketFailureError('The market %s is not accepting reservations at this time. The state is %s.' %
-                                 self.market_name, self.market_state)
+        self.log_market_failure('The market {} is not accepting reservations at this time. The state is {}.'.format(self.market_name, self.market_state))
 
     def reject_offer(self, participant):
-        raise MarketFailureError('The market %s is not accepting offers at this time. The state is %s.' %
-                                 self.market_name, self.market_state)
+        self.log_market_failure('The market {} is not accepting offers at this time. The state is {}.'.format(self.market_name, self.market_state))
 
     def has_market_formed(self):
         return self.reservations.has_market_formed()
@@ -144,6 +155,31 @@ class Market(object):
         elif self.market_state == ACCEPT_SELL_OFFERS and participant.is_buyer:
             next_state = WAIT_FOR_CLEAR
         else:
-            raise MarketFailureError('Programming error in Market class. State of $s and completed %s offers. '
-                                     'This represents a logic error.', self.market_state, participant.buyer_seller)
+            self.log_market_failure('Programming error in Market class. State of {0} and completed {1} offers. This represents a logic error.'.format(self.market_state, participant.buyer_seller))
         return next_state
+
+    def log_market_failure(self, message):
+        _log.debug(message)
+        raise MarketFailureError(message)
+
+    def set_initial_state(self, new_state):
+        message = "Market {0} is entering its state: {1}.".format(self.market_name, new_state)
+        self.log_andChange_state(message, new_state)
+
+    def log_andChange_state(self, message, new_state):
+        _log.debug(message)
+        self.market_state = new_state
+
+    def change_state(self, new_state):
+        if (self.market_name != new_state):
+            message = "Market {0} is changing state from state: {1} to state: {2}.".format(self.market_name, self.market_state, new_state)
+            self.log_andChange_state(message, new_state)
+
+    def all_satisfied(self, buyer_seller):
+        are_satisfied = False
+        if (buyer_seller == BUYER):
+            are_satisfied = self.reservations.buyer_count() == self.offers.buyer_count()
+        if (buyer_seller == SELLER):
+            are_satisfied = self.reservations.seller_count() == self.offers.seller_count()
+        return are_satisfied
+

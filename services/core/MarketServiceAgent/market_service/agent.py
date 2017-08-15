@@ -61,11 +61,12 @@ import sys
 
 from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
 from volttron.platform.agent import utils
-from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID, MARKET_CLEAR, MARKET_ERROR
+from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID, MARKET_ERROR
 from volttron.platform.vip.agent import Agent, Core, RPC
 from market_service.director import Director
 from market_service.market_list import MarketList
 from market_service.market_participant import MarketParticipant
+from volttron.platform.agent.base_market_agent.poly_line_factory import PolyLineFactory
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
@@ -102,11 +103,11 @@ def market_service_agent(config_path, **kwargs):
 class MarketServiceAgent(Agent):
     def __init__(self, market_period=300, reservation_delay=0, offer_delay=120, clear_delay=120, **kwargs):
         super(MarketServiceAgent, self).__init__(**kwargs)
-        _log.debug("vip_identity: " + self.core.identity)
-        _log.debug("market_period: " + market_period)
-        _log.debug("reservation_delay: " + reservation_delay)
-        _log.debug("offer_delay: " + offer_delay)
-        _log.debug("clear_delay: " + clear_delay)
+        _log.debug("vip_identity: {0}".format(self.core.identity))
+        _log.debug("market_period: {0}".format(market_period))
+        _log.debug("reservation_delay: {0}".format(reservation_delay))
+        _log.debug("offer_delay: {0}".format(offer_delay))
+        _log.debug("clear_delay: {0}".format(clear_delay))
         self.director = Director(market_period, reservation_delay, offer_delay, clear_delay)
 
     @Core.receiver("onstart")
@@ -115,14 +116,14 @@ class MarketServiceAgent(Agent):
         self.director.start(self)
 
     def send_collect_reservations_request(self, timestamp):
-        _log.debug("send_collect_reservations_request")
+        _log.debug("send_collect_reservations_request at {}".format(timestamp))
         self.market_list.clear_reservations()
         self.vip.pubsub.publish(peer='pubsub',
                                 topic=MARKET_RESERVE,
                                 message=utils.format_timestamp(timestamp))
 
     def send_collect_offers_request(self, timestamp):
-        _log.debug("send_collect_offers_request")
+        _log.debug("send_collect_offers_request at {}".format(timestamp))
         self.market_list.collect_offers()
         self._send_unformed_market_errors(timestamp)
         self.vip.pubsub.publish(peer='pubsub',
@@ -130,27 +131,25 @@ class MarketServiceAgent(Agent):
                                 message=utils.format_timestamp(timestamp))
 
     def send_clear_request(self, timestamp):
-        _log.debug("send_clear_request")
-        self.market_list.clear_market()
-        self.vip.pubsub.publish(peer='pubsub',
-                                topic=MARKET_CLEAR,
-                                message=utils.format_timestamp(timestamp))
+        _log.debug("send_clear_request at {}".format(timestamp))
+        self.market_list.clear_market(timestamp)
 
     @RPC.export
     def make_reservation(self, market_name, buyer_seller):
-        log_message = "Received {0} reservation from {1}".format(buyer_seller, market_name)
-        _log.debug(log_message)
         identity = bytes(self.vip.rpc.context.vip_message.peer)
+        log_message = "Received {0} reservation for market {1} from {2}".format(buyer_seller, market_name, identity)
+        _log.debug(log_message)
         participant = MarketParticipant(buyer_seller, identity)
         self.market_list.make_reservation(market_name, participant)
 
     @RPC.export
     def make_offer(self, market_name, buyer_seller, offer):
-        log_message = "Received {0} offer from {1}".format(buyer_seller, market_name)
-        _log.debug(log_message)
         identity = bytes(self.vip.rpc.context.vip_message.peer)
+        log_message = "Received {0} offer for market {1} from {2}".format(buyer_seller, market_name, identity)
+        _log.debug(log_message)
         participant = MarketParticipant(buyer_seller, identity)
-        self.market_list.make_offer(market_name, participant, offer)
+        curve = PolyLineFactory.fromTupples(offer)
+        self.market_list.make_offer(market_name, participant, curve)
 
     def _send_unformed_market_errors(self, timestamp):
         unformed_markets = self.market_list.unformed_market_list()
@@ -159,8 +158,7 @@ class MarketServiceAgent(Agent):
             _log.debug(log_message)
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=MARKET_ERROR,
-                                    message={'timestamp' : timestamp,
-                                             'error_message': 'Market %s did not form.' % (market_name)})
+                                    message=[timestamp, 'Market %s did not form.'.format(market_name)])
 
 
 def main():

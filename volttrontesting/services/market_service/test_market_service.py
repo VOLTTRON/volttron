@@ -59,7 +59,7 @@
 Pytest test cases for testing market service agent.
 """
 
-import logging
+from datetime import datetime
 import gevent
 import pytest
 
@@ -70,16 +70,20 @@ from volttron.platform.agent.base_market_agent.point import Point
 from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
 
 STANDARD_GET_TIMEOUT = 5
-_log = logging.getLogger(__name__)
-utils.setup_logging()
+BASE_DELAY = 6
+LONG_DELAY = BASE_DELAY * 3
+
 
 class _config_test_agent(MarketAgent):
-    def __init__(self, **kwargs):
+    def __init__(self, identity, **kwargs):
         super(_config_test_agent, self).__init__(**kwargs)
+        self.test_agent_name = identity
         self.reset_results()
         self.wants_reservation = True
+        print_message("Starting {}".format(self.test_agent_name))
 
     def reset_results(self):
+        print_message("reseting results in {}".format(self.test_agent_name))
         self.reservation_callback_results = []
         self.offer_callback_results = []
         self.aggregate_callback_results = []
@@ -87,22 +91,29 @@ class _config_test_agent(MarketAgent):
         self.error_callback_results = []
 
     def join_market_as_simple_seller(self, market_name):
+        print_message("join_market_as_simple_seller in {}".format(self.test_agent_name))
         self.join_market(market_name, SELLER, self.reservation_callback, self.offer_callback, None, self.price_callback, self.error_callback)
 
     def join_market_as_simple_buyer(self, market_name):
+        print_message("join_market_as_simple_buyer in {}".format(self.test_agent_name))
         self.join_market(market_name, BUYER, self.reservation_callback, self.offer_callback, None, None, self.error_callback)
 
     def reservation_callback(self, timestamp, market_name, buyer_seller):
+        print_message("reservation_callback in {}".format(self.test_agent_name))
         self.reservation_callback_results.append((timestamp, market_name, buyer_seller, self.wants_reservation))
         return self.wants_reservation
 
     def offer_callback(self, timestamp, market_name, buyer_seller):
-        if buyer_seller == BUYER:
-            curve = self.create_demand_curve()
-        else:
-            curve = self.create_supply_curve()
+        print_message("offer_callback in {}".format(self.test_agent_name))
+        curve = None
+        if self.has_reservation:
+            if buyer_seller == BUYER:
+                curve = self.create_demand_curve()
+            else:
+                curve = self.create_supply_curve()
         self.offer_callback_results.append((timestamp, market_name, buyer_seller, curve))
-        self.make_offer(market_name, buyer_seller, curve)
+        if self.has_reservation:
+            self.make_offer(market_name, buyer_seller, curve)
 
     def create_supply_curve(self):
         supply_curve = PolyLine()
@@ -125,14 +136,27 @@ class _config_test_agent(MarketAgent):
         return demand_curve
 
     def aggregate_callback(self, timestamp, market_name, buyer_seller, curve):
+        print_message("aggregate_callback in {}".format(self.test_agent_name))
         self.aggregate_callback_results.append((timestamp, market_name, buyer_seller, curve))
 
     def price_callback(self, timestamp, market_name, buyer_seller, price, quantity):
+        print_message("price_callback in {}".format(self.test_agent_name))
         self.price_callback_results.append((timestamp, market_name, buyer_seller, price, quantity))
+        self.has_reservation = False
 
     def error_callback(self, timestamp, market_name, buyer_seller, error_message):
+        print_message("error_callback error message: {} in {}".format(self.test_agent_name))
         self.error_callback_results.append((timestamp, market_name, buyer_seller, error_message))
-        _log.debug(error_message)
+        self.has_reservation = False
+
+
+def print_message(message):
+    print("{0}: {1}".format(_get_time(), message))
+
+def _get_time():
+    now = datetime.now()
+    now_string = str(now)
+    return now_string
 
 
 @pytest.fixture(scope="module")
@@ -141,27 +165,29 @@ def _module_config_test_service(request, volttron_instance):
     market_service_uuid = volttron_instance.install_agent(
         agent_dir="services/core/MarketServiceAgent",
         config_file={
-            'market_period': 3,
+            'market_period': LONG_DELAY,
             'reservation_delay': 0,
-            'offer_delay': 1,
-            'clear_delay': 1
+            'offer_delay': BASE_DELAY,
+            'clear_delay': BASE_DELAY
         },
         start=True)
-    _log.debug("market service agent id: ", market_service_uuid)
+    print_message("market service agent id: {}".format(market_service_uuid))
     yield market_service_uuid
-    _log.debug("In market service agent teardown method of module")
+    print_message("In market service agent teardown method of module")
     volttron_instance.stop_agent(market_service_uuid)
 
 
 @pytest.fixture(scope="function")
 def _function_config_test_seller(request, volttron_instance, _module_config_test_service):
     seller_agent = volttron_instance.build_agent(identity='config_test_seller', agent_class=_config_test_agent)
+    gevent.sleep(0.5)
     yield seller_agent
     seller_agent.core.stop(timeout=STANDARD_GET_TIMEOUT)
 
 @pytest.fixture(scope="function")
 def _function_config_test_buyer(request, volttron_instance, _module_config_test_service):
     buyer_agent = volttron_instance.build_agent(identity='config_test_buyer', agent_class=_config_test_agent)
+    gevent.sleep(0.5)
     yield buyer_agent
     buyer_agent.core.stop(timeout=STANDARD_GET_TIMEOUT)
 
@@ -173,7 +199,7 @@ def test_simple_market_reservations(_function_config_test_seller, _function_conf
     market_name = 'electricity'
     seller_agent.join_market_as_simple_seller(market_name)
     buyer_agent.join_market_as_simple_buyer(market_name)
-    gevent.sleep(1)
+    gevent.sleep(LONG_DELAY)
     assert len(seller_agent.reservation_callback_results) >= 1, "expected that the seller got a reservation callback"
     assert len(buyer_agent.reservation_callback_results) >= 1, "expected that the buyer got a reservation callback"
 
@@ -184,7 +210,7 @@ def test_simple_market_offers(_function_config_test_seller, _function_config_tes
     market_name = 'electricity'
     seller_agent.join_market_as_simple_seller(market_name)
     buyer_agent.join_market_as_simple_buyer(market_name)
-    gevent.sleep(2)
+    gevent.sleep(LONG_DELAY)
     assert len(seller_agent.offer_callback_results) >= 1, "expected that the seller got an offer callback"
     assert len(buyer_agent.offer_callback_results) >= 1, "expected that the buyer got an offer callback"
 
@@ -195,7 +221,7 @@ def test_simple_market_prices(_function_config_test_seller, _function_config_tes
     market_name = 'electricity'
     seller_agent.join_market_as_simple_seller(market_name)
     buyer_agent.join_market_as_simple_buyer(market_name)
-    gevent.sleep(3)
+    gevent.sleep(LONG_DELAY)
     assert len(seller_agent.price_callback_results) >= 1, "expected that the seller got a price callback"
     assert len(buyer_agent.price_callback_results) >= 1, "expected that the buyer got a price callback"
 
@@ -206,7 +232,7 @@ def test_simple_market_errors(_function_config_test_seller, _function_config_tes
     market_name = 'electricity'
     seller_agent.join_market_as_simple_seller(market_name)
     buyer_agent.join_market_as_simple_buyer(market_name)
-    gevent.sleep(3)
+    gevent.sleep(LONG_DELAY)
     assert len(seller_agent.error_callback_results) == 0, "expected that the seller got no error callbacks"
     assert len(buyer_agent.error_callback_results) == 0, "expected that the buyer got no error callbacks"
 

@@ -56,6 +56,7 @@
 
 # }}}
 
+from volttron.platform.agent import utils
 from volttron.platform.messaging.topics import MARKET_AGGREGATE, MARKET_CLEAR, MARKET_ERROR
 from market_service.market import Market
 
@@ -80,9 +81,11 @@ class MarketList(object):
         market = self.get_market(market_name)
         aggregate_curve = market.make_offer(participant, curve)
         if aggregate_curve is not None:
+            timestamp = self._get_time()
+            timestamp_string = utils.format_timestamp(timestamp)
             self.publish(peer='pubsub',
                                 topic=MARKET_AGGREGATE,
-                                message=aggregate_curve)
+                                message=[timestamp_string, aggregate_curve.tuppleize()])
 
     def clear_reservations(self):
         self.markets.clear()
@@ -91,17 +94,18 @@ class MarketList(object):
         for market in self.markets.itervalues():
             market.collect_offers()
 
-    def clear_market(self):
+    def clear_market(self, timestamp):
+        timestamp_string = utils.format_timestamp(timestamp)
         for market in self.markets.itervalues():
-            cleared_price, error_message = market.clear_market()
-            if cleared_price is not None:
+            cleared_quantity, cleared_price, error_message = market.clear_market()
+            if cleared_price is not None and cleared_quantity is not None:
                 self.publish(peer='pubsub',
                              topic=MARKET_CLEAR,
-                             message=cleared_price)
+                             message=[timestamp_string, cleared_quantity, cleared_price])
             elif error_message is not None:
                 self.publish(peer='pubsub',
                              topic=MARKET_ERROR,
-                             message=error_message)
+                             message=[timestamp_string, error_message])
 
     def get_market(self, market_name):
         if self.has_market(market_name):
@@ -126,4 +130,8 @@ class MarketList(object):
            if not market.has_market_formed:
                list << market.market_name
         return list
+
+    def _get_time(self):
+        now = utils.get_aware_utc_now()
+        return now
 
