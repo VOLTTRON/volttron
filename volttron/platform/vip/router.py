@@ -62,10 +62,9 @@ import os
 import logging
 import zmq
 from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
-
+from .pubsubservice import PubSubService
 
 __all__ = ['BaseRouter', 'OUTGOING', 'INCOMING', 'UNROUTABLE', 'ERROR']
-
 
 OUTGOING = 0
 INCOMING = 1
@@ -137,6 +136,11 @@ class BaseRouter(object):
         sock.tcp_keepalive_idle = 180
         sock.tcp_keepalive_intvl = 20
         sock.tcp_keepalive_cnt = 6
+        # sock.setsockopt(zmq.SNDBUF, 40000)
+        # sock.setsockopt(zmq.RCVBUF, 40000)
+        # sock.set_hwm(60000)
+        sock.set_hwm(6000)
+        _log.debug("ROUTER SENDBUF: {0}, {1}".format(sock.getsockopt(zmq.SNDBUF), sock.getsockopt(zmq.RCVBUF)))
         self.setup()
 
     def stop(self, linger=1):
@@ -217,11 +221,20 @@ class BaseRouter(object):
         for peer in drop:
             self._drop_peer(peer)
 
+    def _drop_pubsub_peers(self, peer):
+        '''Drop peers for pubsub subsystem. To be handled by subclasses'''
+        pass
+
+    def _add_pubsub_peers(self, peer):
+        '''Add peers for pubsub subsystem. To be handled by subclasses'''
+        pass
+
     def _add_peer(self, peer):
         if peer in self._peers:
             return
         self._distribute(b'peerlist', b'add', peer)
         self._peers.add(peer)
+        self._add_pubsub_peers(peer)
 
     def _drop_peer(self, peer):
         try:
@@ -229,6 +242,7 @@ class BaseRouter(object):
         except KeyError:
             return
         self._distribute(b'peerlist', b'drop', peer)
+        self._drop_pubsub_peers(peer)
 
     def route(self):
         '''Route one message and return.

@@ -195,9 +195,6 @@ def test_can_ping_pubsub(volttron_instance):
     agent = vi.build_agent()
     resp = agent.vip.ping('', 'hello').get(timeout=5)
     print('ROUTER RESP: ', resp)
-    resp = agent.vip.ping('pubsub', 'hello').get(timeout=5)
-    print('PUBSUB RESP: ', resp)
-
 
 @pytest.mark.wrapper
 @pytest.mark.skip("Upgrade to fix.")
