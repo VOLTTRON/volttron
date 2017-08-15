@@ -497,7 +497,6 @@ def assert_timestamp(result, expected_date, expected_time):
         assert (result == expected_date + 'T' + expected_time[:-7] +
                 '.000000+00:00')
 
-
 @pytest.mark.historian
 def test_basic_function(request, historian, publish_agent, query_agent,
                         clean_db_rows):
@@ -1885,7 +1884,7 @@ def test_insert_duplicate(request, historian, publish_agent, query_agent,
     global query_points, DEVICES_ALL_TOPIC, db_connection
 
     # print('HOME', volttron_instance.volttron_home)
-    print("\n** test_basic_function for {}**".format(
+    print("\n** test_insert_duplicate for {}**".format(
         request.keywords.node.name))
 
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -1950,8 +1949,8 @@ def test_multi_topic_query(request, historian, publish_agent, query_agent,
     Test basic functionality of historian. Inserts three points as part
     of all topic and checks if all three got into the database
     Expected result:
-    Should be able to query data based on topic name. Result should contain
-    both data and metadata
+    Should be able to query data based on list of topic name. Result should
+    contain both data and empty metadata
     :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
@@ -1963,7 +1962,7 @@ def test_multi_topic_query(request, historian, publish_agent, query_agent,
     global query_points, DEVICES_ALL_TOPIC, db_connection
 
     # print('HOME', volttron_instance.volttron_home)
-    print("\n** test_basic_function for {}**".format(
+    print("\n** test_multi_topic_query for {}**".format(
         request.keywords.node.name))
 
     expected_result = {}
@@ -2009,6 +2008,96 @@ def test_multi_topic_query(request, historian, publish_agent, query_agent,
         assert (result["values"][query_points['oat_point']][i][1] ==
                 expected_result["values"][query_points['oat_point']][i][1])
 
+
+@pytest.mark.historian
+def test_multi_topic_query_single_result(request, historian, publish_agent,
+                                         query_agent, clean_db_rows):
+    """
+    Test basic functionality of historian. Inserts three points as part
+    of all topic and checks if all three got into the database
+    Expected result:
+    Should be able to query data based on list of topic names. Result should
+    contain both data and metadata
+    :param request: pytest request object
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
+    :param historian: instance of the historian tested
+    :param clean_db_rows: fixture to clear data table
+    """
+
+    global query_points, DEVICES_ALL_TOPIC, db_connection
+
+    # print('HOME', volttron_instance.volttron_home)
+    print("\n** test_multi_topic_query_single_result for {}**".format(
+        request.keywords.node.name))
+
+    # Insert topic MixedAirTemperature with a older timestamp so query
+    # will not return this
+    all_message = [{'MixedAirTemperature': 1.1}]
+    # Create timestamp
+    old_time = (datetime.utcnow() - timedelta(days=1)).isoformat(
+        'T') + "+00:00"
+    # now = '2015-12-02T00:00:00'
+    headers = {headers_mod.DATE: old_time}
+    publish(publish_agent, DEVICES_ALL_TOPIC, headers, all_message)
+    gevent.sleep(1)
+
+    # Now publish data for oat_point using current time
+    query_start = datetime.utcnow().isoformat()
+    expected_result = {}
+    values_dict = {query_points['oat_point']: []}
+    for x in range(0, 5):
+        ts, reading, meta = publish_devices_fake_data_single_topic(
+            publish_agent)
+        gevent.sleep(0.5)
+        if x == 0:
+            query_start = ts
+        if x < 3:
+            values_dict[query_points['oat_point']].append(
+                [ts, reading])
+    expected_result["values"] = values_dict
+    gevent.sleep(1)
+
+    # Query the historian with two valid topic - one with data and another with
+    # no data in the queried time interval
+    result = query_agent.vip.rpc.call(
+        identity,
+        'query',
+        topic=[query_points['oat_point'], query_points['mixed_point']],
+        count=3,
+        start=query_start,
+        order="FIRST_TO_LAST").get(timeout=100)
+    print('Query Result', result)
+    print('Expected Result', expected_result)
+
+    assert result["metadata"] == {}
+    assert result["values"][query_points['mixed_point']] == []
+    for i in range(0, 3):
+        expected_date, expected_time = \
+        expected_result["values"][query_points['oat_point']][i][0].split("T")
+        assert_timestamp(result["values"][query_points['oat_point']][i][0],
+                         expected_date, expected_time)
+        assert (result["values"][query_points['oat_point']][i][1] ==
+                expected_result["values"][query_points['oat_point']][i][1])
+
+    # Query the historian with a valid topic and an invalid topic
+    result = query_agent.vip.rpc.call(identity, 'query',
+        topic=[query_points['oat_point'], "device/topic/unknown"],
+        count=3, start=query_start, order="FIRST_TO_LAST").get(timeout=100)
+    print('Query Result', result)
+    print('Expected Result', expected_result)
+
+    assert result["metadata"] == {}
+    assert len(result["values"]) == 1
+    for i in range(0, 3):
+        expected_date, expected_time = \
+            expected_result["values"][query_points['oat_point']][i][
+                0].split("T")
+        assert_timestamp(result["values"][query_points['oat_point']][i][0],
+                         expected_date, expected_time)
+        assert (result["values"][query_points['oat_point']][i][1] ==
+                expected_result["values"][query_points['oat_point']][i][1])
 
 
 @pytest.mark.historian
@@ -2364,3 +2453,28 @@ def publish_devices_fake_data(publish_agent, time=None):
     # Publish messages
     publish(publish_agent, DEVICES_ALL_TOPIC, headers, all_message)
     return time, reading, meta
+
+
+def publish_devices_fake_data_single_topic(publish_agent, time=None):
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings
+    global DEVICES_ALL_TOPIC
+    reading = random_uniform(30, 100)
+    meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+
+    # Create a message for all points.
+    all_message = [{'OutsideAirTemperature': reading},
+                   {'OutsideAirTemperature': meta
+                    }]
+    # Create timestamp
+    if not time:
+        time = datetime.utcnow().isoformat('T') + "+00:00"
+    # now = '2015-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: time
+    }
+    print("Published time in header: " + time)
+    # Publish messages
+    publish(publish_agent, DEVICES_ALL_TOPIC, headers, all_message)
+    return time, reading, meta
+

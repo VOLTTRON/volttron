@@ -576,7 +576,7 @@ class MongodbHistorian(BaseHistorian):
                 collection_name = name
                 use_rolled_up_data = True
         _log.debug("Using collection {} for query:".format(collection_name))
-
+        multi_topic_query = len(topics_list) > 1
         topic_ids = []
         id_name_map = {}
         for topic in topics_list:
@@ -606,7 +606,6 @@ class MongodbHistorian(BaseHistorian):
         else:
             _log.debug("Found topic id for {} as {}".format(
                 topics_list, topic_ids))
-        multi_topic_query = len(topic_ids) > 1
 
         order_by = 1
         if order == 'LAST_TO_FIRST':
@@ -907,43 +906,33 @@ class MongodbHistorian(BaseHistorian):
         :param values:
         :return:
         '''
+        results = dict()
         if len(values) > 0:
             # If there are results add metadata if it is a query on a
             # single
             # topic
+            meta_tid = None
             if not multi_topic_query:
                 values = values.values()[0]
                 if agg_type:
                     # if aggregation is on single topic find the topic id
                     # in the topics table.
+                    # if topic name does not have entry in topic_id_map
+                    # it is a user configured aggregation_topic_name
+                    # which denotes aggregation across multiple points
                     _log.debug("Single topic aggregate query. Try to get "
                                "metadata")
-                    topic_id = self._topic_id_map.get(topic.lower(), None)
-                    if topic_id:
-                        _log.debug("aggregation of a single topic, "
-                                   "found topic id in topic map. "
-                                   "topic_id={}".format(topic_id))
-                        metadata = self._topic_meta.get(topic_id, {})
-                    else:
-                        # if topic name does not have entry in topic_id_map
-                        # it is a user configured aggregation_topic_name
-                        # which denotes aggregation across multiple points
-                        metadata = {}
+                    meta_tid = self._topic_id_map.get(topic.lower(), None)
                 else:
                     # this is a query on raw data, get metadata for
                     # topic from topic_meta map
-                    _log.debug("Single topic regular query. Get "
-                               "metadata from meta map for {}".format(
-                        topic_ids[0]))
-                    metadata = self._topic_meta.get(topic_ids[0], {})
-                    _log.debug("Metadata found {}".format(metadata))
-                return {'values': values, 'metadata': metadata}
+                    meta_tid = topic_ids[0]
+            if values:
+                metadata = self._topic_meta.get(meta_tid, {})
+                results = {'values': values, 'metadata': metadata}
             else:
-                _log.debug("return values without metadata for multi "
-                           "topic query")
-                return {'values': values}
-        else:
-            return {}
+                results = dict()
+        return results
 
     @doc_inherit
     def query_topic_list(self):

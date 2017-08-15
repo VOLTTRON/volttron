@@ -652,7 +652,8 @@ class BaseHistorianAgent(Agent):
 
         meta = {}
         if not isinstance(message, dict):
-            meta = message[1]
+            if len(message) == 2:
+                meta = message[1]
 
         if topic.startswith('analysis'):
             source = 'analysis'
