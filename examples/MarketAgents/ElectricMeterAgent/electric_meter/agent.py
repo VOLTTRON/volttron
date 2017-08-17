@@ -118,8 +118,7 @@ class SampleElectricMeterAgent(MarketAgent):
 
 def main():
     """Main method called to start the agent."""
-    utils.vip_main(electric_meter_agent, identity="electric_seller",
-                   version=__version__)
+    utils.vip_main(electric_meter_agent, version=__version__)
 
 
 if __name__ == '__main__':
