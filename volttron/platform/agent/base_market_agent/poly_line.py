@@ -129,38 +129,6 @@ class PolyLine:
             return x1
         return x1 + x2
 
-    @staticmethod
-    def intersection(pl_1, pl_2):
-
-        # we have two points
-        if len(pl_1) == 1 and len(pl_2) == 1:
-            if pl_1[0][0] == pl_2[0][0] and pl_1[0][1] == pl_2[0][1]:
-                return pl_1[0][0], pl_1[0][1]
-
-        # we have one point and line segments
-        elif len(pl_1) == 1 or len(pl_2) == 1:
-            if len(pl_1) == 1:
-                point = pl_1[0]
-                line = pl_2
-            else:
-                point = pl_2[0]
-                line = pl_1
-            for j, pl_2_1 in enumerate(line[:-1]):
-                pl_2_2 = line[j + 1]
-                if PolyLine.between(pl_2_1, pl_2_2, point):
-                    return point[0], point[1]
-
-        # we have line segments
-        elif len(pl_1) > 1 and len(pl_2) > 1:
-            for i, pl_1_1 in enumerate(pl_1[:-1]):
-                pl_1_2 = pl_1[i + 1]
-                for j, pl_2_1 in enumerate(pl_2[:-1]):
-                    pl_2_2 = pl_2[j + 1]
-                    if PolyLine.segment_intersects((pl_1_1, pl_1_2), (pl_2_1, pl_2_2)):
-                        return PolyLine.segment_intersection((pl_1_1, pl_1_2), (pl_2_1, pl_2_2))
-
-        return None, None
-
     def x(self, y, left=None, right=None):
         if self.points == None:
             return None
@@ -219,3 +187,83 @@ class PolyLine:
             c += 1
         return ps
 
+    @staticmethod
+    def determinant(point1, point2):
+        return point1[0] * point2[1] - point1[1] * point2[0]
+
+    @staticmethod
+    def segment_intersection(line1, line2):
+        xdiff = (line1[0][0] - line1[1][0], line2[0][0] - line2[1][0])
+        ydiff = (line1[0][1] - line1[1][1], line2[0][1] - line2[1][1])
+        div = PolyLine.determinant(xdiff, ydiff)
+        if div == 0:
+            return None
+        d = (PolyLine.determinant(*line1), PolyLine.determinant(*line2))
+        x = PolyLine.determinant(d, xdiff) / div
+        y = PolyLine.determinant(d, ydiff) / div
+        return x, y
+
+    @staticmethod
+    def ccw(p1, p2, p3):
+        return (p3[1] - p1[1]) * (p2[0] - p1[0]) > (p2[1] - p1[1]) * (p3[0] - p1[0])
+
+    @staticmethod
+    def segment_intersects(l1, l2):
+        if l1[0][0] is None or l1[0][1] is None or l1[1][0] is None or l1[1][1] is None:
+            return None
+        if l2[0][0] is None or l2[0][1] is None or l2[1][0] is None or l2[1][1] is None:
+            return None
+        if (PolyLine.ccw(l1[0], l2[0], l2[1]) != PolyLine.ccw(l1[1], l2[0], l2[1])
+            and PolyLine.ccw(l1[0], l1[1], l2[0]) != PolyLine.ccw(l1[0], l1[1], l2[1])):
+            return True
+        if (l1[0][0] == l2[0][0] and l1[0][1] == l2[0][1]) or (l1[0][0] == l2[1][0] and l1[0][1] == l2[1][1]):
+            return True
+        if (l1[1][0] == l2[0][0] and l1[1][1] == l2[0][1]) or (l1[1][0] == l2[1][0] and l1[1][1] == l2[1][1]):
+            return True
+
+    @staticmethod
+    def between(a, b, c):
+        if (a[0] is None or a[1] is None or b[0] is None or b[1] is None or c[0] is None or c[1] is None):
+            return None
+        crossproduct = (c[1] - a[1]) * (b[0] - a[0]) - (c[0] - a[0]) * (b[1] - a[1])
+        if abs(crossproduct) > 1e-12:
+            return False
+        dotproduct = (c[0] - a[0]) * (b[0] - a[0]) + (c[1] - a[1]) * (b[1] - a[1])
+        if dotproduct < 0:
+            return False
+        squaredlengthba = (b[0] - a[0]) * (b[0] - a[0]) + (b[1] - a[1]) * (b[1] - a[1])
+        if dotproduct > squaredlengthba:
+            return False
+        return True
+
+    @staticmethod
+    def intersection(pl_1, pl_2):
+
+        # we have two points
+        if len(pl_1) == 1 and len(pl_2) == 1:
+            if pl_1[0][0] == pl_2[0][0] and pl_1[0][1] == pl_2[0][1]:
+                return pl_1[0][0], pl_1[0][1]
+
+        # we have one point and line segments
+        elif len(pl_1) == 1 or len(pl_2) == 1:
+            if len(pl_1) == 1:
+                point = pl_1[0]
+                line = pl_2
+            else:
+                point = pl_2[0]
+                line = pl_1
+            for j, pl_2_1 in enumerate(line[:-1]):
+                pl_2_2 = line[j + 1]
+                if PolyLine.between(pl_2_1, pl_2_2, point):
+                    return point[0], point[1]
+
+        # we have line segments
+        elif len(pl_1) > 1 and len(pl_2) > 1:
+            for i, pl_1_1 in enumerate(pl_1[:-1]):
+                pl_1_2 = pl_1[i + 1]
+                for j, pl_2_1 in enumerate(pl_2[:-1]):
+                    pl_2_2 = pl_2[j + 1]
+                    if PolyLine.segment_intersects((pl_1_1, pl_1_2), (pl_2_1, pl_2_2)):
+                        return PolyLine.segment_intersection((pl_1_1, pl_1_2), (pl_2_1, pl_2_2))
+
+        return None, None

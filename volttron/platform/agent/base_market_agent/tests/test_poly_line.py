@@ -134,14 +134,14 @@ def test_poly_line_add_points_is_sorted():
 def test_poly_line_intersection_not_none():
     demand = create_demand_curve()
     supply = create_supply_curve()
-    intersection = PolyLine.intersection(demand, supply)
+    intersection = PolyLine.intersection(demand.points, supply.points)
     assert intersection is not None
 
 @pytest.mark.market
 def test_poly_line_intersection_yeilds_two():
     demand = create_demand_curve()
     supply = create_supply_curve()
-    intersection = PolyLine.intersection(demand, supply)
+    intersection = PolyLine.intersection(demand.points, supply.points)
     assert len(intersection) == 2
 
 def create_supply_curve():
