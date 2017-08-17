@@ -87,7 +87,7 @@ def electric_meter_agent(config_path, **kwargs):
     if not config:
         _log.info("Using Sample Electric Meter Agent defaults for starting configuration.")
 
-    market_name = int(config.get('market_name', 'electric'))
+    market_name = config.get('market_name', 'electric')
 
     return SampleElectricMeterAgent(market_name, **kwargs)
 
