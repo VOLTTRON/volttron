@@ -72,6 +72,11 @@ _log = logging.getLogger(__name__)
 utils.setup_logging()
 __version__ = "0.01"
 
+INITIAL_WAIT = 'initial_service_wait'
+COLLECT_RESERVATIONS = 'service_collect_reservations'
+COLLECT_OFFERS = 'service_collect_offers'
+CLEAR_PRICES = 'service_clear_prices'
+NO_MARKETS = 'service_has_no_markets'
 
 def market_service_agent(config_path, **kwargs):
     """Parses the Market Service Agent configuration and returns an instance of
@@ -110,6 +115,9 @@ class MarketServiceAgent(Agent):
         _log.debug("offer_delay: {0}".format(offer_delay))
         _log.debug("clear_delay: {0}".format(clear_delay))
 
+        self.service_state = None
+        self.market_list = None
+        self.set_initial_state(INITIAL_WAIT)
         self.director = Director(market_period, reservation_delay, offer_delay, clear_delay)
 
     @Core.receiver("onstart")
@@ -119,13 +127,21 @@ class MarketServiceAgent(Agent):
 
     def send_collect_reservations_request(self, timestamp):
         _log.debug("send_collect_reservations_request at {}".format(timestamp))
+        self.change_state(COLLECT_RESERVATIONS)
         self.market_list.clear_reservations()
         self.vip.pubsub.publish(peer='pubsub',
                                 topic=MARKET_RESERVE,
                                 message=utils.format_timestamp(timestamp))
 
     def send_collect_offers_request(self, timestamp):
+        if (self.has_any_markets()):
+            self.begin_collect_offers(timestamp)
+        else:
+            self.change_state(NO_MARKETS)
+
+    def begin_collect_offers(self, timestamp):
         _log.debug("send_collect_offers_request at {}".format(timestamp))
+        self.change_state(COLLECT_OFFERS)
         self.market_list.collect_offers()
         self._send_unformed_market_errors(timestamp)
         self.vip.pubsub.publish(peer='pubsub',
@@ -133,25 +149,45 @@ class MarketServiceAgent(Agent):
                                 message=utils.format_timestamp(timestamp))
 
     def send_clear_request(self, timestamp):
-        _log.debug("send_clear_request at {}".format(timestamp))
-        self.market_list.clear_market(timestamp)
+        if (self.service_state != NO_MARKETS):
+            _log.debug("send_clear_request at {}".format(timestamp))
+            self.change_state(CLEAR_PRICES)
+            self.market_list.clear_market(timestamp)
 
     @RPC.export
     def make_reservation(self, market_name, buyer_seller):
         identity = bytes(self.vip.rpc.context.vip_message.peer)
-        log_message = "Received {0} reservation for market {1} from {2}".format(buyer_seller, market_name, identity)
+        log_message = "Received {0} reservation for market {1} from agent {2}".format(buyer_seller, market_name, identity)
         _log.debug(log_message)
+        if (self.service_state == COLLECT_RESERVATIONS):
+            self.accept_reservation(buyer_seller, identity, market_name)
+        else:
+            self.reject_reservation(buyer_seller, identity, market_name)
+
+    def accept_reservation(self, buyer_seller, identity, market_name):
         participant = MarketParticipant(buyer_seller, identity)
         self.market_list.make_reservation(market_name, participant)
+
+    def reject_reservation(self, buyer_seller, identity, market_name):
+        raise RuntimeError("Error: Market service not accepting reservations at this time.")
 
     @RPC.export
     def make_offer(self, market_name, buyer_seller, offer):
         identity = bytes(self.vip.rpc.context.vip_message.peer)
-        log_message = "Received {0} offer for market {1} from {2}".format(buyer_seller, market_name, identity)
+        log_message = "Received {0} offer for market {1} from agent {2}".format(buyer_seller, market_name, identity)
         _log.debug(log_message)
+        if (self.service_state == COLLECT_OFFERS):
+            self.accept_offer(buyer_seller, identity, market_name, offer)
+        else:
+            self.reject_offer(buyer_seller, identity, market_name, offer)
+
+    def accept_offer(self, buyer_seller, identity, market_name, offer):
         participant = MarketParticipant(buyer_seller, identity)
         curve = PolyLineFactory.fromTupples(offer)
         self.market_list.make_offer(market_name, participant, curve)
+
+    def reject_reservation(self, buyer_seller, identity, market_name):
+        raise RuntimeError("Error: Market service not accepting offers at this time.")
 
     def _send_unformed_market_errors(self, timestamp):
         unformed_markets = self.market_list.unformed_market_list()
@@ -160,8 +196,24 @@ class MarketServiceAgent(Agent):
             _log.debug(log_message)
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=MARKET_ERROR,
-                                    message=[timestamp, 'Market %s did not form.'.format(market_name)])
+                                    message=[timestamp, 'Error: market %s did not form.'.format(market_name)])
 
+    def set_initial_state(self, new_state):
+        message = "Market service is entering its state: {}.".format(new_state)
+        self.log_andChange_state(message, new_state)
+
+    def log_andChange_state(self, message, new_state):
+        _log.debug(message)
+        self.service_state = new_state
+
+    def change_state(self, new_state):
+        if (self.service_state != new_state):
+            message = "Market service is changing state from state: {1} to state: {2}.".format(self.service_state, new_state)
+            self.log_andChange_state(message, new_state)
+
+    def has_any_markets(self):
+        unformed_markets = self.market_list.unformed_market_list()
+        return len(unformed_markets) > 0
 
 def main():
     """Main method called to start the agent."""
