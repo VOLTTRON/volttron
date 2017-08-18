@@ -76,6 +76,7 @@ from zmq.utils import jsonapi
 from .agent.utils import strip_comments, create_file_if_missing, watch_file
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
+from volttron.platform.vip.agent.errors import VIPError
 
 _log = logging.getLogger(__name__)
 
@@ -104,7 +105,7 @@ class AuthException(Exception):
 
 
 class AuthService(Agent):
-    def __init__(self, auth_file, aip, *args, **kwargs):
+    def __init__(self, auth_file, protected_topics_file, aip, *args, **kwargs):
         self.allow_any = kwargs.pop('allow_any', False)
         super(AuthService, self).__init__(*args, **kwargs)
 
@@ -119,6 +120,9 @@ class AuthService(Agent):
         self._zap_greenlet = None
         self.auth_entries = []
         self._is_connected = False
+        self._protected_topics_file = protected_topics_file
+        self._protected_topics_file_path = os.path.abspath(protected_topics_file)
+        self._protected_topics = {}
 
     @Core.receiver('onsetup')
     def setup_zap(self, sender, **kwargs):
@@ -127,7 +131,9 @@ class AuthService(Agent):
         if self.allow_any:
             _log.warn('insecure permissive authentication enabled')
         self.read_auth_file()
+        self._read_protected_topics_file()
         self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
+        self.core.spawn(watch_file, self._protected_topics_file_path, self._read_protected_topics_file)
 
     def read_auth_file(self):
         _log.info('loading auth file %s', self.auth_file_path)
@@ -140,11 +146,52 @@ class AuthService(Agent):
         if self._is_connected:
             self._send_update()
 
+    def get_protected_topics(self):
+        protected = self._protected_topics
+        return protected
+
+    def _read_protected_topics_file(self):
+        #Read protected topics file and send to router
+        try:
+            create_file_if_missing(self._protected_topics_file)
+            with open(self._protected_topics_file) as fil:
+                # Use gevent FileObject to avoid blocking the thread
+                data = FileObject(fil, close=False).read()
+                self._protected_topics = jsonapi.loads(data) if data else {}
+                self._send_protected_update_to_pubsub(self._protected_topics)
+        except Exception:
+            _log.exception('error loading %s', self._protected_topics_file)
+
+
     def _send_update(self):
         user_to_caps = self.get_user_to_capabilities()
         peers = self.vip.peerlist().get(timeout=5)
+        _log.debug("AUTH new capabilities update: {}".format(user_to_caps))
         for peer in peers:
             self.vip.rpc.call(peer, 'auth.update', user_to_caps)
+        self._send_auth_update_to_pubsub()
+
+    def _send_auth_update_to_pubsub(self):
+        user_to_caps = self.get_user_to_capabilities()
+        #Send auth update message to router
+        json_msg = jsonapi.dumps(
+            dict(capabilities=user_to_caps)
+        )
+        frames = [zmq.Frame(b'auth_update'), zmq.Frame(str(json_msg))]
+        # <recipient, subsystem, args, msg_id, flags>
+        self.core.socket.send_vip(b'', 'pubsub', frames, copy=False)
+
+    def _send_protected_update_to_pubsub(self, contents):
+        protected_topics_msg = jsonapi.dumps(contents)
+
+        frames = [zmq.Frame(b'protected_update'), zmq.Frame(protected_topics_msg)]
+        if self._is_connected:
+            try:
+                # <recipient, subsystem, args, msg_id, flags>
+                self.core.socket.send_vip(b'', 'pubsub', frames, copy=False)
+            except VIPError as ex:
+                _log.error("Error in sending protected topics update to clear PubSub: " + str(ex))
+
 
     @Core.receiver('onstop')
     def stop_zap(self, sender, **kwargs):
@@ -165,6 +212,7 @@ class AuthService(Agent):
         blocked = {}
         wait_list = []
         timeout = None
+        self._send_auth_update_to_pubsub()
         while True:
             events = sock.poll(timeout)
             now = time()
