@@ -60,7 +60,8 @@ from __future__ import absolute_import
 
 from datetime import datetime
 import logging
-import sys
+
+from pprint import pformat
 
 from volttron.platform.messaging.health import STATUS_GOOD
 from volttron.platform.vip.agent import Agent, Core, PubSub, compat
@@ -124,7 +125,7 @@ class ListenerAgent(Agent):
             message = compat.unpack_legacy_message(headers, message)
         self._logfn(
             "Peer: %r, Sender: %r:, Bus: %r, Topic: %r, Headers: %r, "
-            "Message: %r", peer, sender, bus, topic, headers, message)
+            "Message: \n%s", peer, sender, bus, topic, headers,  pformat(message))
 
     # @Core.periodic(5)
     # def subscribe_counter(self):

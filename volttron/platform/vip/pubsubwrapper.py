@@ -68,6 +68,7 @@ from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform import jsonrpc
 from collections import defaultdict
+from volttron.platform.agent import json as jsonapi
 
 _log = logging.getLogger(__name__)
 

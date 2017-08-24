@@ -220,7 +220,7 @@ db_connection = None
 identity = None
 
 # Don't like declaring this global but I am not able to find a way
-# to introspect this using pytest request object in the clean fixture
+# to introspect this using pytest request object in the clean_db_rows fixture
 data_table = 'data'
 topics_table = 'topics'
 meta_table = 'meta'
@@ -240,7 +240,7 @@ def setup_crate(connection_params, table_names):
 def setup_mysql(connection_params, table_names):
     print ("setup mysql")
     db_connection = mysql.connect(**connection_params)
-    # clean up any rows from older runs if exists
+    # clean_db_rows up any rows from older runs if exists
     try:
         cursor = db_connection.cursor()
         cursor.execute("DELETE FROM " + table_names['data_table'])
@@ -289,6 +289,7 @@ def setup_mongodb(connection_params, table_names):
     db = mongo_client[connection_params['database']]
     db[table_names['data_table']].remove()
     db[table_names['topics_table']].remove()
+    db[table_names['meta_table']].remove()
     db["volttron_table_definitions"].remove()
     return db, 3
 
@@ -298,6 +299,7 @@ def cleanup_sql(db_connection, truncate_tables):
     for table in truncate_tables:
         cursor.execute("DELETE FROM " + table)
     db_connection.commit()
+    cursor.close()
 
 
 def cleanup_sqlite(db_connection, truncate_tables):
@@ -357,7 +359,7 @@ def get_table_names(config):
 
 
 @pytest.fixture(scope="module",
-                params=[ 'volttron_3'])
+                params=['volttron_2', 'volttron_3'])
 def publish_agent(request, volttron_instance):
     # 1: Start a fake agent to publish to message bus
     print("**In setup of publish_agent volttron is_running {}".format(
@@ -401,9 +403,9 @@ def query_agent(request, volttron_instance):
 @pytest.fixture(scope="module",
                 params=[
                     mysql_skipif(mysql_platform),
-                    # sqlite_platform,
-                    # pymongo_skipif(mongo_platform),
-                    # crate_skipif(crate_platform)
+                    sqlite_platform,
+                    pymongo_skipif(mongo_platform),
+                    crate_skipif(crate_platform)
                 ])
 def historian(request, volttron_instance, query_agent):
     global db_connection, MICROSECOND_PRECISION, table_names, \
@@ -458,13 +460,11 @@ def historian(request, volttron_instance, query_agent):
 
 
 @pytest.fixture()
-def clean(request):
+def clean_db_rows(request):
     global db_connection, connection_type, table_names
-    def delete_rows():
-        cleanup_function = globals()["cleanup_" + connection_type]
-        cleanup_function(db_connection, [table_names['data_table']])
-
-    request.addfinalizer(delete_rows)
+    print("*** IN clean_db_rows FIXTURE ***")
+    cleanup_function = globals()["cleanup_" + connection_type]
+    cleanup_function(db_connection, [table_names['data_table']])
 
 
 def publish(publish_agent, topic, header, message):
@@ -497,10 +497,9 @@ def assert_timestamp(result, expected_date, expected_time):
         assert (result == expected_date + 'T' + expected_time[:-7] +
                 '.000000+00:00')
 
-
 @pytest.mark.historian
 def test_basic_function(request, historian, publish_agent, query_agent,
-                        clean):
+                        clean_db_rows):
     """
     Test basic functionality of historian. Inserts three points as part
     of all topic and checks if all three got into the database
@@ -512,7 +511,7 @@ def test_basic_function(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table
     """
     global query_points, DEVICES_ALL_TOPIC, db_connection
 
@@ -594,7 +593,8 @@ def test_basic_function(request, historian, publish_agent, query_agent,
 
 @pytest.mark.historian
 def test_basic_function_optional_config(request, historian, publish_agent,
-                                        query_agent, clean, volttron_instance):
+                                        query_agent, clean_db_rows, 
+                                        volttron_instance):
 
     """
     Test optional table_def config for historians
@@ -605,14 +605,14 @@ def test_basic_function_optional_config(request, historian, publish_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     :param volttron_instance: instance of PlatformWrapper. Volttron
     instance in which agents are tested
     """
     global query_points, DEVICES_ALL_TOPIC, db_connection, topics_table, \
         connection_type
     if historian['connection']['type'] == 'crate':
-        pytest.skip("Skipping testing for otpional 'tables_defs' config for "
+        pytest.skip("Skipping testing for optional 'tables_defs' config for "
                     "crate historian")
 
     # print('HOME', volttron_instance.volttron_home)
@@ -690,7 +690,7 @@ def test_basic_function_optional_config(request, historian, publish_agent,
 
 @pytest.mark.historian
 def test_exact_timestamp(request, historian, publish_agent, query_agent,
-                         clean):
+                         clean_db_rows):
     """
     Test query based on same start and end time with literal 'Z' at the end
     of utc time.
@@ -701,7 +701,7 @@ def test_exact_timestamp(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points, DEVICES_ALL_TOPIC
@@ -734,7 +734,7 @@ def test_exact_timestamp(request, historian, publish_agent, query_agent,
 @pytest.mark.historian
 def test_exact_timestamp_with_z(request, historian, publish_agent,
                                 query_agent,
-                                clean):
+                                clean_db_rows):
     """
     Test query based on same start and end time with literal 'Z' at the end
     of utc time.
@@ -745,7 +745,7 @@ def test_exact_timestamp_with_z(request, historian, publish_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points, DEVICES_ALL_TOPIC
@@ -777,7 +777,7 @@ def test_exact_timestamp_with_z(request, historian, publish_agent,
 
 @pytest.mark.historian
 def test_query_start_time(request, historian, publish_agent, query_agent,
-                          clean):
+                          clean_db_rows):
     """
     Test query based on start_time alone. Expected result record with
     timestamp>= start_time
@@ -787,7 +787,7 @@ def test_query_start_time(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points, DEVICES_ALL_TOPIC
@@ -824,7 +824,7 @@ def test_query_start_time(request, historian, publish_agent, query_agent,
 @pytest.mark.historian
 def test_query_start_time_with_z(request, historian, publish_agent,
                                  query_agent,
-                                 clean):
+                                 clean_db_rows):
     """
     Test query based on start_time alone. Expected result record with
     timestamp>= start_time
@@ -834,7 +834,7 @@ def test_query_start_time_with_z(request, historian, publish_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points, DEVICES_ALL_TOPIC
@@ -870,7 +870,7 @@ def test_query_start_time_with_z(request, historian, publish_agent,
 
 @pytest.mark.historian
 def test_query_end_time(request, historian, publish_agent, query_agent,
-                        clean):
+                        clean_db_rows):
     """
     Test query based on end time alone. Expected result record with
     timestamp<= end time
@@ -880,7 +880,7 @@ def test_query_end_time(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points, DEVICES_ALL_TOPIC, db_connection
@@ -924,8 +924,7 @@ def test_query_end_time(request, historian, publish_agent, query_agent,
 
 @pytest.mark.historian
 def test_query_end_time_with_z(request, historian, publish_agent,
-                               query_agent,
-                               clean):
+                               query_agent, clean_db_rows):
     """
     Test query based on end time alone. Expected result record with
     timestamp<= end time
@@ -935,7 +934,7 @@ def test_query_end_time_with_z(request, historian, publish_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points, DEVICES_ALL_TOPIC
@@ -979,7 +978,7 @@ def test_query_end_time_with_z(request, historian, publish_agent,
 
 @pytest.mark.historian
 def test_zero_timestamp(request, historian, publish_agent, query_agent,
-                        clean):
+                        clean_db_rows):
     """
     Test query based with timestamp where time is 00:00:00. Test with and
     without Z at the end.
@@ -990,7 +989,7 @@ def test_zero_timestamp(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points, DEVICES_ALL_TOPIC
@@ -1037,8 +1036,7 @@ def test_zero_timestamp(request, historian, publish_agent, query_agent,
 
 @pytest.mark.historian
 def test_topic_name_case_change(request, historian, publish_agent,
-                                query_agent,
-                                clean):
+                                query_agent, clean_db_rows):
     """
     When case of a topic name changes check if they are saved as two topics
     Expected result: query result should be cases sensitive
@@ -1048,7 +1046,7 @@ def test_topic_name_case_change(request, historian, publish_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points, DEVICES_ALL_TOPIC, db_connection, table_names
@@ -1118,7 +1116,7 @@ def test_topic_name_case_change(request, historian, publish_agent,
 
 @pytest.mark.historian
 def test_invalid_query(request, historian, publish_agent, query_agent,
-                       clean):
+                       clean_db_rows):
     """
     Test query with invalid input
 
@@ -1127,7 +1125,7 @@ def test_invalid_query(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points, DEVICES_ALL_TOPIC
@@ -1165,7 +1163,7 @@ def test_invalid_query(request, historian, publish_agent, query_agent,
 
 @pytest.mark.historian
 def test_invalid_time(request, historian, publish_agent, query_agent,
-                      clean):
+                      clean_db_rows):
     """
     Test query with invalid input
 
@@ -1174,7 +1172,7 @@ def test_invalid_time(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points, DEVICES_ALL_TOPIC
@@ -1200,7 +1198,7 @@ def test_invalid_time(request, historian, publish_agent, query_agent,
 
 @pytest.mark.historian
 def test_analysis_topic(request, historian, publish_agent, query_agent,
-                        clean):
+                        clean_db_rows):
     """
     Test recording and querying of analysis topic
     
@@ -1209,7 +1207,7 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points
@@ -1271,7 +1269,7 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
 
 @pytest.mark.historian
 def test_analysis_topic_replacement(request, historian, publish_agent,
-                                 query_agent, clean, volttron_instance):
+                                 query_agent, clean_db_rows, volttron_instance):
 
     """
     Test if topic name substitutions happened.
@@ -1283,7 +1281,7 @@ def test_analysis_topic_replacement(request, historian, publish_agent,
     :param historian: instance of the historian tested
     :param publish_agent: Fake agent used to publish messages to bus
     :param query_agent: Fake agent used to query historian
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
     print("\n** test_analysis_topic **")
     agent_uuid = None
@@ -1343,7 +1341,7 @@ def test_analysis_topic_replacement(request, historian, publish_agent,
         (now_date, now_time) = now.split("T")
         if now_time[-1:] == 'Z':
             now_time = now_time[:-1]
-        assert (result['values'][0][0] == now_date + 'T' + now_time + '+00:00')
+        assert_timestamp(result['values'][0][0], now_date, now_time)
         assert (result['values'][0][1] == mixed_reading)
         topic_list = query_agent.vip.rpc.call(
             'replace_hist','get_topic_list').get(timeout=5)
@@ -1363,7 +1361,7 @@ def test_analysis_topic_replacement(request, historian, publish_agent,
 
 @pytest.mark.historian
 def test_analysis_topic_no_meta(request, historian, publish_agent, query_agent,
-                        clean):
+                                clean_db_rows):
     """
     Test query based on same start and end time with literal 'Z' at the end
     of utc time.
@@ -1374,7 +1372,7 @@ def test_analysis_topic_no_meta(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points
@@ -1430,7 +1428,7 @@ def test_analysis_topic_no_meta(request, historian, publish_agent, query_agent,
 
 @pytest.mark.historian
 def test_tz_conversion_local_tz(request, historian, publish_agent, query_agent,
-                        clean):
+                                clean_db_rows):
     """
     Test query based on same start and end time with literal 'Z' at the end
     of utc time.
@@ -1441,7 +1439,7 @@ def test_tz_conversion_local_tz(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points
@@ -1504,7 +1502,7 @@ def test_tz_conversion_local_tz(request, historian, publish_agent, query_agent,
 
 @pytest.mark.historian
 def test_tz_conversion_naive_ts(request, historian, publish_agent, query_agent,
-                        clean):
+                                clean_db_rows):
     """
     Test query based on same start and end time with literal 'Z' at the end
     of utc time.
@@ -1515,7 +1513,7 @@ def test_tz_conversion_naive_ts(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points
@@ -1577,7 +1575,7 @@ def test_tz_conversion_naive_ts(request, historian, publish_agent, query_agent,
 
 @pytest.mark.historian
 def test_record_topic_query(request, historian, publish_agent, query_agent,
-                            clean):
+                            clean_db_rows):
     """
     Test query based on same start with literal 'Z' at the end of utc time.
     Cannot query based on exact time as timestamp recorded is time of insert
@@ -1588,7 +1586,7 @@ def test_record_topic_query(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     # print('HOME', volttron_instance.volttron_home)
@@ -1631,7 +1629,8 @@ def test_record_topic_query(request, historian, publish_agent, query_agent,
 
 
 @pytest.mark.historian
-def test_log_topic(request, historian, publish_agent, query_agent, clean):
+def test_log_topic(request, historian, publish_agent, query_agent, 
+                   clean_db_rows):
     """
     Test publishing to log topic with header and no timestamp in message
     Expected result:
@@ -1643,7 +1642,7 @@ def test_log_topic(request, historian, publish_agent, query_agent, clean):
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points
@@ -1686,7 +1685,7 @@ def test_log_topic(request, historian, publish_agent, query_agent, clean):
 
 @pytest.mark.historian
 def test_log_topic_no_header(request, historian, publish_agent, query_agent,
-                             clean):
+                             clean_db_rows):
     """
     Test publishing to log topic without any header and no timestamp in message
     Expected result:
@@ -1698,7 +1697,7 @@ def test_log_topic_no_header(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points
@@ -1735,7 +1734,7 @@ def test_log_topic_no_header(request, historian, publish_agent, query_agent,
 
 @pytest.mark.historian
 def test_log_topic_timestamped_readings(request, historian, publish_agent,
-                                        query_agent, clean):
+                                        query_agent, clean_db_rows):
     """
     Test publishing to log topic with explicit timestamp in message.
     Expected result:
@@ -1747,7 +1746,7 @@ def test_log_topic_timestamped_readings(request, historian, publish_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points
@@ -1791,7 +1790,7 @@ def test_log_topic_timestamped_readings(request, historian, publish_agent,
 
 @pytest.mark.historian
 def test_get_topic_metadata(request, historian, publish_agent,
-                            query_agent, clean):
+                            query_agent, clean_db_rows):
     """
     Test querying for topic metadata
     Expected result:
@@ -1805,7 +1804,7 @@ def test_get_topic_metadata(request, historian, publish_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points
@@ -1870,7 +1869,7 @@ def test_get_topic_metadata(request, historian, publish_agent,
 
 @pytest.mark.historian
 def test_insert_duplicate(request, historian, publish_agent, query_agent,
-                        clean):
+                        clean_db_rows):
     """
     Test that historians don't break when duplicate data gets published.
     historians' should ignore or update record in the database but should not
@@ -1880,12 +1879,12 @@ def test_insert_duplicate(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
     global query_points, DEVICES_ALL_TOPIC, db_connection
 
     # print('HOME', volttron_instance.volttron_home)
-    print("\n** test_basic_function for {}**".format(
+    print("\n** test_insert_duplicate for {}**".format(
         request.keywords.node.name))
 
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -1945,25 +1944,25 @@ def test_insert_duplicate(request, historian, publish_agent, query_agent,
 
 @pytest.mark.historian
 def test_multi_topic_query(request, historian, publish_agent, query_agent,
-                           clean):
+                           clean_db_rows):
     """
     Test basic functionality of historian. Inserts three points as part
     of all topic and checks if all three got into the database
     Expected result:
-    Should be able to query data based on topic name. Result should contain
-    both data and metadata
+    Should be able to query data based on list of topic name. Result should
+    contain both data and empty metadata
     :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points, DEVICES_ALL_TOPIC, db_connection
 
     # print('HOME', volttron_instance.volttron_home)
-    print("\n** test_basic_function for {}**".format(
+    print("\n** test_multi_topic_query for {}**".format(
         request.keywords.node.name))
 
     expected_result = {}
@@ -2010,10 +2009,100 @@ def test_multi_topic_query(request, historian, publish_agent, query_agent,
                 expected_result["values"][query_points['oat_point']][i][1])
 
 
+@pytest.mark.historian
+def test_multi_topic_query_single_result(request, historian, publish_agent,
+                                         query_agent, clean_db_rows):
+    """
+    Test basic functionality of historian. Inserts three points as part
+    of all topic and checks if all three got into the database
+    Expected result:
+    Should be able to query data based on list of topic names. Result should
+    contain both data and metadata
+    :param request: pytest request object
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
+    :param historian: instance of the historian tested
+    :param clean_db_rows: fixture to clear data table
+    """
+
+    global query_points, DEVICES_ALL_TOPIC, db_connection
+
+    # print('HOME', volttron_instance.volttron_home)
+    print("\n** test_multi_topic_query_single_result for {}**".format(
+        request.keywords.node.name))
+
+    # Insert topic MixedAirTemperature with a older timestamp so query
+    # will not return this
+    all_message = [{'MixedAirTemperature': 1.1}]
+    # Create timestamp
+    old_time = (datetime.utcnow() - timedelta(days=1)).isoformat(
+        'T') + "+00:00"
+    # now = '2015-12-02T00:00:00'
+    headers = {headers_mod.DATE: old_time}
+    publish(publish_agent, DEVICES_ALL_TOPIC, headers, all_message)
+    gevent.sleep(1)
+
+    # Now publish data for oat_point using current time
+    query_start = datetime.utcnow().isoformat()
+    expected_result = {}
+    values_dict = {query_points['oat_point']: []}
+    for x in range(0, 5):
+        ts, reading, meta = publish_devices_fake_data_single_topic(
+            publish_agent)
+        gevent.sleep(0.5)
+        if x == 0:
+            query_start = ts
+        if x < 3:
+            values_dict[query_points['oat_point']].append(
+                [ts, reading])
+    expected_result["values"] = values_dict
+    gevent.sleep(1)
+
+    # Query the historian with two valid topic - one with data and another with
+    # no data in the queried time interval
+    result = query_agent.vip.rpc.call(
+        identity,
+        'query',
+        topic=[query_points['oat_point'], query_points['mixed_point']],
+        count=3,
+        start=query_start,
+        order="FIRST_TO_LAST").get(timeout=100)
+    print('Query Result', result)
+    print('Expected Result', expected_result)
+
+    assert result["metadata"] == {}
+    assert result["values"][query_points['mixed_point']] == []
+    for i in range(0, 3):
+        expected_date, expected_time = \
+        expected_result["values"][query_points['oat_point']][i][0].split("T")
+        assert_timestamp(result["values"][query_points['oat_point']][i][0],
+                         expected_date, expected_time)
+        assert (result["values"][query_points['oat_point']][i][1] ==
+                expected_result["values"][query_points['oat_point']][i][1])
+
+    # Query the historian with a valid topic and an invalid topic
+    result = query_agent.vip.rpc.call(identity, 'query',
+        topic=[query_points['oat_point'], "device/topic/unknown"],
+        count=3, start=query_start, order="FIRST_TO_LAST").get(timeout=100)
+    print('Query Result', result)
+    print('Expected Result', expected_result)
+
+    assert result["metadata"] == {}
+    assert len(result["values"]) == 1
+    for i in range(0, 3):
+        expected_date, expected_time = \
+            expected_result["values"][query_points['oat_point']][i][
+                0].split("T")
+        assert_timestamp(result["values"][query_points['oat_point']][i][0],
+                         expected_date, expected_time)
+        assert (result["values"][query_points['oat_point']][i][1] ==
+                expected_result["values"][query_points['oat_point']][i][1])
+
 
 @pytest.mark.historian
 def test_query_with_naive_timestamp(request, historian, publish_agent,
-                                 query_agent, clean):
+                                    query_agent, clean_db_rows):
     """
     Test basic functionality of historian. Inserts three points as part
     of all topic and checks if all three got into the database
@@ -2025,7 +2114,7 @@ def test_query_with_naive_timestamp(request, historian, publish_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points, DEVICES_ALL_TOPIC, db_connection
@@ -2083,7 +2172,7 @@ def test_query_with_naive_timestamp(request, historian, publish_agent,
 
 @pytest.mark.historian
 def test_query_with_start_end_count(request, historian, publish_agent,
-                                    query_agent, clean):
+                                    query_agent, clean_db_rows):
     """
     Test basic functionality of historian. Inserts three points as part
     of all topic and checks if all three got into the database
@@ -2095,7 +2184,7 @@ def test_query_with_start_end_count(request, historian, publish_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     """
 
     global query_points, DEVICES_ALL_TOPIC, db_connection
@@ -2158,7 +2247,7 @@ def test_query_with_start_end_count(request, historian, publish_agent,
 
 @pytest.mark.historian
 def test_get_topic_list(request, historian, publish_agent, query_agent,
-                        clean, volttron_instance):
+                        clean_db_rows, volttron_instance):
     """
     Test the get_topic_list api.
     Expected result:
@@ -2169,7 +2258,7 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     :param volttron_instance: instance of PlatformWrapper. Volttron
     instance in which agents are tested
     """
@@ -2245,7 +2334,7 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
 
 @pytest.mark.historian
 def test_readonly_mode(request, historian, publish_agent, query_agent,
-                        clean, volttron_instance):
+                       clean_db_rows, volttron_instance):
     """
     Test the readonly mode of historian where historian is only used to query
     and not insert anything into the database.
@@ -2256,7 +2345,7 @@ def test_readonly_mode(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean: teardown function
+    :param clean_db_rows: fixture to clear data table 
     :param volttron_instance: instance of PlatformWrapper. Volttron
     instance in which agents are tested
     """
@@ -2339,7 +2428,6 @@ def test_readonly_mode(request, historian, publish_agent, query_agent,
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
 
-
 def publish_devices_fake_data(publish_agent, time=None):
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
@@ -2365,3 +2453,28 @@ def publish_devices_fake_data(publish_agent, time=None):
     # Publish messages
     publish(publish_agent, DEVICES_ALL_TOPIC, headers, all_message)
     return time, reading, meta
+
+
+def publish_devices_fake_data_single_topic(publish_agent, time=None):
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings
+    global DEVICES_ALL_TOPIC
+    reading = random_uniform(30, 100)
+    meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+
+    # Create a message for all points.
+    all_message = [{'OutsideAirTemperature': reading},
+                   {'OutsideAirTemperature': meta
+                    }]
+    # Create timestamp
+    if not time:
+        time = datetime.utcnow().isoformat('T') + "+00:00"
+    # now = '2015-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: time
+    }
+    print("Published time in header: " + time)
+    # Publish messages
+    publish(publish_agent, DEVICES_ALL_TOPIC, headers, all_message)
+    return time, reading, meta
+

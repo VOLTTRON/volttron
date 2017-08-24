@@ -101,6 +101,7 @@ from .vip.pubsubservice import PubSubService
 from .vip.routingservice import RoutingService
 from .vip.externalrpcservice import ExternalRPCService
 from .vip.keydiscovery import KeyDiscoveryAgent
+from .vip.pubsubwrapper import PubSubWrapper
 from ..utils.persistance import load_create_store
 
 try:
@@ -268,6 +269,7 @@ class Router(BaseRouter):
                  bind_web_address=None, volttron_central_serverkey=None,
                  protected_topics={}, external_address_file='',
                  msgdebug=None):
+      
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
@@ -378,7 +380,7 @@ class Router(BaseRouter):
             try:
                 drop = frames[6].bytes
                 self._drop_peer(drop)
-                self._drop_pubsub_peers(drop)
+                self.drop_pubsub_peers(drop)
                 _log.debug("ROUTER received agent stop message. dropping peer: {}".format(drop))
             except IndexError:
                 pass
@@ -501,6 +503,7 @@ class Router(BaseRouter):
             result = self._ext_routing.handle_subsystem(frames)
             return result
 
+
 def start_volttron_process(opts):
     '''Start the main volttron process.
 
@@ -568,6 +571,7 @@ def start_volttron_process(opts):
     # Increase open files resource limit to max or 8192 if unlimited
     try:
         soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+
     except OSError:
         _log.exception('error getting open file limits')
     else:
@@ -580,7 +584,8 @@ def start_volttron_process(opts):
             else:
                 _log.debug('open file resource limit increased from %d to %d',
                            soft, limit)
-
+        _log.debug('open file resource limit %d to %d',
+                   soft, hard)
     # Set configuration
     if HAVE_RESTRICTED:
         if opts.verify_agents:
@@ -621,6 +626,7 @@ def start_volttron_process(opts):
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
     zmq.Context.instance()   # DO NOT REMOVE LINE!!
+    #zmq.Context.instance().set(zmq.MAX_SOCKETS, 2046)
 
     tracker = Tracker()
     protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')
@@ -709,9 +715,7 @@ def start_volttron_process(opts):
             ControlService(opts.aip, address=address, identity='control',
                            tracker=tracker, heartbeat_autostart=True,
                            enable_store=False, enable_channel=True),
-            # PubSubService(protected_topics_file, address=address,
-            #               identity='pubsub', heartbeat_autostart=True,
-            #               enable_store=False),
+
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),
@@ -726,7 +730,10 @@ def start_volttron_process(opts):
             KeyDiscoveryAgent(address=address, serverkey=publickey,
                               identity='keydiscovery',
                               external_address_config=external_address_file,
-                              bind_web_address=opts.bind_web_address)
+                              bind_web_address=opts.bind_web_address),
+            PubSubWrapper(address=address,
+                          identity='pubsub', heartbeat_autostart=True,
+                          enable_store=False)
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)

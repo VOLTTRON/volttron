@@ -1,0 +1,15 @@
+<MirrorUsagePoint xmlns="http://zigbee.org/sep">
+    <mRID>0600006CC8</mRID>
+    <description>Gas Mirroring</description>
+    <roleFlags>13</roleFlags>
+    <serviceCategoryKind>1</serviceCategoryKind>
+    <status>1</status>
+    <deviceLFDI>247bd68e3378fe57ba604e3c8bdf9e3f78a3d743</deviceLFDI>
+    <MirrorMeterReading>
+        <mRID>1200006CC8</mRID>
+        <description>EnergyEXP</description>
+        <Reading>
+            <value>128</value>
+        </Reading>
+    </MirrorMeterReading>
+</MirrorUsagePoint>

@@ -7,12 +7,12 @@ Service Agents
     :maxdepth: 2
 
     actuator/index
-    central_management/index
-    platform/index
-    weather/index
     alerter/index
     emailer/index
     failover/index
     file_watch_publisher/index
+    platform/index
     threshold/index
+    central_management/index
+    weather/index
      *

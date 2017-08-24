@@ -69,11 +69,10 @@ import shutil
 import sys
 import tempfile
 import traceback
-import StringIO
 import uuid
-import base64
 import hashlib
 import tarfile
+import subprocess
 
 import gevent
 import gevent.event
@@ -186,10 +185,12 @@ class ControlService(BaseAgent):
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
+
         identity = self.agent_vip_identity(uuid)
         self._aip.stop_agent(uuid)
         #Send message to router that agent is shutting down
         frames = [bytes(identity)]
+
         self.core.socket.send_vip(b'', 'agentstop', frames, copy=False)
 
     @RPC.export
@@ -1335,6 +1336,45 @@ def get_config(opts):
             _stdout.write("\n")
 
 
+def edit_config(opts):
+    opts.connection.peer = CONFIGURATION_STORE
+    call = opts.connection.call
+    results = call("manage_get_metadata", opts.identity, opts.name)
+
+    config_type = results["type"]
+    raw_data = results["data"]
+
+    #Work out what editor to use.
+
+
+    #Write raw data to temp file
+    #This will not work on Windows, FYI
+    with tempfile.NamedTemporaryFile(suffix=".txt") as f:
+        f.write(raw_data)
+        f.flush()
+
+        success = True
+        try:
+            subprocess.check_call([opts.editor, f.name])
+        except subprocess.CalledProcessError as e:
+            _stderr.write("Editor returned with code {}. Changes not committed.\n".format(e.returncode))
+            success = False
+
+        if not success:
+            return
+
+        f.seek(0)
+        new_raw_data = f.read()
+
+        if new_raw_data == raw_data:
+            _stderr.write("No changes detected.\n")
+            return
+
+        call("manage_store", opts.identity, opts.name, new_raw_data, config_type=config_type)
+
+
+
+
 class ControlConnection(object):
     def __init__(self, address, peer='control',
                  publickey=None, secretkey=None, serverkey=None):
@@ -1749,6 +1789,20 @@ def main(argv=sys.argv):
 
     config_store_store.set_defaults(func=add_config_to_store,
                                     config_type="json")
+
+    config_store_edit = add_parser("edit",
+                                    help="edit a configuration. (nano by default, respects EDITOR env variable)",
+                                    subparser=config_store_subparsers)
+
+    config_store_edit.add_argument('identity',
+                                    help='VIP IDENTITY of the store')
+    config_store_edit.add_argument('name',
+                                    help='name used to reference the configuration by in the store')
+    config_store_edit.add_argument('--editor', dest="editor",
+                                    help='Set the editor to use to change the file. Defaults to nano if EDITOR is not set',
+                                   default=os.getenv("EDITOR", "nano"))
+
+    config_store_edit.set_defaults(func=edit_config)
 
     config_store_delete = add_parser("delete",
                                     help="delete a configuration",

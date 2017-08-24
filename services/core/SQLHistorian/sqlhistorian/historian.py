@@ -62,7 +62,6 @@ import threading
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.dbutils import sqlutils
-from volttron.platform.vip.agent import *
 from volttron.utils.docs import doc_inherit
 
 __version__ = "3.6.1"
@@ -97,6 +96,8 @@ def historian(config_path, **kwargs):
 
     SQLHistorian.__name__ = 'SQLHistorian'
     utils.update_kwargs_with_config(kwargs, config_dict)
+    _log.debug("In sql historian before calling class kwargs is {}".format(
+        kwargs))
     return SQLHistorian(**kwargs)
 
 
@@ -120,25 +121,25 @@ class SQLHistorian(BaseHistorian):
         cache for the meta data and topic maps.
 
         :param connection: dictionary that contains necessary information to
-        establish a connection to the sql database. The dictionary should 
-        contain two entries - 
-        
-          1. 'type' - describe the type of database (sqlite or mysql) 
-          2. 'params' - parameters for connecting to the database. 
-          
-        :param tables_def: optional parameter. dictionary containing the 
-        names to be used for historian tables. Should contain the following 
+        establish a connection to the sql database. The dictionary should
+        contain two entries -
+
+          1. 'type' - describe the type of database (sqlite or mysql)
+          2. 'params' - parameters for connecting to the database.
+
+        :param tables_def: optional parameter. dictionary containing the
+        names to be used for historian tables. Should contain the following
         keys
-        
-          1. "table_prefix": - if specified tables names are prefixed with 
+
+          1. "table_prefix": - if specified tables names are prefixed with
           this value followed by a underscore
           2."data_table": name of the table that stores historian data,
-          3."topics_table": name of the table that stores the list of topics 
+          3."topics_table": name of the table that stores the list of topics
           for which historian contains data data
-          4. "meta_table": name of the table that stores the metadata data 
+          4. "meta_table": name of the table that stores the metadata data
           for topics
-          
-        :param kwargs: additional keyword arguments. 
+
+        :param kwargs: additional keyword arguments.
         """
         self.connection = connection
         self.tables_def, self.table_names = self.parse_table_def(tables_def)
@@ -146,20 +147,34 @@ class SQLHistorian(BaseHistorian):
         self.topic_name_map = {}
         self.topic_meta = {}
         self.agg_topic_id_map = {}
-        self.reader = None
-        self.writer = None
+        database_type = self.connection['type']
+        self.db_functs_class = sqlutils.get_dbfuncts_class(database_type)
+        # Create two instance so connection is shared within a single thread.
+        # This is because sqlite only supports sharing of connection within
+        # a single thread.
+        # historian_setup and publish_to_historian happens in background thread
+        # everything else happens in the MainThread
+
+        # One utils class instance( hence one db connection) for main thread
+        self.main_thread_dbutils = self.db_functs_class(
+            self.connection['params'],
+            self.table_names)
+        # One utils class instance( hence one db connection) for main thread
+        # this gets initialized in the bg_thread within historian_setup
+        self.bg_thread_dbutils = None
         super(SQLHistorian, self).__init__(**kwargs)
 
     def record_table_definitions(self, meta_table_name):
-        self.writer.record_table_definitions(self.tables_def,
+        self.bg_thread_dbutils.record_table_definitions(self.tables_def,
                                              meta_table_name)
 
     @doc_inherit
     def publish_to_historian(self, to_publish_list):
         thread_name = threading.currentThread().getName()
         _log.debug(
-            "publish_to_historian number of items: {} Thread: {}".format(
-                len(to_publish_list), thread_name))
+            "publish_to_historian number of items: {} Thread: {}:{}".format(
+                len(to_publish_list), threading.current_thread(), thread_name))
+
 
         try:
             real_published = []
@@ -180,7 +195,7 @@ class SQLHistorian(BaseHistorian):
                 if topic_id is None:
                     _log.debug('Inserting topic: {}'.format(topic))
                     # Insert topic name as is in db
-                    row = self.writer.insert_topic(topic)
+                    row = self.bg_thread_dbutils.insert_topic(topic)
                     topic_id = row[0]
                     # user lower case topic name when storing in map
                     # for case insensitive comparison
@@ -189,7 +204,7 @@ class SQLHistorian(BaseHistorian):
                     _log.debug('TopicId: {} => {}'.format(topic_id, topic))
                 elif db_topic_name != topic:
                     _log.debug('Updating topic: {}'.format(topic))
-                    self.writer.update_topic(topic, topic_id)
+                    self.bg_thread_dbutils.update_topic(topic, topic_id)
                     self.topic_name_map[lowercase_name] = topic
 
                 old_meta = self.topic_meta.get(topic_id, {})
@@ -197,27 +212,40 @@ class SQLHistorian(BaseHistorian):
                     _log.debug(
                         'Updating meta for topic: {} {}'.format(topic,
                                                                 meta))
-                    self.writer.insert_meta(topic_id, meta)
+                    self.bg_thread_dbutils.insert_meta(topic_id, meta)
                     self.topic_meta[topic_id] = meta
 
-                if self.writer.insert_data(ts, topic_id, value):
+                if self.bg_thread_dbutils.insert_data(ts, topic_id, value):
                     # _log.debug('item was inserted')
                     real_published.append(x)
 
             if len(real_published) > 0:
-                if self.writer.commit():
+                if self.bg_thread_dbutils.commit():
                     _log.debug('published {} data values'.format(
                         len(to_publish_list)))
                     self.report_all_handled()
                 else:
                     msg = 'commit error. rolling back {} values.'
                     _log.debug(msg.format(len(to_publish_list)))
-                    self.writer.rollback()
+                    self.bg_thread_dbutils.rollback()
             else:
                 _log.debug(
                     'Unable to publish {}'.format(len(to_publish_list)))
-        except:
-            self.writer.rollback()
+        except Exception as e:
+            #TODO Unable to send alert from here
+            # if isinstance(e, ConnectionError):
+            #     _log.debug("Sending alert. Exception {}".format(e.args))
+            #     err_message = "Unable to connect to database. " \
+            #                   "Exception:{}".format(e.args)
+            #     alert_id = DB_CONNECTION_FAILURE
+            # else:
+            #     err_message = "Unknown exception when publishing data. " \
+            #                   "Exception: {}".format(e.args)
+            #     alert_id = ERROR_PUBLISHING_DATA
+            # self.vip.health.set_status(STATUS_BAD, err_message)
+            # status = Status.from_json(self.vip.health.get_status())
+            # self.vip.health.send_alert(alert_id, status)
+            self.bg_thread_dbutils.rollback()
             # Raise to the platform so it is logged properly.
             raise
 
@@ -247,7 +275,7 @@ class SQLHistorian(BaseHistorian):
         return meta
 
     def query_aggregate_topics(self):
-        return self.reader.get_agg_topics()
+        return self.main_thread_dbutils.get_agg_topics()
 
     @doc_inherit
     def query_historian(self, topic, start=None, end=None, agg_type=None,
@@ -262,6 +290,8 @@ class SQLHistorian(BaseHistorian):
         elif isinstance(topic, list):
             topics_list = topic
 
+        multi_topic_query = len(topics_list) > 1
+
         topic_ids = []
         id_name_map = {}
         for topic in topics_list:
@@ -274,7 +304,7 @@ class SQLHistorian(BaseHistorian):
                 if topic_id is None:
                     # load agg topic id again as it might be a newly
                     # configured aggregation
-                    agg_map = self.reader.get_agg_topic_map()
+                    agg_map = self.main_thread_dbutils.get_agg_topic_map()
                     self.agg_topic_id_map.update(agg_map)
                     _log.debug(" Agg topic map after updating {} "
                                "".format(self.agg_topic_id_map))
@@ -293,14 +323,12 @@ class SQLHistorian(BaseHistorian):
 
         _log.debug(
             "Querying db reader with topic_ids {} ".format(topic_ids))
-        multi_topic_query = len(topic_ids) > 1
 
-        values = self.reader.query(topic_ids, id_name_map, start=start,
-                                   end=end, agg_type=agg_type,
-                                   agg_period=agg_period, skip=skip,
-                                   count=count, order=order)
+        values = self.main_thread_dbutils.query(
+            topic_ids, id_name_map, start=start, end=end, agg_type=agg_type,
+            agg_period=agg_period, skip=skip, count=count, order=order)
         metadata = {}
-
+        meta_tid = None
         if len(values) > 0:
             # If there are results add metadata if it is a query on a
             # single topic
@@ -310,49 +338,41 @@ class SQLHistorian(BaseHistorian):
                     # if aggregation is on single topic find the topic id
                     # in the topics table that corresponds to agg_topic_id
                     # so that we can grab the correct metadata
+                    # if topic name does not have entry in topic_id_map
+                    # it is a user configured aggregation_topic_name
+                    # which denotes aggregation across multiple points
                     _log.debug("Single topic aggregate query. Try to get "
                                "metadata")
-                    tid = self.topic_id_map.get(topic.lower(), None)
-                    if tid:
-                        _log.debug("aggregation of a single topic, "
-                                   "found topic id in topic map. "
-                                   "topic_id={}".format(tid))
-                        metadata = self.topic_meta.get(tid, {})
-                    else:
-                        # if topic name does not have entry in topic_id_map
-                        # it is a user configured aggregation_topic_name
-                        # which denotes aggregation across multiple points
-                        metadata = {}
+                    meta_tid = self.topic_id_map.get(topic.lower(), None)
                 else:
                     # this is a query on raw data, get metadata for
                     # topic from topic_meta map
-                    metadata = self.topic_meta.get(topic_ids[0], {})
-            return {'values': values, 'metadata': metadata}
-        else:
-            results = dict()
+                    meta_tid = topic_ids[0]
+
+            if values:
+                metadata = self.topic_meta.get(meta_tid, {})
+                _log.debug("metadata is {}".format(metadata))
+                results = {'values': values, 'metadata': metadata}
+            else:
+                results = dict()
         return results
 
     @doc_inherit
     def historian_setup(self):
         thread_name = threading.currentThread().getName()
         _log.debug("historian_setup on Thread: {}".format(thread_name))
-
-        database_type = self.connection['type']
-
-        db_functs_class = sqlutils.get_dbfuncts_class(database_type)
-        self.reader = db_functs_class(self.connection['params'],
-                                      self.table_names)
-        self.writer = db_functs_class(self.connection['params'],
-                                      self.table_names)
+        self.bg_thread_dbutils = self.db_functs_class(
+            self.connection['params'],
+            self.table_names)
 
         if not self._readonly:
-            self.writer.setup_historian_tables()
+            self.bg_thread_dbutils.setup_historian_tables()
 
-        topic_id_map, topic_name_map = self.reader.get_topic_map()
+        topic_id_map, topic_name_map = self.bg_thread_dbutils.get_topic_map()
         self.topic_id_map.update(topic_id_map)
         self.topic_name_map.update(topic_name_map)
         _log.debug("updated topic name map. {}".format(self.topic_name_map))
-        self.agg_topic_id_map = self.reader.get_agg_topic_map()
+        self.agg_topic_id_map = self.bg_thread_dbutils.get_agg_topic_map()
 
 
 

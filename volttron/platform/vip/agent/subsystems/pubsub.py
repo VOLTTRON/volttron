@@ -67,7 +67,6 @@ import weakref
 import gevent
 from zmq import green as zmq
 from zmq import SNDMORE
-from zmq.utils import jsonapi
 
 from .base import SubsystemBase
 from ..decorators import annotate, annotations, dualmethod, spawn
@@ -78,6 +77,7 @@ from ..results import ResultsDictionary
 from gevent.queue import Queue, Empty
 from collections import defaultdict
 from datetime import timedelta
+from volttron.platform.agent import json as jsonapi
 
 __all__ = ['PubSub']
 min_compatible_version = '3.0'
@@ -162,6 +162,7 @@ class PubSub(SubsystemBase):
         type message: dict
         """
         peer = 'pubsub'
+
         handled = 0
         for platform in self._my_subscriptions:
             #_log.debug("SYNC: process callback subscriptions: {}".format(self._my_subscriptions[platform][bus]))
@@ -303,7 +304,6 @@ class PubSub(SubsystemBase):
         """Synchronize local subscriptions with the PubSubService.
         """
         result = next(self._results)
-
         items = [{platform: {bus: subscriptions.keys()} for platform, bus_subscriptions in self._my_subscriptions.items()
                   for bus, subscriptions in bus_subscriptions.items()}]
         #_log.debug("SYNC sending synchronize items: {}".format(items))
@@ -352,9 +352,9 @@ class PubSub(SubsystemBase):
             if self._parameters_needed:
                 kwargs = dict(op='list', prefix=prefix, subscribed=subscribed, reverse=reverse, bus=bus)
                 self._save_parameters(result.ident, **kwargs)
-
             list_msg = jsonapi.dumps(dict(prefix=prefix, all_platforms=all_platforms,
                                           subscribed=subscribed, reverse=reverse, bus=bus))
+
             frames = [b'list', list_msg]
             self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
             return result
@@ -399,22 +399,21 @@ class PubSub(SubsystemBase):
         :Return Values:
         Success or Failure
         """
-
         # For backward compatibility with old pubsub
         if self._send_via_rpc == True:
             self._add_subscription(prefix, callback, bus)
             return self.rpc().call(peer, 'pubsub.subscribe', prefix, bus=bus)
         else:
-            result = next(self._results)
+            result = self._results.next()
             # Parameters are stored initially, in case remote agent/platform is using old pubsub
             if self._parameters_needed:
                 kwargs = dict(op='subscribe', prefix=prefix, bus=bus)
                 self._save_parameters(result.ident, **kwargs)
-
             self._add_subscription(prefix, callback, bus, all_platforms)
             sub_msg = jsonapi.dumps(
                 dict(prefix=prefix, bus=bus, all_platforms=all_platforms)
             )
+
             frames = [b'subscribe', sub_msg]
             self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
             return result
@@ -446,6 +445,7 @@ class PubSub(SubsystemBase):
         self._process_callback(sender, bus, topic, headers, message)
 
     def _drop_subscription(self, prefix, callback, bus='', platform='internal'):
+
         """
         Drop the subscription for the specified prefix, callback and bus.
         param prefix: prefix to be removed
@@ -548,6 +548,7 @@ class PubSub(SubsystemBase):
                 platform = 'all'
                 topics = self._drop_subscription(prefix, callback, bus, platform)
                 subscriptions[platform] = dict(prefix=topics, bus=bus)
+
             # Parameters are stored initially, in case remote agent/platform is using old pubsub
             if self._parameters_needed:
                 kwargs = dict(op='unsubscribe', prefix=topics, bus=bus)
@@ -555,7 +556,6 @@ class PubSub(SubsystemBase):
 
             unsub_msg = jsonapi.dumps(subscriptions)
             topics = self._drop_subscription(prefix, callback, bus)
-
             frames = [b'unsubscribe', unsub_msg]
             self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
             return result

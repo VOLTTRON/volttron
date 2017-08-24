@@ -8,7 +8,7 @@ import pytest
 from volttron.platform import jsonrpc
 from volttron.platform import keystore
 from volttrontesting.utils.utils import poll_gevent_sleep
-
+from volttron.platform.vip.agent.errors import VIPError
 
 def build_agent(platform, identity):
     """Build an agent, configure its keys and return the agent."""
@@ -117,6 +117,7 @@ def build_two_agents_pubsub_agents(volttron_instance_encrypt, topic='foo'):
 
     msgs = []
     def got_msg(peer, sender, bus, topic, headers, message):
+        print("Got message: {}".format(message))
         msgs.append(message)
 
     agent1.vip.pubsub.subscribe('pubsub', topic, callback=got_msg).get(timeout=1)
@@ -164,10 +165,10 @@ def pubsub_unauthorized(volttron_instance_encrypt, topic='foo', regex=None, peer
     """
     setup = build_protected_pubsub(volttron_instance_encrypt, topic,
                                   'can_publish_to_my_topic', regex)
-
+    gevent.sleep(0.1)
     agent2 = setup['agent2']
     topic = setup['topic']
-    with pytest.raises(jsonrpc.RemoteError):
+    with pytest.raises(VIPError):
         agent2.vip.pubsub.publish(peer, topic, message='hello').get(timeout=1)
 
 

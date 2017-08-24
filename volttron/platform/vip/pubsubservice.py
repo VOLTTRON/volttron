@@ -72,10 +72,10 @@ from collections import defaultdict
 
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
-from zmq.utils import jsonapi
 from .agent.subsystems.pubsub import ProtectedPubSubTopics
 from volttron.platform.jsonrpc import (INVALID_REQUEST, UNAUTHORIZED)
 from volttron.platform.vip.agent.errors import VIPError
+from volttron.platform.agent import json as jsonapi
 
 # Optimizing by pre-creating frames
 _ROUTE_ERRORS = {
@@ -768,7 +768,6 @@ class PubSubService(object):
                 topic = frames[8].bytes
                 #Remove subscriber for that topic
 
-
 class ProtectedPubSubTopics(object):
     '''Simple class to contain protected pubsub topics'''
     def __init__(self):
@@ -801,3 +800,4 @@ class ProtectedPubSubTopics(object):
             if topic[:len(prefix)] == prefix:
                 return prefix
         return None
+
