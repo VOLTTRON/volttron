@@ -56,6 +56,18 @@
 
 # }}}
 
+import logging
+
+from volttron.platform.agent import utils
+
+_log = logging.getLogger(__name__)
+utils.setup_logging()
+
+RESERVATION_WAIT = 'reservation_wait'
+OFFER_WAIT = 'offer_wait'
+AGGREGATE_WAIT = 'aggregate_wait'
+PRICE_WAIT = 'price_wait'
+
 class MarketRegistration(object):
     def __init__(self, market_name, buyer_seller, reservation_callback, offer_callback,
                  aggregate_callback, price_callback, error_callback):
@@ -68,6 +80,7 @@ class MarketRegistration(object):
         self.error_callback = error_callback
         self.always_wants_reservation = self.reservation_callback == None
         self.has_reservation = False
+        self.set_initial_state(RESERVATION_WAIT)
         self._validate_callbacks()
 
     def _validate_callbacks(self):
@@ -77,6 +90,8 @@ class MarketRegistration(object):
             raise TypeError('You must only provide an offer callback or an aggregate callback, but not both.')
 
     def request_reservations(self, timestamp, agent):
+        if self.market_state != RESERVATION_WAIT:
+            self.change_state(RESERVATION_WAIT)
         self.has_reservation = False
         if self.reservation_callback is not None:
             wants_reservation_this_time = self.reservation_callback(timestamp, self.market_name, self.buyer_seller)
@@ -84,26 +99,65 @@ class MarketRegistration(object):
             wants_reservation_this_time = self.always_wants_reservation
         if wants_reservation_this_time:
             agent.make_reservation(self.market_name, self.buyer_seller)
-            self.has_reservation = True
+            if agent.has_reservation:
+                self.has_reservation = agent.has_reservation
+                if (self.offer_callback is not None):
+                    self.change_state(OFFER_WAIT)
+                else:
+                    self.change_state(AGGREGATE_WAIT)
 
     def request_offers(self, timestamp, agent):
+        if self.market_state != OFFER_WAIT:
+            self.change_state(RESERVATION_WAIT)
+            return
+        offer_accepted = False
         if self.has_reservation and self.offer_callback is not None:
             curve = self.offer_callback(timestamp, self.market_name, self.buyer_seller)
             if curve is not None:
-                agent.make_offer(self.market_name, self.buyer_seller, curve)
+                offer_accepted = agent.make_offer(self.market_name, self.buyer_seller, curve)
+        self.check_offer_accepted(offer_accepted)
+
+    def check_offer_accepted(self, offer_accepted):
+        if offer_accepted:
+            self.change_state(PRICE_WAIT)
+        else:
+            self.change_state(RESERVATION_WAIT)
 
     def report_clear_price(self, timestamp, price, quantity):
+        if self.market_state != PRICE_WAIT:
+            self.change_state(RESERVATION_WAIT)
+            return
         if self.has_reservation and self.price_callback is not None:
             self.price_callback(timestamp, self.market_name, self.buyer_seller, price, quantity)
         self.has_reservation = False
+        self.change_state(RESERVATION_WAIT)
 
     def report_aggregate(self, timestamp, aggregate_curve):
+        if self.market_state != AGGREGATE_WAIT:
+            self.change_state(RESERVATION_WAIT)
+            return
+        offer_accepted = False
         if self.has_reservation and self.aggregate_callback is not None:
-            self.aggregate_callback(timestamp, self.market_name, self.buyer_seller, aggregate_curve)
+            offer_accepted = self.aggregate_callback(timestamp, self.market_name, self.buyer_seller, aggregate_curve)
+        self.check_offer_accepted(offer_accepted)
 
     def report_error(self, timestamp, error_message):
         if self.error_callback is not None:
             self.error_callback(timestamp, self.market_name, self.buyer_seller, error_message)
+        self.change_state(RESERVATION_WAIT)
+
+    def set_initial_state(self, new_state):
+        message = "Base market agent is entering its state: {}.".format(new_state)
+        self.log_andChange_state(message, new_state)
+
+    def log_andChange_state(self, message, new_state):
+        _log.debug(message)
+        self.service_state = new_state
+
+    def change_state(self, new_state):
+        if (self.service_state != new_state):
+            message = "Base market agent is changing state from state: {1} to state: {2}.".format(self.service_state, new_state)
+            self.log_andChange_state(message, new_state)
 
 
 
