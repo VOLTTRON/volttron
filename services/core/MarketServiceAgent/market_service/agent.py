@@ -208,7 +208,7 @@ class MarketServiceAgent(Agent):
 
     def change_state(self, new_state):
         if (self.service_state != new_state):
-            message = "Market service is changing state from state: {1} to state: {2}.".format(self.service_state, new_state)
+            message = "Market service is changing state from state: {} to state: {}.".format(self.service_state, new_state)
             self.log_andChange_state(message, new_state)
 
     def has_any_markets(self):
