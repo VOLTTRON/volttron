@@ -102,7 +102,7 @@ class MarketAgent(Agent):
         timestamp = utils.parse_timestamp_string(message[0])
         quantity = message[1]
         price = message[2]
-        _log.debug("match_report_error, Timestamp: {} Price: {} Quantity: {}".format(timestamp, price, quantity))
+        _log.debug("match_report_clear_price, Timestamp: {} Price: {} Quantity: {}".format(timestamp, price, quantity))
         self.registrations.report_clear_price(timestamp, price, quantity)
 
     @PubSub.subscribe('pubsub', MARKET_AGGREGATE)
