@@ -56,7 +56,12 @@
 
 # }}}
 
+import logging
 import numpy as np
+from volttron.platform.agent import utils
+
+_log = logging.getLogger(__name__)
+utils.setup_logging()
 
 class PolyLine:
     def __init__(self):
@@ -238,8 +243,12 @@ class PolyLine:
 
     @staticmethod
     def intersection(pl_1, pl_2):
+        _log.debug("First is type {}".format(type(pl_1)))
+        _log.debug("Second is type {}".format(type(pl_2)))
         pl_1 = pl_1.points
         pl_2 = pl_2.points
+        _log.debug("First is type {}".format(type(pl_1)))
+        _log.debug("Second is type {}".format(type(pl_2)))
 
         # we have two points
         if len(pl_1) == 1 and len(pl_2) == 1:
