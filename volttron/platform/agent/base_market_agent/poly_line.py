@@ -187,6 +187,9 @@ class PolyLine:
             c += 1
         return ps
 
+    def __len__(self):
+        return len(self.points)
+
     @staticmethod
     def determinant(point1, point2):
         return point1[0] * point2[1] - point1[1] * point2[0]
