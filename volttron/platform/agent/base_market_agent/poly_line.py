@@ -60,7 +60,7 @@ import numpy as np
 
 class PolyLine:
     def __init__(self):
-        self.points = None
+        self.points = []
         self.xs = None
         self.ys = None
         self.xsSortedByY = None
@@ -118,7 +118,7 @@ class PolyLine:
         return x1 + x2
 
     def x(self, y, left=None, right=None):
-        if self.points == None:
+        if not self.points:
             return None
         if y is None:
             return None
@@ -131,7 +131,7 @@ class PolyLine:
         return None if np.isnan(r) else r
 
     def y(self, x, left=None, right=None):
-        if self.points == None:
+        if not self.points:
             return None
         if x is None:
             return None
@@ -145,7 +145,7 @@ class PolyLine:
 
     # probably replace w/ zip()
     def vectorize(self):
-        if self.points == None:
+        if not self.points:
             return None, None
         if (self.xs == None or self.ys == None):
             xs = [None] * len(self.points)
@@ -166,7 +166,7 @@ class PolyLine:
         return self.xs, self.ys
 
     def tuppleize(self):
-        if self.points == None:
+        if not self.points:
             return None
         ps = [None] * len(self.points)
         c = 0
