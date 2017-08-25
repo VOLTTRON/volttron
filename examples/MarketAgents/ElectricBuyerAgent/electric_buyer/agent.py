@@ -100,7 +100,7 @@ class SampleElectricBuyerAgent(MarketAgent):
     def __init__(self, market_name, **kwargs):
         super(SampleElectricBuyerAgent, self).__init__(**kwargs)
         self.market_name = market_name
-        self.join_market(self.market_name, BUYER, None, self.offer_callback, None, None, None)
+        self.join_market(self.market_name, BUYER, None, self.offer_callback, None, self.price_callback, self.error_callback)
 
     def offer_callback(self, timestamp, market_name, buyer_seller):
         demand_curve = self.create_demand_curve()
@@ -115,6 +115,12 @@ class SampleElectricBuyerAgent(MarketAgent):
         quantity = 1000
         supply_curve.add(Point(price,quantity))
         return supply_curve
+
+    def price_callback(self, timestamp, market_name, buyer_seller, price, quantity):
+        _log.debug("Report cleared price for Market: {} {}, Message: {}".format(market_name, buyer_seller, price, quantity))
+
+    def error_callback(self, timestamp, market_name, buyer_seller, error_message):
+        _log.debug("Report error for Market: {} {}, Message: {}".format(market_name, buyer_seller, error_message))
 
 
 def main():
