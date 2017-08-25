@@ -79,7 +79,7 @@ from volttron.platform.vip.agent import Agent
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '1.3'
+__version__ = '1.3.1'
 
 """
 The `pyclass:EmailAgent` is responsible for sending emails for an instance.  It
