@@ -56,9 +56,14 @@
 
 # }}}
 
+import logging
+
 from volttron.platform.agent import utils
 from volttron.platform.messaging.topics import MARKET_AGGREGATE, MARKET_CLEAR, MARKET_ERROR
 from market_service.market import Market
+
+_log = logging.getLogger(__name__)
+utils.setup_logging()
 
 class NoSuchMarketError(StandardError):
     """Base class for exceptions in this module."""
@@ -99,10 +104,12 @@ class MarketList(object):
         for market in self.markets.itervalues():
             cleared_quantity, cleared_price, error_message = market.clear_market()
             if cleared_price is not None and cleared_quantity is not None:
+                _log.debug("Sending cleared price for Market: {} Price: {} Quantity: {}".format(market.market_name, cleared_price, cleared_quantity))
                 self.publish(peer='pubsub',
                              topic=MARKET_CLEAR,
                              message=[timestamp_string, cleared_quantity, cleared_price])
             elif error_message is not None:
+                _log.debug("Sending error message for Market: {} Message: {}".format(market.market_name, error_message))
                 self.publish(peer='pubsub',
                              topic=MARKET_ERROR,
                              message=[timestamp_string, error_message])
@@ -125,7 +132,7 @@ class MarketList(object):
         return market_has_formed
 
     def market_count(self):
-        return len(self.markets)
+        return self.mark
 
     def unformed_market_list(self):
         list = []
