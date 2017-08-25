@@ -136,6 +136,7 @@ class Market(object):
                 self.change_state(WAIT_FOR_RESERVATIONS)
                 quantity, price = self.offers.settle()
 
+        _log.debug("Clearing price for Market: {} Price: {} Qty: {} Error: {}".format(self.market_name, price, quantity, error_message))
         return [quantity, price, error_message]
 
     def reject_reservation(self, participant):
