@@ -107,9 +107,11 @@ class MarketRegistration(object):
                     self.change_state(AGGREGATE_WAIT)
 
     def request_offers(self, timestamp, agent):
-        if self.market_state != OFFER_WAIT:
+        if self.market_state != OFFER_WAIT and self.market_state != AGGREGATE_WAIT:
             self.change_state(RESERVATION_WAIT)
             return
+        if self.market_state == AGGREGATE_WAIT:
+            return # ignore offers when waiting for an aggregate
         offer_accepted = False
         if self.has_reservation and self.offer_callback is not None:
             curve = self.offer_callback(timestamp, self.market_name, self.buyer_seller)
@@ -133,9 +135,11 @@ class MarketRegistration(object):
         self.change_state(RESERVATION_WAIT)
 
     def report_aggregate(self, timestamp, aggregate_curve):
-        if self.market_state != AGGREGATE_WAIT:
+        if self.market_state != AGGREGATE_WAIT and self.market_state != OFFER_WAIT:
             self.change_state(RESERVATION_WAIT)
             return
+        if self.market_state == OFFER_WAIT:
+            return  # ignore aggregates when waiting for an offer
         offer_accepted = False
         if self.has_reservation and self.aggregate_callback is not None:
             offer_accepted = self.aggregate_callback(timestamp, self.market_name, self.buyer_seller, aggregate_curve)
