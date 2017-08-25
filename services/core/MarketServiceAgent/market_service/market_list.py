@@ -132,7 +132,7 @@ class MarketList(object):
         return market_has_formed
 
     def market_count(self):
-        return self.mark
+        return len(self.markets)
 
     def unformed_market_list(self):
         list = []
