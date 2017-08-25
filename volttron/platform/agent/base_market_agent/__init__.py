@@ -87,14 +87,16 @@ class MarketAgent(Agent):
     @PubSub.subscribe('pubsub', MARKET_RESERVE)
     def match_reservation(self, peer, sender, bus, topic, headers, message):
         timestamp = utils.parse_timestamp_string(message[0])
-        _log.debug("match_reservation, Timestamp: {}".format(timestamp))
+        decoded_message = "Timestamp: {}".format(timestamp)
+        self.log_event("match_reservation", peer, sender, bus, topic, headers, decoded_message)
         self.registrations.request_reservations(timestamp)
 
 
     @PubSub.subscribe('pubsub', MARKET_BID)
     def match_make_offer(self, peer, sender, bus, topic, headers, message):
         timestamp = utils.parse_timestamp_string(message[0])
-        _log.debug("match_make_offer, Timestamp: {}".format(timestamp))
+        decoded_message = "Timestamp: {}".format(timestamp)
+        self.log_event("match_make_offer", peer, sender, bus, topic, headers, decoded_message)
         self.registrations.request_offers(timestamp)
 
     @PubSub.subscribe('pubsub', MARKET_CLEAR)
@@ -102,14 +104,16 @@ class MarketAgent(Agent):
         timestamp = utils.parse_timestamp_string(message[0])
         quantity = message[1]
         price = message[2]
-        _log.debug("match_report_clear_price, Timestamp: {} Price: {} Quantity: {}".format(timestamp, price, quantity))
+        decoded_message = "Timestamp: {} Price: {} Quantity: {}".format(timestamp, price, quantity)
+        self.log_event("match_report_clear_price", peer, sender, bus, topic, headers, decoded_message)
         self.registrations.report_clear_price(timestamp, price, quantity)
 
     @PubSub.subscribe('pubsub', MARKET_AGGREGATE)
     def match_report_aggregate(self, peer, sender, bus, topic, headers, message):
         timestamp = utils.parse_timestamp_string(message[0])
         aggregate_curve_points = message[1]
-        _log.debug("match_report_aggregate, Timestamp: {} Curve: {}".format(timestamp, aggregate_curve_points))
+        decoded_message = "Timestamp: {} Curve: {}".format(timestamp, aggregate_curve_points)
+        self.log_event("match_report_aggregate", peer, sender, bus, topic, headers, decoded_message)
         aggregate_curve = PolyLineFactory.fromTupples(aggregate_curve_points)
         self.registrations.report_aggregate(timestamp, aggregate_curve)
 
@@ -117,8 +121,12 @@ class MarketAgent(Agent):
     def match_report_error(self, peer, sender, bus, topic, headers, message):
         timestamp = utils.parse_timestamp_string(message[0])
         error_message = message[1]
-        _log.debug("match_report_error, Timestamp: {} Message: {}".format(timestamp, error_message))
+        decoded_message = "Timestamp: {} Message: {}".format(timestamp, error_message)
+        self.log_event("match_report_error", peer, sender, bus, topic, headers, decoded_message)
         self.registrations.report_error(timestamp, error_message)
+
+    def log_event(self, method_name, peer, sender, bus, topic, headers, decoded_message):
+        _log.debug("{} Peer: {} Sender: {} Bus: {} Topic: {} Headers: {} Message: {}".format(method_name, peer, sender, bus, topic, headers, decoded_message))
 
     def join_market (self, market_name, buyer_seller, reservation_callback,
                      offer_callback, aggregate_callback, price_callback, error_callback):
