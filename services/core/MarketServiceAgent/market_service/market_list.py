@@ -124,6 +124,9 @@ class MarketList(object):
             market_has_formed = market.has_market_formed()
         return market_has_formed
 
+    def market_count(self):
+        return len(self.markets)
+
     def unformed_market_list(self):
         list = []
         for market in self.markets.itervalues():

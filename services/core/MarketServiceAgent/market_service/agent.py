@@ -137,7 +137,7 @@ class MarketServiceAgent(Agent):
         if (self.has_any_markets()):
             self.begin_collect_offers(timestamp)
         else:
-            self.change_state(NO_MARKETS)
+            self.change_state(NO_MARKETS, "the market service has no unformed markets")
 
     def begin_collect_offers(self, timestamp):
         _log.debug("send_collect_offers_request at {}".format(timestamp))
@@ -210,14 +210,17 @@ class MarketServiceAgent(Agent):
         _log.debug(message)
         self.service_state = new_state
 
-    def change_state(self, new_state):
+    def change_state(self, new_state, because_message = None):
         if (self.service_state != new_state):
-            message = "Market service is changing state from state: {} to state: {}.".format(self.service_state, new_state)
+            because = ""
+            if because_message is not None:
+                because = "because {}".format(because_message)
+            message = "Market service is changing state from state: {} to state: {}{}.".format(self.service_state, new_state, because)
             self.log_andChange_state(message, new_state)
 
     def has_any_markets(self):
         unformed_markets = self.market_list.unformed_market_list()
-        return len(unformed_markets) > 0
+        return len(unformed_markets) < self.market_list.market_count()
 
 def main():
     """Main method called to start the agent."""
