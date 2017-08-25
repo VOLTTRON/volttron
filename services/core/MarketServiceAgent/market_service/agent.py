@@ -165,10 +165,12 @@ class MarketServiceAgent(Agent):
             self.reject_reservation(buyer_seller, identity, market_name)
 
     def accept_reservation(self, buyer_seller, identity, market_name):
+        _log.debug("Reservation on Market: {} {} made by {} was accepted.".format(market_name, buyer_seller, identity))
         participant = MarketParticipant(buyer_seller, identity)
         self.market_list.make_reservation(market_name, participant)
 
     def reject_reservation(self, buyer_seller, identity, market_name):
+        _log.debug("Reservation on Market: {} {} made by {} was rejected.".format(market_name, buyer_seller, identity))
         raise RuntimeError("Error: Market service not accepting reservations at this time.")
 
     @RPC.export
@@ -182,11 +184,13 @@ class MarketServiceAgent(Agent):
             self.reject_offer(buyer_seller, identity, market_name, offer)
 
     def accept_offer(self, buyer_seller, identity, market_name, offer):
+        _log.debug("Offer on Market: {} {} made by {} was accepted.".format(market_name, buyer_seller, identity))
         participant = MarketParticipant(buyer_seller, identity)
         curve = PolyLineFactory.fromTupples(offer)
         self.market_list.make_offer(market_name, participant, curve)
 
-    def reject_offer(self, buyer_seller, identity, market_name):
+    def reject_offer(self, buyer_seller, identity, market_name, offer):
+        _log.debug("Offer on Market: {} {} made by {} was rejected.".format(market_name, buyer_seller, identity))
         raise RuntimeError("Error: Market service not accepting offers at this time.")
 
     def _send_unformed_market_errors(self, timestamp):
