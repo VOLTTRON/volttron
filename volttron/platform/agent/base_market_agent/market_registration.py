@@ -152,11 +152,11 @@ class MarketRegistration(object):
 
     def log_andChange_state(self, message, new_state):
         _log.debug(message)
-        self.service_state = new_state
+        self.market_state = new_state
 
     def change_state(self, new_state):
-        if (self.service_state != new_state):
-            message = "Base market agent is changing state from state: {1} to state: {2}.".format(self.service_state, new_state)
+        if (self.market_state != new_state):
+            message = "Base market agent is changing state from state: {} to state: {}.".format(self.market_state, new_state)
             self.log_andChange_state(message, new_state)
 
 

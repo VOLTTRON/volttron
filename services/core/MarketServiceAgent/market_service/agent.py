@@ -109,11 +109,11 @@ class MarketServiceAgent(Agent):
     def __init__(self, market_period=300, reservation_delay=0, offer_delay=120, clear_delay=120, **kwargs):
         super(MarketServiceAgent, self).__init__(**kwargs)
 
-        _log.debug("vip_identity: {0}".format(self.core.identity))
-        _log.debug("market_period: {0}".format(market_period))
-        _log.debug("reservation_delay: {0}".format(reservation_delay))
-        _log.debug("offer_delay: {0}".format(offer_delay))
-        _log.debug("clear_delay: {0}".format(clear_delay))
+        _log.debug("vip_identity: {}".format(self.core.identity))
+        _log.debug("market_period: {}".format(market_period))
+        _log.debug("reservation_delay: {}".format(reservation_delay))
+        _log.debug("offer_delay: {}".format(offer_delay))
+        _log.debug("clear_delay: {}".format(clear_delay))
 
         self.service_state = None
         self.market_list = None
@@ -157,7 +157,7 @@ class MarketServiceAgent(Agent):
     @RPC.export
     def make_reservation(self, market_name, buyer_seller):
         identity = bytes(self.vip.rpc.context.vip_message.peer)
-        log_message = "Received {0} reservation for market {1} from agent {2}".format(buyer_seller, market_name, identity)
+        log_message = "Received {} reservation for market {} from agent {}".format(buyer_seller, market_name, identity)
         _log.debug(log_message)
         if (self.service_state == COLLECT_RESERVATIONS):
             self.accept_reservation(buyer_seller, identity, market_name)
@@ -174,7 +174,7 @@ class MarketServiceAgent(Agent):
     @RPC.export
     def make_offer(self, market_name, buyer_seller, offer):
         identity = bytes(self.vip.rpc.context.vip_message.peer)
-        log_message = "Received {0} offer for market {1} from agent {2}".format(buyer_seller, market_name, identity)
+        log_message = "Received {} offer for market {} from agent {}".format(buyer_seller, market_name, identity)
         _log.debug(log_message)
         if (self.service_state == COLLECT_OFFERS):
             self.accept_offer(buyer_seller, identity, market_name, offer)
@@ -192,7 +192,7 @@ class MarketServiceAgent(Agent):
     def _send_unformed_market_errors(self, timestamp):
         unformed_markets = self.market_list.unformed_market_list()
         for market_name in unformed_markets:
-            log_message = "Sent unformed market error for market {0}".format(market_name)
+            log_message = "Sent unformed market error for market {}".format(market_name)
             _log.debug(log_message)
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=MARKET_ERROR,
