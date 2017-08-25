@@ -186,7 +186,7 @@ class MarketServiceAgent(Agent):
         curve = PolyLineFactory.fromTupples(offer)
         self.market_list.make_offer(market_name, participant, curve)
 
-    def reject_reservation(self, buyer_seller, identity, market_name):
+    def reject_offer(self, buyer_seller, identity, market_name):
         raise RuntimeError("Error: Market service not accepting offers at this time.")
 
     def _send_unformed_market_errors(self, timestamp):
