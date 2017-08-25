@@ -93,18 +93,6 @@ class PolyLine:
             self._max_x = PolyLine.max(self._max_x, point.x)
             self._max_y = PolyLine.max(self._max_y, point.y)
 
-    def min_y(self):
-        return self._min_y
-
-    def max_y(self):
-        return self._max_y
-
-    def min_x(self):
-        return self._min_x
-
-    def max_x(self):
-        return self._max_x
-
     @staticmethod
     def min(x1, x2):
         if x1 is None:
@@ -187,8 +175,17 @@ class PolyLine:
             c += 1
         return ps
 
-    def __len__(self):
-        return len(self.points)
+    def min_y(self):
+        return self._min_y
+
+    def max_y(self):
+        return self._max_y
+
+    def min_x(self):
+        return self._min_x
+
+    def max_x(self):
+        return self._max_x
 
     @staticmethod
     def determinant(point1, point2):
@@ -241,6 +238,8 @@ class PolyLine:
 
     @staticmethod
     def intersection(pl_1, pl_2):
+        pl_1 = pl_1.points
+        pl_2 = pl_2.points
 
         # we have two points
         if len(pl_1) == 1 and len(pl_2) == 1:
