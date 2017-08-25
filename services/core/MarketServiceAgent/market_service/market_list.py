@@ -59,7 +59,7 @@
 import logging
 
 from volttron.platform.agent import utils
-from volttron.platform.messaging.topics import MARKET_AGGREGATE, MARKET_CLEAR, MARKET_ERROR
+from volttron.platform.messaging.topics import MARKET_AGGREGATE, MARKET_CLEAR, MARKET_ERROR, MARKET_RECORD
 from market_service.market import Market
 
 _log = logging.getLogger(__name__)
@@ -101,12 +101,18 @@ class MarketList(object):
 
     def clear_market(self, timestamp):
         timestamp_string = utils.format_timestamp(timestamp)
+        _log.debug("Clearing prices for {} markets.".format(self.market_count()))
+
         for market in self.markets.itervalues():
+            _log.debug("Clearing price for {} market.".format(self.market.market_name))
             cleared_quantity, cleared_price, error_message = market.clear_market()
             if cleared_price is not None and cleared_quantity is not None:
                 _log.debug("Sending cleared price for Market: {} Price: {} Quantity: {}".format(market.market_name, cleared_price, cleared_quantity))
                 self.publish(peer='pubsub',
                              topic=MARKET_CLEAR,
+                             message=[timestamp_string, cleared_quantity, cleared_price])
+                self.publish(peer='pubsub',
+                             topic=MARKET_RECORD,
                              message=[timestamp_string, cleared_quantity, cleared_price])
             elif error_message is not None:
                 _log.debug("Sending error message for Market: {} Message: {}".format(market.market_name, error_message))
