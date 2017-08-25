@@ -104,7 +104,7 @@ class MarketList(object):
         _log.debug("Clearing prices for {} markets.".format(self.market_count()))
 
         for market in self.markets.itervalues():
-            _log.debug("Clearing price for {} market.".format(self.market.market_name))
+            _log.debug("Clearing price for {} market.".format(market.market_name))
             cleared_quantity, cleared_price, error_message = market.clear_market()
             if cleared_price is not None and cleared_quantity is not None:
                 _log.debug("Sending cleared price for Market: {} Price: {} Quantity: {}".format(market.market_name, cleared_price, cleared_quantity))
