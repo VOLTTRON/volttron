@@ -124,6 +124,7 @@ class Market(object):
     def clear_market(self):
         price = None
         quantity = None
+        error_message = None
         if (self.market_state in [ACCEPT_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]):
             error_message = 'The market {0} failed to recieve all the expected offers. The state is {1}.'.format(self.market_name, self.market_state)
         elif (self.market_state != WAIT_FOR_CLEAR):
