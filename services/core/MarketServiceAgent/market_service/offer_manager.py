@@ -98,7 +98,7 @@ class OfferManager(object):
             error_message = "There are no sell offers."
 
         if enough_buys and enough_sells:
-            intersection = PolyLine.intersection(demand_curve, supply_curve)
+            intersection, error_message = PolyLine.intersection(demand_curve, supply_curve)
         else:
             intersection = None
 
