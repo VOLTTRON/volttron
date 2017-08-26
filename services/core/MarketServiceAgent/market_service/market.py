@@ -133,7 +133,7 @@ class Market(object):
                 error_message = 'The market {0} has not received a buy and a sell reservation.'.format(self.market_name)
             else:
                 self.change_state(WAIT_FOR_RESERVATIONS)
-                quantity, price, error_message = self.offers.settle()
+                quantity, price = self.offers.settle()
 
         _log.debug("Clearing price for Market: {} Price: {} Qty: {} Error: {}".format(self.market_name, price, quantity, error_message))
         return [quantity, price, error_message]
