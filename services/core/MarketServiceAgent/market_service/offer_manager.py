@@ -85,12 +85,17 @@ class OfferManager(object):
         return curve
 
     def settle(self):
+        error_message = ""
         enough_buys = len(self._buy_offers) > 0
         enough_sells = len(self._sell_offers) > 0
         if enough_buys:
             demand_curve = self._aggregate(self._buy_offers)
+        else:
+            error_message += "There are no buy offers."
         if enough_sells:
             supply_curve = self._aggregate(self._sell_offers)
+        else:
+            error_message += "There are no sell offers."
 
         if enough_buys and enough_sells:
             intersection = PolyLine.intersection(demand_curve, supply_curve)
@@ -104,7 +109,7 @@ class OfferManager(object):
             price = None
             quantity = None
 
-        return quantity, price
+        return quantity, price, error_message
 
     def buyer_count(self):
         return len(self._buy_offers)
