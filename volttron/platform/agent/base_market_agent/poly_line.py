@@ -56,7 +56,13 @@
 
 # }}}
 
+import logging
 import numpy as np
+
+from volttron.platform.agent import utils
+
+_log = logging.getLogger(__name__)
+utils.setup_logging()
 
 class PolyLine:
     def __init__(self):
@@ -240,12 +246,11 @@ class PolyLine:
     def intersection(pl_1, pl_2):
         pl_1 = pl_1.points
         pl_2 = pl_2.points
-        error_message = None
 
         # we have two points
         if len(pl_1) == 1 and len(pl_2) == 1:
             if pl_1[0][0] == pl_2[0][0] and pl_1[0][1] == pl_2[0][1]:
-                return pl_1[0][0], pl_1[0][1], None
+                return pl_1[0][0], pl_1[0][1]
 
         # we have one point and line segments
         elif len(pl_1) == 1 or len(pl_2) == 1:
@@ -258,7 +263,7 @@ class PolyLine:
             for j, pl_2_1 in enumerate(line[:-1]):
                 pl_2_2 = line[j + 1]
                 if PolyLine.between(pl_2_1, pl_2_2, point):
-                    return point[0], point[1], None
+                    return point[0], point[1]
 
         # we have line segments
         elif len(pl_1) > 1 and len(pl_2) > 1:
@@ -267,13 +272,13 @@ class PolyLine:
                 for j, pl_2_1 in enumerate(pl_2[:-1]):
                     pl_2_2 = pl_2[j + 1]
                     if PolyLine.segment_intersects((pl_1_1, pl_1_2), (pl_2_1, pl_2_2)):
-                        return PolyLine.segment_intersection((pl_1_1, pl_1_2), (pl_2_1, pl_2_2)), None
+                        return PolyLine.segment_intersection((pl_1_1, pl_1_2), (pl_2_1, pl_2_2))
         else:
             if len(pl_1) < 1:
-                error_message = "The first curve had no points."
+                _log.debug("The first curve had no points.")
             elif len(pl_2) < 1:
-                error_message = "The second curve had no points."
+                _log.debug("The second curve had no points.")
             else:
-                error_message = "The lines don't intersect.  I don't know why."
+                _log.debug("The lines don't intersect.  I don't know why.")
 
-        return None, None, error_message
+        return None, None
