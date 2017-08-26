@@ -203,6 +203,7 @@ class PolyLine:
         ydiff = (line1[0][1] - line1[1][1], line2[0][1] - line2[1][1])
         div = PolyLine.determinant(xdiff, ydiff)
         if div == 0:
+            _log.debug("The determinant is zero.")
             return None
         d = (PolyLine.determinant(*line1), PolyLine.determinant(*line2))
         x = PolyLine.determinant(d, xdiff) / div
