@@ -76,11 +76,12 @@ for you as well.
 A More Concrete Example
 -----------------------
 
-In the Building Economic Dispatch project, a sibling project to VOLTTRON, a
-number of components written in Matlab would create a matrix out of some
-collection of columns and perform least squares regression using the
-`matrix division` operator. This is straightforward and very similar in both
-languages so long as all of the columns are defined and are the same length.
+In the `Building Economic Dispatch <https://github.com/VOLTTRON/econ-dispatch>`_
+project, a sibling project to VOLTTRON, a number of components written in Matlab
+would create a matrix out of some collection of columns and perform least
+squares regression using the `matrix division` operator. This is straightforward
+and very similar in both languages so long as all of the columns are defined and
+are the same length.
 
 .. code-block:: matlab
 
@@ -153,12 +154,12 @@ variables, consider making a function that simply returns them instead.
 
 If your Matlab program is loading csv files then use the Pandas library when
 working in python. Pandas works well with NumPy and is the go-to library when
-working with csv files containing numeric data.
+using csv files that contain numeric data.
 
 More Resources
 --------------
 
-`NumPy for Matlab users
+`NumPy for Matlab Users
 <https://docs.scipy.org/doc/numpy-dev/user/numpy-for-matlab-users.html>`_
 Has a nice list of common operations in Matlab and NumPy.
 
