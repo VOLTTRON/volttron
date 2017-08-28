@@ -289,6 +289,7 @@ class MySqlFuncts(DbDriver):
         values = defaultdict(list)
         for topic_id in topic_ids:
             args[0] = topic_id
+            values[id_name_map[topic_id]] = []
             real_query = query.format(where=where_statement,
                                       limit=limit_statement,
                                       offset=offset_statement,
@@ -297,14 +298,12 @@ class MySqlFuncts(DbDriver):
             _log.debug("args: " + str(args))
 
             cursor = self.select(real_query, args, fetch_all=False)
-            _log.debug("Got results of query as {}".format(cursor))
             if cursor:
                 for _id, ts, value in cursor:
                     values[id_name_map[topic_id]].append(
                         (utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
                          jsonapi.loads(value)))
                 cursor.close()
-            _log.debug("query result values {}".format(values))
         return values
 
     def insert_meta_query(self):
