@@ -107,14 +107,14 @@ class SampleElectricBuyerAgent(MarketAgent):
         self.make_offer(market_name, buyer_seller, demand_curve)
 
     def create_demand_curve(self):
-        supply_curve = PolyLine()
-        price = 100
-        quantity = 0
-        supply_curve.add(Point(price,quantity))
-        price = 100
+        demand_curve = PolyLine()
+        price = 0
         quantity = 1000
-        supply_curve.add(Point(price,quantity))
-        return supply_curve
+        demand_curve.add(Point(price, quantity))
+        price = 1000
+        quantity = 0
+        demand_curve.add(Point(price, quantity))
+        return demand_curve
 
     def price_callback(self, timestamp, market_name, buyer_seller, price, quantity):
         _log.debug("Report cleared price for Market: {} {}, Message: {}".format(market_name, buyer_seller, price, quantity))
