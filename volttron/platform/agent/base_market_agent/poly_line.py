@@ -56,13 +56,7 @@
 
 # }}}
 
-import logging
 import numpy as np
-
-from volttron.platform.agent import utils
-
-_log = logging.getLogger(__name__)
-utils.setup_logging()
 
 class PolyLine:
     def __init__(self):
@@ -203,7 +197,6 @@ class PolyLine:
         ydiff = (line1[0][1] - line1[1][1], line2[0][1] - line2[1][1])
         div = PolyLine.determinant(xdiff, ydiff)
         if div == 0:
-            _log.debug("The determinant is zero.")
             return None
         d = (PolyLine.determinant(*line1), PolyLine.determinant(*line2))
         x = PolyLine.determinant(d, xdiff) / div
@@ -250,14 +243,11 @@ class PolyLine:
 
         # we have two points
         if len(pl_1) == 1 and len(pl_2) == 1:
-            _log.debug("We have two points.")
             if pl_1[0][0] == pl_2[0][0] and pl_1[0][1] == pl_2[0][1]:
                 return pl_1[0][0], pl_1[0][1]
-            _log.debug("The points don't intersect.  I don't know why.")
 
         # we have one point and line segments
         elif len(pl_1) == 1 or len(pl_2) == 1:
-            _log.debug("We have one point and one line segment.")
             if len(pl_1) == 1:
                 point = pl_1[0]
                 line = pl_2
@@ -268,25 +258,14 @@ class PolyLine:
                 pl_2_2 = line[j + 1]
                 if PolyLine.between(pl_2_1, pl_2_2, point):
                     return point[0], point[1]
-            _log.debug("The point and line segment don't intersect.  I don't know why.")
 
         # we have line segments
         elif len(pl_1) > 1 and len(pl_2) > 1:
-            _log.debug("We have two line segments.")
             for i, pl_1_1 in enumerate(pl_1[:-1]):
                 pl_1_2 = pl_1[i + 1]
                 for j, pl_2_1 in enumerate(pl_2[:-1]):
                     pl_2_2 = pl_2[j + 1]
                     if PolyLine.segment_intersects((pl_1_1, pl_1_2), (pl_2_1, pl_2_2)):
                         return PolyLine.segment_intersection((pl_1_1, pl_1_2), (pl_2_1, pl_2_2))
-            _log.debug("The line segments don't intersect.  I don't know why.")
-        else:
-            _log.debug("We have missing lines.")
-            if len(pl_1) < 1:
-                _log.debug("The first curve had no points.")
-            elif len(pl_2) < 1:
-                _log.debug("The second curve had no points.")
-            else:
-                _log.debug("The missing lines don't intersect.  I don't know why.")
 
         return None, None

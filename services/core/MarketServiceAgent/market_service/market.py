@@ -76,8 +76,8 @@ utils.setup_logging()
 class MarketFailureError(StandardError):
     """Base class for exceptions in this module."""
     def __init__(self, market_name, market_state, object_type):
-        super(MarketFailureError, self).__init__('The market {0} is not accepting {1} '
-                                                 'at this time. The state is {2}.'.format(market_name,
+        super(MarketFailureError, self).__init__('The market {} is not accepting {} '
+                                                 'at this time. The state is {}.'.format(market_name,
                                                  object_type, market_state))
 
 
@@ -118,7 +118,7 @@ class Market(object):
         elif self.market_state == ACCEPT_RESERVATIONS:
             self.change_state(WAIT_FOR_RESERVATIONS)
         else:
-            self.log_market_failure('Programming error in Market class. State of {0} and collect offers signal arrived. This represents a logic error.'.format(self.market_state))
+            self.log_market_failure('Programming error in Market class. State of {} and collect offers signal arrived. This represents a logic error.'.format(self.market_state))
             self.change_state(WAIT_FOR_RESERVATIONS)
 
     def clear_market(self):
@@ -126,15 +126,17 @@ class Market(object):
         quantity = None
         error_message = None
         if (self.market_state in [ACCEPT_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]):
-            error_message = 'The market {0} failed to recieve all the expected offers. The state is {1}.'.format(self.market_name, self.market_state)
+            error_message = 'The market {} failed to recieve all the expected offers. The state is {}.'.format(self.market_name, self.market_state)
         elif (self.market_state != WAIT_FOR_CLEAR):
-            error_message = 'Programming error in Market class. State of {0} and clear market signal arrived. This represents a logic error.'.format(self.market_state)
+            error_message = 'Programming error in Market class. State of {} and clear market signal arrived. This represents a logic error.'.format(self.market_state)
         else:
             if not self.has_market_formed():
-                error_message = 'The market {0} has not received a buy and a sell reservation.'.format(self.market_name)
+                error_message = 'The market {} has not received a buy and a sell reservation.'.format(self.market_name)
             else:
                 self.change_state(WAIT_FOR_RESERVATIONS)
                 quantity, price = self.offers.settle()
+                if price is None:
+                    error_message = "Error: The supply and demand curves do not intersect. The market {} failed to clear.".format(self.market_name)
 
         _log.debug("Clearing price for Market: {} Price: {} Qty: {} Error: {}".format(self.market_name, price, quantity, error_message))
         return [quantity, price, error_message]
@@ -156,7 +158,7 @@ class Market(object):
         elif self.market_state == ACCEPT_SELL_OFFERS and participant.is_buyer:
             next_state = WAIT_FOR_CLEAR
         else:
-            self.log_market_failure('Programming error in Market class. State of {0} and completed {1} offers. This represents a logic error.'.format(self.market_state, participant.buyer_seller))
+            self.log_market_failure('Programming error in Market class. State of {} and completed {} offers. This represents a logic error.'.format(self.market_state, participant.buyer_seller))
         return next_state
 
     def log_market_failure(self, message):
@@ -164,7 +166,7 @@ class Market(object):
         raise MarketFailureError(message)
 
     def set_initial_state(self, new_state):
-        message = "Market {0} is entering its state: {1}.".format(self.market_name, new_state)
+        message = "Market {} is entering its state: {}.".format(self.market_name, new_state)
         self.log_andChange_state(message, new_state)
 
     def log_andChange_state(self, message, new_state):
@@ -173,7 +175,7 @@ class Market(object):
 
     def change_state(self, new_state):
         if (self.market_name != new_state):
-            message = "Market {0} is changing state from state: {1} to state: {2}.".format(self.market_name, self.market_state, new_state)
+            message = "Market {} is changing state from state: {} to state: {}.".format(self.market_name, self.market_state, new_state)
             self.log_andChange_state(message, new_state)
 
     def all_satisfied(self, buyer_seller):
