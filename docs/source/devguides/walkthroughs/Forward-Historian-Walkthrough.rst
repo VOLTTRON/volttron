@@ -41,7 +41,7 @@ For this documentation, the topics from the driver agent will be sent to the ins
 - You can create a script file for the same and execute the agent.
 
 VOLTTRON INSTANCE 2
-
+~~~~~~~~~~~~~~~~~~~
 
 - ``volttron-ctl shutdown --platform`` (If VOLTTRON is already running it must be shut down before running ``volttron-cfg``).
 - ``volttron-cfg`` - this helps in configuring the VOLTTRON instance.(http://volttron.readthedocs.io/en/releases-4.1/core_services/control/VOLTTRON-Config.html)
