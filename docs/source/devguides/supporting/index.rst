@@ -9,4 +9,5 @@ Examples/Samples
     examples/index
     utilities/index
     applications/index
+    JupyterNotebooks
     *

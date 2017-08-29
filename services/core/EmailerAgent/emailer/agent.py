@@ -79,7 +79,7 @@ from volttron.platform.vip.agent import Agent
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '1.3'
+__version__ = '1.3.1'
 
 """
 The `pyclass:EmailAgent` is responsible for sending emails for an instance.  It
@@ -189,11 +189,11 @@ class EmailerAgent(Agent):
         .. code-block:: json
 
             {
-                "from_address": 'foo@bar.com',
-                "to_addresses": ['alpha.beta@fo.com', 'bob-and-joe@bim.com']
+                "from-address": 'foo@bar.com',
+                "to-addresses": ['alpha.beta@fo.com', 'bob-and-joe@bim.com']
             }
 
-        ** In the above code to_addresses can be a singe email address as well**
+        ** In the above code to-addresses can be a singe email address as well**
 
         The message must be a dictionary containing a subject and a message.
 
@@ -215,7 +215,7 @@ class EmailerAgent(Agent):
         to_addresses = self.current_config.get('to_addresses')
 
         from_address = headers.get('from-address', from_address)
-        to_addresses = headers.get('to-address', to_addresses)
+        to_addresses = headers.get('to-addresses', to_addresses)
 
         subject = message.get('subject', 'No Subject')
         msg = message.get('message', None)

@@ -75,8 +75,6 @@ from mock import MagicMock
 
 forwarder_uuid = None
 forwarder_config = {
-
-    "agentid": "forwarder",
     "destination-vip": "",
     "custom_topic_list": [],
     "services_topic_list": [
@@ -87,25 +85,10 @@ forwarder_config = {
     ]
 }
 sqlite_config = {
-    "agentid": "sqlhistorian-sqlite",
     "connection": {
         "type": "sqlite",
         "params": {
             "database": 'test.sqlite'
-        }
-    }
-}
-mysql_config = {
-    "agentid": "sqlhistorian-mysql-1",
-    "identity": "platform.historian",
-    "connection": {
-        "type": "mysql",
-        "params": {
-            "host": "localhost",
-            "port": 3306,
-            "database": "test_historian",
-            "user": "historian",
-            "passwd": "historian"
         }
     }
 }
@@ -606,8 +589,31 @@ def test_log_topic_no_header(publish_agent, query_agent):
 
 @pytest.mark.historian
 @pytest.mark.forwarder
-@pytest.mark.skipif(True,
-                    reason="This passes in develop.  Comment out when necessary.")
+def test_old_config(volttron_instances, forwarder):
+    """
+    Test adding 'agentid' and 'identity' to config. identity should be 
+    supported with "deprecated warning" and "agentid" should get ignored with a
+    warning message
+    """
+
+    print("\n** test_old_config **")
+
+    global forwarder_config
+
+    forwarder_config['agentid'] = "test_forwarder_agent_id"
+    forwarder_config['identity'] = "second forwarder"
+
+    # 1: Install historian agent
+    # Install and start sqlhistorian agent in instance2
+    forwarder_uuid = volttron_instance1.install_agent(
+        agent_dir="services/core/ForwardHistorian",
+        config_file=forwarder_config, start=True)
+
+    print("forwarder agent id: ", forwarder_uuid)
+
+
+@pytest.mark.historian
+@pytest.mark.forwarder
 def test_actuator_topic(publish_agent, query_agent):
     print("\n** test_actuator_topic **")
     global volttron_instance1, volttron_instance2
@@ -620,7 +626,7 @@ def test_actuator_topic(publish_agent, query_agent):
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
-    print result
+    print(result)
     assert result == 0
 
     # Start the master driver agent which would intern start the fake driver
@@ -693,6 +699,56 @@ def test_actuator_topic(publish_agent, query_agent):
         volttron_instance1.remove_agent(actuator_uuid)
         volttron_instance2.stop_agent(listener_uuid)
         volttron_instance2.remove_agent(listener_uuid)
+
+@pytest.mark.historian
+@pytest.mark.forwarder
+def test_nan_value(publish_agent, query_agent):
+    """
+    Test if devices topic message is getting forwarded to historian running on
+    another instance. Test if topic name substitutions happened.
+    Publish to 'devices/PNNL/BUILDING_1/Device/all' in volttron_instance1 and query
+    for topic 'devices/PNNL/BUILDING1_ANON/Device/all' in volttron_instance2
+
+    @param publish_agent: Fake agent used to publish messages to bus in
+    volttron_instance1. Calling this fixture makes sure all the dependant
+    fixtures are called to setup and start volttron_instance1 and forwareder
+    agent and returns the  instance of fake agent to publish
+    @param query_agent: Fake agent used to query sqlhistorian in
+    volttron_instance2. Calling this fixture makes sure all the dependant
+    fixtures are called to setup and start volttron_instance2 and sqlhistorian
+    agent and returns the instance of a fake agent to query the historian
+    """
+    import math
+    print("\n** test_devices_topic **")
+    oat_reading = random.uniform(30, 100)
+    float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+    # Create a message for all points.
+    all_message = [{'nan_value': float("NaN")},
+                   {'nan_value': float_meta}]
+
+    # Publish messages twice
+    time1 = datetime.utcnow().isoformat(' ')
+    headers = {
+        headers_mod.DATE: time1
+    }
+    publish(publish_agent, 'devices/PNNL/BUILDING_1/Device/all', headers, all_message)
+    gevent.sleep(1)
+
+    # Verify topic name replacement by querying the replaced topic name
+    # PNNL/BUILDING_1 should be replaced with PNNL/BUILDING1_ANON
+    result = query_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic='PNNL/BUILDING1_ANON/Device/nan_value',
+        start=time1,
+        count=20,
+        order="LAST_TO_FIRST").get(timeout=10)
+
+    assert (len(result['values']) == 1)
+    (time1_date, time1_time) = time1.split(" ")
+    assert (result['values'][0][0] == time1_date + 'T' + time1_time + '+00:00')
+    assert (math.isnan(result['values'][0][1]))
+    assert set(result['metadata'].items()) == set(float_meta.items())
 
 
 @pytest.mark.historian

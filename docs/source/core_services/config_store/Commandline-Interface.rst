@@ -77,6 +77,23 @@ To get the current list of configurations for an agent include the Agent's VIP I
 - **agent vip identity** - The agent store to retrieve the configuration from.
 
 
+Edit Configuration
+------------------
+
+To edit a configuration in the Configuration Store use the `edit` sub-command:
+
+.. code-block:: bash
+
+    volttron-ctl config edit <agent vip identity> <configuration name>
+
+- **agent vip identity** - The agent store containing the configuration.
+- **configuration name** - The name of the configuration to edit.
+
+The configuration must exist in the store to be edited.
+
+By default `edit` will try to open the file with the `nano` editor.
+The `edit` command will respect the `EDITOR` environment variable.
+You may override this with the `--editor` option.
 
 
 

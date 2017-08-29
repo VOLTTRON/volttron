@@ -93,6 +93,10 @@ class MySqlFuncts(DbDriver):
             self.meta_table = table_names['meta_table']
             self.agg_topics_table = table_names.get('agg_topics_table', None)
             self.agg_meta_table = table_names.get('agg_meta_table', None)
+        # This is needed when reusing the same connection. Else cursor returns
+        # cached data even if we create a new cursor for each query and
+        # close the cursor after fetching results
+        connect_params['autocommit'] = True
         super(MySqlFuncts, self).__init__('mysql.connector', **connect_params)
 
     def init_microsecond_support(self):
@@ -147,9 +151,8 @@ class MySqlFuncts(DbDriver):
                               '''(topic_id INTEGER NOT NULL,
                                metadata TEXT NOT NULL,
                                PRIMARY KEY(topic_id))''')
-            _log.debug("Created data topics and meta tables")
-
             self.commit()
+            _log.debug("Created data topics and meta tables")
         except MysqlError as err:
             err_msg = "Error creating " \
                       "historian tables as the configured user. " \
@@ -176,18 +179,19 @@ class MySqlFuncts(DbDriver):
 
         insert_stmt = 'REPLACE INTO ' + meta_table_name + \
                       ' VALUES (%s, %s, %s)'
-        self.insert_stmt(insert_stmt,
+        self.execute_stmt(insert_stmt,
                          ('data_table', tables_def['data_table'],
                           table_prefix))
-        self.insert_stmt(insert_stmt,
+        self.execute_stmt(insert_stmt,
                          ('topics_table', tables_def['topics_table'],
                           table_prefix))
-        self.insert_stmt(
+        self.execute_stmt(
             insert_stmt,
-            ('meta_table', tables_def['meta_table'], table_prefix))
-        self.commit()
+            ('meta_table', tables_def['meta_table'], table_prefix),
+            commit=True)
 
     def setup_aggregate_historian_tables(self, meta_table_name):
+        _log.debug("CREATING AGG TABLES")
         table_names = self.read_tablenames_from_db(meta_table_name)
 
         self.data_table = table_names['data_table']
@@ -212,12 +216,12 @@ class MySqlFuncts(DbDriver):
             '(agg_topic_id INTEGER NOT NULL, \
               metadata TEXT NOT NULL, \
               PRIMARY KEY(agg_topic_id));')
-
+        self.commit()
         _log.debug("Created aggregate topics and meta tables")
 
     def query(self, topic_ids, id_name_map, start=None, end=None, skip=0,
-              agg_type=None,
-              agg_period=None, count=None, order="FIRST_TO_LAST"):
+              agg_type=None, agg_period=None, count=None,
+              order="FIRST_TO_LAST"):
 
         table_name = self.data_table
         if agg_type and agg_period:
@@ -237,11 +241,15 @@ class MySqlFuncts(DbDriver):
         args = [topic_ids[0]]
 
         if start is not None:
+            if start.tzinfo != pytz.UTC:
+                start = start.astimezone(pytz.UTC)
             if not self.MICROSECOND_SUPPORT:
                 start_str = start.isoformat()
                 start = start_str[:start_str.rfind('.')]
 
         if end is not None:
+            if end.tzinfo !=pytz.UTC:
+                end = end.astimezone(pytz.UTC)
             if not self.MICROSECOND_SUPPORT:
                 end_str = end.isoformat()
                 end = end_str[:end_str.rfind('.')]
@@ -249,12 +257,13 @@ class MySqlFuncts(DbDriver):
         if start and end and start == end:
             where_clauses.append("ts = %s")
             args.append(start)
-        elif start:
-            where_clauses.append("ts >= %s")
-            args.append(start)
-        elif end:
-            where_clauses.append("ts < %s")
-            args.append(end)
+        else:
+            if start:
+                where_clauses.append("ts >= %s")
+                args.append(start)
+            if end:
+                where_clauses.append("ts < %s")
+                args.append(end)
 
         where_statement = ' AND '.join(where_clauses)
 
@@ -280,6 +289,7 @@ class MySqlFuncts(DbDriver):
         values = defaultdict(list)
         for topic_id in topic_ids:
             args[0] = topic_id
+            values[id_name_map[topic_id]] = []
             real_query = query.format(where=where_statement,
                                       limit=limit_statement,
                                       offset=offset_statement,
@@ -287,13 +297,13 @@ class MySqlFuncts(DbDriver):
             _log.debug("Real Query: " + real_query)
             _log.debug("args: " + str(args))
 
-            rows = self.select(real_query, args)
-            if rows:
-                for _id, ts, value in rows:
+            cursor = self.select(real_query, args, fetch_all=False)
+            if cursor:
+                for _id, ts, value in cursor:
                     values[id_name_map[topic_id]].append(
                         (utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
                          jsonapi.loads(value)))
-            _log.debug("query result values {}".format(values))
+                cursor.close()
         return values
 
     def insert_meta_query(self):
@@ -329,7 +339,7 @@ class MySqlFuncts(DbDriver):
         return '''UPDATE ''' + self.agg_topics_table + ''' SET
         agg_topic_name = %s WHERE agg_topic_id = %s '''
 
-    def insert_agg_meta_stmt(self):
+    def replace_agg_meta_stmt(self):
         return '''REPLACE INTO ''' + self.agg_meta_table + ''' values(%s,
         %s)'''
 
@@ -413,7 +423,7 @@ class MySqlFuncts(DbDriver):
                    "value_string TEXT NOT NULL, topics_list TEXT," \
                    " UNIQUE(topic_id, ts)," \
                    "INDEX (ts ASC))"
-        return self.execute_stmt(stmt)
+        return self.execute_stmt(stmt, commit=True)
 
     def insert_aggregate_stmt(self, table_name):
         return '''REPLACE INTO ''' + table_name + \

@@ -134,6 +134,7 @@ class SQLAggregateHistorian(AggregateHistorian):
                                                       agg_type,
                                                       agg_time_period)
         self.dbfuncts_class.insert_agg_meta(agg_id[0], topics_meta)
+        self.dbfuncts_class.commit()
         return agg_id[0]
 
     def update_aggregate_metadata(self, agg_id, aggregation_topic_name,
@@ -143,6 +144,7 @@ class SQLAggregateHistorian(AggregateHistorian):
 
         self.dbfuncts_class.update_agg_topic(agg_id, aggregation_topic_name)
         self.dbfuncts_class.insert_agg_meta(agg_id, topic_meta)
+        self.dbfuncts_class.commit()
 
     def collect_aggregate(self, topic_ids, agg_type, start_time, end_time):
         return self.dbfuncts_class.collect_aggregate(
