@@ -69,6 +69,7 @@ from zmq.utils import jsonapi
 from zmq import green as zmq
 
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
+from volttron.utils.prompt import prompt_response, y, n, y_or_n
 
 from . import get_home
 
@@ -80,12 +81,6 @@ config_opts = {}
 # Dictionary of tags to config functions.
 # Populated by the `installs` decorator.
 available_agents = {}
-
-# Yes or no answers to questions.
-y_or_n = ('Y', 'N', 'y', 'n')
-y = ('Y', 'y')
-n = ('N', 'n')
-
 
 def _load_config():
     """Loads the config file if the path exists."""
@@ -114,26 +109,6 @@ def _install_config_file():
 
     with open(path, 'w') as configfile:
         config.write(configfile)
-
-
-def prompt_response(prompt, valid_answers=None, default=None, echo=True):
-
-    prompt += ' '
-    if default is not None:
-        prompt += '[{}]: '.format(default)
-    if echo:
-        while True:
-            resp = raw_input(prompt)
-            if resp == '' and default is not None:
-                return default
-            if valid_answers is None or resp in valid_answers:
-                return resp
-            else:
-                print('Invalid response. Proper responses are:')
-                print(valid_answers)
-    else:
-        resp = getpass.getpass(prompt)
-        return resp
 
 
 def _cmd(cmdargs):
