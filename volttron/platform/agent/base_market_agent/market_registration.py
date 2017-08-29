@@ -112,18 +112,20 @@ class MarketRegistration(object):
             return
         if self.market_state == AGGREGATE_WAIT:
             return # ignore offers when waiting for an aggregate
-        offer_accepted = False
         if self.has_reservation and self.offer_callback is not None:
             curve = self.offer_callback(timestamp, self.market_name, self.buyer_seller)
             if curve is not None:
-                offer_accepted = agent.make_offer(self.market_name, self.buyer_seller, curve)
-        self.check_offer_accepted(offer_accepted)
+                offer_accepted, error_message = agent.make_offer(self.market_name, self.buyer_seller, curve)
+            else:
+                offer_accepted = False
+                error_message = "the offer callback did not return a valid curve."
+        self.check_offer_accepted(offer_accepted, error_message)
 
-    def check_offer_accepted(self, offer_accepted):
+    def check_offer_accepted(self, offer_accepted, error_message):
         if offer_accepted:
             self.change_state(PRICE_WAIT, "our offer was accepted")
         else:
-            self.change_state(RESERVATION_WAIT, "our offer was not accepted")
+            self.change_state(RESERVATION_WAIT, error_message)
 
     def report_clear_price(self, timestamp, price, quantity):
         _log.debug("report_clear_price Timestamp: {} Price: {} Qty: {} Has Reservation: {}".format(timestamp, price, quantity, self.has_reservation))
@@ -164,7 +166,7 @@ class MarketRegistration(object):
         if (self.market_state != new_state):
             because = ""
             if because_message is not None:
-                because = "because {}".format(because_message)
+                because = " because {}".format(because_message)
             message = "Base market agent is changing state from state: {} to state: {}{}.".format(self.market_state, new_state, because)
             self.log_andChange_state(message, new_state)
 

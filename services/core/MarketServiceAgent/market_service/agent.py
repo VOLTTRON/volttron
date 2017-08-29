@@ -214,7 +214,7 @@ class MarketServiceAgent(Agent):
         if (self.service_state != new_state):
             because = ""
             if because_message is not None:
-                because = "because {}".format(because_message)
+                because = " because {}".format(because_message)
             message = "Market service is changing state from state: {} to state: {}{}.".format(self.service_state, new_state, because)
             self.log_andChange_state(message, new_state)
 

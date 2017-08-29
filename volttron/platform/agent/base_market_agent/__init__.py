@@ -200,8 +200,8 @@ class MarketAgent(Agent):
         """
         try:
             self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller, curve.tuppleize()).get(timeout=5.0)
-            result = True
+            result = (True, None)
         except RemoteError as e:
-            result = False
+            result = (False, e.message)
         return result
 
