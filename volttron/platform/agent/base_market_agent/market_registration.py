@@ -126,6 +126,7 @@ class MarketRegistration(object):
             self.change_state(RESERVATION_WAIT)
 
     def report_clear_price(self, timestamp, price, quantity):
+        _log.debug("report_clear_price Timestamp: {} Price: {} Qty: {} Has Reservation: {}".format(timestamp, price, quantity, self.has_reservation))
         if self.market_state != PRICE_WAIT:
             self.change_state(RESERVATION_WAIT)
             return

@@ -56,7 +56,13 @@
 
 # }}}
 
+import logging
+
+from volttron.platform.agent import utils
 from volttron.platform.agent.base_market_agent.market_registration import MarketRegistration
+
+_log = logging.getLogger(__name__)
+utils.setup_logging()
 
 class RegistrationManager(object):
     """
@@ -88,6 +94,7 @@ class RegistrationManager(object):
             registration.request_offers(timestamp, self.agent)
 
     def report_clear_price(self, timestamp, price, quantity):
+        _log.debug("report_clear_price Timestamp: {} Price: {} Qty: {}".format(timestamp, price, quantity))
         for registration in self.registrations:
             registration.report_clear_price(timestamp, price, quantity)
 
