@@ -108,8 +108,8 @@ class OfferManager(object):
             intersection = None
 
         if intersection is not None:
-            price = intersection[1]
-            quantity = intersection[0]
+            price = intersection[0]
+            quantity = intersection[1]
         else:
             price = None
             quantity = None
