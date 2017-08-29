@@ -131,6 +131,7 @@ class MarketRegistration(object):
             self.change_state(RESERVATION_WAIT)
             return
         if self.has_reservation and self.price_callback is not None:
+            _log.debug("report_clear_price calling price_callback method for {} {} {} {}".format(self.market_name, self.buyer_seller, price, quantity))
             self.price_callback(timestamp, self.market_name, self.buyer_seller, price, quantity)
         self.has_reservation = False
         self.change_state(RESERVATION_WAIT)
