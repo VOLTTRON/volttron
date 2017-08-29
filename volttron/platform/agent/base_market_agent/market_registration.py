@@ -91,7 +91,7 @@ class MarketRegistration(object):
 
     def request_reservations(self, timestamp, agent):
         if self.market_state != RESERVATION_WAIT:
-            self.change_state(RESERVATION_WAIT)
+            self.change_state(RESERVATION_WAIT, "we got a request reservations message")
         self.has_reservation = False
         if self.reservation_callback is not None:
             wants_reservation_this_time = self.reservation_callback(timestamp, self.market_name, self.buyer_seller)
@@ -102,13 +102,13 @@ class MarketRegistration(object):
             if agent.has_reservation:
                 self.has_reservation = agent.has_reservation
                 if (self.offer_callback is not None):
-                    self.change_state(OFFER_WAIT)
+                    self.change_state(OFFER_WAIT, "our reservation was accepted")
                 else:
-                    self.change_state(AGGREGATE_WAIT)
+                    self.change_state(AGGREGATE_WAIT, "our reservation was accepted")
 
     def request_offers(self, timestamp, agent):
         if self.market_state != OFFER_WAIT and self.market_state != AGGREGATE_WAIT:
-            self.change_state(RESERVATION_WAIT)
+            self.change_state(RESERVATION_WAIT, "we got a request offers message")
             return
         if self.market_state == AGGREGATE_WAIT:
             return # ignore offers when waiting for an aggregate
@@ -121,24 +121,24 @@ class MarketRegistration(object):
 
     def check_offer_accepted(self, offer_accepted):
         if offer_accepted:
-            self.change_state(PRICE_WAIT)
+            self.change_state(PRICE_WAIT, "our offer was accepted")
         else:
-            self.change_state(RESERVATION_WAIT)
+            self.change_state(RESERVATION_WAIT, "our offer was not accepted")
 
     def report_clear_price(self, timestamp, price, quantity):
         _log.debug("report_clear_price Timestamp: {} Price: {} Qty: {} Has Reservation: {}".format(timestamp, price, quantity, self.has_reservation))
         if self.market_state != PRICE_WAIT:
-            self.change_state(RESERVATION_WAIT)
+            self.change_state(RESERVATION_WAIT, "we got a report clear price message")
             return
         if self.has_reservation and self.price_callback is not None:
             _log.debug("report_clear_price calling price_callback method for {} {} {} {}".format(self.market_name, self.buyer_seller, price, quantity))
             self.price_callback(timestamp, self.market_name, self.buyer_seller, price, quantity)
         self.has_reservation = False
-        self.change_state(RESERVATION_WAIT)
+        self.change_state(RESERVATION_WAIT, "we got a cleared price report message")
 
     def report_aggregate(self, timestamp, aggregate_curve):
         if self.market_state != AGGREGATE_WAIT and self.market_state != OFFER_WAIT:
-            self.change_state(RESERVATION_WAIT)
+            self.change_state(RESERVATION_WAIT, "we got a aggregate report message")
             return
         if self.market_state == OFFER_WAIT:
             return  # ignore aggregates when waiting for an offer
@@ -150,7 +150,7 @@ class MarketRegistration(object):
     def report_error(self, timestamp, error_message):
         if self.error_callback is not None:
             self.error_callback(timestamp, self.market_name, self.buyer_seller, error_message)
-        self.change_state(RESERVATION_WAIT)
+        self.change_state(RESERVATION_WAIT, "we got an error message")
 
     def set_initial_state(self, new_state):
         message = "Base market agent is entering its state: {}.".format(new_state)
@@ -160,11 +160,13 @@ class MarketRegistration(object):
         _log.debug(message)
         self.market_state = new_state
 
-    def change_state(self, new_state):
+    def change_state(self, new_state, because_message = None):
         if (self.market_state != new_state):
-            message = "Base market agent is changing state from state: {} to state: {}.".format(self.market_state, new_state)
+            because = ""
+            if because_message is not None:
+                because = "because {}".format(because_message)
+            message = "Base market agent is changing state from state: {} to state: {}{}.".format(self.market_state, new_state, because)
             self.log_andChange_state(message, new_state)
-
 
 
 
