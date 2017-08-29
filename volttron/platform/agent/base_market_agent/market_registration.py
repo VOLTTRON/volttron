@@ -146,8 +146,8 @@ class MarketRegistration(object):
             return  # ignore aggregates when waiting for an offer and when waiting for a cleared price
         offer_accepted = False
         if self.has_reservation and self.aggregate_callback is not None:
-            offer_accepted = self.aggregate_callback(timestamp, self.market_name, self.buyer_seller, aggregate_curve)
-        self.check_offer_accepted(offer_accepted)
+            offer_accepted= self.aggregate_callback(timestamp, self.market_name, self.buyer_seller, aggregate_curve)
+        self.check_offer_accepted(offer_accepted, None)
 
     def report_error(self, timestamp, error_message):
         if self.error_callback is not None:
