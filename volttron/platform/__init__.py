@@ -122,6 +122,10 @@ def get_volttron_root():
         )
     )
 
+def get_volttron_data():
+    root = get_volttron_root()
+    return os.path.join(root, "volttron_data")
+
 
 def is_instance_running(volttron_home=None):
     from zmq.utils import jsonapi
