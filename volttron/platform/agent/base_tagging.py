@@ -87,28 +87,16 @@ query
 from __future__ import absolute_import, print_function
 
 import logging
+import os
 
 from abc import abstractmethod
 
 from volttron.platform.agent.known_identities import (PLATFORM_HISTORIAN)
-from volttron.platform.agent.utils import fix_sqlite3_datetime
-from volttron.platform.vip.agent import *
+from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.vip.agent.errors import Unreachable
 
-try:
-    import ujson
-    def dumps(data):
-        return ujson.dumps(data, double_precision=15)
-    def loads(data_string):
-        return ujson.loads(data_string, precise_float=True)
-except ImportError:
-    from zmq.utils.jsonapi import dumps, loads
 
 _log = logging.getLogger(__name__)
-
-# Register a better datetime parser in sqlite3.
-fix_sqlite3_datetime()
-
 
 class BaseTaggingService(Agent):
     """This is the base class for tagging service implementations. There can
@@ -116,14 +104,17 @@ class BaseTaggingService(Agent):
     the tag details
     """
 
-    def __init__(self, resource_sub_dir='resources', **kwargs):
+    def __init__(self, **kwargs):
+        super(BaseTaggingService, self).__init__(**kwargs)
         self.valid_tags = dict()
         self.tag_refs = dict()
-        self.resource_sub_dir = "resources"
-        if resource_sub_dir:
-            self.resource_sub_dir = resource_sub_dir
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.resource_sub_dir = os.path.join(current_dir, "../../..",
+                                             "volttron_data/tagging_resources")
+        if not os.path.isdir(self.resource_sub_dir):
+            raise ValueError("Unable to access resources directory: " +
+                             self.resource_sub_dir)
 
-        super(BaseTaggingService, self).__init__(**kwargs)
         _log.debug("Done init of base tagging service")
 
     @Core.receiver("onstart")
@@ -131,6 +122,13 @@ class BaseTaggingService(Agent):
         """
         Called on start of agent. Calls the setup method
         """
+        # load resources and make it available for implementing classes
+        # Implementing classes can load this and/or other (additional) files
+        #  as they see fit.
+
+
+        os.path.realpath(__file__)
+
         self.setup()
         self.load_valid_tags()
         self.load_tag_refs()
@@ -150,8 +148,8 @@ class BaseTaggingService(Agent):
         """
         Called right after setup to load a dictionary of valid tags. It
         should load self.valid_tags with tag and type information
-
         """
+        pass
 
     @abstractmethod
     def load_tag_refs(self):
@@ -160,6 +158,7 @@ class BaseTaggingService(Agent):
         its corresponding parent tag. Implementing methods should load
         self.tag_refs with tag and parent tag information
         """
+        pass
 
     @RPC.export
     def get_categories(self, include_description=False, skip=0, count=None,
@@ -243,7 +242,6 @@ class BaseTaggingService(Agent):
         :type order: str
         :rtype: list
         """
-
         return self.query_tags_by_category(category, include_kind,
                                            include_description, skip, count,
                                            order)
@@ -522,7 +520,7 @@ class BaseTaggingService(Agent):
         .. code-block:: python
 
         <topic_name or prefix or topic_name pattern>: {<valid tag>:<value>, ... }, ... }
-        
+
         :param update_version: True/False. Default to False. 
         If set to True and if any of the tags update an existing tag 
         value the older value would be preserved as part of tag version history
@@ -683,51 +681,47 @@ class BaseTaggingService(Agent):
 
 
 
+# Ply parsing for query of the format
+#
+# "(tag1 = 1 or tag1 = 2) and not (tag2 < '' and tag2 > '') and tag3 and tag4 LIKE '^a.*b$'"
+#
+# precedence
+# +
+# -
+# *
+# /
+# unary -
+#
+# =
+# !=
+# >=
+# <=
+# >
+# <
+# LIKE
+#
+# AND
+# OR
+# NOT
+#
+# INTEGER
+# FLOATING_POINT
+# STRING (single or double-quoted)
 
-'''
-"(tag1 = 1 or tag1 = 2) and not (tag2 < '' and tag2 > '') and tag3 and tag4 LIKE '^a.*b$'"
-
-+
--
-*
-/
-unary - 
-
-=
-!=
->=
-<=
->
-<
-LIKE
-
-AND
-OR
-NOT
-
-INTEGER
-FLOATING_POINT
-STRING (single or double-quoted)
-
-
-'''
 
 # Query parser
 import ply.yacc as yacc
 import ply.lex as lex
 
 # Tokens
-
-'''
-()
-uminus
-* / %
-+ -
->= <= > <
-= != not like
-and
-or
-'''
+# ()
+# uminus
+# * / %
+# + -
+# >= <= > <
+# = != not like
+# and
+# or
 
 reserved = {'and': 'AND', 'or': 'OR', 'not': 'NOT', 'like': 'LIKE'}
 
@@ -829,16 +823,14 @@ def t_error(t):
 
 
 # Parsing rules
-'''
-()
-uminus
-* / %
-+ -
->= <= > <
-= != not like
-and
-or
-'''
+# ()
+# uminus
+# * / %
+# + -
+# >= <= > <
+# = != not like
+# and
+# or
 
 precedence = (
     ('left', 'OR'), ('left', 'AND'), ('left', 'EQ', 'NEQ', 'NOT', 'LIKE'),

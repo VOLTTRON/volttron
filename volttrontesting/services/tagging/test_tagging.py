@@ -82,8 +82,7 @@ connection_type = ""
 db_connection = None
 tagging_service_id = None
 sqlite_config = {"connection": {"type": "sqlite",
-                 "params": {"database":
-                                "~/.volttron/data/volttron.tags.sqlite"}},
+                                "params":{"database":""}},
                  "source": "services/core/SQLiteTaggingService"}
 
 mongodb_config = {"source": "services/core/MongodbTaggingService",
@@ -91,7 +90,8 @@ mongodb_config = {"source": "services/core/MongodbTaggingService",
                                  "params": {"host": "localhost", "port": 27017,
                                             "database": "mongo_test",
                                             "user": "test",
-                                            "passwd": "test"}}}
+                                            "passwd": "test",
+                                            "authSource":"admin"}}}
 
 
 def setup_sqlite(config):
@@ -112,7 +112,10 @@ def setup_mongodb(config):
     mongo_conn_str = mongo_conn_str.format(**params)
     mongo_client = pymongo.MongoClient(mongo_conn_str)
     db = mongo_client[connection_params['database']]
-    db['topic_tags'].remove()
+    db['topic_tags'].drop()
+    db['tags'].drop()
+    db['categories'].drop()
+    db['tag_refs'].drop()
     return db
 
 
@@ -194,6 +197,10 @@ def tagging_service(request, volttron_instance):
 @pytest.mark.tagging
 def test_init_failure(volttron_instance, tagging_service, query_agent):
     agent_id = None
+    global connection_type
+    if connection_type == 'sqlite':
+        pytest.skip("sqlite init should fail only in case of unexpected "
+                    "errors")
     try:
         query_agent.callback = MagicMock(name="callback")
         query_agent.callback.reset_mock()
@@ -202,7 +209,13 @@ def test_init_failure(volttron_instance, tagging_service, query_agent):
                                          prefix=topics.ALERTS_BASE,
                                          callback=query_agent.callback).get()
         new_config = copy.copy(tagging_service)
-        new_config["resource_sub_dir"] = "bad_dir"
+        new_config['connection'] = {"params":
+                                        {"host": "localhost",
+                                         "port": 27017,
+                                         "database": "mongo_test",
+                                         "user": "invalid_user",
+                                         "passwd": "test",
+                                         "authSource":"admin"}}
         source = new_config.pop('source')
         try:
             agent_id = volttron_instance.install_agent(
@@ -394,7 +407,6 @@ def test_insert_topic_tags(volttron_instance, tagging_service, query_agent):
         cleanup_function = globals()["cleanup_" + connection_type]
         cleanup_function(db_connection, ['topic_tags'])
 
-@pytest.mark.dev
 @pytest.mark.tagging
 def test_insert_topic_pattern_tags(volttron_instance, tagging_service,
                                    query_agent):
@@ -513,7 +525,7 @@ def test_insert_topic_pattern_tags(volttron_instance, tagging_service,
         if hist_id:
             volttron_instance.remove_agent(hist_id)
 
-#@pytest.mark.dev
+
 @pytest.mark.tagging
 def test_insert_topic_tags_update(volttron_instance, tagging_service,
                                   query_agent):
@@ -583,7 +595,7 @@ def test_insert_topic_tags_update(volttron_instance, tagging_service,
         if hist_id:
             volttron_instance.remove_agent(hist_id)
 
-#@pytest.mark.dev
+
 @pytest.mark.tagging
 def test_update_topic_tags(volttron_instance, tagging_service, query_agent):
     global connection_type, db_connection
@@ -701,7 +713,7 @@ def test_insert_tags_invalid_tag_error(tagging_service, query_agent):
         assert e.exc_info['exc_type'] == 'ValueError'
         assert e.message == 'Invalid tag name:t2'
 
-#@pytest.mark.dev
+
 @pytest.mark.tagging
 def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
                                    query_agent):
@@ -807,7 +819,7 @@ def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
         cleanup_function = globals()["cleanup_" + connection_type]
         cleanup_function(db_connection, ['topic_tags'])
 
-#@pytest.mark.dev
+
 @pytest.mark.tagging
 def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
                                      query_agent):
@@ -899,7 +911,7 @@ def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
         cleanup_function = globals()["cleanup_" + connection_type]
         cleanup_function(db_connection, ['topic_tags'])
 
-@pytest.mark.dev
+
 @pytest.mark.tagging
 def test_topic_by_tags_param_and_or(volttron_instance, tagging_service,
                                     query_agent):
@@ -1029,7 +1041,7 @@ def test_topic_by_tags_param_and_or(volttron_instance, tagging_service,
         cleanup_function = globals()["cleanup_" + connection_type]
         cleanup_function(db_connection, ['topic_tags'])
 
-#@pytest.mark.dev
+
 @pytest.mark.tagging
 def test_topic_by_tags_custom_condition(volttron_instance, tagging_service,
                                         query_agent):
@@ -1182,7 +1194,6 @@ def test_topic_by_tags_custom_condition(volttron_instance, tagging_service,
         cleanup_function(db_connection, ['topic_tags'])
 
 
-#@pytest.mark.dev
 @pytest.mark.tagging
 def test_topic_by_tags_parent_topic_query(volttron_instance, tagging_service,
                                         query_agent):

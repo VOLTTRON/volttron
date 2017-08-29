@@ -95,11 +95,15 @@ def tagging_service(config_path, **kwargs):
     else:
         config_dict = utils.load_config(config_path)
 
-    database = config_dict['connection']['params']['database']
+    if not config_dict.get('connection') or \
+            not config_dict.get('connection').get('params') or \
+            not config_dict.get('connection').get('params').get('database'):
+        raise ValueError("Missing database connection parameters. Agent "
+                         "configuration should contain database connection "
+                         "parameters with the details about type of database"
+                         "and name of database. Please refer to sample "
+                         "configuration file in Agent's source directory.")
 
-    assert database is not None
-
-    MongodbTaggingService.__name__ = 'MongodbTaggingService'
     utils.update_kwargs_with_config(kwargs, config_dict)
     return MongodbTaggingService(**kwargs)
 
@@ -119,6 +123,7 @@ class MongodbTaggingService(BaseTaggingService):
                        topic_replace_list used by parent classes)
         """
 
+        super(MongodbTaggingService, self).__init__(**kwargs)
         self.connection = connection
         self._client = mongoutils.get_mongo_client(connection['params'])
         self.tags_collection = "tags"
@@ -135,7 +140,6 @@ class MongodbTaggingService(BaseTaggingService):
                                          self.categories_collection
             self.topic_tags_collection = table_prefix + "_" + \
                                          self.topic_tags_collection
-        super(MongodbTaggingService, self).__init__(**kwargs)
 
     @doc_inherit
     def setup(self):
@@ -146,17 +150,6 @@ class MongodbTaggingService(BaseTaggingService):
         """
         _log.debug("Setup of mongodb tagging agent")
         err_message = ""
-        if not resource_exists(__name__, self.resource_sub_dir):
-            err_message = "Unable to load resources directory. No such " \
-                          "directory:{}. Please make sure that setup.py has " \
-                          "been updated to include the resources directory. " \
-                          "If the name of the resources directory is " \
-                          "anything other than \"resources\" please " \
-                          "configure it in the agent's configuration file " \
-                          "using the key \"resources_sub_directory\" " \
-                          "Init of tagging service failed. Stopping tagging " \
-                          "service agent".format(self.resource_sub_dir)
-
         collections = []
         db = None
         try:
@@ -227,9 +220,10 @@ class MongodbTaggingService(BaseTaggingService):
         _log.debug("After load tag_refs is {}".format(self.tag_refs))
 
     def init_tags(self, db):
-        tags_file = self.resource_sub_dir+'/tags.csv'
-        _log.debug("Loading file :" + tags_file)
-        csv_str = resource_string(__name__, tags_file)
+        file_path = self.resource_sub_dir+'/tags.csv'
+        _log.debug("Loading file :" + file_path)
+        with open(file_path, 'r') as content_file:
+            csv_str = content_file.read()
         if csv_str:
             # csv.DictReader uses first line in file for column headings
             # by default
@@ -243,12 +237,14 @@ class MongodbTaggingService(BaseTaggingService):
         else:
             raise ValueError(
                 "Unable to load list of reference tags and its parent. No "
-                "such file: {}".format(tags_file))
+                "such file: {}".format(file_path))
 
     def init_tag_refs(self, db):
-        tags_file = self.resource_sub_dir+'/tag_refs.csv'
-        _log.debug("Loading file :" + tags_file)
-        csv_str = resource_string(__name__, tags_file)
+        file_path = self.resource_sub_dir+'/tag_refs.csv'
+        _log.debug("Loading file :" + file_path)
+        with open(file_path, 'r') as content_file:
+            csv_str = content_file.read()
+
         if csv_str:
             # csv.DictReader uses first line in file for column headings
             # by default
@@ -262,14 +258,14 @@ class MongodbTaggingService(BaseTaggingService):
         else:
             raise ValueError(
                 "Unable to load list of reference tags and its parent. No "
-                "such file: {}".format(tags_file))
+                "such file: {}".format(file_path))
 
 
     def init_categories(self, db):
-        file_name = self.resource_sub_dir + '/categories.csv'
-        _log.debug(
-            "Loading file :" + file_name)
-        csv_str = resource_string(__name__, file_name)
+        file_path = self.resource_sub_dir + '/categories.csv'
+        _log.debug("Loading file :" + file_path)
+        with open(file_path, 'r') as content_file:
+            csv_str = content_file.read()
         if csv_str:
             dr = csv.DictReader(csv_str.splitlines())
             bulk = db[
@@ -279,12 +275,14 @@ class MongodbTaggingService(BaseTaggingService):
                              "description": i['description']})
             bulk.execute()
         else:
-            _log.warn("No categories to initialize. No such file "+ file_name)
+            _log.warn("No categories to initialize. No such file "+ file_path)
 
     def init_category_tags(self, db):
-        file_name = self.resource_sub_dir + '/category_tags.txt'
-        _log.debug("Loading file :" + file_name)
-        txt_str = resource_string(__name__, file_name)
+        file_path = self.resource_sub_dir + '/category_tags.txt'
+        _log.debug("Loading file :" + file_path)
+        with open(file_path, 'r') as content_file:
+            txt_str = content_file.read()
+
         bulk_tags = db[self.tags_collection].initialize_ordered_bulk_op()
         if txt_str:
             current_category = ""
@@ -317,7 +315,7 @@ class MongodbTaggingService(BaseTaggingService):
 
         else:
             _log.warn("No category to tags mapping to initialize. No such "
-                      "file " + file_name)
+                      "file " + file_path)
 
     def query_categories(self, include_description=False, skip=0, count=None,
                          order="FIRST_TO_LAST"):

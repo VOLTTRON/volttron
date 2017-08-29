@@ -58,9 +58,8 @@ from __future__ import absolute_import, print_function
 import csv
 import logging
 import sys
-import sqlite3
+from volttron.platform.agent.utils import fix_sqlite3_datetime
 
-import gevent
 import re
 from pkg_resources import resource_string, resource_exists
 from collections import OrderedDict
@@ -71,13 +70,17 @@ from volttron.platform.dbutils.sqlitefuncts import SqlLiteFuncts
 from volttron.utils.docs import doc_inherit
 
 from volttron.platform.messaging.health import (STATUS_BAD,
-                                                STATUS_GOOD, Status)
+                                                Status)
 __version__ = "1.0"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 TAGGING_SERVICE_SETUP_FAILED = 'TAGGING_SERVICE_SETUP_FAILED'
+
+
+# Register a better datetime parser in sqlite3.
+fix_sqlite3_datetime()
 
 def tagging_service(config_path, **kwargs):
     """
@@ -90,16 +93,23 @@ def tagging_service(config_path, **kwargs):
     :param kwargs: additional keyword arguments if any
     :return: an instance of :py:class:`service.tagging.SQLTaggingService`
     """
+    _log.debug("kwargs before init: {}".format(kwargs))
     if isinstance(config_path, dict):
         config_dict = config_path
     else:
         config_dict = utils.load_config(config_path)
 
-    database = config_dict['connection']['params']['database']
+    _log.debug("config_dict before init: {}".format(config_dict))
 
-    assert database is not None
+    if not config_dict.get('connection') or \
+            not config_dict.get('connection').get('params') or \
+            not config_dict.get('connection').get('params').get('database'):
+        raise ValueError("Missing database connection parameters. Agent "
+                         "configuration should contain database connection "
+                         "parameters with the details about type of database"
+                         "and name of database. Please refer to sample "
+                         "configuration file in Agent's source directory.")
 
-    SQLiteTaggingService.__name__ = 'SQLiteTaggingService'
     utils.update_kwargs_with_config(kwargs,config_dict)
     return SQLiteTaggingService(**kwargs)
 
@@ -117,6 +127,7 @@ class SQLiteTaggingService(BaseTaggingService):
                        topic_replace_list used by parent classes)
         """
 
+        super(SQLiteTaggingService, self).__init__(**kwargs)
         self.connection = connection
         self.tags_table = "tags"
         self.tag_refs_table = "tag_refs"
@@ -132,7 +143,6 @@ class SQLiteTaggingService(BaseTaggingService):
             self.category_tags_table = table_prefix + "_" + \
                                        self.category_tags_table
         self.sqlite_utils = SqlLiteFuncts(self.connection['params'], None)
-        super(SQLiteTaggingService, self).__init__(**kwargs)
 
     @doc_inherit
     def setup(self):
@@ -144,25 +154,10 @@ class SQLiteTaggingService(BaseTaggingService):
         """
         _log.debug("Setup of sqlite tagging agent")
         err_message = ""
-        if not resource_exists(__name__, self.resource_sub_dir):
-            err_message = "Unable to load resources directory. No such " \
-                          "directory:{}. Please make sure that setup.py has " \
-                          "been updated to include the resources directory. " \
-                          "If the name of the resources directory is " \
-                          "anything other than \"resources\" please configure " \
-                          "it in the agent's configuration file using the " \
-                          "key \"resources_sub_directory\" Init of tagging " \
-                          "service failed. Stopping tagging service " \
-                          "agent".format(self.resource_sub_dir)
-
         table_names = []
         try:
             stmt = "SELECT name FROM sqlite_master " \
-                "WHERE type='table' AND name='{}' OR " \
-                "name='{}' OR name='{}';".format(self.tags_table,
-                                                 self.categories_table,
-                                                 self.category_tags_table,
-                                                 self.topic_tags_table)
+                "WHERE type='table';"
             table_names = self.sqlite_utils.select(stmt, None, fetch_all=True)
             _log.debug(table_names)
         except Exception as e:
@@ -234,15 +229,16 @@ class SQLiteTaggingService(BaseTaggingService):
             self.tag_refs[record[0]] = record[1]
 
     def init_tags(self):
-        file_name = self.resource_sub_dir + '/tags.csv'
-        _log.debug("Loading file :" + file_name)
+        file_path = self.resource_sub_dir + '/tags.csv'
+        _log.debug("Loading file :" + file_path)
         self.sqlite_utils.execute_stmt("CREATE TABLE {}"
                     "(name VARCHAR PRIMARY KEY, "
                     "kind VARCHAR NOT NULL, "
                     "description VARCHAR)".format(
                         self.tags_table))
 
-        csv_str = resource_string(__name__, file_name)
+        with open(file_path, 'r') as content_file:
+            csv_str = content_file.read()
         # csv.DictReader uses first line in file for column headings
         # by default
         dr = csv.DictReader(csv_str.splitlines())  # comma is default delimiter
@@ -254,15 +250,16 @@ class SQLiteTaggingService(BaseTaggingService):
         self.sqlite_utils.commit()
 
     def init_tag_refs(self):
-        file_name = self.resource_sub_dir + '/tag_refs.csv'
-        _log.debug("Loading file :" + file_name)
+        file_path = self.resource_sub_dir + '/tag_refs.csv'
+        _log.debug("Loading file :" + file_path)
         self.sqlite_utils.execute_stmt(
             "CREATE TABLE {} "
             "(tag VARCHAR NOT NULL, "
             " parent VARCHAR NOT NULL,"
             "PRIMARY KEY (tag, parent))".format(self.tag_refs_table))
 
-        csv_str = resource_string(__name__, file_name)
+        with open(file_path, 'r') as content_file:
+            csv_str = content_file.read()
         # csv.DictReader uses first line in file for column headings
         # by default
         dr = csv.DictReader(csv_str.splitlines())  # comma is default delimiter
@@ -274,14 +271,16 @@ class SQLiteTaggingService(BaseTaggingService):
         self.sqlite_utils.commit()
 
     def init_categories(self):
-        file_name = self.resource_sub_dir + '/categories.csv'
-        _log.debug("Loading file :" + file_name)
+        file_path = self.resource_sub_dir + '/categories.csv'
+        _log.debug("Loading file :" + file_path)
         self.sqlite_utils.execute_stmt(
             "CREATE TABLE {}"
             "(name VARCHAR PRIMARY KEY NOT NULL,"
             "description VARCHAR)".format(self.categories_table))
         _log.debug("created categories table")
-        csv_str = resource_string(__name__, file_name)
+
+        with open(file_path, 'r') as content_file:
+            csv_str = content_file.read()
         dr = csv.DictReader(csv_str.splitlines())
         to_db = [(i['name'], i['description'].decode('utf8')) for i in dr]
         _log.debug("Categories in: {}".format(to_db))
@@ -291,20 +290,22 @@ class SQLiteTaggingService(BaseTaggingService):
         self.sqlite_utils.commit()
 
     def init_category_tags(self):
-        file_name = self.resource_sub_dir + '/category_tags.txt'
-        _log.debug("Loading file :" + file_name)
+        file_path = self.resource_sub_dir + '/category_tags.txt'
+        _log.debug("Loading file :" + file_path)
         self.sqlite_utils.execute_stmt(
             "CREATE TABLE {} "
             "(category VARCHAR NOT NULL,"
             "tag VARCHAR NOT NULL,"
             "PRIMARY KEY (category, tag))".format(self.category_tags_table))
         _log.debug("created {} table".format(self.category_tags_table))
-        csv_str = resource_string(__name__, file_name)
+
+        with open(file_path, 'r') as content_file:
+            txt_str = content_file.read()
         to_db = []
-        if csv_str:
+        if txt_str:
             current_category = ""
             tags = set()
-            for line in csv_str.splitlines():
+            for line in txt_str.splitlines():
                 if not line or line.startswith("##"):
                     continue
                 if line.startswith("#") and line.endswith("#"):
@@ -326,7 +327,7 @@ class SQLiteTaggingService(BaseTaggingService):
             self.sqlite_utils.commit()
         else:
             _log.warn("No category to tags mapping to initialize. No such "
-                      "file " + file_name)
+                      "file " + file_path)
 
     def init_topic_tags(self):
         self.sqlite_utils.execute_stmt(
