@@ -6,7 +6,7 @@ from pymongo import MongoClient
 from pymongo.errors import BulkWriteError
 import datetime
 
-topics_connection_string = "mongodb://reader:volttronReader@vc-db.pnl.gov" \
+topics_connection_string = "mongodb://<user>:<password>@vc-db.pnl.gov" \
                            ":27017" \
                            "/prod_historian"
 topic_table = "topics"
