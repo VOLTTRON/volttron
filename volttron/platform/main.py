@@ -372,6 +372,8 @@ class Router(BaseRouter):
                     value = self._instance_name
                 elif name == b'bind-web-address':
                     value = self._bind_web_address
+                elif name == b'platform-version':
+                    value = __version__
                 else:
                     value = None
             frames[6:] = [b'', jsonapi.dumps(value)]
