@@ -137,7 +137,7 @@ class MarketServiceAgent(Agent):
         if (self.has_any_markets()):
             self.begin_collect_offers(timestamp)
         else:
-            self.change_state(NO_MARKETS, "the market service has no unformed markets")
+            self.change_state(NO_MARKETS, "the market service has no markets with both a buyer and a seller.")
 
     def begin_collect_offers(self, timestamp):
         _log.debug("send_collect_offers_request at {}".format(timestamp))
@@ -200,7 +200,7 @@ class MarketServiceAgent(Agent):
             _log.debug(log_message)
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=MARKET_ERROR,
-                                    message=[timestamp, 'Error: market %s did not form.'.format(market_name)])
+                                    message=[timestamp, 'Error: market {} does not have both a buyer and a seller.'.format(market_name)])
 
     def set_initial_state(self, new_state):
         message = "Market service is entering its state: {}.".format(new_state)
