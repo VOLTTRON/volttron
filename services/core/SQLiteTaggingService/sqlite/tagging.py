@@ -171,35 +171,35 @@ class SQLiteTaggingService(BaseTaggingService):
                 _log.info("{} table exists. Assuming initial values have been "
                           "loaded".format(table_name))
             else:
-                self.init_tags()
+                self._init_tags()
 
             table_name = self.tag_refs_table
             if self.tag_refs_table in table_names:
                 _log.info("{} table exists. Assuming initial values have been "
                           "loaded".format(table_name))
             else:
-                self.init_tag_refs()
+                self._init_tag_refs()
 
             table_name = self.topic_tags_table
             if self.topic_tags_table in table_names:
                 _log.info("{} table exists. Assuming initial values "
                           "have been loaded".format(table_name))
             else:
-                self.init_topic_tags()
+                self._init_topic_tags()
 
             table_name = self.categories_table
             if self.categories_table in table_names:
                 _log.info("{} table exists. Assuming initial values "
                           "have been loaded".format(table_name))
             else:
-                self.init_categories()
+                self._init_categories()
 
             table_name = self.category_tags_table
             if self.category_tags_table in table_names:
                 _log.info("{} table exists. Assuming initial values "
                           "have been loaded".format(table_name))
             else:
-                self.init_category_tags()
+                self._init_category_tags()
 
         except Exception as e:
             err_message = "Initialization of " + table_name + \
@@ -228,7 +228,7 @@ class SQLiteTaggingService(BaseTaggingService):
         for record in cursor:
             self.tag_refs[record[0]] = record[1]
 
-    def init_tags(self):
+    def _init_tags(self):
         file_path = self.resource_sub_dir + '/tags.csv'
         _log.debug("Loading file :" + file_path)
         self.sqlite_utils.execute_stmt("CREATE TABLE {}"
@@ -249,7 +249,7 @@ class SQLiteTaggingService(BaseTaggingService):
             to_db)
         self.sqlite_utils.commit()
 
-    def init_tag_refs(self):
+    def _init_tag_refs(self):
         file_path = self.resource_sub_dir + '/tag_refs.csv'
         _log.debug("Loading file :" + file_path)
         self.sqlite_utils.execute_stmt(
@@ -270,7 +270,7 @@ class SQLiteTaggingService(BaseTaggingService):
             to_db)
         self.sqlite_utils.commit()
 
-    def init_categories(self):
+    def _init_categories(self):
         file_path = self.resource_sub_dir + '/categories.csv'
         _log.debug("Loading file :" + file_path)
         self.sqlite_utils.execute_stmt(
@@ -289,7 +289,7 @@ class SQLiteTaggingService(BaseTaggingService):
             "VALUES (?, ?);".format(self.categories_table), to_db)
         self.sqlite_utils.commit()
 
-    def init_category_tags(self):
+    def _init_category_tags(self):
         file_path = self.resource_sub_dir + '/category_tags.txt'
         _log.debug("Loading file :" + file_path)
         self.sqlite_utils.execute_stmt(
@@ -329,7 +329,7 @@ class SQLiteTaggingService(BaseTaggingService):
             _log.warn("No category to tags mapping to initialize. No such "
                       "file " + file_path)
 
-    def init_topic_tags(self):
+    def _init_topic_tags(self):
         self.sqlite_utils.execute_stmt(
             "CREATE TABLE {} (topic_prefix TEXT NOT NULL, "
             "tag STRING NOT NULL, "

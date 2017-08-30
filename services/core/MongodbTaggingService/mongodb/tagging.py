@@ -167,22 +167,22 @@ class MongodbTaggingService(BaseTaggingService):
                 _log.info("{} collection exists. Assuming initial values have "
                           "been loaded".format(collection))
             else:
-                self.init_tags(db)
-                self.init_category_tags(db)
+                self._init_tags(db)
+                self._init_category_tags(db)
 
             collection = self.tag_refs_collection
             if self.tag_refs_collection in collections:
                 _log.info("{} collection exists. Assuming initial values have "
                           "been loaded".format(collection))
             else:
-                self.init_tag_refs(db)
+                self._init_tag_refs(db)
 
             collection = self.categories_collection
             if self.categories_collection in collections:
                 _log.info("{} collection exists. Assuming initial values "
                           "have been loaded".format(collection))
             else:
-                self.init_categories(db)
+                self._init_categories(db)
 
         except Exception as e:
             err_message = "Initialization of " + collection + \
@@ -219,7 +219,7 @@ class MongodbTaggingService(BaseTaggingService):
             self.tag_refs[record['_id']] = record['parent']
         _log.debug("After load tag_refs is {}".format(self.tag_refs))
 
-    def init_tags(self, db):
+    def _init_tags(self, db):
         file_path = self.resource_sub_dir+'/tags.csv'
         _log.debug("Loading file :" + file_path)
         with open(file_path, 'r') as content_file:
@@ -239,7 +239,7 @@ class MongodbTaggingService(BaseTaggingService):
                 "Unable to load list of reference tags and its parent. No "
                 "such file: {}".format(file_path))
 
-    def init_tag_refs(self, db):
+    def _init_tag_refs(self, db):
         file_path = self.resource_sub_dir+'/tag_refs.csv'
         _log.debug("Loading file :" + file_path)
         with open(file_path, 'r') as content_file:
@@ -261,7 +261,7 @@ class MongodbTaggingService(BaseTaggingService):
                 "such file: {}".format(file_path))
 
 
-    def init_categories(self, db):
+    def _init_categories(self, db):
         file_path = self.resource_sub_dir + '/categories.csv'
         _log.debug("Loading file :" + file_path)
         with open(file_path, 'r') as content_file:
@@ -277,7 +277,7 @@ class MongodbTaggingService(BaseTaggingService):
         else:
             _log.warn("No categories to initialize. No such file "+ file_path)
 
-    def init_category_tags(self, db):
+    def _init_category_tags(self, db):
         file_path = self.resource_sub_dir + '/category_tags.txt'
         _log.debug("Loading file :" + file_path)
         with open(file_path, 'r') as content_file:
@@ -534,6 +534,8 @@ class MongodbTaggingService(BaseTaggingService):
         return topic_prefix
 
     def _find_replace(self, obj, temp_value, new_value):
+        # Utility function used to replace sub query place holders with
+        # results of the sub query since mongo does not support nested queries
         _log.debug("In find_replace. obj ={} temp_val={} "
                    "new_val={}".format(obj, temp_value, new_value))
         if not isinstance(obj, dict):

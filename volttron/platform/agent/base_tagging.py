@@ -431,8 +431,8 @@ class BaseTaggingService(Agent):
                                  "param or_condition.  Expecting list or "
                                  "dict".format(type(or_condition)))
 
-            condition = self.process_and_or_param(and_condition,
-                                                  or_condition)
+            condition = self._process_and_or_param(and_condition,
+                                                   or_condition)
 
         ast = parse_query(condition, self.valid_tags, self.tag_refs)
         return self.query_topics_by_tags(ast=ast, skip=skip, count=count,
@@ -609,7 +609,7 @@ class BaseTaggingService(Agent):
         return topic_prefixes
 
     @staticmethod
-    def process_and_or_param(query_and_cond, query_or_cond):
+    def _process_and_or_param(query_and_cond, query_or_cond):
         """
         Generates query string based on list/dict objects
         :param query_and_cond: list/dict of criteria that get combined using
@@ -628,7 +628,7 @@ class BaseTaggingService(Agent):
             if isinstance(query_and_cond, list):
                 and_dict = {key: True for key in query_and_cond}
                 _log.debug("and_dict after loop: {}".format(and_dict))
-            and_str = BaseTaggingService.get_condition_str(and_dict, 'AND')
+            and_str = BaseTaggingService._get_condition_str(and_dict, 'AND')
             _log.debug("and_str is " + and_str)
 
         if query_or_cond:
@@ -637,7 +637,7 @@ class BaseTaggingService(Agent):
             if isinstance(query_or_cond, list):
                 or_dict = {key: True for key in query_or_cond}
                 _log.debug("or_dict: after loop:{}".format(or_dict))
-            or_str = BaseTaggingService.get_condition_str(or_dict, 'OR')
+            or_str = BaseTaggingService._get_condition_str(or_dict, 'OR')
 
         condition = None
         if and_str and or_str:
@@ -652,7 +652,7 @@ class BaseTaggingService(Agent):
         return condition
 
     @staticmethod
-    def get_condition_str(condition_dict, operator):
+    def _get_condition_str(condition_dict, operator):
         """
         Build a where clause string that confirms to the same rules as
         user's specified query condition based on condition passed as
