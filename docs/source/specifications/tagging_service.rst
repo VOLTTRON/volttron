@@ -37,15 +37,12 @@ Features
     prefix using a template. At the end of this, users should be notified about
     the list of topics that did not confirm to the template. This will help users
     to individually add or edit tags for those specific topics
- 4. When a value of a tag is changed, users should be prompted to verify if
-    this change denotes a new version or a value correction.  If this value
-    denotes a new version, then older value of the tag should preserved in a
-    history/audit store
- 5. When users query for topics based on a tag, the results would correspond
+ 4. When users query for topics based on a tag, the results would correspond
     to the current metadata values. It is up to the calling agent/application
     to periodically query for latest updates if needed.
- 6. Users should be able query based on tags on a specific topic or its topic prefix/parents
- 7. Allow for count and skip parameters in queries to restrict count and
+ 5. Users should be able query based on tags on a specific topic or its topic
+    prefix/parents
+ 6. Allow for count and skip parameters in queries to restrict count and
     allow pagination
 
 ***
@@ -158,7 +155,8 @@ rpc call to to tagging service method **'add_topic_tags'** with parameters:
     2. **tags** - {<valid tag>:value, <valid_tag>: value,... }
     3. **update_version** - True/False. Default to False. If set to True and if any
        of the tags update an existing tag value the older value would be preserved
-       as part of tag version history
+       as part of tag version history. **NOTE:** This is a placeholder.
+       Current version does not support versioning.
 
 7. Add tags to multiple topics
 ------------------------------
@@ -336,7 +334,7 @@ tags in the system are as follows
 
 '/campus1/building1/deviceB1/point1' tags:
 
-.. code-block:: json
+.. code-block:: python
 
         {
         'dis': "building1 device B - point1",
@@ -349,7 +347,7 @@ tags in the system are as follows
 
 '/campus1/building1/deviceB1' tags
 
-.. code-block:: json
+.. code-block:: python
 
         {
         'dis': "building1 device of type B",
@@ -360,3 +358,17 @@ tags in the system are as follows
         'siteRef': '@buildingname'
         }
 
+
+
+
+****************************
+Possible future improvements
+****************************
+    1. Versioning - When a value of a tag is changed, users should be prompted
+       to verify if this change denotes a new version or a value correction.
+       If this value denotes a new version, then older value of the tag should
+       preserved in a history/audit store
+    2. Validation of tag values based on data type
+    3. Support for units validation and  conversions
+    4. Processing and saving geologic coordinates that can enable users to do
+       geo-spatial queries in databases that support it.
