@@ -91,7 +91,7 @@ class Market(object):
         self.make_reservation(participant)
 
     def make_reservation(self, participant):
-        if self.market_state != ACCEPT_RESERVATIONS:
+        if self.market_state not in [ACCEPT_RESERVATIONS, ACCEPT_RESERVATIONS_HAS_FORMED]:
             raise MarketFailureError(self.market_name, self.market_state, 'reservations')
 
         self.reservations.make_reservation(participant)
