@@ -265,7 +265,6 @@ class PubSub(SubsystemBase):
             self._add_subscription(prefix, callback, bus)
             return self.rpc().call(peer, 'pubsub.subscribe', prefix, bus=bus)
         else:
-
             result = self._results.next()
             # Parameters are stored initially, in case remote agent/platform is using old pubsub
             if self._parameters_needed:
@@ -440,8 +439,9 @@ class PubSub(SubsystemBase):
             result = next(self._results)
             # Parameters are stored initially, in case remote agent/platform is using old pubsub
             if self._parameters_needed:
-                kwargs = dict(op='publish', peer=peer, topic=topic, bus=bus,
-                                                                headers=headers, message=message)
+                kwargs = dict(op='publish', peer=peer,
+                              topic=topic, bus=bus,
+                              headers=headers, message=message)
                 self._save_parameters(result.ident, **kwargs)
 
             json_msg = jsonapi.dumps(dict(bus=bus, headers=headers, message=message))
@@ -475,11 +475,14 @@ class PubSub(SubsystemBase):
         type message: dict
         """
         op = message.args[0].bytes
+
         if op == 'request_response':
+            result = None
             try:
                 result = self._results.pop(bytes(message.id))
             except KeyError:
-                return
+                pass
+
             if self._parameters_needed:
                 self._send_via_rpc = False
                 self._parameters_needed = False
@@ -487,7 +490,8 @@ class PubSub(SubsystemBase):
                 del self._pubsubwithrpc
             response = message.args[1].bytes
             #_log.debug("Message result: {}".format(response))
-            result.set(response)
+            if result:
+                result.set(response)
         elif op == 'publish':
             try:
                 topic = topic = message.args[1].bytes

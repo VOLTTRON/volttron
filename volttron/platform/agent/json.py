@@ -74,13 +74,13 @@ try:
             return s
         except:
             return _dumps(data)
-    def loads(data_string):
+    def loads(s):
         try:
-            if str is unicode and isinstance(data_string, bytes):
-                s = data_string.decode('utf8')
+            if str is unicode and isinstance(s, bytes):
+                s = s.decode('utf8')
             return ujson.loads(s, precise_float=True)
         except:
-            return _loads(data_string)
+            return _loads(s)
 except ImportError:
     from zmq.utils.jsonapi import dumps, loads
 
