@@ -67,6 +67,7 @@ import weakref
 import gevent
 from zmq import green as zmq
 from zmq import SNDMORE
+from zmq.utils import jsonapi
 
 from .base import SubsystemBase
 from ..decorators import annotate, annotations, dualmethod, spawn
@@ -77,7 +78,7 @@ from ..results import ResultsDictionary
 from gevent.queue import Queue, Empty
 from collections import defaultdict
 from datetime import timedelta
-from volttron.platform.agent import json as jsonapi
+
 
 __all__ = ['PubSub']
 min_compatible_version = '3.0'

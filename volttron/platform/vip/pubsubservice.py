@@ -76,6 +76,7 @@ import zmq
 from zmq import SNDMORE, EHOSTUNREACH, ZMQError, EAGAIN, NOBLOCK
 from zmq import green
 from collections import defaultdict
+from zmq.utils import jsonapi
 
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
@@ -83,7 +84,6 @@ green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying
 from volttron.platform.agent.utils import watch_file, create_file_if_missing
 from .agent.subsystems.pubsub import ProtectedPubSubTopics
 from .. import jsonrpc
-from volttron.platform.agent import json as jsonapi
 
 # Optimizing by pre-creating frames
 _ROUTE_ERRORS = {
