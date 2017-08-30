@@ -1,5 +1,6 @@
 import logging
 
+import subprocess
 import gevent
 import pytest
 from dateutil.parser import parse as dateparse
@@ -7,6 +8,21 @@ from zmq.utils import jsonapi as json
 
 from volttron.platform.messaging.health import STATUS_GOOD, STATUS_BAD, \
     STATUS_UNKNOWN
+from volttron.platform.vip.agent.subsystems.query import Query
+
+
+@pytest.mark.agent
+def test_agent_can_get_platform_version(volttron_instance):
+    agent = volttron_instance.build_agent()
+    query = Query(agent.core)
+    response = subprocess.check_output(['volttron', "--version"],
+                                       stderr=subprocess.STDOUT)
+    assert response.strip()
+    _, version = response.strip().split(" ")
+
+    platform_version = query.query("platform-version")
+    assert version == platform_version.get(timeout=2)
+
 
 
 @pytest.mark.agent
