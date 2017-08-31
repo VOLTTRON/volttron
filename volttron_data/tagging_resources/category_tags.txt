@@ -1,0 +1,667 @@
+## Lines start with ## are ignored by parser as comments. Parser also ignore
+## empty lines
+## Format for this file
+## --------------------
+## Each category name should be in a separate line and should be prefixed and
+## suffixed with a single #. Example #Site#. Tags should be listed immediately
+## below the category name line. Tags can be placed one per line or multiple
+## tags can be separated by a space character and placed in the same line.
+## tags can optionally have a description. Tag and description should be
+## separated by a : character. Anything after a : in a line is ignored by the
+## parser. This format make it easy to copy paste tags from haystack site.
+## This file if exists within the resources directory of the package, gets
+## loaded at the time of tagging service init
+
+#Site#
+site
+id
+dis
+geoAddr: the geographic free-form address of the site (which might include other geolocation tags such as geoCity or geoCoord)
+geoStreet: "1600 Pennsylvania Ave NW"
+geoCity: "Washington D.C."
+geoCountry: "US"
+geoPostalCode: "20500"
+geoCoord: C(38.898, -77.037)
+tz: the timezone where the site is located
+area: square footage or square meters of the facility. This enables site normalization by area.
+weatherRef: associate the site with a weather station to visualize weather conditions and perform weather based energy normalization
+primaryFunction: enumerated string which describes the primary function of the building
+yearBuilt: four digit year in which the building was constructed
+
+#Equip#
+equip
+id
+dis
+siteRef
+equipRef
+
+#Point#
+point
+id
+dis
+equipRef
+siteRef
+sensor
+cmd
+sp
+kind
+minVal
+maxVal
+curVal: current value of the point as Number, Bool, or Str
+curStatus: ok, down, fault, disabled, or unknown
+curErr: error message if curStatus indicated error
+writable
+writeVal: this is the current "winning" value of the priority array, or if this tag is missing then the winning value is null
+writeLevel: number from 1 to 17 indicate the winning priority array level
+writeStatus: status of the server's ability to write the last value to the output device: ok, disabled, down, fault.
+writeErr: indicates the error message if writeStatus is error condition
+his
+tz: all historized points must define this tag with their timezone name (must match the point's site timezone)
+hisInterpolate: optionally defined to indicate whether the point is logged by interval of change-of-value
+hisTotalized: optionally defined to indicate a point is collected an ongoing accumulated value
+hisStatus: ok, down, fault, disabled, pending, syncing, unknown
+hisErr: error message if hisStatus indicated error
+discharge
+return
+exhaust
+outside
+air
+water
+steam
+temp
+humidity
+flow
+pressure
+
+#Weather#
+weather
+id
+dis
+tz
+geoAddr: the geographic free-form address of the site (which might include other geolocation tags such as geoCity or geoCoord)
+geoStreet: "1600 Pennsylvania Ave NW"
+geoCity: "Washington D.C."
+geoCountry: "US"
+geoPostalCode: "20500"
+geoCoord: C(38.898, -77.037)
+weatherCond: enumeration of conditions (clear, cloudy, raining)
+air temp: dry bulb temperature in °C or °F
+wetBulb temp: web bulb temperature in °C or °F
+apparent temp: preceived "feels like" temperature in °C or °F
+dew temp: temperature in °C or °F below which water condenses
+humidity: percent relative humidity
+barometric pressure: atmospheric pressure in millibar or inHg
+sunrise: historized trend of sunrise/sunsets as true/false transitions
+precipitation: amount of water fall in mm or inches
+cloudage: percentage of sky obscurred by clouds
+solar irradiance: amount of solar energy in W/m²
+wind direction: measured in degrees
+wind speed: flow velocity measured in km/h or mph
+visibility: distance measured in km or miles
+
+#Device#
+device: tag models a physical device. Devices include servers, area controllers, field controllers, etc.
+device1Ref
+id
+dis
+
+
+#Network#
+network
+id
+dis
+
+#Connection#
+connection: marker tag
+id
+dis
+protocol: string enumeration communications protocol
+device1Ref: first device end point
+device2Ref: second device end point
+networkRef: network used for the communication
+
+#Energy#
+id
+dis
+equip
+elec meter
+gas meter
+domestic water meter
+chilled water meter
+condenser water meter
+hot water meter
+makeup water meter
+blowdown water meter
+condensate water meter
+steam meter
+siteMeter
+submeterOf
+elecMeterLoad
+gasMeterLoad
+waterMeterLoad
+steamMeterLoad
+power
+energy
+volt
+current
+freq
+pf
+active
+reactive
+apparent
+mag
+angle
+imbalance
+thd
+phase
+avg
+total
+import
+export
+net
+ac
+dc
+active
+reactive
+apparent
+import
+export
+net
+power net sensor
+power export sensor
+power import sensor
+active power total sensor
+active power phase sensor
+apparent power total sensor
+apparent power phase sensor
+reactive power total sensor
+reactive power phase sensor
+energy net sensor
+energy export sensor
+energy import sensor
+energy total sensor
+energy phase sensor
+volt mag avg sensor
+volt mag phase sensor
+volt angle avg sensor
+volt angle phase sensor
+volt thd avg sensor
+volt thd phase sensor
+volt imbalance sensor
+current mag avg sensor
+current mag phase sensor
+current angle avg sensor
+current angle phase sensor
+current thd avg sensor
+current thd phase sensor
+current imbalance sensor
+pf avg sensor
+pf phase sensor
+freq sensor
+flow
+volume
+elecMeterLoad
+
+#Unitary Equipment#
+id
+dis
+fcu
+uv
+heatPump
+elecHeat
+hotWaterHeat
+steamHeat
+gasHeat
+chilledWaterCool
+dxCool
+discharge air temp sensor
+discharge air humidity sensor
+discharge air pressure sensor
+discharge air flow sensor
+discharge air fan cmd
+discharge air fan sensor
+return air temp sensor
+return air humidity sensor
+return air pressure sensor
+return air flow sensor
+return air co2 sensor
+return air fan cmd
+return air damper cmd
+mixed air temp sensor
+outside air temp sensor
+outside air humidity sensor
+outside air pressure sensor
+outside air flow sensor
+outside air flow sp
+outside air damper cmd
+exhaust air fan cmd
+exhaust air damper cmd
+cool stage cmd
+heat stage cmd
+humidifier cmd
+filter sensor
+freezeStat sensor
+heatWheel cmd
+faceBypass cmd
+bypass damper cmd
+zone air temp sensor
+zone air temp effective sp
+zone air temp occ cooling sp
+zone air temp occ heating sp
+zone air temp unocc cooling sp
+zone air temp unocc heating sp
+zone air temp standby cooling sp
+zone air temp standby heating sp
+zone air humidity sensor
+zone air co2 sensor
+zone air co2 sp
+
+#Electric Panels#
+id
+dis
+equip
+elecPanel
+sitePanel
+subPanelOf
+elecMeterRef
+circuit
+elecPanelOf
+
+#Lighting#
+id
+dis
+lightsGroup
+equip
+siteRef
+lights
+lightLevel
+occupancyIndicator
+
+#AHU#
+id
+dis
+ahu
+rooftop
+hvac: always specified to mark as an HVAC asset
+rooftop: if the AHU is a packaged rooftop unit (RTU)
+mau: if the AHU is a makeup air unit
+chilledWaterPlantRef: reference plant supplying chilled water
+hotWaterPlantRef: reference plant supplying hot water
+steamPlantRef: reference plant supplying steam
+elecHeat
+hotWaterHeat
+steamHeat
+gasHeat
+chilledWaterCool
+dxCool
+constantVolume
+variableVolume
+directZone: AHU supplies air directly to the zone
+vavZone: AHU supplies air to VAV terminal units
+chilledBeamZone: AHU supplies air to chilled beam terminal units
+multiZone: air is split into a duct per zone
+singleDuct: AHU uses a single duct
+dualDuct: the AHU discharges to two ducts which is some combination of hotDeck, coldDeck, or neutralDeck
+tripleDuct: the AHU discharges into three ducts which are the hotDeck, coldDeck, and neutralDeck
+hotDeck
+coldDeck
+neutralDeck
+discharge: air exiting the unit to be supplied to the zones/terminal units
+return: air returning from the zone back into the unit
+outside: fresh, outside air entering the unit for air quality and economizing
+exhaust: air exiting the unit back outside
+mixed: return and outside air mixed together before passing through the heating/cooling elements
+cool: cooling elements/coils
+heat: heating elements/coils
+zone: conditioned space associated with the unit
+discharge air temp sensor
+discharge air humidity sensor
+discharge air pressure sensor
+discharge air flow sensor
+discharge air fan cmd
+discharge air fan sensor
+return air temp sensor
+return air humidity sensor
+return air pressure sensor
+return air flow sensor
+return air co2 sensor
+return air fan cmd
+return air damper cmd
+mixed air temp sensor
+outside air temp sensor
+outside air humidity sensor
+outside air pressure sensor
+outside air flow sensor
+outside air flow sp
+outside air damper cmd
+exhaust air fan cmd
+exhaust air damper cmd
+cool stage cmd
+heat stage cmd
+humidifier cmd
+filter sensor
+freezeStat sensor
+heatWheel cmd
+faceBypass cmd
+bypass damper cmd
+zone air temp sensor
+zone air temp effective sp
+zone air temp occ cooling sp
+zone air temp occ heating sp
+zone air temp unocc cooling sp
+zone air temp unocc heating sp
+zone air temp standby cooling sp
+zone air temp standby heating sp
+zone air humidity sensor
+zone air co2 sensor
+zone air co2 sp
+
+#Boiler#
+id
+dis
+boiler
+equip
+equipRef
+hot water
+steam
+oil
+gas
+run cmd
+run sensor
+enable cmd
+circ pump cmd
+circ pump sensor
+condensate pump cmd
+condensate pump sensor
+
+
+#Chilled Water Plant#
+id
+dis
+chilledWaterPlant
+equip
+chilled water leaving temp sensor
+chilled water leaving temp sp
+chilled water leaving flow sensor
+chilled water leaving pressure sensor
+chilled water entering temp sensor
+chilled water entering flow sensor
+chilled water entering pressure sensor
+chilled water delta temp sensor
+chilled water delta flow sensor
+chilled water delta pressure sensor
+chilled water delta pressure sp
+chilled water bypass valve cmd
+condenser water delta pressure sensor
+condenser water bypass valve cmd
+primaryLoop: pipework within the plant
+secondaryLoop: pipework from the plant to the building
+
+#Chiller#
+id
+dis
+chiller
+equip
+equipRef
+waterCooled
+airCooled
+absorption
+reciprocal
+screw
+centrifugal
+coolingCapacity
+run cmd
+run sensor
+enable cmd
+load cmd
+load sensor
+efficiency sensor
+power sensor
+energy sensor
+chilled water leaving temp sensor
+chilled water leaving temp sp
+chilled water leaving flow sensor
+chilled water leaving pressure sensor
+chilled water entering temp sensor
+chilled water entering flow sensor
+chilled water entering pressure sensor
+chilled water delta temp sensor
+chilled water delta flow sensor
+chilled water delta pressure sensor
+chilled water valve isolation cmd
+condenser water leaving temp sensor
+condenser water leaving flow sensor
+condenser water leaving pressure sensor
+condenser water entering temp sensor
+condenser water entering pressure sensor
+condenser water entering flow sensor
+condenser water valve isolation cmd
+condenser cmd
+condenser refrig temp sensor
+condenser refrig pressure sensor
+evaporator refrig temp sensor
+evaporator refrig pressure sensor
+
+#Cooling Tower#
+id
+dis
+coolingTower
+equip
+equipRef
+openLoop
+closedLoop
+condenser water leaving temp sensor
+condenser water leaving temp sp
+condenser water leaving flow sensor
+condenser water leaving pressure sensor
+condenser water entering temp sensor
+condenser water entering pressure sensor
+condenser water entering flow sensor
+fan cmd
+fan sensor
+
+
+#Electric Meter#
+id
+dis
+elec meter
+power: typically measured in "kW"
+energy: typically measured in "kWh"
+volt: typically measured in "V"
+current: typically measured in "A"
+freq: typically measured in "Hz"
+pf: power factor
+active: typically measured in "kW" (assumed as default)
+reactive: typically measured in "kVAR"
+apparent: typically measured in "kVA"
+mag: magnitude (assumed as default)
+angle: phase angle, typically measured in "deg"
+imbalance: imbalance between phases, measured in "%"
+thd: total harmonic distortion, measured in "%"
+phase: A, B, C, AB, BC, CA, N
+avg: for current, voltage, and power factor (assumed as default)
+total: for power and energy (assumed as default)
+import: energy imported from the grid
+export: energy exported to the grid
+net: net exchange (assumed as default)
+ac: alternating current
+dc: direct current
+power net sensor
+power export sensor
+power import sensor
+active power total sensor
+active power phase sensor
+apparent power total sensor
+apparent power phase sensor
+reactive power total sensor
+reactive power phase sensor
+energy net sensor
+energy export sensor
+energy import sensor
+energy total sensor
+energy phase sensor
+volt mag avg sensor
+volt mag phase sensor
+volt angle avg sensor
+volt angle phase sensor
+volt thd avg sensor
+volt thd phase sensor
+volt imbalance sensor
+current mag avg sensor
+current mag phase sensor
+current angle avg sensor
+current angle phase sensor
+current thd avg sensor
+current thd phase sensor
+current imbalance sensor
+pf avg sensor
+pf phase sensor
+freq sensor
+
+#Heat Exchanger#
+id
+dis
+heatExchanger
+equip
+equipRef
+chilled water leaving temp sensor
+chilled water entering temp sensor
+condenser water leaving temp sensor
+condenser water entering flow sensor
+
+#Hot Water Plant#
+id
+dis
+hotWaterPlant
+equip
+hot water leaving temp sensor
+hot water leaving temp sp
+hot water entering temp sensor
+hot water leaving flow sensor
+hot water leaving pressure sensor
+hot water entering flow sensor
+hot water entering pressure sensor
+hot water delta pressure sensor
+hot water delta flow sensor
+hot water delta temp sensor
+hot water bypass valve cmd
+hot water mixing valve cmd
+makeup water flow sensor
+outside air damper cmd
+flue temp sensor
+
+#Steam Plant#
+id
+dis
+steamPlant
+equip
+steam leaving temp sensor
+steam leaving temp sp
+steam leaving flow sensor
+steam leaving pressure sensor
+steam entering flow sensor
+steam entering pressure sensor
+steam delta pressure sensor
+steam delta flow sensor
+steam delta temp sensor
+steam bypass valve cmd
+steam mixing valve cmd
+steam header pressure sensor
+condensate entering temp sensor
+makeup water flow sensor
+outside air damper cmd
+flue temp sensor
+
+#Tank#
+id
+dis
+tank
+equip
+hot water
+domestic water
+condensate water
+gas
+oil
+temp sensor
+pressure sensor
+level sensor
+
+#VAV#
+id
+dis
+vav
+equip
+coolOnly
+series fanPowered elecReheat
+series fanPowered hotWaterReheat
+parallel fanPowered elecReheat
+parallel fanPowered hotWaterReheat
+hvac: always specified to mark as an HVAC asset
+singleDuct or dualDuct: ductwork configuration
+ahuRef: supply AHU
+chilledWaterPlantRef: plant supplying chilled water if applicable
+pressureDependent or pressureIndependent: control based on duct static pressure
+hotWaterPlantRef: reference plant supplying hot water
+steamPlantRef: reference plant supplying steam
+entering: air entering the unit from the AHU
+discharge: air exiting the unit to be supplied to the zones
+zone: conditioned space associated with the unit
+zone air temp sensor
+zone air temp effective sp
+zone air temp occ cooling sp
+zone air temp occ heating sp
+zone air temp unocc cooling sp
+zone air temp unocc heating sp
+zone air temp standby cooling sp
+zone air temp standby heating sp
+zone air humidity sensor
+zone air co2 sensor
+zone air co2 sp
+discharge air temp sensor
+entering air temp sensor
+air pressure sensor
+air flow sensor
+air flow effective sp
+air flow min sp
+air flow max sp
+air flow reheating max sp
+air flow standby sp
+air fan cmd
+air fan sensor
+air damper cmd
+reheat cmd
+vavMode sp
+ductArea sp
+perimeterHeat cmd
+
+#VFD#
+id
+dis
+vfd
+equip
+equipRef
+run cmd
+run sensor
+enable cmd
+speed cmd
+freq cmd
+
+#Zone Point#
+id
+dis
+zone air temp sensor
+zone air temp effective sp
+zone air temp occ cooling sp
+zone air temp occ heating sp
+zone air temp unocc cooling sp
+zone air temp unocc heating sp
+zone air temp standby cooling sp
+zone air temp standby heating sp
+zone air humidity sensor
+zone air co2 sensor
+zone air co2 sp
+
+
+
+
+

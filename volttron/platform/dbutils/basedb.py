@@ -188,7 +188,7 @@ class DbDriver(object):
         pass
 
     @abstractmethod
-    def find_topics_by_pattern(self, topic_pattern):
+    def query_topics_by_pattern(self, topic_pattern):
         """
         Return a map of {topi_name.lower():topic_id} that matches the given
         pattern
@@ -416,7 +416,7 @@ class DbDriver(object):
         if self.__connection is not None:
             self.__connection.close()
 
-    def select(self, query, args, fetch_all=True):
+    def select(self, query, args=None, fetch_all=True):
         """
         Execute a select statement
 
@@ -457,6 +457,24 @@ class DbDriver(object):
             cursor.execute(stmt, args)
         else:
             cursor.execute(stmt)
+        if commit:
+            self.commit()
+        return True
+
+    def execute_many(self, stmt, args, commit=False):
+        """
+        Execute a sql statement with multiple args
+
+        :param stmt: the statement to execute
+        :param args: optional arguments
+        :param commit: True if transaction should be committed. Defaults to
+        False
+        :return: True if successful, False otherwise
+        """
+
+        self.__connect()
+        cursor = self.__connection.cursor()
+        cursor.executemany(stmt, args)
         if commit:
             self.commit()
         return True
