@@ -1,0 +1,5 @@
+{
+  # VOLTTRON config files are JSON with support for python style comments.
+  "setting1": 2,
+  "setting2": "some/random/topic2"
+}
