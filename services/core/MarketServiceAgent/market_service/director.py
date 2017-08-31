@@ -64,13 +64,12 @@ _log = logging.getLogger(__name__)
 utils.setup_logging()
 
 class Director(object):
-    def __init__(self, market_period, reservation_delay, offer_delay, clear_delay):
+    def __init__(self, market_period, reservation_delay, offer_delay):
         _log.debug("Creating Director for MarketServiceAgent")
         self.market_period = market_period
         self.reservation_delay = reservation_delay
         self.offer_delay = offer_delay
-        self.clear_delay = clear_delay
- 
+
     def start(self, sender):
         _log.debug("Starting Director for MarketServiceAgent")
         self.sender = sender
@@ -82,8 +81,6 @@ class Director(object):
         self.sender.send_collect_reservations_request(self._get_time())
         gevent.sleep(self.offer_delay)
         self.sender.send_collect_offers_request(self._get_time())
-        gevent.sleep(self.clear_delay)
-        self.sender.send_clear_request(self._get_time())
 
     def _get_time(self):
         now = utils.get_aware_utc_now()

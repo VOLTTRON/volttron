@@ -56,19 +56,20 @@
 
 # }}}
 
-ACCEPT_RESERVATIONS = 'accept_resevations'
-ACCEPT_RESERVATIONS_HAS_FORMED = 'accept_resevations_market_has_formed'
-ACCEPT_OFFERS = 'accept_offers'
-ACCEPT_BUY_OFFERS = 'accept_buy_offers'
-ACCEPT_SELL_OFFERS = 'accept_sell_offers'
-WAIT_FOR_CLEAR = 'wait_for_clear'
-WAIT_FOR_RESERVATIONS = 'wait_for_reservations'
+ACCEPT_RESERVATIONS = 'market_accept_resevations'
+ACCEPT_RESERVATIONS_HAS_FORMED = 'market_accept_resevations_market_has_formed'
+ACCEPT_ALL_OFFERS = 'market_accept_all_offers'
+ACCEPT_BUY_OFFERS = 'market_accept_buy_offers'
+ACCEPT_SELL_OFFERS = 'market_accept_sell_offers'
+MARKET_DONE = 'market_done'
 
 import logging
+from transitions import Machine
 from volttron.platform.agent import utils
 from market_service.offer_manager import OfferManager
 from market_service.reservation_manager import ReservationManager
 from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
+from volttron.platform.messaging.topics import MARKET_AGGREGATE, MARKET_CLEAR, MARKET_ERROR, MARKET_RECORD
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
@@ -82,101 +83,115 @@ class MarketFailureError(StandardError):
 
 
 class Market(object):
+    states = [ACCEPT_RESERVATIONS, ACCEPT_RESERVATIONS_HAS_FORMED, ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS, MARKET_DONE]
+    transitions = [
+        {'trigger': 'receive_reservation', 'source': ACCEPT_RESERVATIONS, 'dest': ACCEPT_RESERVATIONS},
+        {'trigger': 'market_forms', 'source': ACCEPT_RESERVATIONS, 'dest': ACCEPT_RESERVATIONS_HAS_FORMED},
+        {'trigger': 'start_offers', 'source': ACCEPT_RESERVATIONS, 'dest': MARKET_DONE},
+        {'trigger': 'receive_buy_offer', 'source': ACCEPT_RESERVATIONS, 'dest': MARKET_DONE},
+        {'trigger': 'receive_sell_offer', 'source': ACCEPT_RESERVATIONS, 'dest': MARKET_DONE},
 
-    def __init__(self, market_name, participant):
+        {'trigger': 'receive_reservation', 'source': ACCEPT_RESERVATIONS_HAS_FORMED, 'dest': ACCEPT_RESERVATIONS_HAS_FORMED},
+        {'trigger': 'start_offers', 'source': ACCEPT_RESERVATIONS_HAS_FORMED, 'dest': ACCEPT_ALL_OFFERS},
+        {'trigger': 'receive_buy_offer', 'source': ACCEPT_RESERVATIONS_HAS_FORMED, 'dest': MARKET_DONE},
+        {'trigger': 'receive_sell_offer', 'source': ACCEPT_RESERVATIONS_HAS_FORMED, 'dest': MARKET_DONE},
+
+        {'trigger': 'receive_reservation', 'source': ACCEPT_ALL_OFFERS, 'dest': ACCEPT_ALL_OFFERS},
+        {'trigger': 'receive_sell_offer', 'source': ACCEPT_ALL_OFFERS, 'dest': ACCEPT_ALL_OFFERS},
+        {'trigger': 'receive_buy_offer', 'source': ACCEPT_ALL_OFFERS, 'dest': ACCEPT_ALL_OFFERS},
+        {'trigger': 'last_sell_offer', 'source': ACCEPT_ALL_OFFERS, 'dest': ACCEPT_BUY_OFFERS},
+        {'trigger': 'last_buy_offer', 'source': ACCEPT_ALL_OFFERS, 'dest': ACCEPT_SELL_OFFERS},
+
+        {'trigger': 'receive_reservation', 'source': ACCEPT_BUY_OFFERS, 'dest': ACCEPT_BUY_OFFERS},
+        {'trigger': 'receive_sell_offer', 'source': ACCEPT_BUY_OFFERS, 'dest': ACCEPT_BUY_OFFERS},
+        {'trigger': 'receive_buy_offer', 'source': ACCEPT_BUY_OFFERS, 'dest': ACCEPT_BUY_OFFERS},
+        {'trigger': 'last_buy_offer', 'source': ACCEPT_BUY_OFFERS, 'dest': MARKET_DONE},
+
+        {'trigger': 'receive_reservation', 'source': ACCEPT_SELL_OFFERS, 'dest': ACCEPT_SELL_OFFERS},
+        {'trigger': 'receive_sell_offer', 'source': ACCEPT_SELL_OFFERS, 'dest': ACCEPT_SELL_OFFERS},
+        {'trigger': 'receive_buy_offer', 'source': ACCEPT_SELL_OFFERS, 'dest': ACCEPT_SELL_OFFERS},
+        {'trigger': 'last_sell_offer', 'source': ACCEPT_SELL_OFFERS, 'dest': MARKET_DONE},
+    ]
+
+    def __init__(self, market_name, participant, publish):
         self.reservations = ReservationManager()
         self.offers = OfferManager()
         self.market_name = market_name
-        self.set_initial_state(ACCEPT_RESERVATIONS)
+        self.publish = publish
+        self.state_machine = Machine(model=self, states=Market.states,
+                                     transitions= Market.transitions, initital=ACCEPT_RESERVATIONS)
         self.make_reservation(participant)
 
     def make_reservation(self, participant):
-        if self.market_state not in [ACCEPT_RESERVATIONS, ACCEPT_RESERVATIONS_HAS_FORMED]:
-            raise MarketFailureError(self.market_name, self.market_state, 'reservations')
-
+        self.receive_reservation()
+        if self.state_machine.state not in [ACCEPT_RESERVATIONS, ACCEPT_RESERVATIONS_HAS_FORMED]:
+            raise MarketFailureError(self.market_name, self.state_machine.state, 'reservations')
         self.reservations.make_reservation(participant)
         if self.has_market_formed():
-            self.change_state(ACCEPT_RESERVATIONS_HAS_FORMED)
+            self.market_forms()
 
 
     def make_offer(self, participant, curve):
-        if self.market_state not in [ACCEPT_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]:
-            raise MarketFailureError(self.market_name, self.market_state, 'offers')
-
-
-        aggregate_curve = None
+        if (participant.buyer_seller == SELLER):
+            self.receive_sell_offer()
+        else:
+            self.receive_buy_offer()
+        if self.state_machine.state not in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]:
+            raise MarketFailureError(self.market_name, self.state_machine.state, 'offers')
         self.reservations.take_reservation(participant)
         self.offers.make_offer(participant.buyer_seller, curve)
         if self.all_satisfied(participant.buyer_seller):
-            self.change_state(self._next_offer_state(participant))
+            if (participant.buyer_seller == SELLER):
+                self.last_sell_offer()
+            else:
+                self.last_buy_offer()
             aggregate_curve = self.offers.aggregate_curves(participant.buyer_seller)
-        return aggregate_curve
+            if aggregate_curve is not None:
+                timestamp = self._get_time()
+                timestamp_string = utils.format_timestamp(timestamp)
+                self.publish(peer='pubsub',
+                             topic=MARKET_AGGREGATE,
+                             message=[timestamp_string, aggregate_curve.tuppleize()])
+            if self.is_market_done():
+                self.clear_market()
 
     def collect_offers(self):
-        if self.market_state == ACCEPT_RESERVATIONS_HAS_FORMED:
-            self.change_state(ACCEPT_OFFERS)
-        elif self.market_state == ACCEPT_RESERVATIONS:
-            self.change_state(WAIT_FOR_RESERVATIONS)
-        else:
-            self.log_market_failure('Programming error in Market class. State of {} and collect offers signal arrived. This represents a logic error.'.format(self.market_state))
-            self.change_state(WAIT_FOR_RESERVATIONS)
+        self.start_offers()
 
     def clear_market(self):
         price = None
         quantity = None
         error_message = None
-        if (self.market_state in [ACCEPT_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]):
-            error_message = 'The market {} failed to recieve all the expected offers. The state is {}.'.format(self.market_name, self.market_state)
-        elif (self.market_state != WAIT_FOR_CLEAR):
-            error_message = 'Programming error in Market class. State of {} and clear market signal arrived. This represents a logic error.'.format(self.market_state)
+        if (self.state_machine.state in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]):
+            error_message = 'The market {} failed to recieve all the expected offers. The state is {}.'.format(self.market_name, self.state_machine.state)
+        elif (self.state_machine.state != MARKET_DONE):
+            error_message = 'Programming error in Market class. State of {} and clear market signal arrived. This represents a logic error.'.format(self.state_machine.state)
         else:
             if not self.has_market_formed():
                 error_message = 'The market {} has not received a buy and a sell reservation.'.format(self.market_name)
             else:
-                self.change_state(WAIT_FOR_RESERVATIONS)
                 quantity, price = self.offers.settle()
                 if price is None:
                     error_message = "Error: The supply and demand curves do not intersect. The market {} failed to clear.".format(self.market_name)
-
         _log.debug("Clearing price for Market: {} Price: {} Qty: {} Error: {}".format(self.market_name, price, quantity, error_message))
-        return [quantity, price, error_message]
-
-    def reject_reservation(self, participant):
-        self.log_market_failure('The market {} is not accepting reservations at this time. The state is {}.'.format(self.market_name, self.market_state))
-
-    def reject_offer(self, participant):
-        self.log_market_failure('The market {} is not accepting offers at this time. The state is {}.'.format(self.market_name, self.market_state))
+        timestamp = self._get_time()
+        timestamp_string = utils.format_timestamp(timestamp)
+        self.publish(peer='pubsub',
+                     topic=MARKET_CLEAR,
+                     message=[timestamp_string, quantity, price])
+        self.publish(peer='pubsub',
+                     topic=MARKET_RECORD,
+                     message=[timestamp_string, quantity, price])
+        self.publish(peer='pubsub',
+                     topic=MARKET_ERROR,
+                     message=[timestamp_string, error_message])
 
     def has_market_formed(self):
         return self.reservations.has_market_formed()
 
-    def _next_offer_state(self, participant):
-        if self.market_state == ACCEPT_OFFERS:
-            next_state = ACCEPT_BUY_OFFERS if participant.is_buyer else ACCEPT_SELL_OFFERS
-        elif self.market_state == ACCEPT_BUY_OFFERS and participant.is_seller:
-            next_state = WAIT_FOR_CLEAR
-        elif self.market_state == ACCEPT_SELL_OFFERS and participant.is_buyer:
-            next_state = WAIT_FOR_CLEAR
-        else:
-            self.log_market_failure('Programming error in Market class. State of {} and completed {} offers. This represents a logic error.'.format(self.market_state, participant.buyer_seller))
-        return next_state
-
     def log_market_failure(self, message):
         _log.debug(message)
         raise MarketFailureError(message)
-
-    def set_initial_state(self, new_state):
-        message = "Market {} is entering its state: {}.".format(self.market_name, new_state)
-        self.log_andChange_state(message, new_state)
-
-    def log_andChange_state(self, message, new_state):
-        _log.debug(message)
-        self.market_state = new_state
-
-    def change_state(self, new_state):
-        if (self.market_name != new_state):
-            message = "Market {} is changing state from state: {} to state: {}.".format(self.market_name, self.market_state, new_state)
-            self.log_andChange_state(message, new_state)
 
     def all_satisfied(self, buyer_seller):
         are_satisfied = False
@@ -185,4 +200,8 @@ class Market(object):
         if (buyer_seller == SELLER):
             are_satisfied = self.reservations.seller_count() == self.offers.seller_count()
         return are_satisfied
+
+    def _get_time(self):
+        now = utils.get_aware_utc_now()
+        return now
 

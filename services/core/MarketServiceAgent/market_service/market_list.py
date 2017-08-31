@@ -84,13 +84,7 @@ class MarketList(object):
 
     def make_offer(self, market_name, participant, curve):
         market = self.get_market(market_name)
-        aggregate_curve = market.make_offer(participant, curve)
-        if aggregate_curve is not None:
-            timestamp = self._get_time()
-            timestamp_string = utils.format_timestamp(timestamp)
-            self.publish(peer='pubsub',
-                                topic=MARKET_AGGREGATE,
-                                message=[timestamp_string, aggregate_curve.tuppleize()])
+        market.make_offer(participant, curve)
 
     def clear_reservations(self):
         self.markets.clear()
@@ -98,27 +92,6 @@ class MarketList(object):
     def collect_offers(self):
         for market in self.markets.itervalues():
             market.collect_offers()
-
-    def clear_market(self, timestamp):
-        timestamp_string = utils.format_timestamp(timestamp)
-        _log.debug("Clearing prices for {} markets.".format(self.market_count()))
-
-        for market in self.markets.itervalues():
-            _log.debug("Clearing price for {} market.".format(market.market_name))
-            cleared_quantity, cleared_price, error_message = market.clear_market()
-            if cleared_price is not None and cleared_quantity is not None:
-                _log.debug("Sending cleared price for Market: {} Price: {} Quantity: {}".format(market.market_name, cleared_price, cleared_quantity))
-                self.publish(peer='pubsub',
-                             topic=MARKET_CLEAR,
-                             message=[timestamp_string, cleared_quantity, cleared_price])
-                self.publish(peer='pubsub',
-                             topic=MARKET_RECORD,
-                             message=[timestamp_string, cleared_quantity, cleared_price])
-            elif error_message is not None:
-                _log.debug("Sending error message for Market: {} Message: {}".format(market.market_name, error_message))
-                self.publish(peer='pubsub',
-                             topic=MARKET_ERROR,
-                             message=[timestamp_string, error_message])
 
     def get_market(self, market_name):
         if self.has_market(market_name):
@@ -146,8 +119,4 @@ class MarketList(object):
            if not market.has_market_formed:
                list << market.market_name
         return list
-
-    def _get_time(self):
-        now = utils.get_aware_utc_now()
-        return now
 

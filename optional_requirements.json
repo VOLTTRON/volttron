@@ -27,5 +27,9 @@
     "--documentation": {
         "help": "Installs requirements for building the documentation",
         "packages": ["sphinx", "mock", "psutil","pymongo","mysql-connector-python-rf"]
+    },
+    "--market": {
+        "help": "Installs requirements for the market service",
+        "packages": ["numpy>1.8,<2", "transitions"]
     }
 }

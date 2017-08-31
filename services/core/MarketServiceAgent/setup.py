@@ -82,7 +82,7 @@ __version__ = _temp.__version__
 setup(
     name=agent_package + 'agent',
     version=__version__,
-    install_requires=['volttron'],
+    install_requires=['volttron', "numpy>1.8,<2", "transitions"],
     packages=packages,
     entry_points={
         'setuptools.installation': [

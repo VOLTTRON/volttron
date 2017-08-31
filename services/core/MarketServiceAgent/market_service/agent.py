@@ -59,6 +59,7 @@
 import logging
 import sys
 
+from transitions import Machine
 from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
 from volttron.platform.agent import utils
 from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID, MARKET_ERROR
@@ -72,10 +73,9 @@ _log = logging.getLogger(__name__)
 utils.setup_logging()
 __version__ = "0.01"
 
-INITIAL_WAIT = 'initial_service_wait'
+INITIAL_WAIT = 'service_initial_wait'
 COLLECT_RESERVATIONS = 'service_collect_reservations'
 COLLECT_OFFERS = 'service_collect_offers'
-CLEAR_PRICES = 'service_clear_prices'
 NO_MARKETS = 'service_has_no_markets'
 
 def market_service_agent(config_path, **kwargs):
@@ -100,25 +100,32 @@ def market_service_agent(config_path, **kwargs):
     market_period = int(config.get('market_period', 300))
     reservation_delay = int(config.get('reservation_delay', 0))
     offer_delay = int(config.get('offer_delay', 120))
-    clear_delay = int(config.get('clear_delay', 120))
 
-    return MarketServiceAgent(market_period, reservation_delay, offer_delay, clear_delay, **kwargs)
+    return MarketServiceAgent(market_period, reservation_delay, offer_delay, **kwargs)
 
 
 class MarketServiceAgent(Agent):
-    def __init__(self, market_period=300, reservation_delay=0, offer_delay=120, clear_delay=120, **kwargs):
+    states = [INITIAL_WAIT, COLLECT_RESERVATIONS, COLLECT_OFFERS, NO_MARKETS]
+    transitions = [
+        {'trigger': 'start_reservations', 'source': INITIAL_WAIT, 'dest': COLLECT_RESERVATIONS},
+        {'trigger': 'start_offers_no_markets', 'source': COLLECT_RESERVATIONS, 'dest': NO_MARKETS},
+        {'trigger': 'start_offers_has_markets', 'source': COLLECT_RESERVATIONS, 'dest': COLLECT_OFFERS},
+        {'trigger': 'start_reservations', 'source': COLLECT_OFFERS, 'dest': COLLECT_RESERVATIONS},
+        {'trigger': 'start_reservations', 'source': NO_MARKETS, 'dest': COLLECT_RESERVATIONS},
+    ]
+
+    def __init__(self, market_period=300, reservation_delay=0, offer_delay=120, **kwargs):
         super(MarketServiceAgent, self).__init__(**kwargs)
 
         _log.debug("vip_identity: {}".format(self.core.identity))
         _log.debug("market_period: {}".format(market_period))
         _log.debug("reservation_delay: {}".format(reservation_delay))
         _log.debug("offer_delay: {}".format(offer_delay))
-        _log.debug("clear_delay: {}".format(clear_delay))
 
-        self.service_state = None
+        self.state_machine = Machine(model=self, states=MarketServiceAgent.states,
+                                     transitions= MarketServiceAgent.transitions, initital=INITIAL_WAIT)
         self.market_list = None
-        self.set_initial_state(INITIAL_WAIT)
-        self.director = Director(market_period, reservation_delay, offer_delay, clear_delay)
+        self.director = Director(market_period, reservation_delay, offer_delay)
 
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
@@ -127,7 +134,7 @@ class MarketServiceAgent(Agent):
 
     def send_collect_reservations_request(self, timestamp):
         _log.debug("send_collect_reservations_request at {}".format(timestamp))
-        self.change_state(COLLECT_RESERVATIONS)
+        self.start_reservations()
         self.market_list.clear_reservations()
         self.vip.pubsub.publish(peer='pubsub',
                                 topic=MARKET_RESERVE,
@@ -137,29 +144,23 @@ class MarketServiceAgent(Agent):
         if (self.has_any_markets()):
             self.begin_collect_offers(timestamp)
         else:
-            self.change_state(NO_MARKETS, "the market service has no markets with both a buyer and a seller.")
+            self.start_offers_no_markets()
 
     def begin_collect_offers(self, timestamp):
         _log.debug("send_collect_offers_request at {}".format(timestamp))
-        self.change_state(COLLECT_OFFERS)
+        self.start_offers_has_markets()
         self.market_list.collect_offers()
         self._send_unformed_market_errors(timestamp)
         self.vip.pubsub.publish(peer='pubsub',
                                 topic=MARKET_BID,
                                 message=utils.format_timestamp(timestamp))
 
-    def send_clear_request(self, timestamp):
-        if (self.service_state != NO_MARKETS):
-            _log.debug("send_clear_request at {}".format(timestamp))
-            self.change_state(CLEAR_PRICES)
-            self.market_list.clear_market(timestamp)
-
     @RPC.export
     def make_reservation(self, market_name, buyer_seller):
         identity = bytes(self.vip.rpc.context.vip_message.peer)
         log_message = "Received {} reservation for market {} from agent {}".format(buyer_seller, market_name, identity)
         _log.debug(log_message)
-        if (self.service_state == COLLECT_RESERVATIONS):
+        if (self.state_machine.state == COLLECT_RESERVATIONS):
             self.accept_reservation(buyer_seller, identity, market_name)
         else:
             self.reject_reservation(buyer_seller, identity, market_name)
@@ -178,7 +179,7 @@ class MarketServiceAgent(Agent):
         identity = bytes(self.vip.rpc.context.vip_message.peer)
         log_message = "Received {} offer for market {} from agent {}".format(buyer_seller, market_name, identity)
         _log.debug(log_message)
-        if (self.service_state == COLLECT_OFFERS):
+        if (self.state_machine.state == COLLECT_OFFERS):
             self.accept_offer(buyer_seller, identity, market_name, offer)
         else:
             self.reject_offer(buyer_seller, identity, market_name, offer)
@@ -201,22 +202,6 @@ class MarketServiceAgent(Agent):
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=MARKET_ERROR,
                                     message=[timestamp, 'Error: market {} does not have both a buyer and a seller.'.format(market_name)])
-
-    def set_initial_state(self, new_state):
-        message = "Market service is entering its state: {}.".format(new_state)
-        self.log_andChange_state(message, new_state)
-
-    def log_andChange_state(self, message, new_state):
-        _log.debug(message)
-        self.service_state = new_state
-
-    def change_state(self, new_state, because_message = None):
-        if (self.service_state != new_state):
-            because = ""
-            if because_message is not None:
-                because = " because {}".format(because_message)
-            message = "Market service is changing state from state: {} to state: {}{}.".format(self.service_state, new_state, because)
-            self.log_andChange_state(message, new_state)
 
     def has_any_markets(self):
         unformed_markets = self.market_list.unformed_market_list()

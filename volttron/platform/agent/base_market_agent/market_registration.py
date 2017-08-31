@@ -58,17 +58,49 @@
 
 import logging
 
+from transitions import Machine
 from volttron.platform.agent import utils
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 
-RESERVATION_WAIT = 'reservation_wait'
-OFFER_WAIT = 'offer_wait'
-AGGREGATE_WAIT = 'aggregate_wait'
-PRICE_WAIT = 'price_wait'
+REGISTRATION_WAIT = 'registration_wait'
+OFFER_WAIT = 'registration_offer_wait'
+AGGREGATE_WAIT = 'registration_aggregate_wait'
+PRICE_WAIT = 'registration_price_wait'
+
 
 class MarketRegistration(object):
+    states = [REGISTRATION_WAIT, OFFER_WAIT, AGGREGATE_WAIT, PRICE_WAIT]
+    transitions = [
+        {'trigger': 'received_request_reservations', 'source': REGISTRATION_WAIT, 'dest': REGISTRATION_WAIT},
+        {'trigger': 'success_reserve_with_offer', 'source': REGISTRATION_WAIT, 'dest': OFFER_WAIT},
+        {'trigger': 'success_reserve_with_aggregate', 'source': REGISTRATION_WAIT, 'dest': AGGREGATE_WAIT},
+        {'trigger': 'fail_reserve', 'source': REGISTRATION_WAIT, 'dest': REGISTRATION_WAIT},
+        {'trigger': 'received_request_offers', 'source': REGISTRATION_WAIT, 'dest': REGISTRATION_WAIT},
+        {'trigger': 'received_report_aggregate', 'source': REGISTRATION_WAIT, 'dest': REGISTRATION_WAIT},
+        {'trigger': 'received_report_price', 'source': REGISTRATION_WAIT, 'dest': REGISTRATION_WAIT},
+
+        {'trigger': 'received_request_reservations', 'source': OFFER_WAIT, 'dest': REGISTRATION_WAIT},
+        {'trigger': 'received_request_offers', 'source': OFFER_WAIT, 'dest': OFFER_WAIT},
+        {'trigger': 'success_offers', 'source': OFFER_WAIT, 'dest': PRICE_WAIT},
+        {'trigger': 'fail_offers', 'source': OFFER_WAIT, 'dest': REGISTRATION_WAIT},
+        {'trigger': 'received_report_aggregate', 'source': OFFER_WAIT, 'dest': OFFER_WAIT},
+        {'trigger': 'received_report_price', 'source': OFFER_WAIT, 'dest': REGISTRATION_WAIT},
+
+        {'trigger': 'received_request_reservations', 'source': AGGREGATE_WAIT, 'dest': REGISTRATION_WAIT},
+        {'trigger': 'received_request_offers', 'source': AGGREGATE_WAIT, 'dest': AGGREGATE_WAIT},
+        {'trigger': 'success_offers', 'source': AGGREGATE_WAIT, 'dest': PRICE_WAIT},
+        {'trigger': 'received_report_aggregate', 'source': AGGREGATE_WAIT, 'dest': OFFER_WAIT},
+        {'trigger': 'received_report_price', 'source': AGGREGATE_WAIT, 'dest': REGISTRATION_WAIT},
+
+        {'trigger': 'received_request_reservations', 'source': PRICE_WAIT, 'dest': REGISTRATION_WAIT},
+        {'trigger': 'received_request_offers', 'source': PRICE_WAIT, 'dest': REGISTRATION_WAIT},
+        {'trigger': 'received_report_aggregate', 'source': PRICE_WAIT, 'dest': PRICE_WAIT},
+        {'trigger': 'received_report_price', 'source': PRICE_WAIT, 'dest': REGISTRATION_WAIT},
+        {'trigger': 'received_error_report', 'source': '*', 'dest': REGISTRATION_WAIT},
+    ]
+
     def __init__(self, market_name, buyer_seller, reservation_callback, offer_callback,
                  aggregate_callback, price_callback, error_callback):
         self.market_name = market_name
@@ -80,7 +112,8 @@ class MarketRegistration(object):
         self.error_callback = error_callback
         self.always_wants_reservation = self.reservation_callback == None
         self.has_reservation = False
-        self.set_initial_state(RESERVATION_WAIT)
+        self.state_machine = Machine(model=self, states=MarketRegistration.states,
+                                     transitions= MarketRegistration.transitions, initital=REGISTRATION_WAIT)
         self._validate_callbacks()
 
     def _validate_callbacks(self):
@@ -90,88 +123,72 @@ class MarketRegistration(object):
             raise TypeError('You must only provide an offer callback or an aggregate callback, but not both.')
 
     def request_reservations(self, timestamp, agent):
-        if self.market_state != RESERVATION_WAIT:
-            self.change_state(RESERVATION_WAIT, "we got a request reservations message")
-        self.has_reservation = False
-        if self.reservation_callback is not None:
-            wants_reservation_this_time = self.reservation_callback(timestamp, self.market_name, self.buyer_seller)
-        else:
-            wants_reservation_this_time = self.always_wants_reservation
-        if wants_reservation_this_time:
-            agent.make_reservation(self.market_name, self.buyer_seller)
-            if agent.has_reservation:
-                self.has_reservation = agent.has_reservation
-                if (self.offer_callback is not None):
-                    self.change_state(OFFER_WAIT, "our reservation was accepted")
+        self.received_request_reservations()
+        if self.is_registration_wait():
+            self.has_reservation = False
+            if self.reservation_callback is not None:
+                wants_reservation_this_time = self.reservation_callback(timestamp, self.market_name, self.buyer_seller)
+            else:
+                wants_reservation_this_time = self.always_wants_reservation
+            if wants_reservation_this_time:
+                agent.make_reservation(self.market_name, self.buyer_seller)
+                if agent.has_reservation:
+                    self.has_reservation = agent.has_reservation
+                    if (self.offer_callback is not None):
+                        self.success_reserve_with_offer()
+                    else:
+                        self.success_reserve_with_aggregate()
                 else:
-                    self.change_state(AGGREGATE_WAIT, "our reservation was accepted")
+                    self.fail_reserve()
 
     def request_offers(self, timestamp, agent):
-        if self.market_state != OFFER_WAIT and self.market_state != AGGREGATE_WAIT:
-            self.change_state(RESERVATION_WAIT, "we got a request offers message")
-            return
-        if self.market_state == AGGREGATE_WAIT:
-            return # ignore offers when waiting for an aggregate
-        if self.has_reservation and self.offer_callback is not None:
-            curve = self.offer_callback(timestamp, self.market_name, self.buyer_seller)
-            if curve is not None:
-                offer_accepted, error_message = agent.make_offer(self.market_name, self.buyer_seller, curve)
-            else:
-                offer_accepted = False
-                error_message = "the offer callback did not return a valid curve."
-        self.check_offer_accepted(offer_accepted, error_message)
+        self.received_request_offers()
+        if self.state_machine.state in [OFFER_WAIT, AGGREGATE_WAIT]:
+            if self.state_machine.state == AGGREGATE_WAIT:
+                return # ignore offers when waiting for an aggregate
+            if self.has_reservation and self.offer_callback is not None:
+                curve = self.offer_callback(timestamp, self.market_name, self.buyer_seller)
+                if curve is not None:
+                    offer_accepted, error_message = agent.make_offer(self.market_name, self.buyer_seller, curve)
+                else:
+                    offer_accepted = False
+                    error_message = "the offer callback did not return a valid curve."
+            self.check_offer_accepted(offer_accepted, error_message)
 
     def check_offer_accepted(self, offer_accepted, error_message):
         if offer_accepted:
-            self.change_state(PRICE_WAIT, "our offer was accepted")
+            self.success_offer()
         else:
-            self.change_state(RESERVATION_WAIT, error_message)
+            self.fail_offer()
 
     def report_clear_price(self, timestamp, price, quantity):
         _log.debug("report_clear_price Timestamp: {} Price: {} Qty: {} Has Reservation: {}".format(timestamp, price, quantity, self.has_reservation))
-        if self.market_state != PRICE_WAIT:
-            self.change_state(RESERVATION_WAIT, "we got a report clear price message")
-            return
-        if self.has_reservation and self.price_callback is not None:
+        if self.state_machine.state != PRICE_WAIT and self.has_reservation and self.price_callback is not None:
             _log.debug("report_clear_price calling price_callback method for {} {} {} {}".format(self.market_name, self.buyer_seller, price, quantity))
             self.price_callback(timestamp, self.market_name, self.buyer_seller, price, quantity)
         self.has_reservation = False
-        self.change_state(RESERVATION_WAIT, "we got a cleared price report message")
+        self.received_report_price()
 
     def report_aggregate(self, timestamp, aggregate_curve):
-        if self.market_state != AGGREGATE_WAIT and self.market_state != OFFER_WAIT and self.market_state != PRICE_WAIT:
-            self.change_state(RESERVATION_WAIT, "we got a aggregate report message")
-            return
-        if self.market_state == OFFER_WAIT or self.market_state != PRICE_WAIT:
-            return  # ignore aggregates when waiting for an offer and when waiting for a cleared price
-        if self.has_reservation and self.aggregate_callback is not None:
-            offer_accepted= self.aggregate_callback(timestamp, self.market_name, self.buyer_seller, aggregate_curve)
-            if offer_accepted:
-                error_message = None
-            else:
-                error_message = "aggregate_callback failed to get an offer accepted."
-            self.check_offer_accepted(offer_accepted, error_message)
+        entry_state = self.state_machine.state
+        self.received_report_aggregate()
+        if entry_state in [AGGREGATE_WAIT, OFFER_WAIT, PRICE_WAIT]:
+            if entry_state == AGGREGATE_WAIT and self.has_reservation and self.aggregate_callback is not None:
+                offer_accepted= self.aggregate_callback(timestamp, self.market_name, self.buyer_seller, aggregate_curve)
+                if offer_accepted:
+                    error_message = None
+                else:
+                    error_message = "aggregate_callback failed to get an offer accepted."
+                self.check_offer_accepted(offer_accepted, error_message)
 
     def report_error(self, timestamp, error_message):
+        if self.reportable_error(error_message):
+            self.received_error_report()
         if self.error_callback is not None:
             self.error_callback(timestamp, self.market_name, self.buyer_seller, error_message)
-        self.change_state(RESERVATION_WAIT, "we got an error message")
+        self.change_state(REGISTRATION_WAIT, "we got an error message")
 
-    def set_initial_state(self, new_state):
-        message = "Base market agent is entering its state: {}.".format(new_state)
-        self.log_andChange_state(message, new_state)
-
-    def log_andChange_state(self, message, new_state):
-        _log.debug(message)
-        self.market_state = new_state
-
-    def change_state(self, new_state, because_message = None):
-        if (self.market_state != new_state):
-            because = ""
-            if because_message is not None:
-                because = " because {}".format(because_message)
-            message = "Base market agent is changing state from state: {} to state: {}{}.".format(self.market_state, new_state, because)
-            self.log_andChange_state(message, new_state)
-
-
+    def reportable_error(self, error_message):
+        # We need to decide what messages return us to the default start state.
+        return False
 
