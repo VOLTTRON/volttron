@@ -37,15 +37,12 @@ Features
     prefix using a template. At the end of this, users should be notified about
     the list of topics that did not confirm to the template. This will help users
     to individually add or edit tags for those specific topics
- 4. When a value of a tag is changed, users should be prompted to verify if
-    this change denotes a new version or a value correction.  If this value
-    denotes a new version, then older value of the tag should preserved in a
-    history/audit store
- 5. When users query for topics based on a tag, the results would correspond
+ 4. When users query for topics based on a tag, the results would correspond
     to the current metadata values. It is up to the calling agent/application
     to periodically query for latest updates if needed.
- 6. Users should be able query based on tags on a specific topic or its topic prefix/parents
- 7. Allow for count and skip parameters in queries to restrict count and
+ 5. Users should be able query based on tags on a specific topic or its topic
+    prefix/parents
+ 6. Allow for count and skip parameters in queries to restrict count and
     allow pagination
 
 ***
@@ -53,27 +50,33 @@ API
 ***
 
 1. Get the list of tag categories available
----------------------------------------
+-------------------------------------------
 rpc call to tagging service method **'get_categories'** with optional parameters:
 
-    1. **skip** - number of categories to skip. this parameter along with count can be
-      used for paginating results
-    2. **count** - limit the total number of tag categories returned to given count
-    3. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
-      ascending order
+    1. **include_description** - set to True to return available description
+       for each category. Default = False
+    2. **skip** - number of categories to skip. this parameter along with count can be
+       used for paginating results
+    3. **count** - limit the total number of tag categories returned to given count
+    4. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
+       ascending order
 
 2. Get the list of tags for a specific category
---------------------------------------------
+-----------------------------------------------
 rpc call to tagging service method **'get_tags_by_category'** with parameter:
 
     1. **category** - <category name>
 
     and optional parameters:
 
-    2. **skip** - number of tags to skip. this parameter along with count can be
+    2. **include_kind** - indicate if result should include the
+        kind/data type for tags returned. Defaults to False
+    3. **include_description** - indicate if result should include
+        available description for tags returned. Defaults to False
+    4. **skip** - number of tags to skip. this parameter along with count can be
        used for paginating results
-    3. **count** - limit the total number of tags returned to given count
-    4. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
+    5. **count** - limit the total number of tags returned to given count
+    6. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
        ascending order
 
 3. Get the list of tags for a topic_name or topic_name_prefix
@@ -85,10 +88,14 @@ with parameter
 
 and optional parameters:
 
-    2. **skip** - number of tags to skip. this parameter along with count can be
+    2. **include_kind** - indicate if result should include the
+        kind/data type for tags returned. Defaults to False
+    3. **include_description** - indicate if result should include
+        available description for tags returned. Defaults to False
+    4. **skip** - number of tags to skip. this parameter along with count can be
        used for paginating results
-    3. **count** - limit the total number of tags returned to given count
-    4. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
+    5. **count** - limit the total number of tags returned to given count
+    6. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
        ascending order
 
 4. Find topic names by tags
@@ -97,34 +104,36 @@ rpc call to tagging service method **'get_topics_by_tags'** with the one or
 more of the following parameters
 
     1. **and_condition** - dictionary of tag and its corresponding values that
-       should be matched using equality operator and combined with AND condition.
-       only topics that match all the tags in the list would be returned
+       should be matched using equality operator or a list of tags that should
+       exists/be true. Tag conditions are combined with AND condition. Only
+       topics that match all the tags in the list would be returned
     2. **or_condition** -  dictionary of tag and its corresponding values that
-       should be matched using equality operator and combined with OR condition.
-       topics that match any of the tags in the list would be returned.
-    3. **regex_and** - dictionary of tag and its corresponding values that should be
-       matched using a regular expression match and combined with AND condition.
-       only topics that match all the tags in the list would be returned
-    4. **regex_or** -  dictionary of tag and its corresponding values that should be
-       matched using a regular expression match and combined with OR condition.
-       topics that match any of the tags in the list would be returned.
-    5. **condition** - conditional statement to be used for matching tags. If this
-       parameter is provided the above four parameters are ignored. The value
-       for this parameter should be an expression that contains one or more
-       query conditions combined together with an "AND" or "OR".
+       should be matched using equality operator or a list tags that should
+       exist/be true. Tag conditions are combined with OR condition.
+       Topics that match any of the tags in the list would be returned.
+       If both **and_condition** and **or_condition** are provided then they
+       are combined using AND operator.
+    3. **condition** - conditional statement to be used for matching tags. If
+       this parameter is provided the above two parameters are ignored. The
+       value for this parameter should be an expression that contains one or
+       more query conditions combined together with an "AND" or "OR".
        Query conditions can be grouped together using parenthesis.
        Each condition in the expression should conform to one of the following format:
 
        1. <tag name/ parent.tag_name> <binary_operator> <value>
        2. <tag name/ parent.tag_name>
-       3. <tag name/ parent.tag_name> REGEXP <regular expression within single quotes
+       3. <tag name/ parent.tag_name> LIKE <regular expression within single quotes
        4. the word NOT can be prefixed before any of the above three to negate
           the condition.
-       5. expressions can be grouped with parenthesis. For example
+       5. expressions can be grouped with parenthesis.
+
+       For example
 
           .. code-block:: python
 
-            condition="(tag1 = 1 or tag1 = 2) and not (tag2 < '' and tag2 > '') and tag3 and tag4 REGEXP '^a.*b$'"
+            condition="tag1 = 1 and not (tag2 < '' and tag2 > '') and tag3 and NOT tag4 LIKE '^a.*b$'"
+            condition="NOT (tag5='US' OR tag5='UK') AND NOT tag3 AND NOT (tag4 LIKE 'a.*')"
+            condition="campusRef.geoPostalCode='20500' and equip and boiler"
 
     6. **skip** - number of topics to skip. this parameter along with count can be
        used for paginating results
@@ -146,7 +155,8 @@ rpc call to to tagging service method **'add_topic_tags'** with parameters:
     2. **tags** - {<valid tag>:value, <valid_tag>: value,... }
     3. **update_version** - True/False. Default to False. If set to True and if any
        of the tags update an existing tag value the older value would be preserved
-       as part of tag version history
+       as part of tag version history. **NOTE:** This is a placeholder.
+       Current version does not support versioning.
 
 7. Add tags to multiple topics
 ------------------------------
@@ -324,7 +334,7 @@ tags in the system are as follows
 
 '/campus1/building1/deviceB1/point1' tags:
 
-.. code-block:: json
+.. code-block:: python
 
         {
         'dis': "building1 device B - point1",
@@ -337,7 +347,7 @@ tags in the system are as follows
 
 '/campus1/building1/deviceB1' tags
 
-.. code-block:: json
+.. code-block:: python
 
         {
         'dis': "building1 device of type B",
@@ -348,3 +358,17 @@ tags in the system are as follows
         'siteRef': '@buildingname'
         }
 
+
+
+
+****************************
+Possible future improvements
+****************************
+    1. Versioning - When a value of a tag is changed, users should be prompted
+       to verify if this change denotes a new version or a value correction.
+       If this value denotes a new version, then older value of the tag should
+       preserved in a history/audit store
+    2. Validation of tag values based on data type
+    3. Support for units validation and  conversions
+    4. Processing and saving geologic coordinates that can enable users to do
+       geo-spatial queries in databases that support it.

@@ -63,11 +63,13 @@ from __future__ import absolute_import
 
 import copy
 import logging
-from abc import abstractmethod
 from datetime import datetime, timedelta
 
 import pytz
+from abc import abstractmethod
+
 from volttron.platform.agent import utils
+from volttron.platform.agent.known_identities import (PLATFORM_HISTORIAN)
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.subsystems import RPC
 
@@ -83,7 +85,6 @@ class AggregateHistorian(Agent):
 
     - :py:meth:`get_topic_map() <AggregateHistorian.get_topic_map>`
     - :py:meth:`get_agg_topic_map() <AggregateHistorian.get_agg_topic_map>`
-    - :py:meth:`find_topics_by_pattern() <AggregateHistorian.find_topics_by_pattern>`
     - :py:meth:`initialize_aggregate_store() <AggregateHistorian.initialize_aggregate_store>`
     - :py:meth:`update_aggregate_metadata() <AggregateHistorian.update_aggregate_metadata>`
     - :py:meth:`collect_aggregate() <AggregateHistorian.collect_aggregate>`
@@ -212,7 +213,10 @@ class AggregateHistorian(Agent):
             else:
                 # Find if the topic_name patterns result in any topics
                 # at all. If it does log them as info
-                topic_map = self.find_topics_by_pattern(topic_pattern)
+                topic_map = self.vip.rpc.call(
+                    PLATFORM_HISTORIAN,
+                    "get_topics_by_pattern",
+                    topic_pattern=topic_pattern).get()
                 if topic_map is None or len(topic_map) == 0:
                     raise ValueError(
                         "Please provide a valid topic_name or "
@@ -296,10 +300,11 @@ class AggregateHistorian(Agent):
         called after a specific period of time. The time interval is
         calculated by
         :py:meth:`compute_next_collection_time() <AggregateHistorian.compute_next_collection_time>`
-        This method in turn calls the following methods implemented by
-        child classes:
+        This method in turn calls the platform historian's
+        - :py:method:`get_topics_by_pattern()` <BaseHistorian.get_topics_by_pattern>
 
-        - :py:meth:`find_topics_by_pattern() <AggregateHistorian.find_topics_by_pattern>`
+        and the following methods implemented by child classes:
+
         - :py:meth:`collect_aggregate() <AggregateHistorian.collect_aggregate>`
         - :py:meth:`insert_aggregate() <AggregateHistorian.insert_aggregate>`
 
@@ -340,7 +345,10 @@ class AggregateHistorian(Agent):
                 topic_pattern = data.get('topic_name_pattern', None)
                 if topic_pattern:
                     # Find topic ids that match the pattern at runtime
-                    topic_map = self.find_topics_by_pattern(topic_pattern)
+                    topic_map = self.vip.rpc.call(
+                        PLATFORM_HISTORIAN,
+                        "get_topics_by_pattern",
+                        topic_pattern=topic_pattern).get()
                     _log.debug("Found topics for pattern {}".format(topic_map))
                     if topic_map:
                         topic_ids = topic_map.values()
@@ -430,12 +438,6 @@ class AggregateHistorian(Agent):
 
         """
         pass
-
-    @abstractmethod
-    def find_topics_by_pattern(self, topic_pattern):
-        """ Find the list of topics and its id for a given topic_pattern
-
-        :return: returns list of dictionary object {topic_name.lower():id}"""
 
     @abstractmethod
     def initialize_aggregate_store(self, aggregation_topic_name, agg_type,

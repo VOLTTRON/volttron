@@ -379,6 +379,7 @@ def test_get_supported_aggregations(aggregate_agent, query_agent):
             assert result == ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX',
                               'STDDEVPOP', 'STDDEVSAMP']
 
+
 @pytest.mark.aggregator
 def test_single_topic_pattern(aggregate_agent, query_agent):
     """
