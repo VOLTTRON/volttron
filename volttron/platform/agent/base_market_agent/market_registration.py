@@ -143,8 +143,8 @@ class MarketRegistration(object):
 
     def request_offers(self, timestamp, agent):
         self.received_request_offers()
-        if self.state_machine.state in [OFFER_WAIT, AGGREGATE_WAIT]:
-            if self.state_machine.state == AGGREGATE_WAIT:
+        if self.state in [OFFER_WAIT, AGGREGATE_WAIT]:
+            if self.state == AGGREGATE_WAIT:
                 return # ignore offers when waiting for an aggregate
             if self.has_reservation and self.offer_callback is not None:
                 curve = self.offer_callback(timestamp, self.market_name, self.buyer_seller)
@@ -163,14 +163,14 @@ class MarketRegistration(object):
 
     def report_clear_price(self, timestamp, price, quantity):
         _log.debug("report_clear_price Timestamp: {} Price: {} Qty: {} Has Reservation: {}".format(timestamp, price, quantity, self.has_reservation))
-        if self.state_machine.state != PRICE_WAIT and self.has_reservation and self.price_callback is not None:
+        if self.state != PRICE_WAIT and self.has_reservation and self.price_callback is not None:
             _log.debug("report_clear_price calling price_callback method for {} {} {} {}".format(self.market_name, self.buyer_seller, price, quantity))
             self.price_callback(timestamp, self.market_name, self.buyer_seller, price, quantity)
         self.has_reservation = False
         self.received_report_price()
 
     def report_aggregate(self, timestamp, aggregate_curve):
-        entry_state = self.state_machine.state
+        entry_state = self.state
         self.received_report_aggregate()
         if entry_state in [AGGREGATE_WAIT, OFFER_WAIT, PRICE_WAIT]:
             if entry_state == AGGREGATE_WAIT and self.has_reservation and self.aggregate_callback is not None:

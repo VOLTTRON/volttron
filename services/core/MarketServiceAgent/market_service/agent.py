@@ -160,7 +160,7 @@ class MarketServiceAgent(Agent):
         identity = bytes(self.vip.rpc.context.vip_message.peer)
         log_message = "Received {} reservation for market {} from agent {}".format(buyer_seller, market_name, identity)
         _log.debug(log_message)
-        if (self.state_machine.state == COLLECT_RESERVATIONS):
+        if (self.state == COLLECT_RESERVATIONS):
             self.accept_reservation(buyer_seller, identity, market_name)
         else:
             self.reject_reservation(buyer_seller, identity, market_name)
@@ -179,7 +179,7 @@ class MarketServiceAgent(Agent):
         identity = bytes(self.vip.rpc.context.vip_message.peer)
         log_message = "Received {} offer for market {} from agent {}".format(buyer_seller, market_name, identity)
         _log.debug(log_message)
-        if (self.state_machine.state == COLLECT_OFFERS):
+        if (self.state == COLLECT_OFFERS):
             self.accept_offer(buyer_seller, identity, market_name, offer)
         else:
             self.reject_offer(buyer_seller, identity, market_name, offer)

@@ -124,8 +124,8 @@ class Market(object):
 
     def make_reservation(self, participant):
         self.receive_reservation()
-        if self.state_machine.state not in [ACCEPT_RESERVATIONS, ACCEPT_RESERVATIONS_HAS_FORMED]:
-            raise MarketFailureError(self.market_name, self.state_machine.state, 'reservations')
+        if self.state not in [ACCEPT_RESERVATIONS, ACCEPT_RESERVATIONS_HAS_FORMED]:
+            raise MarketFailureError(self.market_name, self.state, 'reservations')
         self.reservations.make_reservation(participant)
         if self.has_market_formed():
             self.market_forms()
@@ -136,8 +136,8 @@ class Market(object):
             self.receive_sell_offer()
         else:
             self.receive_buy_offer()
-        if self.state_machine.state not in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]:
-            raise MarketFailureError(self.market_name, self.state_machine.state, 'offers')
+        if self.state not in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]:
+            raise MarketFailureError(self.market_name, self.state, 'offers')
         self.reservations.take_reservation(participant)
         self.offers.make_offer(participant.buyer_seller, curve)
         if self.all_satisfied(participant.buyer_seller):
@@ -162,10 +162,10 @@ class Market(object):
         price = None
         quantity = None
         error_message = None
-        if (self.state_machine.state in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]):
-            error_message = 'The market {} failed to recieve all the expected offers. The state is {}.'.format(self.market_name, self.state_machine.state)
-        elif (self.state_machine.state != MARKET_DONE):
-            error_message = 'Programming error in Market class. State of {} and clear market signal arrived. This represents a logic error.'.format(self.state_machine.state)
+        if (self.state in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]):
+            error_message = 'The market {} failed to recieve all the expected offers. The state is {}.'.format(self.market_name, self.state)
+        elif (self.state != MARKET_DONE):
+            error_message = 'Programming error in Market class. State of {} and clear market signal arrived. This represents a logic error.'.format(self.state)
         else:
             if not self.has_market_formed():
                 error_message = 'The market {} has not received a buy and a sell reservation.'.format(self.market_name)
