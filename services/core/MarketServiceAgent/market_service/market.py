@@ -111,6 +111,10 @@ class Market(object):
         {'trigger': 'receive_sell_offer', 'source': ACCEPT_SELL_OFFERS, 'dest': ACCEPT_SELL_OFFERS},
         {'trigger': 'receive_buy_offer', 'source': ACCEPT_SELL_OFFERS, 'dest': ACCEPT_SELL_OFFERS},
         {'trigger': 'last_sell_offer', 'source': ACCEPT_SELL_OFFERS, 'dest': MARKET_DONE},
+
+        {'trigger': 'receive_reservation', 'source': MARKET_DONE, 'dest': MARKET_DONE},
+        {'trigger': 'receive_sell_offer', 'source': MARKET_DONE, 'dest': MARKET_DONE},
+        {'trigger': 'receive_buy_offer', 'source': MARKET_DONE, 'dest': MARKET_DONE},
     ]
 
     def __init__(self, market_name, participant, publish):
