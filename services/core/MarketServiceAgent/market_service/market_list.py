@@ -79,7 +79,7 @@ class MarketList(object):
             market = self.markets[market_name]
             market.make_reservation(participant)
         else:
-            market = Market(market_name, participant)
+            market = Market(market_name, participant, self.publish)
             self.markets[market_name] = market
 
     def make_offer(self, market_name, participant, curve):
