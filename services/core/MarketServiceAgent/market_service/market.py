@@ -119,7 +119,7 @@ class Market(object):
         self.market_name = market_name
         self.publish = publish
         self.state_machine = Machine(model=self, states=Market.states,
-                                     transitions= Market.transitions, initital=ACCEPT_RESERVATIONS)
+                                     transitions= Market.transitions, initial=ACCEPT_RESERVATIONS)
         self.make_reservation(participant)
 
     def make_reservation(self, participant):

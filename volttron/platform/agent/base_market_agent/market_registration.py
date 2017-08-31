@@ -113,7 +113,7 @@ class MarketRegistration(object):
         self.always_wants_reservation = self.reservation_callback == None
         self.has_reservation = False
         self.state_machine = Machine(model=self, states=MarketRegistration.states,
-                                     transitions= MarketRegistration.transitions, initital=REGISTRATION_WAIT)
+                                     transitions= MarketRegistration.transitions, initial=REGISTRATION_WAIT)
         self._validate_callbacks()
 
     def _validate_callbacks(self):

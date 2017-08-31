@@ -123,7 +123,7 @@ class MarketServiceAgent(Agent):
         _log.debug("offer_delay: {}".format(offer_delay))
 
         self.state_machine = Machine(model=self, states=MarketServiceAgent.states,
-                                     transitions= MarketServiceAgent.transitions, initital=INITIAL_WAIT)
+                                     transitions= MarketServiceAgent.transitions, initial=INITIAL_WAIT)
         self.market_list = None
         self.director = Director(market_period, reservation_delay, offer_delay)
 
