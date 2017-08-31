@@ -58,8 +58,7 @@
 from __future__ import print_function, absolute_import
 
 import os
-import threading
-
+import re
 import zmq
 import logging
 from zmq import SNDMORE, EHOSTUNREACH, ZMQError, EAGAIN, NOBLOCK
@@ -75,8 +74,6 @@ STATUS_CONNECTED = "CONNECTED"
 STATUS_CONNECTION_DELAY = "CONNECTION_DELAY"
 STATUS_DISCONNECTED = "DISCONNECTED"
 
-
-
 # Optimizing by pre-creating frames
 _ROUTE_ERRORS = {
     errnum: (zmq.Frame(str(errnum).encode('ascii')),
@@ -85,27 +82,26 @@ _ROUTE_ERRORS = {
 }
 
 _log = logging.getLogger(__name__)
+
 class RoutingService(object):
     """
     This class maintains connection with external platforms.
     """
-    def __init__(self, socket, context, socket_class, poller, ext_address_file, my_addr, *args, **kwargs):
+    def __init__(self, socket, context, socket_class, poller, my_addr, instance_name, *args, **kwargs):
         self._routing_table = dict()
         self._poller = poller
-        self._external_address_file = ext_address_file
-        self._ext_addresses = dict()
         self._instances = dict()
         self._context = context
         self._socket = socket
         self._socket_class = socket_class
         self._my_addr = my_addr
-        self._my_instance_name = ''
-        self._monitor_poller = zmq.Poller()
+        self._my_instance_name = instance_name
         self._onconnect_pubsub_handler = None
         self._ondisconnect_pubsub_handler = None
         self._vip_sockets = set()
         self._monitor_sockets = set()
         self._socket_identities = dict()
+        self._web_addresses = []
 
     def handle_subsystem(self, frames):
         """
@@ -130,14 +126,14 @@ class RoutingService(object):
             except IndexError:
                 return False
             #If serverkey received from KeyDiscoveryService, build connection with remote instance
-            if op == b'external_addresses':
-                addr = bytes(frames[7])
-                self._ext_addresses = jsonapi.loads(addr)
-                self.setup()
-            if op == b'external_serverkey':
-                serverkey = bytes(frames[7])
-                name = bytes(frames[8])
-                self._build_connection(name, serverkey)
+            if op == b'setupmode_platform_connection':
+                instance_config = bytes(frames[7])
+                instance_config = jsonapi.loads(instance_config)
+                self._setup_authorization(instance_config)
+            if op == b'normalmode_platform_connection':
+                instance_config = bytes(frames[7])
+                instance_config = jsonapi.loads(instance_config)
+                self._build_connection(instance_config)
                 return False
             if op == b'hello':
                 handshake_request = bytes(frames[7])
@@ -160,6 +156,10 @@ class RoutingService(object):
                     self._instances[name]['status'] = STATUS_CONNECTED
                     _log.debug("Onconnect pubsub handler: {}".format(name))
                     self._onconnect_pubsub_handler(name)
+            if op == b"web-addresses":
+                self._web_addresses = bytes(frames[7])
+                self._web_addresses = jsonapi.loads(self._web_addresses)
+                _log.debug("WEB ADDRR: {}".format(self._web_addresses))
             #Update routing table entry
             if op == b'update':
                 result = self._update_entry(frames)
@@ -175,74 +175,88 @@ class RoutingService(object):
 
         return response
 
-    def setup(self):
+    def _setup_authorization(self, instance_info):
         """
-        Creates monitor thread to monitor all remote socket connections.
-        Creates sockets for each remote instance connection.
+        Setup authorized connection with remote instance
+        :param instance_name: dicovery information(server key, name, vip-address) of remote instance
         :return:
         """
-        # Start monitor sockets in separate thread to remain responsive
-        #thread = threading.Thread(target=self._monitor_external_sockets)
-        #thread.daemon = True
-        #thread.start()
+        instance_name = instance_info['instance-name']
+        serverkey = instance_info['serverkey']
+        address = instance_info['vip-address']
+        web_address = instance_info['web-address']
 
-        for name in self._ext_addresses:
-            _log.debug(
-                "my address: {0}, external {1}".format(self._my_addr, self._ext_addresses[name]['vip-address']))
+        sock = zmq.Socket(zmq.Context(), zmq.DEALER)
 
-            if self._ext_addresses[name]['vip-address'] not in self._my_addr:
-                sock = zmq.Socket(zmq.Context(), zmq.DEALER)
-                mon_sock = sock.get_monitor_socket(
-                        zmq.EVENT_CONNECTED | zmq.EVENT_DISCONNECTED | zmq.EVENT_CONNECT_DELAYED)
+        num = random.random()
+        sock.identity = 'platform-' + '-' + instance_name + '-' + str(num)
+        sock.zap_domain = 'vip'
+        self._poller.register(sock, zmq.POLLIN)
+        keystore = KeyStore()
+        vip_address = "{0}?serverkey={1}&publickey={2}&secretkey={3}".format(
+            address, str(serverkey),
+            str(keystore.public), str(keystore.secret)
+        )
 
-                sock.sndtimeo = 0
-                sock.tcp_keepalive = True
-                sock.tcp_keepalive_idle = 180
-                sock.tcp_keepalive_intvl = 20
-                sock.tcp_keepalive_cnt = 6
-                num = random.random()
-                sock.identity = self._ext_addresses[name]['instance-name'] + '-'+ str(num)
-                self._instances[name] = dict(platform_identity=sock.identity,
-                                              status=STATUS_CONNECTING,
-                                              socket=sock,
-                                              monitor_socket=sock.get_monitor_socket()
-                                              )
-                sock.zap_domain = 'vip'
+        ext_platform_address = Address(vip_address)
+        ext_platform_address.identity = sock.identity
+        try:
+            ext_platform_address.connect(sock)
+        except zmq.error.ZMQError as ex:
+            _log.error("ZMQ error on external connection {}".format(ex))
+        self._web_addresses.remove(web_address)
+        if not self._web_addresses:
+            _log.debug("MULTI_PLATFORM SETUP MODE COMPLETED")
 
-                self._socket_identities[sock.identity] = name
-                self._vip_sockets.add(sock)
-                self._monitor_sockets.add(mon_sock)
-
-                self._poller.register(sock, zmq.POLLIN)
-                self._poller.register(mon_sock, zmq.POLLIN)
-
-                self._routing_table[name] = [name]
-            else:
-                self._my_instance_name = name
-                self._routing_table[name] = []
-
-
-    def _build_connection(self, instance_name, serverkey):
+    def _build_connection(self, instance_info):
         """
         Build connection with remote instance and send initial "hello" message.
         :param instance_name: name of remote instance
         :param serverkey: serverkey for establishing connection with remote instance
         :return:
         """
+        instance_name = instance_info['instance-name']
+        serverkey = instance_info['serverkey']
+        address = instance_info['vip-address']
+
+        sock = zmq.Socket(zmq.Context(), zmq.DEALER)
+        mon_sock = sock.get_monitor_socket(
+                zmq.EVENT_CONNECTED | zmq.EVENT_DISCONNECTED | zmq.EVENT_CONNECT_DELAYED)
+        sock.sndtimeo = 0
+        sock.tcp_keepalive = True
+        sock.tcp_keepalive_idle = 180
+        sock.tcp_keepalive_intvl = 20
+        sock.tcp_keepalive_cnt = 6
+
+        num = random.random()
+        sock.identity = 'platform-' + '-' + instance_name + '-' + str(num)
+        self._instances[instance_name] = dict(platform_identity=sock.identity,
+                                     status=STATUS_CONNECTING,
+                                     socket=sock,
+                                     monitor_socket=mon_sock
+                                     )
+        sock.zap_domain = 'vip'
+        self._socket_identities[sock.identity] = instance_name
+        self._vip_sockets.add(sock)
+        self._monitor_sockets.add(mon_sock)
+        self._poller.register(sock, zmq.POLLIN)
+        self._poller.register(mon_sock, zmq.POLLIN)
+
+        self._routing_table[instance_name] = [instance_name]
 
         keystore = KeyStore()
         sock = self._instances[instance_name]['socket']
-        address = self._ext_addresses[instance_name]['vip-address']
+
         vip_address = "{0}?serverkey={1}&publickey={2}&secretkey={3}".format(
                 address, str(serverkey),
                 str(keystore.public), str(keystore.secret)
             )
 
         ext_platform_address = Address(vip_address)
-
+        ext_platform_address.identity = sock.identity
         try:
             ext_platform_address.connect(sock)
-            #Form VIP message to send to remote instance
+            # Form VIP message to send to remote instance
             frames = [b'', 'VIP1', b'', b'', b'routing_table', b'hello', b'hello', self._my_instance_name]
             _log.debug("HELLO Sending hello to: {}".format(instance_name))
             self.send_external(instance_name, frames)

@@ -132,7 +132,7 @@ class PubSubService(object):
 
     def peer_add(self, peer):
         #To do
-        self._logger.debug("PUBSUBSERVICE peer add {}".format(peer))
+        temp = {}
 
     def external_platform_add(self, instance_name):
         self._logger.debug("PUBSUBSERVICE send subs external {}".format(instance_name))

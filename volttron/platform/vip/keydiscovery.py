@@ -46,19 +46,22 @@ from __future__ import print_function, absolute_import
 
 import logging
 import requests
-import gevent
 import random
+import os
+import grequests
+from datetime import datetime, timedelta
+from zmq import ZMQError
+from zmq.utils import jsonapi
+from gevent.lock import Semaphore
 
 from volttron.platform.agent import utils
 from .agent import Agent, Core, RPC
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
-from zmq.utils import jsonapi
 from urlparse import urlparse, urljoin
 from gevent.fileobject import FileObject
-from datetime import datetime, timedelta
-from zmq import ZMQError
-import grequests
+from volttron.utils.persistance import PersistentDict
+
 
 _log = logging.getLogger(__name__)
 
@@ -72,9 +75,11 @@ class DiscoveryError(StandardError):
 
 class KeyDiscoveryAgent(Agent):
     """
-    Class to get server keys of external/remote platforms
+    Class to get server key, instance name and vip address of external/remote platforms
     """
-    def __init__(self, address, serverkey, identity, external_address_config, bind_web_address, *args, **kwargs):
+
+    def __init__(self, address, serverkey, identity, external_address_config,
+                 setup_mode, bind_web_address, *args, **kwargs):
         super(KeyDiscoveryAgent, self).__init__(identity, address, **kwargs)
         self._external_address_file = external_address_config
         self._ext_addresses = dict()
@@ -82,11 +87,17 @@ class KeyDiscoveryAgent(Agent):
         self._vip_socket = None
         self._my_web_address = bind_web_address
         self.r = random.random()
+        self._setup_mode = setup_mode
+        _log.debug("RUNNING IN MULTI-PLATFORM SETUP MODE")
+        self._store_path = os.path.join(os.environ['VOLTTRON_HOME'],
+                                        'configuration_store', 'external_platform_discovery.json')
+        self._ext_addresses_store = dict()
+        self._ext_addresses_store_lock = Semaphore()
 
     @Core.receiver('onstart')
     def startup(self, sender, **kwargs):
         """
-        Try to get server keys of all the remote platforms. If unsuccessful, setup events to try again later
+        Try to get platform discovery info of all the remote platforms. If unsuccessful, setup events to try again later
         :param sender: caller
         :param kwargs: optional arguments
         :return:
@@ -95,58 +106,90 @@ class KeyDiscoveryAgent(Agent):
         if self._my_web_address is None:
             _log.error("Web address is NOT set")
             return
-        try:
-            self._read_platform_address_file()
-        except IOError as exc:
-            return
-        try:
-            addresses = jsonapi.dumps(self._ext_addresses)
-            frames = [b'external_addresses', bytes(addresses)]
+        #If in setup mode, read the external_addresses.json to get web addresses to set up authorized connection with
+        # external platforms.
+        if self._setup_mode:
+            with self._ext_addresses_store_lock:
+                self._ext_addresses_store = PersistentDict(filename=self._store_path, flag='c', format='json')
+                #Delete the existing store.
+                if self._ext_addresses_store:
+                    self._ext_addresses_store.clear()
+                    self._ext_addresses_store.async_sync()
+            web_addresses = dict()
+            #Read External web addresses file
+            try:
+                web_addresses = self._read_platform_address_file()
+                web_addresses.remove(self._my_web_address)
+                op = b'web-addresses'
+                self._send_to_router(op, web_addresses)
+            except IOError as exc:
+                _log.error("Error in reading file: {}".format(exc))
+                return
+            sec = random.random() * self.r + 10
+            delay = utils.get_aware_utc_now() + timedelta(seconds=sec)
+            grnlt = self.core.schedule(delay, self._key_collection, web_addresses)
+        else:
+            #Use the existing store for platform discovery information
+            with self._ext_addresses_store_lock:
+                self._ext_addresses_store = PersistentDict(filename=self._store_path, flag='c', format='json')
+                for web_address, discovery_info in self._ext_addresses_store.items():
+                    op = b'normalmode_platform_connection'
+                    self._send_to_router(op, discovery_info)
 
-            self._vip_socket.send_vip(b'', 'routing_table', frames, copy=False)
-        except ZMQError as ex:
-            # Try sending later
-            _log.error("ZMQ error: {}".format(ex))
-        sec = random.random()*self.r + 10
-        delay = utils.get_aware_utc_now() + timedelta(seconds=sec)
-        grnlt = self.core.schedule(delay, self._key_collection)
-
-    def _key_collection(self):
-        for name, value in self._ext_addresses.iteritems():
-            if value['bind-web-address'] not in self._my_web_address:
-                web_address = value['bind-web-address']
-                self._collect_key(name, web_address)
-
-    def _collect_key(self, name, web_address):
+    def _key_collection(self, web_addresses):
         """
-        Try to get serverkey of remote instance and send it to RoutingService to connect to the remote instance.
-        If unsuccessful, try again later.
+        Collect platform discovery information (server key, instance name, vip-address) for all platforms.
+        :param web_addresses: List of web addresses to get discovery info
+        :return:
+        """
+        for web_address in web_addresses:
+            if web_address not in self._my_web_address:
+                self._collect_key(web_address)
+
+    def _collect_key(self, web_address):
+        """
+        Try to get (server key, instance name, vip-address) of remote instance and send it to RoutingService
+        to connect to the remote instance. If unsuccessful, try again later.
         :param name: instance name
         :param web_address: web address of remote instance
         :return:
         """
-        serverkey = ''
+        platform_info = dict()
 
         try:
-            serverkey = self._get_serverkey(web_address)
+            platform_info = self._get_platform_discovery(web_address)
+            with self._ext_addresses_store_lock:
+                self._ext_addresses_store[web_address] = platform_info
+                self._ext_addresses_store.async_sync()
         except DiscoveryError:
             # If discovery error, try again later
-            sec = random.random()*self.r + 30
+            sec = random.random() * self.r + 30
             delay = utils.get_aware_utc_now() + timedelta(seconds=sec)
-            grnlet = self.core.schedule(delay, self._collect_key, name, web_address)
+            grnlet = self.core.schedule(delay, self._collect_key, web_address)
         except ConnectionError as e:
             _log.error("HTTP connection error {}".format(e))
 
+        #If platform discovery is successful, send the info to RoutingService
+        #to establish connection with remote platform.
+        if platform_info:
+            op = b'setupmode_platform_connection'
+            platform_info['web-address'] = web_address
+            self._send_to_router(op, platform_info)
 
-        # /if serverykey found, send the key to RoutingService to establish socket connection with remote platform
-        if serverkey:
-            frames = [b'external_serverkey', bytes(serverkey), name]
-            try:
-                self._vip_socket.send_vip(b'', 'routing_table', frames, copy=False)
-            except ZMQError as ex:
-                #Try sending later
-                _log.error("ZMQ error: {}".format(ex))
+    def _send_to_router(self, op, platform_info):
+        """
+        Send the platform discovery stats to the router to establish new connection
+        :param platform_info: platform discovery stats
+        :return:
+        """
+        address = jsonapi.dumps(platform_info)
 
+        frames = [op, address]
+        try:
+            self._vip_socket.send_vip(b'', 'routing_table', frames, copy=False)
+        except ZMQError as ex:
+            # Try sending later
+            _log.error("ZMQ error: {}".format(ex))
 
     def _read_platform_address_file(self):
         """
@@ -158,7 +201,9 @@ class KeyDiscoveryAgent(Agent):
             with open(self._external_address_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
                 data = FileObject(fil, close=False).read()
-                self._ext_addresses = jsonapi.loads(data) if data else {}
+                web_addresses = jsonapi.loads(data) if data else {}
+                _log.debug("WEB ADDR: {}".format(web_addresses))
+                return web_addresses
         except IOError as e:
             _log.error("Error opening file {}".format(self._external_address_file))
             raise
@@ -166,9 +211,9 @@ class KeyDiscoveryAgent(Agent):
             _log.exception('error loading %s', self._external_address_file)
             raise
 
-    def _get_serverkey(self, web_address):
+    def _get_platform_discovery(self, web_address):
         """
-        Use http discovery call to get serverkey of remote instance
+        Use http discovery call to get serverkey, instance name and vip-address of remote instance
         :param web_address: web address of remote instance
         :return:
         """
@@ -185,7 +230,7 @@ class KeyDiscoveryAgent(Agent):
             responses = grequests.map([req])
             responses[0].raise_for_status()
             r = responses[0].json()
-            return r['serverkey']
+            return r
         except requests.exceptions.HTTPError:
             raise DiscoveryError(
                     "Invalid discovery response from {}".format(real_url)
@@ -207,3 +252,4 @@ class KeyDiscoveryAgent(Agent):
             raise DiscoveryError(
                 "Unknown Exception".format(e.message)
             )
+
