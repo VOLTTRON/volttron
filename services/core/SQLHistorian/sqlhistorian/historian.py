@@ -294,6 +294,8 @@ class SQLHistorian(BaseHistorian):
         elif isinstance(topic, list):
             topics_list = topic
 
+        multi_topic_query = len(topics_list) > 1
+
         topic_ids = []
         id_name_map = {}
         for topic in topics_list:
@@ -325,13 +327,12 @@ class SQLHistorian(BaseHistorian):
 
         _log.debug(
             "Querying db reader with topic_ids {} ".format(topic_ids))
-        multi_topic_query = len(topic_ids) > 1
 
         values = self.main_thread_dbutils.query(
             topic_ids, id_name_map, start=start, end=end, agg_type=agg_type,
             agg_period=agg_period, skip=skip, count=count, order=order)
         metadata = {}
-
+        meta_tid = None
         if len(values) > 0:
             # If there are results add metadata if it is a query on a
             # single topic
@@ -341,26 +342,23 @@ class SQLHistorian(BaseHistorian):
                     # if aggregation is on single topic find the topic id
                     # in the topics table that corresponds to agg_topic_id
                     # so that we can grab the correct metadata
+                    # if topic name does not have entry in topic_id_map
+                    # it is a user configured aggregation_topic_name
+                    # which denotes aggregation across multiple points
                     _log.debug("Single topic aggregate query. Try to get "
                                "metadata")
-                    tid = self.topic_id_map.get(topic.lower(), None)
-                    if tid:
-                        _log.debug("aggregation of a single topic, "
-                                   "found topic id in topic map. "
-                                   "topic_id={}".format(tid))
-                        metadata = self.topic_meta.get(tid, {})
-                    else:
-                        # if topic name does not have entry in topic_id_map
-                        # it is a user configured aggregation_topic_name
-                        # which denotes aggregation across multiple points
-                        metadata = {}
+                    meta_tid = self.topic_id_map.get(topic.lower(), None)
                 else:
                     # this is a query on raw data, get metadata for
                     # topic from topic_meta map
-                    metadata = self.topic_meta.get(topic_ids[0], {})
-            return {'values': values, 'metadata': metadata}
-        else:
-            results = dict()
+                    meta_tid = topic_ids[0]
+
+            if values:
+                metadata = self.topic_meta.get(meta_tid, {})
+                _log.debug("metadata is {}".format(metadata))
+                results = {'values': values, 'metadata': metadata}
+            else:
+                results = dict()
         return results
 
     @doc_inherit

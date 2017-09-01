@@ -55,94 +55,32 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+"""
+Wrapper around UJSON to protect against NaN values and also to
+increase the performance involved in serialization and
+deserialization of data.
+"""
 
-""" Core package."""
+try:
+    import ujson
+    from zmq.utils.strtypes import bytes, unicode
+    from zmq.utils.jsonapi import dumps as _dumps, loads as _loads
+    def dumps(data):
+        try:
+            s = ujson.dumps(data, double_precision=15)
+            if isinstance(s, unicode):
 
-import logging
-import os
-import psutil
-import sys
+                s = s.encode('utf8')
+            return s
+        except:
+            return _dumps(data)
+    def loads(s):
+        try:
+            if str is unicode and isinstance(s, bytes):
+                s = s.decode('utf8')
+            return ujson.loads(s, precise_float=True)
+        except:
+            return _loads(s)
+except ImportError:
+    from zmq.utils.jsonapi import dumps, loads
 
-__version__ = '4.5.1'
-
-
-def set_home(home=None):
-    """ Set the home directory with user and variables expanded.
-
-    If the home is sent in, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    """
-    os.environ["VOLTTRON_HOME"] = home or get_home()
-
-
-def get_home():
-    """ Return the home directory with user and variables expanded.
-
-    If the VOLTTRON_HOME environment variable is set, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    """
-
-    vhome = os.path.abspath(
-        os.path.normpath(
-            os.path.expanduser(
-                os.path.expandvars(
-                    os.environ.get('VOLTTRON_HOME', '~/.volttron')))))
-    if vhome.endswith('/'):
-        vhome = vhome[:-1]
-        if os.environ.get('VOLTTRON_HOME') is not None:
-            log = logging.getLogger('volttron')
-            log.warn("Removing / from the end of VOLTTRON_HOME")
-            os.environ['VOLTTRON_HOME'] = vhome
-    return vhome
-
-
-def get_address():
-    """Return the VIP address of the platform
-    If the VOLTTRON_VIP_ADDR environment variable is set, it used.
-    Otherwise, it is derived from get_home()."""
-    address = os.environ.get('VOLTTRON_VIP_ADDR')
-    if not address:
-        abstract = '@' if sys.platform.startswith('linux') else ''
-        address = 'ipc://%s%s/run/vip.socket' % (abstract, get_home())
-
-    return address
-
-
-def get_volttron_root():
-    """
-    Returns the root folder where the volttron code base resideds on disk.
-
-    :return: absolute path to root folder
-    """
-    return os.path.dirname(
-        os.path.dirname(
-            os.path.dirname(
-                os.path.abspath(__file__)
-            )
-        )
-    )
-
-
-def is_instance_running(volttron_home=None):
-    from zmq.utils import jsonapi
-
-    if volttron_home is None:
-        volttron_home = get_home()
-
-    instance_file = os.path.expanduser("~/.volttron_instances")
-    if not os.path.isfile(instance_file):
-        return False
-
-    with open(instance_file, 'r') as fp:
-        jsonobj = jsonapi.loads(fp.read())
-
-    if volttron_home not in jsonobj:
-        return False
-
-    obj = jsonobj[volttron_home]
-    pid = obj.get('pid', None)
-
-    if not pid:
-        return False
-
-    return psutil.pid_exists(pid)

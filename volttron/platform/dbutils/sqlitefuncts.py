@@ -288,12 +288,15 @@ class SqlLiteFuncts(DbDriver):
         values = defaultdict(list)
         start_t = datetime.utcnow()
         for topic_id in topic_ids:
+            args[0] = topic_id
+            values[id_name_map[topic_id]] = []
             cursor = self.select(real_query, args, fetch_all=False)
             if cursor:
                 for _id, ts, value in cursor:
                     values[id_name_map[topic_id]].append(
                         (utils.format_timestamp(ts), jsonapi.loads(value)))
                 cursor.close()
+
         _log.debug("Time taken to load results from db:{}".format(
             datetime.utcnow()-start_t))
         return values

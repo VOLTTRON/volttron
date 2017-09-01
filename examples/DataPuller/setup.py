@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2016, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,96 +53,40 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 # }}}
 
+from setuptools import setup, find_packages
+from os import path
 
-""" Core package."""
+MAIN_MODULE = 'agent'
 
-import logging
-import os
-import psutil
-import sys
+# Find the agent package that contains the main module
+packages = find_packages('.')
+agent_package = ''
+for package in find_packages():
+    # Because there could be other packages such as tests
+    if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
+        agent_package = package
+if not agent_package:
+    raise RuntimeError('None of the packages under {dir} contain the file '
+                       '{main_module}'.format(main_module=MAIN_MODULE + '.py',
+                                              dir=path.abspath('.')))
 
-__version__ = '4.5.1'
+# Find the version number from the main module
+agent_module = agent_package + '.' + MAIN_MODULE
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
+__version__ = _temp.__version__
 
-
-def set_home(home=None):
-    """ Set the home directory with user and variables expanded.
-
-    If the home is sent in, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    """
-    os.environ["VOLTTRON_HOME"] = home or get_home()
-
-
-def get_home():
-    """ Return the home directory with user and variables expanded.
-
-    If the VOLTTRON_HOME environment variable is set, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    """
-
-    vhome = os.path.abspath(
-        os.path.normpath(
-            os.path.expanduser(
-                os.path.expandvars(
-                    os.environ.get('VOLTTRON_HOME', '~/.volttron')))))
-    if vhome.endswith('/'):
-        vhome = vhome[:-1]
-        if os.environ.get('VOLTTRON_HOME') is not None:
-            log = logging.getLogger('volttron')
-            log.warn("Removing / from the end of VOLTTRON_HOME")
-            os.environ['VOLTTRON_HOME'] = vhome
-    return vhome
-
-
-def get_address():
-    """Return the VIP address of the platform
-    If the VOLTTRON_VIP_ADDR environment variable is set, it used.
-    Otherwise, it is derived from get_home()."""
-    address = os.environ.get('VOLTTRON_VIP_ADDR')
-    if not address:
-        abstract = '@' if sys.platform.startswith('linux') else ''
-        address = 'ipc://%s%s/run/vip.socket' % (abstract, get_home())
-
-    return address
-
-
-def get_volttron_root():
-    """
-    Returns the root folder where the volttron code base resideds on disk.
-
-    :return: absolute path to root folder
-    """
-    return os.path.dirname(
-        os.path.dirname(
-            os.path.dirname(
-                os.path.abspath(__file__)
-            )
-        )
-    )
-
-
-def is_instance_running(volttron_home=None):
-    from zmq.utils import jsonapi
-
-    if volttron_home is None:
-        volttron_home = get_home()
-
-    instance_file = os.path.expanduser("~/.volttron_instances")
-    if not os.path.isfile(instance_file):
-        return False
-
-    with open(instance_file, 'r') as fp:
-        jsonobj = jsonapi.loads(fp.read())
-
-    if volttron_home not in jsonobj:
-        return False
-
-    obj = jsonobj[volttron_home]
-    pid = obj.get('pid', None)
-
-    if not pid:
-        return False
-
-    return psutil.pid_exists(pid)
+# Setup
+setup(
+    name=agent_package + 'agent',
+    version=__version__,
+    install_requires=['volttron'],
+    packages=packages,
+    entry_points={
+        'setuptools.installation': [
+            'eggsecutable = ' + agent_module + ':main',
+        ]
+    }
+)
