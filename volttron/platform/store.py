@@ -317,6 +317,8 @@ class ConfigStoreService(Agent):
             except MethodNotFound as e:
                 _log.error(
                     "Agent {} failure when performing initial update: {}".format(identity, e))
+            except errors.VIPError as e:
+                _log.error("VIP Error sending initial agent configuration: {}".format(e))
 
         # If the store is empty (and nothing jumped in and added to it while we
         # were informing the agent) then remove it from the global store.
