@@ -83,14 +83,14 @@ class MarketRegistration(object):
 
         {'trigger': 'received_request_reservations', 'source': OFFER_WAIT, 'dest': REGISTRATION_WAIT},
         {'trigger': 'received_request_offers', 'source': OFFER_WAIT, 'dest': OFFER_WAIT},
-        {'trigger': 'success_offers', 'source': OFFER_WAIT, 'dest': PRICE_WAIT},
-        {'trigger': 'fail_offers', 'source': OFFER_WAIT, 'dest': REGISTRATION_WAIT},
+        {'trigger': 'success_offer', 'source': OFFER_WAIT, 'dest': PRICE_WAIT},
+        {'trigger': 'fail_offer', 'source': OFFER_WAIT, 'dest': REGISTRATION_WAIT},
         {'trigger': 'received_report_aggregate', 'source': OFFER_WAIT, 'dest': OFFER_WAIT},
         {'trigger': 'received_report_price', 'source': OFFER_WAIT, 'dest': REGISTRATION_WAIT},
 
         {'trigger': 'received_request_reservations', 'source': AGGREGATE_WAIT, 'dest': REGISTRATION_WAIT},
         {'trigger': 'received_request_offers', 'source': AGGREGATE_WAIT, 'dest': AGGREGATE_WAIT},
-        {'trigger': 'success_offers', 'source': AGGREGATE_WAIT, 'dest': PRICE_WAIT},
+        {'trigger': 'success_offer', 'source': AGGREGATE_WAIT, 'dest': PRICE_WAIT},
         {'trigger': 'received_report_aggregate', 'source': AGGREGATE_WAIT, 'dest': OFFER_WAIT},
         {'trigger': 'received_report_price', 'source': AGGREGATE_WAIT, 'dest': REGISTRATION_WAIT},
 

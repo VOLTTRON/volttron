@@ -59,7 +59,6 @@
 import logging
 
 from volttron.platform.agent import utils
-from volttron.platform.messaging.topics import MARKET_AGGREGATE, MARKET_CLEAR, MARKET_ERROR, MARKET_RECORD
 from market_service.market import Market
 
 _log = logging.getLogger(__name__)
