@@ -1,2 +1,0 @@
-The following library is required to use this historian and will need to be added to setup.py for the platform: 
-    'Smap==2.0.24c780d',
