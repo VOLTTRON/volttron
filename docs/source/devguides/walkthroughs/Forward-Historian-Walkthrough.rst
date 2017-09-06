@@ -1,56 +1,68 @@
+.. _Forward-Historian-Walkthrough:
+
 Forward Historian Walkthrough
 =============================
 
-This guide describes a simple setup where one Volttron instance collects
-data from a dummy driver and sends it to another instance where it can
-be recorded.
+This guide describes a simple setup where one VOLTTRON instance collects
+data from a fake devices and sends to another instance . Lets consider the
+following example.
 
-I'm doing this example on a single machine. If you're doing the same I
-recommend the following:
+We are going to create two VOLTTRON instances and send data from one VOLTTRON 
+instance running a fake driver(subscribing values from a fake device)and sending
+the values to the second VOLTTRON instance.
 
--  Set your Volttrons' vip addresses to use tcp. It's not needed but is
-   closer to what a real deployment would have. If you're looking for
-   open ports then ``$ netstat -ln --tcp`` will be helpful.
--  Be careful with your terminal windows' environment variables. At
-   least one of your Volttron instances won't be able to live in
-   ``~/.volttron``
--  If you run into trouble it can be helpful to run each agent in the
-   foreground of its own terminal. This can be accomplished with the
-   following:
+VOLTTRON instance 1 forwards data to VOLTTRON instance 2
+--------------------------------------------------------
 
-   -  Go to the agent's source directory
-   -  Locate the agent's configuration file and the python file with a
-      main function (frequently called agent.py)
-   -  For the forwarding historian, the default config file is in the
-      ``services/core/ForwardHistorian`` directory and its ``agent.py``
-      file is at ``services/core/ForwardHistorian/forwarder/agent.py``
-   -  Use ``$ AGENT_CONFIG=config python -m forwarder.agent`` (no
-      ``.py``!) to run the forwarding historian in the foreground.
+VOLTTRON INSTANCE 1 
+~~~~~~~~~~~~~~~~~~~
+- ``volttron-ctl shutdown --platform`` (If VOLTTRON is already running it must be shut down before running ``volttron-cfg``).
+- ``volttron-cfg`` - this helps in configuring the VOLTTRON instance(:ref:`VOLTTRON Config <VOLTTRON-Config>`).
 
-Configuration
--------------
+  - Specify the IP of the machine : ``tcp://127.0.0.1:22916``.
+  - Specify the port you want to use.
+  - Specify if you want to run VC ( VOLTTRON Central) here or this this instance would be controlled by a VC and the IP and port of the VC.
+- Then start the VOLTTRON instance by : ``volttron -vv & > volttron.log&``.
+- Then install agents like Master driver Agent with fake driver agent for the instance.
+- Install a listener agent so see the topics that are coming from the diver agent.
+- VOLTTRON authentication : We need to add the IP of the instance 1 in the auth.config file of the VOLTTRON agent .This is done as follow :
 
-#. Set up two Volttron instances as described in :ref:`Deployment Walkthrough <Deployment-Walkthrough>`
-#. Add the forwarder's public key to the target platform's auth file. :ref:`VIP Authentication <Vip-Authentication>`
+  - ``volttron-ctl auth-add``
+  - We specify the IP of the instance 1 and the credentials of the agent.(:ref:`Agent authentication walkthrough <AgentAuthentication>`)
+  - For specifying authentication for all the agents , we specify ``/.*/`` for credentials as shown in :ref:`Agent Development<Agent_Development>`.
+  - This should enable authentication for all the VOLTTRON instances based on the IP you specify here .
 
-Forwarding Volttron
+For this documentation, the topics from the driver agent will be sent to the instance 2
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- We use the existing agent called the Forward Historian for this purpose which is available in ``service/core`` in the VOLTTRON directory.
+- In the config file under the ForwardHistorian directory , we modify the following field:
+
+  - destination-vip : the IP of the VOLTTRON instance to which we have to forward the data to along with the port number . Example : ``tcp://130.20.*.*:22916``.
+  - destination-serverkey: The server key of the VOLTTRON instance to which we need to forward the data to. This can be obtained at the VOLTTRON instance by typing ``volttron-ctl auth serverkey``.
+  - service_topic_list: specify the topics you want to forward specifically instead of all the values.
+- Once the above values are set, your forwarder is all set .
+- You can create a script file for the same and execute the agent.
+
+VOLTTRON INSTANCE 2
 ~~~~~~~~~~~~~~~~~~~
 
-This Volttron will have a fake driver provided by the `Master
-Driver <Master-Driver-Agent>`__ and a `Forwarding
-Historian <Forward-Historian>`__. You may have to edit these
-configuration files before starting them:
+- ``volttron-ctl shutdown --platform`` (If VOLTTRON is already running it must be shut down before running ``volttron-cfg``).
+- ``volttron-cfg`` - this helps in configuring the VOLTTRON instance.(:ref:`VOLTTRON Config <VOLTTRON-Config>`)
+  - Specify the IP of the machine : ``tcp://127.0.0.1:22916``.
+  - Specify the port you want to use.
+  - Install the listener agent (this will show the connection from instance 1 if its successful and then show all the topics from instance 1.
+- Then start the VOLTTRON instance by : ``volttron -vv & > volttron.log&``.
+- VOLTTRON authentication : We need to add the IP of the instance 1 in the auth.config file of the VOLTTRON agent .This is done as follow :
 
-::
+  - ``volttron-ctl auth-add``
+  - We specify the IP of the instance 1 and the credentials of the agent.(:ref:`Agent authentication walkthrough <AgentAuthentication>`)
+  - For specifying authentication for all the agents , we specify ``/.*/`` for credentials as shown in :ref:`Agent Development<Agent_Development>`.
+  - This should enable authentication for all the VOLTTRON instances based on the IP you specify here .
 
-    services/core/ForwardHistorian/config
-    services/core/MasterDriverAgent/fake-msater-driver.agent
-    services/core/MasterDriverAgent/master_driver/test_fakedriver.config
+LISTENER AGENT
 
-Remote Volttron
-~~~~~~~~~~~~~~~
+- Run the listener agent on this instance to see the values being forwarded from instance 1.
 
-This Volttron will receive the history sent from the Volttron instance
-we've already set up. Having a `Listener Agent <ListenerAgent>`__
-running in the foreground (``scripts/launch_listener.sh``) will make it
-easy to verify that the data has been successfully received.
+Once the above setup is done, you should be able to see the values from instance 1 on the listener agent of instance 2.
+
+
