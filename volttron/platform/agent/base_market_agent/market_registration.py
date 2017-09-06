@@ -186,7 +186,6 @@ class MarketRegistration(object):
             self.received_error_report()
         if self.error_callback is not None:
             self.error_callback(timestamp, self.market_name, self.buyer_seller, error_message)
-        self.change_state(REGISTRATION_WAIT, "we got an error message")
 
     def reportable_error(self, error_message):
         # We need to decide what messages return us to the default start state.
