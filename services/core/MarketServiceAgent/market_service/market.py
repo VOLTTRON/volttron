@@ -128,10 +128,11 @@ class Market(object):
 
     def make_reservation(self, participant):
         self.receive_reservation()
+        market_already_formed = self.has_market_formed()
         if self.state not in [ACCEPT_RESERVATIONS, ACCEPT_RESERVATIONS_HAS_FORMED]:
             raise MarketFailureError(self.market_name, self.state, 'reservations')
         self.reservations.make_reservation(participant)
-        if self.has_market_formed():
+        if not market_already_formed and self.has_market_formed():
             self.market_forms()
 
 
