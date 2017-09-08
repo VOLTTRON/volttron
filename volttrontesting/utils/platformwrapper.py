@@ -404,7 +404,7 @@ class PlatformWrapper:
                 self.bind_web_address)
 
             # Only available if vc is installed!
-            self.jsonrpc_endpoint = "{}/jsonrpc".format(
+            self.jsonrpc_endpoint = "{}/vc/jsonrpc".format(
                 self.bind_web_address)
 
         msgdebug = self.env.get('MSG_DEBUG', False)
