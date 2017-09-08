@@ -394,7 +394,7 @@ class MySqlFuncts(DbDriver):
             else:
                 raise
 
-    def find_topics_by_pattern(self, topic_pattern):
+    def query_topics_by_pattern(self, topic_pattern):
         q = "SELECT topic_id, topic_name FROM " + self.topics_table + \
             " WHERE lower(topic_name) REGEXP lower('" + topic_pattern + "');"
 
@@ -402,7 +402,7 @@ class MySqlFuncts(DbDriver):
         _log.debug("loading topic map from db")
         id_map = dict()
         for t, n in rows:
-            id_map[n.lower()] = t
+            id_map[n] = t
         _log.debug("topics that matched the pattern {} : {}".format(
             topic_pattern, id_map))
         return id_map

@@ -167,7 +167,8 @@ class MessageDebuggerAgent(Agent):
                 # Un-comment the following line to watch the message stream flow by in the log...
                 # _log.debug('{}'.format(debug_message))
 
-                self.store_debug_message(debug_message)
+                if self._debug_session:
+                    self.store_debug_message(debug_message)
 
                 if self._streaming_messages and self.allowed_by_filters(debug_message, ignore_session_id=True):
                     # Re-publish the DebugMessage (as json) for MessageViewer real-time consumption

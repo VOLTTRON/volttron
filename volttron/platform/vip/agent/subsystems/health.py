@@ -168,7 +168,7 @@ class Health(SubsystemBase):
         """
         return self._statusobj.as_dict() #.as_json()
 
-    def get_status_json(self):
+    def  get_status_json(self):
         """"RPC method
 
         Returns the last updated status from the object with the context.
