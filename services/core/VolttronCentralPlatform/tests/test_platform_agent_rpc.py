@@ -164,7 +164,7 @@ def test_can_get_version(setup_platform, vc_agent):
 
     import subprocess, os
     script = "scripts/get_versions.py"
-    python = "env/bin/python"
+    python = "python"
     args = [python, script]
 
     response = subprocess.check_output(args=[python, script],
@@ -183,6 +183,7 @@ def test_can_get_version(setup_platform, vc_agent):
     # version = setup_platform.call('agent.version', timeout=2)
     assert version is not None
     assert version == expected_version
+
 
 @pytest.mark.vcp
 def test_can_change_topic_map(setup_platform, vc_agent):
