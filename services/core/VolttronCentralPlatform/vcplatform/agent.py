@@ -96,7 +96,7 @@ from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.web import DiscoveryInfo, DiscoveryError
 from .bacnet_proxy_reader import BACnetReader
 
-__version__ = '4.5'
+__version__ = '4.5.1'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)

@@ -4,6 +4,7 @@ import pytest
 
 import gevent
 
+from volttron.platform import get_volttron_root
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, \
     CONFIGURATION_STORE
 from volttron.platform.jsonrpc import RemoteError, UNAUTHORIZED
@@ -161,13 +162,27 @@ def test_can_get_version(setup_platform, vc_agent):
     # split vc_agent into it's respective parts.
     vc, vcp_identity = vc_agent
 
+    import subprocess, os
+    script = "scripts/get_versions.py"
+    python = "env/bin/python"
+    args = [python, script]
+
+    response = subprocess.check_output(args=[python, script],
+                                       cwd=get_volttron_root())
+    expected_version = None
+    for line in response.split("\n"):
+        agent, version = line.strip().split(',')
+        if "VolttronCentralPlatform" in agent:
+            expected_version = version
+            break
+
     # Note this is using vcp because it has the version info not the
     # vcp_identity
     version = vc.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
                                'agent.version').get(timeout=STANDARD_GET_TIMEOUT)
     # version = setup_platform.call('agent.version', timeout=2)
     assert version is not None
-    assert version == '4.4'
+    assert version == expected_version
 
 @pytest.mark.vcp
 def test_can_change_topic_map(setup_platform, vc_agent):
