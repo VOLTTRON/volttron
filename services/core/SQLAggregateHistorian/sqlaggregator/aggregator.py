@@ -114,9 +114,6 @@ class SQLAggregateHistorian(AggregateHistorian):
     def get_agg_topic_map(self):
         return self.dbfuncts_class.get_agg_topic_map()
 
-    def find_topics_by_pattern(self, topic_pattern):
-        return self.dbfuncts_class.find_topics_by_pattern(topic_pattern)
-
     def get_aggregation_list(self):
         if self.dbfuncts_class:
             return self.dbfuncts_class.get_aggregation_list()

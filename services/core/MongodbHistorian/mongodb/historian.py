@@ -946,6 +946,20 @@ class MongodbHistorian(BaseHistorian):
         return res
 
     @doc_inherit
+    def query_topics_by_pattern(self, topics_pattern):
+        _log.debug("In query topics by pattern")
+        db = self._client.get_default_database()
+        topics_pattern = topics_pattern.replace('/', '\/')
+        pattern = {'topic_name': {'$regex': topics_pattern, '$options': 'i'}}
+        cursor = db[self._topic_collection].find(pattern)
+        topic_id_map = dict()
+        for document in cursor:
+            topic_id_map[document['topic_name']] = str(document[
+                '_id'])
+        _log.debug("Returning topic map :{}".format(topic_id_map))
+        return topic_id_map
+
+    @doc_inherit
     def query_topics_metadata(self, topics):
 
         meta = {}
