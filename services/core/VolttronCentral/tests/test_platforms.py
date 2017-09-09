@@ -52,7 +52,8 @@ def test_platform_scan():
     vc.vip = vipmock
     vc.core = coremock
 
-    vc._scan_for_platforms()
+    # scanning of platform test starts here.
+    vc._scan_platform_connect_disconnect()
     assert len(vc._platforms.get_platform_keys()) == 2
     assert "vcp-1" in vc._platforms.get_platform_keys()
     assert "vcp-2" in vc._platforms.get_platform_keys()

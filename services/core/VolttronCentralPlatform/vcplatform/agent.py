@@ -167,8 +167,6 @@ def normalize_id(data):
 
 
 class VolttronCentralPlatform(Agent):
-    __name__ = 'VolttronCentralPlatform'
-
 
     def __init__(self, reconnect_interval, vc_address,
                  vc_serverkey, instance_name, stats_publish_interval,
