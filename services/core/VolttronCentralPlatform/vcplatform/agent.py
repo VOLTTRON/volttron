@@ -81,7 +81,7 @@ from .vcconnection import VCConnection
 
 from volttron.platform import jsonrpc
 from volttron.platform.agent.utils import (get_utc_seconds_from_epoch,
-                                           format_timestamp)
+                                           format_timestamp, normalize_identity)
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, CONTROL, CONFIGURATION_STORE)
@@ -96,7 +96,7 @@ from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.web import DiscoveryInfo, DiscoveryError
 from .bacnet_proxy_reader import BACnetReader
 
-__version__ = '4.5.1'
+__version__ = '4.5.2'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -151,19 +151,6 @@ def vcp_init(config_path, **kwargs):
                                    device_status_interval=device_status_interval,
                                    **kwargs)
 
-
-# All valid characters for identities should be in this string
-valid_string_values = string.letters + '-_0123456789'
-
-
-def normalize_id(data):
-    response = ''
-    for c in data:
-        if c not in valid_string_values:
-            response += '_'
-            continue
-        response += c
-    return response
 
 
 class VolttronCentralPlatform(Agent):
@@ -330,7 +317,8 @@ volttron-central-serverkey."""
         else:
             self._instance_name = qry_instance_name
 
-        self._instance_id = 'vcp-{}'.format(normalize_id(self._instance_name))
+        self._instance_id = 'vcp-{}'.format(normalize_identity(
+            self._instance_name))
 
         self._publish_topic = 'platforms/{}'.format(self._instance_id)
 
