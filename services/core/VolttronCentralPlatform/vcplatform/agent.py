@@ -152,7 +152,6 @@ def vcp_init(config_path, **kwargs):
                                    **kwargs)
 
 
-
 class VolttronCentralPlatform(Agent):
 
     def __init__(self, reconnect_interval, vc_address,
@@ -317,8 +316,12 @@ volttron-central-serverkey."""
         else:
             self._instance_name = qry_instance_name
 
-        self._instance_id = 'vcp-{}'.format(normalize_identity(
-            self._instance_name))
+        # Normalize the identity that we are connecting to VC with, however
+        # we are also going to replace the '.' with an '_' so that it
+        # does not confuse our web api.
+        norm_identity = normalize_identity(self._instance_name)
+        norm_identity = norm_identity.replace('.', '_')
+        self._instance_id = 'vcp-{}'.format(norm_identity)
 
         self._publish_topic = 'platforms/{}'.format(self._instance_id)
 
