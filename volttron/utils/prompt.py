@@ -56,97 +56,28 @@
 # }}}
 
 
-""" Core package."""
+import getpass
 
-import logging
-import os
-import psutil
-import sys
+# Yes or no answers to questions.
+y_or_n = ('Y', 'N', 'y', 'n')
+y = ('Y', 'y')
+n = ('N', 'n')
 
-__version__ = '4.5.1'
+def prompt_response(prompt, valid_answers=None, default=None, echo=True):
 
-
-def set_home(home=None):
-    """ Set the home directory with user and variables expanded.
-
-    If the home is sent in, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    """
-    os.environ["VOLTTRON_HOME"] = home or get_home()
-
-
-def get_home():
-    """ Return the home directory with user and variables expanded.
-
-    If the VOLTTRON_HOME environment variable is set, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    """
-
-    vhome = os.path.abspath(
-        os.path.normpath(
-            os.path.expanduser(
-                os.path.expandvars(
-                    os.environ.get('VOLTTRON_HOME', '~/.volttron')))))
-    if vhome.endswith('/'):
-        vhome = vhome[:-1]
-        if os.environ.get('VOLTTRON_HOME') is not None:
-            log = logging.getLogger('volttron')
-            log.warn("Removing / from the end of VOLTTRON_HOME")
-            os.environ['VOLTTRON_HOME'] = vhome
-    return vhome
-
-
-def get_address():
-    """Return the VIP address of the platform
-    If the VOLTTRON_VIP_ADDR environment variable is set, it used.
-    Otherwise, it is derived from get_home()."""
-    address = os.environ.get('VOLTTRON_VIP_ADDR')
-    if not address:
-        abstract = '@' if sys.platform.startswith('linux') else ''
-        address = 'ipc://%s%s/run/vip.socket' % (abstract, get_home())
-
-    return address
-
-
-def get_volttron_root():
-    """
-    Returns the root folder where the volttron code base resideds on disk.
-
-    :return: absolute path to root folder
-    """
-    return os.path.dirname(
-        os.path.dirname(
-            os.path.dirname(
-                os.path.abspath(__file__)
-            )
-        )
-    )
-
-def get_volttron_data():
-    root = get_volttron_root()
-    return os.path.join(root, "volttron_data")
-
-
-def is_instance_running(volttron_home=None):
-    from zmq.utils import jsonapi
-
-    if volttron_home is None:
-        volttron_home = get_home()
-
-    instance_file = os.path.expanduser("~/.volttron_instances")
-    if not os.path.isfile(instance_file):
-        return False
-
-    with open(instance_file, 'r') as fp:
-        jsonobj = jsonapi.loads(fp.read())
-
-    if volttron_home not in jsonobj:
-        return False
-
-    obj = jsonobj[volttron_home]
-    pid = obj.get('pid', None)
-
-    if not pid:
-        return False
-
-    return psutil.pid_exists(pid)
+    prompt += ' '
+    if default is not None:
+        prompt += '[{}]: '.format(default)
+    if echo:
+        while True:
+            resp = raw_input(prompt)
+            if resp == '' and default is not None:
+                return default
+            if valid_answers is None or resp in valid_answers:
+                return resp
+            else:
+                print('Invalid response. Proper responses are:')
+                print(valid_answers)
+    else:
+        resp = getpass.getpass(prompt)
+        return resp
