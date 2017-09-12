@@ -120,10 +120,11 @@ class MarketAgent(Agent):
     @PubSub.subscribe('pubsub', MARKET_ERROR)
     def match_report_error(self, peer, sender, bus, topic, headers, message):
         timestamp = utils.parse_timestamp_string(message[0])
-        error_message = message[1]
-        decoded_message = "Timestamp: {} Message: {}".format(timestamp, error_message)
+        market_name = message[1]
+        error_message = message[2]
+        decoded_message = "Timestamp: {} Market: {} Message: {}".format(timestamp, market_name, error_message)
         self.log_event("match_report_error", peer, sender, bus, topic, headers, decoded_message)
-        self.registrations.report_error(timestamp, error_message)
+        self.registrations.report_error(timestamp, market_name, error_message)
 
     def log_event(self, method_name, peer, sender, bus, topic, headers, decoded_message):
         _log.debug("{} Peer: {} Sender: {} Bus: {} Topic: {} Headers: {} Message: {}".format(method_name, peer, sender, bus, topic, headers, decoded_message))

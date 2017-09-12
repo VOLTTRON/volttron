@@ -169,12 +169,12 @@ class MarketRegistration(object):
         self.has_reservation = False
         self.received_report_price()
 
-    def report_aggregate(self, timestamp, aggregate_curve):
+    def report_aggregate(self, timestamp, buyer_seller, aggregate_curve):
         entry_state = self.state
         self.received_report_aggregate()
         if entry_state in [AGGREGATE_WAIT, OFFER_WAIT, PRICE_WAIT]:
             if entry_state == AGGREGATE_WAIT and self.has_reservation and self.aggregate_callback is not None:
-                offer_accepted= self.aggregate_callback(timestamp, self.market_name, self.buyer_seller, aggregate_curve)
+                offer_accepted= self.aggregate_callback(timestamp, self.market_name, buyer_seller, aggregate_curve)
                 if offer_accepted:
                     error_message = None
                 else:

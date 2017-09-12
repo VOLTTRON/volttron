@@ -156,7 +156,7 @@ class Market(object):
                 timestamp_string = utils.format_timestamp(timestamp)
                 self.publish(peer='pubsub',
                              topic=MARKET_AGGREGATE,
-                             message=[timestamp_string, aggregate_curve.tuppleize()])
+                             message=[timestamp_string, self.market_name, participant.buyer_seller, aggregate_curve.tuppleize()])
             if self.is_market_done():
                 self.clear_market()
 
@@ -183,14 +183,14 @@ class Market(object):
         timestamp_string = utils.format_timestamp(timestamp)
         self.publish(peer='pubsub',
                      topic=MARKET_CLEAR,
-                     message=[timestamp_string, quantity, price])
+                     message=[timestamp_string, self.market_name, quantity, price])
         self.publish(peer='pubsub',
                      topic=MARKET_RECORD,
-                     message=[timestamp_string, quantity, price])
+                     message=[timestamp_string, self.market_name, quantity, price])
         if error_message is not None:
             self.publish(peer='pubsub',
                          topic=MARKET_ERROR,
-                         message=[timestamp_string, error_message])
+                         message=[timestamp_string, self.market_name, error_message])
 
     def has_market_formed(self):
         return self.reservations.has_market_formed()

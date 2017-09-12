@@ -93,15 +93,18 @@ class RegistrationManager(object):
         for registration in self.registrations:
             registration.request_offers(timestamp, self.agent)
 
-    def report_clear_price(self, timestamp, price, quantity):
-        _log.debug("report_clear_price Timestamp: {} Price: {} Qty: {}".format(timestamp, price, quantity))
+    def report_clear_price(self, timestamp, market_name, price, quantity):
+        _log.debug("report_clear_price Timestamp: {} Market: {} Price: {} Qty: {}".format(timestamp, market_name, price, quantity))
         for registration in self.registrations:
-            registration.report_clear_price(timestamp, price, quantity)
+            if (registration.market_name == market_name):
+                registration.report_clear_price(timestamp, price, quantity)
 
-    def report_aggregate(self, timestamp, aggregate_curve):
+    def report_aggregate(self, timestamp, market_name, buyer_seller, aggregate_curve):
         for registration in self.registrations:
-            registration.report_aggregate(timestamp, aggregate_curve)
+            if (registration.market_name == market_name):
+                registration.report_aggregate(timestamp, buyer_seller, aggregate_curve)
 
-    def report_error(self, timestamp, error_message):
+    def report_error(self, timestamp, market_name, error_message):
         for registration in self.registrations:
-            registration.report_error(timestamp, error_message)
+            if (registration.market_name == market_name):
+                registration.report_error(timestamp, error_message)
