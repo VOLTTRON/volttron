@@ -58,12 +58,6 @@ TMP_SMAP_CONFIG_FILENAME = "test-smap.ini"
 # Used to fill in TWISTED_CONFIG template
 TEST_CONFIG_FILE = 'base-platform-test.json'
 
-PLATFORM_CONFIG_UNRESTRICTED = """
-no-resource-monitor
-no-verify
-no-mobility
-"""
-
 PLATFORM_CONFIG_RESTRICTED = """
 mobility-address = {mobility-address}
 control-socket = {tmpdir}/run/control
@@ -469,13 +463,7 @@ class PlatformWrapper:
             parser.set('volttron', 'volttron-central-serverkey',
                        volttron_central_serverkey)
         if self.mode == UNRESTRICTED:
-            # TODO Restricted code should set with volttron as contianer
-            # if RESTRICTED_AVAILABLE:
-            #     config['mobility'] = False
-            #     config['resource-monitor'] = False
-            #     config['verify'] = False
-            with closing(open(pconfig, 'wb')) as cfg:
-                cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
+            with open(pconfig, 'wb') as cfg:
                 parser.write(cfg)
 
         elif self.mode == RESTRICTED:
