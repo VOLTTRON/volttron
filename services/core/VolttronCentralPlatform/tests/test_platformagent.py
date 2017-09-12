@@ -18,7 +18,8 @@ from volttrontesting.utils.core_service_installs import \
     add_volttron_central_platform
 from volttrontesting.utils.platformwrapper import PlatformWrapper, \
     start_wrapper_platform
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
+
 
 
 def get_new_keypair():

@@ -29,7 +29,7 @@ from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.connection import Connection
 from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)

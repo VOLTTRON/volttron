@@ -4,7 +4,7 @@ import subprocess
 import gevent
 import pytest
 from dateutil.parser import parse as dateparse
-from zmq.utils import jsonapi as json
+from volttron.platform.agent import json as jsonapi
 
 from volttron.platform.messaging.health import STATUS_GOOD, STATUS_BAD, \
     STATUS_UNKNOWN

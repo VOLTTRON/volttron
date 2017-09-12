@@ -63,7 +63,7 @@ import time
 from urlparse import urlparse
 
 import gevent
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from volttron.platform.vip.agent import Agent, Core, compat
 from volttron.platform.vip.agent.utils import build_agent

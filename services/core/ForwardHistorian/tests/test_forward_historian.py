@@ -5,7 +5,7 @@ import tempfile
 
 import gevent
 import pytest
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from volttron.platform.messaging import headers as headers_mod
 

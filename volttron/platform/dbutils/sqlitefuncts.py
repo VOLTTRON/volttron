@@ -67,7 +67,7 @@ import os
 import re
 from basedb import DbDriver
 from volttron.platform.agent import utils
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)

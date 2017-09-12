@@ -61,26 +61,13 @@ increase the performance involved in serialization and
 deserialization of data.
 """
 
-try:
-    import ujson
-    from zmq.utils.strtypes import bytes, unicode
-    from zmq.utils.jsonapi import dumps as _dumps, loads as _loads
-    def dumps(data):
-        try:
-            s = ujson.dumps(data, double_precision=15)
-            if isinstance(s, unicode):
+from zmq.utils.jsonapi import dumps as _dumps, loads as _loads
 
-                s = s.encode('utf8')
-            return s
-        except:
-            return _dumps(data)
-    def loads(s):
-        try:
-            if str is unicode and isinstance(s, bytes):
-                s = s.decode('utf8')
-            return ujson.loads(s, precise_float=True)
-        except:
-            return _loads(s)
-except ImportError:
-    from zmq.utils.jsonapi import dumps, loads
+
+def dumps(data, **kwargs):
+    return _dumps(data, **kwargs)
+
+
+def loads(s, **kwargs):
+    return _loads(s, **kwargs)
 
