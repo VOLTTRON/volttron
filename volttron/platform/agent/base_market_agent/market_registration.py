@@ -163,7 +163,7 @@ class MarketRegistration(object):
 
     def report_clear_price(self, timestamp, price, quantity):
         _log.debug("report_clear_price Timestamp: {} Price: {} Qty: {} Has Reservation: {}".format(timestamp, price, quantity, self.has_reservation))
-        if self.state != PRICE_WAIT and self.has_reservation and self.price_callback is not None:
+        if self.state == PRICE_WAIT and self.has_reservation and self.price_callback is not None:
             _log.debug("report_clear_price calling price_callback method for {} {} {} {}".format(self.market_name, self.buyer_seller, price, quantity))
             self.price_callback(timestamp, self.market_name, self.buyer_seller, price, quantity)
         self.has_reservation = False
