@@ -47,7 +47,7 @@ if not inenv and not corrected:
     process.wait()
     sys.exit(process.returncode)
 
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 from volttron.platform import get_address, get_home, get_volttron_root, \
     is_instance_running
 from volttron.platform.packaging import create_package, add_files_to_package

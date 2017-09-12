@@ -79,7 +79,7 @@ import mimetypes
 
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from .auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
 from .vip.agent import Agent, Core, RPC

@@ -66,7 +66,7 @@ import weakref
 
 import gevent.local
 from gevent.event import AsyncResult
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from .base import SubsystemBase
 from ..errors import VIPError

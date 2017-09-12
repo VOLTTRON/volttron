@@ -57,7 +57,7 @@
 
 from volttron.platform.agent.utils import parse_json_config
 from argparse import ArgumentParser
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 import os
 import shutil
 

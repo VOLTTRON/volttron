@@ -65,7 +65,7 @@ import tempfile
 
 from gevent import subprocess
 from gevent.subprocess import Popen
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 from zmq import green as zmq
 
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER

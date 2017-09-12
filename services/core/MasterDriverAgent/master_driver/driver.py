@@ -56,7 +56,7 @@
 import datetime
 from volttron.platform.vip.agent import BasicAgent, Core
 from volttron.platform.agent import utils
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 import logging
 import sys
 import random

@@ -76,7 +76,7 @@ from volttron.platform import get_home, get_address
 from dateutil.parser import parse
 from dateutil.tz import tzutc, tzoffset
 from tzlocal import get_localzone
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 try:
     from ..lib.inotify.green import inotify, IN_MODIFY

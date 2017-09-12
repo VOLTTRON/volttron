@@ -1,6 +1,6 @@
 import logging
 
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 from volttron.platform.agent.utils import (get_aware_utc_now,
                                            format_timestamp,
                                            parse_timestamp_string)

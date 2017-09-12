@@ -73,7 +73,7 @@ from volttron.platform.messaging.health import Status, UNKNOWN_STATUS, \
     GOOD_STATUS, BAD_STATUS
 from volttron.platform.vip.agent import Unreachable
 from volttron.platform.vip.agent.utils import build_connection
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 
 class Platforms(object):
