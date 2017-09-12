@@ -418,7 +418,6 @@ class ConfigStore(SubsystemBase):
             raise ValueError("Invalid content type: {}".format(contents.__class__.__name__))
 
         config_name_lower = config_name.lower()
-        action = "UPDATE" if config_name_lower in self._default_store else "NEW"
         self._default_store[config_name_lower] = contents
         self._default_name_map[config_name_lower] = config_name
 
