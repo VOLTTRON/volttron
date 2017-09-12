@@ -187,9 +187,10 @@ class Market(object):
         self.publish(peer='pubsub',
                      topic=MARKET_RECORD,
                      message=[timestamp_string, quantity, price])
-        self.publish(peer='pubsub',
-                     topic=MARKET_ERROR,
-                     message=[timestamp_string, error_message])
+        if error_message is not None:
+            self.publish(peer='pubsub',
+                         topic=MARKET_ERROR,
+                         message=[timestamp_string, error_message])
 
     def has_market_formed(self):
         return self.reservations.has_market_formed()
