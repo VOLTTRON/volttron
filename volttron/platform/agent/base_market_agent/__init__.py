@@ -102,20 +102,23 @@ class MarketAgent(Agent):
     @PubSub.subscribe('pubsub', MARKET_CLEAR)
     def match_report_clear_price(self, peer, sender, bus, topic, headers, message):
         timestamp = utils.parse_timestamp_string(message[0])
-        quantity = message[1]
-        price = message[2]
-        decoded_message = "Timestamp: {} Price: {} Quantity: {}".format(timestamp, price, quantity)
+        market_name = message[1]
+        quantity = message[2]
+        price = message[3]
+        decoded_message = "Timestamp: {} Market: {} Price: {} Quantity: {}".format(timestamp, market_name, price, quantity)
         self.log_event("match_report_clear_price", peer, sender, bus, topic, headers, decoded_message)
-        self.registrations.report_clear_price(timestamp, price, quantity)
+        self.registrations.report_clear_price(timestamp, market_name, price, quantity)
 
     @PubSub.subscribe('pubsub', MARKET_AGGREGATE)
     def match_report_aggregate(self, peer, sender, bus, topic, headers, message):
         timestamp = utils.parse_timestamp_string(message[0])
-        aggregate_curve_points = message[1]
-        decoded_message = "Timestamp: {} Curve: {}".format(timestamp, aggregate_curve_points)
+        market_name = message[1]
+        buyer_seller = message[2]
+        aggregate_curve_points = message[3]
+        decoded_message = "Timestamp: {} Market: {} BuySell: {} Curve: {}".format(timestamp, market_name, buyer_seller, aggregate_curve_points)
         self.log_event("match_report_aggregate", peer, sender, bus, topic, headers, decoded_message)
         aggregate_curve = PolyLineFactory.fromTupples(aggregate_curve_points)
-        self.registrations.report_aggregate(timestamp, aggregate_curve)
+        self.registrations.report_aggregate(timestamp, market_name, buyer_seller, aggregate_curve)
 
     @PubSub.subscribe('pubsub', MARKET_ERROR)
     def match_report_error(self, peer, sender, bus, topic, headers, message):
