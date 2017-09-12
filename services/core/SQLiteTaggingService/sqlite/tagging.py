@@ -582,8 +582,10 @@ class SQLiteTaggingService(BaseTaggingService):
         cursor = None
         if "REGEXP" in real_query:
             cursor, conn = self.sqlite_utils.regex_select(real_query, None,
-                                                          fetch_all=False)
+                                                          fetch_all=False,
+                                                          cache_size=-4000)
         else:
+            self.sqlite_utils.set_cache(-4000)
             cursor = self.sqlite_utils.select(real_query, fetch_all=False)
         result =[]
         if cursor:
