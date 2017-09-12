@@ -1,7 +1,7 @@
 """
 Utility script to read the list of topics from mongodb and insert mandatory
 id and reference tags for these topics. The script only works for topics
-with the naming convention /campus/building/device/<optional sub device>/point.
+with the naming convention campus/building/device/<optional sub device>/point.
 A error will be displayed for any topics that do not conform to this naming
 convention and will be skipped.
 
@@ -24,12 +24,12 @@ import datetime
 ## User configuration - start ##
 
 #Connection string to the mongo db from which list of topics should be read
-topics_connection_string = "mongodb://reader:volttronReader@vc-db.pnl.gov" \
+topics_connection_string = "mongodb://<user>:<password>@vc-db.pnl.gov" \
                            ":27017" \
-                           "/prod_historian"
+                           "/<db_name>"
 topic_table = "topics"
 # Regular expression that matches all device topics that conform to the
-# naming pattern /campus/building/device/<optional sub device>/point
+# naming pattern campus/building/device/<optional sub device>/point
 device_topics = "^PNNL"
 
 # table or collection name into which tags should be saved.
