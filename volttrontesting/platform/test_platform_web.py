@@ -3,7 +3,7 @@ import logging
 import gevent
 from volttron.platform.vip.agent import Agent
 from volttrontesting.utils.platformwrapper import start_wrapper_platform
-from volttron.platform.agent import json as jsonapi
+from volttron.platform.agent import json
 import pytest
 import random
 import requests
