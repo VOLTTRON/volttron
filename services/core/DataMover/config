@@ -1,6 +1,6 @@
 {
     "destination-vip": "tcp://127.0.0.1:22916",
-    "destination-serverkey": "wNRkx-zOPgQMvaiv6IORiJukVc5DijJ5gexj_Ga_qh0",
+    "destination-serverkey": "<valid server key>",
     "destination-historian-identity": "platform.historian"
 
     "custom_topic_list": [],
