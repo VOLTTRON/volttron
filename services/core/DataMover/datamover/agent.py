@@ -231,6 +231,7 @@ class DataMover(BaseHistorian):
 
         with gevent.Timeout(30):
             try:
+                _log.debug("Sending to destination historian.")
                 self._target_platform.vip.rpc.call(
                     self.destination_historian_identity, 'insert',
                     to_send).get(timeout=10)
@@ -239,6 +240,7 @@ class DataMover(BaseHistorian):
                 self._last_timeout = self.timestamp()
                 self._target_platform.core.stop()
                 self._target_platform = None
+                _log.error("Timeout when attempting to publish to target.")
                 self.vip.health.set_status(
                     STATUS_BAD, "Timeout occurred")
 

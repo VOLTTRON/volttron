@@ -76,15 +76,12 @@ from mock import MagicMock
 
 datamover_uuid = None
 datamover_config = {
-
-    "agentid": "forwarder",
     "destination-vip": "",
     "topic_replace_list": [
         {"from": "PNNL/BUILDING_1", "to": "PNNL/BUILDING1_ANON"}
     ]
 }
 sqlite_config = {
-    "agentid": "sqlhistorian-sqlite",
     "connection": {
         "type": "sqlite",
         "params": {
@@ -105,17 +102,12 @@ def volttron_instances(request, get_volttron_instances):
 
 
 # Fixture for setup and teardown of publish agent
-@pytest.fixture(scope="module",
-                params=['volttron_2', 'volttron_3'])
+@pytest.fixture(scope="module")
 def publish_agent(request, volttron_instances, forwarder):
     global volttron_instance1, volttron_instance2
     #print "Fixture publish_agent"
     # 1: Start a fake agent to publish to message bus
-    if request.param == 'volttron_2':
-        agent = PublishMixin(
-            volttron_instance1.opts['publish_address'])
-    else:
-        agent = volttron_instance1.build_agent(identity='test-agent')
+    agent = volttron_instance1.build_agent(identity='test-agent')
 
     # 2: add a tear down method to stop sqlhistorian agent and the fake
     # agent that published to message bus
@@ -198,7 +190,6 @@ def publish(publish_agent, topic, header, message):
     else:
         publish_agent.publish_json(topic, header, message)
 
-
 @pytest.mark.historian
 @pytest.mark.forwarder
 def test_devices_topic(publish_agent, query_agent):
@@ -231,7 +222,7 @@ def test_devices_topic(publish_agent, query_agent):
         headers_mod.DATE: time1
     }
     publish(publish_agent, 'devices/PNNL/BUILDING_1/Device/all', headers, all_message)
-    gevent.sleep(1)
+    gevent.sleep(3)
 
     # Verify topic name replacement by querying the replaced topic name
     # PNNL/BUILDING_1 should be replaced with PNNL/BUILDING1_ANON
@@ -620,88 +611,4 @@ def test_old_config(volttron_instances, forwarder):
 
     print("data_mover agent id: ", uuid)
 
-@pytest.mark.historian
-@pytest.mark.forwarder
-def test_topic_not_forwarded(publish_agent, query_agent):
-    """
-    Test if devices topic message is getting forwarded to historian running on
-    another instance. Test if topic name substitutions happened.
-    Publish to topic
-    'datalogger/PNNL/BUILDING_1/Device' in volttron_instance1 and
-    query for topic
-    'datalogger/PNNL/BUILDING1_ANON/Device/MixedAirTemperature' in
-    volttron_instance2
 
-    :param publish_agent: Fake agent used to publish messages to bus in
-    volttron_instance1. Calling this fixture makes sure all the dependant
-    fixtures are called to setup and start volttron_instance1 and forwareder
-    agent and returns the  instance of fake agent to publish
-
-    :param query_agent: Fake agent used to query sqlhistorian in
-    volttron_instance2. Calling this fixture makes sure all the dependant
-    fixtures are called to setup and start volttron_instance2 and sqlhistorian
-    agent and returns the instance of a fake agent to query the historian
-
-    :param volttron_instance1: volttron platform instance in which forward
-    historian is running. It forwards to instance2
-
-    :param volttron_instance2: volttron platform instance in which
-    sqlhistorian is running.
-    """
-    print("\n** test_topic_not_forwarded **")
-    global volttron_instance1, volttron_instance2, datamover_uuid, \
-        datamover_config
-
-    volttron_instance1.stop_agent(datamover_uuid)
-    try:
-
-        print("\n** test_topic_not_forwarded **")
-        old_services_topic_list = datamover_config["services_topic_list"]
-        datamover_config["services_topic_list"] =["devices", "record"]
-
-        datamover_uuid = volttron_instance1.install_agent(
-            agent_dir="services/core/DataMover",
-            config_file=datamover_config,
-            start=True)
-        gevent.sleep(1)
-        # Publish fake data.
-        # The format mimics the format used by VOLTTRON drivers.
-        # Make some random readings
-        oat_reading = random.uniform(30, 100)
-        mixed_reading = oat_reading + random.uniform(-5, 5)
-
-        # Create a message for all points.
-        message = {
-            'MixedAirTemperature': {'Readings': mixed_reading, 'Units': 'F',
-                                    'tz': 'UTC', 'type': 'float'}}
-
-        # pytest.set_trace()
-        # Create timestamp
-        now = datetime.utcnow().isoformat() + 'Z'
-        print("now is ", now)
-        # now = '2015-12-02T00:00:00'
-
-        # Publish messages
-        publish(publish_agent, "datalogger/PNNL/BUILDING_1/Device", None, message)
-        gevent.sleep(1)
-
-        # Query the historian
-        result = query_agent.vip.rpc.call(
-            'platform.historian',
-            'query',
-            topic="datalogger/PNNL/BUILDING1_ANON/Device/MixedAirTemperature",
-            start=now,
-            count=20,
-            order="LAST_TO_FIRST").get(timeout=10)
-        print('Query Result', result)
-        assert (result == {})
-
-    finally:
-        volttron_instance1.stop_agent(datamover_uuid)
-        datamover_config["services_topic_list"] = old_services_topic_list
-        # 1: Install historian agent
-        # Install and start sqlhistorian agent in instance2
-        datamover_uuid = volttron_instance1.install_agent(
-            agent_dir="services/core/DataMover",
-            config_file=datamover_config,
-            start=True)

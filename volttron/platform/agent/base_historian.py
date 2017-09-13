@@ -361,7 +361,6 @@ class BaseHistorianAgent(Agent):
 
         self.volttron_table_defs = 'volttron_table_definitions'
         self._backup_storage_limit_gb = backup_storage_limit_gb
-        self._started = False
         self._retry_period = float(retry_period)
         self._submit_size_limit = int(submit_size_limit)
         self._max_time_publishing = float(max_time_publishing)
@@ -453,7 +452,7 @@ class BaseHistorianAgent(Agent):
         self._backup_storage_limit_gb = backup_storage_limit_gb
         self._retry_period = retry_period
         self._submit_size_limit = submit_size_limit
-        self._max_time_publishing = max_time_publishing
+        self._max_time_publishing = timedelta(seconds=max_time_publishing)
         self._readonly = readonly
 
         self._update_subscriptions(bool(config.get("capture_device_data", True)),
@@ -523,6 +522,9 @@ class BaseHistorianAgent(Agent):
         #This is for Forward Historians which do not support data mover inserts.
         if self.no_insert:
             raise RuntimeError("Insert not supported by this historian.")
+
+        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        _log.debug("insert called by {} with {} records".format(rpc_peer, len(records)))
 
         for r in records:
             topic = r['topic']
@@ -908,7 +910,7 @@ class BaseHistorianAgent(Agent):
                     self._submit_size_limit)
 
                 # Check for a stop for reconfiguration.
-                if not to_publish_list or not self._started or self._stop_process_loop:
+                if not to_publish_list or self._stop_process_loop:
                     break
 
                 try:
