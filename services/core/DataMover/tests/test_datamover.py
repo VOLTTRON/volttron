@@ -74,15 +74,11 @@ from mock import MagicMock
 
 # import types
 
-forwarder_uuid = None
-forwarder_config = {
+datamover_uuid = None
+datamover_config = {
 
     "agentid": "forwarder",
     "destination-vip": "",
-    "custom_topic_list": [],
-    "services_topic_list": [
-        "devices", "record", "analysis", "actuators", "datalogger"
-    ],
     "topic_replace_list": [
         {"from": "PNNL/BUILDING_1", "to": "PNNL/BUILDING1_ANON"}
     ]
@@ -169,28 +165,28 @@ def forwarder(request, volttron_instances):
     #print "Fixture forwarder"
     global volttron_instance1, volttron_instance2
 
-    global forwarder_uuid, forwarder_config
+    global datamover_uuid, datamover_config
     # 1. Update destination address in forwarder configuration
 
     volttron_instance1.allow_all_connections()
     volttron_instance2.allow_all_connections()
 
-    forwarder_config["destination-vip"] = volttron_instance2.vip_address
+    datamover_config["destination-vip"] = volttron_instance2.vip_address
 
     known_hosts_file = os.path.join(volttron_instance1.volttron_home, 'known_hosts')
     known_hosts = KnownHostsStore(known_hosts_file)
     known_hosts.add(volttron_instance2.vip_address, volttron_instance2.serverkey)
 
     # setup destination address to include keys
-    forwarder_config["destination-serverkey"] = volttron_instance2.serverkey
+    datamover_config["destination-serverkey"] = volttron_instance2.serverkey
 
     # 1: Install historian agent
     # Install and start sqlhistorian agent in instance2
-    forwarder_uuid = volttron_instance1.install_agent(
+    datamover_uuid = volttron_instance1.install_agent(
         agent_dir="services/core/DataMover",
-        config_file=forwarder_config,
+        config_file=datamover_config,
         start=True)
-    print("forwarder agent id: ", forwarder_uuid)
+    print("forwarder agent id: ", datamover_uuid)
 
 
 def publish(publish_agent, topic, header, message):
@@ -611,16 +607,16 @@ def test_old_config(volttron_instances, forwarder):
 
     print("\n** test_old_config **")
 
-    global forwarder_config
+    global datamover_config
 
-    forwarder_config['agentid'] = "test_forwarder_agent_id"
-    forwarder_config['identity'] = "second forwarder"
+    datamover_config['agentid'] = "test_forwarder_agent_id"
+    datamover_config['identity'] = "second forwarder"
 
     # 1: Install historian agent
     # Install and start sqlhistorian agent in instance2
     uuid = volttron_instance1.install_agent(
         agent_dir="services/core/DataMover",
-        config_file=forwarder_config, start=True)
+        config_file=datamover_config, start=True)
 
     print("data_mover agent id: ", uuid)
 
@@ -653,19 +649,19 @@ def test_topic_not_forwarded(publish_agent, query_agent):
     sqlhistorian is running.
     """
     print("\n** test_topic_not_forwarded **")
-    global volttron_instance1, volttron_instance2, forwarder_uuid, \
-        forwarder_config
+    global volttron_instance1, volttron_instance2, datamover_uuid, \
+        datamover_config
 
-    volttron_instance1.stop_agent(forwarder_uuid)
+    volttron_instance1.stop_agent(datamover_uuid)
     try:
 
         print("\n** test_topic_not_forwarded **")
-        old_services_topic_list = forwarder_config["services_topic_list"]
-        forwarder_config["services_topic_list"] =["devices", "record"]
+        old_services_topic_list = datamover_config["services_topic_list"]
+        datamover_config["services_topic_list"] =["devices", "record"]
 
-        forwarder_uuid = volttron_instance1.install_agent(
+        datamover_uuid = volttron_instance1.install_agent(
             agent_dir="services/core/DataMover",
-            config_file=forwarder_config,
+            config_file=datamover_config,
             start=True)
         gevent.sleep(1)
         # Publish fake data.
@@ -701,11 +697,11 @@ def test_topic_not_forwarded(publish_agent, query_agent):
         assert (result == {})
 
     finally:
-        volttron_instance1.stop_agent(forwarder_uuid)
-        forwarder_config["services_topic_list"] = old_services_topic_list
+        volttron_instance1.stop_agent(datamover_uuid)
+        datamover_config["services_topic_list"] = old_services_topic_list
         # 1: Install historian agent
         # Install and start sqlhistorian agent in instance2
-        forwarder_uuid = volttron_instance1.install_agent(
+        datamover_uuid = volttron_instance1.install_agent(
             agent_dir="services/core/DataMover",
-            config_file=forwarder_config,
+            config_file=datamover_config,
             start=True)

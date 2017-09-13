@@ -100,7 +100,6 @@ class DataMover(BaseHistorian):
     """
 
     def __init__(self, destination_vip, destination_serverkey,
-                 services_topic_list=('all'), custom_topic_list =(),
                  destination_historian_identity='platform.historian',
                  **kwargs):
         """
@@ -118,36 +117,38 @@ class DataMover(BaseHistorian):
         :param kwargs: additional arguments to be passed along to parent class
         """
 
-        if not services_topic_list or 'all' in services_topic_list:
-            services_topic_list = [topics.DRIVER_TOPIC_BASE,
-                                   topics.LOGGER_BASE,
-                                   topics.RECORD_BASE,
-                                   topics.ANALYSIS_TOPIC_BASE]
-
-        self.services_topic_list = services_topic_list
-        self.custom_topic_list = custom_topic_list
+        super(DataMover, self).__init__(**kwargs)
         self.destination_vip = destination_vip
         self.destination_serverkey = destination_serverkey
         self.destination_historian_identity = destination_historian_identity
 
+        config = {"destination_vip":self.destination_vip,
+                  "destination_serverkey": self.destination_serverkey,
+                  "destination_historian_identity": self.destination_historian_identity}
+
+        self.update_default_config(config)
+
         # will be available in both threads.
         self._last_timeout = 0
-        super(DataMover, self).__init__(**kwargs)
 
-    @Core.receiver("onstart")
-    def starting_base(self, sender, **kwargs):
-        """
-        Subscribes to the platform message bus on the actuator, record,
-        datalogger, and device topics to capture data.
-        """
-        _log.debug("Starting DataMover")
+    def configure(self, configuration):
+        self.destination_vip = str(configuration.get('destination_vip', ""))
+        self.destination_serverkey = str(configuration.get('destination_serverkey', ""))
+        self.destination_historian_identity = str(configuration.get('destination_historian_identity', 'platform.historian'))
 
-        for topic in self.services_topic_list + self.custom_topic_list:
-            _log.debug("subscribing to {}".format(topic))
-            self.vip.pubsub.subscribe(peer='pubsub',
-                                      prefix=topic,
-                                      callback=self.capture_data)
-        self._started = True
+
+    #Redirect the normal capture functions to capture_data.
+    def _capture_device_data(self, peer, sender, bus, topic, headers, message):
+        self.capture_data(peer, sender, bus, topic, headers, message)
+
+    def _capture_log_data(self, peer, sender, bus, topic, headers, message):
+        self.capture_data(peer, sender, bus, topic, headers, message)
+
+    def _capture_analysis_data(self, peer, sender, bus, topic, headers, message):
+        self.capture_data(peer, sender, bus, topic, headers, message)
+
+    def _capture_record_data(self, peer, sender, bus, topic, headers, message):
+        self.capture_data(peer, sender, bus, topic, headers, message)
 
     def timestamp(self):
         return time.mktime(datetime.datetime.now().timetuple())
@@ -257,6 +258,12 @@ class DataMover(BaseHistorian):
                                        status)
         else:
             self._target_platform = agent
+
+    def historian_teardown(self):
+        # Kill the forwarding agent if it is currently running.
+        if self._target_platform is not None:
+            self._target_platform.core.stop()
+            self._target_platform = None
 
 
 def main(argv=sys.argv):
