@@ -133,6 +133,7 @@ class Platforms(object):
         for k, o in self._platforms.items():
             self._log.debug("vip: {}, identity: {}".format(o.address,
                                                            o.vip_identity))
+
     @property
     def vc(self):
         return self._vc
@@ -351,9 +352,14 @@ class PlatformHandler(object):
         platform_prefix = "platforms/{}/".format(self.vip_identity)
 
         # Setup callbacks to listen to the local bus from the vcp instance.
+        #
+        # Note: the platform/{}/ is prepended to the vcp_topics below for
+        #   communication from the vcp in the field.
         vcp_topics = (
+            # ('device_updates', self._on_device_message),
+            # ('devices/update', self._on_device_message),
             # devices and status.
-            ('devices/', self._on_device_message),
+            # ('devices/', self._on_device_message),
             # statistics for showing performance in the ui.
             ('datalogger/platform/status', self._on_platform_stats),
             # iam and configure callbacks
@@ -573,8 +579,8 @@ class PlatformHandler(object):
     def get_devices(self, session_user, params):
         self._log.debug('handling get_devices platform: {} ({})'.format(
             self.vip_identity, self.address))
-
-        return self._current_devices or {}
+        return self.call("get_devices")
+        # return self._current_devices or {}
 
     def get_stats(self, stat_type):
         # TODO Change so stat_type is available.
@@ -611,69 +617,69 @@ class PlatformHandler(object):
     def _on_heartbeat(self, peer, sender, bus, topic, headers, message):
         self._log.debug("HEARTBEAT MESSAGE: {}".format(message))
 
-    def _on_device_message(self, peer, sender, bus, topic, headers, message):
-        """
-        Handle device data coming from the platform represented by this
-        object.
-
-        this method only cares about the /all messages that are published to
-        the message bus.
-
-        :param peer:
-        :param sender:
-        :param bus:
-        :param topic:
-        :param headers:
-        :param message:
-        """
-
-        expected_prefix = "platforms/{}/".format(self.vip_identity)
-        self._log.debug("TOPIC WAS: {}".format(topic))
-        self._log.debug("MESSAGE WAS: {}".format(message))
-        self._log.debug("Expected topic: {}".format(expected_prefix))
-        self._log.debug("Are Equal: {}".format(topic.startswith(expected_prefix)))
-        self._log.debug("topic type: {} prefix_type: {}".format(type(topic), type(expected_prefix)))
-        if topic is None or not topic.startswith(expected_prefix):
-            self._log.error("INVALID DEVICE DATA FOR {}".format(self.vip_identity))
-            return
-
-        if topic is None or not topic.startswith(expected_prefix):
-            self._log.error('INVALID DEVICE TOPIC/MESSAGE DETECTED ON {}'.format(
-                self.vip_identity
-            ))
-            return
-
-        # Update the devices store for get_devices function call
-        if not topic.endswith('/all'):
-            self._log.debug("Skipping publish to {}".format(topic))
-            return
-
-        #
-        topic = topic[len(expected_prefix):]
-
-        self._log.debug("topic: {}, message: {}".format(topic, message))
-
-        ts = format_timestamp(get_aware_utc_now())
-        context = "Last received data on: {}".format(ts)
-        status = Status.build(GOOD_STATUS, context=context)
-
-        base_topic = topic[:-len('/all')]
-        base_topic_no_prefix = base_topic[len('devices/'):]
-
-        if base_topic_no_prefix not in self._current_devices:
-            self._current_devices[base_topic_no_prefix] = {}
-
-        device_dict = self._current_devices[base_topic_no_prefix]
-
-        points = [k for k, v in message[0].items()]
-
-        device_dict['points'] = points
-        device_dict['health'] = status.as_dict()
-        device_dict['last_publish_utc'] = ts
-
-        self._vc.send_management_message(
-            "DEVICE_STATUS_UPDATED", data=dict(context=context,
-                                               topic=base_topic))
+    # def _on_device_message(self, peer, sender, bus, topic, headers, message):
+    #     """
+    #     Handle device data coming from the platform represented by this
+    #     object.
+    #
+    #     this method only cares about the /all messages that are published to
+    #     the message bus.
+    #
+    #     :param peer:
+    #     :param sender:
+    #     :param bus:
+    #     :param topic:
+    #     :param headers:
+    #     :param message:
+    #     """
+    #
+    #     expected_prefix = "platforms/{}/".format(self.vip_identity)
+    #     self._log.debug("TOPIC WAS: {}".format(topic))
+    #     self._log.debug("MESSAGE WAS: {}".format(message))
+    #     self._log.debug("Expected topic: {}".format(expected_prefix))
+    #     self._log.debug("Are Equal: {}".format(topic.startswith(expected_prefix)))
+    #     self._log.debug("topic type: {} prefix_type: {}".format(type(topic), type(expected_prefix)))
+    #     if topic is None or not topic.startswith(expected_prefix):
+    #         self._log.error("INVALID DEVICE DATA FOR {}".format(self.vip_identity))
+    #         return
+    #
+    #     if topic is None or not topic.startswith(expected_prefix):
+    #         self._log.error('INVALID DEVICE TOPIC/MESSAGE DETECTED ON {}'.format(
+    #             self.vip_identity
+    #         ))
+    #         return
+    #
+    #     # Update the devices store for get_devices function call
+    #     if not topic.endswith('/all'):
+    #         self._log.debug("Skipping publish to {}".format(topic))
+    #         return
+    #
+    #     #
+    #     topic = topic[len(expected_prefix):]
+    #
+    #     self._log.debug("topic: {}, message: {}".format(topic, message))
+    #
+    #     ts = format_timestamp(get_aware_utc_now())
+    #     context = "Last received data on: {}".format(ts)
+    #     status = Status.build(GOOD_STATUS, context=context)
+    #
+    #     base_topic = topic[:-len('/all')]
+    #     base_topic_no_prefix = base_topic[len('devices/'):]
+    #
+    #     if base_topic_no_prefix not in self._current_devices:
+    #         self._current_devices[base_topic_no_prefix] = {}
+    #
+    #     device_dict = self._current_devices[base_topic_no_prefix]
+    #
+    #     points = [k for k, v in message[0].items()]
+    #
+    #     device_dict['points'] = points
+    #     device_dict['health'] = status.as_dict()
+    #     device_dict['last_publish_utc'] = ts
+    #
+    #     self._vc.send_management_message(
+    #         "DEVICE_STATUS_UPDATED", data=dict(context=context,
+    #                                            topic=base_topic))
 
     def _on_platform_stats(self, peer, sender, bus, topic, headers, message):
 
@@ -737,7 +743,7 @@ class PlatformHandler(object):
         the agent_list and other interesting things that the volttron
         central shsould want to know.
         """
-        self._log.debug('ON PLATFORM MESSAGE!')
+        self._log.debug('ON PLATFORM MESSAGE! {}'.format(message))
         expected_prefix = "platforms/{}/".format(self.vip_identity)
 
         if not topic.startswith(expected_prefix):
@@ -774,8 +780,8 @@ class PlatformHandler(object):
 
         _, platform_uuid, op_or_datatype, other = topicsplit[0], \
                                                   topicsplit[1], \
-                                                  topicsplit[2], topicsplit[
-                                                                 3:]
+                                                  topicsplit[2], \
+                                                  topicsplit[3:]
 
         if op_or_datatype in ('iam', 'configure'):
             if not other:

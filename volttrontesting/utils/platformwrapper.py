@@ -329,7 +329,7 @@ class PlatformWrapper:
             gevent.spawn(agent.core.run, event)  # .join(0)
             event.wait(timeout=2)
 
-            hello = agent.vip.hello().get(timeout=.3)
+            hello = agent.vip.hello().get(timeout=.5)
             self.logit('Got hello response {}'.format(hello))
         agent.publickey = publickey
         return agent
@@ -398,7 +398,7 @@ class PlatformWrapper:
                 self.bind_web_address)
 
             # Only available if vc is installed!
-            self.jsonrpc_endpoint = "{}/jsonrpc".format(
+            self.jsonrpc_endpoint = "{}/vc/jsonrpc".format(
                 self.bind_web_address)
 
         msgdebug = self.env.get('MSG_DEBUG', False)

@@ -24,6 +24,10 @@ class SessionHandler:
         self._authenticator = authenticator
         self._stored_session_path = None
 
+    def clear(self):
+        self._sessions.clear()
+        self._session_tokens.clear()
+
     def authenticate(self, username, password, ip):
         """Authenticates a user with the authenticator.
 
