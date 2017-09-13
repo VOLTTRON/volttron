@@ -183,7 +183,7 @@ class DataMover(BaseHistorian):
 
         topic = self.get_renamed_topic(topic)
 
-        if self._gather_timing_data:
+        if self.gather_timing_data:
             add_timing_data_to_header(
                 headers,
                 self.core.agent_uuid or self.core.identity,
@@ -219,7 +219,7 @@ class DataMover(BaseHistorian):
             headers = x['value']['headers']
             message = x['value']['message']
 
-            if self._gather_timing_data:
+            if self.gather_timing_data:
                 add_timing_data_to_header(
                     headers,
                     self.core.agent_uuid or self.core.identity,
