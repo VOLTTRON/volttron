@@ -70,6 +70,7 @@ from volttron.platform.agent import utils
 from volttron.platform.keystore import KnownHostsStore
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.messaging.health import STATUS_BAD, Status
+from volttron.platform.agent.known_identities import PLATFORM_HISTORIAN
 
 DATAMOVER_TIMEOUT_KEY = 'DATAMOVER_TIMEOUT_KEY'
 utils.setup_logging()
@@ -100,7 +101,7 @@ class DataMover(BaseHistorian):
     """
 
     def __init__(self, destination_vip, destination_serverkey,
-                 destination_historian_identity='platform.historian',
+                 destination_historian_identity=PLATFORM_HISTORIAN,
                  **kwargs):
         """
         
@@ -134,7 +135,7 @@ class DataMover(BaseHistorian):
     def configure(self, configuration):
         self.destination_vip = str(configuration.get('destination_vip', ""))
         self.destination_serverkey = str(configuration.get('destination_serverkey', ""))
-        self.destination_historian_identity = str(configuration.get('destination_historian_identity', 'platform.historian'))
+        self.destination_historian_identity = str(configuration.get('destination_historian_identity', PLATFORM_HISTORIAN))
 
 
     #Redirect the normal capture functions to capture_data.
