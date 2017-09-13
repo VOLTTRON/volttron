@@ -74,7 +74,7 @@ import weakref
 import gevent.event
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN, ENOTSOCK, EADDRINUSE
-from zmq.utils import jsonapi as json
+from volttron.platform.agent import json
 from zmq.utils.monitor import recv_monitor_message
 
 from volttron.platform import get_address

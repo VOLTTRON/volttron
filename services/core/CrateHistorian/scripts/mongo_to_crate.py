@@ -11,7 +11,7 @@ import Queue
 from crate import client as crate_client
 import pymongo
 from bson.objectid import ObjectId
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from volttron.platform import get_volttron_root
 

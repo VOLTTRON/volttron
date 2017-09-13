@@ -67,7 +67,7 @@ import threading
 import sys
 from abc import abstractmethod
 from volttron.platform.agent import utils
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 import sqlite3
 
 utils.setup_logging()

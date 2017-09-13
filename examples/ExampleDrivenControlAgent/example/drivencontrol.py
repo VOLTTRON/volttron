@@ -53,7 +53,7 @@ import datetime
 import time
 import logging
 from volttron.platform.agent.driven import Results, AbstractDrivenAgent
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 from volttron.platform.agent import  utils
 from volttron.platform.messaging import headers as headers_mod, topics
 

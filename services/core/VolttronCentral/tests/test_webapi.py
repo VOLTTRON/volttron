@@ -9,11 +9,13 @@ import sys
 from volttrontesting.utils.core_service_installs import \
     add_volttron_central_platform, add_volttron_central, add_listener
 
+from volttron.platform.agent import json as jsonapi
+
 from volttron.platform.messaging.health import STATUS_GOOD
 from volttrontesting.utils.platformwrapper import PlatformWrapper, \
     start_wrapper_platform
 from volttrontesting.utils.utils import poll_gevent_sleep
-from zmq.utils import jsonapi
+
 from vctestutils import (APITester,
                          check_multiple_platforms,
                          validate_response)

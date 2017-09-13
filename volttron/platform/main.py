@@ -78,7 +78,7 @@ import zmq
 from zmq import green
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from . import aip
 from . import __version__
@@ -435,6 +435,7 @@ def start_volttron_process(opts):
     level = max(1, opts.verboseness)
     if opts.monitor and level > logging.INFO:
         level = logging.INFO
+
     if opts.log is None:
         log_to_file(sys.stderr, level)
     elif opts.log == '-':
@@ -443,10 +444,17 @@ def start_volttron_process(opts):
         log_to_file(opts.log, level, handler_class=handlers.WatchedFileHandler)
     else:
         log_to_file(None, 100, handler_class=lambda x: logging.NullHandler())
+
     if opts.log_config:
+        with open(opts.log_config, 'r') as f:
+            for line in f.readlines():
+                _log.info(line.rstrip())
+
         error = configure_logging(opts.log_config)
+
         if error:
-            parser.error('{}: {}'.format(*error))
+            _log.error('{}: {}'.format(*error))
+            sys.exit(1)
 
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
@@ -470,11 +478,12 @@ def start_volttron_process(opts):
         opts.volttron_central_address = config.expandall(
             opts.volttron_central_address)
     opts.volttron_central_serverkey = opts.volttron_central_serverkey
+
+    # Log configuration options
     if getattr(opts, 'show_config', False):
-        print('volttron version: {}'.format(__version__))
+        _log.info('volttron version: {}'.format(__version__))
         for name, value in sorted(vars(opts).iteritems()):
-            print(name, repr(value))
-        return
+            _log.info("%s: %s" % (name, str(repr(value))))
 
     # Increase open files resource limit to max or 8192 if unlimited
     try:
@@ -682,7 +691,7 @@ def main(argv=sys.argv):
     )
     parser.add_argument(
         '-c', '--config', metavar='FILE', action='parse_config',
-        ignore_unknown=True, sections=[None, 'volttron'],
+        ignore_unknown=False, sections=[None, 'volttron'],
         help='read configuration from FILE')
     parser.add_argument(
         '-l', '--log', metavar='FILE', default=None,

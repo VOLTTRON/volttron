@@ -89,7 +89,7 @@ from urlparse import urlparse
 import datetime
 import gevent
 from volttron.platform.auth import AuthFile, AuthEntry
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from authenticate import Authenticate
 from platforms import Platforms, PlatformHandler

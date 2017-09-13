@@ -71,7 +71,7 @@ __version__ = '0.3'
 
 import os.path
 import errno
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 from collections import defaultdict
 
 from Queue import Queue, Empty
