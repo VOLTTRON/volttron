@@ -178,7 +178,7 @@ class Market(object):
                 quantity, price = self.offers.settle()
                 if price is None:
                     error_message = "Error: The supply and demand curves do not intersect. The market {} failed to clear.".format(self.market_name)
-        _log.debug("Clearing price for Market: {} Price: {} Qty: {} Error: {}".format(self.market_name, price, quantity, error_message))
+        _log.info("Clearing price for Market: {} Price: {} Qty: {}".format(self.market_name, price, quantity))
         timestamp = self._get_time()
         timestamp_string = utils.format_timestamp(timestamp)
         self.publish(peer='pubsub',
