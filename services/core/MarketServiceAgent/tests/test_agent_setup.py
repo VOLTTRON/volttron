@@ -73,7 +73,7 @@ def market_agent(volttron_instance, test_id):
     try:
         agent = volttron_instance.build_agent(identity='platform.market',
                                               agent_class=MarketServiceAgent, market_period=1,
-                                              reservation_delay=0, offer_delay=1, clear_delay=1)
+                                              reservation_delay=0, offer_delay=1)
         yield agent
     finally:
         agent.core.stop()

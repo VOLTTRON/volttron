@@ -86,23 +86,17 @@ def test_market_registration_false_reservation_callback():
     assert agent.reservation_made == False
 
 @pytest.mark.market
-def test_market_registration_no_offer_no_aggregate_callback():
+def test_market_registration_no_offer_no_aggregate_no_price_callback():
     with pytest.raises(TypeError) as error_info:
         MarketRegistration('test_market', SELLER, None, None, None, None, None)
-    assert 'You must provide either an offer callback' in error_info.value.message
-
-@pytest.mark.market
-def test_market_registration_both_offer_and_aggregate_callback():
-    with pytest.raises(TypeError) as error_info:
-        MarketRegistration('test_market', SELLER, None, null_callback, null_callback, None, None)
-    assert 'You must only provide an offer callback' in error_info.value.message
+    assert 'You must provide either an offer, aggregate, or price callback.' in error_info.value.message
 
 @pytest.mark.market
 def test_market_registration_offer_callback():
     agent = MockAgent()
-    registration = MarketRegistration('test_market', SELLER, None, make_offer_callback, None, None, None)
+    registration = MarketRegistration('test_market', SELLER, None, agent.make_offer_callback, None, None, None)
     registration.request_reservations(get_time, agent)
-    registration.request_offers(get_time, agent)
+    registration.request_offers(get_time)
     assert agent.offer_made == True
 
 def wants_registration_true_callback(*unused):
@@ -114,14 +108,6 @@ def wants_registration_false_callback(*unused):
 def null_callback(*unused):
     pass
 
-def make_offer_callback(*unused):
-    curve = PolyLine()
-    point = Point(100, 0)
-    curve.add(point)
-    point = Point(0, 100)
-    curve.add(point)
-    return curve
-
 def get_time():
     now = get_aware_utc_now()
     return now
@@ -130,9 +116,15 @@ class MockAgent(object):
     def __init__(self):
         self.reservation_made = False
         self.offer_made = False
+        self.has_reservation = False
 
     def make_reservation(self, market_name, buyer_seller):
         self.reservation_made = True
+        self.has_reservation = True
 
     def make_offer(self, market_name, buyer_seller, curve):
+        self.offer_made = True
+
+
+    def make_offer_callback(self, *unused):
         self.offer_made = True

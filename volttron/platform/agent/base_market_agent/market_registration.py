@@ -75,6 +75,7 @@ class MarketRegistration(object):
         self.error_callback = error_callback
         self.always_wants_reservation = self.reservation_callback == None
         self.has_reservation = False
+        self._validate_callbacks()
 
     def request_reservations(self, timestamp, agent):
         self.has_reservation = False
@@ -103,4 +104,8 @@ class MarketRegistration(object):
     def report_error(self, timestamp, error_message):
         if self.error_callback is not None:
             self.error_callback(timestamp, self.market_name, self.buyer_seller, error_message)
+
+    def _validate_callbacks(self):
+        if self.offer_callback is None and self.aggregate_callback is None and self.price_callback is None:
+            raise TypeError("You must provide either an offer, aggregate, or price callback.")
 

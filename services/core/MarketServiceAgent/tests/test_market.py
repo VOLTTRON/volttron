@@ -69,13 +69,14 @@ def test_market_state_create_name():
 
 def build_test_machine(market_name = 'test_market', buyer_seller = BUYER):
     participant = MarketParticipant(buyer_seller, 'agent_id')
-    market = Market(market_name, participant)
+    publisher = Publisher()
+    market = Market(market_name, participant, publisher.publish)
     return market
 
 @pytest.mark.market
 def test_market_state_create_state():
     market = build_test_machine()
-    assert market.market_state == ACCEPT_RESERVATIONS
+    assert market.state == ACCEPT_RESERVATIONS
 
 @pytest.mark.market
 def test_market_state_create_has_formed_false():
@@ -89,3 +90,10 @@ def test_market_state_create_has_formed_true():
     participant = MarketParticipant(SELLER, 'agent_id2')
     market.make_reservation(participant)
     assert market.has_market_formed() == True
+
+class Publisher(object):
+    def __init__(self):
+        pass
+
+    def publish(self, peer, topic, headers=None, message=None, bus=''):
+        pass
