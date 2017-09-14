@@ -30,8 +30,9 @@ def vc_vcp_platforms(request):
     vcp_uuid = add_volttron_central_platform(vcp)
     vc_uuid = add_volttron_central(vc)
 
-    # Give the agents a chance to do stuff.
-    gevent.sleep(2)
+    # Give the agents a chance to do stuff. Can take up to 10 seconds to
+    # reconnect with vc.
+    gevent.sleep(10)
 
     yield vc, vcp
 
@@ -65,8 +66,9 @@ def both_with_vc_vcp(request):
         vc_uuid = add_volttron_central(p)
         vcp_uuid = add_volttron_central_platform(p)
 
-    # Give the agents a chance to do stuff.
-    gevent.sleep(2)
+    # Give the agents a chance to do stuff. note might take up to 10 sec
+    # if the vcp is started first.
+    gevent.sleep(10)
     yield p
 
     p.shutdown_platform()

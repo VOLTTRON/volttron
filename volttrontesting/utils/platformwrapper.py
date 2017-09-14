@@ -29,7 +29,7 @@ from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.connection import Connection
 from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -57,12 +57,6 @@ TMP_SMAP_CONFIG_FILENAME = "test-smap.ini"
 
 # Used to fill in TWISTED_CONFIG template
 TEST_CONFIG_FILE = 'base-platform-test.json'
-
-PLATFORM_CONFIG_UNRESTRICTED = """
-no-resource-monitor
-no-verify
-no-mobility
-"""
 
 PLATFORM_CONFIG_RESTRICTED = """
 mobility-address = {mobility-address}
@@ -335,7 +329,7 @@ class PlatformWrapper:
             gevent.spawn(agent.core.run, event)  # .join(0)
             event.wait(timeout=2)
 
-            hello = agent.vip.hello().get(timeout=.3)
+            hello = agent.vip.hello().get(timeout=.5)
             self.logit('Got hello response {}'.format(hello))
         agent.publickey = publickey
         return agent
@@ -404,7 +398,7 @@ class PlatformWrapper:
                 self.bind_web_address)
 
             # Only available if vc is installed!
-            self.jsonrpc_endpoint = "{}/jsonrpc".format(
+            self.jsonrpc_endpoint = "{}/vc/jsonrpc".format(
                 self.bind_web_address)
 
         msgdebug = self.env.get('MSG_DEBUG', False)
@@ -469,13 +463,7 @@ class PlatformWrapper:
             parser.set('volttron', 'volttron-central-serverkey',
                        volttron_central_serverkey)
         if self.mode == UNRESTRICTED:
-            # TODO Restricted code should set with volttron as contianer
-            # if RESTRICTED_AVAILABLE:
-            #     config['mobility'] = False
-            #     config['resource-monitor'] = False
-            #     config['verify'] = False
-            with closing(open(pconfig, 'wb')) as cfg:
-                cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
+            with open(pconfig, 'wb') as cfg:
                 parser.write(cfg)
 
         elif self.mode == RESTRICTED:

@@ -74,9 +74,10 @@ import weakref
 import gevent.event
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN, ENOTSOCK, EADDRINUSE
-from zmq.utils import jsonapi as json
+from volttron.platform.agent import json
 from zmq.utils.monitor import recv_monitor_message
 
+from volttron.platform import get_address
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
 from .errors import VIPError
@@ -440,7 +441,7 @@ class Core(BasicCore):
         self.configuration = Signal()
         super(Core, self).__init__(owner)
         self.context = context or zmq.Context.instance()
-        self.address = address
+        self.address = address if address is not None else get_address()
         self.identity = str(identity) if identity is not None else str(uuid.uuid4())
         self.agent_uuid = agent_uuid
         self.publickey = publickey

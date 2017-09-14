@@ -4,7 +4,7 @@ import sqlite3
 import json
 
 import gevent
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 from volttron.platform.vip.agent import Agent

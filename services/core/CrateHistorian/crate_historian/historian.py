@@ -76,7 +76,7 @@ from collections import defaultdict
 
 from crate.client.exceptions import ConnectionError, ProgrammingError
 from crate import client
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from . crate_utils import (create_schema, select_all_topics_query,
                            insert_data_query, insert_topic_query)

@@ -91,6 +91,9 @@ class WebSubSystem(SubsystemBase):
 
         core.onstop.connect(onstop, self)
 
+    def unregister_all_routes(self):
+        self._rpc().call(MASTER_WEB, 'unregister_all_agent_routes')
+
     def register_endpoint(self, endpoint, callback, res_type="jsonrpc"):
         """
         The :meth:`register_endpoint` method registers an endpoint with the

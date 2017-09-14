@@ -79,7 +79,7 @@ import mimetypes
 
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from .auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
 from .vip.agent import Agent, Core, RPC
@@ -117,6 +117,7 @@ class DiscoveryInfo(object):
         self.discovery_address = kwargs.pop('discovery_address')
         self.vip_address = kwargs.pop('vip-address')
         self.serverkey = kwargs.pop('serverkey')
+        self.instance_name = kwargs.pop('instance-name')
         assert len(kwargs) == 0
 
     @staticmethod
@@ -163,7 +164,8 @@ class DiscoveryInfo(object):
         dk = {
             'discovery_address': self.discovery_address,
             'vip_address': self.vip_address,
-            'serverkey': self.serverkey
+            'serverkey': self.serverkey,
+            'instance_name': self.instance_name
         }
 
         return jsonapi.dumps(dk)
@@ -391,6 +393,7 @@ class MasterWebService(Agent):
 
         self.bind_web_address = bind_web_address
         self.serverkey = serverkey
+        self.instance_name = None
         self.registeredroutes = []
         self.peerroutes = defaultdict(list)
         self.pathroutes = defaultdict(list)
@@ -579,9 +582,12 @@ class MasterWebService(Agent):
 
     def _get_discovery(self, environ, start_response, data=None):
         q = query.Query(self.core)
-        result = q.query('addresses').get(timeout=60)
+
+        self.instance_name = q.query('instance-name').get(timeout=60)
+        print("Discovery instance: {}".format(self.instance_name))
+        addreses = q.query('addresses').get(timeout=60)
         external_vip = None
-        for x in result:
+        for x in addreses:
             if not is_ip_private(x):
                 external_vip = x
                 break
@@ -589,10 +595,14 @@ class MasterWebService(Agent):
 
         return_dict = {}
 
+
         if self.serverkey:
             return_dict['serverkey'] = encode_key(self.serverkey)
         else:
             sk = None
+
+        if self.instance_name:
+            return_dict['instance-name'] = self.instance_name
 
         return_dict['vip-address'] = external_vip
 

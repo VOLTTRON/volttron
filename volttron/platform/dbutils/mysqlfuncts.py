@@ -64,7 +64,7 @@ from basedb import DbDriver
 from mysql.connector import Error as MysqlError
 from mysql.connector import errorcode as mysql_errorcodes
 from volttron.platform.agent import utils
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)

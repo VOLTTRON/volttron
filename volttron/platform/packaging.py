@@ -66,11 +66,14 @@ import sys
 import uuid
 import tempfile
 import traceback
+import errno
 
 from wheel.install import WheelFile
 from .packages import *
 from . import config
 from .agent import utils
+from volttron.platform import get_volttron_data
+from volttron.utils.prompt import prompt_response
 
 try:
      from volttron.restricted import (auth, certs)
@@ -83,6 +86,10 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
 DEFAULT_CERTS_DIR = '~/.volttron/certificates'
+
+AGENT_TEMPLATE_PATH_TEMPLATE = "agent_templates/{name}/{file}"
+AGENT_TEMPLATE_PATH = "agent_templates/"
+AGENT_TEMPLATE_SETUP = "agent_templates/setup.py_"
 
 
 def log_to_file(file, level=logging.WARNING,
@@ -100,6 +107,148 @@ def log_to_file(file, level=logging.WARNING,
 class AgentPackageError(Exception):
     """Raised for errors during packaging, extraction and signing."""
     pass
+
+def _get_agent_template_list():
+    data_root = get_volttron_data()
+    template_path = os.path.join(data_root, AGENT_TEMPLATE_PATH)
+    return [o for o in os.listdir(template_path)
+            if os.path.isdir(os.path.join(template_path,o))]
+
+
+def _load_agent_template(template_name):
+    data_root = get_volttron_data()
+    setup_path = os.path.join(data_root, AGENT_TEMPLATE_SETUP)
+    agent_path = os.path.join(data_root, AGENT_TEMPLATE_PATH_TEMPLATE.format(name=template_name,
+                                                                             file="agent.py_"))
+    config_path = os.path.join(data_root, AGENT_TEMPLATE_PATH_TEMPLATE.format(name=template_name,
+                                                                                file="config"))
+
+    setup_template = None
+    agent_template = None
+    config_template = None
+
+    try:
+        with open(setup_path) as f:
+            setup_template = f.read()
+
+        with open(agent_path) as f:
+            agent_template = f.read()
+
+        with open(config_path) as f:
+            config_template = f.read()
+    except IOError as e:
+        _log.error("Error loading template: {}".format(str(e)))
+        sys.exit(1)
+
+    return setup_template, agent_template, config_template
+
+def _get_agent_metadata(silent):
+    results = {
+        "version": "0.1",
+        "author": None,
+        "author_email": None,
+        "url": None,
+        "description": None
+    }
+
+    if silent:
+        return results
+
+    results["version"] =        prompt_response("Agent version number:", default="0.1")
+    results["author"] =         prompt_response("Agent author:", default="")
+    results["author_email"] =   prompt_response("Author's email address:", default="")
+    results["url"] =            prompt_response("Agent homepage:", default="")
+    results["description"] =    prompt_response("Short description of the agent:", default="")
+
+    return results
+
+def _get_setup_py(template, agent_package, metadata):
+    metadata_strings = []
+
+    for key, value in metadata.iteritems():
+        if value:
+            metadata_strings.append('{key}="{value}",'.format(key=key, value=value))
+
+    metadata_string = "\n    ".join(metadata_strings)
+
+    template = template.replace("__package_name__", agent_package)
+    template = template.replace("__meta_data__", metadata_string)
+
+    return template
+
+def _get_agent_py(template, module_name, class_name, version, agent_id):
+    template = template.replace("__version_string__", version)
+    template = template.replace("__module_name__", module_name)
+    template = template.replace("__class_name__", class_name)
+
+    if agent_id is not None:
+        template = template.replace("__identity__", 'identity="'+agent_id+'",')
+    else:
+        template = template.replace("__identity__", "")
+
+    return template
+
+
+def _to_camel_case(input):
+    parts = input.split('_')
+    return "".join(x.title() for x in parts)
+
+
+def init_agent(target_directory, module_name, template_name, silent, identity):
+    setup_template, agent_template, config_string = _load_agent_template(template_name)
+    metadata = _get_agent_metadata(silent)
+
+    version = metadata.pop("version")
+
+    setup_string = _get_setup_py(setup_template, module_name, metadata)
+
+    class_name = _to_camel_case(module_name)
+
+    agent_string = _get_agent_py(agent_template, module_name, class_name, version, identity)
+
+    try:
+        _log.info("Creating {}".format(target_directory))
+        os.makedirs(target_directory)
+        module_dir = os.path.join(target_directory, module_name)
+        _log.info("Creating {}".format(module_dir))
+        os.makedirs(module_dir)
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            _log.error("Must specify a new directory name to create agent.")
+        else:
+            _log.error("Unable to create target directory: "+str(e))
+        sys.exit(1)
+
+    try:
+        setup_path = os.path.join(target_directory, "setup.py")
+        _log.info("Creating {}".format(setup_path))
+        with open(setup_path, "w")as f:
+            f.write(setup_string)
+
+        config_path = os.path.join(target_directory, "config")
+        _log.info("Creating {}".format(config_path))
+        with open(config_path, "w")as f:
+            f.write(config_string)
+
+        agent_path = os.path.join(target_directory, module_name, "agent.py")
+        _log.info("Creating {}".format(agent_path))
+        with open(agent_path, "w")as f:
+            f.write(agent_string)
+
+        init_path = os.path.join(target_directory, module_name, "__init__.py")
+        _log.info("Creating {}".format(init_path))
+        with open(init_path, "w")as f:
+            pass
+
+        if identity is not None:
+            identity_path = os.path.join(target_directory, "IDENTITY")
+            _log.info("Creating {}".format(identity_path))
+            with open(identity_path, "w")as f:
+                f.write(identity)
+
+    except OSError as e:
+        _log.error("Unable to create agent file: " + str(e))
+        sys.exit(1)
 
 
 def extract_package(wheel_file, install_dir,
@@ -437,6 +586,22 @@ def main(argv=sys.argv):
              'the platform and the preferred identity of the agent (if any).')
     package_parser.set_defaults(identity=None)
 
+    init_parser = subparsers.add_parser('init',
+                                           help="Create new agent code package from a template."
+                                                " Will prompt for additional metadata.")
+
+    init_parser.add_argument('directory',
+                                help='Directory to create the new agent in (must not exist).')
+    init_parser.add_argument('module_name',
+                                help='Module name for agent. Class name is derived from this name.')
+    init_parser.add_argument('--template', choices=_get_agent_template_list(),
+                             help='Name of the template to use. Defaults to "common".')
+    init_parser.add_argument('--identity',
+                                help='Set agent to have a fixed VIP identity. Useful for new service agents.')
+    init_parser.add_argument('--silent', action="store_true",
+                             help='Use defaults for meta data and do not prompt.')
+    init_parser.set_defaults(identity=None, template="common")
+
     repackage_parser = subparsers.add_parser('repackage',
                                            help="Creates agent package from a currently installed agent.")
     repackage_parser.add_argument('directory',
@@ -546,6 +711,8 @@ def main(argv=sys.argv):
             whl_path = repackage(opts.directory, dest=opts.dest)
         elif opts.subparser_name == 'configure' :
             add_files_to_package(opts.package, {'config_file': opts.config_file})
+        elif opts.subparser_name == 'init' :
+            init_agent(opts.directory, opts.module_name, opts.template, opts.silent, opts.identity)
         else:
             if auth is not None:
                 try:

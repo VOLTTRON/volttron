@@ -65,7 +65,7 @@ import sys
 import uuid
 
 import gevent
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from volttron.platform.vip.agent import Core, Agent
 from volttron.platform.agent.base_historian import BaseHistorian

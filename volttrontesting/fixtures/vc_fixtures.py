@@ -70,8 +70,7 @@ def vc_instance(request, volttron_instance1_web):
         start=True
     )
 
-    rpc_addr = "{}/jsonrpc"\
-        .format(volttron_instance1_web.bind_web_address)
+    rpc_addr = volttron_instance1_web.jsonrpc_endpoint
 
     # Allow all incoming connections that are encrypted.
     volttron_instance1_web.allow_all_connections()

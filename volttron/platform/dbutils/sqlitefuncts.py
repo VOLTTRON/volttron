@@ -67,7 +67,7 @@ import os
 import re
 from basedb import DbDriver
 from volttron.platform.agent import utils
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -391,7 +391,10 @@ class SqlLiteFuncts(DbDriver):
         _log.debug("item {} matched against expr {}".format(item, expr))
         return re.search(expr, item, re.IGNORECASE) is not None
 
-    def regex_select(self, query, args, fetch_all=True):
+    def set_cache(self, cache_size):
+        self.execute_stmt("PRAGMA CACHE_SIZE={}".format(cache_size))
+
+    def regex_select(self, query, args, fetch_all=True, cache_size=None):
         conn = None
         cursor = None
         try:
@@ -403,9 +406,10 @@ class SqlLiteFuncts(DbDriver):
                 _log.error("Unable to connect to sqlite database {} ".format(
                     self.__database))
                 return []
-
             conn.create_function("REGEXP", 2, SqlLiteFuncts.regexp)
-            _log.debug(" REGEXP query {}  ARGS: {}".format(query, args))
+            if cache_size:
+                conn.execute("PRAGMA CACHE_SIZE={}".format(cache_size))
+            _log.debug("REGEXP query {}  ARGS: {}".format(query, args))
             cursor = conn.cursor()
             if args is not None:
                 cursor.execute(query, args)
