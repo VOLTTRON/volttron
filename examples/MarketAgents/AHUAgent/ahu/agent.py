@@ -107,6 +107,7 @@ class AHUAgent(MarketAgent):
         self.subscribing_topic='devices/CAMPUS/BUILDING1/AHU1/all'
         self.join_market(self.air_market_name, SELLER, None, None, self.air_aggregate_callback, self.air_price_callback, self.error_callback)
         self.join_market(self.electric_market_name, BUYER, None, None, None, self.electric_price_callback, self.error_callback)
+        self.hvacAvail = 0
 		
     @Core.receiver('onstart')
     def setup(self, sender, **kwargs):
@@ -168,6 +169,13 @@ class AHUAgent(MarketAgent):
         info = {}
         for key, value in message[0].items():
             info[key.lower()] = value
+
+    def getQMax(self):
+        return 0
+
+    def getQMin(self):
+        return 0
+
 
 def main():
     """Main method called to start the agent."""
