@@ -148,11 +148,11 @@ def build_protected_pubsub(instance, topic, capabilities, topic_regex=None,
     topic_file = os.path.join(instance.volttron_home, 'protected_topics.json')
     with open(topic_file, 'w') as f:
         json.dump(topic_dict, f)
-        gevent.sleep(.1)
+        gevent.sleep(.2)
 
     if add_capabilities:
         instance.add_capabilities(agent2.publickey, capabilities)
-        gevent.sleep(.1)
+        gevent.sleep(.2)
 
     return {'agent1': agent2, 'agent2': agent2, 'topic': topic,
             'instance': instance, 'messages': msgs,

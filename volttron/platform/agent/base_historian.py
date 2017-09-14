@@ -242,6 +242,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from threading import Thread
 
+import gevent
+
 import pytz
 import re
 from dateutil.parser import parse
@@ -335,11 +337,15 @@ class BaseHistorianAgent(Agent):
     def __init__(self,
                  retry_period=300.0,
                  submit_size_limit=1000,
-                 max_time_publishing=30,
+                 max_time_publishing=30.0,
                  backup_storage_limit_gb=None,
-                 topic_replace_list=None,
+                 topic_replace_list=[],
                  gather_timing_data=False,
                  readonly=False,
+                 capture_device_data=True,
+                 capture_log_data=True,
+                 capture_analysis_data=True,
+                 capture_record_data=True,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -351,21 +357,159 @@ class BaseHistorianAgent(Agent):
         _log.info('Topic string replace list: {}'
                   .format(self._topic_replace_list))
 
-        self._gather_timing_data = gather_timing_data
+        self.gather_timing_data = bool(gather_timing_data)
 
         self.volttron_table_defs = 'volttron_table_definitions'
         self._backup_storage_limit_gb = backup_storage_limit_gb
-        self._started = False
-        self._retry_period = retry_period
-        self._submit_size_limit = submit_size_limit
-        self._max_time_publishing = timedelta(seconds=max_time_publishing)
+        self._retry_period = float(retry_period)
+        self._submit_size_limit = int(submit_size_limit)
+        self._max_time_publishing = float(max_time_publishing)
         self._successful_published = set()
+        #Remove the need to reset subscriptions to eliminate possible data loss at config change.
+        self._current_subscriptions = set()
         self._topic_replace_map = {}
         self._event_queue = Queue()
-        self._readonly = readonly
+        self._readonly = bool(readonly)
+        self._stop_process_loop = False
+        self._process_thread = None
+
+        self.no_insert = False
+
+        self._default_config = {"retry_period":self._retry_period,
+                               "submit_size_limit": self._submit_size_limit,
+                               "max_time_publishing": self._max_time_publishing,
+                               "backup_storage_limit_gb": self._backup_storage_limit_gb,
+                               "topic_replace_list": self._topic_replace_list,
+                               "gather_timing_data": self.gather_timing_data,
+                               "readonly": self._readonly,
+                               "capture_device_data": capture_device_data,
+                               "capture_log_data": capture_log_data,
+                               "capture_analysis_data": capture_analysis_data,
+                               "capture_record_data": capture_record_data
+                               }
+
+        self.vip.config.set_default("config", self._default_config)
+        self.vip.config.subscribe(self._configure, actions=["NEW", "UPDATE"], pattern="config")
+
+    def update_default_config(self, config):
+        """May be called by historians to add to the default configuration for its own use."""
+        self._default_config.update(config)
+        self.vip.config.set_default("config", self._default_config)
+
+
+    def start_process_thread(self):
         self._process_thread = Thread(target=self._process_loop)
         self._process_thread.daemon = True  # Don't wait on thread to exit.
         self._process_thread.start()
+        _log.debug("Process thread started.")
+
+    def stop_process_thread(self):
+        _log.debug("Stopping the process thread.")
+        if self._process_thread is None:
+            return
+
+        #Tell the loop it needs to die.
+        self._stop_process_loop = True
+        #Wake the loop.
+        self._event_queue.put(None)
+
+        #9 seconds as configuration timeout is 10 seconds.
+        self._process_thread.join(9.0)
+        if self._process_thread.is_alive():
+            _log.error("Failed to stop process thread during reconfiguration!")
+
+        self._process_thread = None
+        _log.debug("Process thread stopped.")
+
+
+    def _configure(self, config_name, action, contents):
+        self.vip.heartbeat.start()
+        _log.info("Configuring historian.")
+        config = self._default_config.copy()
+        config.update(contents)
+
+        try:
+            topic_replace_list = list(config.get("topic_replace_list", []))
+            gather_timing_data = bool(config.get("gather_timing_data", False))
+            backup_storage_limit_gb = config.get("backup_storage_limit_gb")
+            retry_period = float(config.get("retry_period", 300.0))
+            submit_size_limit = int(config.get("submit_size_limit", 1000))
+            max_time_publishing = float(config.get("max_time_publishing", 30.0))
+            readonly = bool(config.get("readonly", False))
+        except ValueError as e:
+            _log.error("Failed to load base historian settings. Settings not applied!")
+            return
+
+        #Reset replace map.
+        self._topic_replace_map = {}
+
+        self._topic_replace_list = topic_replace_list
+
+        _log.info('Topic string replace list: {}'
+                  .format(self._topic_replace_list))
+
+        self.gather_timing_data = gather_timing_data
+        self._backup_storage_limit_gb = backup_storage_limit_gb
+        self._retry_period = retry_period
+        self._submit_size_limit = submit_size_limit
+        self._max_time_publishing = timedelta(seconds=max_time_publishing)
+        self._readonly = readonly
+
+        self._update_subscriptions(bool(config.get("capture_device_data", True)),
+                                   bool(config.get("capture_log_data", True)),
+                                   bool(config.get("capture_analysis_data", True)),
+                                   bool(config.get("capture_record_data", True)))
+
+        self.stop_process_thread()
+
+        try:
+            self.configure(config)
+        except Exception as e:
+            _log.error("Failed to load historian settings.")
+
+        self.start_process_thread()
+
+    def _update_subscriptions(self, capture_device_data,
+                                    capture_log_data,
+                                    capture_analysis_data,
+                                    capture_record_data):
+        subscriptions = [
+            (capture_device_data, topics.DRIVER_TOPIC_BASE, self._capture_device_data),
+            (capture_log_data, topics.LOGGER_BASE, self._capture_log_data),
+            (capture_analysis_data, topics.ANALYSIS_TOPIC_BASE, self._capture_analysis_data),
+            (capture_record_data, topics.RECORD_BASE, self._capture_record_data)
+        ]
+
+        for should_sub, prefix, cb in subscriptions:
+            if should_sub:
+                if prefix not in self._current_subscriptions:
+                    _log.debug("subscribing to {}".format(prefix))
+                    try:
+                        self.vip.pubsub.subscribe(peer='pubsub',
+                                                  prefix=prefix,
+                                                  callback=cb).get(timeout=5.0)
+                        self._current_subscriptions.add(prefix)
+                    except (gevent.Timeout, Exception) as e:
+                        _log.error("Failed to subscribe to {}: {}".format(prefix, repr(e)))
+            else:
+                if prefix in self._current_subscriptions:
+                    _log.debug("unsubscribing from {}".format(prefix))
+                    try:
+                        self.vip.pubsub.unsubscribe(peer='pubsub',
+                                                    prefix=prefix,
+                                                    callback=cb).get(timeout=5.0)
+                        self._current_subscriptions.remove(prefix)
+                    except (gevent.Timeout, Exception) as e:
+                        _log.error("Failed to unsubscribe from {}: {}".format(prefix, repr(e)))
+
+    def configure(self, configuration):
+        """Optional, may be implemented by a concrete implementation to add support for the configuration store.
+        Values should be stored in this function only.
+
+        The process thread is stopped before this is called if it is running. It is started afterwards.
+
+        `historian_setup` is called after this is called. """
+        pass
 
     @RPC.export
     def insert(self, records):
@@ -374,11 +518,20 @@ class BaseHistorianAgent(Agent):
         :param records: List of items to be added to the local event queue
         :type records: list of dictionaries
         """
+
+        #This is for Forward Historians which do not support data mover inserts.
+        if self.no_insert:
+            raise RuntimeError("Insert not supported by this historian.")
+
+        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        _log.debug("insert called by {} with {} records".format(rpc_peer, len(records)))
+
         for r in records:
             topic = r['topic']
             headers = r['headers']
             message = r['message']
 
+            capture_func = None
             if topic.startswith(topics.DRIVER_TOPIC_BASE):
                 capture_func = self._capture_device_data
             elif topic.startswith(topics.LOGGER_BASE):
@@ -388,42 +541,13 @@ class BaseHistorianAgent(Agent):
             elif topic.startswith(topics.RECORD_BASE):
                 capture_func = self._capture_record_data
 
-            capture_func(peer=None, sender=None, bus=None,
-                         topic=topic, headers=headers, message=message)
-
-    def _create_subscriptions(self):
-
-        subscriptions = [
-            (topics.DRIVER_TOPIC_BASE, self._capture_device_data),
-            (topics.LOGGER_BASE, self._capture_log_data),
-            #(topics.ACTUATOR, self._capture_actuator_data),
-            (topics.ANALYSIS_TOPIC_BASE, self._capture_analysis_data),
-            (topics.RECORD_BASE, self._capture_record_data)
-        ]
-
-        for prefix, cb in subscriptions:
-            _log.debug("subscribing to {}".format(prefix))
-            self.vip.pubsub.subscribe(peer='pubsub',
-                                      prefix=prefix,
-                                      callback=cb)
-
-    @Core.receiver("onstart")
-    def starting_base(self, sender, **kwargs):
-        """
-        Subscribes to the platform message bus on the actuator, record,
-        datalogger, and device topics to capture data.
-        """
-        if self._readonly:
-            _log.debug("Starting base historian in readonly mode. Historian"
-                       "will not subscribe to any topic")
-        else:
-            self._create_subscriptions()
-            _log.debug("Starting base historian")
+            if capture_func:
+                capture_func(peer=None, sender=None, bus=None,
+                             topic=topic, headers=headers, message=message)
+            else:
+                _log.error("Unrecognized topic in insert call: {}".format(topic))
 
 
-        self._started = True
-
-        self.vip.heartbeat.start()
 
     @Core.receiver("onstop")
     def stopping(self, sender, **kwargs):
@@ -511,7 +635,7 @@ class BaseHistorianAgent(Agent):
         if sender == 'pubsub.compat':
             message = compat.unpack_legacy_message(headers, message)
 
-        if self._gather_timing_data:
+        if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
         self._event_queue.put(
@@ -543,7 +667,7 @@ class BaseHistorianAgent(Agent):
                 topic=topic))
             return
 
-        if self._gather_timing_data:
+        if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
         for point, item in data.iteritems():
@@ -663,7 +787,7 @@ class BaseHistorianAgent(Agent):
             "Queuing {topic} from {source} for publish".format(topic=topic,
                                                                source=source))
 
-        if self._gather_timing_data:
+        if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
         for key, value in values.iteritems():
@@ -711,7 +835,7 @@ class BaseHistorianAgent(Agent):
             "Queuing {topic} from {source} for publish".format(topic=topic,
                                                                source=source))
 
-        if self._gather_timing_data:
+        if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
         self._event_queue.put({'source': source,
@@ -770,7 +894,13 @@ class BaseHistorianAgent(Agent):
                         break
 
 
-            backupdb.backup_new_data(new_to_publish)
+            #We wake the thread after a configuration change by passing a None to the queue.
+            #Backup anything new before checking for a stop.
+            backupdb.backup_new_data((x for x in new_to_publish if x is not None))
+
+            #Check for a stop for reconfiguration.
+            if self._stop_process_loop:
+                break
 
             wait_for_input = True
             start_time = datetime.utcnow()
@@ -778,7 +908,9 @@ class BaseHistorianAgent(Agent):
             while True:
                 to_publish_list = backupdb.get_outstanding_to_publish(
                     self._submit_size_limit)
-                if not to_publish_list or not self._started:
+
+                # Check for a stop for reconfiguration.
+                if not to_publish_list or self._stop_process_loop:
                     break
 
                 try:
@@ -800,7 +932,18 @@ class BaseHistorianAgent(Agent):
                     wait_for_input = False
                     break
 
-        _log.debug("Finished processing")
+                # Check for a stop for reconfiguration.
+                if self._stop_process_loop:
+                    break
+
+            # Check for a stop for reconfiguration.
+            if self._stop_process_loop:
+                break
+
+        backupdb.close()
+        self.historian_teardown()
+
+        _log.debug("Process loop stopped.")
 
     def report_handled(self, record):
         """
@@ -878,6 +1021,13 @@ class BaseHistorianAgent(Agent):
         Optional setup routine, run in the processing thread before
         main processing loop starts. Gives the Historian a chance to setup
         connections in the publishing thread.
+        """
+
+    def historian_teardown(self):
+        """
+        Optional teardown routine, run in the processing thread if the main
+        processing loop is stopped. This happened whenever a new configuration
+        arrives from the config store.
         """
 
     @abstractmethod
@@ -980,8 +1130,8 @@ class BackupDatabase:
 
     def backup_new_data(self, new_publish_list):
         """
-        :param new_publish_list: A list of records to cache to disk.
-        :type new_publish_list: list
+        :param new_publish_list: An iterable of records to cache to disk.
+        :type new_publish_list: iterable
         """
         _log.debug("Backing up unpublished values.")
         c = self._connection.cursor()
@@ -1110,6 +1260,9 @@ class BackupDatabase:
         c.close()
         return results
 
+    def close(self):
+        self._connection.close()
+
     def _setupdb(self):
         """ Creates a backup database for the historian if doesn't exist."""
 
@@ -1224,6 +1377,20 @@ class BaseQueryHistorianAgent(Agent):
         :rtype: list
         """
         return self.query_topic_list()
+
+    @RPC.export
+    def get_topics_by_pattern(self, topic_pattern):
+        """ Find the list of topics and its id for a given topic_pattern
+
+        :return: returns list of dictionary object {topic_name:id}"""
+        return self.query_topics_by_pattern(topic_pattern)
+
+    @abstractmethod
+    def query_topics_by_pattern(topic_pattern):
+        """ Find the list of topics and its id for a given topic_pattern
+
+            :return: returns list of dictionary object {topic_name:id}"""
+        pass
 
     @abstractmethod
     def query_topic_list(self):

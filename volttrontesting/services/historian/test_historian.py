@@ -358,20 +358,13 @@ def get_table_names(config):
     return table_names
 
 
-@pytest.fixture(scope="module",
-                params=['volttron_2', 'volttron_3'])
+@pytest.fixture(scope="module")
 def publish_agent(request, volttron_instance):
     # 1: Start a fake agent to publish to message bus
     print("**In setup of publish_agent volttron is_running {}".format(
         volttron_instance.is_running))
-    agent = None
-    if request.param == 'volttron_2':
-        if agent is None or not isinstance(PublishMixin, agent):
-            agent = PublishMixin(
-                volttron_instance.opts['publish_address'])
-    else:
-        if agent is None or isinstance(PublishMixin, agent):
-            agent = volttron_instance.build_agent()
+
+    agent = volttron_instance.build_agent()
 
     # 2: add a tear down method to stop the fake
     # agent that published to message bus

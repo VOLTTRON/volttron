@@ -67,6 +67,7 @@ import weakref
 import gevent
 from zmq import green as zmq
 from zmq import SNDMORE
+from volttron.platform.agent import json as jsonapi
 
 from .base import SubsystemBase
 from ..decorators import annotate, annotations, dualmethod, spawn
@@ -77,7 +78,7 @@ from ..results import ResultsDictionary
 from gevent.queue import Queue, Empty
 from collections import defaultdict
 from datetime import timedelta
-from volttron.platform.agent import json as jsonapi
+
 
 __all__ = ['PubSub']
 min_compatible_version = '3.0'
@@ -600,8 +601,9 @@ class PubSub(SubsystemBase):
             result = next(self._results)
             # Parameters are stored initially, in case remote agent/platform is using old pubsub
             if self._parameters_needed:
-                kwargs = dict(op='publish', peer=peer, topic=topic, bus=bus,
-                                                                headers=headers, message=message)
+                kwargs = dict(op='publish', peer=peer,
+                              topic=topic, bus=bus,
+                              headers=headers, message=message)
                 self._save_parameters(result.ident, **kwargs)
 
             json_msg = jsonapi.dumps(dict(bus=bus, headers=headers, message=message))
@@ -634,19 +636,24 @@ class PubSub(SubsystemBase):
         type message: dict
         """
         op = message.args[0].bytes
+
         if op == 'request_response':
+            result = None
             try:
                 result = self._results.pop(bytes(message.id))
             except KeyError:
-                return
+                pass
+
             if self._parameters_needed:
                 self._send_via_rpc = False
                 self._parameters_needed = False
                 self._pubsubwithrpc.clear_parameters()
                 del self._pubsubwithrpc
             response = message.args[1].bytes
-            _log.debug("Message result: {}".format(response))
-            result.set(response)
+            #_log.debug("Message result: {}".format(response))
+            if result:
+                result.set(response)
+
         elif op == 'publish':
             try:
                 topic = topic = message.args[1].bytes

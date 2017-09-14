@@ -1,0 +1,411 @@
+-- dimensionless --
+percent,%
+pixel,px
+decibel,db
+power_factor,pf
+pH
+percent_relative_humidity,%RH
+grams_of_water_per_kilogram_dry_air,gH₂O/kgAir
+volts_per_degree_kelvin,V/K
+degree_days_celsius,°daysC
+degree_days_fahrenheit,°daysF
+percent_obscuration_per_foot,%obsc/ft
+percent_obscuration_per_meter,%obsc/m
+psi_per_degree_fahrenheit,psi/°F
+square_meters_per_newton,m²/N
+watts_per_square_meter_degree_kelvin,W/m²K
+ampere_square_meter,Am²
+db_milliVolt,dBmV
+db_microVolt,dBµV
+parts_per_unit,ppu
+parts_per_million,ppm
+parts_per_billion,ppb
+grams_per_kilogram,g/kg
+radian,rad
+degrees_angular,deg
+degrees_phase,degPh
+steradian,sr
+nephelometric_turbidity_units,ntu
+formazin_nephelometric_unit,fnu
+power_usage_effectiveness,PUE
+data_center_infrastructure_efficiency,DCIE
+
+-- currency --
+australian_dollar,AUD
+british_pound,GBP,£
+canadian_dollar,CAD
+chinese_yuan,CNY,元
+emerati_dirham,AED
+euro,EUR,€
+indian_rupee,INR,₹
+japanese_yen,JPY,¥
+russian_ruble,RUB,руб
+south_korean_won,KRW,₩
+swedish_krona,SEK,kr
+swiss_franc,CHF,Fr
+taiwan_dollar,TWD
+us_dollar,USD,$
+new_israeli_shekel,NIS
+
+-- acceleration --
+meters_per_second_squared,m/s²
+
+-- angular acceleration --
+radians_per_second_squared,rad/s²
+
+-- angular momentum --
+joule_second,Js
+
+-- angular velocity --
+radians_per_second,rad/s
+revolutions_per_minute,rpm
+
+-- area --
+square_meter,m²
+square_millimeter,mm²
+square_centimeter,cm²
+square_kilometer,km²
+square_inch,in²
+square_foot,ft²
+square_yard,yd²
+square_mile,mile²
+acre
+
+-- capacitance --
+farad,F
+
+-- cooling efficiency --
+coefficient_of_performance,COP
+kilowatt_per_ton,kW/ton
+energy_efficiency_ratio,Btu/Wh,EER
+
+-- density --
+kilograms_per_cubic_meter,kg/m³
+micrograms_per_cubic_meter,µg/m³
+
+-- electric charge --
+coulomb,C
+
+-- electric conductance --
+siemens,S
+
+-- electric current --
+ampere,A
+milliampere,mA
+
+-- electric current density --
+amperes_per_square_meter,A/m²
+
+-- electric field strength --
+volts_per_meter,V/m
+
+-- electric potential --
+Volt,V
+milliVolt,mV
+kiloVolt,kV
+megaVolt,MV
+
+-- electric resistance --
+ohm,Ω,Ω
+kilohm,kΩ,kΩ
+megohm,MΩ,MΩ
+milliohm,mΩ,mΩ
+
+-- electrical conductivity --
+siemens_per_meter,S/m
+
+-- electrical resistivity --
+ohm_meter,Ωm,Ωm
+
+-- energy --
+joule,J
+kilojoule,kJ
+watt_hour,Wh
+kilowatt_hour,kWh
+megawatt_hour,MWh
+btu,BTU
+kilobtu,kBTU
+megabtu,MBTU,MMBTU
+horsepower_hour,hph
+calorie,cal
+therm
+tons_refrigeration_hour,tonrefh
+megajoule,MJ
+gigajoule,GJ
+newton_meter,Nm
+cubic_meters_natural_gas,m³_gas
+cubic_feet_natural_gas,ft³_gas
+
+-- apparent energy --
+volt_ampere_hour,VAh
+kilovolt_ampere_hour,kVAh
+megavolt_ampere_hour,MVAh
+
+-- reactive energy --
+volt_ampere_reactive_hour,VARh
+kilovolt_ampere_reactive_hour,kVARh
+megavolt_ampere_reactive_hour,MVARh
+
+-- energy by area --
+joules_per_square_meter,J/m²
+watt_hours_per_square_meter,Wh/m²
+watt_hours_per_square_foot,Wh/ft²
+kilowatt_hours_per_square_meter,kWh/m²
+kilowatt_hours_per_square_foot,kWh/ft²
+megawatt_hours_per_square_meter,MWh/m²
+megawatt_hours_per_square_foot,MWh/ft²
+megajoules_per_square_meter,MJ/m²
+megajoules_per_square_foot,MJ/ft²
+kilobtu_per_square_foot,kBTU/ft²
+megabtu_per_square_foot,MBTU/ft²
+
+-- enthalpy --
+joules_per_gram,J/g
+joules_per_kilogram,J/kg
+joules_per_kilogram_dry_air,J/kg_dry
+btu_per_pound,BTU/lb
+btus_per_pound_dry_air,btu/lb_dry
+kilojoules_per_kilogram,kJ/kg
+kilojoules_per_kilogram_dry_air,kJ/kg_dry
+megajoules_per_kilogram_dry_air,MJ/kg_dry
+calorie_per_gram,cal/g
+
+-- entropy --
+joules_per_degree_kelvin,J/°K
+kilojoules_per_degree_kelvin,kJ/°K
+megajoules_per_degree_kelvin,MJ/°K
+
+-- force --
+newton,N
+pound_force,lbf
+
+-- frequency --
+hertz,Hz
+kilohertz,kHz
+cycles_per_hour,cph
+cycles_per_minute,cpm
+megahertz,MHz
+per_minute,/min
+per_second,/s
+per_hour,/h
+percent_per_second,%/s
+air_changes_per_hour,ACH
+
+-- grammage --
+kilograms_per_square_meter,kg/m²
+grams_per_square_meter,g/m²
+
+-- heating rate --
+degrees_kelvin_per_second,K/s
+degrees_celsius_per_hour,°C/h
+degrees_celsius_per_minute,°C/min
+degrees_fahrenheit_per_hour,°F/h
+degrees_fahrenheit_per_minute,°F/min
+degrees_kelvin_per_hour,K/h
+degrees_kelvin_per_minute,K/min
+
+-- illuminance --
+lux,lx
+candelas_per_square_meter,cd/m²
+
+-- inductance --
+henry,H
+
+-- irradiance --
+watts_per_square_meter_irradiance,W/m²_irr
+watts_per_square_foot_irradiance,W/ft²_irr
+
+-- length --
+meter,m
+micrometer,µm
+millimeter,mm
+centimeter,cm
+kilometer,km
+inch,in
+foot,ft
+yard,yd
+mile
+
+-- luminescence --
+candela,cd
+footcandle,ftcd
+
+-- luminous flux --
+lumen,lm
+
+-- magnetic field strength --
+amperes_per_meter,A/m
+
+-- magnetic flux --
+weber,Wb
+
+-- magnetic flux density --
+tesla,T
+
+-- mass --
+kilogram,kg
+milligram,mg
+gram,g
+ounce,oz
+pound,lb
+kilopound,klb
+metric_ton,ton
+short_ton,t
+
+-- mass flow --
+kilograms_per_second,kg/s
+kilograms_per_minute,kg/min
+kilograms_per_hour,kg/h
+pounds_per_minute,lb/min
+pounds_per_hour,lb/h
+pounds_per_second,lb/s
+kilopounds_per_hour,klb/h
+grams_per_second,g/s
+grams_per_minute,g/min
+metric_tons_per_hour,ton/h
+
+-- momentum --
+newton_second,Ns
+
+-- power --
+watt,W
+milliwatt,mW
+kilowatt,kW
+megawatt,MW
+gigawatt,GW
+btus_per_hour,BTU/h
+therms_per_hour,therm/h
+horsepower,hp
+foot_pounds_per_second,ftlbs/sec
+tons_refrigeration,tonref
+kilobtus_per_hour,kBTU/h
+megabtus_per_hour,MBTU/h,MMBTU/h
+joules_per_hour,J/h
+kilojoules_per_hour,kJ/h
+megajoules_per_hour,MJ/h
+
+-- power by area --
+watts_per_square_meter,W/m²
+watts_per_square_foot,W/ft²
+kilowatts_per_square_meter,kW/m²
+kilowatts_per_square_foot,kW/ft²
+kilobtus_per_hour_per_square_foot,kBTU/h/ft²
+
+-- power by volumetric flow --
+watts_per_cubic_meters_per_second,W/m³/s
+watts_per_cubic_feet_per_minute,W/cfm
+kilowatts_per_kilocubic_feet_per_minute,kW/kcfm
+kilowatts_per_gallons_per_minute,kW/gal/min
+
+-- apparent power --
+volt_ampere,VA
+kilovolt_ampere,kVA
+megavolt_ampere,mVA
+
+-- reactive power --
+volt_ampere_reactive,VAR
+kilovolt_ampere_reactive,kVAR
+megavolt_ampere_reactive,MVAR
+
+-- pressure --
+pascal,Pa
+kilopascal,kPa
+bar
+atmosphere,atm
+pounds_per_square_inch,psi
+centimeters_of_water,cmH₂O
+inches_of_water,in/wc,inH₂O
+millimeters_of_mercury,mmHg
+centimeters_of_mercury,cmHg
+inches_of_mercury,inHg
+hectopascal,hPa
+millibar,mbar
+
+-- specific entropy --
+joules_per_kilogram_degree_kelvin,J/kg°K
+
+-- surface tension --
+newtons_per_meter,N/m
+
+-- temperature --
+fahrenheit,°F
+celsius,°C
+kelvin,K
+
+-- temperature differential --
+fahrenheit_degrees,Δ°F
+celsius_degrees,Δ°C
+kelvin_degrees,ΔK
+
+-- thermal conductivity --
+watts_per_meter_degree_kelvin,W/m°K
+
+-- time --
+nanosecond,ns
+microsecond,µs
+millisecond,ms
+hundredths_second,cs
+tenths_second,ds
+second,sec,s
+minute,min
+hour,hr,h
+day
+week,wk
+julian_month,mo
+year,yr
+
+-- velocity --
+meters_per_second,m/s
+kilometers_per_second,km/s
+kilometers_per_hour,km/h
+miles_per_hour,mph
+feet_per_second,ft/s
+feet_per_minute,ft/min
+millimeters_per_second,mm/s
+millimeters_per_minute,mm/min
+meters_per_minute,m/min
+meters_per_hour,m/h
+knot
+
+-- volume --
+cubic_meter,m³
+cubic_millimeter,mm³
+cubic_centimeter,cm³
+milliliter,mL
+hectoliter,hL
+liter,L
+kiloliter,kL
+cubic_inch,in³
+cubic_foot,ft³
+cubic_yard,yd³
+gallon,gal
+kilogallon,kgal
+quart,qt
+pint,pt
+fluid_ounce,fl_oz
+imperial_gallon,galUK
+hecto_cubic_foot,hft³
+
+-- volumetric flow --
+cubic_meters_per_second,m³/s
+milliliters_per_second,mL/s
+hectoliters_per_second,hL/s
+liters_per_second,L/s
+cubic_feet_per_second,cfs
+cubic_feet_per_minute,cfm
+cubic_feet_per_hour,cfh
+kilocubic_feet_per_minute,kcfm
+imperial_gallons_per_minute,galUK/min
+liters_per_minute,L/min
+gallons_per_minute,gal/min
+liters_per_hour,L/h
+cubic_meters_per_minute,m³/min
+cubic_meters_per_hour,m³/h
+
+-- bytes --
+byte
+kilobyte,kB
+megabyte,MB
+gigabyte,GB
+terabyte,TB
+petabyte,PB

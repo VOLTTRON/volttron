@@ -65,6 +65,7 @@ import logging
 import sys
 
 import bson
+from bson import ObjectId
 import pymongo
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_aggregate_historian import AggregateHistorian
@@ -146,17 +147,6 @@ class MongodbAggregateHistorian(AggregateHistorian):
         return mongoutils.get_agg_topic_map(self.dbclient,
                                             self._agg_topic_collection)
 
-    def find_topics_by_pattern(self, topics_pattern):
-        db = self.dbclient.get_default_database()
-        topics_pattern = topics_pattern.replace('/', '\/')
-        pattern = {'topic_name': {'$regex': topics_pattern, '$options': 'i'}}
-        cursor = db[self._topic_collection].find(pattern)
-        topic_id_map = dict()
-        for document in cursor:
-            topic_id_map[document['topic_name'].lower()] = document[
-                '_id']
-        return topic_id_map
-
     def get_aggregation_list(self):
         return  ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX', 'STDDEVPOP',
                  'STDDEVSAMP']
@@ -206,6 +196,11 @@ class MongodbAggregateHistorian(AggregateHistorian):
         db = self.dbclient.get_default_database()
         _log.debug("collect_aggregate: params {}, {}, {}, {}".format(
             topic_ids, agg_type, start_time, end_time))
+        # because topic_ids might be got by making rpc call to historian
+        # in which case historian would have returned object ids as strings
+        # in order to be serializable
+        if not isinstance(topic_ids[0], ObjectId):
+            topic_ids = [ObjectId(x) for x in topic_ids]
 
         match_conditions = [{"topic_id": {"$in": topic_ids}}]
         if start_time is not None:

@@ -1,6 +1,6 @@
 from crate import client
 import os
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 root = os.path.dirname(os.path.abspath(__file__))
 with open('{}/crate_config'.format(root), 'r') as fp:

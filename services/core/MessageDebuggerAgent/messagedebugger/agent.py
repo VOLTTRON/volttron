@@ -167,7 +167,8 @@ class MessageDebuggerAgent(Agent):
                 # Un-comment the following line to watch the message stream flow by in the log...
                 # _log.debug('{}'.format(debug_message))
 
-                self.store_debug_message(debug_message)
+                if self._debug_session:
+                    self.store_debug_message(debug_message)
 
                 if self._streaming_messages and self.allowed_by_filters(debug_message, ignore_session_id=True):
                     # Re-publish the DebugMessage (as json) for MessageViewer real-time consumption
@@ -681,7 +682,7 @@ class DebugMessage(ORMBase):
         self.frame9 = bytes(msg_elements[10]) if len(msg_elements) > 10 else ''
         self.method = ''
         self.params = ''
-        self.topic = ''
+        self.topic = self.frame7        # MasterDriverAgent device topics go in routed message's frame 7
         self.headers = ''
         self.message = ''
         self.message_value = ''

@@ -79,7 +79,7 @@ import mimetypes
 
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from .auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
 from .vip.agent import Agent, Core, RPC
@@ -117,6 +117,7 @@ class DiscoveryInfo(object):
         self.discovery_address = kwargs.pop('discovery_address')
         self.vip_address = kwargs.pop('vip-address')
         self.serverkey = kwargs.pop('serverkey')
+        self.instance_name = kwargs.pop('instance-name')
         assert len(kwargs) == 0
 
     @staticmethod
@@ -163,7 +164,8 @@ class DiscoveryInfo(object):
         dk = {
             'discovery_address': self.discovery_address,
             'vip_address': self.vip_address,
-            'serverkey': self.serverkey
+            'serverkey': self.serverkey,
+            'instance_name': self.instance_name
         }
 
         return jsonapi.dumps(dk)

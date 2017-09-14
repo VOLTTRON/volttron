@@ -60,11 +60,8 @@ from __future__ import print_function, absolute_import
 import logging
 import logging.config
 import os
-import uuid
 import re
 
-import gevent
-from gevent.fileobject import FileObject
 import zmq
 from zmq import SNDMORE, EHOSTUNREACH, ZMQError, EAGAIN, NOBLOCK
 from zmq import green

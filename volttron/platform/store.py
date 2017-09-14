@@ -65,7 +65,7 @@ import errno
 from csv import DictReader
 from StringIO import StringIO
 
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 from gevent.lock import Semaphore
 
 from volttron.utils.persistance import PersistentDict
