@@ -19,9 +19,6 @@ FORWARDER_CONFIG = {
     "agentid": "forwarder",
     "destination-vip": {},
     "custom_topic_list": [],
-    "services_topic_list": [
-        "devices", "analysis", "record", "datalogger", "actuators"
-    ],
     "topic_replace_list": [
         {"from": "PNNL/BUILDING_1", "to": "PNNL/BUILDING1_ANON"}
     ]
