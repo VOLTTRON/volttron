@@ -127,7 +127,7 @@ class VAVAgent(MarketAgent, FirstOrderZone):
                                   callback=self.updateState)
 		
     def offer_callback(self, timestamp, market_name, buyer_seller):
-        return self.create_demand_curve()
+        self.make_offer(market_name, buyer_seller, self.create_demand_curve())
 
     def create_demand_curve(self):
         demand_curve = PolyLine()		
@@ -141,7 +141,7 @@ class VAVAgent(MarketAgent, FirstOrderZone):
         else:
             demand_curve.add(Point(max(pMin, pMax), 0.0))
             demand_curve.add(Point(min(pMin, pMax),0.0))
-        return demand_curve 
+        return demand_curve
 
     def iniState(self):
         self.hvacAvail = 1
@@ -198,7 +198,6 @@ class VAVAgent(MarketAgent, FirstOrderZone):
 						
     def price_callback(self, timestamp, market_name, buyer_seller, price, quantity):
         _log.debug("Report cleared price for Market: {} {}, Message: {}".format(market_name, buyer_seller, price, quantity))
-        print "VAV_works"
 
     def error_callback(self, timestamp, market_name, buyer_seller, error_message):
         _log.debug("Report error for Market: {} {}, Message: {}".format(market_name, buyer_seller, error_message))

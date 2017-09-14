@@ -65,8 +65,7 @@ from volttron.platform.agent.base_market_agent.poly_line import PolyLine
 from volttron.platform.agent.base_market_agent.point import Point
 from volttron.platform.agent.base_market_agent.buy_sell import BUYER
 from volttron.platform.agent.base_market_agent.buy_sell import SELLER
-from pnnl.models.firstorderzone import FirstOrderZone
-from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
+# from pnnl.models.firstorderzone import FirstOrderZone
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
@@ -89,28 +88,25 @@ def ahu_agent(config_path, **kwargs):
 
     if not config:
         _log.info("Using defaults for starting configuration.")
-    market_name1 = config.get('market_name1')
-#    market_name2 = config.get('market_name2')	
+    air_market_name = config.get('market_name1', 'air')
+    electric_market_name = config.get('market_name2', 'electric')
     agent_name= config.get('agent_name')		
-    return AHUAgent(market_name1,agent_name, **kwargs)
-
-
-	
-	
+    return AHUAgent(air_market_name,electric_market_name,agent_name, **kwargs)
 
 class AHUAgent(MarketAgent):
     """
     The SampleElectricMeterAgent serves as a sample of an electric meter that
     sells electricity for a single building at a fixed price.
     """
-    def __init__(self, market_name,agent_name,**kwargs):
+    def __init__(self, air_market_name, electric_market_name, agent_name, **kwargs):
         super(AHUAgent, self).__init__(**kwargs)
-        self.iniState()
-        self.market_name1 = market_name
-        self.agent_name = agent_name		
+        self.ini_state()
+        self.air_market_name = air_market_name
+        self.electric_market_name = electric_market_name
+        self.agent_name = agent_name
         self.subscribing_topic='devices/CAMPUS/BUILDING1/AHU1/all'
-        self.join_market(self.market_name1, SELLER, None, None, self.aggregate_callback, self.price_callback, self.error_callback)
-#        self.join_market(self.market_name2, BUYER, None, self.offer_callback2, None, self.price_callback2, self.error_callback2)
+        self.join_market(self.air_market_name, SELLER, None, None, self.air_aggregate_callback, self.air_price_callback, self.error_callback)
+        self.join_market(self.electric_market_name, BUYER, None, None, None, self.electric_price_callback, self.error_callback)
 		
     @Core.receiver('onstart')
     def setup(self, sender, **kwargs):
@@ -119,19 +115,26 @@ class AHUAgent(MarketAgent):
                                   prefix=self.subscribing_topic,
                                   callback=self.updateState)
 								  
+    def air_aggregate_callback(self, timestamp, market_name, buyer_seller, aggregate_air_demand):
+        electric_demand = self.create_demand_curve(aggregate_air_demand)
+        self.make_offer(self.electric_market_name, BUYER, electric_demand)
 
+    def electric_price_callback(self, timestamp, market_name, buyer_seller, price, quantity):
+        self.report_cleared_price(buyer_seller, market_name, price, quantity)
+        air_supply_curve = self.create_air_supply_curve(price)
+        self.make_offer(self.air_market_name, SELLER, air_supply_curve)
 
-    def aggregate_callback(self, timestamp, market_name, buyer_seller, aggregate_curve):
-        _log.debug('total_curve')
-				
-        self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_offer', self.market_name1, SELLER, self.create_supply_curve().tuppleize()).get(timeout=5.0)
+    def air_price_callback(self, timestamp, market_name, buyer_seller, price, quantity):
+        self.report_cleared_price(buyer_seller, market_name, price, quantity)
 
-								  
-		
-    def offer_callback(self, timestamp, market_name, buyer_seller):
-        return create_supply_curve()
+    def report_cleared_price(self, buyer_seller, market_name, price, quantity):
+        _log.debug(
+            "Report cleared price for Market: {} BuySell: {} Price: {} Quantity: {}".format(market_name, buyer_seller, price, quantity))
 
-    def create_supply_curve(self):
+    def error_callback(self, timestamp, market_name, buyer_seller, error_message):
+        _log.debug("Report error for Market: {} {}, Message: {}".format(market_name, buyer_seller, error_message))
+
+    def create_air_supply_curve(self, electric_price):
         supply_curve = PolyLine()
         price = 65
         quantity = 100000
@@ -139,45 +142,32 @@ class AHUAgent(MarketAgent):
         price = 65
         quantity = -1*10000
         supply_curve.add(Point(price,quantity))
-        return supply_curve		
+        return supply_curve
 		
-		
-		
-		
-#    def create_demand_curve(self):
-#        demand_curve = PolyLine()		
-#        pMin = 10
-#        pMax = 100
-#        qMin = abs(self.getQMin())
-#        qMax = abs(self.getQMax())
-#        if (self.hvacAvail > 0):
-#            demand_curve.add(Point(max(pMin, pMax),min(qMin, qMax)))
-#            demand_curve.add(Point(min(pMin, pMax),max(qMin, qMax)))
-#        else:
-#            demand_curve.add(Point(max(pMin, pMax), 0.0))
-#            demand_curve.add(Point(min(pMin, pMax),0.0))
-#        return demand_curve 
+    def create_electric_demand_curve(self, aggregate_air_demand):
+       demand_curve = PolyLine()
+       pMin = 10
+       pMax = 100
+       qMin = abs(self.getQMin())
+       qMax = abs(self.getQMax())
+       if (self.hvacAvail > 0):
+           demand_curve.add(Point(max(pMin, pMax),min(qMin, qMax)))
+           demand_curve.add(Point(min(pMin, pMax),max(qMin, qMax)))
+       else:
+           demand_curve.add(Point(max(pMin, pMax), 0.0))
+           demand_curve.add(Point(min(pMin, pMax),0.0))
+       return demand_curve
 
-    def iniState(self):
-	    '''inital state
-	    '''
-		
+    def ini_state(self):
+        pass
+
     def updateState(self, peer, sender, bus, topic, headers, message):
-	    '''Subscribe to device data from message bus
-	    '''
-	    _log.debug('Received one new dataset')
-	    info = {}
-	    for key, value in message[0].items():
-                  info[key.lower()] = value
-						
-    def price_callback(self, timestamp, market_name, buyer_seller, price, quantity):
-        print "WOBAH"
-        _log.debug("Report cleared price for Market: {} {}, Message: {}".format(market_name, buyer_seller, price, quantity))
-        _log.debug("AHU_works")
-
-    def error_callback(self, timestamp, market_name, buyer_seller, error_message):
-        _log.debug("Report error for Market: {} {}, Message: {}".format(market_name, buyer_seller, error_message))
-
+        '''Subscribe to device data from message bus
+        '''
+        _log.debug('Received one new dataset')
+        info = {}
+        for key, value in message[0].items():
+            info[key.lower()] = value
 
 def main():
     """Main method called to start the agent."""
