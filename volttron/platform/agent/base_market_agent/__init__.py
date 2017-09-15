@@ -83,6 +83,7 @@ class MarketAgent(Agent):
         _log.debug("vip_identity: " + self.core.identity)
         self.registrations = RegistrationManager(self)
         self.has_reservation = False
+        self.verbose_logging = False
 
     @PubSub.subscribe('pubsub', MARKET_RESERVE)
     def match_reservation(self, peer, sender, bus, topic, headers, message):
@@ -130,7 +131,8 @@ class MarketAgent(Agent):
         self.registrations.report_error(timestamp, market_name, error_message)
 
     def log_event(self, method_name, peer, sender, bus, topic, headers, decoded_message):
-        _log.debug("{} Peer: {} Sender: {} Bus: {} Topic: {} Headers: {} Message: {}".format(method_name, peer, sender, bus, topic, headers, decoded_message))
+        if self.verbose_logging:
+            _log.debug("{} Peer: {} Sender: {} Bus: {} Topic: {} Headers: {} Message: {}".format(method_name, peer, sender, bus, topic, headers, decoded_message))
 
     def join_market (self, market_name, buyer_seller, reservation_callback,
                      offer_callback, aggregate_callback, price_callback, error_callback):
@@ -205,7 +207,11 @@ class MarketAgent(Agent):
         try:
             self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller, curve.tuppleize()).get(timeout=5.0)
             result = (True, None)
+            if self.verbose_logging:
+                _log.debug("Market: {} BuySell: {} has made an offer Curve: {}".format(market_name, buyer_seller, curve))
         except RemoteError as e:
             result = (False, e.message)
+            if self.verbose_logging:
+                _log.debug("Market: {} BuySell: {} has had an offer rejected".format(market_name, buyer_seller))
         return result
 

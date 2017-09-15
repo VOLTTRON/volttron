@@ -94,7 +94,6 @@ class RegistrationManager(object):
             registration.request_offers(timestamp)
 
     def report_clear_price(self, timestamp, market_name, price, quantity):
-        _log.debug("report_clear_price Timestamp: {} Market: {} Price: {} Qty: {}".format(timestamp, market_name, price, quantity))
         for registration in self.registrations:
             if (registration.market_name == market_name):
                 registration.report_clear_price(timestamp, price, quantity)
