@@ -159,7 +159,7 @@ class AHUAgent(MarketAgent):
         else:
             demand_curve.add(Point(max(pMin, pMax), 0.0))
             demand_curve.add(Point(min(pMin, pMax),0.0))
-        return demand_curve
+        return aggregate_air_demand
 
     def ini_state(self):
         pass
