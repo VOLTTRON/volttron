@@ -205,10 +205,13 @@ class MarketAgent(Agent):
         :param curve: The demand curve for buyers or the supply curve for sellers.
         """
         try:
-            self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller, curve.tuppleize()).get(timeout=5.0)
+            self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller,
+                              curve.tuppleize()).get(timeout=5.0)
             result = (True, None)
             if self.verbose_logging:
-                _log.debug("Market: {} BuySell: {} has made an offer Curve: {}".format(market_name, buyer_seller, curve))
+                _log.debug("Market: {} BuySell: {} has made an offer Curve: {}".format(market_name,
+                                                                                       buyer_seller,
+                                                                                       curve.points))
         except RemoteError as e:
             result = (False, e.message)
             if self.verbose_logging:

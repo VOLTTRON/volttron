@@ -120,11 +120,17 @@ class AHUAgent(MarketAgent):
         if buyer_seller == BUYER:
             electric_demand = self.create_electric_demand_curve(aggregate_air_demand)
             self.make_offer(self.electric_market_name, BUYER, electric_demand)
+            _log.debug("Report make offer for Market: {} BuySell: {} Curve: {}".format(market_name,
+                                                                                       buyer_seller,
+                                                                                       electric_demand.points))
 
     def electric_price_callback(self, timestamp, market_name, buyer_seller, price, quantity):
         self.report_cleared_price(buyer_seller, market_name, price, quantity)
         air_supply_curve = self.create_air_supply_curve(price)
         self.make_offer(self.air_market_name, SELLER, air_supply_curve)
+        _log.debug("Report make offer for Market: {} BuySell: {} Curve: {}".format(market_name,
+                                                                                   buyer_seller,
+                                                                                   air_supply_curve.points))
 
     def air_price_callback(self, timestamp, market_name, buyer_seller, price, quantity):
         self.report_cleared_price(buyer_seller, market_name, price, quantity)
