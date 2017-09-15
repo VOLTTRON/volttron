@@ -117,8 +117,9 @@ class AHUAgent(MarketAgent):
                                   callback=self.updateState)
 								  
     def air_aggregate_callback(self, timestamp, market_name, buyer_seller, aggregate_air_demand):
-        electric_demand = self.create_electric_demand_curve(aggregate_air_demand)
-        self.make_offer(self.electric_market_name, BUYER, electric_demand)
+        if buyer_seller == BUYER:
+            electric_demand = self.create_electric_demand_curve(aggregate_air_demand)
+            self.make_offer(self.electric_market_name, BUYER, electric_demand)
 
     def electric_price_callback(self, timestamp, market_name, buyer_seller, price, quantity):
         self.report_cleared_price(buyer_seller, market_name, price, quantity)
