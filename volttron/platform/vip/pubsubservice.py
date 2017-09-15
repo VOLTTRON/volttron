@@ -601,7 +601,7 @@ class PubSubService(object):
             elif op == b'protected_update':
                 self._update_protected_topics(frames)
             elif op == b'external_list':
-                self._logger.debug("PUBSUBSERVICE external_list")
+                #self._logger.debug("PUBSUBSERVICE external_list")
                 result = self._update_external_subscriptions(frames)
             elif op == b'external_publish':
                 self._logger.debug("PUBSUBSERVICE external to local publish")
@@ -691,7 +691,7 @@ class PubSubService(object):
         :param frames: frames containing external subscriptions
         :return:
         """
-        self._logger.debug("PUBSUBSERVICE external_subscriptions from external platforms: {}".format(bytes(frames[0])))
+        #self._logger.debug("PUBSUBSERVICE external_subscriptions from external platforms: {}".format(bytes(frames[0])))
         results = []
 
         if len(frames) <= 7:

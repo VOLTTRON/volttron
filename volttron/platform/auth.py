@@ -124,6 +124,7 @@ class AuthService(Agent):
         self._protected_topics_file_path = os.path.abspath(protected_topics_file)
         self._protected_topics = {}
         self._setup_mode = setup_mode
+        self._auth_failures = []
 
     @Core.receiver('onsetup')
     def setup_zap(self, sender, **kwargs):
@@ -246,8 +247,6 @@ class AuthService(Agent):
                     #If in setup mode, add/update auth entry
                     if self._setup_mode:
                         self._update_auth_entry(domain, address, kind, credentials[0], userid)
-                        #self.read_auth_file()
-                        #user = self.authenticate(domain, address, kind, credentials)
                         _log.info(
                             'new authentication entry added in setup mode: domain=%r, address=%r, '
                             'mechanism=%r, credentials=%r, user_id=%r',
@@ -255,6 +254,9 @@ class AuthService(Agent):
                         response.extend([b'200', b'SUCCESS', '', b''])
                         _log.debug("AUTH response: {}".format(response))
                         sock.send_multipart(response)
+                    else:
+                        self._update_auth_failures(domain, address, kind, credentials[0], userid)
+
                     try:
                         expire, delay = blocked[address]
                     except KeyError:
@@ -338,6 +340,10 @@ class AuthService(Agent):
                 if entry.match(domain, address, mechanism, [credentials]):
                     return entry.capabilities, entry.groups, entry.roles
 
+    @RPC.export
+    def get_authorization_failures(self):
+        return list(self._auth_failures)
+
     def _get_authorizations(self, user_id, index):
         """Convenience method for getting authorization component by index"""
         auths = self.get_authorizations(user_id)
@@ -385,17 +391,7 @@ class AuthService(Agent):
         return self._get_authorizations(user_id, 2)
 
     def _update_auth_entry(self, domain, address, mechanism, credential, user_id):
-        #Check if entry already exists. If yes, update the credentials and comments
-        # for index, entry in enumerate(self.auth_entries):
-        #     if entry.match(domain, address, mechanism, credential):
-        #         entry['credentials'] = credential
-        #         entry['user_id'] = user_id
-        #         entry['comments'] = "Auth entry updated in setup mode"
-        #         _log.debug("Updating Credentials: {}".format(credential))
-        #         self.auth_file.update_by_index(entry, index)
-        #         return
-
-        #Else, make a new entry
+        #Make a new entry
         fields = {
             "domain": domain,
             "address": address,
@@ -407,14 +403,32 @@ class AuthService(Agent):
             "comments": "Auth entry added in setup mode",
         }
         new_entry = AuthEntry(**fields)
-        # entries, groups, roles = self.auth_file._r
-        # entries.append(auth_entry)
-        # self._write(entries, groups, roles)
 
         try:
             self.auth_file.add(new_entry, overwrite=False)
         except AuthException as err:
             _log.error('ERROR: %s\n' % err.message)
+
+    def _update_auth_failures(self, domain, address, mechanism, credential, user_id):
+        for entry in self._auth_failures:
+            #Check if failure entry exists. If so, increment the failure count
+            if ((entry['domain'] == domain) and
+                (entry['address'] == address) and
+                (entry['mechanism'] == mechanism) and
+                    (entry['credentials'] == credential)):
+                entry['count'] += 1
+                return
+        # Add a new failure entry
+        fields = {
+            "domain": domain,
+            "address": address,
+            "mechanism": mechanism,
+            "credentials": credential,
+            "user_id": user_id,
+            "count": 1
+        }
+        self._auth_failures.append(dict(fields))
+        return
 
 class String(unicode):
     def __new__(cls, value):

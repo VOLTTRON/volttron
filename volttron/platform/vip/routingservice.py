@@ -220,8 +220,7 @@ class RoutingService(object):
         address = instance_info['vip-address']
 
         sock = zmq.Socket(zmq.Context(), zmq.DEALER)
-        mon_sock = sock.get_monitor_socket(
-                zmq.EVENT_CONNECTED | zmq.EVENT_DISCONNECTED | zmq.EVENT_CONNECT_DELAYED)
+
         sock.sndtimeo = 0
         sock.tcp_keepalive = True
         sock.tcp_keepalive_idle = 180
@@ -230,17 +229,23 @@ class RoutingService(object):
 
         num = random.random()
         sock.identity = 'platform-' + '-' + instance_name + '-' + str(num)
+        sock.zap_domain = 'vip'
+        mon_sock = sock.get_monitor_socket(
+                zmq.EVENT_CONNECTED | zmq.EVENT_DISCONNECTED | zmq.EVENT_CONNECT_DELAYED)
+
+        self._poller.register(mon_sock, zmq.POLLIN)
+        self._monitor_sockets.add(mon_sock)
+
         self._instances[instance_name] = dict(platform_identity=sock.identity,
                                      status=STATUS_CONNECTING,
                                      socket=sock,
                                      monitor_socket=mon_sock
                                      )
-        sock.zap_domain = 'vip'
+
         self._socket_identities[sock.identity] = instance_name
         self._vip_sockets.add(sock)
-        self._monitor_sockets.add(mon_sock)
+
         self._poller.register(sock, zmq.POLLIN)
-        self._poller.register(mon_sock, zmq.POLLIN)
 
         self._routing_table[instance_name] = [instance_name]
 

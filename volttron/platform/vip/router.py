@@ -149,6 +149,7 @@ class BaseRouter(object):
         sock.tcp_keepalive_idle = 180
         sock.tcp_keepalive_intvl = 20
         sock.tcp_keepalive_cnt = 6
+        self.context.set(zmq.MAX_SOCKETS, 30690)
         # sock.setsockopt(zmq.SNDBUF, 40000)
         # sock.setsockopt(zmq.RCVBUF, 40000)
         # sock.set_hwm(60000)

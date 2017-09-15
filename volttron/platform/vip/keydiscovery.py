@@ -90,7 +90,7 @@ class KeyDiscoveryAgent(Agent):
         self._setup_mode = setup_mode
         _log.debug("RUNNING IN MULTI-PLATFORM SETUP MODE")
         self._store_path = os.path.join(os.environ['VOLTTRON_HOME'],
-                                        'configuration_store', 'external_platform_discovery.json')
+                                        'external_platform_discovery.json')
         self._ext_addresses_store = dict()
         self._ext_addresses_store_lock = Semaphore()
 
@@ -132,7 +132,7 @@ class KeyDiscoveryAgent(Agent):
             #Use the existing store for platform discovery information
             with self._ext_addresses_store_lock:
                 self._ext_addresses_store = PersistentDict(filename=self._store_path, flag='c', format='json')
-                for web_address, discovery_info in self._ext_addresses_store.items():
+                for name, discovery_info in self._ext_addresses_store.items():
                     op = b'normalmode_platform_connection'
                     self._send_to_router(op, discovery_info)
 
@@ -159,7 +159,9 @@ class KeyDiscoveryAgent(Agent):
         try:
             platform_info = self._get_platform_discovery(web_address)
             with self._ext_addresses_store_lock:
-                self._ext_addresses_store[web_address] = platform_info
+                _log.debug("Platform discovery info: {}".format(platform_info))
+                name = platform_info['instance-name']
+                self._ext_addresses_store[name] = platform_info
                 self._ext_addresses_store.async_sync()
         except DiscoveryError:
             # If discovery error, try again later
@@ -173,8 +175,9 @@ class KeyDiscoveryAgent(Agent):
         #to establish connection with remote platform.
         if platform_info:
             op = b'setupmode_platform_connection'
-            platform_info['web-address'] = web_address
-            self._send_to_router(op, platform_info)
+            connection_settings = dict(platform_info)
+            connection_settings['web-address'] = web_address
+            self._send_to_router(op, connection_settings)
 
     def _send_to_router(self, op, platform_info):
         """
