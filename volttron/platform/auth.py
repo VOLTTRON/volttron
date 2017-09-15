@@ -416,7 +416,7 @@ class AuthService(Agent):
                 (entry['address'] == address) and
                 (entry['mechanism'] == mechanism) and
                     (entry['credentials'] == credential)):
-                entry['count'] += 1
+                entry['retries'] += 1
                 return
         # Add a new failure entry
         fields = {
@@ -425,7 +425,7 @@ class AuthService(Agent):
             "mechanism": mechanism,
             "credentials": credential,
             "user_id": user_id,
-            "count": 1
+            "retries": 1
         }
         self._auth_failures.append(dict(fields))
         return
