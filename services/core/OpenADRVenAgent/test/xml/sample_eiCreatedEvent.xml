@@ -1,0 +1,20 @@
+<pyld:eiCreatedEvent>
+    <ei:eiResponse>
+        <ei:responseCode>123</ei:responseCode>
+        <ei:responseDescription>ei:responseDescription</ei:responseDescription>
+        <pyld:requestID>pyld:requestID</pyld:requestID>
+    </ei:eiResponse>
+    <ei:eventResponses>
+        <ei:eventResponse>
+            <ei:responseCode>124</ei:responseCode>
+            <ei:responseDescription>ei:responseDescription</ei:responseDescription>
+            <pyld:requestID>pyld:requestID</pyld:requestID>
+            <ei:qualifiedEventID>
+                <ei:eventID>ei:eventID</ei:eventID>
+                <ei:modificationNumber>0</ei:modificationNumber>
+            </ei:qualifiedEventID>
+            <ei:optType>optIn</ei:optType>
+        </ei:eventResponse>
+    </ei:eventResponses>
+    <ei:venID>ei:venID</ei:venID>
+</pyld:eiCreatedEvent>

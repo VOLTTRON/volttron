@@ -1,0 +1,966 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!-- edited with XMLSpy v2010 rel. 3 (x64) (http://www.altova.com) by James Zuber (private) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:dsig11="http://www.w3.org/2009/xmldsig11#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:clm5ISO42173A="urn:un:unece:uncefact:codelist:standard:5:ISO42173A:2010-04-07" xmlns:pyld="http://docs.oasis-open.org/ns/energyinterop/201110/payloads" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:scale="http://docs.oasis-open.org/ns/emix/2011/06/siscale" xmlns:emix="http://docs.oasis-open.org/ns/emix/2011/06" xmlns:strm="urn:ietf:params:xml:ns:icalendar-2.0:stream" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0" xmlns:power="http://docs.oasis-open.org/ns/emix/2011/06/power" xmlns:gb="http://naesb.org/espi" xmlns:atom="http://www.w3.org/2005/Atom" targetNamespace="http://openadr.org/oadr-2.0b/2012/07" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:import namespace="urn:ietf:params:xml:ns:icalendar-2.0:stream" schemaLocation="oadr_strm_20b.xsd"/>
+	<xs:import namespace="http://docs.oasis-open.org/ns/energyinterop/201110" schemaLocation="oadr_ei_20b.xsd"/>
+	<xs:import namespace="http://docs.oasis-open.org/ns/energyinterop/201110/payloads" schemaLocation="oadr_pyld_20b.xsd"/>
+	<xs:import namespace="http://docs.oasis-open.org/ns/emix/2011/06" schemaLocation="oadr_emix_20b.xsd"/>
+	<xs:import namespace="http://docs.oasis-open.org/ns/emix/2011/06/siscale" schemaLocation="oadr_siscale_20b.xsd"/>
+	<xs:import namespace="urn:ietf:params:xml:ns:icalendar-2.0" schemaLocation="oadr_xcal_20b.xsd"/>
+	<xs:import namespace="urn:un:unece:uncefact:codelist:standard:5:ISO42173A:2010-04-07" schemaLocation="oadr_ISO_ISO3AlphaCurrencyCode_20100407.xsd"/>
+	<xs:import namespace="http://naesb.org/espi" schemaLocation="oadr_greenbutton.xsd"/>
+	<xs:import namespace="http://www.w3.org/2005/Atom" schemaLocation="oadr_atom.xsd"/>
+	<xs:import namespace="http://www.w3.org/2009/xmldsig11#" schemaLocation="oadr_xmldsig11.xsd"/>
+	<xs:import namespace="http://www.w3.org/2000/09/xmldsig#" schemaLocation="oadr_xmldsig.xsd"/>
+	<!--  ******* oadrPayload  ******** -->
+	<!--   Root element for all payloads  -->
+	<xs:element name="oadrPayload">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ds:Signature" minOccurs="0"/>
+				<xs:element ref="oadr:oadrSignedObject"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<!--  ******* oadrSignedObject  ******** -->
+	<!--  The URI attribute of the XML signature Reference element should point to this object (#oadr:oadrSignedObject) -->
+	<xs:element name="oadrSignedObject">
+		<xs:complexType>
+			<xs:choice>
+				<xs:element ref="oadr:oadrDistributeEvent"/>
+				<xs:element ref="oadr:oadrCreatedEvent"/>
+				<xs:element ref="oadr:oadrRequestEvent"/>
+				<xs:element ref="oadr:oadrResponse"/>
+				<xs:element ref="oadr:oadrCancelOpt"/>
+				<xs:element ref="oadr:oadrCanceledOpt"/>
+				<xs:element ref="oadr:oadrCreateOpt"/>
+				<xs:element ref="oadr:oadrCreatedOpt"/>
+				<xs:element ref="oadr:oadrCancelReport"/>
+				<xs:element ref="oadr:oadrCanceledReport"/>
+				<xs:element ref="oadr:oadrCreateReport"/>
+				<xs:element ref="oadr:oadrCreatedReport"/>
+				<xs:element ref="oadr:oadrRegisterReport"/>
+				<xs:element ref="oadr:oadrRegisteredReport"/>
+				<xs:element ref="oadr:oadrUpdateReport"/>
+				<xs:element ref="oadr:oadrUpdatedReport"/>
+				<xs:element ref="oadr:oadrCancelPartyRegistration"/>
+				<xs:element ref="oadr:oadrCanceledPartyRegistration"/>
+				<xs:element ref="oadr:oadrCreatePartyRegistration"/>
+				<xs:element ref="oadr:oadrCreatedPartyRegistration"/>
+				<xs:element ref="oadr:oadrRequestReregistration"/>
+				<xs:element ref="oadr:oadrQueryRegistration"/>
+				<xs:element ref="oadr:oadrPoll"/>
+			</xs:choice>
+			<xs:attribute name="Id" type="xs:ID" use="optional"/>
+		</xs:complexType>
+	</xs:element>
+	<!-- ##### EVENT PAYLOADS ##### -->
+	<!--  ******* oadrDistributeEvent ******** -->
+	<xs:element name="oadrDistributeEvent" type="oadr:oadrDistributeEventType">
+		<xs:annotation>
+			<xs:documentation>Send DR Events to a VEN</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrDistributeEventType">
+		<xs:sequence>
+			<xs:element ref="ei:eiResponse" minOccurs="0"/>
+			<xs:element ref="pyld:requestID"/>
+			<xs:element ref="ei:vtnID"/>
+			<xs:element name="oadrEvent" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>An object containing a demand response event</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element ref="ei:eiEvent"/>
+						<xs:element ref="oadr:oadrResponseRequired"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ******* oadrCreatedEvent ******** -->
+	<xs:element name="oadrCreatedEvent" type="oadr:oadrCreatedEventType"/>
+	<xs:complexType name="oadrCreatedEventType">
+		<xs:sequence>
+			<xs:element ref="pyld:eiCreatedEvent"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ******* oadrRequestEvent ******** -->
+	<xs:element name="oadrRequestEvent" type="oadr:oadrRequestEventType"/>
+	<xs:complexType name="oadrRequestEventType">
+		<xs:sequence>
+			<xs:element ref="pyld:eiRequestEvent"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ******* oadrResponse ******** -->
+	<xs:element name="oadrResponse" type="oadr:oadrResponseType"/>
+	<xs:complexType name="oadrResponseType">
+		<xs:sequence>
+			<xs:element ref="ei:eiResponse"/>
+			<xs:element ref="ei:venID" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!-- ##### OPT PAYLOADS ##### -->
+	<!--  ****** oadrCancelOpt ******** -->
+	<xs:element name="oadrCancelOpt" type="oadr:oadrCancelOptType">
+		<xs:annotation>
+			<xs:documentation>Cancel an opt schedule</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrCancelOptType">
+		<xs:sequence>
+			<xs:element ref="pyld:requestID"/>
+			<xs:element ref="ei:optID"/>
+			<xs:element ref="ei:venID"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ****** oadrCanceledOpt ******** -->
+	<xs:element name="oadrCanceledOpt" type="oadr:oadrCanceledOptType">
+		<xs:annotation>
+			<xs:documentation>Acknowledge cancelation of an opt schedule</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrCanceledOptType">
+		<xs:sequence>
+			<xs:element ref="ei:eiResponse"/>
+			<xs:element ref="ei:optID" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ****** oadrCreateOpt ******** -->
+	<xs:element name="oadrCreateOpt" type="oadr:oadrCreateOptType">
+		<xs:annotation>
+			<xs:documentation>Create an optIn or optOut schedule</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrCreateOptType">
+		<xs:complexContent>
+			<xs:extension base="ei:EiOptType">
+				<xs:sequence>
+					<xs:element ref="pyld:requestID"/>
+					<xs:element ref="ei:qualifiedEventID" minOccurs="0"/>
+					<xs:element ref="ei:eiTarget"/>
+					<xs:element ref="oadr:oadrDeviceClass" minOccurs="0"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<!--  ****** oadrCreatedOpt ******** -->
+	<xs:element name="oadrCreatedOpt" type="oadr:oadrCreatedOptType">
+		<xs:annotation>
+			<xs:documentation>Acknowledge receipt of an opt schedule</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrCreatedOptType">
+		<xs:sequence>
+			<xs:element ref="ei:eiResponse"/>
+			<xs:element ref="ei:optID"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!-- ##### REPORT PAYLOADS ##### -->
+	<!--  ****** oadrCancelReport ******** -->
+	<xs:element name="oadrCancelReport" type="oadr:oadrCancelReportType">
+		<xs:annotation>
+			<xs:documentation>Cancel a report</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrCancelReportType">
+		<xs:sequence>
+			<xs:element ref="pyld:requestID"/>
+			<xs:element ref="ei:reportRequestID" maxOccurs="unbounded"/>
+			<xs:element ref="pyld:reportToFollow"/>
+			<xs:element ref="ei:venID" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ****** oadrCanceledReport ******** -->
+	<xs:element name="oadrCanceledReport" type="oadr:oadrCanceledReportType"/>
+	<xs:complexType name="oadrCanceledReportType">
+		<xs:sequence>
+			<xs:element ref="ei:eiResponse"/>
+			<xs:element ref="oadr:oadrPendingReports"/>
+			<xs:element ref="ei:venID" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ****** oadrCreateReport ******** -->
+	<xs:element name="oadrCreateReport" type="oadr:oadrCreateReportType">
+		<xs:annotation>
+			<xs:documentation>Request report from other party</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrCreateReportType">
+		<xs:sequence>
+			<xs:element ref="pyld:requestID"/>
+			<xs:element ref="oadr:oadrReportRequest" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Request report</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ei:venID" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ****** oadrCreatedReport ******** -->
+	<xs:element name="oadrCreatedReport" type="oadr:oadrCreatedReportType">
+		<xs:annotation>
+			<xs:documentation>Acknowledge the request for report was received</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrCreatedReportType">
+		<xs:sequence>
+			<xs:element ref="ei:eiResponse"/>
+			<xs:element ref="oadr:oadrPendingReports">
+				<xs:annotation>
+					<xs:documentation>List of periodic reports that have not yet been delivered</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ei:venID" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ****** oadrRegisterReport ******** -->
+	<xs:element name="oadrRegisterReport" type="oadr:oadrRegisterReportType">
+		<xs:annotation>
+			<xs:documentation>Register Metadata report settings with other party</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrRegisterReportType">
+		<xs:sequence>
+			<xs:element ref="pyld:requestID"/>
+			<xs:element ref="oadr:oadrReport" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="ei:venID" minOccurs="0"/>
+			<xs:element ref="ei:reportRequestID" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ****** oadrRegisteredReport ******** -->
+	<xs:element name="oadrRegisteredReport" type="oadr:oadrRegisteredReportType">
+		<xs:annotation>
+			<xs:documentation>Acknowledge registration of Metadata report by other party</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrRegisteredReportType">
+		<xs:sequence>
+			<xs:element ref="ei:eiResponse"/>
+			<xs:element ref="oadr:oadrReportRequest" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="ei:venID" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ****** oadrUpdateReport ******** -->
+	<xs:element name="oadrUpdateReport" type="oadr:oadrUpdateReportType">
+		<xs:annotation>
+			<xs:documentation>Send a previously requested report</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrUpdateReportType">
+		<xs:sequence>
+			<xs:element ref="pyld:requestID"/>
+			<xs:element ref="oadr:oadrReport" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="ei:venID" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ****** oadrUpdatedReport ******** -->
+	<xs:element name="oadrUpdatedReport" type="oadr:oadrUpdatedReportType">
+		<xs:annotation>
+			<xs:documentation>Acknowledge receipt of a report</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrUpdatedReportType">
+		<xs:sequence>
+			<xs:element ref="ei:eiResponse"/>
+			<xs:element ref="oadr:oadrCancelReport" minOccurs="0"/>
+			<xs:element ref="ei:venID" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!-- ##### REGESTRATION PAYLOADS ##### -->
+	<!--  ******* oadrCancelPartyRegistration ******** -->
+	<xs:element name="oadrCancelPartyRegistration" type="oadr:oadrCancelPartyRegistrationType">
+		<xs:annotation>
+			<xs:documentation>Cancel a registration</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrCancelPartyRegistrationType">
+		<xs:sequence>
+			<xs:element ref="pyld:requestID"/>
+			<xs:element ref="ei:registrationID"/>
+			<xs:element ref="ei:venID" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ******* oadrCanceledPartyRegistration ******** -->
+	<xs:element name="oadrCanceledPartyRegistration" type="oadr:oadrCanceledPartyRegistrationType">
+		<xs:annotation>
+			<xs:documentation>Acknowledge cancelation of registration</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrCanceledPartyRegistrationType">
+		<xs:sequence>
+			<xs:element ref="ei:eiResponse"/>
+			<xs:element ref="ei:registrationID" minOccurs="0"/>
+			<xs:element ref="ei:venID" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ******* oadrCreatePartyRegistration ******** -->
+	<xs:element name="oadrCreatePartyRegistration" type="oadr:oadrCreatePartyRegistrationType">
+		<xs:annotation>
+			<xs:documentation>Used by VEN to initiate registration with VTN</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrCreatePartyRegistrationType">
+		<xs:sequence>
+			<xs:element ref="pyld:requestID"/>
+			<xs:element ref="ei:registrationID" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Used for re-registering an existing registration</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ei:venID" minOccurs="0"/>
+			<xs:element ref="oadr:oadrProfileName"/>
+			<xs:element ref="oadr:oadrTransportName"/>
+			<xs:element ref="oadr:oadrTransportAddress" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Address of this VEN. Not required if http pull model</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="oadr:oadrReportOnly">
+				<xs:annotation>
+					<xs:documentation>ReportOnlyDeviceFlag - True or False</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="oadr:oadrXmlSignature">
+				<xs:annotation>
+					<xs:documentation>Implementation supports XML signatures - True or False</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="oadr:oadrVenName" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Human readable name for VEN</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="oadr:oadrHttpPullModel" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If transport is simpleHttp indicate if VEN is operating in pull exchange model - true or false</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ******* oadrCreatedPartyRegistration ******** -->
+	<xs:element name="oadrCreatedPartyRegistration" type="oadr:oadrCreatedPartyRegistrationType">
+		<xs:annotation>
+			<xs:documentation>Acknowledge receipt of VEN registration, provide VTN registration info</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrCreatedPartyRegistrationType">
+		<xs:sequence>
+			<xs:element ref="ei:eiResponse"/>
+			<xs:element ref="ei:registrationID" minOccurs="0"/>
+			<xs:element ref="ei:venID" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>venID not included in query unless already registered</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ei:vtnID"/>
+			<xs:element ref="oadr:oadrProfiles">
+				<xs:annotation>
+					<xs:documentation>VTN response to query registration returns all supported. This element is not required for a registration  response</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="oadr:oadrRequestedOadrPollFreq" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>HTTP Pull Only - The VEN shall send an oadrPoll payload to the VTN at most once for each duration specified by this element</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="oadr:oadrServiceSpecificInfo" minOccurs="0"/>
+			<xs:element name="oadrExtensions" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="oadrExtension" minOccurs="0" maxOccurs="unbounded">
+							<xs:complexType>
+								<xs:sequence>
+									<xs:element name="oadrExtensionName" type="xs:string"/>
+									<xs:element ref="oadr:oadrInfo" minOccurs="0" maxOccurs="unbounded"/>
+								</xs:sequence>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ******* oadrRequestReregistration ******** -->
+	<xs:element name="oadrRequestReregistration" type="oadr:oadrRequestReregistrationType">
+		<xs:annotation>
+			<xs:documentation>Used by VTN to request that the VEN reregister</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrRequestReregistrationType">
+		<xs:sequence>
+			<xs:element ref="ei:venID"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!--  ******* oadrQueryRegistration ******** -->
+	<xs:element name="oadrQueryRegistration" type="oadr:oadrQueryRegistrationType">
+		<xs:annotation>
+			<xs:documentation>Query VTN for registration information without actually registering</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrQueryRegistrationType">
+		<xs:sequence>
+			<xs:element ref="pyld:requestID"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!-- ##### POLL PAYLOADS ##### -->
+	<!--  ******* oadrPoll ******** -->
+	<xs:element name="oadrPoll" type="oadr:oadrPollType">
+		<xs:annotation>
+			<xs:documentation>Query pull VTN for payloads with new or modified information</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrPollType">
+		<xs:sequence>
+			<xs:element ref="ei:venID"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!-- ##### END OF PAYLOADS ##### -->
+	<!--  ****** Registration Payload Sub Elements ******** -->
+	<!--  ** oadrVenName ** -->
+	<xs:element name="oadrVenName" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>VEN name. May be used in VTN GUI</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!--  ** oadrProfiles ** -->
+	<xs:element name="oadrProfiles">
+		<xs:annotation>
+			<xs:documentation>OpenADR profiles supported by the implementation</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="oadrProfile" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element ref="oadr:oadrProfileName"/>
+							<xs:element ref="oadr:oadrTransports"/>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="oadrProfileName" type="oadr:oadrProfileType">
+		<xs:annotation>
+			<xs:documentation>OpenADR profile name such as 2.0a or 2.0b.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:simpleType name="oadrProfileType">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="2.0a"/>
+			<xs:enumeration value="2.0b"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<!--  ** oadrTransports ** -->
+	<xs:element name="oadrTransports">
+		<xs:annotation>
+			<xs:documentation>OpenADR transports supported by implementation</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="oadrTransport" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element ref="oadr:oadrTransportName"/>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="oadrTransportName" type="oadr:oadrTransportType">
+		<xs:annotation>
+			<xs:documentation>OpenADR transport name such as simpleHttp or xmpp</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:simpleType name="oadrTransportType">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="simpleHttp"/>
+			<xs:enumeration value="xmpp"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="oadrHttpPullModel" type="xs:boolean"/>
+	<!--  ** oadrServiceSpecifictInfo ** -->
+	<xs:element name="oadrServiceSpecificInfo">
+		<xs:annotation>
+			<xs:documentation>Service specific registration information</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="oadrService" minOccurs="0" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element ref="oadr:oadrServiceName"/>
+							<xs:element ref="oadr:oadrInfo" maxOccurs="unbounded"/>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<!--  ** oadrServiceName ** -->
+	<xs:element name="oadrServiceName" type="oadr:oadrServiceNameType"/>
+	<xs:simpleType name="oadrServiceNameType">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="EiEvent"/>
+			<xs:enumeration value="EiOpt"/>
+			<xs:enumeration value="EiReport"/>
+			<xs:enumeration value="EiRegisterParty"/>
+			<xs:enumeration value="OadrPoll"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<!--  ** oadrInfo ** -->
+	<xs:element name="oadrInfo">
+		<xs:annotation>
+			<xs:documentation>A key value pair of service specific registration information</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="oadrKey" type="xs:string"/>
+				<xs:element name="oadrValue" type="xs:string"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<!--  ** oadrXmlSignature ** -->
+	<xs:element name="oadrXmlSignature" type="xs:boolean">
+		<xs:annotation>
+			<xs:documentation>Implementation supports XML signature</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!--  ** oadrReportOnly ** -->
+	<xs:element name="oadrReportOnly" type="xs:boolean">
+		<xs:annotation>
+			<xs:documentation>ReportOnlyDeviceFlag</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!--  ** oadrTransportAddress ** -->
+	<xs:element name="oadrTransportAddress" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>Root address used to communicate with other party. Should include port if required</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!--  ** oadrRequestedOadrPollFreq ** -->
+	<xs:element name="oadrRequestedOadrPollFreq" type="xcal:DurationPropType">
+		<xs:annotation>
+			<xs:documentation>The VEN shall send an oadrPoll payload to the VTN at most once for each duration specified by this element</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!--  ******* ResponseRequired ******** -->
+	<xs:element name="oadrResponseRequired" type="oadr:ResponseRequiredType">
+		<xs:annotation>
+			<xs:documentation>Controls when optIn/optOut repsonse is required. Can be always or never</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:simpleType name="ResponseRequiredType">
+		<xs:annotation>
+			<xs:documentation>Defines what type of response is required</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="always">
+				<xs:annotation>
+					<xs:documentation>Always send a response for every event received.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="never">
+				<xs:annotation>
+					<xs:documentation>Never respond.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<!--  ****** Report Payload Sub Elements ******** -->
+	<xs:element name="oadrPendingReports" type="oadr:oadrPendingReportsType"/>
+	<xs:complexType name="oadrPendingReportsType">
+		<xs:sequence>
+			<xs:element ref="ei:reportRequestID" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!--  ****** Additional Units ******** -->
+	<!-- base unit; can be extended and used for custom reports-->
+	<xs:element name="customUnit" type="oadr:BaseUnitType" substitutionGroup="emix:itemBase"/>
+	<xs:complexType name="BaseUnitType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>Custom Units</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent mixed="false">
+			<xs:extension base="emix:ItemBaseType">
+				<xs:sequence>
+					<xs:element name="itemDescription" type="xs:string"/>
+					<xs:element name="itemUnits" type="xs:string"/>
+					<xs:element ref="scale:siScaleCode"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<!-- current -->
+	<xs:element name="current" type="oadr:CurrentType" substitutionGroup="emix:itemBase"/>
+	<xs:complexType name="CurrentType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>Current</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent mixed="false">
+			<xs:extension base="emix:ItemBaseType">
+				<xs:sequence>
+					<xs:element name="itemDescription" type="xs:string" fixed="Current"/>
+					<xs:element name="itemUnits" type="xs:string" fixed="A"/>
+					<xs:element ref="scale:siScaleCode"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<!-- currency -->
+	<xs:element name="currency" type="oadr:currencyType" substitutionGroup="emix:itemBase"/>
+	<xs:element name="currencyPerKWh" type="oadr:currencyType" substitutionGroup="emix:itemBase"/>
+	<xs:element name="currencyPerKW" type="oadr:currencyType" substitutionGroup="emix:itemBase"/>
+	<xs:element name="currencyPerThm" type="oadr:currencyType" substitutionGroup="emix:itemBase"/>
+	<xs:complexType name="currencyType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>currency</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent mixed="false">
+			<xs:extension base="emix:ItemBaseType">
+				<xs:sequence>
+					<xs:element name="itemDescription" type="oadr:currencyItemDescriptionType"/>
+					<xs:element name="itemUnits" type="clm5ISO42173A:ISO3AlphaCurrencyCodeContentType">
+						<xs:annotation>
+							<xs:documentation>ISO enumeration of currency types, such as USD</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="scale:siScaleCode"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:simpleType name="currencyItemDescriptionType">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="currency"/>
+			<xs:enumeration value="currencyPerKW"/>
+			<xs:enumeration value="currencyPerKWh"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<!--  Frequency  units -->
+	<xs:element name="frequency" type="oadr:FrequencyType" substitutionGroup="emix:itemBase"/>
+	<xs:complexType name="FrequencyType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>Frequency</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent mixed="false">
+			<xs:extension base="emix:ItemBaseType">
+				<xs:sequence>
+					<xs:element name="itemDescription" type="xs:string" fixed="Frequency"/>
+					<xs:element name="itemUnits" type="xs:string" fixed="Hz"/>
+					<xs:element ref="scale:siScaleCode"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<!--  Therm  units -->
+	<xs:element name="Therm" type="oadr:ThermType" substitutionGroup="emix:itemBase"/>
+	<xs:complexType name="ThermType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>Therm</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent mixed="false">
+			<xs:extension base="emix:ItemBaseType">
+				<xs:sequence>
+					<xs:element name="itemDescription" type="xs:string" fixed="Therm"/>
+					<xs:element name="itemUnits" type="xs:string" fixed="thm"/>
+					<xs:element ref="scale:siScaleCode"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<!-- temperature -->
+	<xs:element name="temperature" type="oadr:temperatureType" substitutionGroup="emix:itemBase"/>
+	<xs:complexType name="temperatureType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>temperature</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent mixed="false">
+			<xs:extension base="emix:ItemBaseType">
+				<xs:sequence>
+					<xs:element name="itemDescription" type="xs:string" fixed="temperature"/>
+					<xs:element name="itemUnits" type="oadr:temperatureUnitType">
+						<xs:annotation>
+							<xs:documentation>Temperature in Celsius or Fahrenheit</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="scale:siScaleCode"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:simpleType name="temperatureUnitType">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="celsius"/>
+			<xs:enumeration value="fahrenheit"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<!-- pulseCount -->
+	<xs:element name="pulseCount" type="oadr:pulseCountType" substitutionGroup="emix:itemBase"/>
+	<xs:element name="pulseFactor" type="xs:float">
+		<xs:annotation>
+			<xs:documentation>kWh per count</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="pulseCountType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>Pulse Count</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent mixed="false">
+			<xs:extension base="emix:ItemBaseType">
+				<xs:sequence>
+					<xs:element name="itemDescription" type="xs:string" fixed="pulse count"/>
+					<xs:element name="itemUnits" type="xs:string" fixed="count">
+						<xs:annotation>
+							<xs:documentation>Pulse count from meter</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="oadr:pulseFactor"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<!-- Report Request -->
+	<xs:element name="oadrReportRequest" type="oadr:oadrReportRequestType"/>
+	<xs:complexType name="oadrReportRequestType">
+		<xs:annotation>
+			<xs:documentation>This type is used to request an EiReport</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="ei:reportRequestID"/>
+			<xs:element ref="ei:reportSpecifier"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!-- eiReport -->
+	<xs:element name="oadrReport" type="oadr:oadrReportType"/>
+	<xs:complexType name="oadrReportType">
+		<xs:annotation>
+			<xs:documentation>eiReport is a Stream of [measurements] recorded over time and delivered to the requestor periodically. The readings may be actual, computed, summed if derived in some other manner.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="strm:StreamBaseType">
+				<xs:sequence>
+					<xs:element ref="ei:eiReportID" minOccurs="0">
+						<xs:annotation>
+							<xs:documentation>reference ID to this report.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="oadr:oadrReportDescription" minOccurs="0" maxOccurs="unbounded">
+						<xs:annotation>
+							<xs:documentation>Define data points the implementation is capable of reporting on. Only used in Metadata report</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="ei:reportRequestID">
+						<xs:annotation>
+							<xs:documentation>Reference to the oadrCreateReport request that defined this report.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="ei:reportSpecifierID">
+						<xs:annotation>
+							<xs:documentation>Reference to Metadata report from which this report was derived.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="ei:reportName" minOccurs="0">
+						<xs:annotation>
+							<xs:documentation>Name possibly for use in a user interface.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="ei:createdDateTime"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<!-- Report Description Type -->
+	<xs:element name="oadrReportDescription" type="oadr:oadrReportDescriptionType"/>
+	<xs:complexType name="oadrReportDescriptionType">
+		<xs:annotation>
+			<xs:documentation>Describes the subject and attributes of a report.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="ei:rID"/>
+			<xs:element ref="ei:reportSubject" minOccurs="0"/>
+			<xs:element ref="ei:reportDataSource" minOccurs="0"/>
+			<xs:element ref="ei:reportType"/>
+			<xs:element ref="emix:itemBase" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>What is measured or tracked in this report (Units). </xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ei:readingType"/>
+			<xs:element ref="emix:marketContext" minOccurs="0"/>
+			<xs:element ref="oadr:oadrSamplingRate" minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="oadrSamplingRateType">
+		<xs:sequence>
+			<xs:element name="oadrMinPeriod" type="xcal:DurationValueType">
+				<xs:annotation>
+					<xs:documentation>Minimum sampling period</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="oadrMaxPeriod" type="xcal:DurationValueType">
+				<xs:annotation>
+					<xs:documentation>Maximum sampling period</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="oadrOnChange" type="xs:boolean">
+				<xs:annotation>
+					<xs:documentation>If true then the data will be recorded when it changes, but at no greater a frequency than that specified  by minPeriod.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="oadrSamplingRate" type="oadr:oadrSamplingRateType">
+		<xs:annotation>
+			<xs:documentation>Sampling rate for telemetry type data</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="oadrPayloadResourceStatus" type="oadr:oadrPayloadResourceStatusType" substitutionGroup="ei:payloadBase">
+		<xs:annotation>
+			<xs:documentation>Current resource status information</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrPayloadResourceStatusType">
+		<xs:annotation>
+			<xs:documentation>This is the payload for reports that require a status.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="ei:PayloadBaseType">
+				<xs:sequence>
+					<xs:element name="oadrOnline" type="xs:boolean">
+						<xs:annotation>
+							<xs:documentation>If true then resource/asset is online, if false then offline.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element name="oadrManualOverride" type="xs:boolean">
+						<xs:annotation>
+							<xs:documentation>If true then the control of the load has been manually overridden</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="oadr:oadrLoadControlState" minOccurs="0"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="oadrLoadControlState" type="oadr:oadrLoadControlStateType"/>
+	<xs:complexType name="oadrLoadControlStateType">
+		<xs:sequence>
+			<xs:element name="oadrCapacity" type="oadr:oadrLoadControlStateTypeType" minOccurs="0"/>
+			<xs:element name="oadrLevelOffset" type="oadr:oadrLoadControlStateTypeType" minOccurs="0"/>
+			<xs:element name="oadrPercentOffset" type="oadr:oadrLoadControlStateTypeType" minOccurs="0"/>
+			<xs:element name="oadrSetPoint" type="oadr:oadrLoadControlStateTypeType" minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="oadrLoadControlStateTypeType">
+		<xs:sequence>
+			<xs:element name="oadrMin" type="xs:float" minOccurs="0"/>
+			<xs:element name="oadrMax" type="xs:float" minOccurs="0"/>
+			<xs:element name="oadrCurrent" type="xs:float"/>
+			<xs:element name="oadrNormal" type="xs:float" minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!--Green Button OpenADR Adaptor Types-->
+	<xs:complexType name="oadrGBItemBase">
+		<xs:complexContent>
+			<xs:extension base="emix:ItemBaseType">
+				<xs:sequence>
+					<xs:element ref="atom:feed"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="oadrGBStreamPayloadBase">
+		<xs:complexContent>
+			<xs:extension base="strm:StreamPayloadBaseType">
+				<xs:sequence>
+					<xs:element ref="atom:feed"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="oadrGBPayload" type="oadr:oadrGBStreamPayloadBase" substitutionGroup="strm:streamPayloadBase"/>
+	<xs:element name="oadrGBDataDescription" type="oadr:oadrGBItemBase" substitutionGroup="emix:itemBase"/>
+	<!--oadrDeviceClass-->
+	<xs:element name="oadrDeviceClass" type="ei:EiTargetType">
+		<xs:annotation>
+			<xs:documentation>Device Class target - use only endDeviceAsset.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!--oadrReportPayload-->
+	<xs:element name="oadrReportPayload" type="oadr:oadrReportPayloadType" substitutionGroup="strm:streamPayloadBase">
+		<xs:annotation>
+			<xs:documentation>Data point values for reports</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="oadrReportPayloadType">
+		<xs:annotation>
+			<xs:documentation>Report payload for use in reports.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="ei:ReportPayloadType">
+				<xs:sequence>
+					<xs:element ref="oadr:oadrDataQuality" minOccurs="0">
+						<xs:annotation>
+							<xs:documentation>Enumerated value for the quality of this data item</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<!--oadrDataQuality-->
+	<xs:element name="oadrDataQuality" type="oadr:oadrDataQualityTypeType"/>
+	<xs:simpleType name="oadrDataQualityTypeType">
+		<xs:union memberTypes="oadr:oadrDataQualityType ei:EiExtensionTokenType"/>
+	</xs:simpleType>
+	<xs:simpleType name="oadrDataQualityType">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="No Quality - No Value"/>
+			<xs:enumeration value="No New Value - Previous Value Used"/>
+			<xs:enumeration value="Quality Bad - Non Specific"/>
+			<xs:enumeration value="Quality Bad - Configuration Error"/>
+			<xs:enumeration value="Quality Bad - Not Connected"/>
+			<xs:enumeration value="Quality Bad - Device Failure"/>
+			<xs:enumeration value="Quality Bad - Sensor Failure"/>
+			<xs:enumeration value="Quality Bad - Last Known Value"/>
+			<xs:enumeration value="Quality Bad - Comm Failure"/>
+			<xs:enumeration value="Quality Bad - Out of Service"/>
+			<xs:enumeration value="Quality Uncertain - Non Specific"/>
+			<xs:enumeration value="Quality Uncertain - Last Usable Value"/>
+			<xs:enumeration value="Quality Uncertain - Sensor Not Accurate"/>
+			<xs:enumeration value="Quality Uncertain - EU Units Exceeded"/>
+			<xs:enumeration value="Quality Uncertain - Sub Normal"/>
+			<xs:enumeration value="Quality Good - Non Specific"/>
+			<xs:enumeration value="Quality Good - Local Override"/>
+			<xs:enumeration value="Quality Limit - Field/Not"/>
+			<xs:enumeration value="Quality Limit - Field/Low"/>
+			<xs:enumeration value="Quality Limit - Field/High"/>
+			<xs:enumeration value="Quality Limit - Field/Constant"/>
+		</xs:restriction>
+	</xs:simpleType>
+</xs:schema>

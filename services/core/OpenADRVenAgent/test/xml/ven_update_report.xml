@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<oadr:oadrPayload xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07">
+  <oadr:oadrSignedObject>
+        <oadr:oadrUpdateReport xmlns:pyld="http://docs.oasis-open.org/ns/energyinterop/201110/payloads" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" schemaVersion="2.0b">
+            <pyld:requestID>24cd9987-dacd-11e7-a46a-34363bc85ec4</pyld:requestID>
+            <oadr:oadrReport>
+                <xcal:dtstart xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                    <xcal:date-time>2017-12-06T21:33:32Z</xcal:date-time>
+                </xcal:dtstart>
+                <xcal:duration xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                    <oadr:duration>PT0S</oadr:duration>
+                </xcal:duration>
+                <strm:intervals xmlns:strm="urn:ietf:params:xml:ns:icalendar-2.0:stream">
+                    <ei:interval xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                        <xcal:dtstart>
+                            <xcal:date-time>2017-12-06T21:33:08.423684Z</xcal:date-time>
+                        </xcal:dtstart>
+                        <xcal:duration>
+                            <oadr:duration>PT30S</oadr:duration>
+                        </xcal:duration>
+                        <oadr:oadrReportPayload>
+                            <ei:rID>baseline_power</ei:rID>
+                            <ei:payloadFloat>
+                                <ei:value>6.2</ei:value>
+                            </ei:payloadFloat>
+                        </oadr:oadrReportPayload>
+                        <oadr:oadrReportPayload>
+                            <ei:rID>actual_power</ei:rID>
+                            <ei:payloadFloat>
+                                <ei:value>5.44668467252</ei:value>
+                            </ei:payloadFloat>
+                        </oadr:oadrReportPayload>
+                        <oadr:oadrReportPayload>
+                            <ei:rID>Status</ei:rID>
+                            <oadr:oadrPayloadResourceStatus>
+                                <oadr:oadrOnline>true</oadr:oadrOnline>
+                                <oadr:oadrManualOverride>false</oadr:oadrManualOverride>
+                            </oadr:oadrPayloadResourceStatus>
+                        </oadr:oadrReportPayload>
+                    </ei:interval>
+                </strm:intervals>
+                <ei:reportRequestID>RR_916fd571c0657070575a</ei:reportRequestID>
+                <ei:reportSpecifierID>telemetry</ei:reportSpecifierID>
+                <ei:reportName>TELEMETRY_USAGE</ei:reportName>
+                <ei:createdDateTime>2017-12-06T21:33:47.869392Z</ei:createdDateTime>
+            </oadr:oadrReport>
+            <ei:venID>919a1dfa088fe14b79f9</ei:venID>
+        </oadr:oadrUpdateReport>
+    </oadr:oadrSignedObject>
+</oadr:oadrPayload>

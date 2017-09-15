@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!-- edited with XMLSpy v2010 rel. 3 (http://www.altova.com) by James Zuber (private) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:pyld="http://docs.oasis-open.org/ns/energyinterop/201110/payloads" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:emix="http://docs.oasis-open.org/ns/emix/2011/06" targetNamespace="http://docs.oasis-open.org/ns/energyinterop/201110/payloads" elementFormDefault="qualified" attributeFormDefault="qualified">
+   <xs:import namespace="http://docs.oasis-open.org/ns/emix/2011/06" schemaLocation="oadr_emix_20b.xsd"/>
+   <xs:import namespace="http://docs.oasis-open.org/ns/energyinterop/201110" schemaLocation="oadr_ei_20b.xsd"/>
+   <!-- ##### SAME AS A #####-->
+   <!-- ##### EVENT PAYLOADS ##### -->
+   <!--  ******* requestID ******** -->
+   <xs:element name="requestID" type="xs:string">
+      <xs:annotation>
+         <xs:documentation>A ID used to match up a logical transaction request and response</xs:documentation>
+      </xs:annotation>
+   </xs:element>
+   <!--  ******* replyLimit ******** -->
+   <xs:element name="replyLimit" type="xs:unsignedInt"/>
+   <!--  *******eiRequestEvent******** -->
+   <xs:element name="eiRequestEvent">
+      <xs:annotation>
+         <xs:documentation>Request Event from a VTN in pull mode</xs:documentation>
+      </xs:annotation>
+      <xs:complexType>
+         <xs:sequence>
+            <xs:element ref="pyld:requestID"/>
+            <xs:element ref="ei:venID"/>
+            <xs:element ref="pyld:replyLimit" minOccurs="0">
+               <xs:annotation>
+                  <xs:documentation>Limit the number of events contained in the oadrDistributeEvent payload</xs:documentation>
+               </xs:annotation>
+            </xs:element>
+         </xs:sequence>
+      </xs:complexType>
+   </xs:element>
+   <!--  ******* eiCreatedEvent ******** -->
+   <xs:element name="eiCreatedEvent">
+      <xs:annotation>
+         <xs:documentation>Respond to a DR Event with optIn or optOut</xs:documentation>
+      </xs:annotation>
+      <xs:complexType>
+         <xs:sequence>
+            <xs:element ref="ei:eiResponse"/>
+            <xs:element ref="ei:eventResponses" minOccurs="0"/>
+            <xs:element ref="ei:venID"/>
+         </xs:sequence>
+      </xs:complexType>
+   </xs:element>
+   <!-- ##### PROFILE B EXTENTIONS ##### -->
+   <xs:element name="reportToFollow" type="xs:boolean">
+      <xs:annotation>
+         <xs:documentation>Indicates if report (in the form of UpdateReport) to be returned following cancellation of Report</xs:documentation>
+      </xs:annotation>
+   </xs:element>
+</xs:schema>

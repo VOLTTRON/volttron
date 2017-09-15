@@ -1,0 +1,27 @@
+<oadr:oadrPayload xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07">
+  <oadr:oadrSignedObject>
+        <oadr:oadrRegisterReport xmlns:pyld="http://docs.oasis-open.org/ns/energyinterop/201110/payloads" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" schemaVersion="2.0b">
+            <oadr:oadrReport>
+                <xcal:duration xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                    <oadr:duration>PT10M</oadr:duration>
+                </xcal:duration>
+                <oadr:oadrReportDescription xmlns:emix="http://docs.oasis-open.org/ns/emix/2011/06">
+                    <ei:rID>baseline_power</ei:rID>
+                    <ei:reportType>baseline</ei:reportType>
+                    <ei:readingType>Mean</ei:readingType>
+                    <oadr:oadrSamplingRate xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0"/>
+                </oadr:oadrReportDescription>
+                <oadr:oadrReportDescription xmlns:emix="http://docs.oasis-open.org/ns/emix/2011/06">
+                    <ei:rID>actual_power</ei:rID>
+                    <ei:reportType>reading</ei:reportType>
+                    <ei:readingType>Mean</ei:readingType>
+                    <oadr:oadrSamplingRate xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0"/>
+                </oadr:oadrReportDescription>
+                <ei:reportSpecifierID>telemetry</ei:reportSpecifierID>
+                <oadr:reportName>TELEMETRY_USAGE</oadr:reportName>
+                <oadr:createdDateTime>2017-11-10T18:41:11.017746</oadr:createdDateTime>
+            </oadr:oadrReport>
+            <oadr:venID>919a1dfa088fe14b79f9</oadr:venID>
+        </oadr:oadrRegisterReport>
+    </oadr:oadrSignedObject>
+</oadr:oadrPayload>

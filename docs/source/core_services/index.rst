@@ -19,6 +19,7 @@ Platform services provide the underlying functionality used by applications to p
     restricted/index
     config_store/index
     multiplatform/index
+    openadr/index
 
     *
 
