@@ -108,7 +108,7 @@ class MarketRegistration(object):
     def report_aggregate(self, timestamp, buyer_seller, aggregate_curve):
         if self.has_reservation and self.aggregate_callback is not None:
             self.aggregate_callback(timestamp, self.market_name, buyer_seller, aggregate_curve)
-            _log.debug("Market: {} BuySell: {} Curve: {}", self.market_name, self.buyer_seller, aggregate_curve)
+            _log.debug("Market: {} BuySell: {} Curve: {}", self.market_name, self.buyer_seller, aggregate_curve.points)
 
     def report_error(self, timestamp, error_message):
         if self.error_callback is not None:
