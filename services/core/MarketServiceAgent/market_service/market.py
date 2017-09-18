@@ -137,9 +137,9 @@ class Market(object):
         self.reservations.make_reservation(participant)
         if self.verbose_logging:
             if participant.buyer_seller == BUYER:
-                reservation_count = self.reservations.buyer_count
+                reservation_count = self.reservations.buyer_count()
             else:
-                reservation_count = self.reservations.seller_count
+                reservation_count = self.reservations.seller_count()
             _log.debug("Make reservation Market: {} BuySell: {} now has {} reservations.", self.market_name,
                        participant.buyer_seller, reservation_count)
         if not market_already_formed and self.has_market_formed():
@@ -157,9 +157,9 @@ class Market(object):
         self.reservations.make_reservation(participant)
         if self.verbose_logging:
             if participant.buyer_seller == BUYER:
-                offer_count = self.offers.seller_count
+                offer_count = self.offers.buyer_count()
             else:
-                offer_count = self.reservations.buyer_count
+                offer_count = self.reservations.seller_count()
             _log.debug("Make reservation Market: {} BuySell: {} now has {} offers. Curve: {}", self.market_name,
                        participant.buyer_seller, offer_count, curve.tuppleize())
         self.offers.make_offer(participant.buyer_seller, curve)
