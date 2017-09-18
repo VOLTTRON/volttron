@@ -93,6 +93,14 @@ class PolyLine:
             self._max_x = PolyLine.max(self._max_x, point.x)
             self._max_y = PolyLine.max(self._max_y, point.y)
 
+    def contains_none(self):
+        result = False
+        if self.points is not None and len(self.points) > 0:
+            for p in self.points:
+                if p.x is None or p.y is None:
+                    result = True
+        return result
+
     @staticmethod
     def min(x1, x2):
         if x1 is None:

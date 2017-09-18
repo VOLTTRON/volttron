@@ -84,10 +84,7 @@ def test_poly_line_combine_single():
     demand_curve = create_demand_curve()
     curves = [demand_curve]
     combined_curves = PolyLineFactory.combine(curves, 100)
-    assert combined_curves.min_x() == 0
-    assert combined_curves.max_x() == 2000
-    assert combined_curves.min_y() == 0
-    assert combined_curves.max_y() == 1000
+    assert combined_curves.conatins_name()
 
 
 def test_poly_line_from_tupples():
