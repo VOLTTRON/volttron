@@ -154,7 +154,6 @@ class Market(object):
         if self.state not in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]:
             raise MarketFailureError(self.market_name, self.state, 'offers')
         self.reservations.take_reservation(participant)
-        self.reservations.make_reservation(participant)
         if self.verbose_logging:
             if participant.buyer_seller == BUYER:
                 offer_count = self.offers.buyer_count()
