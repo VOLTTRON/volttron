@@ -80,37 +80,36 @@ TEST_CONFIG = {
     "timezone": "America/Los_Angeles"
 }
 
-REGISTRY_CONFIG_STRING = """Volttron Point Name,Point Name,Units,Writable,Default
-b1_Md,b1_Md,NA,FALSE,NA
-b1_Opt,b1_Opt,NA,FALSE,NA
-b1_SN,b1_SN,NA,FALSE,NA
-b1_Vr,b1_Vr,NA,FALSE,NA
-b113_A,b113_A,A,FALSE,NA
-b113_DCA,b113_DCA,A,FALSE,NA
-b113_DCV,b113_DCV,V,FALSE,NA
-b113_DCW,b113_DCW,W,FALSE,NA
-b113_PF,b113_PF,%,FALSE,NA
-b113_WH,b113_WH,Wh,FALSE,NA
-b120_AhrRtg,b120_AhrRtg,Ah,FALSE,NA
-b120_ARtg,b120_ARtg,A,FALSE,NA
-b120_MaxChaRte,b120_MaxChaRte,W,FALSE,NA
-b120_MaxDisChaRte,b120_MaxDisChaRte,W,FALSE,NA
-b120_WHRtg,b120_WHRtg,Wh,FALSE,NA
-b120_WRtg,b120_WRtg,W,FALSE,NA
-b121_WMax,b121_WMax,W,FALSE,NA
-b122_ActWh,b122_ActWh,Wh,FALSE,NA
-b122_StorConn,b122_StorConn,NA,FALSE,NA
-b124_WChaMax,b124_WChaMax,W,TRUE,NA
-b403_Tmp,b403_Tmp,C,FALSE,NA
-b404_DCW,b404_DCW,W,FALSE,NA
-b404_DCWh,b404_DCWh,Wh,FALSE,NA
-b802_LocRemCtl,b802_LocRemCtl,NA,FALSE,NA
-b802_SoC,b802_SoC,%,FALSE,NA
-b802_State,b802_State,NA,FALSE,NA"""
+REGISTRY_CONFIG_STRING = """Volttron Point Name,SEP2 Resource Name,SEP2 Field Name,Units,Writable,Default
+b1_Md,DeviceInformation,mfModel,NA,FALSE,NA
+b1_Opt,DeviceInformation,lFDI,NA,FALSE,NA
+b1_SN,DeviceInformation,sFDI,NA,FALSE,NA
+b1_Vr,DeviceInformation,mfHwVer,NA,FALSE,NA
+b113_A,MirrorMeterReading,PhaseCurrentAvg,NA,FALSE,NA
+b113_DCA,MirrorMeterReading,InstantPackCurrent,A,FALSE,NA
+b113_DCV,MirrorMeterReading,LineVoltageAvg,V,FALSE,NA
+b113_DCW,MirrorMeterReading,PhasePowerAvg,W,FALSE,NA
+b113_PF,MirrorMeterReading,PhasePFA,%,FALSE,NA
+b113_WH,MirrorMeterReading,EnergyIMP,Wh,FALSE,NA
+b120_AhrRtg,DERCapability,rtgAh,Ah,FALSE,NA
+b120_ARtg,DERCapability,rtgA,A,FALSE,NA
+b120_MaxChaRte,DERCapability,rtgMaxChargeRate,W,FALSE,NA
+b120_MaxDisChaRte,DERCapability,rtgMaxDischargeRate,W,FALSE,NA
+b120_WHRtg,DERCapability,rtgWh,Wh,FALSE,NA
+b120_WRtg,DERCapability,rtgW,W,FALSE,NA
+b121_WMax,DERSettings,setMaxChargeRate,W,FALSE,NA
+b122_ActWh,MirrorMeterReading,EnergyEXP,Wh,FALSE,NA
+b122_StorConn,DERStatus,storConnectStatus,NA,FALSE,NA
+b124_WChaMax,DERControl,DERControlBase.opModFixedFlow,W,TRUE,NA
+b403_Tmp,MirrorMeterReading,InstantPackTemp,C,FALSE,NA
+b404_DCW,PowerStatus,PEVInfo.chargingPowerNow,W,FALSE,NA
+b404_DCWh,DERAvailability,SOC,Wh,FALSE,NA
+b802_LocRemCtl,DERStatus,localControlModeStatus,NA,FALSE,NA
+b802_SoC,DERStatus,inverterStatus,%,FALSE,NA
+b802_State,DERStatus,stateOfChargeStatus,NA,FALSE,NA"""
 
 ASSERTED_VALUES = {
     'b1_Md': 'Mf Model',
-    'b1_Opt': '247bd68e3378fe57ba604e3c8bdf9e3f78a3d743',
     'b1_SN': '097935300833',
     'b1_Vr': 'MF-HW: 1.0.0',
     'b113_A': '24.0',
@@ -133,8 +132,8 @@ ASSERTED_VALUES = {
     'b404_DCW': '3000.0',
     'b404_DCWh': '305.755555556',
     'b802_LocRemCtl': '777',
-    'b802_SoC': '7.77',
-    'b802_State': '777'}
+    'b802_SoC': '777',
+    'b802_State': '7.77'}
 
 web_address = ""
 
