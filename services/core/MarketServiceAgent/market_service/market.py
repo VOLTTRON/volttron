@@ -122,6 +122,7 @@ class Market(object):
         self.offers = OfferManager()
         self.market_name = market_name
         self.publish = publish
+        self.verbose_logging = True
         self.state_machine = Machine(model=self, states=Market.states,
                                      transitions= Market.transitions, initial=ACCEPT_RESERVATIONS)
         self.make_reservation(participant)
@@ -144,6 +145,9 @@ class Market(object):
         if self.state not in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]:
             raise MarketFailureError(self.market_name, self.state, 'offers')
         self.reservations.take_reservation(participant)
+        if self.verbose_logging:
+            _log.debug("Make offer Market: {} BuySell: {} Curve: {}", self.market_name,
+                       participant.buyer_seller, curve.tuppleize())
         self.offers.make_offer(participant.buyer_seller, curve)
         if self.all_satisfied(participant.buyer_seller):
             if (participant.buyer_seller == SELLER):
@@ -151,12 +155,16 @@ class Market(object):
             else:
                 self.last_buy_offer()
             aggregate_curve = self.offers.aggregate_curves(participant.buyer_seller)
+            if self.verbose_logging:
+                _log.debug("Report aggregate Market: {} BuySell: {} Curve: {}", self.market_name,
+                           participant.buyer_seller, aggregate_curve.tuppleize())
             if aggregate_curve is not None:
                 timestamp = self._get_time()
                 timestamp_string = utils.format_timestamp(timestamp)
                 self.publish(peer='pubsub',
                              topic=MARKET_AGGREGATE,
-                             message=[timestamp_string, self.market_name, participant.buyer_seller, aggregate_curve.tuppleize()])
+                             message=[timestamp_string, self.market_name,
+                                      participant.buyer_seller, aggregate_curve.tuppleize()])
             if self.is_market_done():
                 self.clear_market()
 
