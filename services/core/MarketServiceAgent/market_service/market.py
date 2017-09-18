@@ -123,8 +123,8 @@ class Market(object):
         self.market_name = market_name
         self.publish = publish
         self.verbose_logging = True
-        _log.debug("Initializing Market: {} BuySell: {} verbose logging is {}.", self.market_name,
-                   participant.buyer_seller, self.verbose_logging)
+        _log.debug("Initializing Market: {} BuySell: {} verbose logging is {}.".format(self.market_name,
+                   participant.buyer_seller, self.verbose_logging))
         self.state_machine = Machine(model=self, states=Market.states,
                                      transitions= Market.transitions, initial=ACCEPT_RESERVATIONS)
         self.make_reservation(participant)
@@ -140,8 +140,8 @@ class Market(object):
                 reservation_count = self.reservations.buyer_count()
             else:
                 reservation_count = self.reservations.seller_count()
-            _log.debug("Make reservation Market: {} BuySell: {} now has {} reservations.", self.market_name,
-                       participant.buyer_seller, reservation_count)
+            _log.debug("Make reservation Market: {} BuySell: {} now has {} reservations.".format(self.market_name,
+                       participant.buyer_seller, reservation_count))
         if not market_already_formed and self.has_market_formed():
             self.market_forms()
 
@@ -160,8 +160,8 @@ class Market(object):
                 offer_count = self.offers.buyer_count()
             else:
                 offer_count = self.reservations.seller_count()
-            _log.debug("Make reservation Market: {} BuySell: {} now has {} offers. Curve: {}", self.market_name,
-                       participant.buyer_seller, offer_count, curve.tuppleize())
+            _log.debug("Make reservation Market: {} BuySell: {} now has {} offers. Curve: {}".format(self.market_name,
+                       participant.buyer_seller, offer_count, curve.tuppleize()))
         self.offers.make_offer(participant.buyer_seller, curve)
         if self.all_satisfied(participant.buyer_seller):
             if (participant.buyer_seller == SELLER):
@@ -170,8 +170,8 @@ class Market(object):
                 self.last_buy_offer()
             aggregate_curve = self.offers.aggregate_curves(participant.buyer_seller)
             if self.verbose_logging:
-                _log.debug("Report aggregate Market: {} BuySell: {} Curve: {}", self.market_name,
-                           participant.buyer_seller, aggregate_curve.tuppleize())
+                _log.debug("Report aggregate Market: {} BuySell: {} Curve: {}".format(self.market_name,
+                           participant.buyer_seller, aggregate_curve.tuppleize()))
             if aggregate_curve is not None:
                 timestamp = self._get_time()
                 timestamp_string = utils.format_timestamp(timestamp)
