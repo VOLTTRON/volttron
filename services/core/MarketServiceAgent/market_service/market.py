@@ -123,6 +123,8 @@ class Market(object):
         self.market_name = market_name
         self.publish = publish
         self.verbose_logging = True
+        _log.debug("Initializing Market: {} BuySell: {} verbose logging is {}.", self.market_name,
+                   participant.buyer_seller, self.verbose_logging)
         self.state_machine = Machine(model=self, states=Market.states,
                                      transitions= Market.transitions, initial=ACCEPT_RESERVATIONS)
         self.make_reservation(participant)
@@ -133,6 +135,13 @@ class Market(object):
         if self.state not in [ACCEPT_RESERVATIONS, ACCEPT_RESERVATIONS_HAS_FORMED]:
             raise MarketFailureError(self.market_name, self.state, 'reservations')
         self.reservations.make_reservation(participant)
+        if self.verbose_logging:
+            if participant.buyer_seller == BUYER:
+                reservation_count = self.reservations.buyer_count
+            else:
+                reservation_count = self.reservations.seller_count
+            _log.debug("Make reservation Market: {} BuySell: {} now has {} reservations.", self.market_name,
+                       participant.buyer_seller, reservation_count)
         if not market_already_formed and self.has_market_formed():
             self.market_forms()
 
@@ -145,9 +154,14 @@ class Market(object):
         if self.state not in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]:
             raise MarketFailureError(self.market_name, self.state, 'offers')
         self.reservations.take_reservation(participant)
+        self.reservations.make_reservation(participant)
         if self.verbose_logging:
-            _log.debug("Make offer Market: {} BuySell: {} Curve: {}", self.market_name,
-                       participant.buyer_seller, curve.tuppleize())
+            if participant.buyer_seller == BUYER:
+                offer_count = self.offers.seller_count
+            else:
+                offer_count = self.reservations.buyer_count
+            _log.debug("Make reservation Market: {} BuySell: {} now has {} offers. Curve: {}", self.market_name,
+                       participant.buyer_seller, offer_count, curve.tuppleize())
         self.offers.make_offer(participant.buyer_seller, curve)
         if self.all_satisfied(participant.buyer_seller):
             if (participant.buyer_seller == SELLER):
