@@ -61,6 +61,7 @@ from __future__ import absolute_import
 from datetime import datetime
 import logging
 import sys
+
 from pprint import pformat
 
 from volttron.platform.messaging.health import STATUS_GOOD
@@ -115,10 +116,8 @@ class ListenerAgent(Agent):
         if self._heartbeat_period != 0:
             self.vip.heartbeat.start_with_period(self._heartbeat_period)
             self.vip.health.set_status(STATUS_GOOD, self._message)
-            self.vip.pubsub.subscribe('pubsub', 'devices/fake-campus', self.on_match)
-            self.counter = 0
 
-    #@PubSub.subscribe('pubsub', '')
+    @PubSub.subscribe('pubsub', '')
     def on_match(self, peer, sender, bus,  topic, headers, message):
         """Use match_all to receive all messages and print them out."""
         if sender == 'pubsub.compat':
@@ -127,20 +126,6 @@ class ListenerAgent(Agent):
             "Peer: %r, Sender: %r:, Bus: %r, Topic: %r, Headers: %r, "
             "Message: \n%s", peer, sender, bus, topic, headers,  pformat(message))
 
-    # @Core.periodic(5)
-    # def subscribe_counter(self):
-    #     self._logfn("counter: %r", self.counter)
-    #     self.counter += 1
-    #     if self.counter == 5:
-    #         self.vip.pubsub.unsubscribe('pubsub', 'devices', self.on_match, all_platforms=True)
-    #     elif self.counter == 10:
-    #         self.vip.pubsub.subscribe('pubsub', 'devices', self.on_match, all_platforms=True)
-    #     elif self.counter == 15:
-    #         self.vip.pubsub.unsubscribe('pubsub', 'devices', self.on_match, all_platforms=True)
-
-    @Core.receiver("onstop")
-    def listener_stop(self, sender, **kwargs):
-        self.vip.pubsub.unsubscribe('pubsub', 'devices/fake-campus', self.on_match)
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
