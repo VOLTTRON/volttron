@@ -11,11 +11,16 @@ becomes unavailable or one of the "required agents" becomes unavailable then
 the cache of this agent will build up until it reaches it's maximum capacity
 or the instance and agents come back online.
 
+The Forward Historian now uses the configuration store for storing its
+configurations. This allows dynamic updating of configuration without having
+to rebuild the agent.
+
 FAQ /Notes
 ----------
 
 * By default the Forward Historian adds an X-Forwarded and X-Forwarded-From
-header to the forwarded message.
+header to the forwarded message.  The X-Forwarded-From uses the instance-name
+of the platform (ip address:port by default).
 
 Configuration Options
 ---------------------
@@ -26,7 +31,15 @@ by the ForwardHistorian agent.  By default an empty config file is used.
 .. code-block:: python
 
     {
-        # destination-vip address
+        # destination-serverkey - REQUIRED
+        #   Required.  The destination instance's publickey.  This can be
+        #   retrieved either through the command:
+        #       vctl auth serverkey
+        #   Or if the web is enabled on the destination through the browser at:
+        #       http(s)://hostaddress:port/discovery/
+        "destination-serverkey": null,
+
+        # destination-vip-address
         #   Required if the host has not been added to the known-host file.
         #   See vctl auth --help for all intsance security options.
         #
@@ -34,14 +47,6 @@ by the ForwardHistorian agent.  By default an empty config file is used.
         #       "destination-vip": "ipc://@/home/volttron/.volttron/run/vip.socket"
         #       "destination-vip": "tcp://127.0.0.1:22916"
         "destination-vip": "tcp://<ip address>:<port>"
-
-        # destination-serverkey
-        #   Required.  The destination instance's publickey.  This can be
-        #   retrieved either through the command:
-        #       vctl auth serverkey
-        #   Or if the web is enabled on the destination through the browser at:
-        #       http(s)://hostaddress:port/discovery/
-        "destination-serverkey": null,
 
         # required_target_agents
         #   Allows checking on the remote instance to verify peer identtites
@@ -56,34 +61,37 @@ by the ForwardHistorian agent.  By default an empty config file is used.
         # capture_device_data
         #   This is True by default and allows the Forwarder to forward
         #   data published from the device topic
-        "capture_device_data": True,
+        "capture_device_data": true,
 
         # capture_analysis_data
         #   This is True by default and allows the Forwarder to forward
         #   data published from the device topic
-        "capture_analysis_data": True,
+        "capture_analysis_data": true,
 
         # capture_log_data
         #   This is True by default and allows the Forwarder to forward
         #   data published from the datalogger topic
-        "capture_log_data": True,
+        "capture_log_data": true,
 
         # capture_record_data
         #   This is True by default and allows the Forwarder to forward
         #   data published from the record topic
-        "capture_record_data": True,
+        "capture_record_data": true,
 
         # custom_topic_list
         #   Unlike other historians, the forward historian can re-publish from
         #   any topic.  The custom_topic_list is prefixes to subscribe to on
-        #   the local bus and forwart to the destination instance.
+        #   the local bus and forward to the destination instance.
         "custom_topic_list": [],
 
-        # services_topic_list - Deprecated in favor of specific topic types
-        #   Allow the forwarder to only forward specific "known" topic roots
-        "services_topic_list": [
-            "devices", "analysis", "record", "datalogger", "actuators"
-        ],
+        # cache_only
+        #   Allows one to put the forward historian in a cache only mode so that
+        #   data is backed up while doing operations on the destination
+        #   instance.
+        #
+        #   Setting this to true will start cache to backup and not attempt
+        #   to publish to the destination instance.
+        "cache_only": false,
 
         # topic_replace_list - Deprecated in favor of retrieving the list of
         #   replacements from the VCP on the current instance.

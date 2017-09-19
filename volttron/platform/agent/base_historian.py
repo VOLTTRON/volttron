@@ -253,8 +253,7 @@ from volttron.platform.agent.utils import process_timestamp, \
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
-
-
+from volttron.platform.vip.agent.subsystems.query import Query
 
 try:
     import ujson
@@ -301,14 +300,17 @@ def add_timing_data_to_header(headers, agent_id, phase):
     if len(values) < 2:
         return 0.0
 
-    #Assume 2 phases and proper format.
+    # Assume 2 phases and proper format.
     time1 = datetime.strptime(values[0][11:26], "%H:%M:%S.%f")
     time2 = datetime.strptime(values[1][11:26], "%H:%M:%S.%f")
 
     return abs((time1 - time2).total_seconds())
 
+
 class BaseHistorianAgent(Agent):
-    """This is the base agent for historian Agents.
+    """
+    This is the base agent for historian Agents.
+
     It automatically subscribes to all device publish topics.
 
     Event processing occurs in its own thread as to not block the main
@@ -365,7 +367,8 @@ class BaseHistorianAgent(Agent):
         self._submit_size_limit = int(submit_size_limit)
         self._max_time_publishing = float(max_time_publishing)
         self._successful_published = set()
-        #Remove the need to reset subscriptions to eliminate possible data loss at config change.
+        # Remove the need to reset subscriptions to eliminate possible data
+        # loss at config change.
         self._current_subscriptions = set()
         self._topic_replace_map = {}
         self._event_queue = Queue()
@@ -374,6 +377,8 @@ class BaseHistorianAgent(Agent):
         self._process_thread = None
 
         self.no_insert = False
+        self.no_query = False
+        self.instance_name = None
 
         self._default_config = {"retry_period":self._retry_period,
                                "submit_size_limit": self._submit_size_limit,
@@ -392,10 +397,12 @@ class BaseHistorianAgent(Agent):
         self.vip.config.subscribe(self._configure, actions=["NEW", "UPDATE"], pattern="config")
 
     def update_default_config(self, config):
-        """May be called by historians to add to the default configuration for its own use."""
+        """
+        May be called by historians to add to the default configuration for its
+        own use.
+        """
         self._default_config.update(config)
         self.vip.config.set_default("config", self._default_config)
-
 
     def start_process_thread(self):
         self._process_thread = Thread(target=self._process_loop)
@@ -408,19 +415,18 @@ class BaseHistorianAgent(Agent):
         if self._process_thread is None:
             return
 
-        #Tell the loop it needs to die.
+        # Tell the loop it needs to die.
         self._stop_process_loop = True
-        #Wake the loop.
+        # Wake the loop.
         self._event_queue.put(None)
 
-        #9 seconds as configuration timeout is 10 seconds.
+        # 9 seconds as configuration timeout is 10 seconds.
         self._process_thread.join(9.0)
         if self._process_thread.is_alive():
             _log.error("Failed to stop process thread during reconfiguration!")
 
         self._process_thread = None
         _log.debug("Process thread stopped.")
-
 
     def _configure(self, config_name, action, contents):
         self.vip.heartbeat.start()
@@ -440,7 +446,10 @@ class BaseHistorianAgent(Agent):
             _log.error("Failed to load base historian settings. Settings not applied!")
             return
 
-        #Reset replace map.
+        query = Query(self.core)
+        self.instance_name = query.query(b'instance-name').get()
+
+        # Reset replace map.
         self._topic_replace_map = {}
 
         self._topic_replace_list = topic_replace_list
