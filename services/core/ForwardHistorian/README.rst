@@ -5,7 +5,7 @@ Forward Historian
 =================
 
 The Forward Historian is used to send data from one instance of VOLTTRON to
-another.  This agents primary purpose is to allow the target intance's pubsub
+another.  This agents primary purpose is to allow the target instance's pubsub
 bus to simulate data coming from a real device.  If the target instance
 becomes unavailable or one of the "required agents" becomes unavailable then
 the cache of this agent will build up until it reaches it's maximum capacity
@@ -31,18 +31,19 @@ by the ForwardHistorian agent.
 .. code-block:: python
 
     {
-        # destination-serverkey - REQUIRED
-        #   Required.  The destination instance's publickey.  This can be
-        #   retrieved either through the command:
+        # destination-serverkey
+        #   The destination instance's publickey. Required if the
+        #   destination-vip-address has not been added to the known-host file.
+        #   See vctl auth --help for all instance security options.
+        #
+        #   This can be retrieved either through the command:
         #       vctl auth serverkey
         #   Or if the web is enabled on the destination through the browser at:
         #       http(s)://hostaddress:port/discovery/
         "destination-serverkey": null,
 
-        # destination-vip-address
-        #   Required if the host has not been added to the known-host file.
-        #   See vctl auth --help for all intsance security options.
-        #
+        # destination-vip-address - REQUIRED
+        #   Address of the target platform.
         #   Examples:
         #       "destination-vip": "ipc://@/home/volttron/.volttron/run/vip.socket"
         #       "destination-vip": "tcp://127.0.0.1:22916"
