@@ -1,4 +1,5 @@
 import pytest
+import os
 
 from volttron.platform.web import DiscoveryInfo
 
