@@ -26,7 +26,7 @@ Configuration Options
 ---------------------
 
 The following JSON configuration file shows all the options currently supported
-by the ForwardHistorian agent.  By default an empty config file is used.
+by the ForwardHistorian agent.
 
 .. code-block:: python
 
