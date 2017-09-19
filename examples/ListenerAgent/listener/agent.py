@@ -60,7 +60,7 @@ from __future__ import absolute_import
 
 from datetime import datetime
 import logging
-
+import sys
 from pprint import pformat
 
 from volttron.platform.messaging.health import STATUS_GOOD
@@ -115,7 +115,7 @@ class ListenerAgent(Agent):
         if self._heartbeat_period != 0:
             self.vip.heartbeat.start_with_period(self._heartbeat_period)
             self.vip.health.set_status(STATUS_GOOD, self._message)
-            self.vip.pubsub.subscribe('pubsub', 'devices/fake-campus', self.on_match, all_platforms=True)
+            self.vip.pubsub.subscribe('pubsub', 'devices/fake-campus', self.on_match)
             self.counter = 0
 
     #@PubSub.subscribe('pubsub', '')
@@ -140,7 +140,7 @@ class ListenerAgent(Agent):
 
     @Core.receiver("onstop")
     def listener_stop(self, sender, **kwargs):
-        self.vip.pubsub.unsubscribe('pubsub', 'devices/fake-campus', self.on_match, all_platforms=True)
+        self.vip.pubsub.unsubscribe('pubsub', 'devices/fake-campus', self.on_match)
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
