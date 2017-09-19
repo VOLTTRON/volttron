@@ -88,7 +88,9 @@ class KeyDiscoveryAgent(Agent):
         self._my_web_address = bind_web_address
         self.r = random.random()
         self._setup_mode = setup_mode
-        _log.debug("RUNNING IN MULTI-PLATFORM SETUP MODE")
+        if self._setup_mode:
+            _log.debug("RUNNING IN MULTI-PLATFORM SETUP MODE")
+
         self._store_path = os.path.join(os.environ['VOLTTRON_HOME'],
                                         'external_platform_discovery.json')
         self._ext_addresses_store = dict()
@@ -104,7 +106,6 @@ class KeyDiscoveryAgent(Agent):
         """
         self._vip_socket = self.core.socket
         if self._my_web_address is None:
-            _log.error("Web address is NOT set")
             return
         #If in setup mode, read the external_addresses.json to get web addresses to set up authorized connection with
         # external platforms.

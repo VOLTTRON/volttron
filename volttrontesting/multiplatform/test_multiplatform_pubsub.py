@@ -15,7 +15,7 @@ subscription_results = {}
 def onmessage(peer, sender, bus, topic, headers, message):
     global subscription_results
     subscription_results[topic] = {'headers': headers, 'message': message}
-    print("xxxsubscription_results[{}] = {}".format(topic, subscription_results[topic]))
+    print("subscription_results[{}] = {}".format(topic, subscription_results[topic]))
 
 @pytest.fixture(scope="module")
 def get_volttron_instances(request):
@@ -43,27 +43,21 @@ def get_volttron_instances(request):
         web_addresses = []
         instances = []
         addr_config = dict()
+        names = []
 
-        # vip_addresses.append('tcp://127.0.0.18:22916')
-        # vip_addresses.append('tcp://127.0.0.16:22916')
-        # web_addresses.append('http://127.0.0.18:8080')
-        # web_addresses.append('http://127.0.0.16:8080')
         for i in range(0, n):
             address = get_rand_vip()
             web_address = "http://{}".format(get_rand_ip_and_port())
             vip_addresses.append(address)
             web_addresses.append(web_address)
-            nm = 'platform' + str(i+1)
-            addr_config[nm] = {"instance-name": nm, "vip-address": address, "bind-web-address": web_address}
+            nm = 'platform{}'.format(i+1)
+            print nm
+            names.append(nm)
 
-        #
-        # addr_config['platform1'] = {"instance-name": "platform1", "vip-address": vip_addresses[0], "bind-web-address": web_addresses[0]}
-        # addr_config['platform2'] = {"instance-name": "platform2", "vip-address": vip_addresses[1], "bind-web-address": web_addresses[1]}
         for i in range(0, n):
-            address = vip_addresses.pop(0)
-            web_address = web_addresses.pop(0)
+            address = vip_addresses[i]
+            web_address = web_addresses[i]
             print address, web_address
-            wrapper = None
             wrapper = PlatformWrapper()
             instances.append(wrapper)
 
@@ -71,28 +65,30 @@ def get_volttron_instances(request):
             print addr_config
             if address_file:
                 with open(addr_file, 'w') as f:
-                    json.dump(addr_config, f)
+                    json.dump(web_addresses, f)
                     gevent.sleep(.1)
-            wrapper.startup_platform(address, bind_web_address=web_address)
-            wrapper.allow_all_connections()
+            wrapper.startup_platform(address, bind_web_address=web_address, instance_name=names[i], setupmode=True)
+
+        gevent.sleep(11)
+        for i in range(0, n):
+            instances[i].shutdown_platform()
+
+        gevent.sleep(1)
+        #del instances[:]
+        for i in range(0, n):
+            address = vip_addresses.pop(0)
+            web_address = web_addresses.pop(0)
+            print address, web_address
+            instances[i].startup_platform(address, bind_web_address=web_address, instance_name=names[i])
+            # wrapper = PlatformWrapper()
+            # instances.append(wrapper)
+            # wrapper.startup_platform(address, bind_web_address=web_address)
+            #wrapper.allow_all_connections()
+        gevent.sleep(11)
         instances = instances if n > 1 else instances[0]
-        # setattr(get_n_volttron_instances, 'instances', instances)
+
         get_n_volttron_instances.instances = instances
         return instances
-    #
-    # def cleanup():
-    #     if isinstance(get_n_volttron_instances.instances, PlatformWrapper):
-    #         print('Shutting down instance: {}'.format(
-    #             get_n_volttron_instances.instances.volttron_home))
-    #         get_n_volttron_instances.instances.shutdown_platform()
-    #         return
-    #
-    #     for i in range(0, get_n_volttron_instances.count):
-    #         print('Shutting down instance: {}'.format(
-    #             get_n_volttron_instances.instances[i].volttron_home))
-    #         get_n_volttron_instances.instances[i].shutdown_platform()
-    #
-    # request.addfinalizer(cleanup)
 
     return get_n_volttron_instances
 
@@ -104,8 +100,6 @@ def multi_platform_connection(request, get_volttron_instances):
     main instance configuration file before starting the platform
     """
     p1, p2, p3 = get_volttron_instances(3)
-
-    gevent.sleep(5)
 
     # configure vc
     agent1 = p1.build_agent()
@@ -162,7 +156,7 @@ def test_multiplatform_pubsub(request, multi_platform_connection):
 
     def callback2(peer, sender, bus, topicdr, headers, message):
         print message
-        assert message == [{'point':'vac,;v;lue'}]
+        assert message == [{'point':'value'}]
     def callback3(peer, sender, bus, topic, headers, message):
         print message
 
@@ -179,10 +173,13 @@ def test_multiplatform_pubsub(request, multi_platform_connection):
     p3_listener.vip.pubsub.subscribe(peer='pubsub',
                                prefix='devices',
                                callback=onmessage)
+
     print "publish"
     prefix= 'devices'
     for i in range(10):
-        p1_publisher.vip.pubsub.publish(peer='pubsub', topic='devices/campus/building1', message=[{'point':'value'}])
+        p1_publisher.vip.pubsub.publish(peer='pubsub',
+                                        topic='devices/campus/building1',
+                                        message=[{'point':'value'}])
         #gevent.sleep(0.1)
 
         poll_gevent_sleep(2, lambda: messages_contains_prefix(prefix,
@@ -244,7 +241,7 @@ def test_multiplatform_2_publishers(request, five_platform_connection):
         message = subscription_results2['devices/campus/building1']['message']
         assert message == [{'point':'value'}]
         message = subscription_results3['devices/campus/building1']['message']
-        assert message == [{'result': 'value'}]
+        assert message == [{'point': 'value'}]
 
     prefix = 'analysis'
     for i in range(5):
@@ -380,19 +377,20 @@ def test_multiplatform_rpc(request, get_volttron_instances):
         }
     }
     test_agent = p2.build_agent()
+    kwargs = {"external_platform": 'platform1'}
     test_agent.vip.rpc.call(CONFIGURATION_STORE,
                     'manage_store',
                     'platform.thresholddetection',
                     'config',
                     json.dumps(updated_config),
                     'json',
-                    platform='platform1').get(timeout=10)
+                    **kwargs).get(timeout=10)
     config = test_agent.vip.rpc.call(CONFIGURATION_STORE,
                     'manage_get',
                     'platform.thresholddetection',
                     'config',
                     raw=True,
-                    platform='platform1').get(timeout=10)
+                    **kwargs).get(timeout=10)
     config = json.loads(config)
     try:
         assert config == updated_config

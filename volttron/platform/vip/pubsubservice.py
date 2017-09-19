@@ -206,6 +206,7 @@ class PubSubService(object):
             prefix = msg['prefix']
             bus = msg['bus']
             is_all = msg['all_platforms']
+
             if is_all:
                 platform = 'all'
             else:
@@ -213,7 +214,6 @@ class PubSubService(object):
 
             for prefix in prefix if isinstance(prefix, list) else [prefix]:
                 self._add_peer_subscription(peer, bus, prefix, platform)
-            #self._logger.debug("PUBSUBERVICE: peer subscriptions{}".format(self._peer_subscriptions['all'][bus][prefix]))
 
             if is_all and self._ext_router is not None:
                 # Send subscription message to all connected platforms
@@ -397,13 +397,21 @@ class PubSubService(object):
             return 0
 
         all = 'all'
+        all_subscriptions = dict()
+        subscriptions = dict()
         # Get subscriptions for all platforms
-        if all in self._peer_subscriptions:
-            subscriptions = self._peer_subscriptions[all][bus]
-        else:
-            # Get subscriptions for local platform
+        try:
+            all_subscriptions = self._peer_subscriptions['all'][bus]
+        except KeyError:
+            pass
+        try:
             subscriptions = self._peer_subscriptions['internal'][bus]
+        except KeyError:
+            pass
+        subscriptions.update(all_subscriptions)
+
         subscribers = set()
+        #self._logger.debug("PUBSUBSERVICE Peer subscriptions: {0}".format(self._peer_subscriptions))
         # Check for local subscribers
         for prefix, subscription in subscriptions.iteritems():
             if subscription and topic.startswith(prefix):
