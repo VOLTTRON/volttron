@@ -119,10 +119,10 @@ class MeterAgent(MarketAgent):
         supply_curve = PolyLine()
         price = self.price
         quantity = self.inf
-        supply_curve.add(Point(price,quantity))
+        supply_curve.add(Point(price=price, quantity=quantity))
         price = self.price
         quantity = -1*self.inf
-        supply_curve.add(Point(price,quantity))
+        supply_curve.add(Point(price=price, quantity=quantity))
         return supply_curve
 
     def price_callback(self, timestamp, market_name, buyer_seller, price, quantity):

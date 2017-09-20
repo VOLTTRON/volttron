@@ -109,10 +109,10 @@ class SampleElectricBuyerAgent(MarketAgent):
         demand_curve = PolyLine()
         price = 0
         quantity = 1000
-        demand_curve.add(Point(price, quantity))
+        demand_curve.add(Point(price=price, quantity=quantity))
         price = 1000
         quantity = 0
-        demand_curve.add(Point(price, quantity))
+        demand_curve.add(Point(price=price, quantity=quantity))
         return demand_curve
 
     def price_callback(self, timestamp, market_name, buyer_seller, price, quantity):

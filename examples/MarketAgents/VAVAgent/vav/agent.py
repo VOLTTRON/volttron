@@ -136,11 +136,11 @@ class VAVAgent(MarketAgent, FirstOrderZone):
         qMin = abs(self.getQMin())
         qMax = abs(self.getQMax())
         if (self.hvacAvail > 0):
-            demand_curve.add(Point(max(pMin, pMax),min(qMin, qMax)))
-            demand_curve.add(Point(min(pMin, pMax),max(qMin, qMax)))
+            demand_curve.add(Point(price=max(pMin, pMax),quantity=min(qMin, qMax)))
+            demand_curve.add(Point(price=min(pMin, pMax),quantity=max(qMin, qMax)))
         else:
-            demand_curve.add(Point(max(pMin, pMax), 0.0))
-            demand_curve.add(Point(min(pMin, pMax),0.0))
+            demand_curve.add(Point(price=max(pMin, pMax), quantity=0.0))
+            demand_curve.add(Point(price=min(pMin, pMax),quantity=0.0))
         return demand_curve
 
     def iniState(self):

@@ -146,10 +146,10 @@ class AHUAgent(MarketAgent):
         supply_curve = PolyLine()
         price = 65
         quantity = 100000
-        supply_curve.add(Point(price,quantity))
+        supply_curve.add(Point(price=price,quantity=quantity))
         price = 65
         quantity = -1*10000
-        supply_curve.add(Point(price,quantity))
+        supply_curve.add(Point(price=price,quantity=quantity))
         return supply_curve
 		
     def create_electric_demand_curve(self, aggregate_air_demand):
@@ -160,11 +160,11 @@ class AHUAgent(MarketAgent):
         qMin = abs(self.getQMin())
         qMax = abs(self.getQMax())
         if (self.hvacAvail > 0):
-            demand_curve.add(Point(max(pMin, pMax),min(qMin, qMax)))
-            demand_curve.add(Point(min(pMin, pMax),max(qMin, qMax)))
+            demand_curve.add(Point(price=max(pMin, pMax),quantity=min(qMin, qMax)))
+            demand_curve.add(Point(price=min(pMin, pMax),quantity=max(qMin, qMax)))
         else:
-            demand_curve.add(Point(max(pMin, pMax), 0.0))
-            demand_curve.add(Point(min(pMin, pMax),0.0))
+            demand_curve.add(Point(price=max(pMin, pMax), quantity=0.0))
+            demand_curve.add(Point(price=min(pMin, pMax),quantity=0.0))
         return aggregate_air_demand
 
     def ini_state(self):
