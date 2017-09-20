@@ -78,12 +78,12 @@ class MarketAgent(Agent):
     an auction market.  By inheriting from this agent all the remote communication
     with the MarketService is handled and the sub-class can be unconcerned with those details.
     """
-    def __init__(self, **kwargs):
+    def __init__(self, verbose_logging = True, **kwargs):
         super(MarketAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
         self.registrations = RegistrationManager(self)
         self.has_reservation = False
-        self.verbose_logging = True
+        self.verbose_logging = verbose_logging
 
     @PubSub.subscribe('pubsub', MARKET_RESERVE)
     def match_reservation(self, peer, sender, bus, topic, headers, message):

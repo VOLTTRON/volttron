@@ -91,15 +91,16 @@ def ahu_agent(config_path, **kwargs):
     air_market_name = config.get('market_name1', 'air')
     electric_market_name = config.get('market_name2', 'electric')
     agent_name= config.get('agent_name')		
-    return AHUAgent(air_market_name,electric_market_name,agent_name, **kwargs)
+    verbose_logging= config.get('verbose_logging', True)
+    return AHUAgent(air_market_name,electric_market_name,agent_name, verbose_logging, **kwargs)
 
 class AHUAgent(MarketAgent):
     """
     The SampleElectricMeterAgent serves as a sample of an electric meter that
     sells electricity for a single building at a fixed price.
     """
-    def __init__(self, air_market_name, electric_market_name, agent_name, **kwargs):
-        super(AHUAgent, self).__init__(**kwargs)
+    def __init__(self, air_market_name, electric_market_name, agent_name, verbose_logging, **kwargs):
+        super(AHUAgent, self).__init__(verbose_logging, **kwargs)
         self.ini_state()
         self.air_market_name = air_market_name
         self.electric_market_name = electric_market_name

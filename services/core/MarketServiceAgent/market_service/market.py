@@ -117,12 +117,12 @@ class Market(object):
         {'trigger': 'receive_buy_offer', 'source': MARKET_DONE, 'dest': MARKET_DONE},
     ]
 
-    def __init__(self, market_name, participant, publish):
+    def __init__(self, market_name, participant, publish, verbose_logging = True):
         self.reservations = ReservationManager()
         self.offers = OfferManager()
         self.market_name = market_name
         self.publish = publish
-        self.verbose_logging = True
+        self.verbose_logging = verbose_logging
         _log.debug("Initializing Market: {} BuySell: {} verbose logging is {}.".format(self.market_name,
                    participant.buyer_seller, self.verbose_logging))
         self.state_machine = Machine(model=self, states=Market.states,

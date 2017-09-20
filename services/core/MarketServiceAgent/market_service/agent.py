@@ -100,8 +100,9 @@ def market_service_agent(config_path, **kwargs):
     market_period = int(config.get('market_period', 300))
     reservation_delay = int(config.get('reservation_delay', 0))
     offer_delay = int(config.get('offer_delay', 120))
+    verbose_logging = int(config.get('verbose_logging', True))
 
-    return MarketServiceAgent(market_period, reservation_delay, offer_delay, **kwargs)
+    return MarketServiceAgent(market_period, reservation_delay, offer_delay, verbose_logging, **kwargs)
 
 
 class MarketServiceAgent(Agent):
@@ -114,22 +115,24 @@ class MarketServiceAgent(Agent):
         {'trigger': 'start_reservations', 'source': NO_MARKETS, 'dest': COLLECT_RESERVATIONS},
     ]
 
-    def __init__(self, market_period=300, reservation_delay=0, offer_delay=120, **kwargs):
+    def __init__(self, market_period=300, reservation_delay=0, offer_delay=120, verbose_logging = True, **kwargs):
         super(MarketServiceAgent, self).__init__(**kwargs)
 
         _log.debug("vip_identity: {}".format(self.core.identity))
         _log.debug("market_period: {}".format(market_period))
         _log.debug("reservation_delay: {}".format(reservation_delay))
         _log.debug("offer_delay: {}".format(offer_delay))
+        _log.debug("verbose_logging: {}".format(verbose_logging))
 
         self.state_machine = Machine(model=self, states=MarketServiceAgent.states,
                                      transitions= MarketServiceAgent.transitions, initial=INITIAL_WAIT)
         self.market_list = None
+        self.verbose_logging = verbose_logging
         self.director = Director(market_period, reservation_delay, offer_delay)
 
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
-        self.market_list = MarketList(self.vip.pubsub.publish)
+        self.market_list = MarketList(self.vip.pubsub.publish, self.verbose_logging)
         self.director.start(self)
 
     def send_collect_reservations_request(self, timestamp):

@@ -65,7 +65,7 @@ utils.setup_logging()
 
 class MarketRegistration(object):
     def __init__(self, market_name, buyer_seller, reservation_callback, offer_callback,
-                 aggregate_callback, price_callback, error_callback):
+                 aggregate_callback, price_callback, error_callback, verbose_logging = True):
         self.market_name = market_name
         self.buyer_seller = buyer_seller
         self.reservation_callback = reservation_callback
@@ -75,6 +75,7 @@ class MarketRegistration(object):
         self.error_callback = error_callback
         self.always_wants_reservation = self.reservation_callback == None
         self.has_reservation = False
+        self.verbose_logging = verbose_logging
         self._validate_callbacks()
 
     def request_reservations(self, timestamp, agent):
@@ -87,10 +88,12 @@ class MarketRegistration(object):
             agent.make_reservation(self.market_name, self.buyer_seller)
             if agent.has_reservation:
                 self.has_reservation = agent.has_reservation
-                _log.debug("Market: {} BuySell: {} has obtained a reservation.", self.market_name, self.buyer_seller)
+                if self.verbose_logging:
+                    _log.debug("Market: {} BuySell: {} has obtained a reservation.", self.market_name, self.buyer_seller)
             else:
-                _log.debug("Market: {} BuySell: {} has failed to obtained a reservation.",
-                           self.market_name, self.buyer_seller)
+                if self.verbose_logging:
+                    _log.debug("Market: {} BuySell: {} has failed to obtained a reservation.",
+                                self.market_name, self.buyer_seller)
 
     def request_offers(self, timestamp):
         if self.has_reservation and self.offer_callback is not None:
@@ -101,19 +104,22 @@ class MarketRegistration(object):
     def report_clear_price(self, timestamp, price, quantity):
         if self.has_reservation and self.price_callback is not None:
             self.price_callback(timestamp, self.market_name, self.buyer_seller, price, quantity)
-            _log.debug("Market: {} BuySell: {} Price: {} Quantity: {}",
-                       self.market_name, self.buyer_seller, price, quantity)
+            if self.verbose_logging:
+                _log.debug("Market: {} BuySell: {} Price: {} Quantity: {}",
+                           self.market_name, self.buyer_seller, price, quantity)
         self.has_reservation = False
 
     def report_aggregate(self, timestamp, buyer_seller, aggregate_curve):
         if self.has_reservation and self.aggregate_callback is not None:
             self.aggregate_callback(timestamp, self.market_name, buyer_seller, aggregate_curve)
-            _log.debug("Market: {} BuySell: {} Curve: {}", self.market_name, self.buyer_seller, aggregate_curve.points)
+            if self.verbose_logging:
+                _log.debug("Market: {} BuySell: {} Curve: {}", self.market_name, self.buyer_seller, aggregate_curve.points)
 
     def report_error(self, timestamp, error_message):
         if self.error_callback is not None:
             self.error_callback(timestamp, self.market_name, self.buyer_seller, error_message)
-            _log.debug("Market: {} BuySell: {} Error: {}", self.market_name, self.buyer_seller, error_message)
+            if self.verbose_logging:
+                _log.debug("Market: {} BuySell: {} Error: {}", self.market_name, self.buyer_seller, error_message)
 
     def _validate_callbacks(self):
         if self.offer_callback is None and self.aggregate_callback is None and self.price_callback is None:

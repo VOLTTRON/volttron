@@ -89,7 +89,8 @@ def meter_agent(config_path, **kwargs):
 
     market_name = config.get('market_name', 'electric')
     price = config.get('price', 55)
-    return MeterAgent(market_name, price, **kwargs)
+    verbose_logging= config.get('verbose_logging', True)
+    return MeterAgent(market_name, price, verbose_logging, **kwargs)
 
 
 class MeterAgent(MarketAgent):
@@ -97,8 +98,8 @@ class MeterAgent(MarketAgent):
     The SampleElectricMeterAgent serves as a sample of an electric meter that
     sells electricity for a single building at a fixed price.
     """
-    def __init__(self, market_name, price, **kwargs):
-        super(MeterAgent, self).__init__(**kwargs)
+    def __init__(self, market_name, price, verbose_logging, **kwargs):
+        super(MeterAgent, self).__init__(verbose_logging, **kwargs)
         self.market_name = market_name
         self.price = price
         self.infinity=1000000

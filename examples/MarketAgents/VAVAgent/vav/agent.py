@@ -95,19 +95,17 @@ def vav_agent(config_path, **kwargs):
     x3= config.get('x3', 0)
     x4= config.get('x4', 0)
     agent_name= config.get('agent_name')		
-    return VAVAgent(market_name,agent_name,x0,x1,x2,x3,x4, **kwargs)
+    verbose_logging= config.get('verbose_logging', True)
+    return VAVAgent(market_name,agent_name,x0,x1,x2,x3,x4,verbose_logging, **kwargs)
 
-
-	
-	
 
 class VAVAgent(MarketAgent, FirstOrderZone):
     """
     The SampleElectricMeterAgent serves as a sample of an electric meter that
     sells electricity for a single building at a fixed price.
     """
-    def __init__(self, market_name,agent_name,x0,x1,x2,x3,x4, **kwargs):
-        super(VAVAgent, self).__init__(**kwargs)
+    def __init__(self, market_name,agent_name,x0,x1,x2,x3,x4,verbose_logging, **kwargs):
+        super(VAVAgent, self).__init__(verbose_logging, **kwargs)
         self.iniState()
         self.market_name = market_name
         self.agent_name = agent_name		

@@ -69,16 +69,17 @@ class NoSuchMarketError(StandardError):
     pass
 
 class MarketList(object):
-    def __init__(self, publish = None):
+    def __init__(self, publish = None, verbose_logging = True):
         self.markets = {}
         self.publish = publish
+        self.verbose_logging = verbose_logging
 
     def make_reservation(self, market_name, participant):
         if self.has_market(market_name):
             market = self.markets[market_name]
             market.make_reservation(participant)
         else:
-            market = Market(market_name, participant, self.publish)
+            market = Market(market_name, participant, self.publish, self.verbose_logging)
             self.markets[market_name] = market
 
     def make_offer(self, market_name, participant, curve):
