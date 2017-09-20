@@ -61,16 +61,20 @@ from operator import itemgetter as _itemgetter
 from collections import OrderedDict
 
 class Point(tuple):
-    'Point(x, y)'
+    'Point(quantity, price)'
     __slots__ = ()
 
-    _fields = ('x', 'y')
+    _fields = ('quantity', 'price')
 
-    def __new__(_cls, x, y):
-        'Create new instance of Point(x, y)'
-        float_x = float(x) if x is not None else None
-        float_y = float(y) if y is not None else None
-        return _tuple.__new__(_cls, (float_x, float_y))
+    def __new__(_cls, quantity, price):
+        'Create new instance of Point(quantity, price)'
+        if (quantity < 0 or quantity is None):
+            raise ValueError('The quantity provided ({}) is an invalid value.'.format(quantity))
+        if (price < 0 or price is None):
+            raise ValueError('The price provided ({}) is an invalid value.'.format(price))
+        float_quantity = float(quantity)
+        float_price = float(price)
+        return _tuple.__new__(_cls, (float_quantity, float_price))
 
     @classmethod
     def _make(cls, iterable, new=tuple.__new__, len=len):
@@ -82,7 +86,7 @@ class Point(tuple):
 
     def __repr__(self):
         'Return a nicely formatted representation string'
-        return 'Point(x=%r, y=%r)' % self
+        return 'Point(quantity=%r, price=%r)' % self
 
     def _asdict(self):
         'Return a new OrderedDict which maps field names to their values'
@@ -90,7 +94,7 @@ class Point(tuple):
 
     def _replace(_self, **kwds):
         'Return a new Point object replacing specified fields with new values'
-        result = _self._make(map(kwds.pop, ('x', 'y'), _self))
+        result = _self._make(map(kwds.pop, ('quantity', 'price'), _self))
         if kwds:
             raise ValueError('Got unexpected field names: %r' % kwds.keys())
         return result
@@ -106,9 +110,10 @@ class Point(tuple):
         pass
 
     def tuppleize(self):
-        return (self.x, self.y)
+        return (self.quantity, self.price)
 
-
+    quantity = _property(_itemgetter(0), doc='Alias for field number 0')
     x = _property(_itemgetter(0), doc='Alias for field number 0')
 
+    price = _property(_itemgetter(1), doc='Alias for field number 1')
     y = _property(_itemgetter(1), doc='Alias for field number 1')
