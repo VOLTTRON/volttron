@@ -159,7 +159,7 @@ class Market(object):
                 offer_count = self.offers.buyer_count()
             else:
                 offer_count = self.reservations.seller_count()
-            _log.debug("Make reservation Market: {} BuySell: {} now has {} offers. Curve: {}".format(self.market_name,
+            _log.debug("Make offer Market: {} BuySell: {} now has {} offers. Curve: {}".format(self.market_name,
                        participant.buyer_seller, offer_count, curve.tuppleize()))
         self.offers.make_offer(participant.buyer_seller, curve)
         if self.all_satisfied(participant.buyer_seller):

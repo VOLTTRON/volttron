@@ -83,7 +83,7 @@ class MarketAgent(Agent):
         _log.debug("vip_identity: " + self.core.identity)
         self.registrations = RegistrationManager(self)
         self.has_reservation = False
-        self.verbose_logging = False
+        self.verbose_logging = True
 
     @PubSub.subscribe('pubsub', MARKET_RESERVE)
     def match_reservation(self, peer, sender, bus, topic, headers, message):
