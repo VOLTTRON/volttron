@@ -252,7 +252,9 @@ class PolyLine:
         # we have two points
         if len(pl_1) == 1 and len(pl_2) == 1:
             if pl_1[0][0] == pl_2[0][0] and pl_1[0][1] == pl_2[0][1]:
-                return pl_1[0][0], pl_1[0][1]
+                quantity = pl_1[0][0]
+                price = pl_1[0][1]
+                return quantity, price
 
         # we have one point and line segments
         elif len(pl_1) == 1 or len(pl_2) == 1:
@@ -265,7 +267,9 @@ class PolyLine:
             for j, pl_2_1 in enumerate(line[:-1]):
                 pl_2_2 = line[j + 1]
                 if PolyLine.between(pl_2_1, pl_2_2, point):
-                    return point[0], point[1]
+                    quantity = point[0]
+                    price = point[1]
+                    return quantity, price
 
         # we have line segments
         elif len(pl_1) > 1 and len(pl_2) > 1:
@@ -274,6 +278,9 @@ class PolyLine:
                 for j, pl_2_1 in enumerate(pl_2[:-1]):
                     pl_2_2 = pl_2[j + 1]
                     if PolyLine.segment_intersects((pl_1_1, pl_1_2), (pl_2_1, pl_2_2)):
-                        return PolyLine.segment_intersection((pl_1_1, pl_1_2), (pl_2_1, pl_2_2))
+                        quantity, price = PolyLine.segment_intersection((pl_1_1, pl_1_2), (pl_2_1, pl_2_2))
+                        return quantity, price
 
-        return None, None
+        quantity = None
+        price = None
+        return quantity, price
