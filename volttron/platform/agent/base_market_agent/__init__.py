@@ -116,7 +116,7 @@ class MarketAgent(Agent):
         market_name = message[1]
         buyer_seller = message[2]
         aggregate_curve_points = message[3]
-        decoded_message = "Timestamp: {} Market: {} BuySell: {} Curve: {}".format(timestamp, market_name, buyer_seller, aggregate_curve_points)
+        decoded_message = "Timestamp: {} Market: {} {} Curve: {}".format(timestamp, market_name, buyer_seller, aggregate_curve_points)
         self.log_event("match_report_aggregate", peer, sender, bus, topic, headers, decoded_message)
         aggregate_curve = PolyLineFactory.fromTupples(aggregate_curve_points)
         self.registrations.report_aggregate(timestamp, market_name, buyer_seller, aggregate_curve)
@@ -209,12 +209,12 @@ class MarketAgent(Agent):
                               curve.tuppleize()).get(timeout=5.0)
             result = (True, None)
             if self.verbose_logging:
-                _log.debug("Market: {} BuySell: {} has made an offer Curve: {}".format(market_name,
+                _log.debug("Market: {} {} has made an offer Curve: {}".format(market_name,
                                                                                        buyer_seller,
                                                                                        curve.points))
         except RemoteError as e:
             result = (False, e.message)
             if self.verbose_logging:
-                _log.debug("Market: {} BuySell: {} has had an offer rejected".format(market_name, buyer_seller))
+                _log.debug("Market: {} {} has had an offer rejected".format(market_name, buyer_seller))
         return result
 

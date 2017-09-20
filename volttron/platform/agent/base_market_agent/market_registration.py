@@ -89,23 +89,23 @@ class MarketRegistration(object):
             if agent.has_reservation:
                 self.has_reservation = agent.has_reservation
                 if self.verbose_logging:
-                    _log.debug("Market: {} BuySell: {} has obtained a reservation.", self.market_name, self.buyer_seller)
+                    _log.debug("Market: {} {} has obtained a reservation.", self.market_name, self.buyer_seller)
             else:
                 if self.verbose_logging:
-                    _log.debug("Market: {} BuySell: {} has failed to obtained a reservation.",
+                    _log.debug("Market: {} {} has failed to obtained a reservation.",
                                 self.market_name, self.buyer_seller)
 
     def request_offers(self, timestamp):
         if self.has_reservation and self.offer_callback is not None:
             self.offer_callback(timestamp, self.market_name, self.buyer_seller)
-            _log.debug("Market: {} BuySell: {} was informed that offers are acceptable.",
+            _log.debug("Market: {} {} was informed that offers are acceptable.",
                        self.market_name, self.buyer_seller)
 
     def report_clear_price(self, timestamp, price, quantity):
         if self.has_reservation and self.price_callback is not None:
             self.price_callback(timestamp, self.market_name, self.buyer_seller, price, quantity)
             if self.verbose_logging:
-                _log.debug("Market: {} BuySell: {} Price: {} Quantity: {}",
+                _log.debug("Market: {} {} Price: {} Quantity: {}",
                            self.market_name, self.buyer_seller, price, quantity)
         self.has_reservation = False
 
@@ -113,13 +113,13 @@ class MarketRegistration(object):
         if self.has_reservation and self.aggregate_callback is not None:
             self.aggregate_callback(timestamp, self.market_name, buyer_seller, aggregate_curve)
             if self.verbose_logging:
-                _log.debug("Market: {} BuySell: {} Curve: {}", self.market_name, self.buyer_seller, aggregate_curve.points)
+                _log.debug("Market: {} {} Curve: {}", self.market_name, self.buyer_seller, aggregate_curve.points)
 
     def report_error(self, timestamp, error_message):
         if self.error_callback is not None:
             self.error_callback(timestamp, self.market_name, self.buyer_seller, error_message)
             if self.verbose_logging:
-                _log.debug("Market: {} BuySell: {} Error: {}", self.market_name, self.buyer_seller, error_message)
+                _log.debug("Market: {} {} Error: {}", self.market_name, self.buyer_seller, error_message)
 
     def _validate_callbacks(self):
         if self.offer_callback is None and self.aggregate_callback is None and self.price_callback is None:

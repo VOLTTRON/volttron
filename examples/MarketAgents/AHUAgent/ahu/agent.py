@@ -121,7 +121,7 @@ class AHUAgent(MarketAgent):
         if buyer_seller == BUYER:
             electric_demand = self.create_electric_demand_curve(aggregate_air_demand)
             self.make_offer(self.electric_market_name, BUYER, electric_demand)
-            _log.debug("Report make offer for Market: {} BuySell: {} Curve: {}".format(market_name,
+            _log.debug("Report make offer for Market: {} {} Curve: {}".format(market_name,
                                                                                        buyer_seller,
                                                                                        electric_demand.points))
 
@@ -129,7 +129,7 @@ class AHUAgent(MarketAgent):
         self.report_cleared_price(buyer_seller, market_name, price, quantity)
         air_supply_curve = self.create_air_supply_curve(price)
         self.make_offer(self.air_market_name, SELLER, air_supply_curve)
-        _log.debug("Report make offer for Market: {} BuySell: {} Curve: {}".format(market_name,
+        _log.debug("Report make offer for Market: {} {} Curve: {}".format(market_name,
                                                                                    buyer_seller,
                                                                                    air_supply_curve.points))
 
@@ -138,7 +138,7 @@ class AHUAgent(MarketAgent):
 
     def report_cleared_price(self, buyer_seller, market_name, price, quantity):
         _log.debug(
-            "Report cleared price for Market: {} BuySell: {} Price: {} Quantity: {}".format(market_name, buyer_seller, price, quantity))
+            "Report cleared price for Market: {} {} Price: {} Quantity: {}".format(market_name, buyer_seller, price, quantity))
 
     def error_callback(self, timestamp, market_name, buyer_seller, error_message):
         _log.debug("Report error for Market: {} {}, Message: {}".format(market_name, buyer_seller, error_message))

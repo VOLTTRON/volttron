@@ -123,13 +123,17 @@ class Market(object):
         self.market_name = market_name
         self.publish = publish
         self.verbose_logging = verbose_logging
-        _log.debug("Initializing Market: {} BuySell: {} verbose logging is {}.".format(self.market_name,
+        _log.debug("Initializing Market: {} {} verbose logging is {}.".format(self.market_name,
                    participant.buyer_seller, self.verbose_logging))
         self.state_machine = Machine(model=self, states=Market.states,
                                      transitions= Market.transitions, initial=ACCEPT_RESERVATIONS)
         self.make_reservation(participant)
 
     def make_reservation(self, participant):
+        if self.verbose_logging:
+            _log.debug("Make reservation Market: {} {} entered in state {}".format(self.market_name,
+                                                                                   participant.buyer_seller,
+                                                                                   self.state))
         self.receive_reservation()
         market_already_formed = self.has_market_formed()
         if self.state not in [ACCEPT_RESERVATIONS, ACCEPT_RESERVATIONS_HAS_FORMED]:
@@ -140,13 +144,21 @@ class Market(object):
                 reservation_count = self.reservations.buyer_count()
             else:
                 reservation_count = self.reservations.seller_count()
-            _log.debug("Make reservation Market: {} BuySell: {} now has {} reservations.".format(self.market_name,
+            _log.debug("Make reservation Market: {} {} now has {} reservations.".format(self.market_name,
                        participant.buyer_seller, reservation_count))
         if not market_already_formed and self.has_market_formed():
             self.market_forms()
+        if self.verbose_logging:
+            _log.debug("Make reservation Market: {} {} exited in state {}".format(self.market_name,
+                                                                                  participant.buyer_seller,
+                                                                                  self.state))
 
 
     def make_offer(self, participant, curve):
+        if self.verbose_logging:
+            _log.debug("Make offer Market: {} {} entered in state {}".format(self.market_name,
+                                                                             participant.buyer_seller,
+                                                                             self.state))
         if (participant.buyer_seller == SELLER):
             self.receive_sell_offer()
         else:
@@ -159,7 +171,7 @@ class Market(object):
                 offer_count = self.offers.buyer_count()
             else:
                 offer_count = self.reservations.seller_count()
-            _log.debug("Make offer Market: {} BuySell: {} now has {} offers. Curve: {}".format(self.market_name,
+            _log.debug("Make offer Market: {} {} now has {} offers. Curve: {}".format(self.market_name,
                        participant.buyer_seller, offer_count, curve.tuppleize()))
         self.offers.make_offer(participant.buyer_seller, curve)
         if self.all_satisfied(participant.buyer_seller):
@@ -169,7 +181,7 @@ class Market(object):
                 self.last_buy_offer()
             aggregate_curve = self.offers.aggregate_curves(participant.buyer_seller)
             if self.verbose_logging:
-                _log.debug("Report aggregate Market: {} BuySell: {} Curve: {}".format(self.market_name,
+                _log.debug("Report aggregate Market: {} {} Curve: {}".format(self.market_name,
                            participant.buyer_seller, aggregate_curve.tuppleize()))
             if aggregate_curve is not None:
                 timestamp = self._get_time()
@@ -180,6 +192,10 @@ class Market(object):
                                       participant.buyer_seller, aggregate_curve.tuppleize()])
             if self.is_market_done():
                 self.clear_market()
+        if self.verbose_logging:
+            _log.debug("Make offer Market: {} {} exited in state {}".format(self.market_name,
+                                                                             participant.buyer_seller,
+                                                                             self.state))
 
     def collect_offers(self):
         self.start_offers()
