@@ -121,7 +121,7 @@ class MeterAgent(MarketAgent):
         quantity = self.inf
         supply_curve.add(Point(price=price, quantity=quantity))
         price = self.price
-        quantity = -1*self.inf
+        quantity = 0
         supply_curve.add(Point(price=price, quantity=quantity))
         return supply_curve
 
