@@ -493,12 +493,16 @@ class PubSub(SubsystemBase):
             if not topics:
                 raise KeyError('no such subscription')
         else:
+            _log.debug("PUSUB unsubscribe my subscriptions: {0} {1}".format(prefix, self._my_subscriptions))
             if platform in self._my_subscriptions:
                 bus_subscriptions = self._my_subscriptions[platform]
                 if bus in bus_subscriptions:
                     subscriptions = bus_subscriptions[bus]
                     if callback is None:
-                        del subscriptions[prefix]
+                        try:
+                            del subscriptions[prefix]
+                        except KeyError:
+                            return []
                     else:
                         callbacks = subscriptions[prefix]
                         try:
@@ -506,7 +510,10 @@ class PubSub(SubsystemBase):
                         except KeyError:
                             pass
                         if not callbacks:
-                            del subscriptions[prefix]
+                            try:
+                                del subscriptions[prefix]
+                            except KeyError:
+                                return []
                     topics = [prefix]
                     if not subscriptions:
                         del bus_subscriptions[bus]
@@ -544,7 +551,6 @@ class PubSub(SubsystemBase):
                 platform = 'internal'
                 topics = self._drop_subscription(prefix, callback, bus, platform)
                 subscriptions[platform] = dict(prefix=topics, bus=bus)
-
             else:
                 platform = 'all'
                 topics = self._drop_subscription(prefix, callback, bus, platform)
