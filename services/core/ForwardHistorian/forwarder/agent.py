@@ -129,6 +129,7 @@ class ForwardHistorian(BaseHistorian):
                  topic_replace_list=[],
                  required_target_agents=[],
                  cache_only=False, **kwargs):
+        kwargs["process_loop_in_greenlet"] = True
         super(ForwardHistorian, self).__init__(**kwargs)
 
         # will be available in both threads.
