@@ -82,7 +82,6 @@ import threading
 
 #Tweeks to BACpypes to make it play nice with Gevent.
 bacpypes.core.enable_sleeping()
-bacpypes.core.SPIN = 0.1
 
 from bacpypes.pdu import Address, GlobalBroadcast
 from bacpypes.app import BIPSimpleApplication
@@ -434,7 +433,9 @@ class BACnetProxyAgent(Agent):
 
         self.this_application = BACnet_application(i_am_callback, this_device, address)
 
-        server_thread = threading.Thread(target=bacpypes.core.run)
+        server_thread = threading.Thread(target=bacpypes.core.run, kwargs={"spin": 0.1,
+                                                                           "sigterm": None,
+                                                                           "sigusr1": None})
 
         # exit the BACnet App thread when the main thread terminates
         server_thread.daemon = True
