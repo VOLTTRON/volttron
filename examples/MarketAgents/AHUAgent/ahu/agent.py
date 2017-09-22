@@ -149,7 +149,7 @@ class AHUAgent(MarketAgent):
         quantity = 100000
         supply_curve.add(Point(price=price,quantity=quantity))
         price = 65
-        quantity = -1*10000
+        quantity = 0 # negative quantities are not real -1*10000
         supply_curve.add(Point(price=price,quantity=quantity))
         return supply_curve
 		
