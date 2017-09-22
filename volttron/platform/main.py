@@ -668,7 +668,8 @@ def start_volttron_process(opts):
                    volttron_central_serverkey=opts.volttron_central_serverkey,
                    instance_name=opts.instance_name,
                    bind_web_address=opts.bind_web_address,
-                   protected_topics=protected_topics, external_address_file=external_address_file,
+                   protected_topics=protected_topics,
+                   external_address_file=external_address_file,
                    msgdebug=opts.msgdebug).run()
         except Exception:
             _log.exception('Unhandled exception in router loop')

@@ -75,8 +75,6 @@ def both_with_vc_vcp(request):
 
 
 @pytest.mark.vc
-@pytest.mark.skipif(os.environ.get("CI") is not None,
-                    reason="Flaky on travis-ci for some reason")
 def test_autoregister_external(vc_vcp_platforms):
 
     vc, vcp = vc_vcp_platforms
@@ -107,5 +105,4 @@ def test_autoregister_local(both_with_vc_vcp):
     assert p['name'] == both_with_vc_vcp.vip_address
     assert isinstance(p['health'], dict)
     assert STATUS_GOOD == p['health']['status']
-
 
