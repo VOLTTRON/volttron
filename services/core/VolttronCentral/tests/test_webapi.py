@@ -9,13 +9,11 @@ import sys
 from volttrontesting.utils.core_service_installs import \
     add_volttron_central_platform, add_volttron_central, add_listener
 
-from volttron.platform.agent import json as jsonapi
-
 from volttron.platform.messaging.health import STATUS_GOOD
 from volttrontesting.utils.platformwrapper import PlatformWrapper, \
     start_wrapper_platform
 from volttrontesting.utils.utils import poll_gevent_sleep
-
+from zmq.utils import jsonapi
 from vctestutils import (APITester,
                          check_multiple_platforms,
                          validate_response)
@@ -74,8 +72,6 @@ def web_api_tester(request, vc_instance, pa_instance):
 
 
 @pytest.mark.vc
-@pytest.mark.skipif(os.environ.get("CI") is not None,
-                    reason="Flaky on travis-ci for some reason")
 def test_vc_settings_store(vc_instance):
     """ Test the reading and writing of data through the get_setting,
         set_setting and get_all_key json-rpc calls.
@@ -138,8 +134,6 @@ def test_unregister_platform(web_api_tester):
 
 
 @pytest.mark.vc
-@pytest.mark.skipif(os.environ.get("CI") is not None,
-                    reason="Flaky on travis-ci for some reason")
 def test_login_rejected_for_foo(vc_instance):
     vc_jsonrpc = vc_instance[2]
     with pytest.raises(AssertionError):
@@ -147,8 +141,6 @@ def test_login_rejected_for_foo(vc_instance):
 
 
 @pytest.mark.vc
-@pytest.mark.skipif(os.environ.get("CI") is not None,
-                    reason="Flaky on travis-ci for some reason")
 def test_store_list_get_configuration(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
@@ -177,8 +169,6 @@ def test_store_list_get_configuration(vc_vcp_platforms):
 
 
 @pytest.mark.vc
-@pytest.mark.skipif(os.environ.get("CI") is not None,
-                    reason="Flaky on travis-ci for some reason")
 def test_correct_reader_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
@@ -206,8 +196,6 @@ def test_correct_reader_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platform
 
 
 @pytest.mark.vc
-@pytest.mark.skipif(os.environ.get("CI") is not None,
-                    reason="Flaky on travis-ci for some reason")
 def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
@@ -232,8 +220,6 @@ def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms
 
 
 @pytest.mark.vc
-@pytest.mark.skipif(os.environ.get("CI") is not None,
-                    reason="Flaky on travis-ci for some reason")
 def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
@@ -265,8 +251,6 @@ def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms
 
 
 @pytest.mark.vc
-@pytest.mark.skipif(os.environ.get("CI") is not None,
-                    reason="Flaky on travis-ci for some reason")
 def test_listagent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
@@ -277,13 +261,11 @@ def test_listagent(vc_vcp_platforms):
 
     agent_list = api.list_agents(platform_uuid=platform['uuid'])
     print('The agent list is: {}'.format(agent_list))
-    assert len(agent_list) >= 1
+    assert len(agent_list) > 1
     assert agent_list[0]['version']
 
 
 @pytest.mark.vc
-@pytest.mark.skipif(os.environ.get("CI") is not None,
-                    reason="Flaky on travis-ci for some reason")
 def test_installagent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
@@ -317,14 +299,10 @@ def test_installagent(vc_vcp_platforms):
 
     api = APITester(vc.jsonrpc_endpoint)
 
-    platforms = api.list_platforms()
-    assert isinstance(platforms, list)
-
-    platform = platforms[0]
-    assert platform['uuid'] is not None
+    platform = api.list_platforms()[0]
 
     agents = api.list_agents(platform['uuid'])
-    assert isinstance(agents, list)
+    assert agents
 
     agent = api.install_agent(platform['uuid'], fileargs=file)
 
@@ -333,8 +311,3 @@ def test_installagent(vc_vcp_platforms):
 
     agents_after = api.list_agents(platform['uuid'])
     assert len(agents) + 1 == len(agents_after)
-
-
-
-
-
