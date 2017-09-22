@@ -119,15 +119,6 @@ class BaseRouter(object):
         self._ext_sockets = []
         self._socket_id_mapping = {}
 
-    # def run(self):
-    #     '''Main router loop.'''
-    #     self.start()
-    #     try:
-    #         while self.poll():
-    #             self.route()
-    #     finally:
-    #         self.stop()
-
     def run(self):
         '''Main router loop.'''
         self.start()
