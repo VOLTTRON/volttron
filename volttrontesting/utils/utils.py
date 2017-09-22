@@ -1,8 +1,12 @@
+from datetime import datetime
 import socket
 import time
 from random import randint
+from random import random
 
 import gevent
+
+from volttron.platform.messaging import headers as headers_mod
 
 
 def poll_gevent_sleep(max_seconds, condition=lambda: True, sleep_time=0.2):
@@ -71,3 +75,23 @@ def is_port_open(ip, port):
     return result == 0
 
 
+def build_devices_header_and_message(points=['abc', 'def']):
+
+    meta_templates = [
+        {'units': 'F', 'tz': 'UTC', 'type': 'float'},
+        {'units': '%', 'tz': 'UTC', 'type': 'float'}
+    ]
+
+    data = {}
+    meta_data = {}
+
+    for point in points:
+        data[point] = random() * 10
+        meta_data[point] = meta_templates[randint(0,len(meta_templates)-1)]
+
+    time1 = datetime.utcnow().isoformat(' ')
+    headers = {
+        headers_mod.DATE: time1
+    }
+
+    return headers, [data, meta_data]
