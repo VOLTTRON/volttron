@@ -60,6 +60,8 @@ py.test cases for global override settings.
 """
 
 import pytest
+
+from volttron.platform import get_services_core
 from volttrontesting.utils.platformwrapper import start_wrapper_platform
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER, CONFIGURATION_STORE
 import gevent
@@ -106,7 +108,7 @@ def config_store_connection(request, volttron_instance1):
     # Start the master driver agent which would in turn start the fake driver
     #  using the configs created above
     master_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/MasterDriverAgent",
+        agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
         start=True)
     gevent.sleep(2)  # wait for the agent to start and start the devices
@@ -695,7 +697,7 @@ def test_indefinite_override_after_restart(config_store, test_agent, volttron_in
     # Start the master driver agent which would in turn start the fake driver
     #  using the configs created above
     master_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/MasterDriverAgent",
+        agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
         start=True)
     gevent.sleep(1)  # wait for the agent to start and start the devices

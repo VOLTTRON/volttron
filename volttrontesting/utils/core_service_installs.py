@@ -1,3 +1,4 @@
+from volttron.platform import get_services_core, get_ops, get_examples
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL, \
     VOLTTRON_CENTRAL_PLATFORM
 
@@ -44,7 +45,7 @@ def add_volttron_central(wrapper, config=None, **kwargs):
     print('Adding vc to {}'.format(wrapper.vip_address))
     agent_uuid = wrapper.install_agent(
         config_file=config_dict,
-        agent_dir="services/core/VolttronCentral",
+        agent_dir=get_services_core("VolttronCentral"),
         vip_identity=VOLTTRON_CENTRAL,
         **kwargs
     )
@@ -57,7 +58,7 @@ def add_listener(wrapper, config={}, vip_identity=None, **kwargs):
     agent_uuid = wrapper.install_agent(
         config_file=config,
         vip_identity=vip_identity,
-        agent_dir="services/core/ListenerAgent",
+        agent_dir=get_services_core("ListenerAgent"),
         **kwargs
     )
     return agent_uuid
@@ -67,7 +68,7 @@ def add_volttron_central_platform(wrapper, config={}, **kwargs):
     print('Adding vcp to {}'.format(wrapper.vip_address))
     agent_uuid = wrapper.install_agent(
         config_file=config,
-        agent_dir="services/core/VolttronCentralPlatform",
+        agent_dir=get_services_core("VolttronCentralPlatform"),
         vip_identity=VOLTTRON_CENTRAL_PLATFORM
     )
     return agent_uuid
@@ -77,7 +78,7 @@ def add_sqlhistorian(wrapper, config, vip_identity='platform.historian',
                      **kwargs):
     agent_uuid = wrapper.install_agent(
         config_file=config,
-        agent_dir="services/core/SQLHistorian",
+        agent_dir=get_services_core("SQLHistorian"),
         vip_identity=vip_identity,
         **kwargs
     )
@@ -88,7 +89,7 @@ def add_mongohistorian(wrapper, config, vip_identity='platform.historian',
                        **kwargs):
     agent_uuid = wrapper.install_agent(
         config_file=config,
-        agent_dir="services/core/MongodbHistorian",
+        agent_dir=get_services_core("MongodbHistorian"),
         vip_identity=vip_identity,
         **kwargs
     )
@@ -98,7 +99,7 @@ def add_mongohistorian(wrapper, config, vip_identity='platform.historian',
 def add_sysmon(wrapper, config, **kwargs):
     agent_uuid = wrapper.install_agent(
         config_file=config,
-        agent_dir="services/core/SysMonAgent",
+        agent_dir=get_ops("SysMonAgent"),
         **kwargs
     )
     return agent_uuid
@@ -107,7 +108,7 @@ def add_sysmon(wrapper, config, **kwargs):
 def add_thresholddetection(wrapper, config, **kwargs):
     agent_uuid = wrapper.install_agent(
         config_file=config,
-        agent_dir="services/core/ThresholdDetectionAgent",
+        agent_dir=get_ops("ThresholdDetectionAgent"),
         **kwargs
     )
     return agent_uuid
@@ -116,7 +117,7 @@ def add_thresholddetection(wrapper, config, **kwargs):
 def add_emailer(wrapper, config, **kwargs):
     agent_uuid = wrapper.install_agent(
         config_file=config,
-        agent_dir="services/core/EmailerAgent",
+        agent_dir=get_ops("EmailerAgent"),
         **kwargs
     )
     return agent_uuid
@@ -125,7 +126,7 @@ def add_emailer(wrapper, config, **kwargs):
 def add_listener(wrapper, config={}, **kwargs):
     agent_uuid = wrapper.install_agent(
         config_file=config,
-        agent_dir="examples/ListenerAgent",
+        agent_dir=get_examples("ListenerAgent"),
         **kwargs
     )
     return agent_uuid

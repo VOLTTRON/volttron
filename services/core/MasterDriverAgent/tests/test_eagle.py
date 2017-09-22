@@ -60,6 +60,7 @@ import pytest
 import gevent
 from gevent import pywsgi
 
+from volttron.platform import get_services_core
 from volttrontesting.utils.utils import get_rand_http_address
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
 
@@ -235,7 +236,7 @@ def agent(volttron_instance1):
                        "json").get(timeout=10)
 
     master_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/MasterDriverAgent",
+        agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
         start=True)
     print("agent id: ", master_uuid)

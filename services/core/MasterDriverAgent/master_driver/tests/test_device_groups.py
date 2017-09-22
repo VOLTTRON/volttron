@@ -60,6 +60,8 @@ py.test cases for global master driver settings.
 """
 
 import pytest
+
+from volttron.platform import get_services_core
 from volttrontesting.utils.platformwrapper import start_wrapper_platform
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
 import gevent
@@ -147,7 +149,7 @@ def config_store_connection(request, volttron_instance1):
     # Start the master driver agent which would in turn start the fake driver
     #  using the configs created above
     master_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/MasterDriverAgent",
+        agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
         start=True)
     print("agent id: ", master_uuid)

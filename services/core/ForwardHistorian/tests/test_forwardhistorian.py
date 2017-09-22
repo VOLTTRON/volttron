@@ -62,6 +62,8 @@ from datetime import datetime, timedelta
 
 import gevent
 import pytest
+
+from volttron.platform import get_services_core
 from volttron.platform.agent import PublishMixin
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
@@ -144,7 +146,7 @@ def sqlhistorian(request, volttron_instances):
     # 1: Install historian agent
     # Install and start sqlhistorian agent in instance2
     agent_uuid = volttron_instance2.install_agent(
-        agent_dir="services/core/SQLHistorian",
+        agent_dir=get_services_core("SQLHistorian"),
         config_file=sqlite_config,
         start=True,
         vip_identity='platform.historian')
@@ -174,7 +176,7 @@ def forwarder(request, volttron_instances):
     # 1: Install historian agent
     # Install and start sqlhistorian agent in instance2
     forwarder_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/ForwardHistorian",
+        agent_dir=get_services_core("ForwardHistorian"),
         config_file=forwarder_config,
         start=True)
     print("forwarder agent id: ", forwarder_uuid)
@@ -598,7 +600,7 @@ def test_old_config(volttron_instances, forwarder):
     # 1: Install historian agent
     # Install and start sqlhistorian agent in instance2
     forwarder_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/ForwardHistorian",
+        agent_dir=get_services_core("ForwardHistorian"),
         config_file=forwarder_config, start=True)
 
     print("forwarder agent id: ", forwarder_uuid)
@@ -624,7 +626,7 @@ def test_actuator_topic(publish_agent, query_agent):
     # Start the master driver agent which would intern start the fake driver
     # using the configs created above
     master_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/MasterDriverAgent",
+        agent_dir=get_services_core("MasterDriverAgent"),
         config_file="scripts/scalability-testing/configs/config",
         start=True)
     print("agent id: ", master_uuid)
@@ -634,8 +636,8 @@ def test_actuator_topic(publish_agent, query_agent):
     # to fake device. Start the master driver agent which would intern start
     # the fake driver using the configs created above
     actuator_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/ActuatorAgent",
-        config_file="services/core/ActuatorAgent/tests/actuator.config",
+        agent_dir=get_services_core("ActuatorAgent"),
+        config_file=get_services_core("ActuatorAgent/tests/actuator.config"),
         start=True)
     print("agent id: ", actuator_uuid)
 

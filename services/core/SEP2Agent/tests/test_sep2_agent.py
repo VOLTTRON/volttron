@@ -56,6 +56,8 @@ import pytest
 import gevent
 import requests
 import time
+
+from volttron.platform import get_services_core
 from ..sep2.end_device import SEP2Parser
 
 DRIVER_NAME = 'sep2'
@@ -142,14 +144,14 @@ def agent(request, volttron_instance_module_web):
                             'csv').get(timeout=10)
 
     # Install and start a SEP2Agent
-    sep2_id = volttron_instance_module_web.install_agent(agent_dir='services/core/SEP2Agent',
+    sep2_id = volttron_instance_module_web.install_agent(agent_dir=get_services_core("SEP2Agent"),
                                                          config_file=TEST_SEP2_CONFIG,
                                                          vip_identity='test_sep2agent',
                                                          start=True)
     print('sep2 agent id: ', sep2_id)
 
     # Install and start a MasterDriverAgent
-    md_id = volttron_instance_module_web.install_agent(agent_dir='services/core/MasterDriverAgent',
+    md_id = volttron_instance_module_web.install_agent(agent_dir=get_services_core("MasterDriverAgent"),
                                                        config_file={},
                                                        start=True)
     print('master driver agent id: ', md_id)
@@ -296,5 +298,5 @@ class TestSEP2Agent:
         url = '{}/dcap/{}'.format(web_address, sep2_resource_name)
         headers = {'content-type': 'application/sep+xml'}
         return requests.post(url,
-                             data=open('services/core/SEP2Agent/tests/{}.PUT.xml'.format(sep2_filename), 'rb'),
+                             data=open(get_services_core("SEP2Agent/tests/{}.PUT.xml").format(sep2_filename), 'rb'),
                              headers=headers)

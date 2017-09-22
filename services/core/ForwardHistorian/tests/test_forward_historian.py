@@ -5,6 +5,8 @@ import tempfile
 
 import gevent
 import pytest
+
+from volttron.platform import get_services_core
 from volttron.platform.agent import json as jsonapi
 
 from volttron.platform.messaging import headers as headers_mod
@@ -99,7 +101,7 @@ def test_reconnect_forwarder(get_volttron_instances):
     forwarder_config['destination-serverkey'] = to_instance.keystore.public
 
     fuuid = from_instance.install_agent(
-        agent_dir="services/core/ForwardHistorian",start=True,
+        agent_dir=get_services_core("ForwardHistorian"),start=True,
         config_file=forwarder_config)
     assert from_instance.is_agent_running(fuuid)
     print('Before Subscribing')
