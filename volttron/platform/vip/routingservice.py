@@ -228,7 +228,7 @@ class RoutingService(object):
         sock.tcp_keepalive_cnt = 6
 
         num = random.random()
-        sock.identity = 'platform-' + '-' + instance_name + '-' + str(num)
+        sock.identity = 'router-'+ instance_name + '-' + str(num)
         sock.zap_domain = 'vip'
         mon_sock = sock.get_monitor_socket(
                 zmq.EVENT_CONNECTED | zmq.EVENT_DISCONNECTED | zmq.EVENT_CONNECT_DELAYED)
@@ -253,9 +253,11 @@ class RoutingService(object):
         sock = self._instances[instance_name]['socket']
 
         vip_address = "{0}?serverkey={1}&publickey={2}&secretkey={3}".format(
-                address, str(serverkey),
-                str(keystore.public), str(keystore.secret)
-            )
+                        address,
+                        str(serverkey),
+                        str(keystore.public),
+                        str(keystore.secret)
+                        )
 
         ext_platform_address = Address(vip_address)
         ext_platform_address.identity = sock.identity
@@ -269,6 +271,11 @@ class RoutingService(object):
             _log.error("ZMQ error on external connection {}".format(ex))
 
     def handle_monitor_event(self, monitor_sock):
+        """
+        Monitor external platform socket connections
+        :param monitor_sock: socket to monitor
+        :return:
+        """
         try:
             message = recv_monitor_message(monitor_sock)
             event = message['event']
@@ -436,5 +443,9 @@ class RoutingService(object):
             return False
 
     def close_external_connections(self):
+        """
+        Close external platform socket connections
+        :return:
+        """
         for name in self._instances:
             self.disconnect_external_instances(name)
