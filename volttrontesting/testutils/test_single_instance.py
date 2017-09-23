@@ -27,9 +27,10 @@ def test_can_install_listeners(single_instance):
     # gevent.joinall(jobs, timeout=20)
     try:
         for x in range(num_listeners):
+            identity = "listener_" + str(x)
             auuid = single_instance.install_agent(
                 agent_dir="examples/ListenerAgent", config_file={
-                    "agentid": "listener",
+                    "agentid": identity,
                     "message": "So Happpy"})
             assert auuid
             uuids.append(auuid)
