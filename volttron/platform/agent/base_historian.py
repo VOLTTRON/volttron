@@ -432,6 +432,7 @@ class BaseHistorianAgent(Agent):
         # 9 seconds as configuration timeout is 10 seconds.
         self._process_thread.join(9.0)
         #Greenlets have slightly different API than threads in this case.
+        # Greenlets have slightly different API than threads in this case.
         if self._process_loop_in_greenlet:
             if not self._process_thread.ready():
                 _log.error("Failed to stop process greenlet during reconfiguration!")
@@ -966,6 +967,7 @@ class BaseHistorianAgent(Agent):
         self.historian_teardown()
 
         _log.debug("Process loop stopped.")
+        self._stop_process_loop = False
 
     def report_handled(self, record):
         """
