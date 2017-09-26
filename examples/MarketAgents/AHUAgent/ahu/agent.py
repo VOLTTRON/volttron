@@ -65,6 +65,7 @@ from volttron.platform.agent.base_market_agent.poly_line import PolyLine
 from volttron.platform.agent.base_market_agent.point import Point
 from volttron.platform.agent.base_market_agent.buy_sell import BUYER
 from volttron.platform.agent.base_market_agent.buy_sell import SELLER
+from pnnl.models.ahuchiller import AhuChiller
 # from pnnl.models.firstorderzone import FirstOrderZone
 
 _log = logging.getLogger(__name__)
@@ -90,25 +91,41 @@ def ahu_agent(config_path, **kwargs):
         _log.info("Using defaults for starting configuration.")
     air_market_name = config.get('market_name1', 'air')
     electric_market_name = config.get('market_name2', 'electric')
-    agent_name= config.get('agent_name')		
+    agent_name= config.get('agent_name')
+    subscribing_topic= config.get('subscribing_topic')
+    c0= config.get('c0')
+    c1= config.get('c1')
+    c2= config.get('c2')
+    c3= config.get('c3')
+    COP= config.get('COP')	
     verbose_logging= config.get('verbose_logging', True)
-    return AHUAgent(air_market_name,electric_market_name,agent_name, verbose_logging, **kwargs)
+    return AHUAgent(air_market_name,electric_market_name,agent_name,subscribing_topic,c0,c1,c2,c3,COP,verbose_logging, **kwargs)
 
-class AHUAgent(MarketAgent):
+class AHUAgent(MarketAgent, AhuChiller):
     """
     The SampleElectricMeterAgent serves as a sample of an electric meter that
     sells electricity for a single building at a fixed price.
     """
-    def __init__(self, air_market_name, electric_market_name, agent_name, verbose_logging, **kwargs):
+    def __init__(self, air_market_name, electric_market_name, agent_name,subscribing_topic,c0,c1,c2,c3,COP,verbose_logging, **kwargs):
         super(AHUAgent, self).__init__(verbose_logging, **kwargs)
-        self.ini_state()
+
         self.air_market_name = air_market_name
         self.electric_market_name = electric_market_name
         self.agent_name = agent_name
-        self.subscribing_topic='devices/CAMPUS/BUILDING1/AHU1/all'
+        self.subscribing_topic=subscribing_topic
+        self.c0 = c0
+        self.c1 = c1
+        self.c2 = c2
+        self.c3 = c3
+        self.COP = COP
         self.join_market(self.air_market_name, SELLER, None, None, self.air_aggregate_callback, self.air_price_callback, self.error_callback)
         self.join_market(self.electric_market_name, BUYER, None, None, None, self.electric_price_callback, self.error_callback)
         self.hvacAvail = 0
+        self.cpAir = 1006.
+        self.c4 = 0.
+        self.c5 = 0.
+        self.staticPressure = 0.
+        self.iniState()
 		
     @Core.receiver('onstart')
     def setup(self, sender, **kwargs):
@@ -154,22 +171,19 @@ class AHUAgent(MarketAgent):
         return supply_curve
 		
     def create_electric_demand_curve(self, aggregate_air_demand):
-        _log.debug("Call the aggregated function") 
-        demand_curve = PolyLine()
-        pMin = 10
-        pMax = 100
-        qMin = abs(self.getQMin())
-        qMax = abs(self.getQMax())
-        if (self.hvacAvail > 0):
-            demand_curve.add(Point(price=max(pMin, pMax),quantity=min(qMin, qMax)))
-            demand_curve.add(Point(price=min(pMin, pMax),quantity=max(qMin, qMax)))
-        else:
-            demand_curve.add(Point(price=max(pMin, pMax), quantity=0.0))
-            demand_curve.add(Point(price=min(pMin, pMax),quantity=0.0))
-        return aggregate_air_demand
+        curve = PolyLine()
+        for point in aggregate_air_demand.points:
+            curve.add(Point(price=point.y, quantity=self.calcTotalLoad(point.x)))
+        self.buyBidCurve = curve
+        _log.debug("Report aggregated curve : {}".format(curve.points))
+        return curve
 
-    def ini_state(self):
-        pass
+    def iniState(self):
+        self.tAirReturn = 20.
+        self.tAirSupply = 10.
+        self.tAirMixed = 20.
+        self.mDotAir=0
+        self.pClear = None
 
     def updateState(self, peer, sender, bus, topic, headers, message):
         '''Subscribe to device data from message bus
@@ -177,13 +191,12 @@ class AHUAgent(MarketAgent):
         _log.debug('Received one new dataset')
         info = {}
         for key, value in message[0].items():
-            info[key.lower()] = value
+            info[key] = value
+        tAirMixed= info['MixedAirTemperature']
+        tAirReturn= info['ReturnAirTemperature']
+        tAirSupply= info['DischargeAirTemperature']
+        mDotAir= info['DischargeAirFlow']		
 
-    def getQMax(self):
-        return 0
-
-    def getQMin(self):
-        return 0
 
 
 def main():
