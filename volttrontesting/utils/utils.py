@@ -5,6 +5,7 @@ from random import randint
 from random import random
 
 import gevent
+import pytest
 
 from volttron.platform.messaging import headers as headers_mod
 
@@ -108,3 +109,14 @@ def publish_device_messages(to_platform,
     gevent.sleep(.1)
     agent.core.stop()
     return headers, message
+
+
+def validate_published_device_data(expected_headers, expected_message,
+                                   headers, message):
+    assert headers and message
+    assert expected_headers[headers_mod.DATE] == headers[headers_mod.DATE]
+
+    for k, v in expected_message[0].items():
+        assert k in message[0]
+        # pytest.approx gives 10^-6 (one millionth accuracy)
+        assert message[0][k] == pytest.approx(v)

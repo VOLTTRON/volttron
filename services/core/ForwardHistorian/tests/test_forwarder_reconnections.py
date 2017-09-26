@@ -6,7 +6,7 @@ from volttrontesting.utils.core_service_installs import add_forward_historian
 from volttrontesting.utils.platformwrapper import PlatformWrapper, \
     start_wrapper_platform
 from volttrontesting.utils.utils import build_devices_header_and_message, \
-    publish_device_messages
+    publish_device_messages, validate_published_device_data
 
 
 @pytest.fixture(scope="module")
@@ -64,14 +64,8 @@ def test_target_shutdown(setup_instances):
     all_topic = 'devices/campus/building/all'
     headers, message = publish_device_messages(inst_forward, all_topic=all_topic)
 
-    assert len(pubsub_retrieved) == 1
-    assert all_topic == pubsub_retrieved[0][0]
-    assert headers[headers_mod.DATE] == pubsub_retrieved[0][1][headers_mod.DATE]
-
-    for k, v in pubsub_retrieved[0][2][0].items():
-        assert k in message[0]
-        # pytest.approx gives 10^-6 (one millionth accuracy)
-        assert message[0][k] == pytest.approx(v)
+    validate_published_device_data(headers, message,
+                                   pubsub_retrieved[0][1], pubsub_retrieved[0][2])
 
     pub_listener.core.stop()
     inst_target.stop_platform()
@@ -94,15 +88,10 @@ def test_target_shutdown(setup_instances):
     all_topic = 'devices/campus/building/all'
     headers, message = publish_device_messages(inst_forward,
                                                all_topic=all_topic)
-    assert len(pubsub_retrieved) == 1
-    assert all_topic == pubsub_retrieved[0][0]
-    assert headers[headers_mod.DATE] == pubsub_retrieved[0][1][headers_mod.DATE]
-
-    for k, v in pubsub_retrieved[0][2][0].items():
-        assert k in message[0]
-        # pytest.approx gives 10^-6 (one millionth accuracy)
-        assert message[0][k] == pytest.approx(v)
+    validate_published_device_data(headers, message,
+                                   pubsub_retrieved[0][1],
+                                   pubsub_retrieved[0][2])
 
 
-def test_can_configure(setup_instances):
+def test_can_pause_publishing(setup_instances):
     pass
