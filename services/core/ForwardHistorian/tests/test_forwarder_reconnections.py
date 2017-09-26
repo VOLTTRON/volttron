@@ -5,7 +5,8 @@ from volttron.platform.messaging import headers as headers_mod
 from volttrontesting.utils.core_service_installs import add_forward_historian
 from volttrontesting.utils.platformwrapper import PlatformWrapper, \
     start_wrapper_platform
-from volttrontesting.utils.utils import build_devices_header_and_message
+from volttrontesting.utils.utils import build_devices_header_and_message, \
+    publish_device_messages
 
 
 @pytest.fixture(scope="module")
@@ -21,17 +22,6 @@ def setup_instances():
 
     inst1.shutdown_platform()
     inst2.shutdown_platform()
-
-
-def test_can_restart_platform_without_addresses_changing(setup_instances):
-    inst_forward, inst_target = setup_instances
-    original_vip = inst_forward.vip_address
-    assert inst_forward.is_running()
-    inst_forward.stop_platform()
-    assert not inst_forward.is_running()
-    inst_forward.restart_platform()
-    assert inst_forward.is_running()
-    assert original_vip == inst_forward.vip_address
 
 
 def instance_reset(wrapper):
@@ -71,23 +61,17 @@ def test_target_shutdown(setup_instances):
 
     gevent.sleep(0.1)
 
-    publisher = inst_forward.build_agent()
-    headers, all_msg = build_devices_header_and_message()
     all_topic = 'devices/campus/building/all'
-    publisher.vip.pubsub.publish(peer='pubsub',
-                                 topic=all_topic,
-                                 headers=headers,
-                                 message=all_msg)
-    gevent.sleep(0.1)
+    headers, message = publish_device_messages(inst_forward, all_topic=all_topic)
 
     assert len(pubsub_retrieved) == 1
     assert all_topic == pubsub_retrieved[0][0]
     assert headers[headers_mod.DATE] == pubsub_retrieved[0][1][headers_mod.DATE]
 
     for k, v in pubsub_retrieved[0][2][0].items():
-        assert k in all_msg[0]
+        assert k in message[0]
         # pytest.approx gives 10^-6 (one millionth accuracy)
-        assert all_msg[0][k] == pytest.approx(v)
+        assert message[0][k] == pytest.approx(v)
 
     pub_listener.core.stop()
     inst_target.stop_platform()
@@ -107,15 +91,17 @@ def test_target_shutdown(setup_instances):
 
     gevent.sleep(0.1)
 
-    headers, all_msg = build_devices_header_and_message()
     all_topic = 'devices/campus/building/all'
-    publisher.vip.pubsub.publish(peer='pubsub',
-                                 topic=all_topic,
-                                 headers=headers,
-                                 message=all_msg)
-
-    gevent.sleep(0.1)
+    headers, message = publish_device_messages(inst_forward,
+                                               all_topic=all_topic)
     assert len(pubsub_retrieved) == 1
+    assert all_topic == pubsub_retrieved[0][0]
+    assert headers[headers_mod.DATE] == pubsub_retrieved[0][1][headers_mod.DATE]
+
+    for k, v in pubsub_retrieved[0][2][0].items():
+        assert k in message[0]
+        # pytest.approx gives 10^-6 (one millionth accuracy)
+        assert message[0][k] == pytest.approx(v)
 
 
 def test_can_configure(setup_instances):

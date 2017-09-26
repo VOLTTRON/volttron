@@ -95,3 +95,16 @@ def build_devices_header_and_message(points=['abc', 'def']):
     }
 
     return headers, [data, meta_data]
+
+
+def publish_device_messages(to_platform,
+                            all_topic='devices/campus/building/unit/all',
+                            points=['abc', 'def']):
+    assert to_platform is not None
+    agent = to_platform.build_agent()
+    headers, message = build_devices_header_and_message(points)
+    agent.vip.pubsub.publish(peer='pubsub', topic=all_topic, headers=headers,
+                             message=message)
+    gevent.sleep(.1)
+    agent.core.stop()
+    return headers, message
