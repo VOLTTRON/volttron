@@ -240,10 +240,11 @@ class ForwardHistorian(BaseHistorian):
             raise
 
         if self.topic_replace_list:
+            original_topic = topic
             if topic in self._topic_replace_map.keys():
-                topic = self._topic_replace_map[topic]
+                topic = self._topic_replace_map[original_topic]
             else:
-                self._topic_replace_map[topic] = topic
+                self._topic_replace_map[topic] = original_topic
                 temptopics = {}
                 for x in self.topic_replace_list:
                     if x['from'] in topic:
@@ -254,6 +255,13 @@ class ForwardHistorian(BaseHistorian):
                 for k, v in temptopics.items():
                     self._topic_replace_map[k] = v
                 topic = self._topic_replace_map[topic]
+
+            # if the topic wasn't changed then we don't forward anything for
+            # it.
+            if topic == original_topic:
+                _log.warn(
+                    "Topic {} not published because not anonymized.".format(original_topic))
+                return
 
         if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
