@@ -123,7 +123,7 @@ class MeterAgent(MarketAgent):
         else:
             self.want_reservation = False
         _log.debug("Reservation for Market: {} {}, Wants reservation: {} Number: {}".format(market_name, buyer_seller, self.want_reservation, self.num))
-        self.num=self.num+1
+        self.num = (self.num + 1) % 256 # We don't want this number to get very large.
         return self.want_reservation
 
 		

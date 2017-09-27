@@ -126,6 +126,8 @@ class AHUAgent(MarketAgent, AhuChiller):
         self.c5 = 0.
         self.staticPressure = 0.
         self.iniState()
+        self.old_price = None
+        self.old_quantity = None
 		
     @Core.receiver('onstart')
     def setup(self, sender, **kwargs):
@@ -137,18 +139,27 @@ class AHUAgent(MarketAgent, AhuChiller):
     def air_aggregate_callback(self, timestamp, market_name, buyer_seller, aggregate_air_demand):
         if buyer_seller == BUYER:
             electric_demand = self.create_electric_demand_curve(aggregate_air_demand)
-            self.make_offer(self.electric_market_name, BUYER, electric_demand)
-            _log.debug("Report make offer for Market: {} {} Curve: {}".format(market_name,
-                                                                                       buyer_seller,
-                                                                                       electric_demand.points))
+            success, message = self.make_offer(self.electric_market_name, BUYER, electric_demand)
+            if success:
+                _log.debug("Report make offer for Market: {} {} Curve: {}".format(self.electric_market_name,
+                                                                                  BUYER, electric_demand.points))
+            else:
+                # we aren't going to get a cleared price, so make an offer with the old price.
+                self.make_air_market_offer()
 
     def electric_price_callback(self, timestamp, market_name, buyer_seller, price, quantity):
         self.report_cleared_price(buyer_seller, market_name, price, quantity)
-        air_supply_curve = self.create_air_supply_curve(price)
-        self.make_offer(self.air_market_name, SELLER, air_supply_curve)
-        _log.debug("Report make offer for Market: {} {} Curve: {}".format(market_name,
-                                                                                   buyer_seller,
-                                                                                   air_supply_curve.points))
+        self.old_price = price
+        self.old_quantity = quantity
+        self.make_air_market_offer()
+
+    def make_air_market_offer(self):
+        # make an offer with the old price
+        air_supply_curve = self.create_air_supply_curve(self.old_price, self.old_quantity)
+        success, message = self.make_offer(self.air_market_name, SELLER, air_supply_curve)
+        if success:
+            _log.debug("Report make offer for Market: {} {} Curve: {}".format(self.air_market_name,
+                                                                              SELLER, air_supply_curve.points))
 
     def air_price_callback(self, timestamp, market_name, buyer_seller, price, quantity):
         self.report_cleared_price(buyer_seller, market_name, price, quantity)
@@ -160,7 +171,7 @@ class AHUAgent(MarketAgent, AhuChiller):
     def error_callback(self, timestamp, market_name, buyer_seller, error_message):
         _log.debug("Report error for Market: {} {}, Message: {}".format(market_name, buyer_seller, error_message))
 
-    def create_air_supply_curve(self, electric_price):
+    def create_air_supply_curve(self, electric_price, electric_quantity):
         supply_curve = PolyLine()
         price = 65
         quantity = 100000
