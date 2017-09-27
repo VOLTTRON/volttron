@@ -36,6 +36,7 @@ def instance_reset(wrapper):
     ('devices', 'campus/building/unit/all', [{'from': 'building', 'to': 'woot'}], None),
     ('record', 'building/data', None, None),
     ('record', 'building/data', [{'from': 'building', 'to': 'woot'}], None),
+    ('actuator', 'foo/bar', None, None)
 ])
 def test_topic_forwarding(setup_instances, topic_root, topic, replace, headers):
     inst_forward, inst_target = setup_instances
@@ -49,6 +50,9 @@ def test_topic_forwarding(setup_instances, topic_root, topic, replace, headers):
 
     if replace:
         forward_config['topic_replace_list'] = replace
+
+    if topic_root not in ('devices', 'record', 'analysis', 'datalogger'):
+        forward_config['custom_topic_list'] = [topic_root]
 
     forwarder_uuid = add_forward_historian(inst_forward,
                                            config=forward_config)
@@ -88,7 +92,14 @@ def test_topic_forwarding(setup_instances, topic_root, topic, replace, headers):
     elif topic_root == 'datalogger':
         raise ValueError('not implemented yet')
     else:
-        raise ValueError('not implmeented yet')
+        headers, message = publish_message(inst_forward, full_topic,
+                                           headers=dict(foo='bar'),
+                                           message='A simple string')
+        for k, v in headers.items():
+            assert k in pubsub_retrieved[0][1]
+            assert v == pubsub_retrieved[0][1][k]
+        assert message == pubsub_retrieved[0][2]
+        assert full_topic == pubsub_retrieved[0][0]
 
     if replace:
         new_topic = full_topic
