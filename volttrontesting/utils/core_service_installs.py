@@ -130,3 +130,12 @@ def add_listener(wrapper, config={}, **kwargs):
         **kwargs
     )
     return agent_uuid
+
+
+def add_forward_historian(wrapper, config={}, **kwargs):
+    agent_uuid = wrapper.install_agent(
+        config_file=config,
+        agent_dir="services/core/ForwardHistorian",
+        **kwargs
+    )
+    return agent_uuid

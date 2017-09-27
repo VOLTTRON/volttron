@@ -243,6 +243,8 @@ from datetime import datetime, timedelta
 from threading import Thread
 
 import gevent
+from gevent import get_hub
+from functools import wraps
 
 import pytz
 import re
@@ -253,8 +255,7 @@ from volttron.platform.agent.utils import process_timestamp, \
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
-
-
+from volttron.platform.vip.agent.subsystems.query import Query
 
 try:
     import ujson
@@ -301,14 +302,17 @@ def add_timing_data_to_header(headers, agent_id, phase):
     if len(values) < 2:
         return 0.0
 
-    #Assume 2 phases and proper format.
+    # Assume 2 phases and proper format.
     time1 = datetime.strptime(values[0][11:26], "%H:%M:%S.%f")
     time2 = datetime.strptime(values[1][11:26], "%H:%M:%S.%f")
 
     return abs((time1 - time2).total_seconds())
 
+
 class BaseHistorianAgent(Agent):
-    """This is the base agent for historian Agents.
+    """
+    This is the base agent for historian Agents.
+
     It automatically subscribes to all device publish topics.
 
     Event processing occurs in its own thread as to not block the main
@@ -342,6 +346,7 @@ class BaseHistorianAgent(Agent):
                  topic_replace_list=[],
                  gather_timing_data=False,
                  readonly=False,
+                 process_loop_in_greenlet=False,
                  capture_device_data=True,
                  capture_log_data=True,
                  capture_analysis_data=True,
@@ -352,6 +357,7 @@ class BaseHistorianAgent(Agent):
         # This should resemble a dictionary that has key's from and to which
         # will be replaced within the topics before it's stored in the
         # cache database
+        self._process_loop_in_greenlet = process_loop_in_greenlet
         self._topic_replace_list = topic_replace_list
 
         _log.info('Topic string replace list: {}'
@@ -365,15 +371,18 @@ class BaseHistorianAgent(Agent):
         self._submit_size_limit = int(submit_size_limit)
         self._max_time_publishing = float(max_time_publishing)
         self._successful_published = set()
-        #Remove the need to reset subscriptions to eliminate possible data loss at config change.
+        # Remove the need to reset subscriptions to eliminate possible data
+        # loss at config change.
         self._current_subscriptions = set()
         self._topic_replace_map = {}
-        self._event_queue = Queue()
+        self._event_queue = gevent.queue.Queue() if self._process_loop_in_greenlet else Queue()
         self._readonly = bool(readonly)
         self._stop_process_loop = False
         self._process_thread = None
 
         self.no_insert = False
+        self.no_query = False
+        self.instance_name = None
 
         self._default_config = {"retry_period":self._retry_period,
                                "submit_size_limit": self._submit_size_limit,
@@ -392,35 +401,46 @@ class BaseHistorianAgent(Agent):
         self.vip.config.subscribe(self._configure, actions=["NEW", "UPDATE"], pattern="config")
 
     def update_default_config(self, config):
-        """May be called by historians to add to the default configuration for its own use."""
+        """
+        May be called by historians to add to the default configuration for its
+        own use.
+        """
         self._default_config.update(config)
         self.vip.config.set_default("config", self._default_config)
 
-
     def start_process_thread(self):
-        self._process_thread = Thread(target=self._process_loop)
-        self._process_thread.daemon = True  # Don't wait on thread to exit.
-        self._process_thread.start()
-        _log.debug("Process thread started.")
+        if self._process_loop_in_greenlet:
+            self._process_thread = self.core.spawn(self._process_loop)
+            self._process_thread.start()
+            _log.debug("Process greenlet started.")
+        else:
+            self._process_thread = Thread(target=self._process_loop)
+            self._process_thread.daemon = True  # Don't wait on thread to exit.
+            self._process_thread.start()
+            _log.debug("Process thread started.")
 
     def stop_process_thread(self):
-        _log.debug("Stopping the process thread.")
+        _log.debug("Stopping the process loop.")
         if self._process_thread is None:
             return
 
-        #Tell the loop it needs to die.
+        # Tell the loop it needs to die.
         self._stop_process_loop = True
-        #Wake the loop.
+        # Wake the loop.
         self._event_queue.put(None)
 
-        #9 seconds as configuration timeout is 10 seconds.
+        # 9 seconds as configuration timeout is 10 seconds.
         self._process_thread.join(9.0)
-        if self._process_thread.is_alive():
+        #Greenlets have slightly different API than threads in this case.
+        # Greenlets have slightly different API than threads in this case.
+        if self._process_loop_in_greenlet:
+            if not self._process_thread.ready():
+                _log.error("Failed to stop process greenlet during reconfiguration!")
+        elif self._process_thread.is_alive():
             _log.error("Failed to stop process thread during reconfiguration!")
 
         self._process_thread = None
-        _log.debug("Process thread stopped.")
-
+        _log.debug("Process loop stopped.")
 
     def _configure(self, config_name, action, contents):
         self.vip.heartbeat.start()
@@ -440,7 +460,10 @@ class BaseHistorianAgent(Agent):
             _log.error("Failed to load base historian settings. Settings not applied!")
             return
 
-        #Reset replace map.
+        query = Query(self.core)
+        self.instance_name = query.query(b'instance-name').get()
+
+        # Reset replace map.
         self._topic_replace_map = {}
 
         self._topic_replace_list = topic_replace_list
@@ -847,7 +870,7 @@ class BaseHistorianAgent(Agent):
     def _process_loop(self):
         """
         The process loop is called off of the main thread and will not exit
-        unless the main agent is shutdown.
+        unless the main agent is shutdown or the Agent is reconfigured.
         """
 
         _log.debug("Starting process loop.")
@@ -944,6 +967,7 @@ class BaseHistorianAgent(Agent):
         self.historian_teardown()
 
         _log.debug("Process loop stopped.")
+        self._stop_process_loop = False
 
     def report_handled(self, record):
         """
@@ -1119,14 +1143,15 @@ class BackupDatabase:
     use only.
     """
 
-    def __init__(self, owner, backup_storage_limit_gb):
+    def __init__(self, owner, backup_storage_limit_gb, check_same_thread=True):
         # The topic cache is only meant as a local lookup and should not be
         # accessed via the implemented historians.
         self._backup_cache = {}
         self._meta_data = defaultdict(dict)
         self._owner = weakref.ref(owner)
         self._backup_storage_limit_gb = backup_storage_limit_gb
-        self._setupdb()
+        self._connection = None
+        self._setupdb(check_same_thread)
 
     def backup_new_data(self, new_publish_list):
         """
@@ -1262,14 +1287,16 @@ class BackupDatabase:
 
     def close(self):
         self._connection.close()
+        self._connection = None
 
-    def _setupdb(self):
+    def _setupdb(self, check_same_thread):
         """ Creates a backup database for the historian if doesn't exist."""
 
         _log.debug("Setting up backup DB.")
         self._connection = sqlite3.connect(
             'backup.sqlite',
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
+            check_same_thread=check_same_thread)
 
         c = self._connection.cursor()
 
@@ -1346,6 +1373,29 @@ class BackupDatabase:
         c.close()
 
         self._connection.commit()
+
+
+# Code reimplemented from https://github.com/gilesbrown/gsqlite3
+def _using_threadpool(method):
+    @wraps(method, ['__name__', '__doc__'])
+    def apply(*args, **kwargs):
+        return get_hub().threadpool.apply(method, args, kwargs)
+    return apply
+
+
+class AsyncBackupDatabase(BackupDatabase):
+    """Wrapper around BackupDatabase to allow it to run in the main Historian gevent loop.
+    Wraps the more expensive methods in threadpool.apply calls."""
+    def __init__(self, *args, **kwargs):
+        kwargs["check_same_thread"] = False
+        super(AsyncBackupDatabase, self).__init__(*args, **kwargs)
+
+
+for method in [BackupDatabase.get_outstanding_to_publish,
+               BackupDatabase.remove_successfully_published,
+               BackupDatabase.backup_new_data,
+               BackupDatabase._setupdb]:
+    setattr(AsyncBackupDatabase, method.__name__, _using_threadpool(method))
 
 
 class BaseQueryHistorianAgent(Agent):
