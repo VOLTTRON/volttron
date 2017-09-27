@@ -214,7 +214,6 @@ class MarketAgent(Agent):
                                                                                        curve.points))
         except RemoteError as e:
             result = (False, e.message)
-            if self.verbose_logging:
-                _log.debug("Market: {} {} has had an offer rejected".format(market_name, buyer_seller))
+            _log.info("Market: {} {} has had an offer rejected because {}".format(market_name, buyer_seller, e.message))
         return result
 
