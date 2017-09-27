@@ -105,7 +105,21 @@ def publish_device_messages(to_platform,
     agent = to_platform.build_agent()
     headers, message = build_devices_header_and_message(points)
     agent.vip.pubsub.publish(peer='pubsub', topic=all_topic, headers=headers,
-                             message=message)
+                             message=message).get()
+    gevent.sleep(.1)
+    agent.core.stop()
+    return headers, message
+
+
+def publish_message(to_platform,
+                    topic,
+                    headers={},
+                    message={}):
+    assert to_platform is not None
+    agent = to_platform.build_agent()
+    headers, message = headers, message
+    agent.vip.pubsub.publish(peer='pubsub', topic=topic, headers=headers,
+                             message=message).get()
     gevent.sleep(.1)
     agent.core.stop()
     return headers, message
