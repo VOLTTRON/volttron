@@ -151,7 +151,6 @@ def sqlhistorian(request, volttron_instances):
     print("sqlite historian agent id: ", agent_uuid)
 
 
-
 @pytest.fixture(scope="module")
 def forwarder(request, volttron_instances):
     #print "Fixture forwarder"
@@ -237,104 +236,6 @@ def test_devices_topic(publish_agent, query_agent):
     assert (result['values'][0][0] == time1_date + 'T' + time1_time + '+00:00')
     assert (result['values'][0][1] == oat_reading)
     assert set(result['metadata'].items()) == set(float_meta.items())
-
-
-@pytest.mark.historian
-@pytest.mark.forwarder
-def test_record_topic(publish_agent, query_agent):
-    """
-    Test if record topic message is getting forwarded to historian running on
-    another instance.
-
-    @param publish_agent: Fake agent used to publish messages to bus in
-    volttron_instance1. Calling this fixture makes sure all the dependant
-    fixtures are called to setup and start volttron_instance1 and forwareder
-    agent and returns the  instance of fake agent to publish
-    @param query_agent: Fake agent used to query sqlhistorian in
-    volttron_instance2. Calling this fixture makes sure all the dependant
-    fixtures are called to setup and start volttron_instance2 and sqlhistorian
-    agent and returns the instance of a fake agent to query the historian
-    """
-    # Create timestamp
-    print("\n** test_record_topic **")
-    now = datetime.utcnow().isoformat() + 'Z'
-    print("now is ", now)
-    headers = {
-        headers_mod.DATE: now
-    }
-    # Publish messages
-    publish(publish_agent, topics.RECORD, headers, 1)
-
-    # sleep so that records gets inserted with unique timestamp
-    gevent.sleep(0.5)
-    time2 = datetime.utcnow()
-    time2 = time2.isoformat()
-    headers = {
-        headers_mod.DATE: time2
-    }
-    publish(publish_agent, topics.RECORD, headers, 'value0')
-    # sleep so that records gets inserted with unique timestamp
-    gevent.sleep(0.5)
-    time3 = datetime.utcnow()
-    time3 = time3.isoformat()
-    headers = {
-        headers_mod.DATE: time3
-    }
-    publish(publish_agent, topics.RECORD, headers, {'key': 'value'})
-    gevent.sleep(0.5)
-    result = query_agent.vip.rpc.call('platform.historian',
-                                      'query',
-                                      topic=topics.RECORD,
-                                      start=now,
-                                      order="FIRST_TO_LAST").get(timeout=10)
-    print('Query Result', result)
-    assert (len(result['values']) == 3)
-    assert (result['values'][0][1] == 1)
-    assert (result['values'][1][1] == 'value0')
-    assert (result['values'][2][1] == {'key': 'value'})
-    assert result['values'][2][0] == time3 + '+00:00'
-
-
-@pytest.mark.historian
-@pytest.mark.forwarder
-def test_record_topic_no_header(publish_agent, query_agent):
-    """
-    Test if record topic message is getting forwarded to historian running on
-    another instance.
-
-    @param publish_agent: Fake agent used to publish messages to bus in
-    volttron_instance1. Calling this fixture makes sure all the dependant
-    fixtures are called to setup and start volttron_instance1 and forwareder
-    agent and returns the  instance of fake agent to publish
-    @param query_agent: Fake agent used to query sqlhistorian in
-    volttron_instance2. Calling this fixture makes sure all the dependant
-    fixtures are called to setup and start volttron_instance2 and sqlhistorian
-    agent and returns the instance of a fake agent to query the historian
-    """
-    # Create timestamp
-    print("\n** test_record_topic **")
-    gevent.sleep(1)  # so that there is no side effect from last test case
-
-    now = datetime.utcnow().isoformat() + 'Z'
-    # Publish messages
-    publish(publish_agent, topics.RECORD, None, 1)
-    # sleep so that records gets inserted with unique timestamp
-    gevent.sleep(0.5)
-    publish(publish_agent, topics.RECORD, None, 'value0')
-    # sleep so that records gets inserted with unique timestamp
-    gevent.sleep(0.5)
-    publish(publish_agent, topics.RECORD, None, {'key': 'value'})
-    gevent.sleep(1)
-    result = query_agent.vip.rpc.call('platform.historian',
-                                      'query',
-                                      topic=topics.RECORD,
-                                      start=now,
-                                      order="FIRST_TO_LAST").get(timeout=10)
-    print('Query Result', result)
-    assert (len(result['values']) == 3)
-    assert (result['values'][0][1] == 1)
-    assert (result['values'][1][1] == 'value0')
-    assert (result['values'][2][1] == {'key': 'value'})
 
 
 @pytest.mark.historian
