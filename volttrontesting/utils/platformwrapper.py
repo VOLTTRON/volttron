@@ -384,7 +384,9 @@ class PlatformWrapper:
                          mode=UNRESTRICTED, bind_web_address=None,
                          volttron_central_address=None,
                          volttron_central_serverkey=None,
-                         msgdebug=False):
+                         msgdebug=False,
+                         setupmode=False,
+                         instance_name=''):
 
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
@@ -466,6 +468,9 @@ class PlatformWrapper:
         if volttron_central_serverkey:
             parser.set('volttron', 'volttron-central-serverkey',
                        volttron_central_serverkey)
+        if instance_name:
+            parser.set('volttron', 'instance-name',
+                       instance_name)
         if self.mode == UNRESTRICTED:
             with open(pconfig, 'wb') as cfg:
                 parser.write(cfg)
@@ -493,6 +498,8 @@ class PlatformWrapper:
         if enable_logging:
             cmd.append('-vv')
         cmd.append('-l{}'.format(log))
+        if setupmode:
+            cmd.append('--setup-mode')
 
         print('process environment: {}'.format(self.env))
         print('popen params: {}'.format(cmd))

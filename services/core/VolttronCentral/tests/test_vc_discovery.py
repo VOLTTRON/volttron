@@ -106,4 +106,3 @@ def test_autoregister_local(both_with_vc_vcp):
     assert isinstance(p['health'], dict)
     assert STATUS_GOOD == p['health']['status']
 
-
