@@ -813,8 +813,8 @@ class PlatformWrapper:
         agent = self.build_agent()
         print('PEER LIST: {}'.format(agent.vip.peerlist().get(timeout=10)))
         agent_list = agent.vip.rpc('control', 'list_agents').get(timeout=10)
-        for agent_uuid, agent_name in agent_list:
-            agent.vip.rpc('control', 'remove_agent', agent_uuid).get(timeout=10)
+        for agent_props in agent_list:
+            agent.vip.rpc('control', 'remove_agent', agent_props['uuid']).get(timeout=10)
         agent.core.stop(timeout=3)
 
     def is_agent_running(self, agent_uuid):
