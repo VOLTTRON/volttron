@@ -71,6 +71,8 @@ from market_service.reservation_manager import ReservationManager
 from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
 from volttron.platform.messaging.topics import MARKET_AGGREGATE, MARKET_CLEAR, MARKET_ERROR, MARKET_RECORD
 
+_tlog = logging.getLogger('transitions.core')
+_tlog.setLevel(logging.WARNING)
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 

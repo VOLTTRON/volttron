@@ -69,6 +69,8 @@ from market_service.market_list import MarketList
 from market_service.market_participant import MarketParticipant
 from volttron.platform.agent.base_market_agent.poly_line_factory import PolyLineFactory
 
+_tlog = logging.getLogger('transitions.core')
+_tlog.setLevel(logging.WARNING)
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 __version__ = "0.01"
