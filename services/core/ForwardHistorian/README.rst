@@ -83,7 +83,7 @@ by the ForwardHistorian agent.
         #   Unlike other historians, the forward historian can re-publish from
         #   any topic.  The custom_topic_list is prefixes to subscribe to on
         #   the local bus and forward to the destination instance.
-        "custom_topic_list": ["actuator"],
+        "custom_topic_list": ["actuator", "alert"],
 
         # cache_only
         #   Allows one to put the forward historian in a cache only mode so that

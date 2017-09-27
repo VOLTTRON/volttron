@@ -1,4 +1,4 @@
 {
-    "destination-vip": "ipc://@/home/volttron/.volttron/run/vip.socket",
+    "destination-vip": "tcp://127.0.0.1:22916",
     "destination-serverkey": null
 }

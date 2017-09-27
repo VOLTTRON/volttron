@@ -1375,12 +1375,13 @@ class BackupDatabase:
         self._connection.commit()
 
 
-#Shamelessly borrowed from gsqlite.
+# Code reimplemented from https://github.com/gilesbrown/gsqlite3
 def _using_threadpool(method):
     @wraps(method, ['__name__', '__doc__'])
     def apply(*args, **kwargs):
         return get_hub().threadpool.apply(method, args, kwargs)
     return apply
+
 
 class AsyncBackupDatabase(BackupDatabase):
     """Wrapper around BackupDatabase to allow it to run in the main Historian gevent loop.
@@ -1395,7 +1396,6 @@ for method in [BackupDatabase.get_outstanding_to_publish,
                BackupDatabase.backup_new_data,
                BackupDatabase._setupdb]:
     setattr(AsyncBackupDatabase, method.__name__, _using_threadpool(method))
-
 
 
 class BaseQueryHistorianAgent(Agent):
