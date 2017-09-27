@@ -59,27 +59,27 @@ import pytest
 import gevent
 import json
 
-WATCHER_CONFIG = {
-    "watchlist": ["listener"],
-    "check-period": 1
+from volttron.platform import get_ops
+from volttron.platform.agent.known_identities import PLATFORM_ALERTER
+
+ALERT_CONFIG = {
+    "group1": {
+        "fakedevice": 5,
+        "fakedevice2": {
+            "seconds": 5,
+            "points": ["point"]
+        }
+    }
 }
 
 alert_messages = {}
-listener_uuid = None
 
 @pytest.fixture(scope='module')
-def platform(request, volttron_instance1):
-    global listener_uuid
+def agent(request, volttron_instance1):
 
-    listener_uuid = volttron_instance1.install_agent(
-        agent_dir="examples/ListenerAgent",
-        vip_identity="listener",
-        start=True)
-    gevent.sleep(2)
-
-    watcher_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/AgentWatcher",
-        config_file=WATCHER_CONFIG)
+    alert_uuid = volttron_instance1.install_agent(
+        agent_dir=get_ops("AlertAgent"),
+        config_file=ALERT_CONFIG)
     gevent.sleep(2)
 
     agent = volttron_instance1.build_agent()
@@ -99,28 +99,53 @@ def platform(request, volttron_instance1):
                                callback=onmessage)
 
     def stop():
-        volttron_instance1.stop_agent(listener_uuid)
-        volttron_instance1.stop_agent(watcher_uuid)
+        volttron_instance1.stop_agent(alert_uuid)
         agent.core.stop()
 
     request.addfinalizer(stop)
-    return volttron_instance1
+    return agent
 
 
-def test_agent_watcher(platform):
+def test_alert_agent(agent):
     global alert_messages
-    global listener_uuid
+    for _ in range(10):
+        agent.vip.pubsub.publish(peer='pubsub',
+                                 topic='fakedevice')
+        agent.vip.pubsub.publish(peer='pubsub',
+                                 topic='fakedevice2',
+                                 message=[{'point': 'value'}])
+        gevent.sleep(1)
 
-    gevent.sleep(2)
     assert not alert_messages
+    gevent.sleep(6)
 
-    platform.stop_agent(listener_uuid)
-    gevent.sleep(2)
-    assert alert_messages
-    assert "Agent(s) expected but but not running ['listener']" in alert_messages
+    assert len(alert_messages) == 1
 
-    platform.start_agent(listener_uuid)
+
+def test_ignore_topic(agent):
+    global alert_messages
+
+    agent.vip.rpc.call(PLATFORM_ALERTER, 'ignore_topic', 'group1', 'fakedevice2').get()
     alert_messages.clear()
-    gevent.sleep(2)
+    gevent.sleep(6)
 
-    assert not alert_messages
+    assert len(alert_messages) == 1
+    assert u"Topic(s) not published within time limit: ['fakedevice']" in alert_messages
+
+
+def test_watch_topic(agent):
+    global alert_messages
+
+    agent.vip.rpc.call(PLATFORM_ALERTER, 'watch_topic', 'group1', 'newtopic', 5).get()
+    gevent.sleep(6)
+
+    assert u"Topic(s) not published within time limit: ['newtopic']" in alert_messages
+
+
+def test_watch_device(agent):
+    global alert_messages
+
+    agent.vip.rpc.call(PLATFORM_ALERTER, 'watch_device', 'group1', 'newdevice', 5, ['point']).get()
+    gevent.sleep(6)
+
+    assert u"Topic(s) not published within time limit: ['newdevice', ('newdevice', 'point')]" in alert_messages

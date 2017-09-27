@@ -60,6 +60,8 @@ import gevent
 import pytest
 import time
 import os
+
+from volttron.platform import get_services_core
 from volttron.platform.agent import json as jsonapi
 
 from volttrontesting.utils.platformwrapper import start_wrapper_platform, \
@@ -172,7 +174,7 @@ def test_resinstall_agent(volttron_instance):
         #     vip_identity='test_listener',
         #     start=True)
         auuid = volttron_instance.install_agent(
-            agent_dir="services/core/SQLHistorian",
+            agent_dir=get_services_core("SQLHistorian"),
             config_file=mysql_config,
             start=True,
             vip_identity='test_historian')

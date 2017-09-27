@@ -66,6 +66,7 @@ import gevent
 import pytest
 from mock import MagicMock
 
+from volttron.platform import get_services_core
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
@@ -83,9 +84,9 @@ db_connection = None
 tagging_service_id = None
 sqlite_config = {"connection": {"type": "sqlite",
                                 "params":{"database":""}},
-                 "source": "services/core/SQLiteTaggingService"}
+                 "source": get_services_core("SQLiteTaggingService")}
 
-mongodb_config = {"source": "services/core/MongodbTaggingService",
+mongodb_config = {"source": get_services_core("MongodbTaggingService"),
                   "connection": {"type": "mongodb",
                                  "params": {"host": "localhost", "port": 27017,
                                             "database": "mongo_test",
@@ -356,7 +357,7 @@ def test_insert_topic_tags(volttron_instance, tagging_service, query_agent):
                        }
         hist_id = volttron_instance.install_agent(
             vip_identity='platform.historian',
-            agent_dir='services/core/SQLHistorian', config_file=hist_config,
+            agent_dir=get_services_core("SQLHistorian"), config_file=hist_config,
             start=True)
         gevent.sleep(1)
         headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
@@ -433,7 +434,7 @@ def test_insert_topic_pattern_tags(volttron_instance, tagging_service,
 
         hist_id = volttron_instance.install_agent(
             vip_identity='platform.historian',
-            agent_dir='services/core/SQLHistorian', config_file=hist_config,
+            agent_dir=get_services_core("SQLHistorian"), config_file=hist_config,
             start=True)
         gevent.sleep(1)
         query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
@@ -546,7 +547,7 @@ def test_insert_topic_tags_update(volttron_instance, tagging_service,
 
         hist_id = volttron_instance.install_agent(
             vip_identity='platform.historian',
-            agent_dir='services/core/SQLHistorian', config_file=hist_config,
+            agent_dir=get_services_core("SQLHistorian"), config_file=hist_config,
             start=True)
         gevent.sleep(1)
         query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
@@ -610,7 +611,7 @@ def test_update_topic_tags(volttron_instance, tagging_service, query_agent):
                        }
         hist_id = volttron_instance.install_agent(
             vip_identity='platform.historian',
-            agent_dir='services/core/SQLHistorian', config_file=hist_config,
+            agent_dir=get_services_core("SQLHistorian"), config_file=hist_config,
             start=True)
         gevent.sleep(1)
         headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
@@ -729,7 +730,7 @@ def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
                        }
         hist_id = volttron_instance.install_agent(
             vip_identity='platform.historian',
-            agent_dir='services/core/SQLHistorian', config_file=hist_config,
+            agent_dir=get_services_core("SQLHistorian"), config_file=hist_config,
             start=True)
         gevent.sleep(2)
         headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
@@ -835,7 +836,7 @@ def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
                        }
         hist_id = volttron_instance.install_agent(
             vip_identity='platform.historian',
-            agent_dir='services/core/SQLHistorian', config_file=hist_config,
+            agent_dir=get_services_core("SQLHistorian"), config_file=hist_config,
             start=True)
         gevent.sleep(1)
         headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
@@ -929,7 +930,7 @@ def test_topic_by_tags_param_and_or(volttron_instance, tagging_service,
                        }
         hist_id = volttron_instance.install_agent(
             vip_identity='platform.historian',
-            agent_dir='services/core/SQLHistorian', config_file=hist_config,
+            agent_dir=get_services_core("SQLHistorian"), config_file=hist_config,
             start=True)
         gevent.sleep(2)
         headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
@@ -1060,7 +1061,7 @@ def test_topic_by_tags_custom_condition(volttron_instance, tagging_service,
                        }
         hist_id = volttron_instance.install_agent(
             vip_identity='platform.historian',
-            agent_dir='services/core/SQLHistorian', config_file=hist_config,
+            agent_dir=get_services_core("SQLHistorian"), config_file=hist_config,
             start=True)
         gevent.sleep(2)
         headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
@@ -1212,7 +1213,7 @@ def test_topic_by_tags_parent_topic_query(volttron_instance, tagging_service,
                        }
         hist_id = volttron_instance.install_agent(
             vip_identity='platform.historian',
-            agent_dir='services/core/SQLHistorian', config_file=hist_config,
+            agent_dir=get_services_core("SQLHistorian"), config_file=hist_config,
             start=True)
         gevent.sleep(2)
         headers = {headers_mod.DATE: datetime.utcnow().isoformat()}

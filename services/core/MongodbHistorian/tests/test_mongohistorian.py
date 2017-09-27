@@ -13,6 +13,7 @@ import gevent
 import pytest
 from dateutil.tz import tzutc
 
+from volttron.platform import get_services_core
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (get_aware_utc_now, format_timestamp)
 from volttron.platform.messaging import headers as headers_mod
@@ -65,7 +66,7 @@ def database_client(request):
 
 def install_historian_agent(volttron_instance, config_file):
     agent_uuid = volttron_instance.install_agent(
-        agent_dir="services/core/MongodbHistorian", config_file=config_file,
+        agent_dir=get_services_core("MongodbHistorian"), config_file=config_file,
         start=True, vip_identity="platform.historian")
     return agent_uuid
 

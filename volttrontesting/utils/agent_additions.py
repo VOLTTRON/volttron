@@ -1,3 +1,6 @@
+from volttron.platform import get_services_core
+
+
 def add_vc_to_instance(wrapper):
 
     config = {
@@ -36,5 +39,5 @@ def add_vc_to_instance(wrapper):
     }
 
     agent_uuid = wrapper.install_agent(config_file=config,
-                                       agent_dir="services/core/VolttronCentral")
+                                       agent_dir=get_services_core("VolttronCentral"))
     return agent_uuid

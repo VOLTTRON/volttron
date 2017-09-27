@@ -122,9 +122,34 @@ def get_volttron_root():
         )
     )
 
+
 def get_volttron_data():
     root = get_volttron_root()
     return os.path.join(root, "volttron_data")
+
+
+def get_services_core(agent_dir=None):
+    root = get_volttron_root()
+    services_core = os.path.join(root, "services/core")
+    if not agent_dir:
+        return services_core
+    return os.path.join(services_core, agent_dir)
+
+
+def get_ops(agent_dir=None):
+    root = get_volttron_root()
+    ops_dir = os.path.join(root, "ops")
+    if not agent_dir:
+        return ops_dir
+    return os.path.join(ops_dir, agent_dir)
+
+
+def get_examples(agent_dir):
+    root = get_volttron_root()
+    examples_dir = os.path.join(root, "examples")
+    if not agent_dir:
+        return examples_dir
+    return os.path.join(examples_dir, agent_dir)
 
 
 def is_instance_running(volttron_home=None):

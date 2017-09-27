@@ -5,6 +5,7 @@ from contextlib import contextmanager
 import pytest
 import gevent
 
+from volttron.platform import get_services_core, get_examples
 from volttron.platform.keystore import KeyStore
 
 primary_config = {
@@ -64,28 +65,30 @@ def failover(request, get_volttron_instances):
     vc.allow_all_connections()
 
     # configure vc
-    vc_uuid = vc.install_agent(agent_dir="services/core/VolttronCentralPlatform")
+    vc_uuid = vc.install_agent(
+        agent_dir=get_services_core("VolttronCentralPlatform"))
 
     # configure primary
-    primary_platform = primary.install_agent(agent_dir="services/core/VolttronCentralPlatform")
+    primary_platform = primary.install_agent(
+        agent_dir=get_services_core("VolttronCentralPlatform"))
     # register with vc
-    primary_listener = primary.install_agent(agent_dir="examples/ListenerAgent",
+    primary_listener = primary.install_agent(agent_dir=get_examples("ListenerAgent"),
                                              vip_identity="listener",
                                              start=False)
 
     primary_config["remote_vip"] = tcp_to(secondary)
-    primary_failover = primary.install_agent(agent_dir="services/core/FailoverAgent",
+    primary_failover = primary.install_agent(agent_dir=get_services_core("FailoverAgent"),
                                              config_file=primary_config)
 
     # configure secondary
-    secondary_platform = secondary.install_agent(agent_dir="services/core/VolttronCentralPlatform")
+    secondary_platform = secondary.install_agent(agent_dir=get_services_core("VolttronCentralPlatform"))
     # register with vc
-    secondary_listener = secondary.install_agent(agent_dir="examples/ListenerAgent",
+    secondary_listener = secondary.install_agent(agent_dir=get_examples("ListenerAgent"),
                                                  vip_identity="listener",
                                                  start=False)
 
     secondary_config["remote_vip"] = tcp_to(primary)
-    secondary_failover = secondary.install_agent(agent_dir="services/core/FailoverAgent",
+    secondary_failover = secondary.install_agent(agent_dir=get_services_core("FailoverAgent"),
                                                  config_file=secondary_config)
 
     def stop():
