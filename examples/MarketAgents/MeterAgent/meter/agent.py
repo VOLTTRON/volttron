@@ -118,7 +118,7 @@ class MeterAgent(MarketAgent):
 
 		
     def reservation_callback(self, timestamp, market_name, buyer_seller):
-        if 1:
+        if (self.num % 2) == 0:
             self.want_reservation = True
         else:
             self.want_reservation = False
