@@ -122,7 +122,7 @@ class MeterAgent(MarketAgent):
             self.want_reservation = True
         else:
             self.want_reservation = False
-        _log.debug("Reservation for Market: {} {}, Wants reservation: {}".format(market_name, buyer_seller, self.want_reservation))
+        _log.debug("Reservation for Market: {} {}, Wants reservation: {} Number: {}".format(market_name, buyer_seller, self.want_reservation, self.num))
         self.num=self.num+1
         return self.want_reservation
 
