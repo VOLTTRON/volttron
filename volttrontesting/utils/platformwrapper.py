@@ -193,6 +193,7 @@ class PlatformWrapper:
         self.discovery_address = None
         self.jsonrpc_endpoint = None
         self.volttron_central_address = None
+        self.volttron_central_serverkey = None
         self.instance_name = None
         self.serverkey = None
 
@@ -387,13 +388,16 @@ class PlatformWrapper:
                          setupmode=False,
                          instance_name=''):
 
-      # if not isinstance(vip_address, list):
+        # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
         # else:
         #     self.vip_address = vip_address
 
         self.vip_address = vip_address
         self.mode = mode
+        self.volttron_central_address=volttron_central_address
+        self.volttron_central_serverkey=volttron_central_serverkey
+
         self.bind_web_address = bind_web_address
         if self.bind_web_address:
             self.discovery_address = "{}/discovery/".format(
@@ -712,17 +716,18 @@ class PlatformWrapper:
             if start:
                 cmd.extend(["--start"])
             try:
-                results = subprocess.check_output(cmd)
+                response = subprocess.check_output(cmd)
             except Exception as e:
-                _log.error("Exception:{}".format(e))
+                _log.error(repr(e))
                 raise e
 
+            self.logit(response)
             # Because we are no longer silencing output from the install, the
             # the results object is now much more verbose.  Our assumption is
             # that the result we are looking for is the only JSON block in
             # the output
 
-            match = re.search(r'^({.*})', results, flags=re.M | re.S)
+            match = re.search(r'^({.*})', response, flags=re.M | re.S)
             if match:
                 results = match.group(0)
             else:
@@ -811,6 +816,14 @@ class PlatformWrapper:
             _log.error("Exception: {}".format(ex))
         return self.agent_pid(agent_uuid)
 
+    def remove_all_agents(self):
+        agent = self.build_agent()
+        print('PEER LIST: {}'.format(agent.vip.peerlist().get(timeout=10)))
+        agent_list = agent.vip.rpc('control', 'list_agents').get(timeout=10)
+        for agent_props in agent_list:
+            agent.vip.rpc('control', 'remove_agent', agent_props['uuid']).get(timeout=10)
+        agent.core.stop(timeout=3)
+
     def is_agent_running(self, agent_uuid):
         return self.agent_pid(agent_uuid) is not None
 
@@ -892,9 +905,38 @@ class PlatformWrapper:
             time.sleep(timeout_seconds)
         return running
 
-    # def direct_stop_agent(self, agent_uuid):
-    #     result = self.conn.call.stop_agent(agent_uuid)
-    #     print result
+    def restart_platform(self):
+        self.startup_platform(vip_address=self.vip_address,
+                              bind_web_address=self.bind_web_address,
+                              volttron_central_address=self.volttron_central_address,
+                              volttron_central_serverkey=self.volttron_central_serverkey)
+        gevent.sleep(1)
+
+    def stop_platform(self):
+        """
+        Stop the platform without cleaning up any agents or context of the
+        agent.  This should be paired with restart platform in order to
+        maintain the context of the platform.
+        :return:
+        """
+        if not self.is_running():
+            return
+
+        cmd = ['volttron-ctl']
+        cmd.extend(['shutdown', '--platform'])
+        try:
+            res = subprocess.check_output(cmd, env=self.env)
+        except CalledProcessError:
+            if self.p_process is not None:
+                try:
+                    gevent.sleep(0.2)
+                    self.p_process.terminate()
+                    gevent.sleep(0.2)
+                except OSError:
+                    self.logit('Platform process was terminated.')
+            else:
+                self.logit("platform process was null")
+        gevent.sleep(1)
 
     def shutdown_platform(self):
         """

@@ -79,7 +79,7 @@ from zmq.green import ZMQError, ENOTSOCK
 FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.7'
+__version__ = '4.0'
 
 
 def historian(config_path, **kwargs):
@@ -88,6 +88,19 @@ def historian(config_path, **kwargs):
     topic_replace_list = config.get('topic_replace_list', [])
     destination_vip = config.get('destination-vip')
 
+    service_topic_list = config.get('service_topic_list')
+    if service_topic_list is not None:
+        w = "Deprecated service_topic_list.  Use capture_device_data " \
+            "capture_log_data, capture_analysis_data or capture_record_data " \
+            "instead!"
+        _log.warning(w)
+
+        # Populate the new values for the kwargs based upon the old data.
+        kwargs['capture_device_data'] = True if "device" in service_topic_list else False
+        kwargs['capture_log_data'] = True if "datalogger" in service_topic_list else False
+        kwargs['capture_record_data'] = True if "record" in service_topic_list else False
+        kwargs['capture_analysis_data'] = True if "analysis" in service_topic_list else False
+
     hosts = KnownHostsStore()
     destination_serverkey = hosts.serverkey(destination_vip)
     if destination_serverkey is None:
@@ -95,23 +108,30 @@ def historian(config_path, **kwargs):
         destination_serverkey = config['destination-serverkey']
 
     required_target_agents = config.get('required_target_agents', [])
+    cache_only = config.get('cache_only', False)
 
     return ForwardHistorian(destination_vip, destination_serverkey,
                             custom_topic_list=custom_topic_list,
                             topic_replace_list=topic_replace_list,
                             required_target_agents=required_target_agents,
+                            cache_only=cache_only,
                             **kwargs)
+
 
 class ForwardHistorian(BaseHistorian):
     """
-    This historian forwards data to another platform.
+    This historian forwards data to another instance as if it was published
+    originally to the second instance.
     """
 
     def __init__(self, destination_vip, destination_serverkey,
                  custom_topic_list=[],
                  topic_replace_list=[],
-                 required_target_agents=[], **kwargs):
+                 required_target_agents=[],
+                 cache_only=False, **kwargs):
+        kwargs["process_loop_in_greenlet"] = True
         super(ForwardHistorian, self).__init__(**kwargs)
+
         # will be available in both threads.
         self._topic_replace_map = {}
         self.topic_replace_list = topic_replace_list
@@ -122,18 +142,21 @@ class ForwardHistorian(BaseHistorian):
         self.destination_vip = destination_vip
         self.destination_serverkey = destination_serverkey
         self.required_target_agents = required_target_agents
+        self.cache_only = cache_only
 
         config = {"custom_topic_list": custom_topic_list,
                   "topic_replace_list": self.topic_replace_list,
                   "required_target_agents": self.required_target_agents,
                   "destination_vip": self.destination_vip,
-                  "destination_serverkey": self.destination_serverkey}
+                  "destination_serverkey": self.destination_serverkey,
+                  "cache_only": self.cache_only}
 
         self.update_default_config(config)
 
-        #We do not support the insert RPC call.
+        # We do not support the insert RPC call.
         self.no_insert = True
-
+        # We do not support the query RPC call.
+        self.no_query = True
 
     def configure(self, configuration):
         custom_topic_set = set(configuration.get('custom_topic_list', []))
@@ -141,16 +164,17 @@ class ForwardHistorian(BaseHistorian):
         self.destination_serverkey = str(configuration.get('destination_serverkey', ""))
         self.required_target_agents = configuration.get('required_target_agents', [])
         self.topic_replace_list = configuration.get('topic_replace_list', [])
-        #Reset the replace map.
+        self.cache_only = configuration.get('cache_only', False)
+        # Reset the replace map.
         self._topic_replace_map = {}
 
-        #Topics to add.
+        # Topics to add.
         new_topics = custom_topic_set - self._current_custom_topics
-        #Topics to remove
+        # Topics to remove
         old_topics = self._current_custom_topics - custom_topic_set
 
         for prefix in new_topics:
-            _log.debug("Subscribing to {}".format(prefix))
+            _log.info("Subscribing to {}".format(prefix))
             try:
                 self.vip.pubsub.subscribe(peer='pubsub',
                                           prefix=prefix,
@@ -160,7 +184,7 @@ class ForwardHistorian(BaseHistorian):
                 _log.error("Failed to subscribe to {}: {}".format(prefix, repr(e)))
 
         for prefix in old_topics:
-            _log.debug("unsubscribing from {}".format(prefix))
+            _log.info("unsubscribing from {}".format(prefix))
             try:
                 self.vip.pubsub.unsubscribe(peer='pubsub',
                                             prefix=prefix,
@@ -168,8 +192,6 @@ class ForwardHistorian(BaseHistorian):
                 self._current_custom_topics.remove(prefix)
             except (gevent.Timeout, Exception) as e:
                 _log.error("Failed to unsubscribe from {}: {}".format(prefix, repr(e)))
-
-
 
     # Redirect the normal capture functions to capture_data.
     def _capture_device_data(self, peer, sender, bus, topic, headers, message):
@@ -191,7 +213,6 @@ class ForwardHistorian(BaseHistorian):
 
         # Grab the timestamp string from the message (we use this as the
         # value in our readings at the end of this method)
-        _log.debug("In capture data")
         timestamp_string = headers.get(headers_mod.DATE, None)
 
         data = message
@@ -219,10 +240,11 @@ class ForwardHistorian(BaseHistorian):
             raise
 
         if self.topic_replace_list:
+            original_topic = topic
             if topic in self._topic_replace_map.keys():
-                topic = self._topic_replace_map[topic]
+                topic = self._topic_replace_map[original_topic]
             else:
-                self._topic_replace_map[topic] = topic
+                self._topic_replace_map[topic] = original_topic
                 temptopics = {}
                 for x in self.topic_replace_list:
                     if x['from'] in topic:
@@ -233,6 +255,13 @@ class ForwardHistorian(BaseHistorian):
                 for k, v in temptopics.items():
                     self._topic_replace_map[k] = v
                 topic = self._topic_replace_map[topic]
+
+            # if the topic wasn't changed then we don't forward anything for
+            # it.
+            if topic == original_topic:
+                _log.warn(
+                    "Topic {} not published because not anonymized.".format(original_topic))
+                return
 
         if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
@@ -245,6 +274,10 @@ class ForwardHistorian(BaseHistorian):
 
     @doc_inherit
     def publish_to_historian(self, to_publish_list):
+        if self.cache_only:
+            _log.warning("cache_only enabled")
+            return
+
         handled_records = []
 
         _log.debug("publish_to_historian number of items: {}"
@@ -292,6 +325,13 @@ class ForwardHistorian(BaseHistorian):
             payload = value
             headers = payload['headers']
             headers['X-Forwarded'] = True
+            if 'X-Forwarded-From' in headers:
+                if not isinstance(headers['X-Forwarded-From'], list):
+                    headers['X-Forwarded-From'] = [headers['X-Forwarded-From']]
+                headers['X-Forwarded-From'].append(self.instance_name)
+            else:
+                headers['X-Forwarded-From'] = self.instance_name
+
             try:
                 del headers['Origin']
             except KeyError:
@@ -302,7 +342,9 @@ class ForwardHistorian(BaseHistorian):
                 pass
 
             if self.gather_timing_data:
-                add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity,"forwarded")
+                add_timing_data_to_header(headers,
+                                          self.core.agent_uuid or self.core.identity,
+                                          "forwarded")
 
             if timeout_occurred:
                 _log.error(
@@ -377,13 +419,19 @@ class ForwardHistorian(BaseHistorian):
                                 enable_store=False)
 
         except gevent.Timeout:
+            _log.error("Couldn't connect to destination-vip ({})".format(
+                self.destination_vip
+            ))
             self.vip.health.set_status(
                 STATUS_BAD, "Timeout in setup of agent")
-            status = Status.from_json(self.vip.health.get_status_json())
-            self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
-                                       status)
+        except Exception as ex:
+            _log.error(ex.args)
+
         else:
             self._target_platform = agent
+            self.vip.health.set_status(
+                STATUS_GOOD, "Connected to destination-vip ({})".format(
+                    self.destination_vip))
 
     @doc_inherit
     def historian_teardown(self):
