@@ -108,7 +108,7 @@ class MeterAgent(MarketAgent):
         self.join_market(self.market_name, SELLER, self.reservation_callback, self.offer_callback, None, self.price_callback, self.error_callback)
 
     def offer_callback(self, timestamp, market_name, buyer_seller):
-        if self.num%2==0:
+        if 1:
             curve = self.create_supply_curve()
             _log.debug("Offer for Market: {} {}, Curve: {}".format(market_name, buyer_seller, curve))
             self.make_offer(market_name, buyer_seller, curve)
@@ -118,7 +118,7 @@ class MeterAgent(MarketAgent):
 
 		
     def reservation_callback(self, timestamp, market_name, buyer_seller):
-        if self.num%2==0:
+        if 1:
             self.want_reservation = True
         else:
             self.want_reservation = False
