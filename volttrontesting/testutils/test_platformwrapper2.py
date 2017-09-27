@@ -23,7 +23,8 @@ def test_can_cleanup_installed_listener():
     assert wrapper.is_running()
 
     auuid = wrapper.install_agent(agent_dir="examples/ListenerAgent",
-        start=False)
+                                  vip_identity="listener",
+                                  start=False)
     assert auuid is not None
     started = wrapper.start_agent(auuid)
     assert isinstance(started, int)
