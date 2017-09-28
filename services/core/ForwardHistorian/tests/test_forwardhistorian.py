@@ -62,6 +62,8 @@ from datetime import datetime, timedelta
 
 import gevent
 import pytest
+
+from volttron.platform import get_services_core
 from volttron.platform.agent import PublishMixin
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
@@ -144,12 +146,11 @@ def sqlhistorian(request, volttron_instances):
     # 1: Install historian agent
     # Install and start sqlhistorian agent in instance2
     agent_uuid = volttron_instance2.install_agent(
-        agent_dir="services/core/SQLHistorian",
+        agent_dir=get_services_core("SQLHistorian"),
         config_file=sqlite_config,
         start=True,
         vip_identity='platform.historian')
     print("sqlite historian agent id: ", agent_uuid)
-
 
 
 @pytest.fixture(scope="module")
@@ -174,7 +175,7 @@ def forwarder(request, volttron_instances):
     # 1: Install historian agent
     # Install and start sqlhistorian agent in instance2
     forwarder_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/ForwardHistorian",
+        agent_dir=get_services_core("ForwardHistorian"),
         config_file=forwarder_config,
         start=True)
     print("forwarder agent id: ", forwarder_uuid)
@@ -237,104 +238,6 @@ def test_devices_topic(publish_agent, query_agent):
     assert (result['values'][0][0] == time1_date + 'T' + time1_time + '+00:00')
     assert (result['values'][0][1] == oat_reading)
     assert set(result['metadata'].items()) == set(float_meta.items())
-
-
-@pytest.mark.historian
-@pytest.mark.forwarder
-def test_record_topic(publish_agent, query_agent):
-    """
-    Test if record topic message is getting forwarded to historian running on
-    another instance.
-
-    @param publish_agent: Fake agent used to publish messages to bus in
-    volttron_instance1. Calling this fixture makes sure all the dependant
-    fixtures are called to setup and start volttron_instance1 and forwareder
-    agent and returns the  instance of fake agent to publish
-    @param query_agent: Fake agent used to query sqlhistorian in
-    volttron_instance2. Calling this fixture makes sure all the dependant
-    fixtures are called to setup and start volttron_instance2 and sqlhistorian
-    agent and returns the instance of a fake agent to query the historian
-    """
-    # Create timestamp
-    print("\n** test_record_topic **")
-    now = datetime.utcnow().isoformat() + 'Z'
-    print("now is ", now)
-    headers = {
-        headers_mod.DATE: now
-    }
-    # Publish messages
-    publish(publish_agent, topics.RECORD, headers, 1)
-
-    # sleep so that records gets inserted with unique timestamp
-    gevent.sleep(0.5)
-    time2 = datetime.utcnow()
-    time2 = time2.isoformat()
-    headers = {
-        headers_mod.DATE: time2
-    }
-    publish(publish_agent, topics.RECORD, headers, 'value0')
-    # sleep so that records gets inserted with unique timestamp
-    gevent.sleep(0.5)
-    time3 = datetime.utcnow()
-    time3 = time3.isoformat()
-    headers = {
-        headers_mod.DATE: time3
-    }
-    publish(publish_agent, topics.RECORD, headers, {'key': 'value'})
-    gevent.sleep(0.5)
-    result = query_agent.vip.rpc.call('platform.historian',
-                                      'query',
-                                      topic=topics.RECORD,
-                                      start=now,
-                                      order="FIRST_TO_LAST").get(timeout=10)
-    print('Query Result', result)
-    assert (len(result['values']) == 3)
-    assert (result['values'][0][1] == 1)
-    assert (result['values'][1][1] == 'value0')
-    assert (result['values'][2][1] == {'key': 'value'})
-    assert result['values'][2][0] == time3 + '+00:00'
-
-
-@pytest.mark.historian
-@pytest.mark.forwarder
-def test_record_topic_no_header(publish_agent, query_agent):
-    """
-    Test if record topic message is getting forwarded to historian running on
-    another instance.
-
-    @param publish_agent: Fake agent used to publish messages to bus in
-    volttron_instance1. Calling this fixture makes sure all the dependant
-    fixtures are called to setup and start volttron_instance1 and forwareder
-    agent and returns the  instance of fake agent to publish
-    @param query_agent: Fake agent used to query sqlhistorian in
-    volttron_instance2. Calling this fixture makes sure all the dependant
-    fixtures are called to setup and start volttron_instance2 and sqlhistorian
-    agent and returns the instance of a fake agent to query the historian
-    """
-    # Create timestamp
-    print("\n** test_record_topic **")
-    gevent.sleep(1)  # so that there is no side effect from last test case
-
-    now = datetime.utcnow().isoformat() + 'Z'
-    # Publish messages
-    publish(publish_agent, topics.RECORD, None, 1)
-    # sleep so that records gets inserted with unique timestamp
-    gevent.sleep(0.5)
-    publish(publish_agent, topics.RECORD, None, 'value0')
-    # sleep so that records gets inserted with unique timestamp
-    gevent.sleep(0.5)
-    publish(publish_agent, topics.RECORD, None, {'key': 'value'})
-    gevent.sleep(1)
-    result = query_agent.vip.rpc.call('platform.historian',
-                                      'query',
-                                      topic=topics.RECORD,
-                                      start=now,
-                                      order="FIRST_TO_LAST").get(timeout=10)
-    print('Query Result', result)
-    assert (len(result['values']) == 3)
-    assert (result['values'][0][1] == 1)
-    assert (result['values'][1][1] == 'value0')
-    assert (result['values'][2][1] == {'key': 'value'})
 
 
 @pytest.mark.historian
@@ -598,99 +501,100 @@ def test_old_config(volttron_instances, forwarder):
     # 1: Install historian agent
     # Install and start sqlhistorian agent in instance2
     forwarder_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/ForwardHistorian",
+        agent_dir=get_services_core("ForwardHistorian"),
         config_file=forwarder_config, start=True)
 
     print("forwarder agent id: ", forwarder_uuid)
 
 
-@pytest.mark.historian
-@pytest.mark.forwarder
-def test_actuator_topic(publish_agent, query_agent):
-    print("\n** test_actuator_topic **")
-    global volttron_instance1, volttron_instance2
+# @pytest.mark.historian
+# @pytest.mark.forwarder
+# def test_actuator_topic(publish_agent, query_agent):
+#     print("\n** test_actuator_topic **")
+#     global volttron_instance1, volttron_instance2
+#
+#     # Create master driver config and 4 fake devices each with 6 points
+#     process = Popen(['python', 'config_builder.py', '--count=1',
+#                      '--publish-only-depth-all',
+#                      'fake', 'fake_unit_testing.csv', 'null'],
+#                     env=volttron_instance1.env,
+#                     cwd='scripts/scalability-testing',
+#                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#     result = process.wait()
+#     print(result)
+#     assert result == 0
+#
+#     # Start the master driver agent which would intern start the fake driver
+#     # using the configs created above
+#     master_uuid = volttron_instance1.install_agent(
+#         agent_dir="services/core/MasterDriverAgent",
+#         config_file="scripts/scalability-testing/configs/config",
+#         start=True)
+#     print("agent id: ", master_uuid)
+#     gevent.sleep(2)  # wait for the agent to start and start the devices
+#
+#     # Start the actuator agent through which publish agent should communicate
+#     # to fake device. Start the master driver agent which would intern start
+#     # the fake driver using the configs created above
+#     actuator_uuid = volttron_instance1.install_agent(
+#         agent_dir="services/core/ActuatorAgent",
+#         config_file="services/core/ActuatorAgent/tests/actuator.config",
+#         start=True)
+#     print("agent id: ", actuator_uuid)
+#
+#     listener_uuid = volttron_instance2.install_agent(
+#         agent_dir="examples/ListenerAgent",
+#         config_file="examples/ListenerAgent/config",
+#         start=True)
+#     print("agent id: ", listener_uuid)
+#
+#     try:
+#         # Make query agent running in instance two subscribe to
+#         # actuator_schedule_result topic
+#         # query_agent.callback = types.MethodType(callback, query_agent)
+#         query_agent.callback = MagicMock(name="callback")
+#         # subscribe to schedule response topic
+#         query_agent.vip.pubsub.subscribe(
+#             peer='pubsub',
+#             prefix=topics.ACTUATOR_SCHEDULE_RESULT,
+#             callback=query_agent.callback).get()
+#
+#         # Now publish in volttron_instance1
+#
+#         start = str(datetime.now())
+#         end = str(datetime.now() + timedelta(seconds=2))
+#         header = {
+#             'type': 'NEW_SCHEDULE',
+#             'requesterID': 'test-agent',  # The name of the requesting agent.
+#             'taskID': 'task_schedule_response',
+#             'priority': 'LOW'  # ('HIGH, 'LOW', 'LOW_PREEMPT').
+#         }
+#         msg = [
+#             ['fakedriver0', start, end]
+#         ]
+#         # reset mock to ignore any previous callback
+#         publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
+#         gevent.sleep(1)  # wait for topic to be forwarded and callback to happen
+#
+#         # assert query_agent.callback.call_count == 1
+#         print ('call args ', query_agent.callback.call_args_list)
+#         # assert query_agent.callback.call_args[0][1] == 'platform.actuator'
+#         assert query_agent.callback.call_args[0][3] == \
+#                topics.ACTUATOR_SCHEDULE_RESULT
+#         result_header = query_agent.callback.call_args[0][4]
+#         result_message = query_agent.callback.call_args[0][5]
+#         assert result_header['type'] == 'NEW_SCHEDULE'
+#         assert result_header['taskID'] == 'task_schedule_response'
+#         assert result_header['requesterID'] in ['test-agent', 'pubsub.compat']
+#         assert result_message['result'] == 'SUCCESS'
+#     finally:
+#         volttron_instance1.stop_agent(master_uuid)
+#         volttron_instance1.remove_agent(master_uuid)
+#         volttron_instance1.stop_agent(actuator_uuid)
+#         volttron_instance1.remove_agent(actuator_uuid)
+#         volttron_instance2.stop_agent(listener_uuid)
+#         volttron_instance2.remove_agent(listener_uuid)
 
-    # Create master driver config and 4 fake devices each with 6 points
-    process = Popen(['python', 'config_builder.py', '--count=1',
-                     '--publish-only-depth-all',
-                     'fake', 'fake_unit_testing.csv', 'null'],
-                    env=volttron_instance1.env,
-                    cwd='scripts/scalability-testing',
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    result = process.wait()
-    print(result)
-    assert result == 0
-
-    # Start the master driver agent which would intern start the fake driver
-    # using the configs created above
-    master_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/MasterDriverAgent",
-        config_file="scripts/scalability-testing/configs/config",
-        start=True)
-    print("agent id: ", master_uuid)
-    gevent.sleep(2)  # wait for the agent to start and start the devices
-
-    # Start the actuator agent through which publish agent should communicate
-    # to fake device. Start the master driver agent which would intern start
-    # the fake driver using the configs created above
-    actuator_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/ActuatorAgent",
-        config_file="services/core/ActuatorAgent/tests/actuator.config",
-        start=True)
-    print("agent id: ", actuator_uuid)
-
-    listener_uuid = volttron_instance2.install_agent(
-        agent_dir="examples/ListenerAgent",
-        config_file="examples/ListenerAgent/config",
-        start=True)
-    print("agent id: ", listener_uuid)
-
-    try:
-        # Make query agent running in instance two subscribe to
-        # actuator_schedule_result topic
-        # query_agent.callback = types.MethodType(callback, query_agent)
-        query_agent.callback = MagicMock(name="callback")
-        # subscribe to schedule response topic
-        query_agent.vip.pubsub.subscribe(
-            peer='pubsub',
-            prefix=topics.ACTUATOR_SCHEDULE_RESULT,
-            callback=query_agent.callback).get()
-
-        # Now publish in volttron_instance1
-
-        start = str(datetime.now())
-        end = str(datetime.now() + timedelta(seconds=2))
-        header = {
-            'type': 'NEW_SCHEDULE',
-            'requesterID': 'test-agent',  # The name of the requesting agent.
-            'taskID': 'task_schedule_response',
-            'priority': 'LOW'  # ('HIGH, 'LOW', 'LOW_PREEMPT').
-        }
-        msg = [
-            ['fakedriver0', start, end]
-        ]
-        # reset mock to ignore any previous callback
-        publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
-        gevent.sleep(1)  # wait for topic to be forwarded and callback to happen
-
-        # assert query_agent.callback.call_count == 1
-        print ('call args ', query_agent.callback.call_args_list)
-        # assert query_agent.callback.call_args[0][1] == 'platform.actuator'
-        assert query_agent.callback.call_args[0][3] == \
-               topics.ACTUATOR_SCHEDULE_RESULT
-        result_header = query_agent.callback.call_args[0][4]
-        result_message = query_agent.callback.call_args[0][5]
-        assert result_header['type'] == 'NEW_SCHEDULE'
-        assert result_header['taskID'] == 'task_schedule_response'
-        assert result_header['requesterID'] in ['test-agent', 'pubsub.compat']
-        assert result_message['result'] == 'SUCCESS'
-    finally:
-        volttron_instance1.stop_agent(master_uuid)
-        volttron_instance1.remove_agent(master_uuid)
-        volttron_instance1.stop_agent(actuator_uuid)
-        volttron_instance1.remove_agent(actuator_uuid)
-        volttron_instance2.stop_agent(listener_uuid)
-        volttron_instance2.remove_agent(listener_uuid)
 
 @pytest.mark.historian
 @pytest.mark.forwarder

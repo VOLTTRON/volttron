@@ -59,7 +59,6 @@ from volttron.platform.vip.agent import Agent, Core, RPC
 import __init__ as sep2
 import base64
 import logging
-import json
 import pytz
 import sys
 import xsd_models
@@ -102,7 +101,7 @@ def sep2_agent(config_path, **kwargs):
                      sep2_server_lfdi,
                      load_shed_device_category,
                      timezone,
-                         **kwargs)
+                     **kwargs)
 
 
 class SEP2Agent(Agent):
@@ -300,30 +299,43 @@ class SEP2Agent(Agent):
 
     @RPC.export
     def get_point(self, sfdi, point_name):
+        _log.debug("EndDevice {0}: Getting value for {1}".format(sfdi, point_name))
         end_device = self.get_end_device(sfdi=sfdi)
         try:
-            return getattr(end_device, point_name)
+            point_definition = end_device.mappings[point_name]
+            return end_device.field_value(point_definition['SEP2 Resource Name'],
+                                          point_definition['SEP2 Field Name'])
         except KeyError:
-            raise SEP2Exception("{0} not a valid point name.".format(point_name))
+            raise SEP2Exception("{0} not a configured point name.".format(point_name))
 
     @RPC.export
     def get_points(self, sfdi):
+        _log.debug("EndDevice {0}: Getting all configured point values".format(sfdi))
         end_device = self.get_end_device(sfdi=sfdi)
         try:
             end_device_points = {}
-            for point in sep2.ALL_POINTS:
-                end_device_points[point] = getattr(end_device, point)
+            for volttron_point_name, point_definition in end_device.mappings.iteritems():
+                field_value = end_device.field_value(point_definition['SEP2 Resource Name'],
+                                                     point_definition['SEP2 Field Name'])
+                end_device_points[volttron_point_name] = field_value
             return end_device_points
         except Exception as e:
             raise SEP2Exception(e.message)
 
     @RPC.export
     def set_point(self, sfdi, point_name, value):
+        _log.debug("EndDevice {0}: Setting {1} to {2}".format(sfdi, point_name, value))
         end_device = self.get_end_device(sfdi=sfdi)
         try:
             setattr(end_device, point_name, value)
         except Exception as e:
             raise SEP2Exception(e.message)
+
+    @RPC.export
+    def config_points(self, sfdi, point_map):
+        _log.debug("EndDevice {0}: Configuring points: {1}".format(sfdi, point_map))
+        end_device = self.get_end_device(sfdi=sfdi)
+        end_device.mappings = point_map
 
     ###################################################################
     # The following methods are callback functions for SEP2 Endpoints #

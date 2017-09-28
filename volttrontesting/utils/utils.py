@@ -1,8 +1,13 @@
+from datetime import datetime
 import socket
 import time
 from random import randint
+from random import random
 
 import gevent
+import pytest
+
+from volttron.platform.messaging import headers as headers_mod
 
 
 def poll_gevent_sleep(max_seconds, condition=lambda: True, sleep_time=0.2):
@@ -71,3 +76,61 @@ def is_port_open(ip, port):
     return result == 0
 
 
+def build_devices_header_and_message(points=['abc', 'def']):
+
+    meta_templates = [
+        {'units': 'F', 'tz': 'UTC', 'type': 'float'},
+        {'units': '%', 'tz': 'UTC', 'type': 'float'}
+    ]
+
+    data = {}
+    meta_data = {}
+
+    for point in points:
+        data[point] = random() * 10
+        meta_data[point] = meta_templates[randint(0,len(meta_templates)-1)]
+
+    time1 = datetime.utcnow().isoformat(' ')
+    headers = {
+        headers_mod.DATE: time1
+    }
+
+    return headers, [data, meta_data]
+
+
+def publish_device_messages(to_platform,
+                            all_topic='devices/campus/building/unit/all',
+                            points=['abc', 'def']):
+    assert to_platform is not None
+    agent = to_platform.build_agent()
+    headers, message = build_devices_header_and_message(points)
+    agent.vip.pubsub.publish(peer='pubsub', topic=all_topic, headers=headers,
+                             message=message).get()
+    gevent.sleep(.1)
+    agent.core.stop()
+    return headers, message
+
+
+def publish_message(to_platform,
+                    topic,
+                    headers={},
+                    message={}):
+    assert to_platform is not None
+    agent = to_platform.build_agent()
+    headers, message = headers, message
+    agent.vip.pubsub.publish(peer='pubsub', topic=topic, headers=headers,
+                             message=message).get()
+    gevent.sleep(.1)
+    agent.core.stop()
+    return headers, message
+
+
+def validate_published_device_data(expected_headers, expected_message,
+                                   headers, message):
+    assert headers and message
+    assert expected_headers[headers_mod.DATE] == headers[headers_mod.DATE]
+
+    for k, v in expected_message[0].items():
+        assert k in message[0]
+        # pytest.approx gives 10^-6 (one millionth accuracy)
+        assert message[0][k] == pytest.approx(v)

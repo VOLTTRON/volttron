@@ -1,6 +1,8 @@
 import pytest
 from  datetime import datetime
 #building name replaced. replace before testing
+from volttron.platform import get_services_core
+
 AHU1_temp = "Economizer_RCx/PNNL/BUILDING1/AHU1/Temperature Sensor Dx/diagnostic message"
 AHU2_temp = "Economizer_RCx/PNNL/BUILDING1/AHU2/Temperature Sensor Dx/diagnostic message"
 AHU3_temp = "Economizer_RCx/PNNL/BUILDING1/AHU3/Temperature Sensor Dx/diagnostic message"
@@ -108,7 +110,7 @@ def database_client(request, volttron_instance):
         mongo_connection_string(request.param['connection']['params']))
     print (request.param)
     agent_uuid = volttron_instance.install_agent(
-        agent_dir="services/core/MongodbHistorian",
+        agent_dir=get_services_core("MongodbHistorian"),
         config_file=request.param,
         start=True,
         vip_identity="platform.historian")

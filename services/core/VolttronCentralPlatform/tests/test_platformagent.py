@@ -14,7 +14,7 @@ from volttron.platform.messaging.health import STATUS_GOOD
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.web import DiscoveryInfo
-from volttrontesting.utils.core_service_installs import \
+from volttrontesting.utils.agent_additions import \
     add_volttron_central_platform
 from volttrontesting.utils.platformwrapper import PlatformWrapper, \
     start_wrapper_platform

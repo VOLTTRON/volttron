@@ -57,6 +57,8 @@
 
 from __future__ import print_function
 
+from volttron.platform import get_services_core, get_examples
+
 """
 Pytest test cases for testing actuator agent using pubsub calls. Tests 3.0
 actuator agent with both 2.0 and 3.0 publish agents
@@ -206,7 +208,7 @@ def publish_agent(request, volttron_instance):
     # Start the master driver agent which would intern start the fake driver
     # using the configs created above
     master_uuid = volttron_instance.install_agent(
-        agent_dir="services/core/MasterDriverAgent",
+        agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
         start=True)
     print("agent id: ", master_uuid)
@@ -216,14 +218,14 @@ def publish_agent(request, volttron_instance):
     # to fake device. Start the master driver agent which would intern start
     # the fake driver using the configs created above
     actuator_uuid = volttron_instance.install_agent(
-        agent_dir="services/core/ActuatorAgent",
-        config_file="services/core/ActuatorAgent/tests/actuator.config",
+        agent_dir=get_services_core("ActuatorAgent"),
+        config_file=get_services_core("ActuatorAgent/tests/actuator.config"),
         start=True)
     print("agent id: ", actuator_uuid)
 
     listener_uuid = volttron_instance.install_agent(
-        agent_dir="examples/ListenerAgent",
-        config_file="examples/ListenerAgent/config",
+        agent_dir=get_examples("ListenerAgent"),
+        config_file=get_examples("ListenerAgent/config"),
         start=True)
     print("agent id: ", listener_uuid)
 
@@ -378,8 +380,8 @@ def test_schedule_announce(publish_agent, volttron_instance):
     volttron_instance.stop_agent(actuator_uuid)
     gevent.sleep(2)
     my_actuator_uuid = volttron_instance.install_agent(
-        agent_dir="services/core/ActuatorAgent",
-        config_file="services/core/ActuatorAgent/tests/actuator2.config",
+        agent_dir=get_services_core("ActuatorAgent"),
+        config_file=get_services_core("ActuatorAgent/tests/actuator2.config"),
         start=True, vip_identity=alternate_actuator_vip_id)
     try:
         # reset mock to ignore any previous callback

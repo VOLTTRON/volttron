@@ -60,10 +60,39 @@ import gevent
 import pytest
 import time
 import os
+
+from volttron.platform import get_services_core, get_examples
 from volttron.platform.agent import json as jsonapi
 
 from volttrontesting.utils.platformwrapper import start_wrapper_platform, \
     PlatformWrapper
+
+
+@pytest.fixture(scope="module")
+def setup_instances():
+
+    inst1 = PlatformWrapper()
+    inst2 = PlatformWrapper()
+
+    start_wrapper_platform(inst1)
+    start_wrapper_platform(inst2)
+
+    yield inst1, inst2
+
+    inst1.shutdown_platform()
+    inst2.shutdown_platform()
+
+
+def test_can_restart_platform_without_addresses_changing(setup_instances):
+    inst_forward, inst_target = setup_instances
+    original_vip = inst_forward.vip_address
+    assert inst_forward.is_running()
+    inst_forward.stop_platform()
+    assert not inst_forward.is_running()
+    inst_forward.restart_platform()
+    assert inst_forward.is_running()
+    assert original_vip == inst_forward.vip_address
+
 
 
 @pytest.mark.wrapper
@@ -97,7 +126,7 @@ def test_can_install_listener(volttron_instance):
     assert vi is not None
     assert vi.is_running()
 
-    auuid = vi.install_agent(agent_dir="examples/ListenerAgent",
+    auuid = vi.install_agent(agent_dir=get_examples("ListenerAgent"),
                              start=False)
     assert auuid is not None
     started = vi.start_agent(auuid)
@@ -141,11 +170,11 @@ def test_resinstall_agent(volttron_instance):
     for i in range(0,50):
         print("Counter: {}".format(i))
         # auuid = volttron_instance.install_agent(
-        #     agent_dir="examples/ListenerAgent",
+        #     agent_dir=get_examples("ListenerAgent",
         #     vip_identity='test_listener',
         #     start=True)
         auuid = volttron_instance.install_agent(
-            agent_dir="services/core/SQLHistorian",
+            agent_dir=get_services_core("SQLHistorian"),
             config_file=mysql_config,
             start=True,
             vip_identity='test_historian')
@@ -205,7 +234,7 @@ def test_can_remove_agent(volttron_instance):
 
     # Install ListenerAgent as the agent to be removed.
     agent_uuid = volttron_instance.install_agent(
-        agent_dir="examples/ListenerAgent", start=False)
+        agent_dir=get_examples("ListenerAgent"), start=False)
     assert agent_uuid is not None
     started = volttron_instance.start_agent(agent_uuid)
     assert started is not None
@@ -283,7 +312,7 @@ def test_can_install_listener_on_two_platforms(get_volttron_instances):
     global messages
     clear_messages()
     auuid = wrapper1.install_agent(
-        agent_dir="examples/ListenerAgent",
+        agent_dir=get_examples("ListenerAgent"),
         start=False)
     assert auuid is not None
     started = wrapper1.start_agent(auuid)
@@ -300,7 +329,7 @@ def test_can_install_listener_on_two_platforms(get_volttron_instances):
 
     clear_messages()
     auuid2 = wrapper2.install_agent(
-        agent_dir="examples/ListenerAgent",
+        agent_dir=get_examples("ListenerAgent"),
         start=True)
     assert auuid2 is not None
     started2 = wrapper2.start_agent(auuid2)

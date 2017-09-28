@@ -55,6 +55,8 @@ import os
 import pytest
 import gevent
 
+from volttron.platform import get_services_core
+
 DRIVER1_CONFIG_STRING = """{
     "driver_config": {
         "stationID" : "1:34003",
@@ -197,7 +199,7 @@ def agent(request, volttron_instance1):
                           REGISTRY_CONFIG_STRING,
                           'csv').get(timeout=10)
 
-    master_uuid = volttron_instance1.install_agent(agent_dir='services/core/MasterDriverAgent',
+    master_uuid = volttron_instance1.install_agent(agent_dir=get_services_core("MasterDriverAgent"),
                                                    config_file={},
                                                    start=True)
     print('agent id: ', master_uuid)

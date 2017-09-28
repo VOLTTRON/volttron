@@ -5,7 +5,7 @@ import pytest
 
 from vctestutils import APITester
 from volttron.platform.messaging.health import STATUS_GOOD
-from volttrontesting.utils.core_service_installs import add_volttron_central, \
+from volttrontesting.utils.agent_additions import add_volttron_central, \
     add_volttron_central_platform
 from volttrontesting.utils.platformwrapper import PlatformWrapper, \
     start_wrapper_platform
@@ -105,5 +105,4 @@ def test_autoregister_local(both_with_vc_vcp):
     assert p['name'] == both_with_vc_vcp.vip_address
     assert isinstance(p['health'], dict)
     assert STATUS_GOOD == p['health']['status']
-
 

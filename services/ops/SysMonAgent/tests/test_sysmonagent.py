@@ -85,7 +85,7 @@ def sysmon_tester_agent(request, volttron_instance, tmpdir):
     config.write(json.dumps(_test_config))
 
     sysmon_uuid = volttron_instance.install_agent(
-        agent_dir='services/core/SysMonAgent',
+        agent_dir=get_ops("SysMonAgent"),
         config_file=str(config),
         start=True)
 

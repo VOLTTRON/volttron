@@ -70,6 +70,8 @@ from collections import Counter
 import os
 import pytest
 import stat
+
+from volttron.platform import get_examples
 from volttron.platform.packaging import AgentPackageError
 from volttron.platform.packaging import (create_package, repackage,
                                          extract_package)
@@ -122,6 +124,7 @@ zip_safe = False,
         os.chdir(cwd)
     return tmpdir, 'distribution_name', '0.1', 'packagetest'
 
+
 @pytest.mark.packaging
 def test_create_package_no_id(test_package):
     """
@@ -140,6 +143,7 @@ def test_create_package_no_id(test_package):
     result = create_package(tmpdir, wheel_dir)
     assert result == os.path.join(wheel_dir, '-'.join(
         [distribution_name, version, 'py2-none-any.whl']))
+
 
 @pytest.mark.packaging
 def test_create_package_with_id(test_package):
@@ -174,6 +178,7 @@ def test_create_package_with_id(test_package):
         data = f.read().replace('\n', '')
         assert data == "test_vip_id"
 
+
 @pytest.mark.packaging
 def test_create_package_invalid_input():
     """
@@ -195,6 +200,7 @@ def test_create_package_invalid_input():
     except NotImplementedError:
         pass
 
+
 @pytest.mark.packaging
 def test_repackage_output_to_cwd(volttron_instance):
     """
@@ -213,7 +219,7 @@ def test_repackage_output_to_cwd(volttron_instance):
         dest_dir = tempfile.mkdtemp()
         os.chdir(dest_dir)
         agent_uuid = volttron_instance.install_agent(
-            agent_dir=os.path.join(cwd, "examples/ListenerAgent"))
+            agent_dir=os.path.join(cwd, get_examples("ListenerAgent")))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
             agent_uuid, 'listeneragent-3.2')
         print agent_dir
@@ -228,6 +234,7 @@ def test_repackage_output_to_cwd(volttron_instance):
         os.chdir(cwd)
         if dest_dir:
             shutil.rmtree(dest_dir)
+
 
 @pytest.mark.packaging
 def test_repackage_valid_dest_dir(volttron_instance):
@@ -244,7 +251,7 @@ def test_repackage_valid_dest_dir(volttron_instance):
     try:
         dest_dir = tempfile.mkdtemp()
         agent_uuid = volttron_instance.install_agent(
-            agent_dir=os.path.join("examples/ListenerAgent"))
+            agent_dir=os.path.join(get_examples("ListenerAgent")))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
             agent_uuid, 'listeneragent-3.2')
         print agent_dir
@@ -258,6 +265,7 @@ def test_repackage_valid_dest_dir(volttron_instance):
     finally:
         if dest_dir:
             shutil.rmtree(dest_dir)
+
 
 @pytest.mark.packaging
 def test_repackage_new_dest_dir(volttron_instance):
@@ -277,7 +285,7 @@ def test_repackage_new_dest_dir(volttron_instance):
         print ("cwd {}".format(os.getcwd()))
 
         agent_uuid = volttron_instance.install_agent(
-            agent_dir=os.path.join("examples/ListenerAgent"))
+            agent_dir=os.path.join(get_examples("ListenerAgent")))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
             agent_uuid, 'listeneragent-3.2')
         print agent_dir
@@ -291,6 +299,7 @@ def test_repackage_new_dest_dir(volttron_instance):
     finally:
         if dest_dir:
             shutil.rmtree(dest_dir)
+
 
 @pytest.mark.packaging
 def test_repackage_invalid_dest_dir(volttron_instance):
@@ -307,7 +316,7 @@ def test_repackage_invalid_dest_dir(volttron_instance):
     dest_dir = "/abcdef/ghijkl"
     try:
         agent_uuid = volttron_instance.install_agent(
-            agent_dir="examples/ListenerAgent")
+            agent_dir=get_examples("ListenerAgent"))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
                                  agent_uuid, 'listeneragent-3.2')
         repackage(agent_dir, dest=dest_dir)
@@ -321,7 +330,7 @@ def test_repackage_invalid_dest_dir(volttron_instance):
         dest_dir = tempfile.mkdtemp()
         os.chmod(dest_dir, stat.S_IREAD)
         agent_uuid = volttron_instance.install_agent(
-            agent_dir="examples/ListenerAgent")
+            agent_dir=get_examples("ListenerAgent"))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
                                  agent_uuid, 'listeneragent-3.2')
         repackage(agent_dir, dest=dest_dir)
@@ -329,6 +338,7 @@ def test_repackage_invalid_dest_dir(volttron_instance):
                     "successfully")
     except Exception as a:
         assert str(a).find("Permission denied") != -1
+
 
 @pytest.mark.packaging
 def test_repackage_invalid_agent_dir():
@@ -357,6 +367,7 @@ def test_repackage_invalid_agent_dir():
     finally:
         if temp_dir:
             os.rmdir(temp_dir)
+
 
 @pytest.mark.packaging
 def test_extract_valid_wheel_and_dir(test_package):
@@ -396,6 +407,7 @@ def test_extract_valid_wheel_and_dir(test_package):
     finally:
         if install_dir:
             shutil.rmtree(install_dir)
+
 
 @pytest.mark.packaging
 def test_extract_include_uuid(test_package):
@@ -439,6 +451,7 @@ def test_extract_include_uuid(test_package):
         if install_dir:
             shutil.rmtree(install_dir)
 
+
 @pytest.mark.packaging
 def test_extract_specific_uuid(test_package):
     """
@@ -481,6 +494,7 @@ def test_extract_specific_uuid(test_package):
         if install_dir:
             shutil.rmtree(install_dir)
 
+
 @pytest.mark.packaging
 def test_extract_invalid_wheel():
     """
@@ -499,6 +513,7 @@ def test_extract_invalid_wheel():
     finally:
         if install_dir:
             shutil.rmtree(install_dir)
+
 
 @pytest.mark.packaging
 def test_extract_invalid_install_dir(test_package):
@@ -529,6 +544,7 @@ def test_extract_invalid_install_dir(test_package):
     finally:
         if install_dir:
             shutil.rmtree(install_dir)
+
 
 @pytest.mark.packaging
 def test_extract_new_install_dir(test_package):

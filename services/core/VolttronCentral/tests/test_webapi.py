@@ -6,16 +6,15 @@ import pytest
 import requests
 import sys
 
-from volttrontesting.utils.core_service_installs import \
+from volttron.platform import get_examples
+from volttrontesting.utils.agent_additions import \
     add_volttron_central_platform, add_volttron_central, add_listener
-
-from volttron.platform.agent import json as jsonapi
 
 from volttron.platform.messaging.health import STATUS_GOOD
 from volttrontesting.utils.platformwrapper import PlatformWrapper, \
     start_wrapper_platform
 from volttrontesting.utils.utils import poll_gevent_sleep
-
+from zmq.utils import jsonapi
 from vctestutils import (APITester,
                          check_multiple_platforms,
                          validate_response)
@@ -263,7 +262,7 @@ def test_listagent(vc_vcp_platforms):
 
     agent_list = api.list_agents(platform_uuid=platform['uuid'])
     print('The agent list is: {}'.format(agent_list))
-    assert len(agent_list) >= 1
+    assert len(agent_list) > 1
     assert agent_list[0]['version']
 
 
@@ -283,7 +282,7 @@ def test_installagent(vc_vcp_platforms):
     #   f['file_name']
     #   f['file
 
-    agent_wheel = vc.build_agentpackage('examples/ListenerAgent')
+    agent_wheel = vc.build_agentpackage(get_examples("ListenerAgent"))
     assert os.path.exists(agent_wheel)
 
     import base64
@@ -301,14 +300,10 @@ def test_installagent(vc_vcp_platforms):
 
     api = APITester(vc.jsonrpc_endpoint)
 
-    platforms = api.list_platforms()
-    assert isinstance(platforms, list)
-
-    platform = platforms[0]
-    assert platform['uuid'] is not None
+    platform = api.list_platforms()[0]
 
     agents = api.list_agents(platform['uuid'])
-    assert isinstance(agents, list)
+    assert agents
 
     agent = api.install_agent(platform['uuid'], fileargs=file)
 
@@ -317,8 +312,3 @@ def test_installagent(vc_vcp_platforms):
 
     agents_after = api.list_agents(platform['uuid'])
     assert len(agents) + 1 == len(agents_after)
-
-
-
-
-

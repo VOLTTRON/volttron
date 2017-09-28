@@ -53,7 +53,7 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 from __future__ import print_function, absolute_import
 
@@ -75,7 +75,8 @@ import uuid
 import gevent
 from gevent.fileobject import FileObject
 import zmq
-from zmq import green
+from zmq import green, ZMQError
+
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
 from volttron.platform.agent import json as jsonapi
@@ -98,6 +99,9 @@ from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService
+from .vip.routingservice import RoutingService
+from .vip.externalrpcservice import ExternalRPCService
+from .vip.keydiscovery import KeyDiscoveryAgent
 from .vip.pubsubwrapper import PubSubWrapper
 from ..utils.persistance import load_create_store
 
@@ -107,8 +111,8 @@ except ImportError:
     HAVE_RESTRICTED = False
 else:
     from volttron.restricted import resmon
-    HAVE_RESTRICTED = True
 
+    HAVE_RESTRICTED = True
 
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
@@ -191,7 +195,7 @@ def configure_logging(conf_path):
                 import yaml
             except ImportError:
                 return (conf_path, 'PyYAML must be installed before '
-                        'loading logging configuration from a YAML file.')
+                                   'loading logging configuration from a YAML file.')
             try:
                 conf_dict = yaml.load(conf_file)
             except yaml.YAMLError as exc:
@@ -251,8 +255,10 @@ class Monitor(threading.Thread):
 class FramesFormatter(object):
     def __init__(self, frames):
         self.frames = frames
+
     def __repr__(self):
         return str([bytes(f) for f in self.frames])
+
     __str__ = __repr__
 
 
@@ -264,12 +270,13 @@ class Router(BaseRouter):
                  default_user_id=None, monitor=False, tracker=None,
                  volttron_central_address=None, instance_name=None,
                  bind_web_address=None, volttron_central_serverkey=None,
-                 protected_topics={},
+                 protected_topics={}, external_address_file='',
                  msgdebug=None):
-      
+
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
+        self._addr = addresses
         self.addresses = addresses = [Address(addr) for addr in set(addresses)]
         self._secretkey = secretkey
         self._publickey = publickey
@@ -291,13 +298,17 @@ class Router(BaseRouter):
         self._instance_name = instance_name
         self._bind_web_address = bind_web_address
         self._protected_topics = protected_topics
+        self._external_address_file = external_address_file
         self._pubsub = None
+        self._ext_rpc = None
         self._msgdebug = msgdebug
         self._message_debugger_socket = None
+        self._instance_name = instance_name
 
     def setup(self):
         sock = self.socket
         sock.identity = identity = str(uuid.uuid4())
+        _log.debug("ROUTER SOCK identity: {}".format(sock.identity))
         if self._monitor:
             Monitor(sock.get_monitor_socket()).start()
         sock.bind('inproc://vip')
@@ -318,7 +329,7 @@ class Router(BaseRouter):
             if not address.identity:
                 address.identity = identity
             if (address.secretkey is None and
-                    address.server not in ['NULL', 'PLAIN'] and
+                        address.server not in ['NULL', 'PLAIN'] and
                     self._secretkey):
                 address.server = 'CURVE'
                 address.secretkey = self._secretkey
@@ -326,7 +337,16 @@ class Router(BaseRouter):
                 address.domain = 'vip'
             address.bind(sock)
             _log.debug('Additional VIP router bound to %s' % address)
-        self._pubsub = PubSubService(self.socket, self._protected_topics)
+        self._ext_routing = None
+
+        self._ext_routing = RoutingService(self.socket, self.context,
+                                           self._socket_class, self._poller,
+                                           self._addr, self._instance_name)
+
+        self._pubsub = PubSubService(self.socket, self._protected_topics, self._ext_routing)
+        self._ext_rpc = ExternalRPCService(self.socket, self._ext_routing)
+        self._poller.register(sock, zmq.POLLIN)
+        _log.debug("ZMQ version: {}".format(zmq.zmq_version()))
 
     def issue(self, topic, frames, extra=None):
         log = self.logger.debug
@@ -359,13 +379,15 @@ class Router(BaseRouter):
         if subsystem == b'quit':
             sender = bytes(frames[0])
             if sender == b'control' and user_id == self.default_user_id:
+                if self._ext_routing:
+                    self._ext_routing.close_external_connections()
                 self.stop()
                 raise KeyboardInterrupt()
         elif subsystem == b'agentstop':
             try:
                 drop = frames[6].bytes
                 self._drop_peer(drop)
-                self.drop_pubsub_peers(drop)
+                self._drop_pubsub_peers(drop)
                 _log.debug("ROUTER received agent stop message. dropping peer: {}".format(drop))
             except IndexError:
                 pass
@@ -405,12 +427,93 @@ class Router(BaseRouter):
         elif subsystem == b'pubsub':
             result = self._pubsub.handle_subsystem(frames, user_id)
             return result
+        elif subsystem == b'routing_table':
+            result = self._ext_routing.handle_subsystem(frames)
+            return result
+        elif subsystem == b'external_rpc':
+            result = self._ext_rpc.handle_subsystem(frames)
+            return result
 
-    def drop_pubsub_peers(self, peer):
+    def _drop_pubsub_peers(self, peer):
         self._pubsub.peer_drop(peer)
 
-    def add_pubsub_peers(self, peer):
+    def _add_pubsub_peers(self, peer):
         self._pubsub.peer_add(peer)
+
+    def poll_sockets(self):
+        """
+        Poll for incoming messages through router socket or other external socket connections
+        """
+        try:
+            sockets = dict(self._poller.poll())
+        except ZMQError as ex:
+            _log.error("ZMQ Error while polling: {}".format(ex))
+
+        for sock in sockets:
+            if sock == self.socket:
+                if sockets[sock] == zmq.POLLIN:
+                    self.route()
+            elif sock in self._ext_routing._vip_sockets:
+                if sockets[sock] == zmq.POLLIN:
+                    # _log.debug("From Ext Socket: ")
+                    self.ext_route(sock)
+            elif sock in self._ext_routing._monitor_sockets:
+                self._ext_routing.handle_monitor_event(sock)
+            else:
+                # _log.debug("External ")
+                frames = sock.recv_multipart(copy=False)
+
+    def ext_route(self, socket):
+        """
+        Handler function for message received through external socket connection
+        :param socket: socket
+        :return:
+        """
+        # Expecting incoming frames to follow this VIP format:
+        #   [SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
+        frames = socket.recv_multipart(copy=False)
+        # for f in frames:
+        #     _log.debug("PUBSUBSERVICE Frames: {}".format(bytes(f)))
+        if len(frames) < 6:
+            return
+
+        sender, proto, user_id, msg_id, subsystem = frames[:5]
+        if proto.bytes != b'VIP1':
+            return
+
+        # Handle 'EXT_RPC' subsystem messages
+        name = subsystem.bytes
+        if name == 'external_rpc':
+            # Reframe the frames
+            sender, proto, usr_id, msg_id, subsystem, msg = frames[:6]
+            msg_data = jsonapi.loads(msg.bytes)
+            peer = msg_data['to_peer']
+            # Send to destionation agent/peer
+            # Form new frame for local
+            frames[:9] = [peer, sender, proto, usr_id, msg_id, 'external_rpc', msg]
+            try:
+                self.socket.send_multipart(frames, flags=NOBLOCK, copy=False)
+            except ZMQError as ex:
+                _log.debug("ZMQ error: {}".format(ex))
+                pass
+        # Handle 'pubsub' subsystem messages
+        elif name == 'pubsub':
+            if bytes(frames[1]) == b'VIP1':
+                recipient = b''
+                frames[:1] = [zmq.Frame(b''), zmq.Frame(b'')]
+                # for f in frames:
+                #     _log.debug("frames: {}".format(bytes(f)))
+            result = self._pubsub.handle_subsystem(frames, user_id)
+            return result
+        # Handle 'routing_table' subsystem messages
+        elif name == 'routing_table':
+            # for f in frames:
+            #     _log.debug("frames: {}".format(bytes(f)))
+            if bytes(frames[1]) == b'VIP1':
+                frames[:1] = [zmq.Frame(b''), zmq.Frame(b'')]
+            result = self._ext_routing.handle_subsystem(frames)
+            return result
+
 
 def start_volttron_process(opts):
     '''Start the main volttron process.
@@ -460,10 +563,12 @@ def start_volttron_process(opts):
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
     opts.vip_local_address = config.expandall(opts.vip_local_address)
+
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
     import urlparse
+
     if opts.bind_web_address:
         parsed = urlparse.urlparse(opts.bind_web_address)
         if parsed.scheme not in ('http', 'https'):
@@ -530,8 +635,8 @@ def start_volttron_process(opts):
         _log.info('public key: %s', encode_key(publickey))
         # Authorize the platform key:
         entry = AuthEntry(credentials=encode_key(publickey),
-                    user_id='platform',
-                    comments='Automatically added by platform on start')
+                          user_id='platform',
+                          comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
         # Add platform key to known-hosts file:
         known_hosts = KnownHostsStore()
@@ -542,13 +647,16 @@ def start_volttron_process(opts):
 
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
-    zmq.Context.instance()   # DO NOT REMOVE LINE!!
-    #zmq.Context.instance().set(zmq.MAX_SOCKETS, 2046)
+    zmq.Context.instance()  # DO NOT REMOVE LINE!!
+    # zmq.Context.instance().set(zmq.MAX_SOCKETS, 2046)
 
     tracker = Tracker()
     protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')
     _log.debug('protected topics file %s', protected_topics_file)
+    external_address_file = os.path.join(opts.volttron_home, 'external_address.json')
+    _log.debug('external_address_file file %s', external_address_file)
     protected_topics = {}
+
     # Main loops
     def router(stop):
         try:
@@ -560,9 +668,9 @@ def start_volttron_process(opts):
                    volttron_central_serverkey=opts.volttron_central_serverkey,
                    instance_name=opts.instance_name,
                    bind_web_address=opts.bind_web_address,
-                   msgdebug=opts.msgdebug,
-                   protected_topics=protected_topics).run()
-                   
+                   protected_topics=protected_topics,
+                   external_address_file=external_address_file,
+                   msgdebug=opts.msgdebug).run()
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise
@@ -573,7 +681,7 @@ def start_volttron_process(opts):
     try:
 
         # Start the config store before auth so we may one day have auth use it.
-        config_store = ConfigStoreService( address=address, identity=CONFIGURATION_STORE)
+        config_store = ConfigStoreService(address=address, identity=CONFIGURATION_STORE)
 
         event = gevent.event.Event()
         config_store_task = gevent.spawn(config_store.core.run, event)
@@ -583,7 +691,7 @@ def start_volttron_process(opts):
         # Ensure auth service is running before router
         auth_file = os.path.join(opts.volttron_home, 'auth.json')
         auth = AuthService(
-            auth_file, protected_topics_file, opts.aip, address=address, identity=AUTH,
+            auth_file, protected_topics_file, opts.setup_mode, opts.aip, address=address, identity=AUTH,
             enable_store=False)
 
         event = gevent.event.Event()
@@ -623,6 +731,8 @@ def start_volttron_process(opts):
 
         protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')
         _log.debug('protected topics file %s', protected_topics_file)
+        external_address_file = os.path.join(opts.volttron_home, 'external_address.json')
+        _log.debug('external_address_file file %s', external_address_file)
 
         # Launch additional services and wait for them to start before
         # auto-starting agents
@@ -630,15 +740,24 @@ def start_volttron_process(opts):
             ControlService(opts.aip, address=address, identity='control',
                            tracker=tracker, heartbeat_autostart=True,
                            enable_store=False, enable_channel=True),
+
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),
+
             MasterWebService(
                 serverkey=publickey, identity=MASTER_WEB,
                 address=address,
                 bind_web_address=opts.bind_web_address,
                 volttron_central_address=opts.volttron_central_address,
                 aip=opts.aip, enable_store=False),
+
+            KeyDiscoveryAgent(address=address, serverkey=publickey,
+                              identity='keydiscovery',
+                              external_address_config=external_address_file,
+                              setup_mode=opts.setup_mode,
+                              bind_web_address=opts.bind_web_address),
+
             PubSubWrapper(address=address,
                           identity='pubsub', heartbeat_autostart=True,
                           enable_store=False)
@@ -714,7 +833,7 @@ def main(argv=sys.argv):
     parser.add_argument(
         '--verboseness', type=int, metavar='LEVEL', default=logging.WARNING,
         help='set logger verboseness')
-    #parser.add_argument(
+    # parser.add_argument(
     #    '--volttron-home', env_var='VOLTTRON_HOME', metavar='PATH',
     #    help='VOLTTRON configuration directory')
     parser.add_argument(
@@ -758,20 +877,22 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--msgdebug', action='store_true',
         help='Route all messages to an agent while debugging.')
-
+    agents.add_argument(
+        '--setup-mode', action='store_true',
+        help='Setup mode flag for setting up authorization of external platforms.')
 
     # XXX: re-implement control options
-    #on
-    #control.add_argument(
+    # on
+    # control.add_argument(
     #    '--allow-root', action='store_true', inverse='--no-allow-root',
     #    help='allow root to connect to control socket')
-    #control.add_argument(
+    # control.add_argument(
     #    '--no-allow-root', action='store_false', dest='allow_root',
     #    help=argparse.SUPPRESS)
-    #control.add_argument(
+    # control.add_argument(
     #    '--allow-users', action='store_list', metavar='LIST',
     #    help='users allowed to connect to control socket')
-    #control.add_argument(
+    # control.add_argument(
     #    '--allow-groups', action='store_list', metavar='LIST',
     #    help='user groups allowed to connect to control socket')
 
@@ -787,6 +908,7 @@ def main(argv=sys.argv):
                 namespace.verify_agents = self.const
                 namespace.resource_monitor = self.const
                 # namespace.mobility = self.const
+
         restrict = parser.add_argument_group('restricted options')
         restrict.add_argument(
             '--restricted', action=RestrictedAction, inverse='--no-restricted',
@@ -833,7 +955,7 @@ def main(argv=sys.argv):
         # platform agent.
         volttron_central_address=None,
         volttron_central_serverkey=None,
-        instace_name=None,
+        instance_name=None,
         # allow_root=False,
         # allow_users=None,
         # allow_groups=None,
@@ -841,6 +963,7 @@ def main(argv=sys.argv):
         resource_monitor=True,
         # mobility=True,
         msgdebug=None,
+        setup_mode=False
     )
 
     # Parse and expand options
