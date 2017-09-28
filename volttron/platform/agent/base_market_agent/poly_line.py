@@ -205,7 +205,7 @@ class PolyLine:
         ydiff = (line1[0][1] - line1[1][1], line2[0][1] - line2[1][1])
         div = PolyLine.determinant(xdiff, ydiff)
         if div == 0:
-            return None
+            return None, None
         d = (PolyLine.determinant(*line1), PolyLine.determinant(*line2))
         x = PolyLine.determinant(d, xdiff) / div
         y = PolyLine.determinant(d, ydiff) / div
@@ -218,9 +218,9 @@ class PolyLine:
     @staticmethod
     def segment_intersects(l1, l2):
         if l1[0][0] is None or l1[0][1] is None or l1[1][0] is None or l1[1][1] is None:
-            return None
+            return False
         if l2[0][0] is None or l2[0][1] is None or l2[1][0] is None or l2[1][1] is None:
-            return None
+            return False
         if (PolyLine.ccw(l1[0], l2[0], l2[1]) != PolyLine.ccw(l1[1], l2[0], l2[1])
             and PolyLine.ccw(l1[0], l1[1], l2[0]) != PolyLine.ccw(l1[0], l1[1], l2[1])):
             return True
