@@ -174,7 +174,7 @@ def test_can_handle_agent_upgrade(simple_failover):
     primary, secondary = simple_failover
     
     primary.remove_agent(listener_primary)
-    listener_primary = primary.install_agent(agent_dir="examples/ListenerAgent",
+    listener_primary = primary.install_agent(agent_dir=get_examples("ListenerAgent"),
                                              vip_identity="listener",
                                              start=False)
 

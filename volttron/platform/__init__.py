@@ -138,7 +138,7 @@ def get_services_core(agent_dir=None):
 
 def get_ops(agent_dir=None):
     root = get_volttron_root()
-    ops_dir = os.path.join(root, "ops")
+    ops_dir = os.path.join(root, "services/ops")
     if not agent_dir:
         return ops_dir
     return os.path.join(ops_dir, agent_dir)

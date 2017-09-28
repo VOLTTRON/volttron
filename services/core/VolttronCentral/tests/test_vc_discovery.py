@@ -5,7 +5,7 @@ import pytest
 
 from vctestutils import APITester
 from volttron.platform.messaging.health import STATUS_GOOD
-from volttrontesting.utils.core_service_installs import add_volttron_central, \
+from volttrontesting.utils.agent_additions import add_volttron_central, \
     add_volttron_central_platform
 from volttrontesting.utils.platformwrapper import PlatformWrapper, \
     start_wrapper_platform

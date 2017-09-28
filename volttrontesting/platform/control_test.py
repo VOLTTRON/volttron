@@ -1,11 +1,13 @@
 import os
 import pytest
 
+from volttron.platform import get_examples
+
 
 @pytest.mark.control
 def test_agent_versions(volttron_instance):
     auuid = volttron_instance.install_agent(
-        agent_dir="examples/ListenerAgent", start=True)
+        agent_dir=get_examples("ListenerAgent"), start=True)
     assert auuid is not None
 
     agent = volttron_instance.build_agent()
@@ -31,7 +33,7 @@ def test_identity_is_uuid(volttron_instance):
     @return:
     """
     auuid = volttron_instance.install_agent(
-        agent_dir="examples/ListenerAgent", start=True)
+        agent_dir=get_examples("ListenerAgent"), start=True)
     assert auuid is not None
 
     agent = volttron_instance.build_agent()
@@ -48,7 +50,7 @@ def test_can_get_identity(volttron_instance):
     @param volttron_instance:
     """
     auuid = volttron_instance.install_agent(
-        agent_dir="examples/ListenerAgent", start=True,
+        agent_dir=get_examples("ListenerAgent"), start=True,
         vip_identity="test_can_get_identity")
     assert auuid is not None
 
@@ -73,7 +75,7 @@ def test_can_get_publickey(volttron_instance):
     id_serverkey_map = cn.call('get_all_agent_publickeys')
 
     auuid = volttron_instance.install_agent(
-        agent_dir="examples/ListenerAgent", start=True,
+        agent_dir=get_examples("ListenerAgent"), start=True,
         vip_identity=listener_identity)
     assert auuid is not None
 

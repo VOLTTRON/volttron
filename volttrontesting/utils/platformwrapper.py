@@ -15,7 +15,7 @@ from subprocess import CalledProcessError
 import gevent
 import gevent.subprocess as subprocess
 import requests
-from agent_additions import add_vc_to_instance
+from agent_additions import add_volttron_central
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging
@@ -359,7 +359,7 @@ class PlatformWrapper:
             pass
 
     def add_vc(self):
-        return add_vc_to_instance(self)
+        return add_volttron_central(self)
 
     def add_capabilities(self, publickey, capabilities):
         if isinstance(capabilities, basestring):

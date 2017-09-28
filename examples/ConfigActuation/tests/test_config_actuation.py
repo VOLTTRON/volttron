@@ -67,7 +67,7 @@ import pytest
 from gevent.subprocess import Popen
 from mock import MagicMock
 
-from volttron.platform import get_services_core
+from volttron.platform import get_services_core, get_examples
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import topics
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER, CONFIGURATION_STORE
@@ -146,7 +146,7 @@ def publish_agent(request, volttron_instance1):
 
 
     example_uuid = volttron_instance1.install_agent(
-        agent_dir="examples/ConfigActuation",
+        agent_dir=get_examples("ConfigActuation"),
         config_file={},
         vip_identity="config_actuation")
     gevent.sleep(2)
