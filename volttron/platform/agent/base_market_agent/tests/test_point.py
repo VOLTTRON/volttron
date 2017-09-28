@@ -67,15 +67,23 @@ def test_point_init():
 
 @pytest.mark.market
 def test_point_x_none():
-    p = Point(None,8)
-    assert p.x is None
-    assert p.y == 8.0
+    with pytest.raises(ValueError):
+        p = Point(None,8)
+
+@pytest.mark.market
+def test_point_x_negative():
+    with pytest.raises(ValueError):
+        p = Point(-8,8)
 
 @pytest.mark.market
 def test_point_y_none():
-    p = Point(4,None)
-    assert p.y is None
-    assert p.x == 4.0
+    with pytest.raises(ValueError):
+        p = Point(4,None)
+
+def test_point_y_negative():
+    with pytest.raises(ValueError):
+        p = Point(4,-4)
+
 @pytest.mark.market
 def test_point_tuppleize():
     p = Point(4,8)

@@ -71,6 +71,7 @@ def test_poly_line_combine_supply():
     assert combined_curves.min_y() == 0
     assert combined_curves.max_y() == 1000
 
+@pytest.mark.market
 def test_poly_line_combine_demand():
     demand_curve = create_demand_curve()
     curves = [demand_curve, demand_curve]
@@ -80,13 +81,7 @@ def test_poly_line_combine_demand():
     assert combined_curves.min_y() == 0
     assert combined_curves.max_y() == 1000
 
-def test_poly_line_combine_single():
-    demand_curve = create_demand_curve()
-    curves = [demand_curve]
-    combined_curves = PolyLineFactory.combine(curves, 100)
-    assert combined_curves.conatins_name()
-
-
+@pytest.mark.market
 def test_poly_line_from_tupples():
     demand_curve = create_demand_curve()
     tupples = demand_curve.points
@@ -95,6 +90,7 @@ def test_poly_line_from_tupples():
     actual_length = len(new_curve.points)
     assert actual_length == expected_length
 
+@pytest.mark.market
 def create_supply_curve():
     supply_curve = PolyLine()
     price = 0
@@ -105,6 +101,7 @@ def create_supply_curve():
     supply_curve.add(Point(price,quantity))
     return supply_curve
 
+@pytest.mark.market
 def create_demand_curve():
     demand_curve = PolyLine()
     price = 0
