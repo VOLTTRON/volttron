@@ -7,13 +7,29 @@ generally are not meant to be called from other scripts.  For example the
 volttron script is for launching volttron as a service using init.d or some
 other mechanism.
 
+bacnet contains scripts used for discovering devices and points used for
+creating drivers.
+
 The core directory is meant to have scripts that automate specific portions
 of the technology stack in order to allow instances to configure themselves
 effectively.
 
-All other directories should be assumed to be customized for a specific need 
-and should have a README associated with it in order to better document the 
-purpose of the directory.
+debugging can be used to get status on an install and perform debugging tasks
+such as getting versions of all agents, registering platforms, etc.
+
+development contains scripts for debugging agents in an IDE. These scripts
+allow agents in Eclipse or Pycharm to interact with the platform.
+
+drivers contains scripts for running drivers outside the platform for use in
+debugging.
+
+historian-scripts has scripts needed for setting up historian databases.
+
+scalability-testing has scripts used for launching large numbers of platform
+instances for testing of scalability.
+
+tagging_scripts contains scripts for using the new tagging service
+
 
 NOTE
 All scripts should be run in an activated environment in order to use the 

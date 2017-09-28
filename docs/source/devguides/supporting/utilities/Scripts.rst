@@ -15,7 +15,7 @@ Please feel free to use this convention in your own processes.
 
 The scripts/core directory is laid out in such a way that we can build
 scripts on top of a base core. For example the scripts in sub-folders
-such as the historian-scripts and demo-comms use the scripts that are
+such as the historian-scripts use the scripts that are
 present in the core directory.
 
 The most widely used script is scripts/core/pack\_install.sh. The
