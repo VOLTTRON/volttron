@@ -117,5 +117,21 @@ def test_market_participants_market_formed_one_buyer_one_seller():
     market_list.make_reservation(market_name, buyer_participant)
     seller_participant = MarketParticipant(SELLER, 'agent_id2')
     market_list.make_reservation(market_name, seller_participant)
+    assert market_list.market_count() == 1
     assert market_list.has_market_formed(market_name) == True
+    unformed_markets = market_list.unformed_market_list()
+    assert len(unformed_markets) == 0
+
+@pytest.mark.market
+def test_market_unformed_market_list():
+    market_list = MarketList()
+    market_name1 = 'test_market1'
+    market_name2 = 'test_market2'
+    buyer_participant = MarketParticipant(BUYER, 'agent_id1')
+    market_list.make_reservation(market_name1, buyer_participant)
+    seller_participant = MarketParticipant(SELLER, 'agent_id2')
+    market_list.make_reservation(market_name2, seller_participant)
+    assert market_list.market_count() == 2
+    unformed_markets = market_list.unformed_market_list()
+    assert len(unformed_markets) > 0
 

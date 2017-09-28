@@ -56,67 +56,7 @@
 
 # }}}
 
-import logging
-
-from volttron.platform.agent import utils
-from market_service.market import Market
-
-_log = logging.getLogger(__name__)
-utils.setup_logging()
-
-class NoSuchMarketError(StandardError):
-    """Base class for exceptions in this module."""
-    pass
-
-class MarketList(object):
-    def __init__(self, publish = None, verbose_logging = True):
-        self.markets = {}
-        self.publish = publish
-        self.verbose_logging = verbose_logging
-
-    def make_reservation(self, market_name, participant):
-        if self.has_market(market_name):
-            market = self.markets[market_name]
-            market.make_reservation(participant)
-        else:
-            market = Market(market_name, participant, self.publish, self.verbose_logging)
-            self.markets[market_name] = market
-
-    def make_offer(self, market_name, participant, curve):
-        market = self.get_market(market_name)
-        market.make_offer(participant, curve)
-
-    def clear_reservations(self):
-        self.markets.clear()
-
-    def collect_offers(self):
-        for market in self.markets.itervalues():
-            market.collect_offers()
-
-    def get_market(self, market_name):
-        if self.has_market(market_name):
-            market = self.markets[market_name]
-        else:
-            raise NoSuchMarketError('Market %s does not exist.' % market_name)
-        return market
-
-    def has_market(self, market_name):
-        return self.markets.has_key(market_name)
-
-    def has_market_formed(self, market_name):
-        market_has_formed = False
-        if self.has_market(market_name):
-            market = self.markets[market_name]
-            market_has_formed = market.has_market_formed()
-        return market_has_formed
-
-    def market_count(self):
-        return len(self.markets)
-
-    def unformed_market_list(self):
-        list = []
-        for market in self.markets.itervalues():
-           if not market.has_market_formed():
-               list.append(market.market_name)
-        return list
-
+NOT_FORMED = 'not formed'
+SHORT_OFFERS = 'not enough offers'
+NO_INTERSECT = 'no curve intersection'
+BAD_STATE = 'bad state transition' # This error should never happen.

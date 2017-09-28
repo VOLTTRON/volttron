@@ -64,6 +64,7 @@ from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
 from volttron.platform.agent import utils
 from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID, MARKET_ERROR
 from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.agent.base_market_agent.error_codes import NOT_FORMED
 from market_service.director import Director
 from market_service.market_list import MarketList
 from market_service.market_participant import MarketParticipant
@@ -206,7 +207,7 @@ class MarketServiceAgent(Agent):
             _log.info(log_message)
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=MARKET_ERROR,
-                                    message=[timestamp, market_name, 'Error: market {} does not have both a buyer and a seller.'.format(market_name)])
+                                    message=[timestamp, market_name, NOT_FORMED, 'Error: market {} does not have both a buyer and a seller.'.format(market_name)])
 
     def has_any_markets(self):
         unformed_markets = self.market_list.unformed_market_list()

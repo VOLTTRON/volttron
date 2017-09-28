@@ -68,6 +68,7 @@ from transitions import Machine
 from volttron.platform.agent import utils
 from market_service.offer_manager import OfferManager
 from market_service.reservation_manager import ReservationManager
+from volttron.platform.agent.base_market_agent.error_codes import NOT_FORMED, SHORT_OFFERS, BAD_STATE, NO_INTERSECT
 from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
 from volttron.platform.messaging.topics import MARKET_AGGREGATE, MARKET_CLEAR, MARKET_ERROR, MARKET_RECORD
 
@@ -205,17 +206,22 @@ class Market(object):
     def clear_market(self):
         price = None
         quantity = None
+        error_code = None
         error_message = None
         if (self.state in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]):
+            error_code = SHORT_OFFERS
             error_message = 'The market {} failed to recieve all the expected offers. The state is {}.'.format(self.market_name, self.state)
         elif (self.state != MARKET_DONE):
+            error_code = BAD_STATE
             error_message = 'Programming error in Market class. State of {} and clear market signal arrived. This represents a logic error.'.format(self.state)
         else:
             if not self.has_market_formed():
+                error_code = NOT_FORMED
                 error_message = 'The market {} has not received a buy and a sell reservation.'.format(self.market_name)
             else:
                 quantity, price = self.offers.settle()
                 if price is None:
+                    error_code = NO_INTERSECT
                     error_message = "Error: The supply and demand curves do not intersect. The market {} failed to clear.".format(self.market_name)
         _log.info("Clearing price for Market: {} Price: {} Qty: {}".format(self.market_name, price, quantity))
         timestamp = self._get_time()
@@ -229,7 +235,7 @@ class Market(object):
         if error_message is not None:
             self.publish(peer='pubsub',
                          topic=MARKET_ERROR,
-                         message=[timestamp_string, self.market_name, error_message])
+                         message=[timestamp_string, self.market_name, error_code, error_message])
 
     def has_market_formed(self):
         return self.reservations.has_market_formed()

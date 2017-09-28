@@ -63,6 +63,7 @@ from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent.base_market_agent import MarketAgent
 from volttron.platform.agent.base_market_agent.poly_line import PolyLine
 from volttron.platform.agent.base_market_agent.point import Point
+from volttron.platform.agent.base_market_agent.error_codes import NOT_FORMED, SHORT_OFFERS, BAD_STATE, NO_INTERSECT
 from volttron.platform.agent.base_market_agent.buy_sell import BUYER
 from pnnl.models.firstorderzone import FirstOrderZone
 import numpy as np
@@ -235,8 +236,8 @@ class VAVAgent(MarketAgent, FirstOrderZone):
         _log.debug("the set point is {}".format(self.subscribing_topic.replace('all','')+'VAV'+self.agent_name+'/ZoneCoolingTemperatureSetPoint'))
         self.vip.rpc.call('platform.actuator','set_point', self.agent_name,self.subscribing_topic.replace('all','')+'VAV'+self.agent_name+'/ZoneCoolingTemperatureSetPoint',self.tSet).get(timeout=5)
 		
-    def error_callback(self, timestamp, market_name, buyer_seller, error_message):
-        if error_message.find('The supply and demand curves do not intersect')!=-1:
+    def error_callback(self, timestamp, market_name, buyer_seller, error_code, error_message):
+        if error_code == NO_INTERSECT:
 		      self.vip.rpc.call('platform.actuator','set_point', self.agent_name,self.subscribing_topic.replace('all','')+'VAV'+self.agent_name+'/ZoneCoolingTemperatureSetPoint',self.tNomAdj).get(timeout=5)
 		
 		

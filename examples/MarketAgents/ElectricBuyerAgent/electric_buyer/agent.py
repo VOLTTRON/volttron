@@ -118,8 +118,8 @@ class SampleElectricBuyerAgent(MarketAgent):
     def price_callback(self, timestamp, market_name, buyer_seller, price, quantity):
         _log.debug("Report cleared price for Market: {} {}, Message: {}".format(market_name, buyer_seller, price, quantity))
 
-    def error_callback(self, timestamp, market_name, buyer_seller, error_message):
-        _log.debug("Report error for Market: {} {}, Message: {}".format(market_name, buyer_seller, error_message))
+    def error_callback(self, timestamp, market_name, buyer_seller, error_code, error_message):
+        _log.debug("Report error for Market: {} {}, Code: {}, Message: {}".format(market_name, buyer_seller, error_code, error_message))
 
 
 def main():
