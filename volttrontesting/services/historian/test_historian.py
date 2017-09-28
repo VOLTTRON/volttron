@@ -101,7 +101,7 @@ import pytest
 import re
 import pytz
 
-from volttron.platform import get_volttron_root
+from volttron.platform import get_volttron_root, get_services_core
 from volttron.platform.agent import PublishMixin
 from volttron.platform.agent import utils
 from volttron.platform.jsonrpc import RemoteError
@@ -115,7 +115,7 @@ try:
     # Adding crate historian to the path so we have access to it's packages
     # for removing/creating schema for testing with.
     root = get_volttron_root()
-    crate_path = os.path.join(root, "services/core/CrateHistorian")
+    crate_path = get_services_core("CrateHistorian")
 
     sys.path.insert(0, crate_path)
     import crate_historian
@@ -162,7 +162,7 @@ query_points = {
 
 # default table_defs
 sqlite_platform = {
-    "source_historian": "services/core/SQLHistorian",
+    "source_historian": get_services_core("SQLHistorian"),
     "connection": {
         "type": "sqlite",
         "params": {
@@ -172,7 +172,7 @@ sqlite_platform = {
 }
 
 crate_platform = {
-    "source_historian": "services/core/CrateHistorian",
+    "source_historian": get_services_core("CrateHistorian"),
     "schema": "testing_historian",
     "connection": {
         "type": "crate",
@@ -188,7 +188,7 @@ crate_platform = {
 
 # config without table_defs
 mysql_platform = {
-    "source_historian": "services/core/SQLHistorian",
+    "source_historian": get_services_core("SQLHistorian"),
     "connection": {
         "type": "mysql",
         "params": {
@@ -202,7 +202,7 @@ mysql_platform = {
 }
 
 mongo_platform = {
-    "source_historian": "services/core/MongodbHistorian",
+    "source_historian": get_services_core("MongodbHistorian"),
     "connection": {
         "type": "mongodb",
         "params": {

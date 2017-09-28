@@ -10,7 +10,7 @@ from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, 
 from volttron.platform.jsonrpc import RemoteError, UNAUTHORIZED
 from volttron.platform.messaging.health import STATUS_GOOD
 
-from volttrontesting.utils.core_service_installs import add_volttron_central, \
+from volttrontesting.utils.agent_additions import add_volttron_central, \
     add_volttron_central_platform, add_listener, add_sqlhistorian
 from volttrontesting.utils.platformwrapper import start_wrapper_platform, \
     PlatformWrapper

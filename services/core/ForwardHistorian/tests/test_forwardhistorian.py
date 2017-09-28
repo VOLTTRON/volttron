@@ -62,6 +62,8 @@ from datetime import datetime, timedelta
 
 import gevent
 import pytest
+
+from volttron.platform import get_services_core
 from volttron.platform.agent import PublishMixin
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
@@ -144,7 +146,7 @@ def sqlhistorian(request, volttron_instances):
     # 1: Install historian agent
     # Install and start sqlhistorian agent in instance2
     agent_uuid = volttron_instance2.install_agent(
-        agent_dir="services/core/SQLHistorian",
+        agent_dir=get_services_core("SQLHistorian"),
         config_file=sqlite_config,
         start=True,
         vip_identity='platform.historian')
@@ -173,7 +175,7 @@ def forwarder(request, volttron_instances):
     # 1: Install historian agent
     # Install and start sqlhistorian agent in instance2
     forwarder_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/ForwardHistorian",
+        agent_dir=get_services_core("ForwardHistorian"),
         config_file=forwarder_config,
         start=True)
     print("forwarder agent id: ", forwarder_uuid)
@@ -499,7 +501,7 @@ def test_old_config(volttron_instances, forwarder):
     # 1: Install historian agent
     # Install and start sqlhistorian agent in instance2
     forwarder_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/ForwardHistorian",
+        agent_dir=get_services_core("ForwardHistorian"),
         config_file=forwarder_config, start=True)
 
     print("forwarder agent id: ", forwarder_uuid)

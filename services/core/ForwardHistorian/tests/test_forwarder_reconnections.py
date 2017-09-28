@@ -1,7 +1,7 @@
 import gevent
 import pytest
 
-from volttrontesting.utils.core_service_installs import add_forward_historian
+from volttrontesting.utils.agent_additions import add_forward_historian
 from volttrontesting.utils.platformwrapper import PlatformWrapper, \
     start_wrapper_platform
 from volttrontesting.utils.utils import (publish_device_messages,

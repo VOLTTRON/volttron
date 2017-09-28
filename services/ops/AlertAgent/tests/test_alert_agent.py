@@ -59,6 +59,7 @@ import pytest
 import gevent
 import json
 
+from volttron.platform import get_ops
 from volttron.platform.agent.known_identities import PLATFORM_ALERTER
 
 ALERT_CONFIG = {
@@ -77,7 +78,7 @@ alert_messages = {}
 def agent(request, volttron_instance1):
 
     alert_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/AlertAgent",
+        agent_dir=get_ops("AlertAgent"),
         config_file=ALERT_CONFIG)
     gevent.sleep(2)
 

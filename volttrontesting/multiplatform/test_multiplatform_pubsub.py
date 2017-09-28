@@ -3,6 +3,8 @@ import os
 import gevent
 import pytest
 import json
+
+from volttron.platform import get_ops
 from volttrontesting.utils.utils import (poll_gevent_sleep,
                                          messages_contains_prefix)
 
@@ -384,7 +386,7 @@ def test_multiplatform_rpc(request, get_volttron_instances):
         }
     }
     threshold_detection_uuid = p1.install_agent(
-        agent_dir='services/core/ThresholdDetectionAgent',
+        agent_dir=get_ops("ThresholdDetectionAgent"),
         config_file=_default_config,
         start=True)
 
