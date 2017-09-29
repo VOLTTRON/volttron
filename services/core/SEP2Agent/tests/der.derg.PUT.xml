@@ -1,0 +1,17 @@
+<DERSettings xmlns="http://zigbee.org/sep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <setGradW>55000</setGradW>
+    <setMaxChargeRate>
+        <multiplier>1</multiplier>
+        <value>2</value>
+    </setMaxChargeRate>
+    <setMaxDischargeRate>
+        <multiplier>3</multiplier>
+        <value>4</value>
+    </setMaxDischargeRate>
+    <setMaxW>
+        <multiplier>1</multiplier>
+        <value>1</value>
+    </setMaxW>
+    <setStorConnect>true</setStorConnect>
+    <updatedTime>1416307137</updatedTime>
+</DERSettings>

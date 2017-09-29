@@ -1,11 +1,16 @@
+import json
 import logging
 import pytest
 
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
+import gevent
+
+from volttron.platform import get_volttron_root
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, \
+    CONFIGURATION_STORE
 from volttron.platform.jsonrpc import RemoteError, UNAUTHORIZED
 from volttron.platform.messaging.health import STATUS_GOOD
 
-from volttrontesting.utils.core_service_installs import add_volttron_central, \
+from volttrontesting.utils.agent_additions import add_volttron_central, \
     add_volttron_central_platform, add_listener, add_sqlhistorian
 from volttrontesting.utils.platformwrapper import start_wrapper_platform, \
     PlatformWrapper
@@ -157,10 +162,80 @@ def test_can_get_version(setup_platform, vc_agent):
     # split vc_agent into it's respective parts.
     vc, vcp_identity = vc_agent
 
+    import subprocess, os
+    script = "scripts/get_versions.py"
+    python = "python"
+    args = [python, script]
+
+    response = subprocess.check_output(args=[python, script],
+                                       cwd=get_volttron_root())
+    expected_version = None
+    for line in response.split("\n"):
+        agent, version = line.strip().split(',')
+        if "VolttronCentralPlatform" in agent:
+            expected_version = version
+            break
+
     # Note this is using vcp because it has the version info not the
     # vcp_identity
     version = vc.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
                                'agent.version').get(timeout=STANDARD_GET_TIMEOUT)
-    #version = setup_platform.call('agent.version', timeout=2)
+    # version = setup_platform.call('agent.version', timeout=2)
     assert version is not None
-    assert version == '4.0'
+    assert version == expected_version
+
+
+@pytest.mark.vcp
+def test_can_change_topic_map(setup_platform, vc_agent):
+    vc, vcp_identity = vc_agent
+
+    topic_map = vc.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
+                                'get_replace_map').get(timeout=STANDARD_GET_TIMEOUT)
+
+    assert topic_map == {}
+
+    replace_map = {
+        "topic-replace-map": {
+            "fudge": "ball"
+        }
+    }
+
+    # now update the config store for vcp
+    vc.vip.rpc.call(CONFIGURATION_STORE,
+                    'manage_store',
+                    VOLTTRON_CENTRAL_PLATFORM,
+                    'config',
+                    json.dumps(replace_map),
+                    'json').get(timeout=STANDARD_GET_TIMEOUT)
+
+    gevent.sleep(2)
+
+    topic_map = vc.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
+                                'get_replace_map').get(timeout=STANDARD_GET_TIMEOUT)
+
+    assert 'fudge' in topic_map
+    assert topic_map['fudge'] == 'ball'
+
+    replace_map = {
+        "topic-replace-map": {
+            "map2": "it"
+        }
+    }
+
+    # now update the config store for vcp
+    vc.vip.rpc.call(CONFIGURATION_STORE,
+                    'manage_store',
+                    VOLTTRON_CENTRAL_PLATFORM,
+                    'config',
+                    json.dumps(replace_map),
+                    'json').get(timeout=STANDARD_GET_TIMEOUT)
+
+    gevent.sleep(2)
+
+    topic_map = vc.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
+                                'get_replace_map').get(
+        timeout=STANDARD_GET_TIMEOUT)
+
+    assert 'fudge' not in topic_map
+    assert 'map2' in topic_map
+    assert topic_map['map2'] == 'it'

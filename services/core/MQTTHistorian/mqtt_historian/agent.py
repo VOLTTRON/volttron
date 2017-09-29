@@ -81,7 +81,6 @@ class MQTTHistorian(BaseHistorian):
     def __init__(self, config_path, **kwargs):
         config = utils.load_config(config_path)
 
-        backup_storage_limit_gb = config.get('backup_storage_limit_gb', None)
 
         # We pass every optional parameter to the MQTT library functions so they
         # default to the same values that paho uses as defaults.
@@ -110,9 +109,7 @@ class MQTTHistorian(BaseHistorian):
         # will be available in both threads.
         self._last_error = 0
 
-        super(MQTTHistorian, self).__init__(
-            backup_storage_limit_gb=backup_storage_limit_gb,
-            **kwargs)
+        super(MQTTHistorian, self).__init__(config, **kwargs)
 
     def timestamp(self):
         return time.mktime(datetime.datetime.now().timetuple())

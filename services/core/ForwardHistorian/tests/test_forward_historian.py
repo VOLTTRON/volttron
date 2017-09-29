@@ -5,7 +5,9 @@ import tempfile
 
 import gevent
 import pytest
-from zmq.utils import jsonapi
+
+from volttron.platform import get_services_core
+from volttron.platform.agent import json as jsonapi
 
 from volttron.platform.messaging import headers as headers_mod
 
@@ -19,9 +21,6 @@ FORWARDER_CONFIG = {
     "agentid": "forwarder",
     "destination-vip": {},
     "custom_topic_list": [],
-    "services_topic_list": [
-        "devices", "analysis", "record", "datalogger", "actuators"
-    ],
     "topic_replace_list": [
         {"from": "PNNL/BUILDING_1", "to": "PNNL/BUILDING1_ANON"}
     ]
@@ -88,7 +87,6 @@ def onmessage(peer, sender, bus, topic, headers, message):
 
 
 @pytest.mark.historian
-@pytest.mark.xfail(reason='need to see about auth stuff for this to work')
 def test_reconnect_forwarder(get_volttron_instances):
     from_instance, to_instance = get_volttron_instances(2, True)
     to_instance.allow_all_connections()
@@ -97,12 +95,13 @@ def test_reconnect_forwarder(get_volttron_instances):
     receiver = to_instance.build_agent()
 
     forwarder_config = deepcopy(BASE_FORWARD_CONFIG)
-    forwardtoaddr = build_vip_address(to_instance, receiver)
-    print("FORWARD ADDR: {}".format(forwardtoaddr))
-    forwarder_config['destination-vip'] = forwardtoaddr
+    #forwardtoaddr = build_vip_address(to_instance, receiver)
+    #print("FORWARD ADDR: {}".format(forwardtoaddr))
+    forwarder_config['destination-vip'] = to_instance.vip_address
+    forwarder_config['destination-serverkey'] = to_instance.keystore.public
 
     fuuid = from_instance.install_agent(
-        agent_dir="services/core/ForwardHistorian",start=True,
+        agent_dir=get_services_core("ForwardHistorian"),start=True,
         config_file=forwarder_config)
     assert from_instance.is_agent_running(fuuid)
     print('Before Subscribing')

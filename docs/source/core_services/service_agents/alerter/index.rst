@@ -1,6 +1,6 @@
-==============
-Platform Agent
-==============
+===========
+Alert Agent
+===========
 
 .. toctree::
     :glob:

@@ -12,6 +12,7 @@ Developing VOLTTRON
     deployment/index
     walkthroughs/index
     eclipse/index
+    pycharm/index
     scalability/index
     supporting/index
     roadmap/index

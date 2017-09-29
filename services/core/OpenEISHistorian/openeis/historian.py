@@ -67,7 +67,7 @@ import gevent
 import requests
 from requests import ConnectionError
 from volttron.utils.docs import doc_inherit
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from volttron.platform.vip.agent import *
 from volttron.platform.agent.base_historian import BaseHistorian
@@ -204,7 +204,7 @@ def historian(config_path, **kwargs):
             pass
 
     OpenEISHistorian.__name__ = 'OpenEISHistorian'
-    return OpenEISHistorian(**kwargs)
+    return OpenEISHistorian(config, **kwargs)
 
 
 def main(argv=sys.argv):

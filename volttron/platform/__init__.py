@@ -58,12 +58,12 @@
 
 """ Core package."""
 
-
+import logging
 import os
 import psutil
 import sys
 
-__version__ = '4.1'
+__version__ = '5.0-beta'
 
 
 def set_home(home=None):
@@ -73,7 +73,7 @@ def set_home(home=None):
     Otherwise, the default value of '~/.volttron' is used.
     """
     os.environ["VOLTTRON_HOME"] = home or get_home()
-    
+
 
 def get_home():
     """ Return the home directory with user and variables expanded.
@@ -81,11 +81,19 @@ def get_home():
     If the VOLTTRON_HOME environment variable is set, it used.
     Otherwise, the default value of '~/.volttron' is used.
     """
-    return os.path.abspath(
+
+    vhome = os.path.abspath(
         os.path.normpath(
             os.path.expanduser(
                 os.path.expandvars(
                     os.environ.get('VOLTTRON_HOME', '~/.volttron')))))
+    if vhome.endswith('/'):
+        vhome = vhome[:-1]
+        if os.environ.get('VOLTTRON_HOME') is not None:
+            log = logging.getLogger('volttron')
+            log.warn("Removing / from the end of VOLTTRON_HOME")
+            os.environ['VOLTTRON_HOME'] = vhome
+    return vhome
 
 
 def get_address():
@@ -115,8 +123,37 @@ def get_volttron_root():
     )
 
 
+def get_volttron_data():
+    root = get_volttron_root()
+    return os.path.join(root, "volttron_data")
+
+
+def get_services_core(agent_dir=None):
+    root = get_volttron_root()
+    services_core = os.path.join(root, "services/core")
+    if not agent_dir:
+        return services_core
+    return os.path.join(services_core, agent_dir)
+
+
+def get_ops(agent_dir=None):
+    root = get_volttron_root()
+    ops_dir = os.path.join(root, "services/ops")
+    if not agent_dir:
+        return ops_dir
+    return os.path.join(ops_dir, agent_dir)
+
+
+def get_examples(agent_dir):
+    root = get_volttron_root()
+    examples_dir = os.path.join(root, "examples")
+    if not agent_dir:
+        return examples_dir
+    return os.path.join(examples_dir, agent_dir)
+
+
 def is_instance_running(volttron_home=None):
-    from zmq.utils import jsonapi
+    from volttron.platform.agent import json as jsonapi
 
     if volttron_home is None:
         volttron_home = get_home()

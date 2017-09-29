@@ -65,12 +65,13 @@ import tempfile
 
 from gevent import subprocess
 from gevent.subprocess import Popen
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 from zmq import green as zmq
 
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
+from volttron.utils.prompt import prompt_response, y, n, y_or_n
 
-from . import get_home
+from . import get_home, get_services_core
 
 # Global configuration options.  Must be key=value strings.  No cascading
 # structure so that we can easily create/load from the volttron config file
@@ -80,12 +81,6 @@ config_opts = {}
 # Dictionary of tags to config functions.
 # Populated by the `installs` decorator.
 available_agents = {}
-
-# Yes or no answers to questions.
-y_or_n = ('Y', 'N', 'y', 'n')
-y = ('Y', 'y')
-n = ('N', 'n')
-
 
 def _load_config():
     """Loads the config file if the path exists."""
@@ -114,26 +109,6 @@ def _install_config_file():
 
     with open(path, 'w') as configfile:
         config.write(configfile)
-
-
-def prompt_response(prompt, valid_answers=None, default=None, echo=True):
-
-    prompt += ' '
-    if default is not None:
-        prompt += '[{}]: '.format(default)
-    if echo:
-        while True:
-            resp = raw_input(prompt)
-            if resp == '' and default is not None:
-                return default
-            if valid_answers is None or resp in valid_answers:
-                return resp
-            else:
-                print('Invalid response. Proper responses are:')
-                print(valid_answers)
-    else:
-        resp = getpass.getpass(prompt)
-        return resp
 
 
 def _cmd(cmdargs):
@@ -320,7 +295,7 @@ def do_vip():
     config_opts['vip-address'] = '{}:{}'.format(vip_address, vip_port)
 
 
-@installs('services/core/VolttronCentral', 'vc')
+@installs(get_services_core("VolttronCentral"), 'vc')
 def do_vc():
     global config_opts
 
@@ -406,7 +381,7 @@ def vc_config():
     return config
 
 
-@installs('services/core/VolttronCentralPlatform', 'vcp')
+@installs(get_services_core("VolttronCentralPlatform"), 'vcp')
 def do_vcp():
     global config_opts
 
@@ -459,7 +434,7 @@ def do_vcp():
     return {}
 
 
-@installs('services/core/SQLHistorian', 'platform_historian',
+@installs(get_services_core("SQLHistorian"), 'platform_historian',
           identity='platform.historian')
 def do_platform_historian():
     datafile = os.path.join(get_home(), 'data', 'platform.historian.sqlite')
@@ -486,7 +461,7 @@ def add_fake_device_to_configstore():
               'examples/configurations/drivers/fake.config'])
 
 
-@installs('services/core/MasterDriverAgent', 'master_driver',
+@installs(get_services_core("MasterDriverAgent"), 'master_driver',
           post_install_func=add_fake_device_to_configstore)
 def do_master_driver():
     return {}

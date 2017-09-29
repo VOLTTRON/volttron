@@ -1,0 +1,17 @@
+{
+    "connection": {
+        "type": "sqlite",
+        "params": {
+            "database": "~/.volttron/data/volttron.tags.sqlite"
+        }
+    },
+    # optional if you want the tables created for tagging to have names
+    # starting with <given prefix>_<tablename>
+    "table_prefix": "volttron",
+
+    # optional resources directory. From which allowed set of tags and
+    # tag categories. If this is skipped, code searches for tags.csv and
+    # categories.csv under "resources" directory in the same package as
+    # the tagging service
+    "resource_sub_dir":"resources"
+}

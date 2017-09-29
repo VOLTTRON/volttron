@@ -70,6 +70,7 @@ from volttron.platform.agent import utils
 from volttron.platform.keystore import KnownHostsStore
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.messaging.health import STATUS_BAD, Status
+from volttron.platform.agent.known_identities import PLATFORM_HISTORIAN
 
 DATAMOVER_TIMEOUT_KEY = 'DATAMOVER_TIMEOUT_KEY'
 utils.setup_logging()
@@ -79,79 +80,76 @@ __version__ = '0.1'
 
 def historian(config_path, **kwargs):
     config = utils.load_config(config_path)
-    services_topic_list = config.get('services_topic_list', [
-        topics.DRIVER_TOPIC_BASE,
-        topics.LOGGER_BASE,
-        topics.ACTUATOR,
-        topics.ANALYSIS_TOPIC_BASE
-    ])
-    custom_topic_list = config.get('custom_topic_list', [])
-    topic_replace_list = config.get('topic_replace_list', [])
-    destination_vip = config.get('destination-vip')
-    destination_historian_identity = config.get('destination-historian-identity',
-                                                'platform.historian')
-    backup_storage_limit_gb = config.get('backup_storage_limit_gb', None)
-
-    gather_timing_data = config.get('gather_timing_data', False)
+    destination_vip = config.get('destination-vip', None)
+    assert destination_vip is not None
 
     hosts = KnownHostsStore()
-    destination_serverkey = hosts.serverkey(destination_vip)
-    if destination_serverkey is None:
-        _log.info("Destination serverkey not found in known hosts file, using config")
-        destination_serverkey = config['destination-serverkey']
+    serverkey = hosts.serverkey(destination_vip)
+    if serverkey is not None:
+        config['destination-serverkey'] = serverkey
+    else:
+        assert config.get('destination-serverkey') is not None
+        _log.info("Destination serverkey not found in known hosts file, "
+                  "using config")
 
-    return DataMover(services_topic_list,
-                     custom_topic_list,
-                     topic_replace_list,
-                     destination_vip,
-                     destination_serverkey,
-                     destination_historian_identity,
-                     gather_timing_data,
-                     backup_storage_limit_gb=backup_storage_limit_gb,
-                     **kwargs)
+    utils.update_kwargs_with_config(kwargs, config)
+    return DataMover(**kwargs)
 
 
 class DataMover(BaseHistorian):
     """This historian forwards data to another platform.
     """
 
-    def __init__(self,
-                 services_topic_list,
-                 custom_topic_list,
-                 topic_replace_list,
-                 destination_vip,
-                 destination_serverkey,
-                 destination_historian_identity,
-                 gather_timing_data,
+    def __init__(self, destination_vip, destination_serverkey,
+                 destination_historian_identity=PLATFORM_HISTORIAN,
                  **kwargs):
-
-        self.services_topic_list = services_topic_list
-        self.custom_topic_list = custom_topic_list
-        self.topic_replace_list = topic_replace_list
+        """
+        
+        :param destination_vip: vip address of the destination volttron 
+        instance
+        :param destination_serverkey: public key of the destination server
+        :param services_topic_list: subset of topics that are inherently 
+        supported by base historian. Default is device, analysis, logger, 
+        and record topics
+        :param custom_topic_list: any additional topics this historian 
+        should subscribe to.
+        :param destination_historian_identity: vip identity of the 
+        destination historian. default is 'platform.historian'
+        :param kwargs: additional arguments to be passed along to parent class
+        """
+        kwargs["process_loop_in_greenlet"] = True
+        super(DataMover, self).__init__(**kwargs)
         self.destination_vip = destination_vip
         self.destination_serverkey = destination_serverkey
         self.destination_historian_identity = destination_historian_identity
-        self.gather_timing_data = gather_timing_data
+
+        config = {"destination_vip":self.destination_vip,
+                  "destination_serverkey": self.destination_serverkey,
+                  "destination_historian_identity": self.destination_historian_identity}
+
+        self.update_default_config(config)
 
         # will be available in both threads.
-        self._topic_replace_map = {}
         self._last_timeout = 0
-        super(DataMover, self).__init__(**kwargs)
 
-    @Core.receiver("onstart")
-    def starting_base(self, sender, **kwargs):
-        """
-        Subscribes to the platform message bus on the actuator, record,
-        datalogger, and device topics to capture data.
-        """
-        _log.debug("Starting DataMover")
+    def configure(self, configuration):
+        self.destination_vip = str(configuration.get('destination_vip', ""))
+        self.destination_serverkey = str(configuration.get('destination_serverkey', ""))
+        self.destination_historian_identity = str(configuration.get('destination_historian_identity', PLATFORM_HISTORIAN))
 
-        for topic in self.services_topic_list + self.custom_topic_list:
-            _log.debug("subscribing to {}".format(topic))
-            self.vip.pubsub.subscribe(peer='pubsub',
-                                      prefix=topic,
-                                      callback=self.capture_data)
-        self._started = True
+
+    #Redirect the normal capture functions to capture_data.
+    def _capture_device_data(self, peer, sender, bus, topic, headers, message):
+        self.capture_data(peer, sender, bus, topic, headers, message)
+
+    def _capture_log_data(self, peer, sender, bus, topic, headers, message):
+        self.capture_data(peer, sender, bus, topic, headers, message)
+
+    def _capture_analysis_data(self, peer, sender, bus, topic, headers, message):
+        self.capture_data(peer, sender, bus, topic, headers, message)
+
+    def _capture_record_data(self, peer, sender, bus, topic, headers, message):
+        self.capture_data(peer, sender, bus, topic, headers, message)
 
     def timestamp(self):
         return time.mktime(datetime.datetime.now().timetuple())
@@ -184,24 +182,13 @@ class DataMover(BaseHistorian):
                                           message_string=message[0]))
             raise
 
-        if self.topic_replace_list:
-            if topic in self._topic_replace_map.keys():
-                topic = self._topic_replace_map[topic]
-            else:
-                self._topic_replace_map[topic] = topic
-                temptopics = {}
-                for x in self.topic_replace_list:
-                    if x['from'] in topic:
-                        new_topic = temptopics.get(topic, topic)
-                        temptopics[topic] = new_topic.replace(
-                            x['from'], x['to'])
-
-                for k, v in temptopics.items():
-                    self._topic_replace_map[k] = v
-                topic = self._topic_replace_map[topic]
+        topic = self.get_renamed_topic(topic)
 
         if self.gather_timing_data:
-            add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
+            add_timing_data_to_header(
+                headers,
+                self.core.agent_uuid or self.core.identity,
+                "collected")
 
         payload = {'headers': headers, 'message': data}
 
@@ -234,7 +221,10 @@ class DataMover(BaseHistorian):
             message = x['value']['message']
 
             if self.gather_timing_data:
-                add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "forwarded")
+                add_timing_data_to_header(
+                    headers,
+                    self.core.agent_uuid or self.core.identity,
+                    "forwarded")
 
             to_send.append({'topic': topic,
                             'headers': headers,
@@ -242,13 +232,16 @@ class DataMover(BaseHistorian):
 
         with gevent.Timeout(30):
             try:
-                self._target_platform.vip.rpc.call(self.destination_historian_identity,
-                                                   'insert', to_send).get(timeout=10)
+                _log.debug("Sending to destination historian.")
+                self._target_platform.vip.rpc.call(
+                    self.destination_historian_identity, 'insert',
+                    to_send).get(timeout=10)
                 self.report_all_handled()
             except gevent.Timeout:
                 self._last_timeout = self.timestamp()
                 self._target_platform.core.stop()
                 self._target_platform = None
+                _log.error("Timeout when attempting to publish to target.")
                 self.vip.health.set_status(
                     STATUS_BAD, "Timeout occurred")
 
@@ -268,6 +261,12 @@ class DataMover(BaseHistorian):
                                        status)
         else:
             self._target_platform = agent
+
+    def historian_teardown(self):
+        # Kill the forwarding agent if it is currently running.
+        if self._target_platform is not None:
+            self._target_platform.core.stop()
+            self._target_platform = None
 
 
 def main(argv=sys.argv):

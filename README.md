@@ -5,18 +5,18 @@ Distributed Control System Platform.
 |Branch|Status|
 |:---:|---|
 |Master Branch| ![image](https://travis-ci.org/VOLTTRON/volttron.svg?branch=master)|
-|3.x| ![image](https://travis-ci.org/VOLTTRON/volttron.svg?branch=3.x)|
+|Releases 4.1| ![image](https://travis-ci.org/VOLTTRON/volttron.svg?branch=releases/4.1)|
 |develop| ![image](https://travis-ci.org/VOLTTRON/volttron.svg?branch=develop)|
 
 VOLTTRONTM is an open source platform for distributed sensing and control. The platform provides services for collecting and storing data from buildings and devices and provides an environment for developing applications which interact with that data.
 
 ## Features
 
-* [Message Bus](http://volttron.readthedocs.io/en/master/core_services/messagebus/index.html#messagebus-index) allows agents to subcribe to data sources and publish results and messages
-* [Driver framework](http://volttron.readthedocs.io/en/master/core_services/drivers/index.html#volttron-driver-framework) for collecting data from and sending control actions to buildings and devices
-* [Historian framework](http://volttron.readthedocs.io/en/master/core_services/historians/index.html#historian-index) for storing data
-* [Agent lifecycle managment](http://volttron.readthedocs.io/en/master/core_services/control/AgentManagement.html#agentmanagement) in the platform
-* [Web UI](http://volttron.readthedocs.io/en/master/core_services/service_agents/central_management/VOLTTRON-Central.html#volttron-central) for managing deployed instances from a single central instance.
+* [Message Bus](https://volttron.readthedocs.io/en/latest/core_services/messagebus/index.html#messagebus-index) allows agents to subcribe to data sources and publish results and messages
+* [Driver framework](https://volttron.readthedocs.io/en/latest/core_services/drivers/index.html#volttron-driver-framework) for collecting data from and sending control actions to buildings and devices
+* [Historian framework](https://volttron.readthedocs.io/en/latest/core_services/historians/index.html#historian-index) for storing data
+* [Agent lifecycle managment](https://volttron.readthedocs.io/en/latest/core_services/control/AgentManagement.html#agentmanagement) in the platform
+* [Web UI](https://volttron.readthedocs.io/en/latest/core_services/service_agents/central_management/VOLTTRON-Central.html#volttron-central) for managing deployed instances from a single central instance.
 
 ## Background
 
@@ -27,7 +27,7 @@ http://ryanstutorials.net/linuxtutorial/
 
 ## Installation
 
-Install VOLTTRON by running the following commands which installs needed [prerequisites](http://volttron.readthedocs.io/en/master/devguides/setup/VOLTTRON-Prerequisites.html#volttron-prerequisites), clones the source code, then builds the virtual environment for using the platform.
+Install VOLTTRON by running the following commands which installs needed [prerequisites](https://volttron.readthedocs.io/en/latest/setup/VOLTTRON-Prerequisites.html#volttron-prerequisites), clones the source code, then builds the virtual environment for using the platform.
 
 ```sh
 sudo apt-get update
@@ -73,10 +73,10 @@ volttron-ctl shutdown --platform
 ```
 
 ## Next Steps
-There are several [walkthroughs](http://volttron.readthedocs.io/en/master/devguides/index.html#devguides-index) to explore additional aspects of the platform:
+There are several [walkthroughs](https://volttron.readthedocs.io/en/latest/devguides/index.html#devguides-index) to explore additional aspects of the platform:
 
-* [Agent Development Walkthrough](http://volttron.readthedocs.io/en/master/devguides/agent_development/Agent-Development.html#agent-development)
-* Demonstration of the [management UI](http://volttron.readthedocs.io/en/master/devguides/walkthroughs/VOLTTRON-Central-Demo.html#volttron-central-demo)
+* [Agent Development Walkthrough](https://volttron.readthedocs.io/en/latest/devguides/agent_development/Agent-Development.html#agent-development)
+* Demonstration of the [management UI](https://volttron.readthedocs.io/en/latest/devguides/walkthroughs/VOLTTRON-Central-Demo.html#volttron-central-demo)
 
 ## Acquiring Third Party Agent Code
 Third party agents are available under volttron-applications repository. In order to use those agents, add volttron-applications repository under the volttron/applications directory by using following command:
@@ -87,19 +87,19 @@ git subtree add –prefix applications https://github.com/VOLTTRON/volttron-appl
 
 ## Contribute
 
-How to [contribute](http://volttron.readthedocs.io/en/develop/contributing.html) back:
+How to [contribute](http://volttron.readthedocs.io/en/latest/community_resources/index.html#contributing-back) back:
 
-* Issue Tracker: http://github.com/VOLTTRON/volttron/issues
-* Source Code: http://github.com/VOLTTRON/volttron
+* Issue Tracker: https://github.com/VOLTTRON/volttron/issues
+* Source Code: https://github.com/VOLTTRON/volttron
 
 ## Support
-There are several options for VOLTTRONTM [support](http://volttron.readthedocs.io/en/master/community_resources/index.html#volttron-community).
+There are several options for VOLTTRONTM [support](https://volttron.readthedocs.io/en/latest/community_resources/index.html#volttron-community).
 
 * A VOLTTRONTM office hours telecon takes place every other Friday at 11am Pacific over Skype.
 * A mailing list for announcements and reminders
 * The VOLTTRONTM contact email for being added to office hours, the mailing list, and for inquiries is: volttron@pnnl.gov
-* The preferred method for questions is through stackoverflow since this is easily discoverable by others who may have the same issue. http://stackoverflow.com/questions/tagged/volttron
-* GitHub issue tracker for feature requests, bug reports, and following development activities http://github.com/VOLTTRON/volttron/issues
+* The preferred method for questions is through stackoverflow since this is easily discoverable by others who may have the same issue. https://stackoverflow.com/questions/tagged/volttron
+* GitHub issue tracker for feature requests, bug reports, and following development activities https://github.com/VOLTTRON/volttron/issues
 
 ## License
 The project is [licensed](TERMS.md) under a modified BSD license.

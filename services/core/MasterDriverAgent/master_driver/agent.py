@@ -55,8 +55,8 @@
 
 import logging
 import sys
-import os
 import gevent
+from collections import defaultdict
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.agent import utils
 from volttron.platform.agent import math_utils
@@ -66,7 +66,7 @@ import resource
 from datetime import datetime, timedelta
 import bisect
 import fnmatch
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 from interfaces import DriverInterfaceError
 from driver_locks import configure_socket_lock, configure_publish_lock
 
@@ -130,9 +130,12 @@ def master_driver_agent(config_path, **kwargs):
     publish_depth_first = bool(get_config("publish_depth_first", True))
     publish_breadth_first = bool(get_config("publish_breadth_first", True))
 
+    group_offset_interval = get_config("group_offset_interval", 0.0)
+
     return MasterDriverAgent(driver_config_list, scalability_test,
                              scalability_test_iterations,
                              driver_scrape_interval,
+                             group_offset_interval,
                              max_open_sockets,
                              max_concurrent_publishes,
                              system_socket_limit,
@@ -146,6 +149,7 @@ class MasterDriverAgent(Agent):
     def __init__(self, driver_config_list, scalability_test = False,
                  scalability_test_iterations = 3,
                  driver_scrape_interval = 0.02,
+                 group_offset_interval = 0.0,
                  max_open_sockets = None,
                  max_concurrent_publishes = 10000,
                  system_socket_limit = None,
@@ -161,15 +165,24 @@ class MasterDriverAgent(Agent):
         try:
             self.driver_scrape_interval = float(driver_scrape_interval)
         except ValueError:
-            self.driver_scrape_interval = 0.05
+            _log.warning("Invalid driver_scrape_interval, setting to default value.")
+            self.driver_scrape_interval = 0.02
+
+        try:
+            self.group_offset_interval = float(group_offset_interval)
+        except ValueError:
+            _log.warning("Invalid group_offset_interval, setting to default value.")
+            self.group_offset_interval = 0.0
+
         self.system_socket_limit = system_socket_limit
-        self.freed_time_slots = []
+        self.freed_time_slots = defaultdict(list)
+        self.group_counts = defaultdict(int)
         self._name_map = {}
 
-        self.publish_depth_first_all = publish_depth_first_all
-        self.publish_breadth_first_all = publish_breadth_first_all
-        self.publish_depth_first = publish_depth_first
-        self.publish_breadth_first = publish_breadth_first
+        self.publish_depth_first_all = bool(publish_depth_first_all)
+        self.publish_breadth_first_all = bool(publish_breadth_first_all)
+        self.publish_depth_first = bool(publish_depth_first)
+        self.publish_breadth_first = bool(publish_breadth_first)
         self._override_devices = set()
         self._override_patterns = None
         self._override_interval_events = {}
@@ -184,11 +197,12 @@ class MasterDriverAgent(Agent):
                                "scalability_test_iterations": scalability_test_iterations,
                                "max_open_sockets": max_open_sockets,
                                "max_concurrent_publishes": max_concurrent_publishes,
-                               "driver_scrape_interval": driver_scrape_interval,
-                               "publish_depth_first_all": publish_depth_first_all,
-                               "publish_breadth_first_all": publish_breadth_first_all,
-                               "publish_depth_first": publish_depth_first,
-                               "publish_breadth_first": publish_breadth_first}
+                               "driver_scrape_interval": self.driver_scrape_interval,
+                               "group_offset_interval": self.group_offset_interval,
+                               "publish_depth_first_all": self.publish_depth_first_all,
+                               "publish_breadth_first_all": self.publish_breadth_first_all,
+                               "publish_depth_first": self.publish_depth_first,
+                               "publish_breadth_first": self.publish_breadth_first}
 
         self.vip.config.set_default("config", self.default_config)
         self.vip.config.subscribe(self.configure_main, actions=["NEW", "UPDATE"], pattern="config")
@@ -295,21 +309,32 @@ class MasterDriverAgent(Agent):
             _log.error("Master driver scrape interval settings unchanged")
             # TODO: set a health status for the agent
 
+        try:
+            group_offset_interval = float(config["group_offset_interval"])
+        except ValueError as e:
+            _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
+            _log.error("Master driver group interval settings unchanged")
+            # TODO: set a health status for the agent
+
         if self.scalability_test and action == "UPDATE":
             _log.info("Running scalability test. Settings may not be changed without restart.")
             return
 
-        if self.driver_scrape_interval != driver_scrape_interval:
+        if (self.driver_scrape_interval != driver_scrape_interval or
+                    self.group_offset_interval != group_offset_interval):
             self.driver_scrape_interval = driver_scrape_interval
+            self.group_offset_interval = group_offset_interval
 
             _log.info("Setting time delta between driver device scrapes to  " + str(driver_scrape_interval))
 
             #Reset all scrape schedules
-            self.freed_time_slots = []
-            time_slot = 0
+            self.freed_time_slots.clear()
+            self.group_counts.clear()
             for driver in self.instances.itervalues():
-                driver.update_scrape_schedule(time_slot, self.driver_scrape_interval)
-                time_slot+=1
+                time_slot = self.group_counts[driver.group]
+                driver.update_scrape_schedule(time_slot, self.driver_scrape_interval,
+                                              driver.group, self.group_offset_interval)
+                self.group_counts[driver.group] += 1
 
         self.publish_depth_first_all = bool(config["publish_depth_first_all"])
         self.publish_breadth_first_all = bool(config["publish_breadth_first_all"])
@@ -342,26 +367,31 @@ class MasterDriverAgent(Agent):
         except StandardError as e:
             _log.error("Failure during {} driver shutdown: {}".format(real_name, e))
 
-        bisect.insort(self.freed_time_slots, driver.time_slot)
+        bisect.insort(self.freed_time_slots[driver.group], driver.time_slot)
+        self.group_counts[driver.group] -= 1
 
 
     def update_driver(self, config_name, action, contents):
         topic = self.derive_device_topic(config_name)
         self.stop_driver(topic)
 
-        slot = len(self.instances)
+        group = int(contents.get("group", 0))
 
-        if self.freed_time_slots:
-            slot = self.freed_time_slots.pop(0)
+        slot = self.group_counts[group]
+
+        if self.freed_time_slots[group]:
+            slot = self.freed_time_slots[group].pop(0)
 
         _log.info("Starting driver: {}".format(topic))
         driver = DriverAgent(self, contents, slot, self.driver_scrape_interval, topic,
+                             group, self.group_offset_interval,
                              self.publish_depth_first_all,
                              self.publish_breadth_first_all,
                              self.publish_depth_first,
                              self.publish_breadth_first)
         gevent.spawn(driver.core.run)
         self.instances[topic] = driver
+        self.group_counts[group] += 1
         self._name_map[topic.lower()] = topic
         self._update_override_state(topic, 'add')
 
@@ -754,7 +784,6 @@ class MasterDriverAgent(Agent):
             #If device is in list of overriden devices, remove it.
             if device in self._override_devices:
                 self._override_devices.remove(device)
-
 
 def main(argv=sys.argv):
     """Main method called to start the agent."""

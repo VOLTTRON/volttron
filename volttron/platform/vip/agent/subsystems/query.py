@@ -60,7 +60,7 @@ from __future__ import absolute_import
 import re
 import weakref
 
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from .base import SubsystemBase
 from ..errors import VIPError

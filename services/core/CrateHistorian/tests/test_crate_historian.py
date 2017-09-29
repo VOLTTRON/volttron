@@ -60,6 +60,8 @@
 import gevent
 import pytest
 
+from volttron.platform import get_services_core
+
 try:
     from crate import client
     HAS_CRATE = True
@@ -162,7 +164,7 @@ def test_creates_default_table_prefixes(volttron_instance, crate_connection1):
         vi = volttron_instance
         assert not retrieve_tables_from_schema(crate_connection1, "historian")
 
-        agent_uuid = vi.install_agent(agent_dir="services/core/CrateHistorian",
+        agent_uuid = vi.install_agent(agent_dir=get_services_core("CrateHistorian"),
                                       config_file=crate_config_no_schema)
 
         gevent.sleep(0.5)
@@ -183,7 +185,7 @@ def test_creates_schema_prefix_tables(volttron_instance, crate_connection2):
         vi = volttron_instance
         assert not retrieve_tables_from_schema(crate_connection2, "testing")
 
-        agent_uuid = vi.install_agent(agent_dir="services/core/CrateHistorian",
+        agent_uuid = vi.install_agent(agent_dir=get_services_core("CrateHistorian"),
                                       config_file=crate_config)
 
         tables = retrieve_tables_from_schema(crate_connection2, "testing")

@@ -69,7 +69,8 @@ from bacpypes.primitivedata import Atomic, Real, Unsigned
 from bacpypes.constructeddata import Array, Any
 from bacpypes.basetypes import ServicesSupported, ErrorType
 from bacpypes.apdu import ReadPropertyMultipleACK, ReadAccessResult, ReadAccessResultElement, ReadAccessResultElementChoice
-from bacpypes.app import LocalDeviceObject, BIPSimpleApplication
+from bacpypes.app import BIPSimpleApplication
+from bacpypes.service.device import LocalDeviceObject
 from bacpypes.object import AnalogValueObject, PropertyError, get_object_class
 from bacpypes.apdu import Error
 from bacpypes.errors import ExecutionError

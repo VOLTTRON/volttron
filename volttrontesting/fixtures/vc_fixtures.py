@@ -1,6 +1,7 @@
 
 import pytest
 
+from volttron.platform import get_services_core
 from .volttron_platform_fixtures import print_log
 
 PLATFORM_AGENT_CONFIG = {
@@ -65,13 +66,12 @@ def vc_instance(request, volttron_instance1_web):
           `VolttronCentral` agent.
     """
     agent_uuid = volttron_instance1_web.install_agent(
-        agent_dir="services/core/VolttronCentral",
+        agent_dir=get_services_core("VolttronCentral"),
         config_file=VC_CONFIG,
         start=True
     )
 
-    rpc_addr = "{}/jsonrpc"\
-        .format(volttron_instance1_web.bind_web_address)
+    rpc_addr = volttron_instance1_web.jsonrpc_endpoint
 
     # Allow all incoming connections that are encrypted.
     volttron_instance1_web.allow_all_connections()
@@ -94,7 +94,7 @@ def pa_instance(request, volttron_instance2_web):
     :returns tuple: the platformwrapper and the uuid of the agaent installed.
     """
     agent_uuid = volttron_instance2_web.install_agent(
-        agent_dir="services/core/VolttronCentralPlatform",
+        agent_dir=get_services_core("VolttronCentralPlatform"),
         config_file=PLATFORM_AGENT_CONFIG,
         start=True
     )

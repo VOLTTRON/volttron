@@ -74,21 +74,32 @@ from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_GOOD, Status)
 from volttron.utils.docs import doc_inherit
+from zmq.green import ZMQError, ENOTSOCK
 
 FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.7'
+__version__ = '4.0'
 
 
 def historian(config_path, **kwargs):
     config = utils.load_config(config_path)
-    services_topic_list = config.get('services_topic_list', ['all'])
     custom_topic_list = config.get('custom_topic_list', [])
     topic_replace_list = config.get('topic_replace_list', [])
     destination_vip = config.get('destination-vip')
 
-    gather_timing_data = config.get('gather_timing_data', False)
+    service_topic_list = config.get('service_topic_list')
+    if service_topic_list is not None:
+        w = "Deprecated service_topic_list.  Use capture_device_data " \
+            "capture_log_data, capture_analysis_data or capture_record_data " \
+            "instead!"
+        _log.warning(w)
+
+        # Populate the new values for the kwargs based upon the old data.
+        kwargs['capture_device_data'] = True if "device" in service_topic_list else False
+        kwargs['capture_log_data'] = True if "datalogger" in service_topic_list else False
+        kwargs['capture_record_data'] = True if "record" in service_topic_list else False
+        kwargs['capture_analysis_data'] = True if "analysis" in service_topic_list else False
 
     hosts = KnownHostsStore()
     destination_serverkey = hosts.serverkey(destination_vip)
@@ -97,240 +108,340 @@ def historian(config_path, **kwargs):
         destination_serverkey = config['destination-serverkey']
 
     required_target_agents = config.get('required_target_agents', [])
-    backup_storage_limit_gb = config.get('backup_storage_limit_gb', None)
-    if 'all' in services_topic_list:
-        services_topic_list = [topics.DRIVER_TOPIC_BASE, topics.LOGGER_BASE,
-                               topics.ACTUATOR, topics.ANALYSIS_TOPIC_BASE]
+    cache_only = config.get('cache_only', False)
 
-    class ForwardHistorian(BaseHistorian):
-        """
-        This historian forwards data to another platform.
-        """
+    return ForwardHistorian(destination_vip, destination_serverkey,
+                            custom_topic_list=custom_topic_list,
+                            topic_replace_list=topic_replace_list,
+                            required_target_agents=required_target_agents,
+                            cache_only=cache_only,
+                            **kwargs)
 
-        def __init__(self, **kwargs):
-            # will be available in both threads.
-            self._topic_replace_map = {}
-            self._num_failures = 0
-            self._last_timeout = 0
-            self._target_platform = None
-            super(ForwardHistorian, self).__init__(**kwargs)
 
-        @Core.receiver("onstart")
-        def starting_base(self, sender, **kwargs):
-            """
-            Subscribes to the platform message bus on the actuator, record,
-            datalogger, and device topics to capture data.
-            """
+class ForwardHistorian(BaseHistorian):
+    """
+    This historian forwards data to another instance as if it was published
+    originally to the second instance.
+    """
 
-            def subscriber(subscription, callback_method):
-                _log.debug("subscribing to {}".format(subscription))
-                self.vip.pubsub.subscribe(peer='pubsub',
-                                          prefix=subscription,
-                                          callback=callback_method)
+    def __init__(self, destination_vip, destination_serverkey,
+                 custom_topic_list=[],
+                 topic_replace_list=[],
+                 required_target_agents=[],
+                 cache_only=False, **kwargs):
+        kwargs["process_loop_in_greenlet"] = True
+        super(ForwardHistorian, self).__init__(**kwargs)
 
-            _log.debug("Starting Forward historian")
-            for topic_subscriptions in services_topic_list:
-                subscriber(topic_subscriptions, self.capture_data)
+        # will be available in both threads.
+        self._topic_replace_map = {}
+        self.topic_replace_list = topic_replace_list
+        self._num_failures = 0
+        self._last_timeout = 0
+        self._target_platform = None
+        self._current_custom_topics = set()
+        self.destination_vip = destination_vip
+        self.destination_serverkey = destination_serverkey
+        self.required_target_agents = required_target_agents
+        self.cache_only = cache_only
 
-            for custom_topic in custom_topic_list:
-                subscriber(custom_topic, self.capture_data)
+        config = {"custom_topic_list": custom_topic_list,
+                  "topic_replace_list": self.topic_replace_list,
+                  "required_target_agents": self.required_target_agents,
+                  "destination_vip": self.destination_vip,
+                  "destination_serverkey": self.destination_serverkey,
+                  "cache_only": self.cache_only}
 
-            self._started = True
+        self.update_default_config(config)
 
-        def timestamp(self):
-            return time.mktime(datetime.datetime.now().timetuple())
+        # We do not support the insert RPC call.
+        self.no_insert = True
+        # We do not support the query RPC call.
+        self.no_query = True
 
-        def capture_data(self, peer, sender, bus, topic, headers, message):
+    def configure(self, configuration):
+        custom_topic_set = set(configuration.get('custom_topic_list', []))
+        self.destination_vip = str(configuration.get('destination_vip', ""))
+        self.destination_serverkey = str(configuration.get('destination_serverkey', ""))
+        self.required_target_agents = configuration.get('required_target_agents', [])
+        self.topic_replace_list = configuration.get('topic_replace_list', [])
+        self.cache_only = configuration.get('cache_only', False)
+        # Reset the replace map.
+        self._topic_replace_map = {}
 
-            # Grab the timestamp string from the message (we use this as the
-            # value in our readings at the end of this method)
-            _log.debug("In capture data")
-            timestamp_string = headers.get(headers_mod.DATE, None)
+        # Topics to add.
+        new_topics = custom_topic_set - self._current_custom_topics
+        # Topics to remove
+        old_topics = self._current_custom_topics - custom_topic_set
 
-            data = message
+        for prefix in new_topics:
+            _log.info("Subscribing to {}".format(prefix))
             try:
-                # 2.0 agents compatability layer makes sender = pubsub.compat
-                # so we can do the proper thing when it is here
-                _log.debug("message in capture_data {}".format(message))
-                if sender == 'pubsub.compat':
-                    # data = jsonapi.loads(message[0])
-                    data = compat.unpack_legacy_message(headers, message)
-                    _log.debug("data in capture_data {}".format(data))
-                if isinstance(data, dict):
-                    data = data
-                elif isinstance(data, int) or \
-                        isinstance(data, float) or \
-                        isinstance(data, long):
-                    data = data
-                    # else:
-                    #     data = data[0]
-            except ValueError as e:
-                log_message = "message for {topic} bad message string:" \
-                              "{message_string}"
-                _log.error(log_message.format(topic=topic,
-                                              message_string=message[0]))
-                raise
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=prefix,
+                                          callback=self.capture_data).get(timeout=5.0)
+                self._current_custom_topics.add(prefix)
+            except (gevent.Timeout, Exception) as e:
+                _log.error("Failed to subscribe to {}: {}".format(prefix, repr(e)))
 
-            if topic_replace_list:
-                if topic in self._topic_replace_map.keys():
-                    topic = self._topic_replace_map[topic]
-                else:
-                    self._topic_replace_map[topic] = topic
-                    temptopics = {}
-                    for x in topic_replace_list:
-                        if x['from'] in topic:
-                            new_topic = temptopics.get(topic, topic)
-                            temptopics[topic] = new_topic.replace(
-                                x['from'], x['to'])
+        for prefix in old_topics:
+            _log.info("unsubscribing from {}".format(prefix))
+            try:
+                self.vip.pubsub.unsubscribe(peer='pubsub',
+                                            prefix=prefix,
+                                            callback=self.capture_data).get(timeout=5.0)
+                self._current_custom_topics.remove(prefix)
+            except (gevent.Timeout, Exception) as e:
+                _log.error("Failed to unsubscribe from {}: {}".format(prefix, repr(e)))
 
-                    for k, v in temptopics.items():
-                        self._topic_replace_map[k] = v
-                    topic = self._topic_replace_map[topic]
+    # Redirect the normal capture functions to capture_data.
+    def _capture_device_data(self, peer, sender, bus, topic, headers, message):
+        self.capture_data(peer, sender, bus, topic, headers, message)
 
-            if gather_timing_data:
-                add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
+    def _capture_log_data(self, peer, sender, bus, topic, headers, message):
+        self.capture_data(peer, sender, bus, topic, headers, message)
 
-            payload = {'headers': headers, 'message': data}
+    def _capture_analysis_data(self, peer, sender, bus, topic, headers, message):
+        self.capture_data(peer, sender, bus, topic, headers, message)
 
-            self._event_queue.put({'source': "forwarded",
-                                   'topic': topic,
-                                   'readings': [(timestamp_string, payload)]})
+    def _capture_record_data(self, peer, sender, bus, topic, headers, message):
+        self.capture_data(peer, sender, bus, topic, headers, message)
 
-        @doc_inherit
-        def publish_to_historian(self, to_publish_list):
-            handled_records = []
+    def timestamp(self):
+        return time.mktime(datetime.datetime.now().timetuple())
 
-            _log.debug("publish_to_historian number of items: {}"
-                       .format(len(to_publish_list)))
-            parsed = urlparse(self.core.address)
-            next_dest = urlparse(destination_vip)
-            current_time = self.timestamp()
-            last_time = self._last_timeout
-            _log.debug('Lasttime: {} currenttime: {}'.format(last_time,
-                                                             current_time))
-            timeout_occurred = False
-            if self._last_timeout:
-                # if we failed we need to wait 60 seconds before we go on.
-                if self.timestamp() < self._last_timeout + 60:
-                    _log.debug('Not allowing send < 60 seconds from failure')
-                    return
-            if not self._target_platform:
-                self.historian_setup()
-            if not self._target_platform:
-                _log.debug('Could not connect to target')
+    def capture_data(self, peer, sender, bus, topic, headers, message):
+
+        # Grab the timestamp string from the message (we use this as the
+        # value in our readings at the end of this method)
+        timestamp_string = headers.get(headers_mod.DATE, None)
+
+        data = message
+        try:
+            # 2.0 agents compatability layer makes sender = pubsub.compat
+            # so we can do the proper thing when it is here
+            _log.debug("message in capture_data {}".format(message))
+            if sender == 'pubsub.compat':
+                # data = jsonapi.loads(message[0])
+                data = compat.unpack_legacy_message(headers, message)
+                _log.debug("data in capture_data {}".format(data))
+            if isinstance(data, dict):
+                data = data
+            elif isinstance(data, int) or \
+                    isinstance(data, float) or \
+                    isinstance(data, long):
+                data = data
+                # else:
+                #     data = data[0]
+        except ValueError as e:
+            log_message = "message for {topic} bad message string:" \
+                          "{message_string}"
+            _log.error(log_message.format(topic=topic,
+                                          message_string=message[0]))
+            raise
+
+        if self.topic_replace_list:
+            original_topic = topic
+            if topic in self._topic_replace_map.keys():
+                topic = self._topic_replace_map[original_topic]
+            else:
+                self._topic_replace_map[topic] = original_topic
+                temptopics = {}
+                for x in self.topic_replace_list:
+                    if x['from'] in topic:
+                        new_topic = temptopics.get(topic, topic)
+                        temptopics[topic] = new_topic.replace(
+                            x['from'], x['to'])
+
+                for k, v in temptopics.items():
+                    self._topic_replace_map[k] = v
+                topic = self._topic_replace_map[topic]
+
+            # if the topic wasn't changed then we don't forward anything for
+            # it.
+            if topic == original_topic:
+                _log.warn(
+                    "Topic {} not published because not anonymized.".format(original_topic))
                 return
 
-            for vip_id in required_target_agents:
+        if self.gather_timing_data:
+            add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
+
+        payload = {'headers': headers, 'message': data}
+
+        self._event_queue.put({'source': "forwarded",
+                               'topic': topic,
+                               'readings': [(timestamp_string, payload)]})
+
+    @doc_inherit
+    def publish_to_historian(self, to_publish_list):
+        if self.cache_only:
+            _log.warning("cache_only enabled")
+            return
+
+        handled_records = []
+
+        _log.debug("publish_to_historian number of items: {}"
+                   .format(len(to_publish_list)))
+        parsed = urlparse(self.core.address)
+        next_dest = urlparse(self.destination_vip)
+        current_time = self.timestamp()
+        last_time = self._last_timeout
+        _log.debug('Lasttime: {} currenttime: {}'.format(last_time,
+                                                         current_time))
+        timeout_occurred = False
+        if self._last_timeout:
+            # if we failed we need to wait 60 seconds before we go on.
+            if self.timestamp() < self._last_timeout + 60:
+                _log.debug('Not allowing send < 60 seconds from failure')
+                return
+        if not self._target_platform:
+            self.historian_setup()
+        if not self._target_platform:
+            _log.debug('Could not connect to target')
+            return
+
+        for vip_id in self.required_target_agents:
+            try:
+                self._target_platform.vip.ping(vip_id).get()
+            except Unreachable:
+                skip = "Skipping publish: Target platform not running " \
+                       "required agent {}".format(vip_id)
+                _log.warn(skip)
+                self.vip.health.set_status(
+                    STATUS_BAD, skip)
+                return
+            except Exception as e:
+                err = "Unhandled error publishing to target platform."
+                _log.error(err)
+                _log.error(traceback.format_exc())
+                self.vip.health.set_status(
+                    STATUS_BAD, err)
+                return
+
+        for x in to_publish_list:
+            topic = x['topic']
+            value = x['value']
+            # payload = jsonapi.loads(value)
+            payload = value
+            headers = payload['headers']
+            headers['X-Forwarded'] = True
+            if 'X-Forwarded-From' in headers:
+                if not isinstance(headers['X-Forwarded-From'], list):
+                    headers['X-Forwarded-From'] = [headers['X-Forwarded-From']]
+                headers['X-Forwarded-From'].append(self.instance_name)
+            else:
+                headers['X-Forwarded-From'] = self.instance_name
+
+            try:
+                del headers['Origin']
+            except KeyError:
+                pass
+            try:
+                del headers['Destination']
+            except KeyError:
+                pass
+
+            if self.gather_timing_data:
+                add_timing_data_to_header(headers,
+                                          self.core.agent_uuid or self.core.identity,
+                                          "forwarded")
+
+            if timeout_occurred:
+                _log.error(
+                    'A timeout has occurred so breaking out of publishing')
+                break
+            with gevent.Timeout(30):
                 try:
-                    self._target_platform.vip.ping(vip_id).get()
-                except Unreachable:
-                    skip = "Skipping publish: Target platform not running " \
-                           "required agent {}".format(vip_id)
-                    _log.warn(skip)
+                    _log.debug('debugger: {} {} {}'.format(topic,
+                                                           headers,
+                                                           payload))
+
+                    self._target_platform.vip.pubsub.publish(
+                        peer='pubsub',
+                        topic=topic,
+                        headers=headers,
+                        message=payload['message']).get()
+                except gevent.Timeout:
+                    _log.debug("Timeout occurred email should send!")
+                    timeout_occurred = True
+                    self._last_timeout = self.timestamp()
+                    self._num_failures += 1
+                    # Stop the current platform from attempting to
+                    # connect
+                    self.historian_teardown()
                     self.vip.health.set_status(
-                        STATUS_BAD, skip)
-                    return
+                        STATUS_BAD, "Timeout occured")
+                except Unreachable:
+                    _log.error("Target not reachable. Wait till it's ready!")
+                except ZMQError as exc:
+                    if exc.errno == ENOTSOCK:
+                        # Stop the current platform from attempting to
+                        # connect
+                        _log.error("Target disconnected. Stopping target platform agent")
+                        self.historian_teardown()
+                        self.vip.health.set_status(
+                            STATUS_BAD, "Target platform disconnected")
                 except Exception as e:
-                    err = "Unhandled error publishing to target platform."
+                    err = "Unhandled error publishing to target platfom."
                     _log.error(err)
                     _log.error(traceback.format_exc())
                     self.vip.health.set_status(
                         STATUS_BAD, err)
+                    # Before returning lets mark any that weren't errors
+                    # as sent.
+                    self.report_handled(handled_records)
                     return
+                else:
+                    handled_records.append(x)
 
-            for x in to_publish_list:
-                topic = x['topic']
-                value = x['value']
-                # payload = jsonapi.loads(value)
-                payload = value
-                headers = payload['headers']
-                headers['X-Forwarded'] = True
-                try:
-                    del headers['Origin']
-                except KeyError:
-                    pass
-                try:
-                    del headers['Destination']
-                except KeyError:
-                    pass
+        _log.debug("handled: {} number of items".format(
+            len(to_publish_list)))
+        self.report_handled(handled_records)
 
-                if gather_timing_data:
-                    add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity,"forwarded")
+        if timeout_occurred:
+            _log.debug('Sending alert from the ForwardHistorian')
+            status = Status.from_json(self.vip.health.get_status())
+            self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
+                                       status)
+        else:
+            self.vip.health.set_status(
+                STATUS_GOOD,"published {} items".format(
+                    len(to_publish_list)))
 
-                if timeout_occurred:
-                    _log.error(
-                        'A timeout has occurred so breaking out of publishing')
-                    break
-                with gevent.Timeout(30):
-                    try:
-                        _log.debug('debugger: {} {} {}'.format(topic,
-                                                               headers,
-                                                               payload))
-                        self._target_platform.vip.pubsub.publish(
-                            peer='pubsub',
-                            topic=topic,
-                            headers=headers,
-                            message=payload['message']).get()
-                    except gevent.Timeout:
-                        _log.debug("Timeout occurred email should send!")
-                        timeout_occurred = True
-                        self._last_timeout = self.timestamp()
-                        self._num_failures += 1
-                        # Stop the current platform from attempting to
-                        # connect
-                        self._target_platform.core.stop()
-                        self._target_platform = None
-                        self.vip.health.set_status(
-                            STATUS_BAD, "Timeout occured")
-                    except Exception as e:
-                        err = "Unhandled error publishing to target platfom."
-                        _log.error(err)
-                        _log.error(traceback.format_exc())
-                        self.vip.health.set_status(
-                            STATUS_BAD, err)
-                        # Before returning lets mark any that weren't errors
-                        # as sent.
-                        self.report_handled(handled_records)
-                        return
-                    else:
-                        handled_records.append(x)
+    @doc_inherit
+    def historian_setup(self):
+        _log.debug("Setting up to forward to {}".format(self.destination_vip))
+        try:
+            agent = build_agent(address=self.destination_vip,
+                                serverkey=self.destination_serverkey,
+                                publickey=self.core.publickey,
+                                secretkey=self.core.secretkey,
+                                enable_store=False)
 
-            _log.debug("handled: {} number of items".format(
-                len(to_publish_list)))
-            self.report_handled(handled_records)
+        except gevent.Timeout:
+            _log.error("Couldn't connect to destination-vip ({})".format(
+                self.destination_vip
+            ))
+            self.vip.health.set_status(
+                STATUS_BAD, "Timeout in setup of agent")
+        except Exception as ex:
+            _log.error(ex.args)
 
-            if timeout_occurred:
-                _log.debug('Sending alert from the ForwardHistorian')
-                status = Status.from_json(self.vip.health.get_status())
-                self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
-                                           status)
-            else:
-                self.vip.health.set_status(
-                    STATUS_GOOD,"published {} items".format(
-                        len(to_publish_list)))
+        else:
+            self._target_platform = agent
+            self.vip.health.set_status(
+                STATUS_GOOD, "Connected to destination-vip ({})".format(
+                    self.destination_vip))
 
-        @doc_inherit
-        def historian_setup(self):
-            _log.debug("Setting up to forward to {}".format(destination_vip))
-            try:
-                agent = build_agent(address=destination_vip,
-                                    serverkey=destination_serverkey,
-                                    publickey=self.core.publickey,
-                                    secretkey=self.core.secretkey,
-                                    enable_store=False)
-
-            except gevent.Timeout:
-                self.vip.health.set_status(
-                    STATUS_BAD, "Timeout in setup of agent")
-                status = Status.from_json(self.vip.health.get_status_json())
-                self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
-                                           status)
-            else:
-                self._target_platform = agent
+    @doc_inherit
+    def historian_teardown(self):
+        # Kill the forwarding agent if it is currently running.
+        if self._target_platform is not None:
+            self._target_platform.core.stop()
+            self._target_platform = None
 
 
-    return ForwardHistorian(backup_storage_limit_gb=backup_storage_limit_gb,
-                            **kwargs)
+
 
 
 def main(argv=sys.argv):

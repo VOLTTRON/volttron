@@ -65,15 +65,15 @@ import errno
 from csv import DictReader
 from StringIO import StringIO
 
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 from gevent.lock import Semaphore
 
 from volttron.utils.persistance import PersistentDict
 from volttron.platform.agent.utils import parse_json_config
 from volttron.platform.vip.agent import errors
 from volttron.platform.jsonrpc import RemoteError, MethodNotFound
-
-from volttron.platform.storeutils import list_unique_links, check_for_recursion, strip_config_name, store_ext
+from volttron.platform.agent.utils import parse_timestamp_string, format_timestamp, get_aware_utc_now
+from volttron.platform.storeutils import check_for_recursion, strip_config_name, store_ext
 from .vip.agent import Agent, Core, RPC
 
 
@@ -250,6 +250,31 @@ class ConfigStoreService(Agent):
         return agent_configs[real_config_name]
 
     @RPC.export
+    def manage_get_metadata(self, identity, config_name):
+        agent_store = self.store.get(identity)
+        if agent_store is None:
+            raise KeyError('No configuration file "{}" for VIP IDENTIY {}'.format(config_name, identity))
+
+        agent_disk_store = agent_store["store"]
+        agent_name_map = agent_store["name_map"]
+
+        config_name = strip_config_name(config_name)
+        config_name_lower = config_name.lower()
+
+        if config_name_lower not in agent_name_map:
+            raise KeyError('No configuration file "{}" for VIP IDENTIY {}'.format(config_name, identity))
+
+        real_config_name = agent_name_map[config_name_lower]
+
+        real_config =  agent_disk_store[real_config_name]
+
+        #Set modified to none if we predate the modified flag.
+        if real_config.get("modified") is None:
+            real_config["modified"] = None
+
+        return real_config
+
+    @RPC.export
     def set_config(self, config_name, contents, trigger_callback=False, send_update=True):
         identity = bytes(self.vip.rpc.context.vip_message.peer)
         self.store_config(identity, config_name, contents, trigger_callback=trigger_callback, send_update=send_update)
@@ -292,6 +317,8 @@ class ConfigStoreService(Agent):
             except MethodNotFound as e:
                 _log.error(
                     "Agent {} failure when performing initial update: {}".format(identity, e))
+            except errors.VIPError as e:
+                _log.error("VIP Error sending initial agent configuration: {}".format(e))
 
         # If the store is empty (and nothing jumped in and added to it while we
         # were informing the agent) then remove it from the global store.
@@ -404,7 +431,10 @@ class ConfigStoreService(Agent):
 
         agent_configs[config_name] = parsed
         agent_name_map[config_name_lower] = config_name
-        agent_disk_store[config_name] = {"type": config_type, "data": raw}
+
+        agent_disk_store[config_name] = {"type": config_type,
+                                         "modified": format_timestamp(get_aware_utc_now()),
+                                         "data": raw}
 
         agent_disk_store.async_sync()
 

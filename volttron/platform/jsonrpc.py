@@ -63,7 +63,7 @@ See http://www.jsonrpc.org/specification for the complete specification.
 import sys
 from contextlib import contextmanager
 
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 __all__ = ['Error', 'MethodNotFound', 'RemoteError', 'Dispatcher']
 

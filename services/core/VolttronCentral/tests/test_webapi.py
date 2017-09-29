@@ -6,7 +6,8 @@ import pytest
 import requests
 import sys
 
-from volttrontesting.utils.core_service_installs import \
+from volttron.platform import get_examples
+from volttrontesting.utils.agent_additions import \
     add_volttron_central_platform, add_volttron_central, add_listener
 
 from volttron.platform.messaging.health import STATUS_GOOD
@@ -281,7 +282,7 @@ def test_installagent(vc_vcp_platforms):
     #   f['file_name']
     #   f['file
 
-    agent_wheel = vc.build_agentpackage('examples/ListenerAgent')
+    agent_wheel = vc.build_agentpackage(get_examples("ListenerAgent"))
     assert os.path.exists(agent_wheel)
 
     import base64
@@ -311,8 +312,3 @@ def test_installagent(vc_vcp_platforms):
 
     agents_after = api.list_agents(platform['uuid'])
     assert len(agents) + 1 == len(agents_after)
-
-
-
-
-

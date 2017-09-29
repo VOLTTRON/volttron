@@ -3,6 +3,7 @@ import pytest
 import time
 import warnings
 
+from volttron.platform import get_examples
 from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_port
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 from volttron.platform.vip.agent import Agent, PubSub, Core
@@ -22,8 +23,9 @@ def test_can_cleanup_installed_listener():
     assert wrapper is not None
     assert wrapper.is_running()
 
-    auuid = wrapper.install_agent(agent_dir="examples/ListenerAgent",
-        start=False)
+    auuid = wrapper.install_agent(agent_dir=get_examples("ListenerAgent"),
+                                  vip_identity="listener",
+                                  start=False)
     assert auuid is not None
     started = wrapper.start_agent(auuid)
     assert isinstance(started, int)

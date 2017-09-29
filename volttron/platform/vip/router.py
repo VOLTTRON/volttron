@@ -59,19 +59,20 @@
 from __future__ import absolute_import
 
 import os
-
+import logging
 import zmq
 from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
 
+from .pubsubservice import PubSubService
 
 __all__ = ['BaseRouter', 'OUTGOING', 'INCOMING', 'UNROUTABLE', 'ERROR']
-
 
 OUTGOING = 0
 INCOMING = 1
 UNROUTABLE = 2
 ERROR = 3
 
+_log = logging.getLogger(__name__)
 
 # Optimizing by pre-creating frames
 _ROUTE_ERRORS = {
@@ -84,6 +85,7 @@ _INVALID_SUBSYSTEM = (
     zmq.Frame(os.strerror(zmq.EPROTONOSUPPORT).encode('ascii'))
 )
 
+_log = logging.getLogger(__name__)
 
 class BaseRouter(object):
     '''Abstract base class of VIP router implementation.
@@ -113,13 +115,16 @@ class BaseRouter(object):
         self.default_user_id = default_user_id
         self.socket = None
         self._peers = set()
+        self._poller = zmq.Poller()
+        self._ext_sockets = []
+        self._socket_id_mapping = {}
 
     def run(self):
         '''Main router loop.'''
         self.start()
         try:
-            while self.poll():
-                self.route()
+            while True:
+                self.poll_sockets()
         finally:
             self.stop()
 
@@ -136,6 +141,12 @@ class BaseRouter(object):
         sock.tcp_keepalive_idle = 180
         sock.tcp_keepalive_intvl = 20
         sock.tcp_keepalive_cnt = 6
+        self.context.set(zmq.MAX_SOCKETS, 30690)
+        # sock.setsockopt(zmq.SNDBUF, 40000)
+        # sock.setsockopt(zmq.RCVBUF, 40000)
+        # sock.set_hwm(60000)
+        sock.set_hwm(6000)
+        _log.debug("ROUTER SENDBUF: {0}, {1}".format(sock.getsockopt(zmq.SNDBUF), sock.getsockopt(zmq.RCVBUF)))
         self.setup()
 
     def stop(self, linger=1):
@@ -147,6 +158,13 @@ class BaseRouter(object):
 
         Implement this method to bind the socket, set identities and
         options, etc.
+        '''
+        raise NotImplementedError()
+
+    def poll_sockets(self):
+        '''Called inside run method
+
+        Implement this method to poll for sockets for incoming messages.
         '''
         raise NotImplementedError()
 
@@ -216,11 +234,20 @@ class BaseRouter(object):
         for peer in drop:
             self._drop_peer(peer)
 
+    def _drop_pubsub_peers(self, peer):
+        '''Drop peers for pubsub subsystem. To be handled by subclasses'''
+        pass
+
+    def _add_pubsub_peers(self, peer):
+        '''Add peers for pubsub subsystem. To be handled by subclasses'''
+        pass
+
     def _add_peer(self, peer):
         if peer in self._peers:
             return
         self._distribute(b'peerlist', b'add', peer)
         self._peers.add(peer)
+        self._add_pubsub_peers(peer)
 
     def _drop_peer(self, peer):
         try:
@@ -228,6 +255,7 @@ class BaseRouter(object):
         except KeyError:
             return
         self._distribute(b'peerlist', b'drop', peer)
+        self._drop_pubsub_peers(peer)
 
     def route(self):
         '''Route one message and return.
@@ -244,6 +272,8 @@ class BaseRouter(object):
         #   [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
         frames = socket.recv_multipart(copy=False)
         issue(INCOMING, frames)
+        # for f in frames:
+        #    _log.debug("ROUTER Receiving frames: {}".format(bytes(f)))
         if len(frames) < 6:
             # Cannot route if there are insufficient frames, such as
             # might happen with a router probe.
@@ -292,6 +322,7 @@ class BaseRouter(object):
                 if response is None:
                     # Handler does not know of the subsystem
                     errnum, errmsg = error = _INVALID_SUBSYSTEM
+                    _log.debug("ROUTER proto unsupported")
                     issue(ERROR, frames, error)
                     frames = [sender, recipient, proto, b'', msg_id,
                               b'error', errnum, errmsg, b'', subsystem]
@@ -313,6 +344,8 @@ class BaseRouter(object):
         recipient, sender = frames[:2]
         # Expecting outgoing frames:
         #   [RECIPIENT, SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
+        #for f in frames:
+        #    _log.debug("ROUTER sending frames: {}".format(bytes(f)))
         try:
             # Try sending the message to its recipient
             socket.send_multipart(frames, flags=NOBLOCK, copy=False)

@@ -76,7 +76,7 @@ from collections import defaultdict
 
 from crate.client.exceptions import ConnectionError, ProgrammingError
 from crate import client
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from . crate_utils import (create_schema, select_all_topics_query,
                            insert_data_query, insert_topic_query)
@@ -93,9 +93,9 @@ __version__ = '1.0.1'
 
 def historian(config_path, **kwargs):
     """
-    This method is called by the :py:func:`crate_historian.historian.main` to parse
-    the passed config file or configuration dictionary object, validate the
-    configuration entries, and create an instance of MongodbHistorian
+    This method is called by the :py:func:`crate_historian.historian.main` to
+    parse the passed config file or configuration dictionary object, validate
+    the configuration entries, and create an instance of MongodbHistorian
 
     :param config_path: could be a path to a configuration file or can be a
                         dictionary object
@@ -115,16 +115,9 @@ def historian(config_path, **kwargs):
     params = connection.get('params', None)
     assert params is not None
 
-    topic_replacements = config_dict.get('topic_replace_list', None)
-    _log.debug('topic_replacements are: {}'.format(topic_replacements))
-
-    readonly = config_dict.get('readonly', False)
-
     CrateHistorian.__name__ = 'CrateHistorian'
-    return CrateHistorian(config_dict,
-                          readonly=readonly,
-                          topic_replace_list=topic_replacements,
-                          **kwargs)
+    kwargs.update(config_dict)
+    return CrateHistorian(**kwargs)
 
 
 class CrateHistorian(BaseHistorian):
@@ -133,7 +126,7 @@ class CrateHistorian(BaseHistorian):
 
     """
 
-    def __init__(self, config, **kwargs):
+    def __init__(self, connection, **kwargs):
         """
         Initialize the historian.
 
@@ -143,7 +136,13 @@ class CrateHistorian(BaseHistorian):
 
         In addition, the topic_map and topic_meta are used for caching meta
         data and topics respectively.
-
+        :param connection: dictionary that contains necessary information to
+        establish a connection to the crate database. The dictionary should
+        contain two entries -
+         1. 'type' - describe the type of database and
+         2. 'params' - parameters for connecting to the database.
+        It can also contain an optional entry 'schema' for choosing the
+        schema. Default is 'historian'
         :param kwargs: additional keyword arguments. (optional identity and
                        topic_replace_list used by parent classes)
 
@@ -155,9 +154,9 @@ class CrateHistorian(BaseHistorian):
         # self._agg_topic_collection = table_names['agg_topics_table']
         # self._agg_meta_collection = table_names['agg_meta_table']
 
-        _log.debug(config)
-        self._connection_params = config['connection']['params']
-        self._schema = config['connection'].get('schema', 'historian')
+        _log.debug(connection)
+        self._connection_params = connection['params']
+        self._schema = connection.get('schema', 'historian')
 
         self._client = None
         self._connection = None
@@ -218,7 +217,7 @@ class CrateHistorian(BaseHistorian):
                                        (topic,))
                     except ProgrammingError as ex:
                         if ex.args[0].startswith(
-                                'DocumentAlreadyExistsException'):
+                                'SQLActionException[DuplicateKeyException'):
                             self._topic_set.add(topic)
                         else:
                             _log.error(

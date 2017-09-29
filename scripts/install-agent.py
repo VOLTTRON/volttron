@@ -228,8 +228,6 @@ if __name__ == '__main__':
                         help="identity of the agent to be installed (unique per instance)")
     parser.add_argument("-c", "--config", default=None, type=file,
                         help="agent configuration file that will be packaged with the agent.")
-    parser.add_argument("-co", "--config-object", type=str, default="{}",
-                        help="json string that will be used as the configuration of the agent.")
     parser.add_argument("-wh", "--wheelhouse", default=None,
                         help="location of agents after they have been built")
     parser.add_argument("-t", "--tag", default=None,
@@ -263,6 +261,10 @@ if __name__ == '__main__':
     if not os.path.isfile(os.path.join(agent_source, "setup.py")):
         log.error("Agent source must contain a setup.py file.")
         sys.exit(-10)
+
+    if opts.volttron_home.endswith('/'):
+        log.warn("VOLTTRON_HOME should not have / on the end trimming it.")
+        opts.volttron_home = opts.volttron_home[:-1]
 
     if not is_instance_running(opts.volttron_home):
         log.error("The instance at {} is not running".format(
@@ -305,7 +307,7 @@ if __name__ == '__main__':
 
     if opts.force and opts.vip_identity is None:
         # If force is specified then identity must be specified to indicate the target of the force
-    
+
         log.error(
             "Force option specified without a target identity to force.")
         sys.exit(-10)
@@ -331,19 +333,11 @@ if __name__ == '__main__':
                 opts.config = jsonapi.loads(f.read())
         finally:
             tmpconfigfile.close()
-    else:
-        try:
-            jsonobj = jsonapi.loads(opts.config_object)
-        except Exception as ex:
-            log.error("Invalid json passed in config_object: {}".format(ex.args))
-            sys.exit(-10)
 
     if opts.config:
         install_agent(opts, opts.package, opts.config)
     else:
-        install_agent(opts, opts.package, jsonobj)
-
-
+        install_agent(opts, opts.package, {})
 
 
 

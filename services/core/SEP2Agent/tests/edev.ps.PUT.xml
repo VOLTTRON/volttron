@@ -1,0 +1,27 @@
+<PowerStatus xmlns="http://zigbee.org/sep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <batteryStatus>0</batteryStatus>
+    <changedTime>1416266598</changedTime>
+    <currentPowerSource>3</currentPowerSource>
+    <estimatedChargeRemaining>1</estimatedChargeRemaining>
+    <estimatedTimeRemaining>0</estimatedTimeRemaining>
+    <PEVInfo>
+        <chargingPowerNow>
+            <multiplier>0</multiplier>
+            <value>3000</value>
+        </chargingPowerNow>
+        <energyRequestNow>
+            <multiplier>0</multiplier>
+            <value>6100</value>
+        </energyRequestNow>
+        <maxForwardPower>
+            <multiplier>3</multiplier>
+            <value>7</value>
+        </maxForwardPower>
+        <minimumChargingDuration>4337</minimumChargingDuration>
+        <targetStateOfCharge>1000</targetStateOfCharge>
+        <timeChargeIsNeeded>1516266598</timeChargeIsNeeded>
+        <timeChargingStatusPEV>1516266598</timeChargingStatusPEV>
+    </PEVInfo>
+    <sessionTimeOnBattery>2</sessionTimeOnBattery>
+    <totalTimeOnBattery>2</totalTimeOnBattery>
+</PowerStatus>

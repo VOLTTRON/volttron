@@ -60,7 +60,7 @@ from __future__ import absolute_import
 from contextlib import closing
 
 from zmq import green as zmq
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from . import Core, RPC, PeerList, PubSub
 from .subsystems.pubsub import encode_peer
