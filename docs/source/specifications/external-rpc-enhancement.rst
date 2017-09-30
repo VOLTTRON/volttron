@@ -11,7 +11,7 @@ seamless RPC communication between agents on different platforms.
 
 
 VIP Router
-==========
+**********
 
 The VIP Router on each platform is responsible for establishing and maintaining the connection with remote platforms.
 

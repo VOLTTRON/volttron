@@ -14,7 +14,7 @@ External Platform Message Subscription
 
 
 To subscribe for topics from remote platform, the subscriber agent has to add an additional input parameter -
-"all_platforms" to the pubsub subscribe method.
+``all_platforms`` to the pubsub subscribe method.
 
 Here is an example,
 
@@ -23,5 +23,5 @@ Here is an example,
     self.vip.pubsub.subscribe('pubsub', 'foo', self.on_match, all_platforms=True)
 
 There is no change in the publish method pf PubSub subsystem. If all the configurations are correct and the publisher
-agent on the remote platform is publishing message to topic="foo", then the subscriber agent will start receiving
+agent on the remote platform is publishing message to topic=``foo``, then the subscriber agent will start receiving
 those messages.

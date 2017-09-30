@@ -16,7 +16,7 @@ platforms that are multiple hops away. The routing table shall contain shortest 
 
 
 Functional Capabilities
-========================
+***********************
 
 1. Each VOLTTRON platform shall have a list of other VOLTTRON platforms that it has to connect to in a config file.
 
@@ -225,9 +225,12 @@ This shows an example of external publish message sent by VOLTTRON platform V2 r
     | publish message  |    Actual publish message frame
     +------------------+
 
+API
+***
+
 
 Methods for Routing Service
-***************************
++++++++++++++++++++++++++++
 
 external_route( ) - This method receives message frames from external platforms, checks the subsystem frame and
 redirects to appropriate subsystem (routing table, pubsub) handler. It shall run within a separate thread and get
@@ -251,7 +254,7 @@ get_connected_platforms( ) - Return list of connected platforms.
 
 
 Methods for PubSubService
-*************************
++++++++++++++++++++++++++
 
 external_platform_add( instance_name ) - Send external subscription list to newly connected external VOLTTRON platform.
 
@@ -268,7 +271,7 @@ topic against list of external subscriptions and sends the message to correspond
 
 
 Methods for agent pubsub subsystem
-**********************************
+++++++++++++++++++++++++++++++++++
 
 subscribe(peer, prefix, callback, bus='', all_platforms=False) - The existing 'subscribe' method is modified to include
 optional keyword argument - 'all_platforms'. If 'all_platforms' is set to True, the agent is subscribing to topic from
