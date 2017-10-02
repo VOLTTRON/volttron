@@ -144,6 +144,13 @@ def test_poly_line_intersection_yeilds_two():
     intersection = PolyLine.intersection(demand, supply)
     assert len(intersection) == 2
 
+@pytest.mark.market
+def test_poly_line_no_intersection():
+    demand1 = create_demand_curve()
+    demand2 = create_demand_curve()
+    intersection = PolyLine.intersection(demand1, demand2)
+    assert len(intersection) == 2
+
 def create_supply_curve():
     supply_curve = PolyLine()
     price = 0

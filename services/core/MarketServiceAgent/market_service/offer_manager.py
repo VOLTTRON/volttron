@@ -105,14 +105,10 @@ class OfferManager(object):
         if enough_buys and enough_sells:
             intersection = PolyLine.intersection(demand_curve, supply_curve)
         else:
-            intersection = None
+            intersection = None, None
 
-        if intersection is not None:
-            quantity = intersection[0]
-            price = intersection[1]
-        else:
-            price = None
-            quantity = None
+        quantity = intersection[0]
+        price = intersection[1]
 
         return quantity, price
 
