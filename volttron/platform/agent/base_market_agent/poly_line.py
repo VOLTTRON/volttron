@@ -58,6 +58,7 @@
 
 import numpy as np
 
+
 class PolyLine:
     def __init__(self):
         self.points = []
@@ -281,6 +282,22 @@ class PolyLine:
                         quantity, price = PolyLine.segment_intersection((pl_1_1, pl_1_2), (pl_2_1, pl_2_2))
                         return quantity, price
 
+        # The lines don't intersect, add the auxillary information
         quantity = None
         price = None
         return quantity, price
+
+    @staticmethod
+    def compare(demand_curve, supply_curve):
+        aux = {}
+        demand_max_quantity = demand_curve.max_x()
+        demand_min_quantity = demand_curve.min_x()
+        supply_max_quantity = supply_curve.max_x()
+        supply_min_quantity = supply_curve.min_x()
+        aux['Sn,Dn'] = cmp(supply_min_quantity,demand_min_quantity)
+        aux['Sn,DX'] = cmp(supply_min_quantity,demand_max_quantity)
+        aux['Sx,Dn'] = cmp(supply_max_quantity,demand_min_quantity)
+        aux['Sx,DX'] = cmp(supply_max_quantity,demand_max_quantity)
+        return aux
+
+
