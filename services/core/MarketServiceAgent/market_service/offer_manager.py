@@ -105,12 +105,13 @@ class OfferManager(object):
         if enough_buys and enough_sells:
             intersection = PolyLine.intersection(demand_curve, supply_curve)
         else:
-            intersection = None, None
+            intersection = None, None, {}
 
         quantity = intersection[0]
         price = intersection[1]
+        aux = PolyLine.compare(demand_curve, supply_curve)
 
-        return quantity, price
+        return quantity, price, aux
 
     def buyer_count(self):
         return len(self._buy_offers)
