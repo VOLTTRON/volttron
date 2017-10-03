@@ -133,9 +133,11 @@ For example, since VOLTTRON instance 1 is connecting to VOLTTRON instance 2 and 
                     "serverkey":"hzU2bnlacAhZSaI0rI8a6XK_bqLSpA0JRK4jq8ttZxw"}
     }
 
-Contents of ``external_platform_discovery.json`` of VOLTTRON instance 1, 2, 3 are shown in the three terminal windows below.
+Contents of ``external_platform_discovery.json`` of VOLTTRON instance 1, 2, 3 are shown in the three terminal windows
+below.
 
-|Multi-Platform Discovery Config||
+
+|Multi-Platform Discovery Config|
 
 
 After this, you will need to add the server keys of the connecting platforms using the ``volttron-ctl`` utility. Type
