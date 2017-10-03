@@ -34,7 +34,14 @@ to receive messages from external platforms.
 to
 
 .. code-block:: python
+
     @PubSub.subscribe('pubsub', 'devices', all_platforms=True)
+
+or add below line in the `onstart` method
+
+.. code-block:: python
+
+    self.vip.pubsub.subscribe('pubsub', 'devices', self.on_match, all_platforms=True)
 
 
 After :ref:`building VOLTTRON <Building-VOLTTRON>`, open three shells with the current directory the root of the
