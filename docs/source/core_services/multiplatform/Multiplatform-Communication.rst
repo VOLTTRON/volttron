@@ -1,6 +1,6 @@
- .. _MultiPlatform-Communication:
+ .. _Multi-Platform-Communication:
 ===========================
-MultiPlatform Communication
+Multi-Platform Communication
 ===========================
 
 To connect to remote VOLTTRON platforms, we would need platform discovery information of the remote platforms. This
@@ -10,29 +10,34 @@ as part of Multiplatform configuration.
 Configuration
 *************
 
-To ensure a secure connection between connecting platforms, each connection need to be authenticated and authorized.
+The configuration and authentication for multi-platform connection can be setup either manually or by running the
+platforms in set up mode. Both the setups are described below.
 
-Setup Mode For Automatic Authorization
-**************************************
-*Note: It is necessary for each platform to have a web server if running in setup mode *
+Setup Mode For Automatic Authentication
+***************************************
+* Note: It is necessary for each platform to have a web server if running in setup mode *
 
 For ease of use and to support multi-scale deployment, the process of obtaining the platform discovery information and
-authenticating the new platform connection is automated. We can now bypass the manual process of adding auth keys using
-the volttron-ctl utility or having to directly update the auth.json.
+authenticating the new platform connection is automated. We can now bypass the manual process of adding auth keys (i.e.,
+either by using the volttron-ctl utility or directly updating the auth.json config file).
 
-A list of web addresses (one for each platform) need to be made available in ``VOLTTRON_HOME`` directory.
+A list of web addresses (one for each platform) need to be made available in VOLTTRON_HOME directory.
+
 Name of the file: external_address.json
+
 Directory path:   Each platform’s VOLTTRON_HOME directory.
+
 For example:      /home/volttron/.volttron1
 
 Contents of the file:
+
 .. code-block:: json
 
         [
         "http://<ip1>:<port1>",
         "http://<ip2>:<port2>",
         "http://<ip3>:<port3>",
-        ......
+         ......
         ]
 
 
@@ -43,14 +48,16 @@ We then start each VOLTTRON platform with setup mode option in this way.
         volttron -vv -l volttron.log --setup-mode&
 
 
-Each platform will obtain the platform discovery information of the remote platform that is trying to connect through a
-HTTP discovery request and store the information in a configuration file
-(``$VOLTTRON_HOME/external_platform_discovery.json``). It will use the VIP address and serverkey to connect to the remote
-platform. The remote platform shall authenticate the new connection and store the auth keys (public key) of the
+Each platform will obtain the platform discovery information of the remote platform that it is trying to connect through
+a HTTP discovery request and store the information in a configuration file
+($VOLTTRON_HOME/external_platform_discovery.json). It will then use the VIP address and serverkey to connect to the
+remote platform. The remote platform shall authenticate the new connection and store the auth keys (public key) of the
 connecting platform for future use.
 
 The platform discovery information will be stored in VOLTTRON_HOME directory and looks like below:
+
 Name of config file: external_platform_discovery.json
+
 Contents of the file:
 
 .. code-block:: json
@@ -67,7 +74,7 @@ Contents of the file:
                          "instance-name":"<platform3 name>",
                          "serverkey":"<serverkey3>"
                          },
-     ......
+      ......
     }
 
 Each platform will use this information for future connections.
@@ -84,9 +91,11 @@ mode.
 Manual Configuration of External Platform Information
 *****************************************************
 
-Platform discovery configuration file can also be built manually. It needs to be added inside ``$VOLTTRON_HOME``
-directory of each platform.
+Platform discovery configuration file can also be built manually and it needs to be added inside VOLTTRON_HOME directory
+of each platform.
+
 Name of config file: external_platform_discovery.json
+
 Contents of the file:
 
 .. code-block:: json
@@ -111,5 +120,8 @@ With this configuration, platforms can be started in normal mode.
 
         volttron -vv -l volttron.log&
 
-We need to add the credentials of the connecting platforms using the volttron-ctl utility.
-    :ref:`Agent authentication walkthrough <AgentAuthentication>`)
+For external platform connections to be authenticated, we would need to add the credentials of the connecting platforms
+in each platform using the volttron-ctl auth utility. For more details
+:ref:`Agent authentication walkthrough <AgentAuthentication>`.
+
+.. seealso::  :ref:`Multi-Platform Walkthrough <Multi-Platform-Walkthrough>`

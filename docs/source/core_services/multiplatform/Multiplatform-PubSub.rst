@@ -1,4 +1,4 @@
- .. _MultiPlatform-PubSub:
+ .. _Multi-Platform-PubSub:
 ==================================
 Multi-Platform PubSub Communication
 ==================================
@@ -6,7 +6,7 @@ Multi-Platform PubSub Communication
 Multi-Platform pubsub communication allows an agent on one platform to subscribe to receive messages from another
 platform without having to setup connection to the remote platform directly. The connection will be internally managed
 by the VOLTTRON platform router module. Please refer here
-:ref:`MultiPlatform Communication Setup <MultiPlatform-Communication>`) for more details regarding setting up of
+:ref:`Multi-Platform Communication Setup <Multi-Platform-Communication>`) for more details regarding setting up of
 Multi-Platform connections.
 
 External Platform Message Subscription

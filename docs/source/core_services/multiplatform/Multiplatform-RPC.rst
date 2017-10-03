@@ -7,7 +7,7 @@ Multi-Platform RPC Communication
 Multi-Platform RPC communication allows an agent on one platform to make RPC call on an agent in another platform
 without having to setup connection to the remote platform directly. The connection will be internally managed
 by the VOLTTRON platform router module. Please refer here
-:ref:`MultiPlatform Communication Setup <MultiPlatform-Communication>`) for more details regarding setting up of
+:ref:`Multi-Platform Communication Setup <Multi-Platform-Communication>`) for more details regarding setting up of
 Multi-Platform connections.
 
 Calling External Platform RPC Method
