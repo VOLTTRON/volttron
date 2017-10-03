@@ -1,7 +1,7 @@
 {
     "--pandas": {
         "help": "Installs numpy and pandas for applications",
-        "packages": ["numpy>1.8,<2", "pandas"]
+        "packages": ["numpy>1.13,<2", "pandas"]
     },
     "--testing": {
         "help": "Installs testing infrastructure dependencies",
@@ -30,6 +30,6 @@
     },
     "--market": {
         "help": "Installs requirements for the market service",
-        "packages": ["numpy>1.8,<2", "transitions"]
+        "packages": ["numpy>1.13,<2", "transitions"]
     }
 }
