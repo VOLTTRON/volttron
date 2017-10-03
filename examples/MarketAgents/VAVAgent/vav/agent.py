@@ -236,7 +236,7 @@ class VAVAgent(MarketAgent, FirstOrderZone):
         _log.debug("the set point is {}".format(self.subscribing_topic.replace('all','')+'VAV'+self.agent_name+'/ZoneCoolingTemperatureSetPoint'))
         self.vip.rpc.call('platform.actuator','set_point', self.agent_name,self.subscribing_topic.replace('all','')+'VAV'+self.agent_name+'/ZoneCoolingTemperatureSetPoint',self.tSet).get(timeout=5)
 		
-    def error_callback(self, timestamp, market_name, buyer_seller, error_code, error_message):
+    def error_callback(self, timestamp, market_name, buyer_seller, error_code, error_message, aux):
         if error_code == NO_INTERSECT:
 		      self.vip.rpc.call('platform.actuator','set_point', self.agent_name,self.subscribing_topic.replace('all','')+'VAV'+self.agent_name+'/ZoneCoolingTemperatureSetPoint',self.tNomAdj).get(timeout=5)
 		

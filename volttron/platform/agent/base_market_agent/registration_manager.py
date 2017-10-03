@@ -103,7 +103,7 @@ class RegistrationManager(object):
             if (registration.market_name == market_name):
                 registration.report_aggregate(timestamp, buyer_seller, aggregate_curve)
 
-    def report_error(self, timestamp, market_name, error_message):
+    def report_error(self, timestamp, market_name, error_code, error_message, aux):
         for registration in self.registrations:
             if (registration.market_name == market_name):
-                registration.report_error(timestamp, error_message)
+                registration.report_error(timestamp, error_code, error_message, aux)

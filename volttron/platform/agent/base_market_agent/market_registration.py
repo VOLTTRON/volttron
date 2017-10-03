@@ -115,11 +115,11 @@ class MarketRegistration(object):
             if self.verbose_logging:
                 _log.debug("Market: {} {} Curve: {}", self.market_name, self.buyer_seller, aggregate_curve.points)
 
-    def report_error(self, timestamp, error_message):
+    def report_error(self, timestamp, error_code, error_message, aux):
         if self.error_callback is not None:
-            self.error_callback(timestamp, self.market_name, self.buyer_seller, error_message)
+            self.error_callback(timestamp, self.market_name, self.buyer_seller, error_code, error_message, aux)
             if self.verbose_logging:
-                _log.debug("Market: {} {} Error: {}", self.market_name, self.buyer_seller, error_message)
+                _log.debug("Market: {} {} Error: {} {}", self.market_name, self.buyer_seller, error_code, error_message)
 
     def _validate_callbacks(self):
         if self.offer_callback is None and self.aggregate_callback is None and self.price_callback is None:

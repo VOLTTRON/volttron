@@ -219,7 +219,7 @@ class Market(object):
                 error_code = NOT_FORMED
                 error_message = 'The market {} has not received a buy and a sell reservation.'.format(self.market_name)
             else:
-                quantity, price = self.offers.settle()
+                quantity, price, aux = self.offers.settle()
                 if price is None:
                     error_code = NO_INTERSECT
                     error_message = "Error: The supply and demand curves do not intersect. The market {} failed to clear.".format(self.market_name)
@@ -235,7 +235,7 @@ class Market(object):
         if error_message is not None:
             self.publish(peer='pubsub',
                          topic=MARKET_ERROR,
-                         message=[timestamp_string, self.market_name, error_code, error_message])
+                         message=[timestamp_string, self.market_name, error_code, error_message, aux])
 
     def has_market_formed(self):
         return self.reservations.has_market_formed()

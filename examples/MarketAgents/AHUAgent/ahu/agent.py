@@ -168,7 +168,7 @@ class AHUAgent(MarketAgent, AhuChiller):
         _log.debug(
             "Report cleared price for Market: {} {} Price: {} Quantity: {}".format(market_name, buyer_seller, price, quantity))
 
-    def error_callback(self, timestamp, market_name, buyer_seller, error_code, error_message):
+    def error_callback(self, timestamp, market_name, buyer_seller, error_code, error_message, aux):
         _log.debug("Report error for Market: {} {}, Code: {}, Message: {}".format(market_name, buyer_seller, error_code, error_message))
 
     def create_air_supply_curve(self, electric_price, electric_quantity):

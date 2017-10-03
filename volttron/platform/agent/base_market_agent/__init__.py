@@ -127,9 +127,10 @@ class MarketAgent(Agent):
         market_name = message[1]
         error_code = message[2]
         error_message = message[3]
+        aux = message[4]
         decoded_message = "Timestamp: {} Market: {} Code: {} Message: {}".format(timestamp, market_name, error_code, error_message)
         self.log_event("match_report_error", peer, sender, bus, topic, headers, decoded_message)
-        self.registrations.report_error(timestamp, market_name, error_code, error_message)
+        self.registrations.report_error(timestamp, market_name, error_code, error_message, aux)
 
     def log_event(self, method_name, peer, sender, bus, topic, headers, decoded_message):
         if self.verbose_logging:
