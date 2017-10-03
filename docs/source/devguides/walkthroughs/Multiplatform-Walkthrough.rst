@@ -130,15 +130,18 @@ Directory path:   Each platform’s VOLTTRON_HOME directory.
 For example, since VOLTTRON instance 1 is connecting to VOLTTRON instance 2 and 3, contents of
 ``external_platform_discovery.json`` will be
 
+
 .. code-block:: json
+
     {
-        "platform2":{"vip-address":"tcp://127.0.0.2:22916",
-                    "instance-name":"platform2",
-                    "serverkey":"YFyIgXy2H7gIKC1x6uPMdDOB_i9lzfAPB1IgbxfXLGc"},
-        "platform3":{"vip-address":"tcp://127.0.0.3:22916",
-                    "instance-name":"platform3",
-                    "serverkey":"hzU2bnlacAhZSaI0rI8a6XK_bqLSpA0JRK4jq8ttZxw"}
+        "platform2": {"vip-address":"tcp://127.0.0.2:22916",
+                      "instance-name":"platform2",
+                      "serverkey":"YFyIgXy2H7gIKC1x6uPMdDOB_i9lzfAPB1IgbxfXLGc"},
+        "platform3": {"vip-address":"tcp://127.0.0.3:22916",
+                      "instance-name":"platform3",
+                      "serverkey":"hzU2bnlacAhZSaI0rI8a6XK_bqLSpA0JRK4jq8ttZxw"},
     }
+
 
 Contents of ``external_platform_discovery.json`` of VOLTTRON instance 1, 2, 3 are shown in the three terminal windows
 below.
@@ -149,7 +152,7 @@ below.
 
 After this, you will need to add the server keys of the connecting platforms using the ``volttron-ctl`` utility. Type
 **volttron-ctl auth add** command on the command prompt and simply hit Enter to select defaults on all fields
-except **credentials**, where we can either add serverkey of connecting platform or type `/.*/` to allow ALL
+except **credentials**. Here, we can either add serverkey of connecting platform or type `/.*/` to allow ALL
 connections.
 
 .. code-block:: console
