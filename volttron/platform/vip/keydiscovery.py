@@ -105,11 +105,13 @@ class KeyDiscoveryAgent(Agent):
         :return:
         """
         self._vip_socket = self.core.socket
-        if self._my_web_address is None:
-            return
+
         #If in setup mode, read the external_addresses.json to get web addresses to set up authorized connection with
         # external platforms.
         if self._setup_mode:
+            if self._my_web_address is None:
+                _log.error("Web bind address is needed in multiplatform setup mode")
+                return
             with self._ext_addresses_store_lock:
                 self._ext_addresses_store = PersistentDict(filename=self._store_path, flag='c', format='json')
                 #Delete the existing store.
