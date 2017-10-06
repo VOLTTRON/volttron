@@ -4,8 +4,8 @@ Multi-Platform Connection Walkthrough
 =====================================
 
 Multi-Platform message bus communication alleviates the need for an agent in one platform to connect to another platform
-directly in order for it to send/receive messages from the other platform. With multi-platform cmmunication, connections
-to external platforms will be maintained by the platforms itself and agents do not have the burden to mange the
+directly in order for it to send/receive messages from the other platform. With multi-platform communication, connections
+to external platforms will be maintained by the platforms itself and agents do not have the burden to manage the
 connections directly. This guide will show how to connect three VOLTTRON instances with a fake driver running on VOLTTRON
 instance 1 publishing to topic with prefix="devices" and listener agents running on other 2 VOLTTRON instances
 subscribed to topic "devices".
@@ -142,9 +142,13 @@ For example, since VOLTTRON instance 1 is connecting to VOLTTRON instance 2 and 
                       "serverkey":"hzU2bnlacAhZSaI0rI8a6XK_bqLSpA0JRK4jq8ttZxw"},
     }
 
+We can obtain the serverkey of each platform using below command in each terminal window:
 
-Contents of ``external_platform_discovery.json`` of VOLTTRON instance 1, 2, 3 are shown in the three terminal windows
-below.
+.. code-block:: console
+
+    $ volttron-ctl auth serverkey
+
+Contents of ``external_platform_discovery.json`` of VOLTTRON instance 1, 2, 3 is shown below.
 
 
 |Multi-Platform Discovery Config|
@@ -154,6 +158,8 @@ After this, you will need to add the server keys of the connecting platforms usi
 **volttron-ctl auth add** command on the command prompt and simply hit Enter to select defaults on all fields
 except **credentials**. Here, we can either add serverkey of connecting platform or type `/.*/` to allow ALL
 connections.
+
+.. warning:: `/.*/` allows ALL agent and platform connections without authentication.
 
 .. code-block:: console
 
@@ -170,7 +176,7 @@ connections.
    enabled [True]:
    added entry domain=None, address=None, mechanism='CURVE', credentials=u'/.*/', user_id=None
 
-For more information on authorization see :ref:`authentication<VIP-Authentication>`.
+For more information on authentication see :ref:`authentication<VIP-Authentication>`.
 
 
 Once the initial configuration are setup, you can start all the VOLTTRON instances in normal mode.

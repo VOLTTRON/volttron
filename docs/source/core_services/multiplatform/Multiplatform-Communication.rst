@@ -15,13 +15,15 @@ platforms in set up mode. Both the setups are described below.
 
 Setup Mode For Automatic Authentication
 ***************************************
-* Note: It is necessary for each platform to have a web server if running in setup mode *
+
+.. note:: It is necessary for each platform to have a web server if running in setup mode.
 
 For ease of use and to support multi-scale deployment, the process of obtaining the platform discovery information and
 authenticating the new platform connection is automated. We can now bypass the manual process of adding auth keys (i.e.,
 either by using the volttron-ctl utility or directly updating the auth.json config file).
 
-A list of web addresses (one for each platform) need to be made available in VOLTTRON_HOME directory.
+A config file containing list of web addresses (one for each platform) need to be made available in VOLTTRON_HOME
+directory.
 
 Name of the file: external_address.json
 
@@ -63,7 +65,7 @@ Contents of the file:
 .. code-block:: json
 
     {"<platform1 name>": {"vip-address":"tcp://<ip1>:<vip port1>",
-                         "instance-name":"<platform1 nam>",
+                         "instance-name":"<platform1 name>",
                          "serverkey":"<serverkey1>"
                          },
      "<platform2 name>": {"vip-address":"tcp://<ip2>:<vip port2>",
