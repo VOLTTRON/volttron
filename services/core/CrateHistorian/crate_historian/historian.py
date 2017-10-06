@@ -58,6 +58,8 @@ from __future__ import absolute_import, print_function
 # ujson is significantly faster at dump/loading the data from/to the database
 # cache database, I use it in this agent to store/retrieve the string data that
 # can be put into json.
+from urllib3.exceptions import NewConnectionError
+
 try:
     import ujson
 
@@ -75,7 +77,7 @@ import sys
 from collections import defaultdict
 
 from crate.client.exceptions import ConnectionError, ProgrammingError
-from crate import client
+from crate import client as crate_client
 from volttron.platform.agent import json as jsonapi
 
 from . crate_utils import (create_schema, select_all_topics_query,
@@ -86,13 +88,15 @@ from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
 
 
+__version__ = '2.0.0'
+
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 # Quiet client and connection pool a bit
-__version__ = '1.0.2'
 logging.getLogger("crate.client.http").setLevel(logging.WARN)
-logging.getLogger("urllib3.connectionpool").setLevel(logging.WARN)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
+logging.getLogger("urllib3.util.retry").setLevel(logging.WARN)
 
 
 def historian(config_path, **kwargs):
@@ -110,18 +114,10 @@ def historian(config_path, **kwargs):
         config_dict = config_path
     else:
         config_dict = utils.load_config(config_path)
-    connection = config_dict.get('connection', None)
-    assert connection is not None
 
-    database_type = connection.get('type', None)
-    assert database_type is not None
+    cn_node = config_dict.get('connection', {})
 
-    params = connection.get('params', None)
-    assert params is not None
-
-    CrateHistorian.__name__ = 'CrateHistorian'
-    kwargs.update(config_dict)
-    return CrateHistorian(**kwargs)
+    return CrateHistorian(config_connection=cn_node, **kwargs)
 
 
 class CrateHistorian(BaseHistorian):
@@ -130,7 +126,8 @@ class CrateHistorian(BaseHistorian):
 
     """
 
-    def __init__(self, connection, **kwargs):
+    def __init__(self, config_connection, schema="historian", error_trace=False,
+                 **kwargs):
         """
         Initialize the historian.
 
@@ -151,6 +148,9 @@ class CrateHistorian(BaseHistorian):
                        topic_replace_list used by parent classes)
 
         """
+
+        super(CrateHistorian, self).__init__(**kwargs)
+
         # self.tables_def, table_names = self.parse_table_def(config)
         # self._data_collection = table_names['data_table']
         # self._meta_collection = table_names['meta_table']
@@ -158,10 +158,18 @@ class CrateHistorian(BaseHistorian):
         # self._agg_topic_collection = table_names['agg_topics_table']
         # self._agg_meta_collection = table_names['agg_meta_table']
 
-        _log.debug(connection)
-        self._connection_params = connection['params']
-        self._schema = connection.get('schema', 'historian')
+        self._params = config_connection.get("params", {})
+        self._schema = config_connection.get("schema", "historian")
+        self._error_trace = config_connection.get("error_trace", False)
 
+        config = {
+            "connection": config_connection
+        }
+
+        self.update_default_config(config)
+
+        self._host = None
+        # Client connection to the database
         self._client = None
         self._connection = None
 
@@ -175,31 +183,116 @@ class CrateHistorian(BaseHistorian):
         self._agg_topic_id_map = {}
         self._initialized = False
         self._wait_until = None
-        super(CrateHistorian, self).__init__(**kwargs)
+
+    def configure(self, configuration):
+        """
+        The expectation that configuration will have at least the following
+        items
+        
+        .. code: python
+        
+            {
+                "connection": {
+                    "params": {
+                        "host": "http://localhost:4200"
+                    }
+                }
+            }
+        
+        :param configuration: 
+        """
+        connection = configuration.get("connection", {})
+        params = connection.get("params", {})
+        if not isinstance(params, dict):
+            _log.error("Invalid params...must be a dictionary.")
+            raise ValueError("params must be a dictionary.")
+
+        schema = params.get("schema", "historian")
+        host = params.get("host", None)
+        error_trace = params.get("error_trace", False)
+
+        if host is None:
+            _log.error("Invalid configuration for params...must have host.")
+            raise ValueError("invalid params['host'] value")
+        elif params["host"] != self._host:
+            _log.info("Changing host to {}".format(host))
+
+        client = self.get_client(host)
+        if client is None:
+            _log.error("Couldn't reach host: {}".format(host))
+            raise ValueError("Connection to host not made!")
+
+        # Store class variables to be used later.
+        if schema != self._schema:
+            _log.info("Changing schema to: {}".format(schema))
+            self._schema = schema
+
+        if host != self._host:
+            _log.info("Changing host to: {}".format(host))
+            self._host = host
+
+        if error_trace != self._error_trace:
+            _log.info("Changing error trace to: {}".format(error_trace))
+            self._error_trace = error_trace
+
+        # Close and reconnect the client or connect to different hosts.
+        if self._client is not None:
+            try:
+                self._client.close()
+            except:
+                _log.warning("Closing of non-null client failed.")
+            finally:
+                self._client = None
+
+        self._client = crate_client.connect(servers=self._host,
+                                            error_trace=self._error_trace)
+
+        # Attempt to create the schema
+        create_schema(self._client, self._schema)
+
+    def get_client(self, host, error_trace=False):
+
+        try:
+            # Verify the new configuration is able to connect to the host.
+            cn = crate_client.connect(servers=host, error_trace=error_trace)
+        except ConnectionError:
+            raise ValueError("Cannot connect to host: {}".format(host))
+        else:
+            try:
+                cur = cn.cursor()
+                cur.execute("SELECT * FROM sys.node_checks")
+                row = cur.next()
+            except ProgrammingError as ex:
+                _log.error(repr(ex))
+                raise
+            finally:
+                try:
+                    cur.close()
+                except:
+                    _log.error("Couldn't close cursor")
+
+        return cn
 
     @doc_inherit
     def publish_to_historian(self, to_publish_list):
         _log.debug("publish_to_historian number of items: {}".format(
             len(to_publish_list)))
-        # Verify that we have actually gone through the historian_setup code
-        # before we attempt to do anything else.
-        if not self._initialized:
-            self.historian_setup()
-            if not self._initialized:
+
+        if self._client is None:
+            if self._host is None:
+                _log.error("Invalid default configuration for host")
                 return
 
-        if self._wait_until is not None:
-            ct = get_utc_seconds_from_epoch()
-            if ct > self._wait_until:
-                self._wait_until = None
-            else:
-                _log.debug('Waiting to attempt to write to database.')
+            try:
+                self._client = self.get_client(host=self._host,
+                                               error_trace=self._error_trace)
+            except ConnectionError:
+                _log.error("Client not able to connect to {}".format(
+                    self._host))
                 return
+
         try:
-            if self._connection is None:
-                self._connection = self.get_connection()
-
-            cursor = self._connection.cursor()
+            cursor = self._client.cursor()
 
             batch_data = []
 
@@ -224,6 +317,7 @@ class CrateHistorian(BaseHistorian):
                                 'SQLActionException[DuplicateKeyException'):
                             self._topic_set.add(topic)
                         else:
+                            _log.error(repr(ex))
                             _log.error(
                                 "Unknown error during topic insert {} {}".format(
                                     type(ex), ex.args
@@ -238,7 +332,21 @@ class CrateHistorian(BaseHistorian):
             try:
                 query = insert_data_query(self._schema)
                 _log.debug("Inserting batch data: {}".format(batch_data))
-                cursor.executemany(query, batch_data)
+                results = cursor.executemany(query, batch_data)
+
+                index = 0
+                failures = []
+                for r in results:
+                    if r['rowcount'] == -1:
+                        failures.append(index)
+                    index += 1
+
+                if failures:
+                    for findex in failures:
+                        data = batch_data[findex]
+                        _log.error("Failed to insert data {}".format(data))
+                        self.report_handled(to_publish_list[findex])
+
             except ProgrammingError as ex:
                 _log.error(
                     "Invalid data detected during batch insert: {}".format(
@@ -255,9 +363,7 @@ class CrateHistorian(BaseHistorian):
                         ))
                         self.report_handled(to_publish_list[id])
                     except Exception as ex:
-                        _log.error(
-                            "Exception Type: {} ARGS: {}".format(type(ex),
-                                                                 ex.args))
+                        _log.error(repr(ex))
                     else:
                         self.report_handled(to_publish_list[id])
 
@@ -268,9 +374,11 @@ class CrateHistorian(BaseHistorian):
             else:
                 self.report_all_handled()
         except TypeError as ex:
+            _log.error(repr(ex))
             _log.error(
                 "AFTER EXCEPTION: {} ARGS: {}".format(type(ex), ex.args))
         except Exception as ex:
+            _log.error(repr(ex))
             _log.error(
                 "Unknown Exception {} {}".format(type(ex), ex.args)
             )
@@ -420,28 +528,28 @@ class CrateHistorian(BaseHistorian):
 
     def get_connection(self):
         if self._connection is None:
-            self._connection = client.connect(self._connection_params['host'],
+            self._connection = crate_client.connect(self._connection_params['host'],
                                               error_trace=True)
         return self._connection
 
-    @doc_inherit
-    def historian_setup(self):
-        try:
-            self._connection = self.get_connection()
-
-            _log.debug("Using schema: {}".format(self._schema))
-            if not self._readonly:
-                create_schema(self._connection, self._schema)
-
-            cursor = self._connection.cursor()
-            cursor.execute(select_all_topics_query(self._schema))
-
-            topics = [x[0] for x in cursor.fetchall()]
-            self._topic_set = set(topics)
-            self._initialized = True
-        except Exception as e:
-            _log.error("Exception during historian setup!")
-            _log.error(e.args)
+    # @doc_inherit
+    # def historian_setup(self):
+    #     try:
+    #         self._connection = self.get_connection()
+    #
+    #         _log.debug("Using schema: {}".format(self._schema))
+    #         if not self._readonly:
+    #             create_schema(self._connection, self._schema)
+    #
+    #         cursor = self._connection.cursor()
+    #         cursor.execute(select_all_topics_query(self._schema))
+    #
+    #         topics = [x[0] for x in cursor.fetchall()]
+    #         self._topic_set = set(topics)
+    #         self._initialized = True
+    #     except Exception as e:
+    #         _log.error("Exception during historian setup!")
+    #         _log.error(e.args)
 
 
 def main(argv=sys.argv):
