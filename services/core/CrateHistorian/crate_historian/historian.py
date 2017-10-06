@@ -88,6 +88,8 @@ from volttron.platform.agent.base_historian import BaseHistorian
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+
+# Quiet client and connection pool a bit
 __version__ = '1.0.2'
 logging.getLogger("crate.client.http").setLevel(logging.WARN)
 logging.getLogger("urllib3.connectionpool").setLevel(logging.WARN)
