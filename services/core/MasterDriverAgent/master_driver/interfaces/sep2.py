@@ -53,7 +53,6 @@
 # }}}
 
 from datetime import datetime, timedelta
-import json
 import logging
 
 from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
@@ -73,18 +72,24 @@ DEFAULT_CACHE_EXPIRATION_SECS = 5
 class SEP2Register(BaseRegister):
     """Register for all SEP2 interface attributes."""
 
-    def __init__(self, read_only, point_name, units, data_type, default_value=None, description=''):
+    def __init__(self, read_only, point_name, sep2_resource_name, sep2_field_name,
+                 units, data_type, default_value=None, description=''):
         """
             Create a register for a point.
 
         :param read_only: True = Read-only, False = Read/Write.
         :param point_name: Volttron-given name of point.
+        :param sep2_resource_name: The SEP2 resource mapped to the point.
+        :param sep2_field_name: The SEP2 field mapped to the point.
         :param units: Required by parent class. Not used by SEP2.
         :param data_type: Python data type of register. Used to cast API call results.
         :param default_value: Default value of register.
         :param description: Basic description of register.
         """
         super(SEP2Register, self).__init__("byte", read_only, point_name, units, description=description)
+        self.point_name = point_name
+        self.sep2_resource_name = sep2_resource_name
+        self.sep2_field_name = sep2_field_name
         self.data_type = data_type
         self._value = 'value not set'
         self._timestamp = datetime.now()
@@ -143,21 +148,37 @@ class Interface(BasicRevert, BaseInterface):
         self.sfdi = ''
         self.sep2_agent_id = DEFAULT_SEP2_AGENT_ID
         self.cache_expiration_secs = DEFAULT_CACHE_EXPIRATION_SECS
+        self.points_configured = False
 
     def configure(self, config_dict, registry_config):
         for label, config_val in config_dict.items():
             _log.debug('from config: {} = {}'.format(label, config_val))
             setattr(self, label, config_val)
         if registry_config:
+            # Create a SEP2Register for each point in the registry's CSV definitions.
             for regDef in registry_config:
                 default_value = regDef.get('Starting Value', None)
                 register = SEP2Register(regDef['Writable'].lower() != 'true',
                                         regDef['Volttron Point Name'],
+                                        regDef['SEP2 Resource Name'],
+                                        regDef['SEP2 Field Name'],
                                         regDef.get('Units', ''),
                                         type_mapping.get(regDef.get("Type", 'string'), str),
                                         default_value=default_value if default_value != '' else None,
                                         description=regDef.get('Notes', ''))
                 self.insert_register(register)
+            # Send the EndDevice's point definitions to the SEP2Agent.
+            self.call_agent_config_points()
+
+    def get_point_map(self):
+        """Return a dictionary of all register definitions, indexed by Volttron Point Name."""
+        point_map = {}
+        read_registers = self.get_registers_by_type("byte", True)
+        write_registers = self.get_registers_by_type("byte", False)
+        for register in read_registers + write_registers:
+            point_map[register.point_name] = {'SEP2 Resource Name': register.sep2_resource_name,
+                                              'SEP2 Field Name': register.sep2_field_name}
+        return point_map
 
     def get_point(self, point_name, **kwargs):
         """Get the point value, fetching it from SEP2Agent if not already cached."""
@@ -186,7 +207,7 @@ class Interface(BasicRevert, BaseInterface):
 
     def _scrape_all(self):
         """Scrape the values of all registers, fetching them from SEP2Agent."""
-        for point_name, point_value in json.loads(self.call_agent_rpc('get_points')).iteritems():
+        for point_name, point_value in self.call_agent_rpc('get_points').iteritems():
             if point_name in self.point_map.keys():
                 self.get_register_by_name(point_name).set_value(point_value)
         read_registers = self.get_registers_by_type('byte', True)
@@ -194,21 +215,41 @@ class Interface(BasicRevert, BaseInterface):
         return {r.point_name: r.value for r in read_registers + write_registers}
 
     def call_agent_rpc(self, rpc_name, point_name=None, value=None):
-        """Issue an RPC call to SEP2Agent and return the result."""
-        try:
-            if point_name:
-                if value:
-                    response = self.vip.rpc.call(self.sep2_agent_id, rpc_name, self.sfdi, point_name, value)
+        """Issue a SEP2Agent RPC call (get_point, get_points, or set_point), and return the result."""
+        if not self.points_configured:
+            # This EndDevice's points haven't been successfully configured. Try to do so.
+            self.call_agent_config_points()
+        if self.points_configured:
+            debug_line = 'EndDevice {}: Sent {}{}{}'.format(self.sfdi,
+                                                            rpc_name,
+                                                            ' for ' + point_name if point_name else '',
+                                                            ' with ' + str(value) if value else '')
+            try:
+                if point_name:
+                    if value:
+                        response = self.vip.rpc.call(self.sep2_agent_id, rpc_name, self.sfdi, point_name, value)
+                    else:
+                        response = self.vip.rpc.call(self.sep2_agent_id, rpc_name, self.sfdi, point_name)
                 else:
-                    response = self.vip.rpc.call(self.sep2_agent_id, rpc_name, self.sfdi, point_name)
-            else:
-                response = self.vip.rpc.call(self.sep2_agent_id, rpc_name, self.sfdi)
-            result = response.get(timeout=10)
-        except Exception, err:
-            result = err
-        _log.debug('EndDevice {}: Sent {}{}{}, received {}'.format(self.sfdi,
-                                                                   rpc_name,
-                                                                   ' for ' + point_name if point_name else '',
-                                                                   ' with ' + str(value) if value else '',
-                                                                   str(result)))
+                    response = self.vip.rpc.call(self.sep2_agent_id, rpc_name, self.sfdi)
+                result = response.get(timeout=10)
+                _log.debug('{0}, received {1}'.format(debug_line, str(result)))
+            except Exception, err:
+                self.points_configured = False      # Force a fresh config_points() call on the next iteration
+                result = {}
+                _log.error('{0}, received error: {1}'.format(debug_line, str(err)))
+        else:
+            result = {}
         return result
+
+    def call_agent_config_points(self):
+        """Issue a SEP2Agent RPC call to initialize the point configuration."""
+        point_map = self.get_point_map()
+        try:
+            response = self.vip.rpc.call(self.sep2_agent_id, 'config_points', self.sfdi, point_map)
+            response.get(timeout=10)
+            _log.debug('EndDevice {0}: Sent config_points'.format(self.sfdi))
+            self.points_configured = True
+        except Exception, err:
+            _log.error('EndDevice {0}: Failed to config_points: {1}'.format(self.sfdi, str(err)))
+            self.points_configured = False      # Force a fresh config_points() call on the next iteration

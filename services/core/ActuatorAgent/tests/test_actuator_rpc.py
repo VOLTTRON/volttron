@@ -65,6 +65,8 @@ import gevent.subprocess as subprocess
 import pytest
 from gevent.subprocess import Popen
 from mock import MagicMock
+
+from volttron.platform import get_services_core
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import topics
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
@@ -126,7 +128,7 @@ def publish_agent(request, volttron_instance1):
     # Start the master driver agent which would intern start the fake driver
     #  using the configs created above
     master_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/MasterDriverAgent",
+        agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
         start=True)
     print("agent id: ", master_uuid)
@@ -136,8 +138,8 @@ def publish_agent(request, volttron_instance1):
     # to fake device. Start the master driver agent which would intern start
     # the fake driver using the configs created above
     actuator_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/ActuatorAgent",
-        config_file="services/core/ActuatorAgent/tests/actuator.config",
+        agent_dir=get_services_core("ActuatorAgent"),
+        config_file=get_services_core("ActuatorAgent/tests/actuator.config"),
         start=True)
     print("agent id: ", actuator_uuid)
 
@@ -1683,8 +1685,8 @@ def test_set_value_no_lock(publish_agent, volttron_instance1):
     alternate_actuator_vip_id = "my_actuator"
     #Use actuator that allows write with no lock.
     my_actuator_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/ActuatorAgent",
-        config_file="services/core/ActuatorAgent/tests/actuator-no-lock.config",
+        agent_dir=get_services_core("ActuatorAgent"),
+        config_file=get_services_core("ActuatorAgent/tests/actuator-no-lock.config"),
         start=True, vip_identity=alternate_actuator_vip_id)
     try:
         agentid = TEST_AGENT
@@ -1723,8 +1725,8 @@ def test_set_value_no_lock_failure(publish_agent, volttron_instance1):
     alternate_actuator_vip_id = "my_actuator"
     #Use actuator that allows write with no lock.
     my_actuator_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/ActuatorAgent",
-        config_file="services/core/ActuatorAgent/tests/actuator-no-lock.config",
+        agent_dir=get_services_core("ActuatorAgent"),
+        config_file=get_services_core("ActuatorAgent/tests/actuator-no-lock.config"),
         start=True, vip_identity=alternate_actuator_vip_id)
     try:
         agentid2 = "test-agent2"

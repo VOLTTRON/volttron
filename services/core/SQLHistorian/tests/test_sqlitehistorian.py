@@ -71,7 +71,7 @@ import pytest
 import re
 import pytz
 
-from volttron.platform import get_volttron_root
+from volttron.platform import get_volttron_root, get_services_core
 from volttron.platform.agent import PublishMixin
 from volttron.platform.agent import utils
 from volttron.platform.jsonrpc import RemoteError
@@ -95,7 +95,7 @@ query_points = {
 
 # default table_defs
 sqlite_platform = {
-    "source_historian": "services/core/SQLHistorian",
+    "source_historian": get_services_core("SQLHistorian"),
     "connection": {
         "type": "sqlite",
         "params": {

@@ -1,5 +1,7 @@
 import pytest
 
+from volttron.platform import get_examples
+
 
 @pytest.fixture(scope="module")
 def single_instance(request, get_volttron_instances):
@@ -14,22 +16,12 @@ def test_can_install_listeners(single_instance):
     uuids = []
     num_listeners = 5
 
-    # TODO Modify so that this is allowable
-    jobs = []
-
-    # for x in range(num_listeners):
-    #     jobs.append(
-    #         gevent.spawn(wrapper.install_agent,
-    #                      agent_dir="examples/ListenerAgent",
-    #                      config_file={"agentid": "listener",
-    #                                   "message": "So Happpy"}))
-    #
-    # gevent.joinall(jobs, timeout=20)
     try:
         for x in range(num_listeners):
+            identity = "listener_" + str(x)
             auuid = single_instance.install_agent(
-                agent_dir="examples/ListenerAgent", config_file={
-                    "agentid": "listener",
+                agent_dir=get_examples("ListenerAgent"), config_file={
+                    "agentid": identity,
                     "message": "So Happpy"})
             assert auuid
             uuids.append(auuid)

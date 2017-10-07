@@ -59,6 +59,8 @@ import pytest
 import gevent
 import json
 
+from volttron.platform import get_ops, get_examples
+
 WATCHER_CONFIG = {
     "watchlist": ["listener"],
     "check-period": 1
@@ -72,13 +74,13 @@ def platform(request, volttron_instance1):
     global listener_uuid
 
     listener_uuid = volttron_instance1.install_agent(
-        agent_dir="examples/ListenerAgent",
+        agent_dir=get_examples("ListenerAgent"),
         vip_identity="listener",
         start=True)
     gevent.sleep(2)
 
     watcher_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/AgentWatcher",
+        agent_dir=get_ops("AgentWatcher"),
         config_file=WATCHER_CONFIG)
     gevent.sleep(2)
 

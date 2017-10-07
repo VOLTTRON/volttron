@@ -71,7 +71,7 @@ from zmq import green as zmq
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 
-from . import get_home
+from . import get_home, get_services_core
 
 # Global configuration options.  Must be key=value strings.  No cascading
 # structure so that we can easily create/load from the volttron config file
@@ -295,7 +295,7 @@ def do_vip():
     config_opts['vip-address'] = '{}:{}'.format(vip_address, vip_port)
 
 
-@installs('services/core/VolttronCentral', 'vc')
+@installs(get_services_core("VolttronCentral"), 'vc')
 def do_vc():
     global config_opts
 
@@ -381,7 +381,7 @@ def vc_config():
     return config
 
 
-@installs('services/core/VolttronCentralPlatform', 'vcp')
+@installs(get_services_core("VolttronCentralPlatform"), 'vcp')
 def do_vcp():
     global config_opts
 
@@ -434,7 +434,7 @@ def do_vcp():
     return {}
 
 
-@installs('services/core/SQLHistorian', 'platform_historian',
+@installs(get_services_core("SQLHistorian"), 'platform_historian',
           identity='platform.historian')
 def do_platform_historian():
     datafile = os.path.join(get_home(), 'data', 'platform.historian.sqlite')
@@ -461,7 +461,7 @@ def add_fake_device_to_configstore():
               'examples/configurations/drivers/fake.config'])
 
 
-@installs('services/core/MasterDriverAgent', 'master_driver',
+@installs(get_services_core("MasterDriverAgent"), 'master_driver',
           post_install_func=add_fake_device_to_configstore)
 def do_master_driver():
     return {}

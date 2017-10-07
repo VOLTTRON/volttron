@@ -47,7 +47,7 @@ if not inenv and not corrected:
     process.wait()
     sys.exit(process.returncode)
 
-from volttron.platform.agent import json as jsonapi
+from zmq.utils import jsonapi
 from volttron.platform import get_address, get_home, get_volttron_root, \
     is_instance_running
 from volttron.platform.packaging import create_package, add_files_to_package
@@ -228,8 +228,6 @@ if __name__ == '__main__':
                         help="identity of the agent to be installed (unique per instance)")
     parser.add_argument("-c", "--config", default=None, type=file,
                         help="agent configuration file that will be packaged with the agent.")
-    parser.add_argument("-co", "--config-object", type=str, default="{}",
-                        help="json string that will be used as the configuration of the agent.")
     parser.add_argument("-wh", "--wheelhouse", default=None,
                         help="location of agents after they have been built")
     parser.add_argument("-t", "--tag", default=None,
@@ -335,19 +333,11 @@ if __name__ == '__main__':
                 opts.config = jsonapi.loads(f.read())
         finally:
             tmpconfigfile.close()
-    else:
-        try:
-            jsonobj = jsonapi.loads(opts.config_object)
-        except Exception as ex:
-            log.error("Invalid json passed in config_object: {}".format(ex.args))
-            sys.exit(-10)
 
     if opts.config:
         install_agent(opts, opts.package, opts.config)
     else:
-        install_agent(opts, opts.package, jsonobj)
-
-
+        install_agent(opts, opts.package, {})
 
 
 

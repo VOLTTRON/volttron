@@ -75,7 +75,13 @@ SEP2_EDEV_ENDPOINTS = {
     "fsa": Endpoint(url="/dcap/edev/{}/fsa/0", callback='edev_fsa'),
 }
 
-ALL_POINTS = ['b1_Md', 'b1_Opt', 'b1_SN', 'b1_Vr', 'b113_A', 'b113_DCA', 'b113_DCV', 'b113_DCW', 'b113_PF', 'b113_WH',
-              'b120_AhrRtg', 'b120_ARtg', 'b120_MaxChaRte', 'b120_MaxDisChaRte', 'b120_WHRtg', 'b120_WRtg', 'b121_WMax',
-              'b122_ActWh', 'b122_StorConn', 'b124_WChaMax', 'b403_Tmp', 'b404_DCW', 'b404_DCWh', 'b802_LocRemCtl',
-              'b802_SoC', 'b802_State']
+RESOURCE_MAPPING = {
+    "DeviceInformation": "device_information",
+    "MirrorMeterReading": "mup",
+    "DERStatus": "der_status",
+    "DERControl": "der_control",
+    "DERCapability": "der_capability",
+    "DERSettings": "der_settings",
+    "DERAvailability": "der_availability",
+    "PowerStatus": "power_status",
+}

@@ -105,7 +105,7 @@ class AuthException(Exception):
 
 
 class AuthService(Agent):
-    def __init__(self, auth_file, protected_topics_file, aip, *args, **kwargs):
+    def __init__(self, auth_file, protected_topics_file, setup_mode, aip, *args, **kwargs):
         self.allow_any = kwargs.pop('allow_any', False)
         super(AuthService, self).__init__(*args, **kwargs)
 
@@ -123,6 +123,8 @@ class AuthService(Agent):
         self._protected_topics_file = protected_topics_file
         self._protected_topics_file_path = os.path.abspath(protected_topics_file)
         self._protected_topics = {}
+        self._setup_mode = setup_mode
+        self._auth_failures = []
 
     @Core.receiver('onsetup')
     def setup_zap(self, sender, **kwargs):
@@ -218,10 +220,11 @@ class AuthService(Agent):
             now = time()
             if events:
                 zap = sock.recv_multipart()
+
                 version = zap[2]
                 if version != b'1.0':
                     continue
-                domain, address, _, kind = zap[4:8]
+                domain, address, userid, kind = zap[4:8]
                 credentials = zap[8:]
                 if kind == b'CURVE':
                     credentials[0] = encode_key(credentials[0])
@@ -241,6 +244,19 @@ class AuthService(Agent):
                         'authentication failure: domain=%r, address=%r, '
                         'mechanism=%r, credentials=%r',
                         domain, address, kind, credentials)
+                    #If in setup mode, add/update auth entry
+                    if self._setup_mode:
+                        self._update_auth_entry(domain, address, kind, credentials[0], userid)
+                        _log.info(
+                            'new authentication entry added in setup mode: domain=%r, address=%r, '
+                            'mechanism=%r, credentials=%r, user_id=%r',
+                            domain, address, kind, credentials[:1], userid)
+                        response.extend([b'200', b'SUCCESS', '', b''])
+                        _log.debug("AUTH response: {}".format(response))
+                        sock.send_multipart(response)
+                    else:
+                        self._update_auth_failures(domain, address, kind, credentials[0], userid)
+
                     try:
                         expire, delay = blocked[address]
                     except KeyError:
@@ -324,6 +340,10 @@ class AuthService(Agent):
                 if entry.match(domain, address, mechanism, [credentials]):
                     return entry.capabilities, entry.groups, entry.roles
 
+    @RPC.export
+    def get_authorization_failures(self):
+        return list(self._auth_failures)
+
     def _get_authorizations(self, user_id, index):
         """Convenience method for getting authorization component by index"""
         auths = self.get_authorizations(user_id)
@@ -370,6 +390,45 @@ class AuthService(Agent):
         """
         return self._get_authorizations(user_id, 2)
 
+    def _update_auth_entry(self, domain, address, mechanism, credential, user_id):
+        #Make a new entry
+        fields = {
+            "domain": domain,
+            "address": address,
+            "mechanism": mechanism,
+            "credentials": credential,
+            "groups": "",
+            "roles": "",
+            "capabilities": "",
+            "comments": "Auth entry added in setup mode",
+        }
+        new_entry = AuthEntry(**fields)
+
+        try:
+            self.auth_file.add(new_entry, overwrite=False)
+        except AuthException as err:
+            _log.error('ERROR: %s\n' % err.message)
+
+    def _update_auth_failures(self, domain, address, mechanism, credential, user_id):
+        for entry in self._auth_failures:
+            #Check if failure entry exists. If so, increment the failure count
+            if ((entry['domain'] == domain) and
+                (entry['address'] == address) and
+                (entry['mechanism'] == mechanism) and
+                    (entry['credentials'] == credential)):
+                entry['retries'] += 1
+                return
+        # Add a new failure entry
+        fields = {
+            "domain": domain,
+            "address": address,
+            "mechanism": mechanism,
+            "credentials": credential,
+            "user_id": user_id,
+            "retries": 1
+        }
+        self._auth_failures.append(dict(fields))
+        return
 
 class String(unicode):
     def __new__(cls, value):
@@ -497,7 +556,7 @@ class AuthEntry(object):
         if isregex(cred):
             return
         if mechanism == 'CURVE' and len(cred) != BASE64_ENCODED_CURVE_KEY_LEN:
-            raise AuthEntryInvalid('Invalid CURVE public key')
+            raise AuthEntryInvalid('Invalid CURVE public key {}')
 
     @staticmethod
     def valid_mechanism(mechanism):

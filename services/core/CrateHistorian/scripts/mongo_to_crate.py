@@ -13,10 +13,9 @@ import pymongo
 from bson.objectid import ObjectId
 from volttron.platform.agent import json as jsonapi
 
-from volttron.platform import get_volttron_root
+from volttron.platform import get_volttron_root, get_services_core
 
-sys.path.insert(0, os.path.join(get_volttron_root(),
-                                "services/core/CrateHistorian"))
+sys.path.insert(0, get_services_core("CrateHistorian"))
 from crate_historian import crate_utils
 from volttron.platform.agent import utils
 from volttron.platform.dbutils import mongoutils

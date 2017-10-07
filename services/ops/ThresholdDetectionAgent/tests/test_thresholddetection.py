@@ -65,6 +65,7 @@ import pytest
 
 import gevent
 
+from volttron.platform import get_ops
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 from volttron.platform.vip.agent import Agent, PubSub
 from volttrontesting.utils.utils import poll_gevent_sleep
@@ -111,7 +112,7 @@ def threshold_tester_agent(request, volttron_instance):
     """
 
     threshold_detection_uuid = volttron_instance.install_agent(
-        agent_dir='services/core/ThresholdDetectionAgent',
+        agent_dir=get_ops("ThresholdDetectionAgent"),
         config_file=_default_config,
         start=True)
 

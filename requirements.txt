@@ -14,6 +14,7 @@ python-dateutil==2.5.3
 pytz==2016.6.1
 pyzmq==15.4.0
 requests==2.11.1
+grequests==0.3.0
 simplejson==3.8.2
 six==1.10.0
 Twisted==16.4.1

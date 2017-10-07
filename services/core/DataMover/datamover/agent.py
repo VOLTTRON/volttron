@@ -117,7 +117,7 @@ class DataMover(BaseHistorian):
         destination historian. default is 'platform.historian'
         :param kwargs: additional arguments to be passed along to parent class
         """
-
+        kwargs["process_loop_in_greenlet"] = True
         super(DataMover, self).__init__(**kwargs)
         self.destination_vip = destination_vip
         self.destination_serverkey = destination_serverkey
