@@ -173,6 +173,13 @@ class PubSubService(object):
         for platform, bus, prefix in items:
             self._add_peer_subscription(peer, bus, prefix, platform)
 
+            if platform == 'all' and self._ext_router is not None:
+                # Send subscription message to all connected platforms
+                external_platforms = self._ext_router.get_connected_platforms()
+                self._send_external_subscriptions(external_platforms)
+                #self._logger.debug("SYNC sending to external platform subscriptions: {}".
+                #                   format(self._peer_subscriptions['all']))
+
     def _peer_sync(self, frames):
         """
         Synchronizes the subscriptions with the calling agent.

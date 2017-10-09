@@ -122,7 +122,11 @@ class KeyDiscoveryAgent(Agent):
             #Read External web addresses file
             try:
                 web_addresses = self._read_platform_address_file()
-                web_addresses.remove(self._my_web_address)
+                try:
+                    web_addresses.remove(self._my_web_address)
+                except ValueError:
+                    _log.debug("My web address is not in the external bind web adress list")
+
                 op = b'web-addresses'
                 self._send_to_router(op, web_addresses)
             except IOError as exc:
