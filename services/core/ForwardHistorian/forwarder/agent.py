@@ -106,6 +106,8 @@ def historian(config_path, **kwargs):
     if destination_serverkey is None:
         _log.info("Destination serverkey not found in known hosts file, using config")
         destination_serverkey = config.pop('destination-serverkey')
+    else:
+        config.pop('destination-serverkey', None)
 
     required_target_agents = config.pop('required_target_agents', [])
     cache_only = config.pop('cache_only', False)
