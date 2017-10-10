@@ -109,7 +109,7 @@ class MQTTHistorian(BaseHistorian):
         # will be available in both threads.
         self._last_error = 0
 
-        super(MQTTHistorian, self).__init__(config, **kwargs)
+        super(MQTTHistorian, self).__init__(**kwargs)
 
     def timestamp(self):
         return time.mktime(datetime.datetime.now().timetuple())
