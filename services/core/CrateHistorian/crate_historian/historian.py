@@ -175,14 +175,14 @@ class CrateHistorian(BaseHistorian):
 
         self._topic_set = set()
 
-        self._topic_id_map = {}
-        self._topic_to_table_map = {}
-        self._topic_to_datatype_map = {}
-        self._topic_name_map = {}
-        self._topic_meta = {}
-        self._agg_topic_id_map = {}
-        self._initialized = False
-        self._wait_until = None
+        # self._topic_id_map = {}
+        # self._topic_to_table_map = {}
+        # self._topic_to_datatype_map = {}
+        # self._topic_name_map = {}
+        # self._topic_meta = {}
+        # self._agg_topic_id_map = {}
+        # self._initialized = False
+        # self._wait_until = None
 
     def configure(self, configuration):
         """
@@ -250,6 +250,10 @@ class CrateHistorian(BaseHistorian):
         # Attempt to create the schema
         create_schema(self._client, self._schema)
 
+        topics = self.get_topic_list()
+        for t in topics:
+            self._topic_set.add(self.get_renamed_topic(t))
+
     def get_client(self, host, error_trace=False):
 
         try:
@@ -277,18 +281,10 @@ class CrateHistorian(BaseHistorian):
     def publish_to_historian(self, to_publish_list):
         _log.debug("publish_to_historian number of items: {}".format(
             len(to_publish_list)))
-
+        start_time = get_utc_seconds_from_epoch()
         if self._client is None:
-            if self._host is None:
-                _log.error("Invalid default configuration for host")
-                return
-
-            try:
-                self._client = self.get_client(host=self._host,
-                                               error_trace=self._error_trace)
-            except ConnectionError:
-                _log.error("Client not able to connect to {}".format(
-                    self._host))
+            success = self._establish_client_connection()
+            if not success:
                 return
 
         try:
@@ -299,7 +295,7 @@ class CrateHistorian(BaseHistorian):
             for row in to_publish_list:
                 ts = utils.format_timestamp(row['timestamp'])
                 source = row['source']
-                topic = row['topic']
+                topic = self.get_renamed_topic(row['topic'])
                 value = row['value']
                 meta = row['meta']
 
@@ -388,6 +384,10 @@ class CrateHistorian(BaseHistorian):
                 cursor.close()
                 cursor = None
 
+        end_time = get_utc_seconds_from_epoch()
+        full_time = end_time - start_time
+        _log.debug("Took {} seconds to publish.".format(full_time))
+
     @staticmethod
     def _build_single_topic_select_query(start, end, agg_type, agg_period, skip,
                                          count, order, table_name, topic):
@@ -445,6 +445,24 @@ class CrateHistorian(BaseHistorian):
 
         _log.debug("Real Query: " + real_query)
         return real_query, args
+
+    def _establish_client_connection(self):
+        if self._client is not None:
+            return True
+
+        if self._host is None:
+            _log.error("Invalid default configuration for host")
+            return False
+
+        try:
+            self._client = self.get_client(host=self._host,
+                                           error_trace=self._error_trace)
+        except ConnectionError:
+            _log.error("Client not able to connect to {}".format(
+                self._host))
+            return False
+
+        return True
 
     @doc_inherit
     def query_historian(self, topic, start=None, end=None, agg_type=None,
@@ -518,6 +536,7 @@ class CrateHistorian(BaseHistorian):
     @doc_inherit
     def query_topic_list(self):
         _log.debug("Querying topic list")
+
         cursor = self.get_connection().cursor()
         sql = select_all_topics_query(self._schema)
 

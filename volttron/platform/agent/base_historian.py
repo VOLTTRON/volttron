@@ -642,7 +642,7 @@ class BaseHistorianAgent(Agent):
                 for k, v in temptopics.items():
                     self._topic_replace_map[k] = v
                 output_topic = self._topic_replace_map[input_topic_lower]
-        _log.debug("Output topic after replacements {}".format(output_topic))
+            _log.debug("Output topic after replacements {}".format(output_topic))
         return output_topic
 
     def _capture_record_data(self, peer, sender, bus, topic, headers,
