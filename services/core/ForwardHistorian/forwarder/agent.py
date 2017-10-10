@@ -84,11 +84,11 @@ __version__ = '4.0'
 
 def historian(config_path, **kwargs):
     config = utils.load_config(config_path)
-    custom_topic_list = config.get('custom_topic_list', [])
-    topic_replace_list = config.get('topic_replace_list', [])
-    destination_vip = config.get('destination-vip')
+    custom_topic_list = config.pop('custom_topic_list', [])
+    topic_replace_list = config.pop('topic_replace_list', [])
+    destination_vip = config.pop('destination-vip', None)
 
-    service_topic_list = config.get('service_topic_list')
+    service_topic_list = config.pop('service_topic_list', None)
     if service_topic_list is not None:
         w = "Deprecated service_topic_list.  Use capture_device_data " \
             "capture_log_data, capture_analysis_data or capture_record_data " \
@@ -105,10 +105,12 @@ def historian(config_path, **kwargs):
     destination_serverkey = hosts.serverkey(destination_vip)
     if destination_serverkey is None:
         _log.info("Destination serverkey not found in known hosts file, using config")
-        destination_serverkey = config['destination-serverkey']
+        destination_serverkey = config.pop('destination-serverkey')
 
-    required_target_agents = config.get('required_target_agents', [])
-    cache_only = config.get('cache_only', False)
+    required_target_agents = config.pop('required_target_agents', [])
+    cache_only = config.pop('cache_only', False)
+
+    utils.update_kwargs_with_config(kwargs, config)
 
     return ForwardHistorian(destination_vip, destination_serverkey,
                             custom_topic_list=custom_topic_list,

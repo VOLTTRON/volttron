@@ -118,7 +118,7 @@ def historian(config_path, **kwargs):
     assert params is not None
 
     CrateHistorian.__name__ = 'CrateHistorian'
-    kwargs.update(config_dict)
+    utils.update_kwargs_with_config(kwargs, config_dict)
     return CrateHistorian(**kwargs)
 
 
