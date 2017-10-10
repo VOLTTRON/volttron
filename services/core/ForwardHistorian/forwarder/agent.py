@@ -96,10 +96,10 @@ def historian(config_path, **kwargs):
         _log.warning(w)
 
         # Populate the new values for the kwargs based upon the old data.
-        kwargs['capture_device_data'] = True if "device" in service_topic_list else False
-        kwargs['capture_log_data'] = True if "datalogger" in service_topic_list else False
-        kwargs['capture_record_data'] = True if "record" in service_topic_list else False
-        kwargs['capture_analysis_data'] = True if "analysis" in service_topic_list else False
+        kwargs['capture_device_data'] = True if ("device" in service_topic_list  or "all" in service_topic_list) else False
+        kwargs['capture_log_data'] = True if ("datalogger" in service_topic_list or "all" in service_topic_list) else False
+        kwargs['capture_record_data'] = True if ("record" in service_topic_list or "all" in service_topic_list) else False
+        kwargs['capture_analysis_data'] = True if ("analysis" in service_topic_list or "all" in service_topic_list) else False
 
     hosts = KnownHostsStore()
     destination_serverkey = hosts.serverkey(destination_vip)
