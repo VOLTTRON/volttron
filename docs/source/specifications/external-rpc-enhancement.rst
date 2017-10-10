@@ -9,12 +9,16 @@ managing the connection with the target platform. Instead, if allow the VIP rout
 connection and manage the RPC communication internally, this will reduce the burden on the agents and enable a more
 seamless RPC communication between agents on different platforms.
 
+
 VIP Router
-==========
+**********
+
 The VIP Router on each platform is responsible for establishing and maintaining the connection with remote platforms.
+
 
 Functional Capabilities
 ***********************
+
 1. Each VOLTTRON platform shall have a list of other VOLTTRON platforms that it has to establish connection in a config
 file.
 
@@ -23,9 +27,12 @@ connection (detects disconnects and intiate reconnects etc).
 
 3. The VIP router routes the external RPC message as described in "Messages for External RPC communication" section.
 
+
 External RPC Subsystem
-======================
+**********************
+
 External RPC subsystem allows an agent to make RPC method calls on agents running in remote platforms.
+
 
 Functional Capabilities
 ***********************
@@ -37,7 +44,8 @@ VIP router for routing to correct destination platform. It is described in detai
 
 
 Messages for External RPC communication
-=======================================
+***************************************
+
 The VIP router and external RPC subsystem on the agent side will be using VIP protocol for communication. The
 communication between the VIP routers and the external RPC susbsytem on the agent side can be best explained with an
 example. Suppose an agent 1 on platform V1 wants to make RPC method call on agent 2 in platform V2. Then the underlying
@@ -136,6 +144,7 @@ routes it to the calling agent.
 
 Methods for External RPC Subsystem
 **********************************
+
 call(peer, method, *args, **kwargs) - New 'external_platform' parameter  need to be added in kwargs to the
 original RPC subsystem call. If the platform name of the target platform is passed into the 'external_platform'
 parameter, the RPC method on the target platform gets executed.
