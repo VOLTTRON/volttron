@@ -212,7 +212,7 @@ class CrateHistorian(BaseHistorian):
             _log.error("Invalid params...must be a dictionary.")
             raise ValueError("params must be a dictionary.")
 
-        schema = params.get("schema", "historian")
+        schema = connection.get("schema", "historian")
         host = params.get("host", None)
         error_trace = params.get("error_trace", False)
 
