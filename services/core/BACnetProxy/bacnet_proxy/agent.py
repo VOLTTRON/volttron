@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2016, Battelle Memorial Institute
+# Copyright (c) 2017, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -67,7 +67,7 @@ _log = logging.getLogger(__name__)
 
 bacnet_logger = logging.getLogger("bacpypes")
 bacnet_logger.setLevel(logging.WARNING)
-__version__ = '0.3'
+__version__ = '0.4'
 
 import os.path
 import errno
@@ -84,7 +84,6 @@ import threading
 
 # Tweeks to BACpypes to make it play nice with Gevent.
 bacpypes.core.enable_sleeping()
-bacpypes.core.SPIN = 0.1
 
 from bacpypes.pdu import Address, GlobalBroadcast
 from bacpypes.app import BIPSimpleApplication
@@ -476,7 +475,11 @@ class BACnetProxyAgent(Agent):
         self.this_application = BACnet_application(i_am_callback, this_device,
                                                    address)
 
-        server_thread = threading.Thread(target=bacpypes.core.run)
+        kwargs = {"spin":0.1,
+                  "sigterm": None,
+                  "sigusr1": None}
+
+        server_thread = threading.Thread(target=bacpypes.core.run, kwargs=kwargs)
 
         # exit the BACnet App thread when the main thread terminates
         server_thread.daemon = True

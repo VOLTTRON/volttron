@@ -16,7 +16,7 @@ platforms that are multiple hops away. The routing table shall contain shortest 
 
 
 Functional Capabilities
-========================
+***********************
 
 1. Each VOLTTRON platform shall have a list of other VOLTTRON platforms that it has to connect to in a config file.
 
@@ -96,36 +96,39 @@ for that platform and forwards the routing table to other platforms to do the sa
 KeyDiscovery Service
 ++++++++++++++++++++
 
-1. Each platform tries to obtain the server key of other VOLTTRON platforms through HTTP discovery service at startup.
+1. Each platform tries to obtain the platform discovery information - platform name, VIP address and server key of
+remote VOLTTRON platforms through HTTP discovery service at startup.
 
-2. If unsuccessful, it shall make regular attempts to obtain the server key until successful.
+2. If unsuccessful, it shall make regular attempts to obtain discovery information until successful.
 
-3. The server key shall then be sent to the Routing Service using VIP protocol with subsystem frame set to "routing_table".
+3. The platform discovery information shall then be sent to the Routing Service using VIP protocol with subsystem
+frame set to "routing_table".
 
 
 Messages for Routing Service
 ****************************
 Below shows example messages that are applicable to the Routing Service.
 
-Message sent by KeyDiscovery Service containing the server key of a remote platform.
+Message sent by KeyDiscovery Service containing the platform discovery information (platform name, VIP address and
+server key) of a remote platform.
 ::
 
     +-+
-    | |                     Empty recipient frame
+    | |                                Empty recipient frame
     +-+----+
-    | VIP1 |                Signature frame
+    | VIP1 |                           Signature frame
     +-+----+
-    | |                     Empty user ID frame
+    | |                                Empty user ID frame
     +-+----+
-    | 0001 |                Request ID, for example "0001"
-    +--------------++
-    | routing_table |       Subsystem, "routing_table"
-    +---------------+-----+
-    | external_serverkey  | Operation, "external server key"
-    +---------------------+
-    | server key of       |
-    | external platform   | server key of external platform
-    +---------------------+
+    | 0001 |                           Request ID, for example "0001"
+    +---------------+
+    | routing_table |                  Subsystem, "routing_table"
+    +---------------+----------------+
+    | normalmode_platform_connection | Type of operation, "normalmode_platform_connection"
+    +--------------------------------+
+    | platform discovery information |
+    | of external platform           | platform name, VIP address and server key of external platform
+    +--------------------------------+
     | platform name       | Remote platform for which the server key belongs to.
     +---------------------+
 
@@ -222,9 +225,12 @@ This shows an example of external publish message sent by VOLTTRON platform V2 r
     | publish message  |    Actual publish message frame
     +------------------+
 
+API
+***
+
 
 Methods for Routing Service
-***************************
++++++++++++++++++++++++++++
 
 external_route( ) - This method receives message frames from external platforms, checks the subsystem frame and
 redirects to appropriate subsystem (routing table, pubsub) handler. It shall run within a separate thread and get
@@ -248,7 +254,7 @@ get_connected_platforms( ) - Return list of connected platforms.
 
 
 Methods for PubSubService
-*************************
++++++++++++++++++++++++++
 
 external_platform_add( instance_name ) - Send external subscription list to newly connected external VOLTTRON platform.
 
@@ -265,7 +271,7 @@ topic against list of external subscriptions and sends the message to correspond
 
 
 Methods for agent pubsub subsystem
-**********************************
+++++++++++++++++++++++++++++++++++
 
 subscribe(peer, prefix, callback, bus='', all_platforms=False) - The existing 'subscribe' method is modified to include
 optional keyword argument - 'all_platforms'. If 'all_platforms' is set to True, the agent is subscribing to topic from
