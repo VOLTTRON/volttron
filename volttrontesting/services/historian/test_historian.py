@@ -119,9 +119,9 @@ try:
 
     sys.path.insert(0, crate_path)
     import crate_historian
-    from crate_historian import crate_utils
+    from volttron.platform.dbutils import crateutils as crate_utils
     # Once we fix the tests this will be able to be tested here.
-    HAS_CRATE_CONNECTOR = False
+    HAS_CRATE_CONNECTOR = True
 except:
     HAS_CRATE_CONNECTOR = False
 
@@ -156,9 +156,9 @@ query_points = {
     "mixed_point": "Building/LAB/Device/MixedAirTemperature",
     "damper_point": "Building/LAB/Device/DamperSignal"
 }
-## NOTE - In the below configuration, source_historian' is added
-## only for test case setup purposes. It is removed from config before
-## using the configuration for installing the agent.
+# NOTE - In the below configuration, source_historian' is added
+# only for test case setup purposes. It is removed from config before
+# using the configuration for installing the agent.
 
 # default table_defs
 sqlite_platform = {
@@ -316,7 +316,8 @@ def cleanup_mongodb(db_connection, truncate_tables):
 
 
 def cleanup_crate(db_connection, truncate_tables):
-    crate_utils.drop_schema(db_connection, truncate_tables)
+    crate_utils.drop_schema(db_connection, truncate_tables,
+                            schema=crate_platform['schema'])
 
 
 def random_uniform(a, b):
@@ -395,10 +396,10 @@ def query_agent(request, volttron_instance):
 # Fixtures for setup and teardown of historian agent
 @pytest.fixture(scope="module",
                 params=[
+                    crate_skipif(crate_platform),
                     mysql_skipif(mysql_platform),
                     sqlite_platform,
-                    pymongo_skipif(mongo_platform),
-                    crate_skipif(crate_platform)
+                    pymongo_skipif(mongo_platform)
                 ])
 def historian(request, volttron_instance, query_agent):
     global db_connection, MICROSECOND_PRECISION, table_names, \
@@ -454,9 +455,14 @@ def historian(request, volttron_instance, query_agent):
 
 @pytest.fixture()
 def clean_db_rows(request):
+    import inspect
     global db_connection, connection_type, table_names
     print("*** IN clean_db_rows FIXTURE ***")
     cleanup_function = globals()["cleanup_" + connection_type]
+    #inspect.getargspec(cleanup_function)[0]
+    # if "schema" in inspect.getargspec(cleanup_function)[0]:
+    #     cleanup_function(db_connection, [table_names['data_table']],
+    #                      schema=connection_type[])
     cleanup_function(db_connection, [table_names['data_table']])
 
 
