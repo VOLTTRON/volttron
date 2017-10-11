@@ -504,7 +504,7 @@ class BaseHistorianAgent(Agent):
         ]
 
         for should_sub, prefix, cb in subscriptions:
-            if should_sub:
+            if should_sub and not self._readonly:
                 if prefix not in self._current_subscriptions:
                     _log.debug("subscribing to {}".format(prefix))
                     try:

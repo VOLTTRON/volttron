@@ -122,7 +122,9 @@ def historian(config_path, **kwargs):
 
     cn_node = config_dict.get('connection', {})
 
-    return CrateHistorian(config_connection=cn_node, **kwargs)
+    CrateHistorian.__name__ = 'CrateHistorian'
+    utils.update_kwargs_with_config(kwargs, config_dict)
+    return CrateHistorian(**kwargs)
 
 
 class CrateHistorian(BaseHistorian):
