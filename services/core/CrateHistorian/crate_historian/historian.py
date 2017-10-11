@@ -58,7 +58,10 @@ from __future__ import absolute_import, print_function
 # ujson is significantly faster at dump/loading the data from/to the database
 # cache database, I use it in this agent to store/retrieve the string data that
 # can be put into json.
+import gevent
 from urllib3.exceptions import NewConnectionError
+
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
 
 try:
     import ujson
@@ -80,8 +83,10 @@ from crate.client.exceptions import ConnectionError, ProgrammingError
 from crate import client as crate_client
 from volttron.platform.agent import json as jsonapi
 
-from . crate_utils import (create_schema, select_all_topics_query,
-                           insert_data_query, insert_topic_query)
+from volttron.platform.dbutils.crateutils import (create_schema,
+                                                  select_all_topics_query,
+                                                  insert_data_query,
+                                                  insert_topic_query)
 from volttron.platform.agent.utils import get_utc_seconds_from_epoch
 from volttron.utils.docs import doc_inherit
 from volttron.platform.agent import utils
@@ -251,8 +256,29 @@ class CrateHistorian(BaseHistorian):
         create_schema(self._client, self._schema)
 
         topics = self.get_topic_list()
+        peers = self.vip.peerlist.get(timeout=5)
+        if VOLTTRON_CENTRAL_PLATFORM in peers:
+            topic_replace_map_vcp = self.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
+                                                      method="get_replace_map").get(timeout=5)
+            # Always use VCP instead of local
+            self._topic_replace_map = topic_replace_map_vcp
+
         for t in topics:
             self._topic_set.add(self.get_renamed_topic(t))
+
+        self.vip.pubsub.subscribe(peer='pubsub',
+                                  prefix="platform/config_updated",
+                                  callback=self._peer_config_update)
+
+    def _peer_config_update(self, peer, sender, bus, topic, headers, message):
+        if sender == VOLTTRON_CENTRAL_PLATFORM:
+            try:
+                new_topic_map = self.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
+                                                  "get_replace_map").get(timeout=5)
+            except gevent.Timeout:
+                _log.error("Timeout getting replace map from vcp.")
+            else:
+                _log.debug("Updating replace map: {}".format(new_topic_map))
 
     def get_client(self, host, error_trace=False):
 
@@ -469,12 +495,12 @@ class CrateHistorian(BaseHistorian):
                         agg_period=None, skip=0, count=None,
                         order="FIRST_TO_LAST"):
 
-        # Verify that we have initialized through the historian setup code
-        # before we do anything else.
-        if not self._initialized:
-            self.historian_setup()
-            if not self._initialized:
-                return {}
+        # # Verify that we have initialized through the historian setup code
+        # # before we do anything else.
+        # if not self._initialized:
+        #     self.historian_setup()
+        #     if not self._initialized:
+        #         return {}
 
         if count is not None:
             try:
@@ -499,7 +525,8 @@ class CrateHistorian(BaseHistorian):
         values = defaultdict(list)
         metadata = {}
         table_name = "{}.data".format(self._schema)
-        cursor = self.get_connection().cursor()
+        client = self.get_client(self._host, self._error_trace)
+        cursor = client.cursor()
 
         for topic in topics:
             query, args = self._build_single_topic_select_query(
@@ -523,11 +550,13 @@ class CrateHistorian(BaseHistorian):
                 )
                 if len(topics) == 1:
                     metadata = meta
+        cursor.close()
+        client.close()
 
         if len(topics) > 1:
             results['values'] = values
             results['metadata'] = {}
-        else:  # return the list from the single topic
+        elif len(topics) == 1:  # return the list from the single topic
             results['values'] = values[topics[0]]
             results['metadata'] = metadata
 
@@ -542,13 +571,13 @@ class CrateHistorian(BaseHistorian):
 
         cursor.execute(sql)
 
-        results = [x[0] for x in cursor.fetchall()]
+        results = [self.get_renamed_topic(x[0]) for x in cursor.fetchall()]
         return results
 
     def get_connection(self):
         if self._connection is None:
-            self._connection = crate_client.connect(self._connection_params['host'],
-                                              error_trace=True)
+            self._connection = crate_client.connect(self._params['host'],
+                                                    error_trace=True)
         return self._connection
 
     # @doc_inherit

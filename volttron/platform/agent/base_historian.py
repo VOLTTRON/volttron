@@ -542,7 +542,7 @@ class BaseHistorianAgent(Agent):
         :type records: list of dictionaries
         """
 
-        #This is for Forward Historians which do not support data mover inserts.
+        # This is for Forward Historians which do not support data mover inserts.
         if self.no_insert:
             raise RuntimeError("Insert not supported by this historian.")
 
