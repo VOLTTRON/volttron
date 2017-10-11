@@ -65,6 +65,7 @@ from enum import Enum
 import hashlib
 import logging
 import os
+import re
 import shutil
 import string
 import sys
@@ -96,7 +97,7 @@ from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.web import DiscoveryInfo, DiscoveryError
 from .bacnet_proxy_reader import BACnetReader
 
-__version__ = '4.5.2'
+__version__ = '4.5.3'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -226,7 +227,7 @@ class VolttronCentralPlatform(Agent):
         # topic_replace_map is a key value dictionary with strings to be
         # replaced with values for all topics.
         #
-        self._replace_map = {}
+        self._topic_replace_map = topic_replace_map
 
         # This is used internally so we don't have to do replacements more
         # than one time.
@@ -300,7 +301,7 @@ volttron-central-serverkey."""
                 self._vc_connection = None
 
         self._topic_replacement.clear()
-        self._replace_map = config['topic-replace-map']
+        self._topic_replace_map = config['topic-replace-map']
         self._vc_address = a
         self._vc_serverkey = s
         self._registration_state = RegistrationStates.NotRegistered
@@ -334,6 +335,7 @@ volttron-central-serverkey."""
         # Subscribe to devices
         self._devices = self.get_devices()
         self.vip.pubsub.subscribe('pubsub', 'devices', self._on_device_publish)
+        self.vip.pubsub.publish('pubsub', topic='platform/config_updated')
 
         # Begin a connection loop that will automatically attempt to reconnect
         # and publish stats to volttron central if the connection is successful.
@@ -809,7 +811,7 @@ volttron-central-serverkey."""
 
     @RPC.export
     def get_replace_map(self):
-        return self._replace_map
+        return self._topic_replace_map
 
     @RPC.export
     def publish_bacnet_props(self, proxy_identity, publish_topic, address,
@@ -1034,11 +1036,12 @@ volttron-central-serverkey."""
         status = Status.build(GOOD_STATUS, context=context)
 
         device_topic = topic[:-len('/all')]
+        renamed_topic = self.get_renamed_topic(device_topic)
 
-        if device_topic not in self._devices:
+        if renamed_topic not in self._devices:
             self._devices = self.get_devices()
 
-            if device_topic not in self._devices:
+            if renamed_topic not in self._devices:
                 _log.error("Unknown device was published to this address!")
                 return
 
@@ -1053,7 +1056,7 @@ volttron-central-serverkey."""
 
     def _replace_topic(self, original):
         # only need to replace if we have some items in the list.
-        if not self._replace_map:
+        if not self._topic_replace_map:
             return original
 
         if original in self._topic_replacement:
@@ -1061,8 +1064,8 @@ volttron-central-serverkey."""
 
         new_value = original
 
-        for x in self._replace_map:
-            new_value = new_value.replace(x, self._replace_map[x])
+        for x in self._topic_replace_map:
+            new_value = new_value.replace(x, self._topic_replace_map[x])
 
         if new_value == original:
             return None
@@ -1070,6 +1073,43 @@ volttron-central-serverkey."""
         self._topic_replacement[original] = new_value
 
         return new_value
+
+    def get_renamed_topic(self, input_topic):
+        """
+        replace topic name based on configured topic replace list, is any
+        :param input_topic: 
+        :return: 
+        """
+        output_topic = input_topic
+        _log.debug(
+            "_topic_replace_list  is {}".format(self._topic_replace_map))
+        input_topic_lower = input_topic.lower()
+        # Only if we have some topics to replace.
+        if self._topic_replace_map:
+            # if we have already cached the topic then return it.
+            if input_topic_lower in self._topic_replacement.keys():
+                output_topic = self._topic_replacement[input_topic_lower]
+            else:
+                self._topic_replacement[input_topic_lower] = input_topic
+                temptopics = {}
+                for k, v in self._topic_replace_map.items():
+
+                    if k in input_topic_lower:
+                        # this allows multiple things to be replaced from
+                        # from a given topic.
+                        new_topic = temptopics.get(input_topic_lower,
+                                                   input_topic)
+                        # temptopics[input_topic] = new_topic.replace(
+                        #     x['from'], x['to'])
+
+                        temptopics[input_topic_lower] = re.compile(
+                            re.escape(k), re.IGNORECASE).sub(v, new_topic)
+
+                for k, v in temptopics.items():
+                    self._topic_replacement[k] = v
+                output_topic = self._topic_replacement[input_topic_lower]
+            _log.debug("Output topic after replacements {}".format(output_topic))
+        return output_topic
 
     def get_devices(self):
         """
@@ -1095,6 +1135,14 @@ volttron-central-serverkey."""
 
         # else no change in the md file and we have the same stat time.
         else:
+            keys = list(self._devices.keys())
+
+            for k in keys:
+                new_key = self.get_renamed_topic(k)
+                if new_key != k:
+                    self._devices[new_key] = self._devices[k]
+                    del self._devices[k]
+
             return self._devices
 
         _log.debug('Getting devices')
@@ -1108,14 +1156,6 @@ volttron-central-serverkey."""
         for cfg_name in config_list:
             # Skip as we are only looking to do devices in this call.
             if not cfg_name.startswith('devices/'):
-                continue
-
-            _log.debug('Reading config store for device {}'.format(cfg_name))
-            anon_config_name = self._replace_topic(cfg_name)
-
-            # Don's show the non-anonimized devices if nothing has been replaced
-            # in the data.
-            if anon_config_name is None:
                 continue
 
             device_config = self.vip.rpc.call('config.store', 'manage_get',
