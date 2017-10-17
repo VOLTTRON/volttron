@@ -212,10 +212,7 @@ class PubSubService(object):
             peer = frames[0].bytes
             prefix = msg['prefix']
             bus = msg['bus']
-            try:
-                is_all = msg['all_platforms']
-            except KeyError:
-                is_all = False
+            is_all = msg.get('all_platforms', False)
 
             if is_all:
                 platform = 'all'
@@ -260,7 +257,7 @@ class PubSubService(object):
                     unsubmsg = msg
                 except KeyError:
                     unsubmsg['internal'] = msg
-
+            self._logger.debug("Before unsubscribe: {}".format(unsubmsg))
             for platform in msg:
                 prefix = msg[platform]['prefix']
                 bus = msg[platform]['bus']
@@ -285,6 +282,7 @@ class PubSubService(object):
                     # Send updated subscription list to all connected platforms
                     external_platforms = self._ext_router.get_connected_platforms()
                     self._send_external_subscriptions(external_platforms)
+            self._logger.debug("After unsubscribe: {}".format(self._peer_subscriptions))
             return True
 
     def _peer_publish(self, frames, user_id):
@@ -336,10 +334,7 @@ class PubSubService(object):
             bus = msg['bus']
             subscribed = msg['subscribed']
             reverse = msg['reverse']
-            try:
-                is_all = msg['all_platforms']
-            except KeyError:
-                is_all = False
+            is_all = msg.get('all_platforms', False)
 
             if not is_all:
                 platform = 'internal'
