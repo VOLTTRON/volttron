@@ -362,7 +362,8 @@ def generate_apidoc(app):
 
     # generate api-docs for examples
     docs_subdir = os.path.join(apidocs_base_dir, "examples")
-    agent_dirs = glob(script_dir + "/../../examples/*/")
+    agent_dirs =  glob(script_dir + "/../../examples/*/")
+    agent_dirs += glob(script_dir + "/../../examples/MarketAgents/*/")
     run_apidoc(docs_subdir, agent_dirs, examples_excludes)
 
     # generate api-docs for platform core and drivers
