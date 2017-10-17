@@ -11,7 +11,7 @@ Key issues to note are:
 Operations Agents
 -----------------
 
-Several agents have been moved from "services/core" to "services/operations" to highlight their use in monitoring a
+Several agents have been moved from "services/core" to "services/ops" to highlight their use in monitoring a
 deployment. They are not necessary when developing against a single instance, but are essential for VOLTTRON(tm) in a
 deployed environment.
 
