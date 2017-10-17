@@ -462,6 +462,8 @@ class PubSub(SubsystemBase):
         List of prefixes
         """
         topics = []
+        bus_subscriptions = dict()
+        subscriptions = dict()
         if prefix is None:
             if callback is None:
                 if platform in self._my_subscriptions:
