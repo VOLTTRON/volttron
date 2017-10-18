@@ -261,7 +261,6 @@ class PubSubService(object):
             for platform in unsubmsg:
                 prefix = unsubmsg[platform]['prefix']
                 bus = unsubmsg[platform]['bus']
-                self._logger.debug("Trying again")
                 subscriptions = self._peer_subscriptions[platform][bus]
                 if prefix is None:
                     remove = []
