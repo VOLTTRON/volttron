@@ -258,9 +258,9 @@ class PubSubService(object):
                 except KeyError:
                     unsubmsg['internal'] = msg
 
-            for platform in msg:
-                prefix = msg[platform]['prefix']
-                bus = msg[platform]['bus']
+            for platform in unsubmsg:
+                prefix = unsubmsg[platform]['prefix']
+                bus = unsubmsg[platform]['bus']
 
                 subscriptions = self._peer_subscriptions[platform][bus]
                 if prefix is None:
