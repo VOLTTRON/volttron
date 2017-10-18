@@ -158,7 +158,8 @@ class SQLiteTaggingService(BaseTaggingService):
         try:
             stmt = "SELECT name FROM sqlite_master " \
                 "WHERE type='table';"
-            table_names = self.sqlite_utils.select(stmt, None, fetch_all=True)
+            name_list = self.sqlite_utils.select(stmt, None, fetch_all=True)
+            table_names = [name[0] for name in name_list]
             _log.debug(table_names)
         except Exception as e:
             err_message = "Unable to query list of existing tables from the " \
