@@ -21,7 +21,7 @@ Here is an example:
 
 .. code:: python
 
-    self.vip.rpc.call(peer, 'say_hello', 'Bob', platform='platform2').get()
-    self.vip.rpc.notify(peer, 'ready', platform='platform2')
+    self.vip.rpc.call(peer, 'say_hello', 'Bob', external_platform='platform2').get()
+    self.vip.rpc.notify(peer, 'ready', external_platform='platform2')
 
 Here, 'platform2' is the platform name of the remote platform.

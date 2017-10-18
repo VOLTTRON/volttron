@@ -212,7 +212,7 @@ class PubSubService(object):
             peer = frames[0].bytes
             prefix = msg['prefix']
             bus = msg['bus']
-            is_all = msg['all_platforms']
+            is_all = msg.get('all_platforms', False)
 
             if is_all:
                 platform = 'all'
@@ -246,11 +246,21 @@ class PubSubService(object):
             data = frames[7].bytes
             msg = jsonapi.loads(data)
             peer = frames[0].bytes
+            unsubmsg = dict()
+            #Added for backward compatibility
+            try:
+                sub = msg['internal']
+                unsubmsg = msg
+            except KeyError:
+                try:
+                    sub = msg['all']
+                    unsubmsg = msg
+                except KeyError:
+                    unsubmsg['internal'] = msg
 
-            for platform in msg:
-                prefix = msg[platform]['prefix']
-                bus = msg[platform]['bus']
-
+            for platform in unsubmsg:
+                prefix = unsubmsg[platform]['prefix']
+                bus = unsubmsg[platform]['bus']
                 subscriptions = self._peer_subscriptions[platform][bus]
                 if prefix is None:
                     remove = []
@@ -268,10 +278,10 @@ class PubSubService(object):
                             del subscriptions[prefix]
 
                 if platform == 'all' and self._ext_router is not None:
-                    # Send subscription message to all connected platforms
+                    # Send updated subscription list to all connected platforms
                     external_platforms = self._ext_router.get_connected_platforms()
                     self._send_external_subscriptions(external_platforms)
-                return True
+            return True
 
     def _peer_publish(self, frames, user_id):
         """Publish the incoming message to all the subscribers subscribed to the specified topic.
@@ -322,7 +332,8 @@ class PubSubService(object):
             bus = msg['bus']
             subscribed = msg['subscribed']
             reverse = msg['reverse']
-            is_all = msg['all_platforms']
+            is_all = msg.get('all_platforms', False)
+
             if not is_all:
                 platform = 'internal'
             else:
@@ -455,7 +466,8 @@ class PubSubService(object):
             frames[:] = []
             frames[0:7] = b'', proto, user_id, msg_id, subsystem, b'external_publish', topic, data
             for platform_id in external_subscribers:
-                #self._logger.debug("PUBSUBSERVICE sending external publish {0}, subscriptions: {1}".format(platform_id, external_subscribers))
+                #self._logger.debug("PUBSUBSERVICE sending external publish {0}, subscriptions: {1}".
+                # format(platform_id, external_subscribers))
                 try:
                     if self._ext_router is not None:
                         # Send the message to the external platform
