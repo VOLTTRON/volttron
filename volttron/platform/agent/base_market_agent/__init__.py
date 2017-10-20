@@ -57,6 +57,7 @@
 # }}}
 
 import logging
+import gevent
 
 from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
 from volttron.platform.agent import utils
@@ -194,6 +195,8 @@ class MarketAgent(Agent):
             self.has_reservation = True
         except RemoteError as e:
             self.has_reservation = False
+        except gevent.Timeout as e:
+            self.has_reservation = False
 
     def make_offer(self, market_name, buyer_seller, curve):
         """
@@ -215,6 +218,10 @@ class MarketAgent(Agent):
                                                                                        buyer_seller,
                                                                                        curve.points))
         except RemoteError as e:
+            result = (False, e.message)
+            _log.info(
+                "Market: {} {} has had an offer rejected because {}".format(market_name, buyer_seller, e.message))
+        except gevent.Timeout as e:
             result = (False, e.message)
             _log.info("Market: {} {} has had an offer rejected because {}".format(market_name, buyer_seller, e.message))
         return result
