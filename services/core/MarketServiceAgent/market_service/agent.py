@@ -184,6 +184,7 @@ class MarketServiceAgent(Agent):
     def send_collect_reservations_request(self, timestamp):
         _log.debug("send_collect_reservations_request at {}".format(timestamp))
         self.start_reservations()
+        self.market_list.send_market_failure_errors()
         self.market_list.clear_reservations()
         self.vip.pubsub.publish(peer='pubsub',
                                 topic=MARKET_RESERVE,

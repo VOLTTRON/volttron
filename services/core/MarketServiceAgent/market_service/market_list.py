@@ -110,6 +110,14 @@ class MarketList(object):
             market_has_formed = market.has_market_formed()
         return market_has_formed
 
+    def send_market_failure_errors(self):
+        for market in self.markets.itervalues():
+            # We have already sent unformed market failures
+           if market.has_market_formed():
+               # If the market has not cleared trying to clear it will send an error.
+               if not market.is_market_done():
+                   market.clear_market()
+
     def market_count(self):
         return len(self.markets)
 
