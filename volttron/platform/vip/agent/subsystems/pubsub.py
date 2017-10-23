@@ -675,7 +675,7 @@ class PubSub(SubsystemBase):
             bus = msg['bus']
             self._process_callback(sender, bus, topic, headers, message)
         else:
-            _log.error("Unknown operation")
+            _log.error("Unknown operation ({})".format(op))
 
     def _process_loop(self):
         """Incoming message processing loop"""
