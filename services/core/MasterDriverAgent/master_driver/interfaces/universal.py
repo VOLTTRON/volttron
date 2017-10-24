@@ -53,12 +53,13 @@ under Contract DE-AC05-76RL01830
 		10/11/16 - Pass only device_id to VehicleDriver.
 		03/01/17 - Call agent.GetPoint in get_point.
 		04/17/17 - Updated for Volttron 4.0.
+		10/01/17 - Updated for Volttron 5.0.
 -------------------------------------------------------------------------------
 '''
 __author1__   = 'Carl Miller <carl.miller@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2017, Battelle Memorial Institute'
 __license__   = 'FreeBSD'
-__version__   = '0.2.0'
+__version__   = '0.3.0'
 
 import random
 from volttron.platform.agent import utils
@@ -77,11 +78,6 @@ import os
 # set DRIVER_PATH to path to your specific driver agent
 DRIVER_PATH = "/home/volttron/GridAgents/VolttronAgents/Drivers"
 sys.path.insert( 0, DRIVER_PATH )
-from heaters.agent  import HeaterDriver
-from meters.agent   import MeterDriver
-from hvac.agent		import ThermostatDriver
-from blinds.agent	import BlindsDriver
-from vehicles.agent	import VehicleDriver
 
 _log = logging.getLogger(__name__)
 
@@ -89,10 +85,6 @@ _log = logging.getLogger(__name__)
 class Interface(BasicRevert, BaseInterface):
 	def __init__(self, **kwargs):
 		super(Interface, self).__init__(**kwargs)
-		# the following are new in bacnet 4.0 driver, do we need to do too?
-		#self.register_count = 10000
-		#self.register_count_divisor = 1
-		
 		self.agent = None
 		import argparse
 		parser = argparse.ArgumentParser()
@@ -109,69 +101,25 @@ class Interface(BasicRevert, BaseInterface):
 		elif( self._verboseness >= 3 ): 
 			verbiage = logging.DEBUG	# '-vvv'
 		_log.setLevel(verbiage)
-	'''
-	 config_dict: 'filename'.config, specified in the 'master-driver.agent' file.
-	 registry_config_str: points csv file
-	 def configure(self, config_dict, registry_config_str):
-	 when 4.0 master driver is started, class ConfigStore is instantiated:
-	 	volttron/platform/vip/agent/subsystems/configstore.py which exports initial_update()
-			which calls volttron/platform/store.py: def get_configs(self):
-				self.vip.rpc.call(identity, "config.initial_update" sets list of registry_configs
-				
-	scripts/install_master_driver_configs.py calls 'manage_store' rpc, which is in volttron/platform/store.py
-					which calls process_raw_config(), which stores it as a dict.
-					process_raw_config() is also called by process_store() in store.py 
-					when the platform starts ( class ConfigStoreService):
-					    processing_raw_config 'registry_configs/meter.csv' (config_type: csv) 
-	process_store() is called by _setup using a 'PersistentDict', i.e.:
-		store_path '/home/carl/.volttron/configuration_store/platform.driver.store'
-
-	install_master_driver_configs.py stores them as config_type="csv", it is useful for batch processing alot
-	of files at once, like when upgrading from 3.5 to 4.0
-	
-	to add single config to store, activate and start platform then:
-		List current configs:
-			volttron-ctl config list platform.driver
-				config
-				devices/PNNL/LABHOME_B/METER1
-				registry_configs/meter.csv
-		Delete current configs:
-			volttron-ctl config delete platform.driver registry_configs/meter.csv # note lack of prefix './GridAgents/configs/'
-			volttron-ctl config delete platform.driver devices/PNNL/LABHOME_B/METER1
-		To store the driver configuration run the command:
-			delete any files from ../GridAgents/configs
-			volttron-ctl config store platform.driver devices/PNNL/LABHOME_B ../GridAgents/configs/devices/PNNL/LABHOME_B/METER1
-			
-		To store the registry configuration run the command (note the **--raw option)
-			volttron-ctl config store platform.driver registry_configs/meter.csv ../GridAgents/configs/registry_configs/meter.csv --raw
-		
-		***** NOTE:  you MUST install the csv file in --raw mode for universal drivers. *****
-
-	'''
 
 	def configure(self, config_dict, registry_config_dict): # 4.0 passes in a reg DICT not string now
 		try:
 			device_type = config_dict['device_type']
-			''' see ./volttron/volttron/platform/vip/agent/__init__.py for Agent object definition
-				every agent has a .core and .vip:
-					vip.ping 
-					vip.rpc
-					vip.hello
-					vip.pubsub
-					vip.health
-					vip.heartbeat
-					vip.config
-			'''
 			if(device_type	 == "heater" ):
+				from heaters.agent import HeaterDriver
 				self.agent = HeaterDriver(None, config_dict['device_id'] )
 			elif( device_type  == "meter" ):
+				from meters.agent import MeterDriver
 				self.agent = MeterDriver( None, config_dict['device_id'], )
+			elif( device_type  == "vehicle" ):
+				from vehicles.agent import VehicleDriver
+				self.agent = VehicleDriver( None, config_dict['device_id'] )							 
 			elif( device_type  == "thermostat" ):
+				from hvac.agent import ThermostatDriver
 				self.agent = ThermostatDriver( None, config_dict['device_id'] )
 			elif( device_type  == "blinds" ):
-				self.agent = BlindsDriver( None, config_dict['device_id'] )							 
-			elif( device_type  == "vehicle" ):
-				self.agent = VehicleDriver( None, config_dict['device_id'] )							 
+				from blinds.agent import BlindsDriver
+				self.agent = BlindsDriver( None, config_dict['device_id'] )
 			else:
 				raise RuntimeError("Unsupported Device Type: '{}'".format(device_type))
 
@@ -197,8 +145,6 @@ class Interface(BasicRevert, BaseInterface):
 	def get_point(self, point_name):
 		register = self.get_register_by_name(point_name)
 		value = self.agent.GetPoint( register )
-		#if( self._verboseness == 2 ):
-		#	_log.debug( "Universal get_point called for '{}', value: {}.".format(point_name, value))
 		return value
 
 	#  _set_point
@@ -231,23 +177,8 @@ class Interface(BasicRevert, BaseInterface):
 		for register in read_registers + write_registers:
 			old_value = register._value
 			register._value = register._default_value			
-			#_log.info( "point_map[register]._value = {}".format(self.point_map[register.point_name]._value))
 			if( self._verboseness == 2 ):
 				_log.info( "Hardware not reachable, Resetting Value for '{}' from {} to {}".format(register.point_name, old_value, register._value))
-
-			'''
-				We maybe could have used revert_point( register.point_name ), but that is more for reverting the hardware to its default
-				value (calls set_point, which complains for read_only points), _reset_all is used to set the registry values to a default
-				when the hardware is not reachable....
-				
-				if register in self.defaults:
-				self.point_map[register]._value = self.defaults[register]
-				if( self._verboseness == 2 ):
-					_log.info( "Universal Resetting Value for '{}' from {} to {}".format(register.point_name, old_value, register._value))
-			else:
-				if( self._verboseness == 2 ):
-					_log.info( "No Default Value Found while Resetting '{}'.".format(register.point_name))
-			'''
 
 	'''
 		parse_config
