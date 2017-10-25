@@ -251,7 +251,7 @@ class MarketServiceAgent(Agent):
             _log.info(log_message)
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=MARKET_ERROR,
-                                    message=[timestamp, market_name, NOT_FORMED, 'Error: market {} does not have both a buyer and a seller.'.format(market_name), None])
+                                    message=[utils.format_timestamp(timestamp), market_name, NOT_FORMED, 'Error: market {} does not have both a buyer and a seller.'.format(market_name), None])
 
     def has_any_markets(self):
         unformed_markets = self.market_list.unformed_market_list()
