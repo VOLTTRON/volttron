@@ -208,6 +208,7 @@ class Market(object):
         quantity = None
         error_code = None
         error_message = None
+        aux = {}
         if (self.state in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]):
             error_code = SHORT_OFFERS
             error_message = 'The market {} failed to recieve all the expected offers. The state is {}.'.format(self.market_name, self.state)
