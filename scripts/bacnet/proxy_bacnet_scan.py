@@ -69,10 +69,9 @@ from volttron.platform.agent import utils
 from volttron.platform.vip.agent import errors
 
 
-from pprint import pprint
-
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+
 
 class BACnetInteraction(Agent):
     def __init__(self, proxy_id, csv_writer=None, **kwargs):
@@ -82,13 +81,12 @@ class BACnetInteraction(Agent):
 
     def send_iam(self, low_device_id=None, high_device_id=None, address=None):
         self.vip.rpc.call(self.proxy_id, "who_is",
-                           low_device_id=low_device_id,
-                           high_device_id=high_device_id,
-                           target_address=address).get(timeout=5.0)
+                          low_device_id=low_device_id,
+                          high_device_id=high_device_id,
+                          target_address=address).get(timeout=5.0)
 
     @PubSub.subscribe('pubsub', topics.BACNET_I_AM)
     def iam_handler(self, peer, sender, bus,  topic, headers, message):
-        pprint(message)
         if self.csv_writer is not None:
             self.csv_writer.writerow(message)
 
@@ -98,14 +96,12 @@ Simple utility to scrape device registers and write them to a configuration file
 """
 
 
-
 def main():
     # parse the command line arguments
     arg_parser = argparse.ArgumentParser(description=__doc__)
 
     arg_parser.add_argument("--address",
                             help="Target only device(s) at <address> for request")
-
 
     arg_parser.add_argument("--range", type=int, nargs=2, metavar=('LOW', 'HIGH'),
                             help="Lower and upper limit on device ID in results")
@@ -163,7 +159,8 @@ def main():
         _log.error("There is no BACnet proxy Agent running on the platform with the VIP IDENTITY {}".format(args.proxy_id))
     else:
         gevent.sleep(args.timeout)
-        
+
+
 try:
     main()
 except Exception, e:
