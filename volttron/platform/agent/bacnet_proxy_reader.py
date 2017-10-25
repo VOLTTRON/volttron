@@ -60,12 +60,15 @@ from __future__ import absolute_import, print_function
 from collections import defaultdict
 import logging
 import weakref
+from pprint import pprint
 
 from bacpypes.object import get_datatype
 from bacpypes.primitivedata import (Enumerated, Unsigned, Boolean, Integer,
                                     Real, Double)
 
+import volttron.platform.agent.json as jsonapi
 from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.messaging import topics
 
 # Deals with the largest numbers that can be reported.
 # see proxy_grab_bacnet_config.py
@@ -73,13 +76,35 @@ MAX_RANGE_REPORT = 1.0e+20
 
 
 class BACnetReader(object):
-    def __init__(self, rpc, bacnet_proxy_identity,
+    """
+    The BACnetReader
+    """
+    def __init__(self, vip, bacnet_proxy_identity,
                  response_function=None):
         self._log = logging.getLogger(self.__class__.__name__)
+        self._log.setLevel(logging.DEBUG)
         self._log.info("Creating {}".format(self.__class__.__name__))
-        self._rpc = weakref.ref(rpc)
+        self._pubsub = weakref.ref(vip.pubsub)
+        self._rpc = weakref.ref(vip.rpc)
         self._proxy_identity = bacnet_proxy_identity
         self._response_function = response_function
+        self._iam_callbacks = {}
+        self._pubsub().subscribe(peer='pubsub', prefix=topics.BACNET_I_AM,
+                                 callback=self._iam_handler)
+
+    def get_iam(self, device_id, callback, address=None, low_device_id=None,
+                high_device_id=None):
+        self._iam_callbacks[device_id] = callback
+        self._rpc().call(self._proxy_identity, "who_is",
+                         low_device_id=low_device_id,
+                         high_device_id=high_device_id,
+                         target_address=address).get(timeout=5.0)
+
+    def _iam_handler(self, peer, sender, bus, topic, headers, message):
+        device_id = message["device_id"]
+        callback = self._iam_callbacks.pop(device_id, None)
+        if callback is not None:
+            callback(message)
 
     def read_device_name(self, address, device_id):
         """ Reads the device name from the specified address and device_id
@@ -120,7 +145,7 @@ class BACnetReader(object):
 
         return device_description
 
-    def read_device_properties(self, target_address, device_id, filter):
+    def read_device_properties(self, target_address, device_id, filter=None):
         """ Starts the processes of reading a device's meta data.
 
             The device will first be queried for all of it's objects.  For each
@@ -289,10 +314,11 @@ class BACnetReader(object):
         :returns: dict: dictionary of dictinaries based upon the index of
             device properties.
         """
+        from pprint import pprint
         objects = defaultdict(dict)
         for key in query_map:
             if key not in result_map:
-                print("MISSING KEY {}".format(key))
+                self._log.debug("MISSING KEY {}".format(key))
                 continue
             index, property = key.split('-')
 
@@ -306,7 +332,7 @@ class BACnetReader(object):
             obj[property] = result_map[key]
             if 'object_type' not in obj:
                 obj['object_type'] = object_type
-        print('Built objects: {}'.format(objects))
+        self._log.debug("Built objects")
         return objects
 
     def _process_enumerated(self, object_type, obj):

@@ -64,14 +64,16 @@ import argparse
 import gevent
 import json
 from os.path import basename
+from pprint import pprint
 
 from volttron.platform.keystore import KeyStore
 
 from volttron.platform import get_address, get_home
 
+from volttron.platform.agent import utils
+from volttron.platform.agent.bacnet_proxy_reader import BACnetReader
 from volttron.platform.vip.agent import Agent, PubSub
 from volttron.platform.messaging import topics
-from volttron.platform.agent import utils
 from volttron.platform.vip.agent import errors
 from bacpypes.object import get_datatype
 from volttron.platform.jsonrpc import RemoteError
@@ -82,11 +84,13 @@ from bacpypes.primitivedata import Enumerated, Unsigned, Boolean, Integer, Real,
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+
 class BACnetInteraction(Agent):
     def __init__(self, proxy_id, *args, **kwargs):
         super(BACnetInteraction, self).__init__(*args, **kwargs)
         self.proxy_id = proxy_id
         self.callbacks = {}
+
     def get_iam(self, device_id, callback, address=None):
         self.callbacks[device_id] = callback
         self.vip.rpc.call(self.proxy_id, "who_is",
@@ -348,8 +352,24 @@ def process_object(address, obj_type, index, max_range_report, config_writer):
 
     config_writer.writerow(results)
 
+
+def bacnet_response(context, results):
+    global config_writer
+    _log.debug("Handling bacnet responses: RESULTS: {}".format(results))
+    message = dict(results=results)
+    if context is not None:
+        message.update(context)
+    # Handle the last return value of the bacnet_reader which signals the
+    # end of the batch by forgetting it because there will be no results
+    # for any of the cells.  We just check the 'Reference Point Name' here
+    # however.
+    if message['results'].get('Reference Point Name', None):
+        config_writer.writerow(message['results'])
+
+
 def main():
     global agent
+    global config_writer
     # parse the command line arguments
     arg_parser = argparse.ArgumentParser(description=__doc__)
 
@@ -382,6 +402,20 @@ def main():
     _log.debug("    - args: %r", args)
 
     key_store = KeyStore()
+    config_writer = DictWriter(args.registry_out_file,
+                              ('Reference Point Name',
+                               'Volttron Point Name',
+                               'Units',
+                               'Unit Details',
+                               'BACnet Object Type',
+                               'Property',
+                               'Writable',
+                               'Index',
+                               'Write Priority',
+                               'Notes'))
+
+    config_writer.writeheader()
+
     agent = BACnetInteraction(args.proxy_id,
                               address=get_address(),
                               volttron_home=get_home(),
@@ -393,12 +427,15 @@ def main():
     gevent.spawn(agent.core.run, event)
     event.wait()
 
+    bn = BACnetReader(agent.vip, args.proxy_id, bacnet_response)
+
     async_result = AsyncResult()
 
     try:
-        agent.get_iam(args.device_id, async_result.set, args.address)
+        bn.get_iam(args.device_id, async_result.set, args.address)
     except errors.Unreachable:
-        _log.error("There is no BACnet proxy Agent running on the platform with the VIP IDENTITY {}".format(args.proxy_id))
+        msg = "No BACnet proxy Agent running on the platform with the " \
+              "VIP IDENTITY {}".format(args.proxy_id)
         sys.exit(1)
 
     try:
@@ -407,78 +444,22 @@ def main():
         _log.error("No response from device id {}".format(args.device_id))
         sys.exit(1)
 
-    target_address = results["address"]
-    device_id = results["device_id"]
+    if args.address and args.address != results["address"]:
+        msg = "Inconsistent results from passed address " \
+              "({}) and device address ({}) using results.".format(
+            args.address, results["address"])
+        _log.warning(msg)
+        args.address = results["address"]
+    elif results["address"]:
+        args.address = results["address"]
 
-    config_file_name = basename(args.registry_out_file.name)
+    greenlet = gevent.spawn(bn.read_device_properties,
+                            target_address=args.address,
+                            device_id=args.device_id)
 
-    config = {
-        "driver_config": {"device_address": str(target_address),
-                          "device_id": device_id},
-        "driver_type": "bacnet",
-        "registry_config": "config://registry_configs/{}".format(config_file_name)
-    }
-
-    json.dump(config, args.driver_out_file, indent=4)
-
-    _log.debug('pduSource = ' + target_address)
-    _log.debug('iAmDeviceIdentifier = ' + str(device_id))
-    _log.debug('maxAPDULengthAccepted = ' + str(results["max_apdu_length"]))
-    _log.debug('segmentationSupported = ' + results["segmentation_supported"])
-    _log.debug('vendorID = ' + str(results["vendor_id"]))
-
-    try:
-        device_name = read_prop(target_address, "device", device_id, "objectName")
-        _log.debug('device_name = ' + str(device_name))
-    except TypeError:
-        _log.debug('device missing objectName')
-
-    try:
-        device_description = read_prop(target_address, "device", device_id, "description")
-        _log.debug('description = ' + str(device_description))
-    except TypeError:
-        _log.debug('device missing description')
-
-
-
-    config_writer = DictWriter(args.registry_out_file,
-                               ('Reference Point Name',
-                                'Volttron Point Name',
-                                'Units',
-                                'Unit Details',
-                                'BACnet Object Type',
-                                'Property',
-                                'Writable',
-                                'Index',
-                                'Write Priority',
-                                'Notes'))
-
-    config_writer.writeheader()
-
-
-    try:
-        object_count = read_prop(target_address, "device", device_id, "objectList", index=0)
-        list_property = "objectList"
-    except TypeError:
-        object_count = read_prop(target_address, "device", device_id, "structuredObjectList", index=0)
-        list_property = "structuredObjectList"
-
-    _log.debug('object_count = ' + str(object_count))
-
-    for object_index in xrange(1,object_count+1):
-        _log.debug('object_device_index = ' + repr(object_index))
-
-        bac_object = read_prop(target_address,
-                                "device",
-                                device_id,
-                                list_property,
-                                index=object_index)
-
-        obj_type, index = bac_object
-
-        process_object(target_address, obj_type, index, args.max_range_report, config_writer)
-
-
+    gevent.sleep(0.1)
+    greenlet.join()
+    agent.core.stop()
 
 try:
     main()
