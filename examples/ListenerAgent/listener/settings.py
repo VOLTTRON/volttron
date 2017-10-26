@@ -1,1 +1,16 @@
-HEARTBEAT_PERIOD = 5
+# These topics will be watched for.
+# omit (i.e., comment-out) all entries to watch for everything
+# (or add '').
+topics_prefixes_to_watch = [
+	#'driver/hardware/information/vehicle'
+]
+# These senders will be watched for to omit.
+topics_senders_to_skip = [
+	# 'someAgent.agent'
+	#,'platform.driver'
+]
+# Topics beginning with these prefixes will be skipped.
+topics_prefixes_to_skip = [
+	# 'devices/all'
+	#,'some/topic'
+]

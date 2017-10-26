@@ -4,4 +4,6 @@
     },
     "agentid": "listener1",
     "message": "hello"    
+	, "heartbeat_period" : 0
+	, "mute_heartbeats"  : 1 # set to 1 to not show heartbeats
 }

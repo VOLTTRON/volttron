@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2017, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -69,72 +69,111 @@ from volttron.platform.vip.agent import Agent, Core, PubSub, compat
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 
+from listener.settings import topics_prefixes_to_watch, topics_senders_to_skip, topics_prefixes_to_skip
+
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.2'
+__version__ = '3.3'
 DEFAULT_MESSAGE = 'Listener Message'
 DEFAULT_AGENTID = "listener"
-DEFAULT_HEARTBEAT_PERIOD = 5
+DEFAULT_HEARTBEAT_PERIOD = 15
 
 
 class ListenerAgent(Agent):
-    """Listens to everything and publishes a heartbeat according to the
-    heartbeat period specified in the settings module.
-    """
+	"""Listens to everything and publishes a heartbeat according to the
+	heartbeat period specified in the settings module.
+	"""
 
-    def __init__(self, config_path, **kwargs):
-        super(ListenerAgent, self).__init__(**kwargs)
-        self.config = utils.load_config(config_path)
-        self._agent_id = self.config.get('agentid', DEFAULT_AGENTID)
-        self._message = self.config.get('message', DEFAULT_MESSAGE)
-        self._heartbeat_period = self.config.get('heartbeat_period',
-                                                 DEFAULT_HEARTBEAT_PERIOD)
-        try:
-            self._heartbeat_period = int(self._heartbeat_period)
-        except:
-            _log.warn('Invalid heartbeat period specified setting to default')
-            self._heartbeat_period = DEFAULT_HEARTBEAT_PERIOD
-        log_level = self.config.get('log-level', 'INFO')
-        if log_level == 'ERROR':
-            self._logfn = _log.error
-        elif log_level == 'WARN':
-            self._logfn = _log.warn
-        elif log_level == 'DEBUG':
-            self._logfn = _log.debug
-        else:
-            self._logfn = _log.info
+	def __init__(self, config_path, **kwargs):
+		super(ListenerAgent, self).__init__(**kwargs)
+		self.config = utils.load_config(config_path)
+		self._agent_id = self.config.get('agentid', DEFAULT_AGENTID)
+		self._message = self.config.get('message', DEFAULT_MESSAGE)
+		self._heartbeat_period = self.config.get('heartbeat_period', DEFAULT_HEARTBEAT_PERIOD)
+		self._mute_heartbeats = self.config.get('mute_heartbeats', 6)
+		try:
+			self._heartbeat_period = int(self._heartbeat_period)
+		except:
+			_log.warn('Invalid heartbeat period specified, setting to default')
+			self._heartbeat_period = DEFAULT_HEARTBEAT_PERIOD
 
-    @Core.receiver('onsetup')
-    def onsetup(self, sender, **kwargs):
-        # Demonstrate accessing a value from the config file
-        _log.info(self.config.get('message', DEFAULT_MESSAGE))
-        self._agent_id = self.config.get('agentid')
+		try:
+			self._mute_heartbeats = int(self._mute_heartbeats)
+		except:
+			_log.warn('Invalid mute_heartbeats value specified, setting to 0')
+			self._mute_heartbeats = 0
 
-    @Core.receiver('onstart')
-    def onstart(self, sender, **kwargs):
-        _log.debug("VERSION IS: {}".format(self.core.version()))
-        if self._heartbeat_period != 0:
-            self.vip.heartbeat.start_with_period(self._heartbeat_period)
-            self.vip.health.set_status(STATUS_GOOD, self._message)
+		log_level = self.config.get('log-level', 'INFO')
+		if log_level == 'ERROR':
+			self._logfn = _log.error
+		elif log_level == 'WARN':
+			self._logfn = _log.warn
+		elif log_level == 'DEBUG':
+			self._logfn = _log.debug
+		else:
+			self._logfn = _log.info
 
-    @PubSub.subscribe('pubsub', '')
-    def on_match(self, peer, sender, bus,  topic, headers, message):
-        """Use match_all to receive all messages and print them out."""
-        if sender == 'pubsub.compat':
-            message = compat.unpack_legacy_message(headers, message)
-        self._logfn(
-            "Peer: %r, Sender: %r:, Bus: %r, Topic: %r, Headers: %r, "
-            "Message: \n%s", peer, sender, bus, topic, headers,  pformat(message))
+	@Core.receiver('onsetup')
+	def onsetup(self, sender, **kwargs):
+		# Demonstrate accessing a value from the config file
+		_log.info(self.config.get('message', DEFAULT_MESSAGE))
+		#self._agent_id = self.config.get('agentid') redundant
 
+	@Core.receiver('onstart')
+	def onstart(self, sender, **kwargs):
+		_log.debug("VERSION IS: {}".format(self.core.version()))
+		if self._heartbeat_period != 0:
+			self.vip.heartbeat.start_with_period(self._heartbeat_period)
+			self.vip.health.set_status(STATUS_GOOD, self._message)
+		if len(topics_prefixes_to_watch) == 0:
+			topics_prefixes_to_watch.append( '' )
+			
+		sys.stdout.write("\n")
+		for prefix in topics_prefixes_to_watch:
+			sys.stdout.write("subscribing to prefix: '{}'\n".format(prefix))
+			self.vip.pubsub.subscribe(peer='pubsub', prefix=prefix,
+					callback=self.onmessage).get(timeout=5)
+
+		if len(topics_senders_to_skip):sys.stdout.write("\n")
+		for sender in topics_senders_to_skip:
+			sys.stdout.write("excluding sender: '{}'\n".format(sender))
+
+		if len(topics_prefixes_to_skip):sys.stdout.write("\n")
+		for prefix in topics_prefixes_to_skip:
+			sys.stdout.write("skipping topic: '{}'\n".format(prefix))
+
+		if self._mute_heartbeats != 0:
+			sys.stdout.write("\nexcluding heartbeats\n")
+
+	def onmessage(self, peer, sender, bus, topic, headers, message ):
+		'''Handle incoming messages on the bus.'''
+		if( sender in topics_senders_to_skip ):
+			return
+		elif( topic.startswith("heartbeat") and self._mute_heartbeats ):
+			return		
+		else:
+			for prefix in topics_prefixes_to_skip: # will skip topics containing the skip items
+				if( topic.startswith(prefix) ):	# i.e., skip any topic beginning with 'devices/all'
+					return
+			self.on_match( peer, sender, bus, topic, headers, message )
+
+	#@PubSub.subscribe('pubsub', '')
+	def on_match(self, peer, sender, bus,  topic, headers, message):
+		"""Use match_all to receive all messages and print them out."""
+		if sender == 'pubsub.compat':
+			message = compat.unpack_legacy_message(headers, message)
+		self._logfn(
+			"Peer: %r, Sender: %r:, Bus: %r, Topic: %r, Headers: %r, "
+			"Message: \n%s", peer, sender, bus, topic, headers,  pformat(message))
 
 def main(argv=sys.argv):
-    '''Main method called by the eggsecutable.'''
-    try:
-        utils.vip_main(ListenerAgent, version=__version__)
-    except Exception as e:
-        _log.exception('unhandled exception')
+	'''Main method called by the eggsecutable.'''
+	try:
+		utils.vip_main(ListenerAgent, version=__version__)
+	except Exception as e:
+		_log.exception('unhandled exception')
 
 
 if __name__ == '__main__':
-    # Entry point for script
-    sys.exit(main())
+	# Entry point for script
+	sys.exit(main())
