@@ -69,7 +69,10 @@ from volttron.platform.vip.agent import Agent, Core, PubSub, compat
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 
-from listener.settings import topics_prefixes_to_watch, topics_senders_to_skip, topics_prefixes_to_skip
+try:
+	from listener.settings import topics_prefixes_to_watch, topics_senders_to_skip, topics_prefixes_to_skip
+except:
+	from examples.ListenerAgent.listener.settings import topics_prefixes_to_watch, topics_senders_to_skip, topics_prefixes_to_skip
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -83,14 +86,18 @@ class ListenerAgent(Agent):
 	"""Listens to everything and publishes a heartbeat according to the
 	heartbeat period specified in the settings module.
 	"""
-
+	_watch_some_only = False # if topics_prefixes_to_watch is not empty, only show them
 	def __init__(self, config_path, **kwargs):
 		super(ListenerAgent, self).__init__(**kwargs)
 		self.config = utils.load_config(config_path)
+		if len(self.config) == 0:
+			_log.fatal("Config file '{}' empty! It must be stored in the AGENT_CONFIG environment variable".format(config_path))
+			raise IOError()  # file not found or disk full I/O error
 		self._agent_id = self.config.get('agentid', DEFAULT_AGENTID)
 		self._message = self.config.get('message', DEFAULT_MESSAGE)
 		self._heartbeat_period = self.config.get('heartbeat_period', DEFAULT_HEARTBEAT_PERIOD)
-		self._mute_heartbeats = self.config.get('mute_heartbeats', 6)
+		self._mute_heartbeats = self.config.get('mute_heartbeats', 0)
+		self._watch_all = self.config.get('watch_all', 1)
 		try:
 			self._heartbeat_period = int(self._heartbeat_period)
 		except:
@@ -102,6 +109,12 @@ class ListenerAgent(Agent):
 		except:
 			_log.warn('Invalid mute_heartbeats value specified, setting to 0')
 			self._mute_heartbeats = 0
+
+		try:
+			self._watch_all = int(self._watch_all)
+		except:
+			_log.warn('Invalid _watch_all value specified, setting to 1')
+			self._watch_all = 1
 
 		log_level = self.config.get('log-level', 'INFO')
 		if log_level == 'ERROR':
@@ -125,37 +138,53 @@ class ListenerAgent(Agent):
 		if self._heartbeat_period != 0:
 			self.vip.heartbeat.start_with_period(self._heartbeat_period)
 			self.vip.health.set_status(STATUS_GOOD, self._message)
-		if len(topics_prefixes_to_watch) == 0:
-			topics_prefixes_to_watch.append( '' )
+		if self._watch_all != 1:
+			sys.stdout.write("\n")
+			if len(topics_prefixes_to_watch) != 0:
+				self._watch_some_only = True
+				for prefix in topics_prefixes_to_watch:
+					if prefix == '':
+						self._watch_all = 1
+						sys.stdout.write("subscribing to prefix: '{}*'\n".format(prefix))
+						break
+					sys.stdout.write("subscribing to prefix: '{}*'\n".format(prefix))
+					#self.vip.pubsub.subscribe(peer='pubsub', prefix=prefix,
+					#		callback=self.onmessage).get(timeout=5)
+				return
+			if len(topics_senders_to_skip):sys.stdout.write("\n")
+			for sender in topics_senders_to_skip:
+				sys.stdout.write("excluding sender: '*{}*'\n".format(sender))
+	
+			if len(topics_prefixes_to_skip):sys.stdout.write("\n")
+			for prefix in topics_prefixes_to_skip:
+				sys.stdout.write("skipping topic: '{}*'\n".format(prefix))
+	
+			if self._mute_heartbeats != 0:
+				sys.stdout.write("\nexcluding heartbeats\n")
+		else:
+			sys.stdout.write("\n'WATCH_ALL' SETTING OVER-RIDING ANY CONFIGURED FILTERS.\n")
 			
-		sys.stdout.write("\n")
-		for prefix in topics_prefixes_to_watch:
-			sys.stdout.write("subscribing to prefix: '{}'\n".format(prefix))
-			self.vip.pubsub.subscribe(peer='pubsub', prefix=prefix,
-					callback=self.onmessage).get(timeout=5)
-
-		if len(topics_senders_to_skip):sys.stdout.write("\n")
-		for sender in topics_senders_to_skip:
-			sys.stdout.write("excluding sender: '{}'\n".format(sender))
-
-		if len(topics_prefixes_to_skip):sys.stdout.write("\n")
-		for prefix in topics_prefixes_to_skip:
-			sys.stdout.write("skipping topic: '{}'\n".format(prefix))
-
-		if self._mute_heartbeats != 0:
-			sys.stdout.write("\nexcluding heartbeats\n")
-
+	@PubSub.subscribe('pubsub', '')
 	def onmessage(self, peer, sender, bus, topic, headers, message ):
 		'''Handle incoming messages on the bus.'''
-		if( sender in topics_senders_to_skip ):
-			return
-		elif( topic.startswith("heartbeat") and self._mute_heartbeats ):
-			return		
-		else:
-			for prefix in topics_prefixes_to_skip: # will skip topics containing the skip items
-				if( topic.startswith(prefix) ):	# i.e., skip any topic beginning with 'devices/all'
-					return
-			self.on_match( peer, sender, bus, topic, headers, message )
+		if self._watch_all != 1:
+			if self._watch_some_only:
+				for prefix in topics_prefixes_to_watch: # will print topics containing the watch items
+					if( topic.startswith(prefix) ):	# i.e., print any topic beginning with 'driver/hardware'
+						self.on_match( peer, sender, bus, topic, headers, message )
+						break
+				return
+			else:
+				for prefix in topics_senders_to_skip: # will skip topics from senders containing prefix
+					if( prefix in sender ):	# i.e., skip any sender with '.DriverID'
+						return
+				if( topic.startswith("heartbeat") and self._mute_heartbeats ):
+					return		
+				else:
+					for prefix in topics_prefixes_to_skip: # will skip topics containing the skip items
+						if( topic.startswith(prefix) ):	# i.e., skip any topic beginning with 'devices/all'
+							return
+		self.on_match( peer, sender, bus, topic, headers, message )
 
 	#@PubSub.subscribe('pubsub', '')
 	def on_match(self, peer, sender, bus,  topic, headers, message):
