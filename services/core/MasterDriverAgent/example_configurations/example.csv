@@ -1,6 +1,6 @@
 Reference Point Name,Volttron Point Name,Units,Units Details,Modbus Register,Writable,Point Address,Notes
 SampleFloat1,SampleFloat1,PPM,0.00-2000.00,>f,FALSE,1001,CO2 Reading 0.00-2000.0 ppm
-SampleWritableFloat1,SampleWritableFloat1,PPM,1000.00 (default),>f,TRUE,1003,Setpoint to enable demand control ventilation 
+SampleWritableFloat1,SampleWritableFloat1,PPM,1000.00 (default),>f,TRUE,1003,Setpoint to enable demand control ventilation
 SampleLong1,SampleLong1,Enumeration,1 through 13,>l,FALSE,1005,Status indicator of service switch
 SampleWritableShort1,SampleWritableShort1,%,0.00 to 100.00 (20 default),>H,TRUE,1007,Minimum damper position during the standard mode
 SampleBool1,SampleBool1,On / Off,on/off,BOOL,FALSE,1101,Status indidcator of cooling stage 1

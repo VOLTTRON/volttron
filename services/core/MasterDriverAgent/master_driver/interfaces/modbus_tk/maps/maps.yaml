@@ -1,0 +1,26 @@
+- addressing: offset
+  description: example of reading registers for modbus_tk driver testing
+  endian: big
+  file: modbus_tk_test.csv
+  name: modbus_tk_test
+- addressing: offset
+  description: reading some selected registers from elkor wattson meter (modbus TK)
+  endian: big
+  file: watts_on.csv
+  name: watts_on
+- addressing: address
+  description: ION 6200 registers (modbus TK)
+  endian: big
+  file: ion6200.csv
+  name: ion6200
+- addressing: address
+  description: ION 8600 registers (modbus TK)
+  endian: big
+  file: ion8600.csv
+  name: ion8600
+- description: fake driver
+  file: fake.csv
+  name: fake
+- description: modbus driver
+  file: modbus_test.csv
+  name: modbus_test

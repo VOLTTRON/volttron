@@ -1,0 +1,12 @@
+Volttron Point Name,Register Name,Address,Type,Units,Writable,Transform
+kWh del,kwh_del,40091,int32,kWh,TRUE,mod10k(False)
+kWh rec,kwh_rec,40093,int32,kWh,TRUE,mod10k(False)
+kWh del+rec,kwh_del_p_rec,40095,int32,kWh,TRUE,mod10k(False)
+kWh del-rec,kwh_del_m_rec,40097,int32,kWh,TRUE,mod10k(False)
+kVARh del,kvarh_del,40099,int32,kVARh,TRUE,mod10k(False)
+kVARh rec,kvarh_rec,40101,int32,kVARh,TRUE,mod10k(False)
+kVARh del+rec,kvarh_del_p_rec,40103,int32,kVARh,TRUE,mod10k(False)
+kVARh del-rec,kvarh_del_m_rec,40105,int32,kVARh,TRUE,mod10k(False)
+Vll_avg,vll_avg,40184,uint32,Volts,TRUE,scale(1.0)
+kW sum,kw_sum,40204,int32,kW,TRUE,scale(0.001)
+kVAR sum,kvar_sum,40214,int32,kVAR,TRUE,scale(1.000)
