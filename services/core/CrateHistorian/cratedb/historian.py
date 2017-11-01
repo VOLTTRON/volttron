@@ -93,7 +93,7 @@ from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
 
 
-__version__ = '2.0.0'
+__version__ = '2.1.0'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -124,7 +124,7 @@ def historian(config_path, **kwargs):
 
     CrateHistorian.__name__ = 'CrateHistorian'
     utils.update_kwargs_with_config(kwargs, config_dict)
-    return CrateHistorian(**kwargs)
+    return CrateHistorian(cn_node, **kwargs)
 
 
 class CrateHistorian(BaseHistorian):
@@ -258,7 +258,7 @@ class CrateHistorian(BaseHistorian):
         create_schema(self._client, self._schema)
 
         topics = self.get_topic_list()
-        peers = self.vip.peerlist.get(timeout=5)
+        peers = self.vip.peerlist().get(timeout=5)
         if VOLTTRON_CENTRAL_PLATFORM in peers:
             topic_replace_map_vcp = self.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
                                                       method="get_replace_map").get(timeout=5)
@@ -578,7 +578,7 @@ class CrateHistorian(BaseHistorian):
 
     def get_connection(self):
         if self._connection is None:
-            self._connection = crate_client.connect(self._params['host'],
+            self._connection = crate_client.connect(self._host,
                                                     error_trace=True)
         return self._connection
 
