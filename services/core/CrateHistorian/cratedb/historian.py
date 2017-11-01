@@ -221,9 +221,11 @@ class CrateHistorian(BaseHistorian):
         if host is None:
             _log.error("Invalid configuration for params...must have host.")
             raise ValueError("invalid params['host'] value")
-        elif params["host"] != self._host:
+        elif host != self._host:
             _log.info("Changing host to {}".format(host))
-
+        
+        self._host = host
+        
         client = self.get_client(host)
         if client is None:
             _log.error("Couldn't reach host: {}".format(host))
@@ -233,10 +235,6 @@ class CrateHistorian(BaseHistorian):
         if schema != self._schema:
             _log.info("Changing schema to: {}".format(schema))
             self._schema = schema
-
-        if host != self._host:
-            _log.info("Changing host to: {}".format(host))
-            self._host = host
 
         if error_trace != self._error_trace:
             _log.info("Changing error trace to: {}".format(error_trace))
