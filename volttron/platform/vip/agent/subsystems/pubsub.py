@@ -126,7 +126,7 @@ class PubSub(SubsystemBase):
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
-            #self._processgreenlet = gevent.spawn(self._process_loop)
+            self._processgreenlet = gevent.spawn(self._process_loop)
             core.onconnected.connect(self._connected)
             self.vip_socket = self.core().socket
             def subscribe(member):   # pylint: disable=redefined-outer-name
@@ -637,9 +637,9 @@ class PubSub(SubsystemBase):
         param message: VIP message from PubSubService
         type message: dict
         """
-        self._process_incoming_message(self, message)
+        self._event_queue.put(message)
 
-
+    @spawn
     def _process_incoming_message(self, message):
         """Process incoming messages
         param message: VIP message from PubSubService
