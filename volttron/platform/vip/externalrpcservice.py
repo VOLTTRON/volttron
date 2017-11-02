@@ -149,6 +149,8 @@ class ExternalRPCService(object):
             #Use external socket to send the message
             self._ext_router.send_external(to_platform, frames)
             return False
+        except KeyError as exc:
+            _log.error("Missing instance name in external RPC message: {}".format(exc))
         except IndexError:
             _log.error("Invalid EXT RPC message")
 
@@ -166,7 +168,8 @@ class ExternalRPCService(object):
             frames[0] = bytes(peer)
             drop = self._send_internal(frames)
             return False
-            #return frames
+        except KeyError as exc:
+            _log.error("Missing agent name in external RPC message: {}".format(exc))
         except IndexError:
             _log.error("Invalid EXT RPC message")
 

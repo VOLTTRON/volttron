@@ -34,6 +34,8 @@ testdirs="services/core/VolttronCentral/tests services/core/VolttronCentralPlatf
 #directories that must have their subdirectories split
 splitdirs="services/core/*"
 
+python bootstrap.py --market
+
 echo "TestDirs"
 for dir in $testdirs; do
   echo "*********TESTDIR: $dir"

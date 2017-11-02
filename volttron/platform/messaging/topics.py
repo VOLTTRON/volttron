@@ -111,6 +111,14 @@ PLATFORM_VCP_DEVICES = _('platforms/{platform_uuid}/devices/{topic}')
 RECORD_BASE = _('record')
 RECORD = _('record/{subtopic}')
 
+MARKET_BASE = _('market/{subtopic}')
+MARKET_RESERVE = _(MARKET_BASE.replace('{subtopic}', 'reserve'))
+MARKET_BID = _(MARKET_BASE.replace('{subtopic}', 'bid'))
+MARKET_CLEAR = _(MARKET_BASE.replace('{subtopic}', 'cleared_price'))
+MARKET_AGGREGATE = _(MARKET_BASE.replace('{subtopic}', 'aggregate'))
+MARKET_ERROR = _(MARKET_BASE.replace('{subtopic}', 'error'))
+MARKET_RECORD = _(RECORD.replace('{subtopic}', MARKET_CLEAR))
+
 AGENT_SHUTDOWN = _('agent/{agent}/shutdown')
 AGENT_PING = _('agent/ping/{}/{}/{{cookie}}'.format(os.uname()[1], os.getpid()))
 

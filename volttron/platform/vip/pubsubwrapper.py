@@ -85,7 +85,7 @@ def decode_peer(peer):
     return peer
 
 class PubSubWrapper(Agent):
-    """PubSubWrapper Agent acts as a wrapper agent for PubSub subsystem when connected to remote platform that which is using
+    """PubSubWrapper Agent acts as a wrapper agent for PubSub subsystem when connected to remote platform that is using
        old pubsub (RPC based implementation).
        When it receives PubSub requests from remote platform,
        - calls the appropriate method of new platform.

@@ -116,55 +116,65 @@ class RoutingService(object):
         """
         response = []
         result = False
-        sender, recipient, proto, usr_id, msg_id, subsystem = frames[:6]
+
+        try:
+            sender, recipient, proto, usr_id, msg_id, subsystem, op = frames[:7]
+        except IndexError:
+            return False
+        subsystem = bytes(subsystem)
+        op = bytes(op)
         # for f in frames:
         #     _log.debug("ROUTINGSERVICE handle subsystem {}".format(bytes(f)))
 
-        if subsystem.bytes == b'routing_table':
-            try:
-                op = bytes(frames[6])
-            except IndexError:
-                return False
-            #If serverkey received from KeyDiscoveryService, build connection with remote instance
+        if subsystem == b'routing_table':
+            #If Setup mode of operation, setup authorization
             if op == b'setupmode_platform_connection':
                 instance_config = bytes(frames[7])
                 instance_config = jsonapi.loads(instance_config)
                 self._setup_authorization(instance_config)
-            if op == b'normalmode_platform_connection':
+            # If Normal mode of operation, build authorized connection
+            elif op == b'normalmode_platform_connection':
                 instance_config = bytes(frames[7])
                 instance_config = jsonapi.loads(instance_config)
                 self._build_connection(instance_config)
                 return False
-            if op == b'hello':
+            #Respond to Hello/Welcome messages from other instances
+            elif op == b'hello':
                 handshake_request = bytes(frames[7])
-                #Respond to 'hello' request with 'welcome'
-                if handshake_request == b'hello':
-                    name = bytes(frames[8])
-                    frames.pop(0)
-                    _log.debug("HELLO Recieved hello, sending welcome to {}".format(name))
-                    frames[6] = 'welcome'
-                    frames[7] = self._my_instance_name
-                    try:
-                        _log.debug("Sending welcome message to sender {}".format(name))
-                        self.send_external(name, frames)
-                    except ZMQError as exc:
-                        _log.error("ZMQ error: ")
-                #Respond to 'welcome' response by sending Pubsub subscription list
-                elif handshake_request == b'welcome':
-                    name = bytes(frames[8])
-                    _log.debug("HELLO Received welcome. Connection established with: {}".format(name))
-                    self._instances[name]['status'] = STATUS_CONNECTED
-                    _log.debug("Onconnect pubsub handler: {}".format(name))
-                    self._onconnect_pubsub_handler(name)
-            if op == b"web-addresses":
+                try:
+                    #Respond to 'hello' request with 'welcome'
+                    if handshake_request == b'hello':
+                        name = bytes(frames[8])
+                        frames.pop(0)
+                        _log.debug("HELLO Recieved hello, sending welcome to {}".format(name))
+                        frames[6] = 'welcome'
+                        frames[7] = self._my_instance_name
+                        try:
+                            _log.debug("Sending welcome message to sender {}".format(name))
+                            self.send_external(name, frames)
+                        except ZMQError as exc:
+                            _log.error("ZMQ error: ")
+                    #Respond to 'welcome' response by sending Pubsub subscription list
+                    elif handshake_request == b'welcome':
+                        name = bytes(frames[8])
+                        _log.debug("HELLO Received welcome. Connection established with: {}".format(name))
+                        try:
+                            self._instances[name]['status'] = STATUS_CONNECTED
+                            self._onconnect_pubsub_handler(name)
+                        except KeyError as exc:
+                            _log.error("Welcome message received from unknown platform: {}".format(name))
+                except IndexError as exc:
+                    _log.error("Insufficient frames in hello message {}".format(exc))
+            elif op == b"web-addresses":
                 self._web_addresses = bytes(frames[7])
                 self._web_addresses = jsonapi.loads(self._web_addresses)
-                _log.debug("WEB ADDRR: {}".format(self._web_addresses))
             #Update routing table entry
-            if op == b'update':
+            elif op == b'update':
                 result = self._update_entry(frames)
             elif op == b'request_response':
                 pass
+            else:
+                _log.error("Unknown operation: {}".format(op))
         if result:
             #Form response frame
             response = [sender, recipient, proto, usr_id, msg_id, subsystem]
@@ -181,13 +191,16 @@ class RoutingService(object):
         :param instance_name: dicovery information(server key, name, vip-address) of remote instance
         :return:
         """
-        instance_name = instance_info['instance-name']
-        serverkey = instance_info['serverkey']
-        address = instance_info['vip-address']
-        web_address = instance_info['web-address']
+        try:
+            instance_name = instance_info['instance-name']
+            serverkey = instance_info['serverkey']
+            address = instance_info['vip-address']
+            web_address = instance_info['web-address']
+        except KeyError as exc:
+            _log.error("Missing parameter in instance info message {}".format(exc))
+            return
 
         sock = zmq.Socket(zmq.Context(), zmq.DEALER)
-
         num = random.random()
         sock.identity = 'platform-' + '-' + instance_name + '-' + str(num)
         sock.zap_domain = 'vip'
@@ -215,12 +228,16 @@ class RoutingService(object):
         :param serverkey: serverkey for establishing connection with remote instance
         :return:
         """
-        instance_name = instance_info['instance-name']
-        serverkey = instance_info['serverkey']
-        address = instance_info['vip-address']
+        _log.debug("instance_info {}".format(instance_info))
+        try:
+            instance_name = instance_info['instance-name']
+            serverkey = instance_info['serverkey']
+            address = instance_info['vip-address']
+        except KeyError as exc:
+            _log.error("Missing parameter in instance info message {}".format(exc))
+            return
 
         sock = zmq.Socket(zmq.Context(), zmq.DEALER)
-
         sock.sndtimeo = 0
         sock.tcp_keepalive = True
         sock.tcp_keepalive_idle = 180
@@ -284,19 +301,21 @@ class RoutingService(object):
 
             if event & zmq.EVENT_CONNECTED:
                 _log.debug(
-                    "ROUTINGSERVICE socket CONNECTED to {}!! send MY subscriptions !!".format(instance_name[0]))
-
+                    "CONNECTED to external platform: {}!! Sending MY subscriptions !!".format(instance_name[0]))
                 self._instances[instance_name[0]]['status'] = STATUS_CONNECTED
                 self._onconnect_pubsub_handler(instance_name[0])
             elif event & zmq.EVENT_CONNECT_DELAYED:
                 # _log.debug("ROUTINGSERVICE socket DELAYED...Lets wait")
                 self._instances[instance_name[0]]['status'] = STATUS_CONNECTION_DELAY
             elif event & zmq.EVENT_DISCONNECTED:
-                _log.debug("ROUTINGSERVICE socket DISCONNECTED...remove subscriptions")
+                _log.debug("DISCONNECTED from external platform: {}. "
+                           "Subscriptions will be resent on reconnect".format(instance_name[0]))
                 self._instances[instance_name[0]]['status'] = STATUS_DISCONNECTED
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.error("Trying to use a non socket {}".format(exc))
+        except KeyError as exc:
+            _log.error("Unknown external instance: {}".format(instance_name))
 
 
     def register(self, type, handler):
@@ -324,14 +343,14 @@ class RoutingService(object):
         :param instance_name:
         :return:
         """
-        self._ondisconnect_pubsub_handler(instance_name)
-        instance_info = self._instances[instance_name]
-        sock = instance_info['socket']
-        mon_sock = instance_info['monitor_socket']
-        mon_sock.close()
-        #sock.disconnect(instance_info['address'])
-        #sock.close()
-        #del self._instances[instance_name]
+        try:
+            self._ondisconnect_pubsub_handler(instance_name)
+            instance_info = self._instances[instance_name]
+            sock = instance_info['socket']
+            mon_sock = instance_info['monitor_socket']
+            mon_sock.close()
+        except KeyError as exc:
+            _log.error("Unknown external instance name: {}".format(instance_name))
 
     def get_connected_platforms(self):
         """
@@ -352,7 +371,9 @@ class RoutingService(object):
         :param identity: platform identity
         :return:
         """
-        return self._socket_identities[identity]
+        if self._socket_identities[identity]:
+            return self._socket_identities[identity]
+        else: return None
 
     def send_external(self, instance_name, frames):
         """
@@ -388,7 +409,7 @@ class RoutingService(object):
             #             raise
         except KeyError:
             frames[:0] = [self._my_instance_name]
-            _log.debug("Key error for platform {0}".format(instance_name))
+            #_log.debug("Key error for platform {0}".format(instance_name))
             #success = self._send(self._socket, frames)
         return success
 
