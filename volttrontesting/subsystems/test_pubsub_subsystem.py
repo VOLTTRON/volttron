@@ -23,7 +23,7 @@ class _publish_from_handler_test_agent(Agent):
     def onmessage(self, peer, sender, bus, topic, headers, message):
         self.subscription_results[topic] = {'headers': headers, 'message': message}
         if not topic.startswith("testtopic2/test"):
-            self.vip.pubsub.publish("pubsub", "testtopic2/test", headers={"foo": "bar"}, message="Test message").get(timeout=2.0)
+            self.vip.pubsub.publish("pubsub", "testtopic2/test", headers={"foo": "bar"}, message="Test message2").get(timeout=2.0)
 
     def setup_callback(self, topic):
         self.vip.pubsub.subscribe(peer="pubsub", prefix=topic, callback=self.onmessage).get(timeout=2.0)
@@ -43,6 +43,7 @@ def test_publish_from_message_handler(volttron_instance):
     :return:
     """
     test_topic = "testtopic1/test"
+    test_topic2 = "testtopic2/test"
     new_agent1 = volttron_instance.build_agent(identity='test_publish1',
                                               agent_class=_publish_from_handler_test_agent)
 
@@ -50,12 +51,12 @@ def test_publish_from_message_handler(volttron_instance):
 
     #new_agent1.setup_callback("")
 
-    new_agent2.vip.pubsub.publish("pubsub", test_topic, headers={}, message="Test message")
+    new_agent2.vip.pubsub.publish("pubsub", test_topic, headers={}, message="Test message1")
 
     poll_gevent_sleep(2, lambda: messages_contains_prefix(test_topic,
                                                           new_agent1.subscription_results))
-
-    assert new_agent1.subscription_results[test_topic]["message"] == "Test message"
+    assert new_agent1.subscription_results[test_topic]["message"] == "Test message1"
+    assert new_agent1.subscription_results[test_topic2]["message"] == "Test message2"
 
 
 
