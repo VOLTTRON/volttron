@@ -219,6 +219,7 @@ def insert_topic_tags():
         parts = row["topic_name"].split("/")
         num_parts = len(parts)
         if num_parts == 4 or num_parts == 5:
+            n += 1
             if current_campus != parts[0]:
                 db_insert(get_campus_tags(parts[0]))
                 current_campus = parts[0]
