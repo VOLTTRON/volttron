@@ -631,7 +631,6 @@ class PubSub(SubsystemBase):
                       ' provided').format(topic, required_caps, caps)
                 raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)
 
-    @spawn
     def _handle_subsystem(self, message):
         """Handler for incoming messages
         param message: VIP message from PubSubService
