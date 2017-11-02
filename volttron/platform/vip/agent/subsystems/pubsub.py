@@ -638,6 +638,7 @@ class PubSub(SubsystemBase):
         """
         self._event_queue.put(message)
 
+    @spawn
     def _process_incoming_message(self, message):
         """Process incoming messages
         param message: VIP message from PubSubService
