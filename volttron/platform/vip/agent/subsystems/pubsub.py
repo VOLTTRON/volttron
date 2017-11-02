@@ -126,7 +126,7 @@ class PubSub(SubsystemBase):
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
-            self._processgreenlet = gevent.spawn(self._process_loop)
+            #self._processgreenlet = gevent.spawn(self._process_loop)
             core.onconnected.connect(self._connected)
             self.vip_socket = self.core().socket
             def subscribe(member):   # pylint: disable=redefined-outer-name
@@ -631,14 +631,15 @@ class PubSub(SubsystemBase):
                       ' provided').format(topic, required_caps, caps)
                 raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)
 
+    @spawn
     def _handle_subsystem(self, message):
         """Handler for incoming messages
         param message: VIP message from PubSubService
         type message: dict
         """
-        self._event_queue.put(message)
+        self._process_incoming_message(self, message)
 
-    @spawn
+
     def _process_incoming_message(self, message):
         """Process incoming messages
         param message: VIP message from PubSubService
