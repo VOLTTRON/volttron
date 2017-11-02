@@ -165,7 +165,6 @@ class PubSub(SubsystemBase):
         peer = 'pubsub'
 
         handled = 0
-        _log.debug("PUSUB topic: {}".format(topic))
         for platform in self._my_subscriptions:
             #_log.debug("SYNC: process callback subscriptions: {}".format(self._my_subscriptions[platform][bus]))
             buses = self._my_subscriptions[platform]
@@ -175,7 +174,6 @@ class PubSub(SubsystemBase):
                     if topic.startswith(prefix):
                         handled += 1
                         for callback in callbacks:
-                            _log.debug("PUSUB topic: {}".format(topic))
                             callback(peer, sender, bus, topic, headers, message)
         if not handled:
             # No callbacks for topic; synchronize with sender

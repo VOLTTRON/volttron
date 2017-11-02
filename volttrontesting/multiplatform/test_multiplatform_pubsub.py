@@ -56,17 +56,14 @@ def get_volttron_instances(request):
             vip_addresses.append(address)
             web_addresses.append(web_address)
             nm = 'platform{}'.format(i + 1)
-            print nm
             names.append(nm)
 
         for i in range(0, n):
             address = vip_addresses[i]
             web_address = web_addresses[i]
-            print address, web_address
             wrapper = PlatformWrapper()
 
             addr_file = os.path.join(wrapper.volttron_home, 'external_address.json')
-            print addr_config
             if address_file:
                 with open(addr_file, 'w') as f:
                     json.dump(web_addresses, f)
@@ -86,9 +83,6 @@ def get_volttron_instances(request):
             web_address = web_addresses.pop(0)
             print address, web_address
             instances[i].startup_platform(address, bind_web_address=web_address, instance_name=names[i])
-            # wrapper = PlatformWrapper()
-            # instances.append(wrapper)
-            # wrapper.startup_platform(address, bind_web_address=web_address)
             instances[i].allow_all_connections()
         gevent.sleep(11)
         instances = instances if n > 1 else instances[0]
@@ -98,6 +92,79 @@ def get_volttron_instances(request):
 
     return get_n_volttron_instances
 
+@pytest.fixture(scope="module")
+def build_instances(request):
+    """ Fixture to get more than 1 volttron instance for test
+    Use this fixture to get more than 1 volttron instance for test. This
+    returns a function object that should be called with number of instances
+    as parameter to get a list of volttron instnaces. The fixture also
+    takes care of shutting down all the instances at the end
+
+    Example Usage:
+
+    def test_function_that_uses_n_instances(get_volttron_instances):
+        instance1, instance2, instance3 = get_volttron_instances(3)
+
+    @param request: pytest request object
+    @return: function that can used to get any number of
+        volttron instances for testing.
+    """
+    all_instances = []
+
+    def build_n_volttron_instances(n, bad_config=False):
+        build_n_volttron_instances.count = n
+        instances = []
+        vip_addresses = []
+        instances = []
+        addr_config = dict()
+        names = []
+
+        for i in range(0, n):
+            address = get_rand_vip()
+            vip_addresses.append(address)
+            nm = 'platform{}'.format(i + 1)
+            names.append(nm)
+
+        for i in range(0, n):
+            address = vip_addresses[i]
+            wrapper = PlatformWrapper()
+            wrapper.startup_platform(address, instance_name=names[i])
+            wrapper.skip_cleanup = True
+            instances.append(wrapper)
+
+        gevent.sleep(1)
+        for i in range(0, n):
+            instances[i].shutdown_platform()
+
+        for i in range(0, n):
+            addr_config.clear()
+            for j in range(0, n):
+                if j != i:
+                    name = names[j]
+                    addr_config[name] = dict()
+                    addr_config[name]['instance-name'] = names[j]
+                    if bad_config:
+                        addr_config[name]['vip-address123'] = vip_addresses[j]
+                    else:
+                        addr_config[name]['vip-address'] = vip_addresses[j]
+                    addr_config[name]['serverkey'] = instances[j].serverkey
+            address_file = os.path.join(instances[i].volttron_home, 'external_platform_discovery.json')
+            if address_file:
+                with open(address_file, 'w') as f:
+                    json.dump(addr_config, f)
+
+        gevent.sleep(1)
+        for i in range(0, n):
+            address = vip_addresses.pop(0)
+            instances[i].startup_platform(address, instance_name=names[i])
+            instances[i].allow_all_connections()
+        gevent.sleep(11)
+        instances = instances if n > 1 else instances[0]
+
+        build_n_volttron_instances.instances = instances
+        return instances
+
+    return build_n_volttron_instances
 
 @pytest.fixture(scope="module")
 def multi_platform_connection(request, get_volttron_instances):
@@ -377,6 +444,64 @@ def test_missing_address_file(request, get_volttron_instances):
     gevent.sleep(1)
     p1.shutdown_platform()
 
+def test_multiplatform_without_setup_mode(request, build_instances):
+    subscription_results1 = {}
+    subscription_results3 = {}
+    p1, p2, p3 = build_instances(3)
+    gevent.sleep(1)
+    #Get three agents
+    agent1 = p1.build_agent(identity="agent1")
+    agent2 = p2.build_agent(identity="agent2")
+    agent3 = p2.build_agent(identity="agent3")
+
+    def stop():
+        agent1.core.stop()
+        agent2.core.stop()
+        agent3.core.stop()
+        p1.shutdown_platform()
+        p2.shutdown_platform()
+        p3.shutdown_platform()
+    request.addfinalizer(stop)
+
+    def callback1(peer, sender, bus, topic, headers, message):
+        subscription_results1[topic] = {'headers': headers, 'message': message}
+        print("platform2 sub results [{}] = {}".format(topic, subscription_results1[topic]))
+
+    def callback3(peer, sender, bus, topic, headers, message):
+        subscription_results3[topic] = {'headers': headers, 'message': message}
+        print("platform3 sub results [{}] = {}".format(topic, subscription_results3[topic]))
+
+    agent3.vip.pubsub.subscribe(peer='pubsub',
+                                 prefix='devices',
+                                 callback=callback3,
+                                 all_platforms=True)
+
+    gevent.sleep(0.2)
+    agent2.vip.pubsub.subscribe(peer='pubsub',
+                                 prefix='devices',
+                                 callback=callback1,
+                                 all_platforms=True)
+
+    gevent.sleep(1)
+    for i in range(0, 2):
+        agent1.vip.pubsub.publish(peer='pubsub', topic='devices/building1',
+                                 message=[{'point': 'value' + str(i)}])
+        gevent.sleep(1)
+        try:
+            message = subscription_results3['devices/building1']['message']
+            assert message == [{'point': 'value' + str(i)}]
+
+            message = subscription_results1['devices/building1']['message']
+            assert message == [{'point': 'value' + str(i)}]
+        except KeyError:
+            assert i == 10
+
+def test_multiplatform_bad_discovery_file(request, build_instances):
+    p1, p2, p3 = build_instances(3, bad_config=True)
+    gevent.sleep(1)
+    p1.shutdown_platform()
+    p2.shutdown_platform()
+    p3.shutdown_platform()
 
 def test_multiplatform_rpc(request, get_volttron_instances):
     p1, p2 = get_volttron_instances(2)

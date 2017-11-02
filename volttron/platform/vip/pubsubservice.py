@@ -115,7 +115,6 @@ class PubSubService(object):
         :param prefix subscription prefix (peer is subscribing to all topics matching the prefix)
         :type str
         """
-        self._logger.debug("_add_peer_subscription {}".format(platform))
         self._peer_subscriptions[platform][bus][prefix].add(peer)
 
     def peer_drop(self, peer, **kwargs):
@@ -176,12 +175,10 @@ class PubSubService(object):
         for platform, bus, prefix in items:
             self._add_peer_subscription(peer, bus, prefix, platform)
 
-        self._logger.debug("SYNC after: {}".format(self._peer_subscriptions))
-        #
-        # if 'all' in self._peer_subscriptions and self._ext_router is not None:
-        #     # Send subscription message to all connected platforms
-        #     external_platforms = self._ext_router.get_connected_platforms()
-        #     self._send_external_subscriptions(external_platforms)
+        if 'all' in self._peer_subscriptions and self._ext_router is not None:
+            # Send subscription message to all connected platforms
+            external_platforms = self._ext_router.get_connected_platforms()
+            self._send_external_subscriptions(external_platforms)
 
 
     def _peer_sync(self, frames):
@@ -240,7 +237,6 @@ class PubSubService(object):
                 # Send subscription message to all connected platforms
                 external_platforms = self._ext_router.get_connected_platforms()
                 self._send_external_subscriptions(external_platforms)
-            self._logger.debug("Subscribe after: {}".format(self._peer_subscriptions))
             return True
 
 
@@ -458,7 +454,6 @@ class PubSubService(object):
         subs.update(all_subscriptions)
         subs.update(subscriptions)
         subscribers = set()
-        self._logger.debug("PUBSUBSERVICE: topic: {0} subscribers: {1}".format(topic, subs))
         # Check for local subscribers
         for prefix, subscription in subs.iteritems():
             if subscription and topic.startswith(prefix):
