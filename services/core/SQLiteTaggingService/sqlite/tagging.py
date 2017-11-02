@@ -158,7 +158,8 @@ class SQLiteTaggingService(BaseTaggingService):
         try:
             stmt = "SELECT name FROM sqlite_master " \
                 "WHERE type='table';"
-            table_names = self.sqlite_utils.select(stmt, None, fetch_all=True)
+            name_list = self.sqlite_utils.select(stmt, None, fetch_all=True)
+            table_names = [name[0] for name in name_list]
             _log.debug(table_names)
         except Exception as e:
             err_message = "Unable to query list of existing tables from the " \
@@ -214,6 +215,7 @@ class SQLiteTaggingService(BaseTaggingService):
             self.vip.health.send_alert(TAGGING_SERVICE_SETUP_FAILED, status)
             self.core.stop()
 
+    @doc_inherit
     def load_valid_tags(self):
         # Now cache list of tags and kind/type for validation during insert
         cursor = self.sqlite_utils.select(
@@ -221,6 +223,7 @@ class SQLiteTaggingService(BaseTaggingService):
         for record in cursor:
             self.valid_tags[record[0]] = record[1]
 
+    @doc_inherit
     def load_tag_refs(self):
         # Now cache ref tags and its parent
         cursor = self.sqlite_utils.select(
@@ -341,6 +344,7 @@ class SQLiteTaggingService(BaseTaggingService):
             self.topic_tags_table + "(tag ASC);")
         self.sqlite_utils.commit()
 
+    @doc_inherit
     def query_categories(self, include_description=False, skip=0, count=None,
                        order="FIRST_TO_LAST"):
 
@@ -385,6 +389,7 @@ class SQLiteTaggingService(BaseTaggingService):
         else:
             return result.keys()
 
+    @doc_inherit
     def query_tags_by_category(self, category, include_kind=False,
                                include_description=False, skip=0, count=None,
                                order="FIRST_TO_LAST"):
@@ -445,6 +450,7 @@ class SQLiteTaggingService(BaseTaggingService):
             if cursor:
                 cursor.close()
 
+    @doc_inherit
     def query_tags_by_topic(self, topic_prefix, include_kind=False,
                             include_description=False, skip=0, count=None,
                             order="FIRST_TO_LAST"):
@@ -501,6 +507,7 @@ class SQLiteTaggingService(BaseTaggingService):
             if cursor:
                 cursor.close()
 
+    @doc_inherit
     def insert_topic_tags(self, tags, update_version=False):
         t = dict()
         to_db =[]
@@ -554,6 +561,7 @@ class SQLiteTaggingService(BaseTaggingService):
             self.sqlite_utils.commit()
         return result
 
+    @doc_inherit
     def query_topics_by_tags(self, ast, skip=0, count=None, order=None):
 
 
