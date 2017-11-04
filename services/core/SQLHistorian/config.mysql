@@ -1,5 +1,4 @@
 {
-    "agentid": "sqlhistorian-mysql",
     "connection": {
         "type": "mysql",
         "params": {
