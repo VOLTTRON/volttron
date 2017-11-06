@@ -37,81 +37,83 @@ Data flow between historian and aggregate historian
 Configuration
 -------------
 
-{
-    # configuration from mysql historian - START
-    "connection": {
-        "type": "mysql",
-        "params": {
-            "host": "localhost",
-            "port": 3306,
-            "database": "test_historian",
-            "user": "historian",
-            "passwd": "historian"
-        }
-    },
-    # configuration from mysql historian - END
-    # If you are using a differnt historian(sqlite3, mongo etc.) replace the
-    # above with connection details from the corresponding historian.
-    # the rest of the configuration would be the same for all aggregate
-    # historians
+.. code-block:: python
 
-    "aggregations":[
-        # list of aggregation groups each with unique aggregation_period and
-        # list of points that needs to be collected. value of "aggregations" is
-        # a list. you can configure this agent to collect multiple aggregates.
-        # aggregation_time_periiod + aggregation topic(s) together uniquely
-        # identify an aggregation
+    {
+        # configuration from mysql historian - START
+        "connection": {
+            "type": "mysql",
+            "params": {
+                "host": "localhost",
+                "port": 3306,
+                "database": "test_historian",
+                "user": "historian",
+                "passwd": "historian"
+            }
+        },
+        # configuration from mysql historian - END
+        # If you are using a differnt historian(sqlite3, mongo etc.) replace the
+        # above with connection details from the corresponding historian.
+        # the rest of the configuration would be the same for all aggregate
+        # historians
 
-        {
-            # can be minutes(m), hours(h), weeks(w), or months(M)
+        "aggregations":[
+            # list of aggregation groups each with unique aggregation_period and
+            # list of points that needs to be collected. value of "aggregations" is
+            # a list. you can configure this agent to collect multiple aggregates.
+            # aggregation_time_periiod + aggregation topic(s) together uniquely
+            # identify an aggregation
 
-            "aggregation_period": "1m",
+            {
+                # can be minutes(m), hours(h), weeks(w), or months(M)
 
-            # Should aggregation period align to calendar time periods.
-            # Default False
-            # Example,
-            # if "aggregation_period":"1h" and "use_calendar_time_periods": False
-            # example periods: 10.15-11.15, 11.15-12.15, 12.15-13.15 etc.
-            # if "aggregation_period":"1h" and "use_calendar_time_periods": True
-            # example periods: 10.00-11.00, 11.00-12.00, 12.00-13.00 etc.
+                "aggregation_period": "1m",
 
-            "use_calendar_time_periods": "true",
+                # Should aggregation period align to calendar time periods.
+                # Default False
+                # Example,
+                # if "aggregation_period":"1h" and "use_calendar_time_periods": False
+                # example periods: 10.15-11.15, 11.15-12.15, 12.15-13.15 etc.
+                # if "aggregation_period":"1h" and "use_calendar_time_periods": True
+                # example periods: 10.00-11.00, 11.00-12.00, 12.00-13.00 etc.
 
-            # topics to be aggregated
+                "use_calendar_time_periods": "true",
 
-            "points": [
+                # topics to be aggregated
+
+                "points": [
+                        {
+                        # here since aggregation is done over a single topic name
+                        # same topic name is used for the aggregation topic
+                        "topic_names": ["device1/out_temp"],
+                        "aggregation_type": "sum",
+                        #minimum required records in the aggregation time period for
+                        #aggregate to be recorded
+                        "min_count": 2
+                        },
+                        {
+                        "topic_names": ["device1/in_temp"],
+                        "aggregation_type": "sum",
+                        "min_count": 2
+                        }
+                    ]
+            },
+            {
+                "aggregation_period": "2m",
+                "use_calendar_time_periods": "false",
+                "points": [
                     {
-                    # here since aggregation is done over a single topic name
-                    # same topic name is used for the aggregation topic
-                    "topic_names": ["device1/out_temp"],
-                    "aggregation_type": "sum",
-                    #minimum required records in the aggregation time period for
-                    #aggregate to be recorded
-                    "min_count": 2
-                    },
-                    {
-                    "topic_names": ["device1/in_temp"],
-                    "aggregation_type": "sum",
-                    "min_count": 2
+                     # aggregation over more than one topic so
+                     # aggregation_topic_name should be specified
+                     "topic_names": ["Building/device/point1", "Building/device/point2"],
+                     "aggregation_topic_name":"building/device/point1_2/month_sum",
+                     "aggregation_type": "avg",
+                     "min_count": 2
                     }
                 ]
-        },
-        {
-            "aggregation_period": "2m",
-            "use_calendar_time_periods": "false",
-            "points": [
-                {
-                 # aggregation over more than one topic so
-                 # aggregation_topic_name should be specified
-                 "topic_names": ["Building/device/point1", "Building/device/point2"],
-                 "aggregation_topic_name":"building/device/point1_2/month_sum",
-                 "aggregation_type": "avg",
-                 "min_count": 2
-                }
-            ]
-        }
-    ]
-}
+            }
+        ]
+    }
 
 
 See Also
