@@ -218,7 +218,10 @@ class PubSub(SubsystemBase):
         self._sync(peer, items)
 
     def _add_peer_subscription(self, peer, bus, prefix):
-        subscriptions = self._peer_subscriptions[bus]
+        try:
+            subscriptions = self._peer_subscriptions[bus]
+        except KeyError:
+            self._peer_subscriptions[bus] = subscriptions = dict()
         try:
             subscribers = subscriptions[prefix]
         except KeyError:
@@ -232,7 +235,10 @@ class PubSub(SubsystemBase):
 
     def _peer_unsubscribe(self, prefix, bus=''):
         peer = bytes(self.rpc().context.vip_message.peer)
-        subscriptions = self._peer_subscriptions[bus]
+        try:
+            subscriptions = self._peer_subscriptions[bus]
+        except KeyError:
+            return
         if prefix is None:
             remove = []
             for topic, subscribers in subscriptions.iteritems():
@@ -307,11 +313,10 @@ class PubSub(SubsystemBase):
         result = next(self._results)
         items = [{platform: {bus: subscriptions.keys()} for platform, bus_subscriptions in self._my_subscriptions.items()
                   for bus, subscriptions in bus_subscriptions.items()}]
-        #_log.debug("SYNC sending synchronize items: {}".format(items))
         for subscriptions in items:
             sync_msg = jsonapi.dumps(
                         dict(subscriptions=subscriptions)
-                    )
+                        )
             frames = [b'synchronize', b'connected', sync_msg]
             # For backward compatibility with old pubsub
             if self._send_via_rpc:
@@ -506,7 +511,10 @@ class PubSub(SubsystemBase):
                         except KeyError:
                             return []
                     else:
-                        callbacks = subscriptions[prefix]
+                        try:
+                            callbacks = subscriptions[prefix]
+                        except KeyError:
+                            return []
                         try:
                             callbacks.remove(callback)
                         except KeyError:
@@ -638,6 +646,7 @@ class PubSub(SubsystemBase):
         """
         self._event_queue.put(message)
 
+    @spawn
     def _process_incoming_message(self, message):
         """Process incoming messages
         param message: VIP message from PubSubService
@@ -668,12 +677,15 @@ class PubSub(SubsystemBase):
                 data = message.args[2].bytes
             except IndexError:
                 return
-            msg = jsonapi.loads(data)
-            headers = msg['headers']
-            message = msg['message']
-            sender = msg['sender']
-            bus = msg['bus']
-            self._process_callback(sender, bus, topic, headers, message)
+            try:
+                msg = jsonapi.loads(data)
+                headers = msg['headers']
+                message = msg['message']
+                sender = msg['sender']
+                bus = msg['bus']
+                self._process_callback(sender, bus, topic, headers, message)
+            except KeyError as exc:
+                _log.error("Missing keys in pubsub message: {}".format(exc))
         else:
             _log.error("Unknown operation ({})".format(op))
 
@@ -762,7 +774,7 @@ class PubSubWithRPC(object):
         try:
             if parameters['op'] == 'synchronize':
                 self._core().spawn(self._synchronize, id, results, parameters)
-            if parameters['op'] == 'subscribe':
+            elif parameters['op'] == 'subscribe':
                 self._core().spawn(self._subscribe, id, results, parameters)
             elif parameters['op'] == 'publish':
                 self._core().spawn(self._publish, id, results, parameters)
@@ -771,9 +783,9 @@ class PubSubWithRPC(object):
             elif parameters['op'] == 'unsubscribe':
                 self._core().spawn(self._unsubscribe, id, results, parameters)
             else:
-                _log.error("Error: Unknown operation")
-        except KeyError:
-            _log.error("Error: Missing KEY message")
+                _log.error("Error: Unknown operation {}".format(parameters['op']))
+        except KeyError as exc:
+            _log.error("Error: Missing KEY in message {}".format(exc))
 
     def _synchronize(self, results_id, results, parameters):
         """Unsubscribe call using RPC

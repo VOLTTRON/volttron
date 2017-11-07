@@ -113,7 +113,10 @@ class KeyDiscoveryAgent(Agent):
                 _log.error("Web bind address is needed in multiplatform setup mode")
                 return
             with self._ext_addresses_store_lock:
-                self._ext_addresses_store = PersistentDict(filename=self._store_path, flag='c', format='json')
+                try:
+                    self._ext_addresses_store = PersistentDict(filename=self._store_path, flag='c', format='json')
+                except ValueError as exc:
+                    _log.error("Error in json format: {0}".format(exc))
                 #Delete the existing store.
                 if self._ext_addresses_store:
                     self._ext_addresses_store.clear()
@@ -138,7 +141,10 @@ class KeyDiscoveryAgent(Agent):
         else:
             #Use the existing store for platform discovery information
             with self._ext_addresses_store_lock:
-                self._ext_addresses_store = PersistentDict(filename=self._store_path, flag='c', format='json')
+                try:
+                    self._ext_addresses_store = PersistentDict(filename=self._store_path, flag='c', format='json')
+                except ValueError as exc:
+                    _log.error("Error in json file format: {0}".format(exc))
                 for name, discovery_info in self._ext_addresses_store.items():
                     op = b'normalmode_platform_connection'
                     self._send_to_router(op, discovery_info)
@@ -170,6 +176,8 @@ class KeyDiscoveryAgent(Agent):
                 name = platform_info['instance-name']
                 self._ext_addresses_store[name] = platform_info
                 self._ext_addresses_store.async_sync()
+        except KeyError as exc:
+            _log.error("Discovery info does not contain instance name {}".format(exc))
         except DiscoveryError:
             # If discovery error, try again later
             sec = random.random() * self.r + 30
@@ -199,7 +207,7 @@ class KeyDiscoveryAgent(Agent):
             self._vip_socket.send_vip(b'', 'routing_table', frames, copy=False)
         except ZMQError as ex:
             # Try sending later
-            _log.error("ZMQ error: {}".format(ex))
+            _log.error("ZMQ error while sending external platform info to router: {}".format(ex))
 
     def _read_platform_address_file(self):
         """
@@ -212,7 +220,6 @@ class KeyDiscoveryAgent(Agent):
                 # Use gevent FileObject to avoid blocking the thread
                 data = FileObject(fil, close=False).read()
                 web_addresses = jsonapi.loads(data) if data else {}
-                _log.debug("WEB ADDR: {}".format(web_addresses))
                 return web_addresses
         except IOError as e:
             _log.error("Error opening file {}".format(self._external_address_file))
