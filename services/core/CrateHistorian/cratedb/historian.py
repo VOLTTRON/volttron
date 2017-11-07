@@ -120,7 +120,7 @@ def historian(config_path, **kwargs):
     else:
         config_dict = utils.load_config(config_path)
 
-    cn_node = config_dict.get('connection', {})
+    cn_node = config_dict.pop('connection', {})
 
     CrateHistorian.__name__ = 'CrateHistorian'
     utils.update_kwargs_with_config(kwargs, config_dict)
