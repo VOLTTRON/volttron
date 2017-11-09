@@ -1,4 +1,4 @@
-.. _Crate-Historian:
+.. _Crate_Historian:
 
 ===============
 Crate Historian
@@ -37,7 +37,7 @@ This command will download and install all of the requirements for running
 crate, create a crate user and install a crate service.  After the installation
 the service will be available for viewing at http://localhost:4200 by default.
 
-.. note::  There is no authentication support within crate.
+.. note::  Authentication for crate is an enterprise subscription only feature.
 
 2. Crate Driver
 ---------------
@@ -59,9 +59,7 @@ or
 
 Configuration
 ~~~~~~~~~~~~~
-
-Because there is no authorization to access a crate database the configuration
-for the CrateHistorian is very easy.
+The following is an example of the crate historian's configuration.
 
 .. code-block:: python
 

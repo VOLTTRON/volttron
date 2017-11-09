@@ -1,8 +1,8 @@
-.. _SQL_Aggregate_Historian:
+.. _Mongo_Aggregate_Historian:
 
-=======================
-SQL Aggregate Historian
-=======================
+=========================
+Mongo Aggregate Historian
+=========================
 
 An aggregate historian computes aggregates of data stored in a given volttron
 historian's data store. It runs periodically to compute aggregate data

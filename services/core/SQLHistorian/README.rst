@@ -1,4 +1,4 @@
-.. _SQL-Historian:
+.. _SQL_Historian:
 
 ============
 SQLHistorian
@@ -37,11 +37,7 @@ In order to use mysql one must install the **mysql-python connector**
 
     From an activated shell execute
 
-      pip install --allow-external mysql-connector-python mysql-connector-python
-
-    If the above command doesn't work then you could use the following instead
-
-      pip install mysql-connector-python-rf
+        pip install mysql-connector-python-rf
 
     On Ubuntu 16.04
 

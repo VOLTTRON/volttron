@@ -1,4 +1,4 @@
-.. _Mongo-Historian:
+.. _Mongo_Historian:
 
 ===============
 Mongo Historian
