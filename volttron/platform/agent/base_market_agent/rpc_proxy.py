@@ -91,7 +91,7 @@ class RpcProxy(object):
         The agent shall use the pre-defined strings provided.
         """
         try:
-            self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_reservation', market_name, buyer_seller).get(timeout=5.0)
+            self.rpc_call(PLATFORM_MARKET_SERVICE, 'make_reservation', market_name, buyer_seller).get(timeout=5.0)
             has_reservation = True
         except RemoteError as e:
             has_reservation = False
@@ -111,7 +111,7 @@ class RpcProxy(object):
         :param curve: The demand curve for buyers or the supply curve for sellers.
         """
         try:
-            self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller,
+            self.rpc_call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller,
                               curve.tuppleize()).get(timeout=5.0)
             result = (True, None)
             if self.verbose_logging:

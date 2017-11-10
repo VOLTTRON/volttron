@@ -57,7 +57,6 @@
 # }}}
 
 import logging
-import gevent
 
 from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
 from volttron.platform.agent import utils
@@ -66,7 +65,7 @@ from volttron.platform.vip.agent import Agent
 from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID, MARKET_CLEAR, MARKET_AGGREGATE, MARKET_ERROR
 from volttron.platform.agent.base_market_agent.registration_manager import RegistrationManager
 from volttron.platform.agent.base_market_agent.poly_line_factory import PolyLineFactory
-from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.agent.base_market_agent.rpc_proxy import RpcProxy
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
@@ -82,7 +81,8 @@ class MarketAgent(Agent):
     def __init__(self, verbose_logging = True, **kwargs):
         super(MarketAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
-        self.registrations = RegistrationManager(self)
+        rpc_proxy = RpcProxy(self.vip.rpc.call)
+        self.registrations = RegistrationManager(rpc_proxy)
         self.verbose_logging = verbose_logging
 
     @PubSub.subscribe('pubsub', MARKET_RESERVE)
