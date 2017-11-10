@@ -24,12 +24,12 @@ Overview
 Kafka Agent aims to integrate VOLTTRON platform with
 `Kafka <https://kafka.apache.org/>`__ EcoSystem.
 
-.. figure:: /home/sol/workspace/volttron/services/contrib/KafkaAgent/img/overview_1.png
+.. figure:: ./img/overview_1.png
    :alt: 
 
 Considering scalability, you can follow the diagram below.
 
-.. figure:: /home/sol/workspace/volttron/services/contrib/KafkaAgent/img/overview_2.png
+.. figure:: ./img/overview_2.png
    :alt: 
 
 .. header-n30:
@@ -79,7 +79,7 @@ Start Kafka Server(Broker) - Machine A
 
     vi config/server.properties
 
-.. figure:: /home/sol/workspace/volttron/services/contrib/KafkaAgent/img/how_to_start_1.png
+.. figure:: ./img/how_to_start_1.png
    :alt: 
 
 set broker ip, broker port (e.g. listeners=PLAINTEXT://127.0.0.1:9092)
@@ -99,7 +99,7 @@ Install KafkaAgent & Start KafkaAgent
     cd volttron/service/contrib/KafkaAgent
     vi config
 
-.. figure:: /home/sol/workspace/volttron/services/contrib/KafkaAgent/img/how_to_start_2.png
+.. figure:: ./img/how_to_start_2.png
    :alt: 
 
 kafka_producer_topic:
@@ -132,7 +132,7 @@ Start Producer(Maybe Application) in Machine A
     cd Test
     vi message.json
 
-.. figure:: /home/sol/workspace/volttron/services/contrib/KafkaAgent/img/how_to_start_4.png
+.. figure:: ./img/how_to_start_4.png
    :alt: 
 
 topic: Topics to be used when KafkaAgent publishes messages from broker
@@ -140,12 +140,12 @@ to MessageBus inside VOLTTRON
 
 ``vi kafka_producer.py``
 
-.. figure:: /home/sol/workspace/volttron/services/contrib/KafkaAgent/img/how_to_start_3.png
+.. figure:: ./img/how_to_start_3.png
    :alt: 
 
 ``python kafka_producer.py``
 
-.. figure:: /home/sol/workspace/volttron/services/contrib/KafkaAgent/img/how_to_start_5.png
+.. figure:: ./img/how_to_start_5.png
    :alt: 
 
 .. header-n99:
@@ -155,10 +155,10 @@ Start Consumer(Maybe Application) in Machine B
 
 ``vi kafka_consumer.py``
 
-.. figure:: /home/sol/workspace/volttron/services/contrib/KafkaAgent/img/how_to_start_6.png
+.. figure:: ./img/how_to_start_6.png
    :alt: 
 
-.. figure:: /home/sol/workspace/volttron/services/contrib/KafkaAgent/img/how_to_start_7.png
+.. figure:: ./img/how_to_start_7.png
    :alt: 
 
 .. header-n108:
@@ -168,5 +168,5 @@ More Details
 
 If you run more than one broker, you need to have a different broker_id.
 
-.. figure:: /home/sol/workspace/volttron/services/contrib/KafkaAgent/img/more_details_1.png
+.. figure:: ./img/more_details_1.png
    :alt:
