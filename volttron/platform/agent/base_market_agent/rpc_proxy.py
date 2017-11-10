@@ -57,58 +57,74 @@
 # }}}
 
 import logging
+import gevent
 
 from volttron.platform.agent import utils
-from volttron.platform.agent.base_market_agent.market_registration import MarketRegistration
+from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
+from volttron.platform.jsonrpc import RemoteError
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 
-class RegistrationManager(object):
+class RpcProxy(object):
     """
-    The ReservationManager manages a list of MarketReservations for the MarketAgents.
-    This class exists to hide the features of the underlying collection that are not relevant to
-    managing market reservations.
+    The purpose of the RpcProxy is to allow the MarketRegistration to make
+    RPC calls on the agent that subclasses of the agent can't see and therefore
+    can't make.
     """
-    def __init__(self, rpc_proxy):
+    def __init__(self, rpc_call):
         """
-        The initalization needs the agent to grant access to the RPC calls needed to
+        The initalization needs the rpc_call method to grant access to the RPC calls needed to
         communicate with the marketService.
-        :param rpc_proxy: The MarketAgents that owns this object.
+        :param rpc_call: The MarketAgent owns this object.
         """
-        self.registrations = []
-        self.rpc_proxy = rpc_proxy
+        self.rpc_call = rpc_call
 
-    def make_registration(self, market_name, buyer_seller, reservation_callback, offer_callback,
-                          aggregate_callback, price_callback, error_callback):
-        registration = MarketRegistration(market_name, buyer_seller, reservation_callback, offer_callback,
-                                          aggregate_callback, price_callback, error_callback)
-        self.registrations.append(registration)
+    def make_reservation(self, market_name, buyer_seller):
+        """
+        This call makes a reservation with the MarketService.  This allows the agent to submit a bid and receive
+        a cleared market price.
+
+        :param market_name: The name of the market commodity.
+
+        :param buyer_seller: A string indicating whether the agent is buying from or selling to the market.
+        The agent shall use the pre-defined strings provided.
+        """
+        try:
+            self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_reservation', market_name, buyer_seller).get(timeout=5.0)
+            has_reservation = True
+        except RemoteError as e:
+            has_reservation = False
+        except gevent.Timeout as e:
+            has_reservation = False
+        return has_reservation
 
     def make_offer(self, market_name, buyer_seller, curve):
-        for registration in self.registrations:
-            if (registration.market_name == market_name):
-                registration.make_offer(buyer_seller, curve, self.rpc_proxy)
+        """
+        This call makes an offer with the MarketService.
 
-    def request_reservations(self, timestamp):
-        for registration in self.registrations:
-            registration.request_reservations(timestamp, self.rpc_proxy)
+        :param market_name: The name of the market commodity.
 
-    def request_offers(self, timestamp):
-        for registration in self.registrations:
-            registration.request_offers(timestamp)
+        :param buyer_seller: A string indicating whether the agent is buying from or selling to the market.
+        The agent shall use the pre-defined strings provided.
 
-    def report_clear_price(self, timestamp, market_name, price, quantity):
-        for registration in self.registrations:
-            if (registration.market_name == market_name):
-                registration.report_clear_price(timestamp, price, quantity)
+        :param curve: The demand curve for buyers or the supply curve for sellers.
+        """
+        try:
+            self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller,
+                              curve.tuppleize()).get(timeout=5.0)
+            result = (True, None)
+            if self.verbose_logging:
+                _log.debug("Market: {} {} has made an offer Curve: {}".format(market_name,
+                                                                                       buyer_seller,
+                                                                                       curve.points))
+        except RemoteError as e:
+            result = (False, e.message)
+            _log.info(
+                "Market: {} {} has had an offer rejected because {}".format(market_name, buyer_seller, e.message))
+        except gevent.Timeout as e:
+            result = (False, e.message)
+            _log.info("Market: {} {} has had an offer rejected because {}".format(market_name, buyer_seller, e.message))
+        return result
 
-    def report_aggregate(self, timestamp, market_name, buyer_seller, aggregate_curve):
-        for registration in self.registrations:
-            if (registration.market_name == market_name):
-                registration.report_aggregate(timestamp, buyer_seller, aggregate_curve)
 
-    def report_error(self, timestamp, market_name, error_code, error_message, aux):
-        for registration in self.registrations:
-            if (registration.market_name == market_name):
-                registration.report_error(timestamp, error_code, error_message, aux)
