@@ -95,9 +95,10 @@ class MarketAgent(Agent):
     @PubSub.subscribe('pubsub', MARKET_BID)
     def match_make_offer(self, peer, sender, bus, topic, headers, message):
         timestamp = utils.parse_timestamp_string(message[0])
+        unformed_markets = message[1]
         decoded_message = "Timestamp: {}".format(timestamp)
         self.log_event("match_make_offer", peer, sender, bus, topic, headers, decoded_message)
-        self.registrations.request_offers(timestamp)
+        self.registrations.request_offers(timestamp, unformed_markets)
 
     @PubSub.subscribe('pubsub', MARKET_CLEAR)
     def match_report_clear_price(self, peer, sender, bus, topic, headers, message):

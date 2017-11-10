@@ -97,9 +97,10 @@ class RegistrationManager(object):
         for registration in self.registrations:
             registration.request_reservations(timestamp, self.rpc_proxy)
 
-    def request_offers(self, timestamp):
+    def request_offers(self, timestamp, unformed_markets):
         for registration in self.registrations:
-            registration.request_offers(timestamp)
+            if (registration.market_name not in unformed_markets):
+                registration.request_offers(timestamp)
 
     def report_clear_price(self, timestamp, market_name, price, quantity):
         for registration in self.registrations:
