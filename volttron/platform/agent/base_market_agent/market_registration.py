@@ -133,7 +133,7 @@ class MarketRegistration(object):
             is_ok = False
         if not self.failed_to_form_error:
             is_ok = False
-        if not self.offer_callback is None:
+        if self.offer_callback is None:
             is_ok = False
         return is_ok
 
