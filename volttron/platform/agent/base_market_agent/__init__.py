@@ -83,7 +83,6 @@ class MarketAgent(Agent):
         super(MarketAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
         self.registrations = RegistrationManager(self)
-        self.has_reservation = False
         self.verbose_logging = verbose_logging
 
     @PubSub.subscribe('pubsub', MARKET_RESERVE)
@@ -192,11 +191,12 @@ class MarketAgent(Agent):
         """
         try:
             self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_reservation', market_name, buyer_seller).get(timeout=5.0)
-            self.has_reservation = True
+            has_reservation = True
         except RemoteError as e:
-            self.has_reservation = False
+            has_reservation = False
         except gevent.Timeout as e:
-            self.has_reservation = False
+            has_reservation = False
+        return has_reservation
 
     def make_offer(self, market_name, buyer_seller, curve):
         """
