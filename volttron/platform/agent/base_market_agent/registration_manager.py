@@ -86,9 +86,12 @@ class RegistrationManager(object):
         self.registrations.append(registration)
 
     def make_offer(self, market_name, buyer_seller, curve):
+        result = False
+        error_message = "Market: {} {} was not found in the local list of markets".format(market_name, buyer_seller)
         for registration in self.registrations:
             if (registration.market_name == market_name):
-                registration.make_offer(buyer_seller, curve, self.rpc_proxy)
+                result, error_message = registration.make_offer(buyer_seller, curve, self.rpc_proxy)
+        return result, error_message
 
     def request_reservations(self, timestamp):
         for registration in self.registrations:

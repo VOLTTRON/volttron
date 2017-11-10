@@ -58,7 +58,6 @@
 
 import logging
 
-from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import PubSub
 from volttron.platform.vip.agent import Agent

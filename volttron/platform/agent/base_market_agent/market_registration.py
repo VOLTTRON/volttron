@@ -101,15 +101,12 @@ class MarketRegistration(object):
         result = False
         is_ok, error_message = self._ok_to_make_offer()
         if is_ok:
-            result = rpc_proxy.make_offer(self.market_name, buyer_seller, curve)
-            if result:
-                _log.debug("Market: {} {} offer was made and accepted.".format(self.market_name, self.buyer_seller))
-            else:
-                _log.debug("Market: {} {} offer was made and rejected.".format(self.market_name, self.buyer_seller))
-        else:
-            _log.debug(error_message)
+            result, error_message = rpc_proxy.make_offer(self.market_name, buyer_seller, curve)
+            if result and error_message is None:
+                error_message = "Market: {} {} offer was made and accepted.".format(self.market_name, self.buyer_seller)
+        _log.debug(error_message)
 
-        return result
+        return result, error_message
 
     def request_offers(self, timestamp):
         is_ok, error_message = self._ok_to_make_offer_via_callback()
