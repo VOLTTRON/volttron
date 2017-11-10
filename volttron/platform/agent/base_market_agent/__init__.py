@@ -179,25 +179,6 @@ class MarketAgent(Agent):
                                           reservation_callback, offer_callback,
                                           aggregate_callback, price_callback, error_callback)
 
-    def make_reservation(self, market_name, buyer_seller):
-        """
-        This call makes a reservation with the MarketService.  This allows the agent to submit a bid and receive
-        a cleared market price.
-
-        :param market_name: The name of the market commodity.
-
-        :param buyer_seller: A string indicating whether the agent is buying from or selling to the market.
-        The agent shall use the pre-defined strings provided.
-        """
-        try:
-            self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_reservation', market_name, buyer_seller).get(timeout=5.0)
-            has_reservation = True
-        except RemoteError as e:
-            has_reservation = False
-        except gevent.Timeout as e:
-            has_reservation = False
-        return has_reservation
-
     def make_offer(self, market_name, buyer_seller, curve):
         """
         This call makes an offer with the MarketService.
@@ -209,20 +190,6 @@ class MarketAgent(Agent):
 
         :param curve: The demand curve for buyers or the supply curve for sellers.
         """
-        try:
-            self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller,
-                              curve.tuppleize()).get(timeout=5.0)
-            result = (True, None)
-            if self.verbose_logging:
-                _log.debug("Market: {} {} has made an offer Curve: {}".format(market_name,
-                                                                                       buyer_seller,
-                                                                                       curve.points))
-        except RemoteError as e:
-            result = (False, e.message)
-            _log.info(
-                "Market: {} {} has had an offer rejected because {}".format(market_name, buyer_seller, e.message))
-        except gevent.Timeout as e:
-            result = (False, e.message)
-            _log.info("Market: {} {} has had an offer rejected because {}".format(market_name, buyer_seller, e.message))
+        result = self.registrations.make_offer(market_name, buyer_seller, curve)
         return result
 

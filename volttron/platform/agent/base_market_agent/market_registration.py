@@ -80,7 +80,7 @@ class MarketRegistration(object):
         self.verbose_logging = verbose_logging
         self._validate_callbacks()
 
-    def request_reservations(self, timestamp, agent):
+    def request_reservations(self, timestamp, rpc_proxy):
         self.has_reservation = False
         self.failed_to_form_error = False
         if self.reservation_callback is not None:
@@ -88,7 +88,7 @@ class MarketRegistration(object):
         else:
             wants_reservation_this_time = self.always_wants_reservation
         if wants_reservation_this_time:
-            has_reservation = agent.make_reservation(self.market_name, self.buyer_seller)
+            has_reservation = rpc_proxy.make_reservation(self.market_name, self.buyer_seller)
             if has_reservation:
                 self.has_reservation = has_reservation
                 if self.verbose_logging:
@@ -97,10 +97,27 @@ class MarketRegistration(object):
                 if self.verbose_logging:
                     _log.debug("Market: {} {} has failed to obtained a reservation.".format(self.market_name, self.buyer_seller))
 
+    def make_offer(self, buyer_seller, curve, rpc_proxy):
+        result = False
+        is_ok, error_message = self._ok_to_make_offer()
+        if is_ok:
+            result = rpc_proxy.make_offer(self.market_name, buyer_seller, curve)
+            if result:
+                _log.debug("Market: {} {} offer was made and accepted.".format(self.market_name, self.buyer_seller))
+            else:
+                _log.debug("Market: {} {} offer was made and rejected.".format(self.market_name, self.buyer_seller))
+        else:
+            _log.debug(error_message)
+
+        return result
+
     def request_offers(self, timestamp):
-        if self._ok_to_make_offer():
+        is_ok, error_message = self._ok_to_make_offer_via_callback()
+        if is_ok:
             self.offer_callback(timestamp, self.market_name, self.buyer_seller)
-            _log.debug("Market: {} {} was informed that offers are acceptable.".format(self.market_name, self.buyer_seller))
+            _log.debug("Market: {} {} offer callback was called.".format(self.market_name, self.buyer_seller))
+        else:
+            _log.debug(error_message)
 
     def report_clear_price(self, timestamp, price, quantity):
         if self.has_reservation and self.price_callback is not None:
@@ -127,13 +144,21 @@ class MarketRegistration(object):
         if self.offer_callback is None and self.aggregate_callback is None and self.price_callback is None:
             raise TypeError("You must provide either an offer, aggregate, or price callback.")
 
-    def _ok_to_make_offer(self):
-        is_ok = True
-        if not self.has_reservation:
-            is_ok = False
-        if not self.failed_to_form_error:
-            is_ok = False
+    def _ok_to_make_offer_via_callback(self):
+        is_ok, error_message = self._ok_to_make_offer()
         if self.offer_callback is None:
             is_ok = False
-        return is_ok
+            error_message = "Market: {} {} offer failed because the agent has no offer callback.".format(self.market_name, self.buyer_seller)
+        return is_ok, error_message
+
+    def _ok_to_make_offer(self):
+        is_ok = True
+        error_message = ''
+        if not self.has_reservation:
+            is_ok = False
+            error_message = "Market: {} {} offer failed because the market has no reservation.".format(self.market_name, self.buyer_seller)
+        if not self.failed_to_form_error:
+            is_ok = False
+            error_message = "Market: {} {} offer failed because the market has not formed.".format(self.market_name, self.buyer_seller)
+        return is_ok, error_message
 
