@@ -117,6 +117,11 @@ Machine B (VOLTTRON) to publish messages to the broker.
 .. code:: 
 
     cd volttron
+    
+    # using install-agent.py (Recommended)
+    python ./scripts/install-agent.py -s services/contrib/KafkaAgent/ -c services/contrib/KafkaAgent/config [-t TAG]
+    
+    # using pack_install.sh
     ./scripts/core/pack_install.sh service/contrib/KafkaAgent service/contrib/KafkaAgent/config kafkaagent
     vctl start <tag or identity of kafkaagent>
 
