@@ -2,6 +2,10 @@
     "agent": {
         "exec": "listeneragent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
     },
-    "agentid": "listener1",
-    "message": "hello"    
+     "agentid": "listener1",
+     "message": "hello"    
+	,"heartbeat_period" : 0
+	#,"mute_heartbeats" : 1 # set to 1 to not show heartbeats
+	#,"watch_all"  		: 0 # omit or set to 1 to show all topics, set to 0 to enable filters
 }
+
