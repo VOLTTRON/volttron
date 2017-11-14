@@ -1,8 +1,0 @@
-{
-    "connection": {
-        "type": "sqlite",
-        "params": {
-            "database": "~/.volttron/data/platform.historian.sqlite"
-        }
-    }
-}
