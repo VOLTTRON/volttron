@@ -154,7 +154,7 @@ class MarketRegistration(object):
         if not self.has_reservation:
             is_ok = False
             error_message = "Market: {} {} offer failed because the market has no reservation.".format(self.market_name, self.buyer_seller)
-        if not self.failed_to_form_error:
+        if self.failed_to_form_error:
             is_ok = False
             error_message = "Market: {} {} offer failed because the market has not formed.".format(self.market_name, self.buyer_seller)
         return is_ok, error_message

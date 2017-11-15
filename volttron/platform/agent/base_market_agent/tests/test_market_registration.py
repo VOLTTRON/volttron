@@ -59,7 +59,7 @@
 import pytest
 
 from volttron.platform.agent.base_market_agent.market_registration import MarketRegistration
-from volttron.platform.agent.base_market_agent.buy_sell import SELLER
+from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
 from volttron.platform.agent.utils import get_aware_utc_now
 from volttron.platform.agent.base_market_agent.point import Point
 from volttron.platform.agent.base_market_agent.poly_line import PolyLine
@@ -95,6 +95,7 @@ def test_market_registration_no_offer_no_aggregate_no_price_callback():
 def test_market_registration_offer_callback():
     agent = MockAgent()
     registration = MarketRegistration('test_market', SELLER, None, agent.make_offer_callback, None, None, None)
+    registration2 = MarketRegistration('test_market', BUYER, None, null_callback, None, None, None)
     registration.request_reservations(get_time, agent)
     registration.request_offers(get_time)
     assert agent.offer_made == True
@@ -121,10 +122,13 @@ class MockAgent(object):
     def make_reservation(self, market_name, buyer_seller):
         self.reservation_made = True
         self.has_reservation = True
+        return self.has_reservation
 
     def make_offer(self, market_name, buyer_seller, curve):
         self.offer_made = True
-
+        error_message = None
+        result = (self.offer_made, error_message)
+        return result
 
     def make_offer_callback(self, *unused):
         self.offer_made = True
