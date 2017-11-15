@@ -72,13 +72,14 @@ class RpcProxy(object):
     RPC calls on the agent that subclasses of the agent can't see and therefore
     can't make.
     """
-    def __init__(self, rpc_call):
+    def __init__(self, rpc_call, verbose_logging = True):
         """
         The initalization needs the rpc_call method to grant access to the RPC calls needed to
         communicate with the marketService.
         :param rpc_call: The MarketAgent owns this object.
         """
         self.rpc_call = rpc_call
+        self.verbose_logging = verbose_logging
 
     def make_reservation(self, market_name, buyer_seller):
         """

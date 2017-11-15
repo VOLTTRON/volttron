@@ -80,7 +80,7 @@ class MarketAgent(Agent):
     def __init__(self, verbose_logging = True, **kwargs):
         super(MarketAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
-        rpc_proxy = RpcProxy(self.vip.rpc.call)
+        rpc_proxy = RpcProxy(self.vip.rpc.call, verbose_logging)
         self.registrations = RegistrationManager(rpc_proxy)
         self.verbose_logging = verbose_logging
 
