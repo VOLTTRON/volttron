@@ -158,4 +158,3 @@ class MarketRegistration(object):
             is_ok = False
             error_message = "Market: {} {} offer failed because the market has not formed.".format(self.market_name, self.buyer_seller)
         return is_ok, error_message
-
