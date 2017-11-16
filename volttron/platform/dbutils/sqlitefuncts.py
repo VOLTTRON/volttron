@@ -540,9 +540,15 @@ class SqlLiteFuncts(DbDriver):
 
         Example:
         # User input query string :
+
+        .. code-block::
+
         campus.geoPostalCode="20500" and equip and boiler and "equip_tag 7" > 4
 
         # Example output sqlite query
+
+        .. code-block::
+
         SELECT topic_prefix from test_topic_tags WHERE tag="campusRef"
          and value  IN(
           SELECT topic_prefix from test_topic_tags WHERE tag="campus" and
@@ -565,6 +571,7 @@ class SqlLiteFuncts(DbDriver):
         :return: sqlite query
         :rtype str
         """
+
         query = SqlLiteFuncts._get_compound_query(topic_tags_table, tup,
                                                   tag_refs)
 

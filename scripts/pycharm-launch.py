@@ -25,13 +25,15 @@ import subprocess
 import json
 
 __author__ = 'Craig Allwardt<craig.allwardt@pnnl.gov>'
-__version__ = '1.2.0'
+__version__ = '1.3.0'
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument("agent", help="Path to the agent file to be executed.")
 parser.add_argument("-s", "--silence", const=True, dest="silence", nargs="?",
                     help="Silence the help message.")
+parser.add_argument("-n", "--no-config", action="store_true",
+                    help="Don't include the default config in the agent directory.")
 parsed = parser.parse_args()
 
 mod_name = [os.path.basename(parsed.agent)]
@@ -66,13 +68,15 @@ Optional Environmental Variables
 """
     )
 
+
 sys.path.insert(0, abspath)
-if not os.environ.get('AGENT_CONFIG'):
-    if not os.path.exists(os.path.join(abspath, 'config')):
-        sys.stderr.write('AGENT_CONFIG variable not set.  Either set it or '
-                         'put a config file in the root of the agent dir.')
-        sys.exit()
-    os.environ['AGENT_CONFIG'] = os.path.join(abspath, 'config')
+if not parsed.no_config:
+    if not os.environ.get('AGENT_CONFIG'):
+        if not os.path.exists(os.path.join(abspath, 'config')):
+            sys.stderr.write('AGENT_CONFIG variable not set.  Either set it or '
+                             'put a config file in the root of the agent dir.')
+            sys.exit()
+        os.environ['AGENT_CONFIG'] = os.path.join(abspath, 'config')
 
 volttron_home = os.environ.get('VOLTTRON_HOME')
 

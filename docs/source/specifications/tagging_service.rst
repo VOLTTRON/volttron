@@ -1,3 +1,5 @@
+.. _TaggingServiceSpec:
+
 =============================
 Tagging agent specification
 =============================

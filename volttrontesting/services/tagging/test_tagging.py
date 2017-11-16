@@ -236,6 +236,92 @@ def test_init_failure(volttron_instance, tagging_service, query_agent):
 
 
 @pytest.mark.tagging
+def test_reinstall(volttron_instance, tagging_service,
+                                   query_agent):
+    global connection_type, db_connection, tagging_service_id
+    hist_id = None
+    try:
+        hist_config = {"connection":
+                       {"type": "sqlite",
+                        "params": {
+                            "database": volttron_instance.volttron_home +
+                            "/test_tags_by_topic_no_metadata.sqlite"}}
+
+                       }
+        hist_id = volttron_instance.install_agent(
+            vip_identity='platform.historian',
+            agent_dir=get_services_core("SQLHistorian"), config_file=hist_config,
+            start=True)
+        gevent.sleep(2)
+        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
+                    'message': [{'p1': 2, 'p2': 2}]}]
+        query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
+            timeout=10)
+        gevent.sleep(3)
+
+        query_agent.vip.rpc.call('platform.tagging', 'add_topic_tags',
+                                 topic_prefix='campus1/d2',
+                                 tags={'campus': True,
+                                       'dis': "Test description",
+                                       "geoCountry": "US"}).get(timeout=10)
+
+        result1 = query_agent.vip.rpc.call('platform.tagging',
+                                           'get_tags_by_topic',
+                                           topic_prefix='campus1/d2', skip=0,
+                                           count=3, order="FIRST_TO_LAST").get(
+            timeout=10)
+        # [['campus', '1'],
+        # ['dis', 'Test description'],
+        # ['geoCountry', 'US']]
+        print result1
+        assert len(result1) == 3
+        assert len(result1[0]) == len(result1[1]) == 2
+        assert result1[0][0] == 'campus'
+        assert result1[0][1]
+        assert result1[1][0] == 'dis'
+        assert result1[1][1] == 'Test description'
+        assert result1[2][0] == 'geoCountry'
+        assert result1[2][1] == 'US'
+
+        #Now uninstall tagging service and resinstall with same config
+        volttron_instance.remove_agent(tagging_service_id)
+        gevent.sleep(2)
+        # 2. Install agent
+        source = tagging_service.pop('source')
+        tagging_service_id = volttron_instance.install_agent(
+            vip_identity='platform.tagging', agent_dir=source,
+            config_file=tagging_service, start=False)
+        volttron_instance.start_agent(tagging_service_id)
+        tagging_service['source'] = source
+        print("agent id: ", tagging_service_id)
+
+        result1 = query_agent.vip.rpc.call('platform.tagging',
+                                           'get_tags_by_topic',
+                                           topic_prefix='campus1/d2', skip=0,
+                                           count=3, order="FIRST_TO_LAST").get(
+            timeout=10)
+        # [['campus', '1'],
+        # ['dis', 'Test description'],
+        # ['geoCountry', 'US']]
+        print result1
+        assert len(result1) == 3
+        assert len(result1[0]) == len(result1[1]) == 2
+        assert result1[0][0] == 'campus'
+        assert result1[0][1]
+        assert result1[1][0] == 'dis'
+        assert result1[1][1] == 'Test description'
+        assert result1[2][0] == 'geoCountry'
+        assert result1[2][1] == 'US'
+
+
+    finally:
+        if hist_id:
+            volttron_instance.remove_agent(hist_id)
+        cleanup_function = globals()["cleanup_" + connection_type]
+        cleanup_function(db_connection, ['topic_tags'])
+
+@pytest.mark.tagging
 def test_get_categories_no_desc(tagging_service, query_agent):
     result = query_agent.vip.rpc.call('platform.tagging', 'get_categories',
                                       skip=0, count=4,
