@@ -78,7 +78,8 @@ from ..results import ResultsDictionary
 from gevent.queue import Queue, Empty
 from collections import defaultdict
 from datetime import timedelta
-
+import pika
+import sys
 
 __all__ = ['PubSub']
 min_compatible_version = '3.0'
@@ -123,12 +124,20 @@ class PubSub(SubsystemBase):
         self._event_queue = Queue()
         self._retry_period = 300.0
         self._processgreenlet = None
+        self._channel = None
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
             self._processgreenlet = gevent.spawn(self._process_loop)
             core.onconnected.connect(self._connected)
             self.vip_socket = self.core().socket
+            try:
+                self.connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
+                self._channel = self.connection.channel()
+                self._channel.exchange_declare(exchange='federation.exchange',
+                                               exchange_type='topic')
+            except Exception as e:
+                print e
             def subscribe(member):   # pylint: disable=redefined-outer-name
                 for peer, bus, prefix, all_platforms in annotations(
                         member, set, 'pubsub.subscriptions'):
@@ -424,6 +433,18 @@ class PubSub(SubsystemBase):
             self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
             return result
 
+    def rabbitmq_subscribe(self, prefix, callback, all_platforms=False):
+        queue_name = 'demoqueue'
+        result = self._channel.queue_declare(queue=queue_name)
+        #result.method.queue
+        self._channel.queue_bind(exchange='federation.exchange',
+                                 queue=queue_name,
+                                 routing_key=prefix.replace("/",".")+".#")
+        self._channel.basic_consume(callback,
+                              queue=queue_name,
+                              no_ack=True)
+        self._channel.start_consuming()
+
     @subscribe.classmethod
     def subscribe(cls, peer, prefix, bus='', all_platforms=False):
         def decorate(method):
@@ -600,6 +621,7 @@ class PubSub(SubsystemBase):
         :Return Values:
         Number of subscribers
         """
+        self.rabbitmq_publish(topic,headers,message)
         if headers is None:
             headers = {}
         headers['min_compatible_version'] = min_compatible_version
@@ -627,6 +649,16 @@ class PubSub(SubsystemBase):
             #<recipient, subsystem, args, msg_id, flags>
             self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
             return result
+
+    def rabbitmq_publish(self, topic, headers=None, message=None):
+        topic = topic.replace('\/', '.')
+        if headers is None:
+            headers = {}
+        headers['min_compatible_version'] = min_compatible_version
+        headers['max_compatible_version'] = max_compatible_version
+        self._channel.basic_publish(exchange='federation.exchange',
+                              routing_key=topic.replace("/","."),
+                              body=str(message))
 
     def _check_if_protected_topic(self, topic):
         required_caps = self.protected_topics.get(topic)
