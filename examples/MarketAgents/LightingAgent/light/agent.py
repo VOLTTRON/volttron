@@ -96,7 +96,7 @@ def light_agent(config_path, **kwargs):
     Pabsnom= float(config.get('Pabsnom', 0))        
     nonResponsive= config.get('nonResponsive', False)    
     agent_name= config.get('agent_name')
-    subscribing_topic= config.get('subscribing_topic')    
+    subscribing_topic= config.get('subscribing_topic', '')
     verbose_logging= config.get('verbose_logging', True)
     return LightAgent(market_name,agent_name,k,qmax,Pabsnom,nonResponsive,verbose_logging,subscribing_topic, **kwargs)
 
