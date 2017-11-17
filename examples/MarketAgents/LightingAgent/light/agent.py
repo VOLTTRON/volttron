@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2016, Battelle Memorial Institute
+# Copyright (c) 2017, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -70,7 +70,7 @@ import numpy as np
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
-__version__ = "0.01"
+__version__ = "0.1"
 
 def light_agent(config_path, **kwargs):
     """Parses the Electric Meter Agent configuration and returns an instance of
@@ -199,9 +199,7 @@ class LightAgent(MarketAgent, FirstOrderZone):
 
     def ease(self, target, current, limit):
         return current - np.sign(current-target)*min(abs(current-target), abs(limit))        
-        
-        
-        
+
 
 def main():
     """Main method called to start the agent."""
