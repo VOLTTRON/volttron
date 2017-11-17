@@ -57,74 +57,75 @@
 # }}}
 
 import logging
+import gevent
 
 from volttron.platform.agent import utils
-from market_service.market import Market
+from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
+from volttron.platform.jsonrpc import RemoteError
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 
-class NoSuchMarketError(StandardError):
-    """Base class for exceptions in this module."""
-    pass
-
-class MarketList(object):
-    def __init__(self, publish = None, verbose_logging = True):
-        self.markets = {}
-        self.publish = publish
+class RpcProxy(object):
+    """
+    The purpose of the RpcProxy is to allow the MarketRegistration to make
+    RPC calls on the agent that subclasses of the agent can't see and therefore
+    can't make.
+    """
+    def __init__(self, rpc_call, verbose_logging = True):
+        """
+        The initalization needs the rpc_call method to grant access to the RPC calls needed to
+        communicate with the marketService.
+        :param rpc_call: The MarketAgent owns this object.
+        """
+        self.rpc_call = rpc_call
         self.verbose_logging = verbose_logging
 
-    def make_reservation(self, market_name, participant):
-        if self.has_market(market_name):
-            market = self.markets[market_name]
-            market.make_reservation(participant)
-        else:
-            market = Market(market_name, participant, self.publish, self.verbose_logging)
-            self.markets[market_name] = market
+    def make_reservation(self, market_name, buyer_seller):
+        """
+        This call makes a reservation with the MarketService.  This allows the agent to submit a bid and receive
+        a cleared market price.
 
-    def make_offer(self, market_name, participant, curve):
-        market = self.get_market(market_name)
-        market.make_offer(participant, curve)
+        :param market_name: The name of the market commodity.
 
-    def clear_reservations(self):
-        self.markets.clear()
+        :param buyer_seller: A string indicating whether the agent is buying from or selling to the market.
+        The agent shall use the pre-defined strings provided.
+        """
+        try:
+            self.rpc_call(PLATFORM_MARKET_SERVICE, 'make_reservation', market_name, buyer_seller).get(timeout=5.0)
+            has_reservation = True
+        except RemoteError as e:
+            has_reservation = False
+        except gevent.Timeout as e:
+            has_reservation = False
+        return has_reservation
 
-    def collect_offers(self):
-        for market in self.markets.itervalues():
-            market.collect_offers()
+    def make_offer(self, market_name, buyer_seller, curve):
+        """
+        This call makes an offer with the MarketService.
 
-    def get_market(self, market_name):
-        if self.has_market(market_name):
-            market = self.markets[market_name]
-        else:
-            raise NoSuchMarketError('Market %s does not exist.' % market_name)
-        return market
+        :param market_name: The name of the market commodity.
 
-    def has_market(self, market_name):
-        return self.markets.has_key(market_name)
+        :param buyer_seller: A string indicating whether the agent is buying from or selling to the market.
+        The agent shall use the pre-defined strings provided.
 
-    def has_market_formed(self, market_name):
-        market_has_formed = False
-        if self.has_market(market_name):
-            market = self.markets[market_name]
-            market_has_formed = market.has_market_formed()
-        return market_has_formed
+        :param curve: The demand curve for buyers or the supply curve for sellers.
+        """
+        try:
+            self.rpc_call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller,
+                              curve.tuppleize()).get(timeout=5.0)
+            result = (True, None)
+            if self.verbose_logging:
+                _log.debug("Market: {} {} has made an offer Curve: {}".format(market_name,
+                                                                                       buyer_seller,
+                                                                                       curve.points))
+        except RemoteError as e:
+            result = (False, e.message)
+            _log.info(
+                "Market: {} {} has had an offer rejected because {}".format(market_name, buyer_seller, e.message))
+        except gevent.Timeout as e:
+            result = (False, e.message)
+            _log.info("Market: {} {} has had an offer rejected because {}".format(market_name, buyer_seller, e.message))
+        return result
 
-    def send_market_failure_errors(self):
-        for market in self.markets.itervalues():
-            # We have already sent unformed market failures
-           if market.has_market_formed():
-               # If the market has not cleared trying to clear it will send an error.
-               if not market.is_market_done():
-                   market.clear_market()
-
-    def market_count(self):
-        return len(self.markets)
-
-    def unformed_market_list(self):
-        list = []
-        for market in self.markets.itervalues():
-           if not market.has_market_formed():
-               list.append(market.market_name)
-        return list
 

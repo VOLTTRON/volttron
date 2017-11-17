@@ -105,9 +105,8 @@ import sys
 from transitions import Machine
 from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
 from volttron.platform.agent import utils
-from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID, MARKET_ERROR
+from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID
 from volttron.platform.vip.agent import Agent, Core, RPC
-from volttron.platform.agent.base_market_agent.error_codes import NOT_FORMED
 from market_service.director import Director
 from market_service.market_list import MarketList
 from market_service.market_participant import MarketParticipant
@@ -184,6 +183,7 @@ class MarketServiceAgent(Agent):
     def send_collect_reservations_request(self, timestamp):
         _log.debug("send_collect_reservations_request at {}".format(timestamp))
         self.start_reservations()
+        self.market_list.send_market_failure_errors()
         self.market_list.clear_reservations()
         self.vip.pubsub.publish(peer='pubsub',
                                 topic=MARKET_RESERVE,
@@ -199,10 +199,10 @@ class MarketServiceAgent(Agent):
         _log.debug("send_collect_offers_request at {}".format(timestamp))
         self.start_offers_has_markets()
         self.market_list.collect_offers()
-        self._send_unformed_market_errors(timestamp)
+        unformed_markets = self.market_list.unformed_market_list()
         self.vip.pubsub.publish(peer='pubsub',
                                 topic=MARKET_BID,
-                                message=utils.format_timestamp(timestamp))
+                                message=[utils.format_timestamp(timestamp), unformed_markets])
 
     @RPC.export
     def make_reservation(self, market_name, buyer_seller):
@@ -242,15 +242,6 @@ class MarketServiceAgent(Agent):
     def reject_offer(self, buyer_seller, identity, market_name, offer):
         _log.info("Offer on Market: {} {} made by {} was rejected.".format(market_name, buyer_seller, identity))
         raise RuntimeError("Error: Market service not accepting offers at this time.")
-
-    def _send_unformed_market_errors(self, timestamp):
-        unformed_markets = self.market_list.unformed_market_list()
-        for market_name in unformed_markets:
-            log_message = "Sent unformed market error for market {}".format(market_name)
-            _log.info(log_message)
-            self.vip.pubsub.publish(peer='pubsub',
-                                    topic=MARKET_ERROR,
-                                    message=[timestamp, market_name, NOT_FORMED, 'Error: market {} does not have both a buyer and a seller.'.format(market_name), None])
 
     def has_any_markets(self):
         unformed_markets = self.market_list.unformed_market_list()

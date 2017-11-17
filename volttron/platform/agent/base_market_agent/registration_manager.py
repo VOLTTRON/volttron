@@ -70,14 +70,14 @@ class RegistrationManager(object):
     This class exists to hide the features of the underlying collection that are not relevant to
     managing market reservations.
     """
-    def __init__(self, agent):
+    def __init__(self, rpc_proxy):
         """
         The initalization needs the agent to grant access to the RPC calls needed to
         communicate with the marketService.
-        :param agent: The MarketAgents that owns this object.
+        :param rpc_proxy: The MarketAgents that owns this object.
         """
         self.registrations = []
-        self.agent = agent
+        self.rpc_proxy = rpc_proxy
 
     def make_registration(self, market_name, buyer_seller, reservation_callback, offer_callback,
                           aggregate_callback, price_callback, error_callback):
@@ -85,13 +85,22 @@ class RegistrationManager(object):
                                           aggregate_callback, price_callback, error_callback)
         self.registrations.append(registration)
 
+    def make_offer(self, market_name, buyer_seller, curve):
+        result = False
+        error_message = "Market: {} {} was not found in the local list of markets".format(market_name, buyer_seller)
+        for registration in self.registrations:
+            if (registration.market_name == market_name):
+                result, error_message = registration.make_offer(buyer_seller, curve, self.rpc_proxy)
+        return result, error_message
+
     def request_reservations(self, timestamp):
         for registration in self.registrations:
-            registration.request_reservations(timestamp, self.agent)
+            registration.request_reservations(timestamp, self.rpc_proxy)
 
-    def request_offers(self, timestamp):
+    def request_offers(self, timestamp, unformed_markets):
         for registration in self.registrations:
-            registration.request_offers(timestamp)
+            if (registration.market_name not in unformed_markets):
+                registration.request_offers(timestamp)
 
     def report_clear_price(self, timestamp, market_name, price, quantity):
         for registration in self.registrations:

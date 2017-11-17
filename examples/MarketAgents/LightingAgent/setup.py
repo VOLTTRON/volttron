@@ -56,75 +56,37 @@
 
 # }}}
 
-import logging
+from os import path
+from setuptools import setup, find_packages
 
-from volttron.platform.agent import utils
-from market_service.market import Market
+MAIN_MODULE = 'agent'
 
-_log = logging.getLogger(__name__)
-utils.setup_logging()
+# Find the agent package that contains the main module
+packages = find_packages('.')
+agent_package = ''
+for package in find_packages():
+    # Because there could be other packages such as tests
+    if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
+        agent_package = package
+if not agent_package:
+    raise RuntimeError('None of the packages under {dir} contain the file '
+                       '{main_module}'.format(main_module=MAIN_MODULE + '.py',
+                                              dir=path.abspath('.')))
 
-class NoSuchMarketError(StandardError):
-    """Base class for exceptions in this module."""
-    pass
+# Find the version number from the main module
+agent_module = agent_package + '.' + MAIN_MODULE
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
+__version__ = _temp.__version__
 
-class MarketList(object):
-    def __init__(self, publish = None, verbose_logging = True):
-        self.markets = {}
-        self.publish = publish
-        self.verbose_logging = verbose_logging
-
-    def make_reservation(self, market_name, participant):
-        if self.has_market(market_name):
-            market = self.markets[market_name]
-            market.make_reservation(participant)
-        else:
-            market = Market(market_name, participant, self.publish, self.verbose_logging)
-            self.markets[market_name] = market
-
-    def make_offer(self, market_name, participant, curve):
-        market = self.get_market(market_name)
-        market.make_offer(participant, curve)
-
-    def clear_reservations(self):
-        self.markets.clear()
-
-    def collect_offers(self):
-        for market in self.markets.itervalues():
-            market.collect_offers()
-
-    def get_market(self, market_name):
-        if self.has_market(market_name):
-            market = self.markets[market_name]
-        else:
-            raise NoSuchMarketError('Market %s does not exist.' % market_name)
-        return market
-
-    def has_market(self, market_name):
-        return self.markets.has_key(market_name)
-
-    def has_market_formed(self, market_name):
-        market_has_formed = False
-        if self.has_market(market_name):
-            market = self.markets[market_name]
-            market_has_formed = market.has_market_formed()
-        return market_has_formed
-
-    def send_market_failure_errors(self):
-        for market in self.markets.itervalues():
-            # We have already sent unformed market failures
-           if market.has_market_formed():
-               # If the market has not cleared trying to clear it will send an error.
-               if not market.is_market_done():
-                   market.clear_market()
-
-    def market_count(self):
-        return len(self.markets)
-
-    def unformed_market_list(self):
-        list = []
-        for market in self.markets.itervalues():
-           if not market.has_market_formed():
-               list.append(market.market_name)
-        return list
-
+# Setup
+setup(
+    name=agent_package + 'agent',
+    version=__version__,
+    install_requires=['volttron'],
+    packages=packages,
+    entry_points={
+        'setuptools.installation': [
+            'eggsecutable = ' + agent_module + ':main',
+        ]
+    }
+)

@@ -58,14 +58,13 @@
 
 import logging
 
-from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import PubSub
 from volttron.platform.vip.agent import Agent
 from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID, MARKET_CLEAR, MARKET_AGGREGATE, MARKET_ERROR
 from volttron.platform.agent.base_market_agent.registration_manager import RegistrationManager
 from volttron.platform.agent.base_market_agent.poly_line_factory import PolyLineFactory
-from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.agent.base_market_agent.rpc_proxy import RpcProxy
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
@@ -81,8 +80,8 @@ class MarketAgent(Agent):
     def __init__(self, verbose_logging = True, **kwargs):
         super(MarketAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
-        self.registrations = RegistrationManager(self)
-        self.has_reservation = False
+        rpc_proxy = RpcProxy(self.vip.rpc.call, verbose_logging)
+        self.registrations = RegistrationManager(rpc_proxy)
         self.verbose_logging = verbose_logging
 
     @PubSub.subscribe('pubsub', MARKET_RESERVE)
@@ -96,9 +95,10 @@ class MarketAgent(Agent):
     @PubSub.subscribe('pubsub', MARKET_BID)
     def match_make_offer(self, peer, sender, bus, topic, headers, message):
         timestamp = utils.parse_timestamp_string(message[0])
+        unformed_markets = message[1]
         decoded_message = "Timestamp: {}".format(timestamp)
         self.log_event("match_make_offer", peer, sender, bus, topic, headers, decoded_message)
-        self.registrations.request_offers(timestamp)
+        self.registrations.request_offers(timestamp, unformed_markets)
 
     @PubSub.subscribe('pubsub', MARKET_CLEAR)
     def match_report_clear_price(self, peer, sender, bus, topic, headers, message):
@@ -179,22 +179,6 @@ class MarketAgent(Agent):
                                           reservation_callback, offer_callback,
                                           aggregate_callback, price_callback, error_callback)
 
-    def make_reservation(self, market_name, buyer_seller):
-        """
-        This call makes a reservation with the MarketService.  This allows the agent to submit a bid and receive
-        a cleared market price.
-
-        :param market_name: The name of the market commodity.
-
-        :param buyer_seller: A string indicating whether the agent is buying from or selling to the market.
-        The agent shall use the pre-defined strings provided.
-        """
-        try:
-            self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_reservation', market_name, buyer_seller).get(timeout=5.0)
-            self.has_reservation = True
-        except RemoteError as e:
-            self.has_reservation = False
-
     def make_offer(self, market_name, buyer_seller, curve):
         """
         This call makes an offer with the MarketService.
@@ -206,16 +190,6 @@ class MarketAgent(Agent):
 
         :param curve: The demand curve for buyers or the supply curve for sellers.
         """
-        try:
-            self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller,
-                              curve.tuppleize()).get(timeout=5.0)
-            result = (True, None)
-            if self.verbose_logging:
-                _log.debug("Market: {} {} has made an offer Curve: {}".format(market_name,
-                                                                                       buyer_seller,
-                                                                                       curve.points))
-        except RemoteError as e:
-            result = (False, e.message)
-            _log.info("Market: {} {} has had an offer rejected because {}".format(market_name, buyer_seller, e.message))
+        result = self.registrations.make_offer(market_name, buyer_seller, curve)
         return result
 
