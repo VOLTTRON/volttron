@@ -59,6 +59,7 @@
 import logging
 
 from volttron.platform.agent import utils
+from volttron.platform.agent.base_market_agent.error_codes import NOT_FORMED
 from volttron.platform.agent.base_market_agent.market_registration import MarketRegistration
 
 _log = logging.getLogger(__name__)
@@ -101,6 +102,9 @@ class RegistrationManager(object):
         for registration in self.registrations:
             if (registration.market_name not in unformed_markets):
                 registration.request_offers(timestamp)
+            else:
+                error_message = 'The market {} has not received a buy and a sell reservation.'.format(registration.market_name)
+                registration.report_error(timestamp, NOT_FORMED, error_message, {})
 
     def report_clear_price(self, timestamp, market_name, price, quantity):
         for registration in self.registrations:
