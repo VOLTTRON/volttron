@@ -83,10 +83,10 @@ def tagging_service(config_path, **kwargs):
     """
     This method is called by the :py:func:`service.tagging.main` to
     parse the passed config file or configuration dictionary object, validate
-    the configuration entries, and create an instance of SQLTaggingService
+    the configuration entries, and create an instance of MongodbTaggingService
 
     :param config_path: could be a path to a configuration file or can be a
-                        dictionary object
+     dictionary object
     :param kwargs: additional keyword arguments if any
     :return: an instance of :py:class:`service.tagging.SQLTaggingService`
     """
@@ -117,10 +117,10 @@ class MongodbTaggingService(BaseTaggingService):
         """Initialise the tagging service.
 
         :param connection: dictionary object containing the database 
-        connection details
+         connection details
         :param table_prefix: optional prefix to be used for all tag tables
         :param kwargs: additional keyword arguments. (optional identity and
-                       topic_replace_list used by parent classes)
+         topic_replace_list used by parent classes)
         """
 
         super(MongodbTaggingService, self).__init__(**kwargs)
@@ -202,6 +202,7 @@ class MongodbTaggingService(BaseTaggingService):
             self.vip.health.send_alert(TAGGING_SERVICE_SETUP_FAILED, status)
             self.core.stop()
 
+    @doc_inherit
     def load_valid_tags(self):
         # Now cache list of tags and kind/type for validation during
         # insert
@@ -210,6 +211,7 @@ class MongodbTaggingService(BaseTaggingService):
         for record in cursor:
             self.valid_tags[record['_id']] = record['kind']
 
+    @doc_inherit
     def load_tag_refs(self):
         # Now cache ref tags and its parent
         db = self._client.get_default_database()
@@ -317,6 +319,7 @@ class MongodbTaggingService(BaseTaggingService):
             _log.warn("No category to tags mapping to initialize. No such "
                       "file " + file_path)
 
+    @doc_inherit
     def query_categories(self, include_description=False, skip=0, count=None,
                          order="FIRST_TO_LAST"):
         db = self._client.get_default_database()
@@ -346,6 +349,7 @@ class MongodbTaggingService(BaseTaggingService):
         else:
             return results.keys()
 
+    @doc_inherit
     def query_tags_by_category(self, category, include_kind=False,
                                include_description=False, skip=0, count=None,
                                order="FIRST_TO_LAST"):
@@ -384,6 +388,7 @@ class MongodbTaggingService(BaseTaggingService):
                 results.append(r['_id'])
         return results
 
+    @doc_inherit
     def insert_topic_tags(self, tags, update_version=False):
         db = self._client.get_default_database()
         bulk = db[self.topic_tags_collection].initialize_unordered_bulk_op()
@@ -439,8 +444,7 @@ class MongodbTaggingService(BaseTaggingService):
 
         return result
 
-
-
+    @doc_inherit
     def query_tags_by_topic(self, topic_prefix, include_kind=False,
                             include_description=False, skip=0, count=None,
                             order="FIRST_TO_LAST"):
@@ -494,6 +498,7 @@ class MongodbTaggingService(BaseTaggingService):
 
         return results
 
+    @doc_inherit
     def query_topics_by_tags(self, ast, skip=0, count=None, order=None):
 
         if count is None:

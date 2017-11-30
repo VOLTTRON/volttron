@@ -42,6 +42,8 @@ or add below line in the `onstart` method
 .. code-block:: python
 
     self.vip.pubsub.subscribe('pubsub', 'devices', self.on_match, all_platforms=True)
+    
+.. note:: If using the onstart method remove the @PubSub.subscribe('pubsub', '') from the top of the method.
 
 
 After :ref:`building VOLTTRON <Building-VOLTTRON>`, open three shells with the current directory the root of the
@@ -86,7 +88,8 @@ either by running VOLTTRON in setup mode or configure the information manually.
 
 Configuration and Authentication in Setup Mode
 ----------------------------------------------
-* Note: It is necessary for each platform to have a web server if running in setup mode *
+
+.. note:: It is necessary for **each** platform to have a web server if running in setup mode
 
 Add list of web addresses of remote platforms in ``$VOLTTRON_HOME/external_address.json``
 
@@ -99,6 +102,8 @@ VOLTTRON to log to a file. The file name should be different for each instance.
 .. code-block:: console
 
     $ volttron -v -l l1.log --setup-mode&
+
+.. note:: Don't for get the '&' on the end to put the process in the background.
 
 A new auth entry is added for each new platform connection. This can be checked with below command in each terminal
 window.
