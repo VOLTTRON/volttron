@@ -82,7 +82,9 @@ volttron_home = os.environ.get('VOLTTRON_HOME')
 
 if not volttron_home:
     os.environ['VOLTTRON_HOME'] = os.path.abspath(
-        os.path.join(os.path.expanduser("~"), '.volttron'))
+        os.path.expandvars(
+            os.path.join(
+                os.path.expanduser("~"), '.volttron')))
     volttron_home = os.environ.get('VOLTTRON_HOME')
 
 # Now register the
