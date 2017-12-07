@@ -221,6 +221,19 @@ class VolttronCentralPlatform(Agent):
         # than one time.
         self._topic_replacement = {}
 
+        # When this is not None then we are in the middle of a scan and should
+        # not be able to start another scan.
+        self._iam_vc_response_topic = None
+
+        # This allows us to use a bacnet agent that is not on the local
+        # platform to do the scan (In most cases this will be set to self)
+        self._bacnet_communication_agent = self
+        self._bacnet_proxy_identity = None
+
+        # This uses convience methods so we can get information from the proxied
+        # devices
+        self._bacnet_proxy_readers = None
+
     def _retrieve_address_and_serverkey(self, discovery_address):
         info = DiscoveryInfo.request_discovery_info(discovery_address)
         return info.vip_address, info.serverkey
@@ -814,70 +827,124 @@ volttron-central-serverkey."""
 
             self._pub_to_vc(publish_topic, message=message)
 
-        bn = BACnetReader(self.vip.rpc, proxy_identity, bacnet_response)
+        bn = BACnetReader(self.vip, proxy_identity, bacnet_response)
 
         gevent.spawn(bn.read_device_properties, address, device_id, filter)
         gevent.sleep(0.1)
 
         return "PUBLISHING"
 
-    def start_bacnet_scan(self, iam_topic, proxy_identity, low_device_id=None,
+    def _stop_listening_for_iam(self):
+
+        _log.debug('Stopping IAM Done publishing i am responses.')
+        stop_timestamp = get_utc_seconds_from_epoch()
+        self._pub_to_vc(self._iam_vc_response_topic, message=dict(
+            status="FINISHED IAM",
+            timestamp=stop_timestamp
+        ))
+        self._iam_vc_response_topic = None
+        if self._bacnet_communication_agent is not self:
+            try:
+                self._bacnet_communication_agent.core.stop(timeout=3)
+            except gevent.Timeout:
+                _log.error("Couldn't stop dynamic agent during bacnet scan")
+            finally:
+                self._bacnet_communication_agent = None
+        self._bacnet_proxy_identity = None
+        self._bacnet_proxy_readers.stop_iam_responses()
+
+    def _iam_response_handler(self, message):
+        _log.debug("IAM response message: {}".format(message))
+        address = message['address']
+        device_id = message['device_id']
+        _log.info("IAM response for (andress, devices_id) ({}, {})".format(
+            address, device_id
+        ))
+
+        try:
+            message['device_name'] = self._bacnet_proxy_readers.read_device_name(
+                address, device_id)
+
+        except gevent.Timeout:
+            message['is_error'] = True
+            message['device_name'] = "Timeout receiving name of device"
+        except Exception as ex:
+            message['is_error'] = True
+            message['device_name'] = repr(ex)
+            _log.error(repr(ex))
+
+        self._pub_to_vc(self._iam_vc_response_topic, message=message)
+
+    def start_bacnet_scan(self, iam_vc_response_topic, proxy_identity,
+                          low_device_id=None,
                           high_device_id=None, target_address=None,
                           scan_length=5, instance_address=None,
                           instance_serverkey=None):
-        """This function is a wrapper around the bacnet proxy scan.
+        """Start a bacnet scan, monitoring the iam topic for responses.
+
+        If there is already a scan being processed then the method logs a
+        warning and returns immediately.
+
+        If instances_address and instance_serverkey are specified then a
+        dynamic agent will attempt to connect to thte isntance_address and
+        contact the bacnet proxy.  If not successful then the agent will
+        raise and Unreachable error.
+
+        The bacnet proxy identity must be available on the target platform or
+        an Unreachable error will be raised.
         """
+        if self._iam_vc_response_topic:
+            _log.warning("Duplicate scan request.")
+            return
+
+        # Avoid a race condition by immediately marking as in use.
+        self._iam_vc_response_topic = "Hold"
+
+        # Assume we are going to use the current vcp as the connection to the
+        # proxy.
         agent_to_use = self
         if instance_address is not None:
+            if not instance_serverkey:
+                self._iam_vc_response_topic = None
+                raise Unreachable("Invalid instance_serverkey specified.")
             agent_to_use = build_agent(address=instance_address,
                                        identity="proxy_bacnetplatform",
                                        publickey=self.core.publickey,
                                        secretkey=self.core.secretkey,
                                        serverkey=instance_serverkey)
 
+        # Verify that we have a connection to the proxy we need to talk with.
         if proxy_identity not in agent_to_use.vip.peerlist().get(timeout=5):
+            self._iam_vc_response_topic = None
             raise Unreachable("Can't reach agent identity {}".format(
                 proxy_identity))
         _log.info('Starting bacnet_scan with who_is request to {}'.format(
             proxy_identity))
 
-        def handle_iam(peer, sender, bus, topic, headers, message):
-            proxy_identity = sender
-            address = message['address']
-            device_id = message['device_id']
-            bn = BACnetReader(agent_to_use.vip.rpc, proxy_identity)
-            message['device_name'] = bn.read_device_name(address, device_id)
-            message['device_description'] = bn.read_device_description(
-                address,
-                device_id)
+        # Update member variables to determine state
+        self._iam_vc_response_topic = iam_vc_response_topic
+        self._bacnet_proxy_identity = proxy_identity
+        self._bacnet_communication_agent = agent_to_use
 
-            self._pub_to_vc(iam_topic, message=message)
-
-        def stop_iam():
-            _log.debug('Done publishing i am responses.')
-            stop_timestamp = get_utc_seconds_from_epoch()
-            self._pub_to_vc(iam_topic, message=dict(
-                status="FINISHED IAM",
-                timestamp=stop_timestamp
-            ))
-            agent_to_use.vip.pubsub.unsubscribe('pubsub', topics.BACNET_I_AM,
-                                                handle_iam)
-
-        agent_to_use.vip.pubsub.subscribe('pubsub', topics.BACNET_I_AM,
-                                          handle_iam)
+        self._bacnet_proxy_readers = BACnetReader(
+            vip=self._bacnet_communication_agent.vip,
+            bacnet_proxy_identity=self._bacnet_proxy_identity,
+            iam_response_fn=self._iam_response_handler
+        )
 
         timestamp = get_utc_seconds_from_epoch()
 
-        self._pub_to_vc(iam_topic, message=dict(status="STARTED IAM",
-                                                timestamp=timestamp))
+        # Report to vc that we are starting the IAM publishing.
+        self._pub_to_vc(iam_vc_response_topic,
+                        message=dict(status="STARTED IAM",
+                                     timestamp=timestamp))
 
-        agent_to_use.vip.rpc.call(proxy_identity, "who_is",
-                                  low_device_id=low_device_id,
-                                  high_device_id=high_device_id,
-                                  target_address=target_address).get(
-            timeout=5.0)
+        self._bacnet_proxy_readers.start_whois(low_device_id=low_device_id,
+                                               high_device_id=high_device_id,
+                                               target_address=target_address)
 
-        gevent.spawn_later(float(scan_length), stop_iam)
+        gevent.spawn_later(float(scan_length * 2),
+                           self._stop_listening_for_iam)
 
     def _pub_to_vc(self, topic_leaf, headers=None, message=None):
         if self._vc_connection is None:
@@ -890,9 +957,10 @@ volttron-central-serverkey."""
 
         topic = "platforms/{}/{}".format(self.get_instance_uuid(),
                                          topic_leaf)
-        _log.debug('Publishing to vc topic: {}'.format(topic))
-        _log.debug('Publishing to vc headers: {}'.format(headers))
-        _log.debug('Publishing to vc message: {}'.format(message))
+        # _log.debug('Publishing to vc topic: {}'.format(topic))
+        # _log.debug('Publishing to vc headers: {}'.format(headers))
+        # _log.debug('Publishing to vc message: {}'.format(message))
+
         # Note because vc is a vcconnection object we are explicitly
         # saying to publish to the vc platform.
         self._vc_connection.publish_to_vc(topic=topic,
@@ -1014,7 +1082,7 @@ volttron-central-serverkey."""
     def _on_device_publish(self, peer, sender, bus, topic, headers, message):
         # Update the devices store for get_devices function call
         if not topic.endswith('/all'):
-            self._log.debug("Skipping publish to {}".format(topic))
+            _log.debug("Skipping publish to {}".format(topic))
             return
 
         _log.debug("topic: {}, message: {}".format(topic, message))
@@ -1334,21 +1402,22 @@ volttron-central-serverkey."""
         return result
 
     def _publish_device_health(self):
-        if self._device_status_event is not None:
-            self._device_status_event.cancel()
-
-        try:
-            self._vc_connection.publish_to_vc(
-                "platforms/{}/device_update".format(self.get_instance_uuid()),
-                message=self._device_publishes)
-        finally:
-            # The stats publisher publishes both to the local bus and the vc
-            # bus the platform specific topics.
-            next_update_time = self._next_update_time(
-                seconds=self._device_status_interval)
-
-            self._device_status_event = self.core.schedule(
-                next_update_time, self._publish_device_health)
+        _log.debug("SHOULD BE PUBLISHING DEVICE HEALTH HERE!")
+        # if self._device_status_event is not None:
+        #     self._device_status_event.cancel()
+        #
+        # try:
+        #     self._vc_connection.publish_to_vc(
+        #         "platforms/{}/device_update".format(self.get_instance_uuid()),
+        #         message=self._device_publishes)
+        # finally:
+        #     # The stats publisher publishes both to the local bus and the vc
+        #     # bus the platform specific topics.
+        #     next_update_time = self._next_update_time(
+        #         seconds=self._device_status_interval)
+        #
+        #     self._device_status_event = self.core.schedule(
+        #         next_update_time, self._publish_device_health)
 
 
 
