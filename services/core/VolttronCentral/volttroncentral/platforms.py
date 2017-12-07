@@ -466,7 +466,7 @@ class PlatformHandler(object):
             self._log.debug("Calling store_agent_config on external platform.")
             self.call("store_agent_config", **params)
         except Exception as e:
-            self._log.error(str(e))
+            self._log.error(repr(e))
             return jsonrpc.json_error(message_id, INTERNAL_ERROR,
                                       str(e))
         config_name = params.get("config_name")
