@@ -59,60 +59,48 @@
 from __future__ import absolute_import, print_function
 
 import base64
-from collections import defaultdict
 import datetime
-from enum import Enum
 import hashlib
 import logging
 import os
 import re
 import shutil
-import string
 import sys
 import tempfile
 import urlparse
+from collections import defaultdict
 
 import gevent
 import gevent.event
 import psutil
+from enum import Enum
 
-from volttron.platform.messaging.health import GOOD_STATUS
-from volttron.platform.messaging.health import Status
-from .vcconnection import VCConnection
-
-from volttron.platform import jsonrpc
-from volttron.platform.agent.utils import (get_utc_seconds_from_epoch,
-                                           format_timestamp, normalize_identity)
 from volttron.platform.agent import utils
-from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, CONTROL, CONFIGURATION_STORE)
-from volttron.platform.agent.utils import (get_aware_utc_now)
-from volttron.platform.auth import AuthEntry, AuthFile
-from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS)
-from volttron.platform.messaging import topics
-from volttron.platform.messaging.topics import (LOGGER, )
-from volttron.platform.vip.agent import (Agent, Core, RPC, PubSub, Unreachable)
-from volttron.platform.vip.agent.subsystems.query import Query
-from volttron.platform.vip.agent.utils import build_agent
-from volttron.platform.web import DiscoveryInfo, DiscoveryError
-from .bacnet_proxy_reader import BACnetReader
-
-__version__ = '4.5.3'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+from volttron.platform import jsonrpc
 
-class NotManagedError(StandardError):
-    """ Raised if vcp cannot connect to the vc trying to manage it.
+from volttron.platform.agent.bacnet_proxy_reader import BACnetReader
+from volttron.platform.agent.known_identities import (
+    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, CONTROL, CONFIGURATION_STORE)
+from volttron.platform.agent.utils import (get_aware_utc_now)
+from volttron.platform.agent.utils import (get_utc_seconds_from_epoch,
+                                           format_timestamp, normalize_identity)
+from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS)
+from volttron.platform.messaging import topics
+from volttron.platform.messaging.health import GOOD_STATUS
+from volttron.platform.messaging.health import Status
+from volttron.platform.messaging.topics import (LOGGER, )
+from volttron.platform.vip.agent import (Agent, Core, RPC, Unreachable)
+from volttron.platform.vip.agent.subsystems.query import Query
+from volttron.platform.vip.agent.utils import build_agent
+from volttron.platform.web import DiscoveryInfo, DiscoveryError
+from .vcconnection import VCConnection
 
-    Some examples of this could be if the serverkey is not valid, if the
-    tcp address is invalid, if the http address is invalid.
-
-    Other examples could be permissions issues from auth.
-    """
-    pass
-
+__version__ = '4.6.0'
 
 RegistrationStates = Enum('AgentStates',
                           'NotRegistered Unregistered Registered '
