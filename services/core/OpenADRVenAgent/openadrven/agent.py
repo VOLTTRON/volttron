@@ -62,7 +62,6 @@ from datetime import datetime as dt
 from datetime import timedelta
 from dateutil import parser
 import gevent
-from gevent.queue import Queue
 # OpenADR rule 1: use ISO8601 timestamp
 import json
 import logging
@@ -245,9 +244,6 @@ class OpenADRVenAgent(Agent):
                  **kwargs):
         super(OpenADRVenAgent, self).__init__(enable_web=True, **kwargs)
 
-        # Initialize thread-safe queues to handle async processing of VTN requests and agent RPC calls
-        self._vtn_request_queue = Queue()
-
         self.db_path = None
         self.ven_id = None
         self.ven_name = None
@@ -373,8 +369,10 @@ class OpenADRVenAgent(Agent):
             # VEN registration with the VTN server.
             # Register the VEN, obtaining the VEN ID. This is a one-time action.
             self.send_oadr_create_party_registration()
-            self.core.periodic(PROCESS_LOOP_FREQUENCY_SECS, self.registration_loop)
         else:
+            # Schedule an hourly database-cleanup task.
+            self.core.periodic(60 * 60, self.telemetry_cleanup)
+
             # Populate the caches with all of the database's events and reports that are active.
             for event in self._get_events():
                 _log.debug('Re-caching event with ID {}'.format(event.event_id))
@@ -396,20 +394,11 @@ class OpenADRVenAgent(Agent):
                 _log.error('Error in agent startup: {}'.format(err), exc_info=True)
             self.core.periodic(PROCESS_LOOP_FREQUENCY_SECS, self.main_process_loop)
 
-    def registration_loop(self):
-        """gevent thread for registration-only execution. Service registration responses from the VTN."""
-        try:
-            while self._vtn_request_queue.qsize() > 0:
-                self.service_vtn_request(self._vtn_request_queue.get())
-        except Exception, err:
-            _log.error('Error in registration loop: {}'.format(err), exc_info=True)
-
     def main_process_loop(self):
         """
             gevent thread. Perform periodic tasks, executing them serially.
 
             Periodic tasks include:
-                Service requests that are waiting in the VTN request queue.
                 Poll the VTN server.
                 Perform event-management tasks:
                     Force an optIn/optOut decision if too much time has elapsed.
@@ -424,10 +413,6 @@ class OpenADRVenAgent(Agent):
             If exceptions occur, they are logged, but no process failure occurs.
         """
         try:
-            # Service any outstanding VTN requests.
-            while self._vtn_request_queue.qsize() > 0:
-                self.service_vtn_request(self._vtn_request_queue.get())
-
             # If it's been poll_interval_secs since the last poll request, issue a new one.
             if self._last_poll is None or \
                     ((utils.get_aware_utc_now() - self._last_poll).total_seconds() > self.poll_interval_secs):
@@ -534,9 +519,9 @@ class OpenADRVenAgent(Agent):
     # ***************** Methods for Servicing VTN Requests ********************
 
     def push_request(self, env, request):
-        """Callback. The VTN pushed an http request. Place it on the request queue."""
-        self._vtn_request_queue.put(request)
-        _log.debug('Added VTN push request to queue (length {})'.format(self._vtn_request_queue.qsize()))
+        """Callback. The VTN pushed an http request. Service it."""
+        _log.debug('Servicing a VTN push request')
+        self.core.spawn(self.service_vtn_request, request)
         # Return an empty response.
         return [HTTP_STATUS_CODES[204], '', [("Content-Length", "0")]]
 
@@ -647,6 +632,9 @@ class OpenADRVenAgent(Agent):
                 _log.debug('\n{}'.format(etree_.tostring(etree_.fromstring(request), pretty_print=True)))
             payload = parseString(request, silence=True)
             signed_object = payload.oadrSignedObject
+            if signed_object is None:
+                raise OpenADRInterfaceException('No SignedObject in payload', OADR_BAD_DATA)
+
             if self.security_level == 'high':
                 # At high security, the request is accompanied by a Signature.
                 # (not implemented) The VEN should use a certificate authority to validate and decode the request.
@@ -660,13 +648,8 @@ class OpenADRVenAgent(Agent):
             request_method(request_object)
 
             if request_object.__class__.__name__ != 'oadrResponseType':
-                # A non-default response was received from the VTN.
-                # If no other VTN requests are waiting, issue another poll request in case the VTN has more to say.
-                if self._vtn_request_queue.qsize() > 0:
-                    while self._vtn_request_queue.qsize() > 0:
-                        self.service_vtn_request(self._vtn_request_queue.get())
-                else:
-                    self.send_oadr_poll()
+                # A non-default response was received from the VTN. Issue a followup poll request.
+                self.send_oadr_poll()
 
         except OpenADRInternalException, err:
             if err.error_code == OADR_EMPTY_DISTRIBUTE_EVENT:
@@ -704,7 +687,6 @@ class OpenADRVenAgent(Agent):
         @param oadr_created_party_registration: The VTN's request.
         """
         self.oadr_current_service = EIREGISTERPARTY
-        self.oadr_current_request_id = None
         self.check_ei_response(oadr_created_party_registration.eiResponse)
         extractor = OadrCreatedPartyRegistrationExtractor(registration=oadr_created_party_registration)
         _log.info('***********')
@@ -894,7 +876,6 @@ class OpenADRVenAgent(Agent):
         @param oadr_registered_report: (oadrRegisteredReportType) The VTN's request.
         """
         self.oadr_current_service = EIREPORT
-        self.oadr_current_request_id = None
         self.check_ei_response(oadr_registered_report.eiResponse)
         self.create_or_update_reports(oadr_registered_report.oadrReportRequest)
 
@@ -922,11 +903,10 @@ class OpenADRVenAgent(Agent):
         @param oadr_updated_report: The VTN's request.
         """
         self.oadr_current_service = EIREPORT
-        self.oadr_current_request_id = None
         self.check_ei_response(oadr_updated_report.eiResponse)
         oadr_cancel_report = oadr_updated_report.oadrCancelReport
         if oadr_cancel_report:
-            self.cancel_oadr_report(oadr_cancel_report)
+            self.cancel_report(oadr_cancel_report.reportRequestID, acknowledge=False)
 
     def handle_oadr_cancel_report(self, oadr_cancel_report):
         """
@@ -937,9 +917,8 @@ class OpenADRVenAgent(Agent):
         @param oadr_cancel_report: (oadrCancelReportType) The VTN's request.
         """
         self.oadr_current_service = EIREPORT
-        self.oadr_current_request_id = None
-        self.cancel_oadr_report(oadr_cancel_report)
-        self.send_oadr_canceled_report(oadr_cancel_report)
+        self.oadr_current_request_id = oadr_cancel_report.requestID
+        self.cancel_report(oadr_cancel_report.reportRequestID, acknowledge=True)
 
     def handle_oadr_response(self, oadr_response):
         """
@@ -951,8 +930,7 @@ class OpenADRVenAgent(Agent):
         """
         self.check_ei_response(oadr_response.eiResponse)
 
-    @staticmethod
-    def check_ei_response(ei_response):
+    def check_ei_response(self, ei_response):
         """
             An eiResponse can appear in multiple kinds of VTN requests.
 
@@ -961,6 +939,7 @@ class OpenADRVenAgent(Agent):
 
         @param ei_response: (eiResponseType) The VTN's eiResponse.
         """
+        self.oadr_current_request_id = ei_response.requestID
         response_code, response_description = OadrResponseExtractor(ei_response=ei_response).extract()
         if response_code != OADR_VALID_RESPONSE:
             error_text = 'Error response from VTN, code={}, description={}'.format(response_code, response_description)
@@ -1029,29 +1008,29 @@ class OpenADRVenAgent(Agent):
         for agent_report in all_active_reports:
             if agent_report.report_request_id not in oadr_report_request_ids:
                 # If the VTN's request omitted an active report, treat it as an implied cancellation.
-                self.cancel_report(agent_report)
+                report_request_id = agent_report.report_request_id
+                _log.debug('Report request ID {} not sent by VTN, canceling the report.'.format(report_request_id))
+                self.cancel_report(report_request_id, acknowledge=True)
 
-    def cancel_oadr_report(self, oadr_cancel_report):
+    def cancel_report(self, report_request_id, acknowledge=False):
         """
             The VTN asked to cancel a report, in response to either report telemetry or an oadrPoll. Cancel it.
 
-        @param oadr_cancel_report: The VTN's request.
+        @param report_request_id: (string) The report_request_id of the report to be canceled.
+        @param acknowledge: (boolean) If True, send an oadrCanceledReport acknowledgment to the VTN.
         """
-        report_request_id = oadr_cancel_report.reportRequestID
         if report_request_id is None:
             raise OpenADRInterfaceException('Missing oadrCancelReport.reportRequestID', OADR_BAD_DATA)
         report = self.get_report_for_report_request_id(report_request_id)
         if report:
-            self.cancel_report(report)
+            report.status = report.STATUS_CANCELED
+            self.commit()
+            self.publish_telemetry_parameters_for_report(report)
+            if acknowledge:
+                self.send_oadr_canceled_report(report_request_id)
         else:
             # The VEN got asked to cancel a report that it doesn't have. Do nothing.
             pass
-
-    def cancel_report(self, report):
-        """Cancel an EiReport."""
-        report.status = report.STATUS_CANCELED
-        self.commit()
-        self.publish_telemetry_parameters_for_report(report)
 
     # ***************** Send Requests from the VEN to the VTN ********************
 
@@ -1159,17 +1138,16 @@ class OpenADRVenAgent(Agent):
         builder = OadrCreatedReportBuilder(report_request_id=report_request.reportRequestID, ven_id=self.ven_id)
         self.send_vtn_request('oadrCreatedReport', builder.build())
 
-    def send_oadr_canceled_report(self, oadr_cancel_report):
+    def send_oadr_canceled_report(self, report_request_id):
         """
             Send oadrCanceledReport to the VTN.
 
-        @param oadr_cancel_report: (oadrCancelReportType) The report cancellation request.
+        @param report_request_id: (string) The reportRequestID of the report that has been canceled.
         """
         _log.debug('VEN: oadrCanceledReport')
         self.oadr_current_service = EIREPORT
-        self.oadr_current_request_id = oadr_cancel_report.requestID
         builder = OadrCanceledReportBuilder(request_id=self.oadr_current_request_id,
-                                            report_request_id=oadr_cancel_report.reportRequestID,
+                                            report_request_id=report_request_id,
                                             ven_id=self.ven_id)
         self.send_vtn_request('oadrCanceledReport', builder.build())
 
@@ -1189,13 +1167,10 @@ class OpenADRVenAgent(Agent):
 
     def send_vtn_request(self, request_name, request_object):
         """
-            Send a request to the VTN. If the VTN's response is non-empty, put it on the request queue.
+            Send a request to the VTN. If the VTN returns a non-empty response, service that request.
 
             Wrap the request in a SignedObject and then in Payload XML, and post it to the VTN via HTTP.
-
-            If using high security, calculate a digital signature and include it in the payload.
-
-            If the VTN replies with a non-empty http response, place it on the request queue.
+            If using high security, calculate a digital signature and include it in the request payload.
 
         @param request_name: (string) The name of the SignedObject attribute where the request is attached.
         @param request_object: (various oadr object types) The request to send.
@@ -1240,12 +1215,9 @@ class OpenADRVenAgent(Agent):
                 "Content-Length": str(len(payload_xml)),
                 "Content-Type": "application/xml"})
             http_code = response.status_code
-            # _log.debug('VTN http response: {}'.format(http_code))
             if http_code == 200:
-                # Enqueue the VTN's response so that it can be processed in sequence (avoid concurrent execution).
                 if len(response.content) > 0:
-                    self._vtn_request_queue.put(response.content)
-                    _log.debug('Added VTN response to queue (length {})'.format(self._vtn_request_queue.qsize()))
+                    self.core.spawn(self.service_vtn_request, response.content)
                 else:
                     _log.warning('Received zero-length request from VTN')
             elif http_code == 204:
@@ -1617,6 +1589,16 @@ class OpenADRVenAgent(Agent):
     def add_telemetry(self, telemetry):
         """New telemetry has been received. Add it to the database."""
         self.get_db_session().add(telemetry)
+        self.commit()
+
+    def telemetry_cleanup(self):
+        """gevent thread for periodically deleting week-old telemetry from the database."""
+        db_telemetry_values = globals()['EiTelemetryValues']
+        telemetry = self.get_db_session().query(db_telemetry_values)
+        telemetry = telemetry.filter(db_telemetry_values.created_on < utils.get_aware_utc_now() + timedelta(days=7))
+        deleted_row_count = telemetry.delete()
+        if deleted_row_count:
+            _log.debug('Deleting {} outdated telemetry rows from the database'.format(deleted_row_count))
         self.commit()
 
     def commit(self):
