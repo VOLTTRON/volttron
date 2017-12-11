@@ -91,6 +91,7 @@ class BACnetReader(object):
         self._config_response_fn = config_response_fn
         self._iam_callbacks = {}
         self._send_iam_responses = False
+        self._caller_callback = {}
 
     def start_whois(self, low_device_id=None, high_device_id=None,
                     target_address=None):
@@ -111,28 +112,45 @@ class BACnetReader(object):
 
         self._send_iam_responses = False
 
-    def get_iam(self, device_id, callback, address=None, low_device_id=None,
-                high_device_id=None):
+    def get_iam(self, device_id, callback, address=None, timeout=10):
         _log.debug("Getting iam callback")
-        self._iam_callbacks[device_id] = callback
+        self._caller_callback[device_id] = callback
         self._pubsub().subscribe(peer='pubsub', prefix=topics.BACNET_I_AM,
                                  callback=self._iam_handler).get(timeout=3)
         self._rpc().call(self._proxy_identity, "who_is",
-                         low_device_id=low_device_id,
-                         high_device_id=high_device_id,
+                         low_device_id=device_id,
+                         high_device_id=device_id,
                          target_address=address).get(timeout=5.0)
-        self._pubsub().unsubscribe(peer='pubsub', prefix=topics.BACNET_I_AM,
-                                   callback=self._iam_handler).get(timeout=3)
 
     def _iam_handler(self, peer, sender, bus, topic, headers, message):
+        """ Handle publishes from who_is.
+
+        There are two different modes that this handler supports.  The first
+        is a sending of a single device_id which was started through a call
+        to get_iam.  This allows the caller to retrieve only the single device's
+        information.  This method is meant to be run from the
+        scripts/bacnet/proxy_grab_bacnet_config.py script.
+
+        The second method is when the user calls start_whois.  This will keep
+        open the whois publish for the specified number of seconds before
+        unsubscribing.  In this method we respond each time any information
+        comes into the system.
+
+        These two methods are mutually exclusive.
+        """
 
         device_id = message["device_id"]
-        if device_id in self._iam_callbacks:
-            callback = self._iam_callbacks.pop(device_id, None)
+        if device_id in self._caller_callback:
+            callback = self._caller_callback.pop(device_id)
             _log.info("Received iam for device_id {}".format(device_id))
-            if callback is not None:
-                _log.debug("Callback received: {}".format(message))
-                callback(message)
+            _log.debug("Callback received: {}".format(message))
+            callback(message)
+
+            # Not 100% sure this won't have issues, but it didn't throw
+            # any errors during scripts nor from the vc/vcp combinations.
+            gevent.spawn_later(3, self._pubsub().unsubscribe, peer='pubsub',
+                               prefix=topics.BACNET_I_AM,
+                               callback=self._iam_handler)
             return
 
         if self._iam_response_fn is None:

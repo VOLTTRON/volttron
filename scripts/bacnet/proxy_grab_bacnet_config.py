@@ -61,299 +61,34 @@ from csv import DictWriter
 import logging
 import argparse
 
-import gevent
-import json
-from os.path import basename
-from pprint import pprint
-
-from volttron.platform.keystore import KeyStore
-
-from volttron.platform import get_address, get_home
-
-from volttron.platform.agent import utils
-from volttron.platform.agent.bacnet_proxy_reader import BACnetReader
-from volttron.platform.vip.agent import Agent, PubSub
-from volttron.platform.messaging import topics
-from volttron.platform.vip.agent import errors
 from bacpypes.object import get_datatype
-from volttron.platform.jsonrpc import RemoteError
+from bacpypes.primitivedata import (Enumerated, Unsigned, Boolean, Integer,
+                                    Real, Double)
+import gevent
 from gevent.event import AsyncResult
 
-from bacpypes.primitivedata import Enumerated, Unsigned, Boolean, Integer, Real, Double
+from volttron.platform import get_address, get_home
+from volttron.platform.agent import utils
+from volttron.platform.agent.bacnet_proxy_reader import BACnetReader
+from volttron.platform.keystore import KeyStore
+from volttron.platform.messaging import topics
+from volttron.platform.vip.agent import Agent, PubSub, errors, build_agent
+from volttron.platform.jsonrpc import RemoteError
+
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
-class BACnetInteraction(Agent):
-    def __init__(self, proxy_id, *args, **kwargs):
-        super(BACnetInteraction, self).__init__(*args, **kwargs)
-        self.proxy_id = proxy_id
-        self.callbacks = {}
-
-    def get_iam(self, device_id, callback, address=None):
-        self.callbacks[device_id] = callback
-        self.vip.rpc.call(self.proxy_id, "who_is",
-                           low_device_id=device_id,
-                           high_device_id=device_id,
-                           target_address=address).get(timeout=5.0)
-
-    @PubSub.subscribe('pubsub', topics.BACNET_I_AM)
-    def iam_handler(self, peer, sender, bus,  topic, headers, message):
-        device_id = message["device_id"]
-        callback = self.callbacks.pop(device_id, None)
-        if callback is not None:
-            callback(message)
-
-
-"""
-Simple utility to scrape device registers and write them to a configuration file.
-"""
-
-agent = None
-
-
-def read_props(address, parameters):
-    return agent.vip.rpc.call(agent.proxy_id, "read_properties", address,
-                                parameters).get(timeout=15)
-
-
-def read_prop(address, obj_type, obj_inst, prop_id, index=None):
-    point_map = {"result": [obj_type,
-                            obj_inst,
-                            prop_id,
-                            index]}
-
-    result = read_props(address, point_map)
-
-    return result.get("result")
-
-
-def process_device_object_reference(address, obj_type, obj_inst, property_name, max_range_report, config_writer):
-    objectCount = read_prop(address, obj_type, obj_inst, property_name, index=0)
-
-    for object_index in xrange(1,objectCount+1):
-        _log.debug('property_name index = ' + repr(object_index))
-
-        object_reference = read_prop(address, obj_type, obj_inst, property_name,
-                                     index=object_index)
-
-        #Skip references to objects on other devices.
-        if object_reference.deviceIdentifier is not None:
-            continue
-
-        sub_obj_type, sub_obj_index = object_reference.objectIdentifier
-
-        process_object(address, sub_obj_type, sub_obj_index, max_range_report, config_writer)
-
-
-# noinspection PyDictCreation
-def process_object(address, obj_type, index, max_range_report, config_writer):
-    _log.debug('obj_type = ' + repr(obj_type))
-    _log.debug('bacnet_index = ' + repr(index))
-
-    writable = 'FALSE'
-
-    # TODO: Eventually we will have a device that will want to use this code so leave it here.
-    #subondinate_list_property = get_datatype(obj_type, 'subordinateList')
-    #if subondinate_list_property is not None:
-    #    _log.debug('Processing StructuredViewObject')
-    #    process_device_object_reference(address, obj_type, index, 'subordinateList', max_range_report, config_writer)
-    #    return
-    #
-    #subondinate_list_property = get_datatype(obj_type, 'zoneMembers')
-    #if subondinate_list_property is not None:
-    #    _log.debug('Processing LifeSafetyZoneObject')
-    #    process_device_object_reference(address, obj_type, index, 'zoneMembers', max_range_report, config_writer)
-    #    return
-
-    present_value_type = get_datatype(obj_type, 'presentValue')
-    if present_value_type is None:
-        _log.debug('This object type has no presentValue. Skipping.')
-        return
-
-    if not issubclass(present_value_type, (Enumerated,
-                                           Unsigned,
-                                           Boolean,
-                                           Integer,
-                                           Real,
-                                           Double)):
-        _log.debug('presenValue is an unsupported type: ' + repr(present_value_type))
-        return
-
-    try:
-        object_name = read_prop(address, obj_type, index, "objectName")
-        _log.debug('object name = ' + object_name)
-    except (TypeError,RemoteError):
-        object_name = "NO NAME! PLEASE NAME THIS."
-
-#         _log.debug('  object type = ' + obj_type)
-#         _log.debug('  object index = ' + str(index))
-
-    try:
-        object_notes = read_prop(address, obj_type, index, "description")
-
-    except (TypeError,RemoteError):
-        object_notes = ''
-
-    object_units_details = ''
-
-    if issubclass(present_value_type, Enumerated):
-        object_units = 'Enum'
-        values=present_value_type.enumerations.values()
-        min_value = min(values)
-        max_value = max(values)
-
-        vendor_range = ''
-        if hasattr(present_value_type, 'vendor_range'):
-            vendor_min, vendor_max = present_value_type.vendor_range
-            vendor_range = ' (vendor {min}-{max})'.format(min=vendor_min, max=vendor_max)
-
-        object_units_details = '{min}-{max}{vendor}'.format(min=min_value, max=max_value, vendor=vendor_range)
-
-        if not obj_type.endswith('Input'):
-            try:
-                default_value = read_prop(address, obj_type, index, "relinquishDefault")
-                object_units_details += ' (default {default})'.format(default=present_value_type.enumerations[default_value])
-                #writable = 'TRUE'
-            except KeyError:
-                pass
-            except TypeError:
-                pass
-            except ValueError:
-                pass
-            except RemoteError:
-                pass
-
-        if not object_notes:
-            enum_strings=[]
-            for name in Enumerated.keylist(present_value_type(0)):
-                value = present_value_type.enumerations[name]
-                enum_strings.append(str(value)+'='+name)
-
-            object_notes = present_value_type.__name__ + ': ' + ', '.join(enum_strings)
-
-
-    elif issubclass(present_value_type, Boolean):
-        object_units = 'Boolean'
-
-    elif get_datatype(obj_type, 'units') is None:
-        if obj_type.startswith('multiState'):
-            object_units = 'State'
-            try:
-                state_count = read_prop(address, obj_type, index, "numberOfStates")
-                object_units_details = 'State count: {}'.format(state_count)
-            except TypeError:
-                pass
-            except RemoteError:
-                pass
-
-            try:
-                enum_strings=[]
-                state_list = read_prop(address, obj_type, index, "stateText")
-                for name in state_list[1:]:
-                    enum_strings.append(name)
-
-                object_notes = ', '.join('{}={}'.format(x,y) for x,y in enumerate(enum_strings, start=1))
-
-            except TypeError:
-                pass
-            except RemoteError:
-                pass
-
-            if obj_type != 'multiStateInput':
-                try:
-                    default_value = read_prop(address, obj_type, index, "relinquishDefault")
-                    object_units_details += ' (default {default})'.format(default=default_value)
-                    object_units_details = object_units_details.strip()
-                    #writable = 'TRUE'
-                except TypeError:
-                    pass
-                except ValueError:
-                    pass
-                except RemoteError:
-                    pass
-
-        elif obj_type == 'loop':
-            object_units = 'Loop'
-        else:
-            object_units = 'UNKNOWN UNITS'
-    else:
-        try:
-            object_units = read_prop(address, obj_type, index, "units")
-        except (TypeError, RemoteError):
-            object_units = 'UNKNOWN UNITS'
-
-        if isinstance(object_units, (int, long)):
-            object_units = 'UNKNOWN UNIT ENUM VALUE: ' + str(object_units)
-
-        if obj_type.startswith('analog') or obj_type in ('largeAnalogValue', 'integerValue', 'positiveIntegerValue'):
-            # Value objects never have a resolution property in practice.
-            if not object_notes and not obj_type.endswith('Value'):
-                try:
-                    res_value = read_prop(address, obj_type, index, "resolution")
-                    object_notes = 'Resolution: {resolution:.6g}'.format(resolution=res_value)
-                except TypeError:
-                    pass
-                except ValueError:
-                    pass
-                except RemoteError:
-                    pass
-
-            if obj_type not in ('largeAnalogValue', 'integerValue', 'positiveIntegerValue'):
-                try:
-                    min_value = read_prop(address, obj_type, index, "minPresValue")
-                    max_value = read_prop(address, obj_type, index, "maxPresValue")
-
-                    has_min = (min_value is not None) and (min_value > -max_range_report)
-                    has_max = (max_value is not None) and (max_value < max_range_report)
-
-                    if has_min and has_max:
-                        object_units_details = '{min:.2f} to {max:.2f}'.format(min=min_value, max=max_value)
-                    elif has_min:
-                        object_units_details = 'Min: {min:.2f}'.format(min=min_value)
-                    elif has_max:
-                        object_units_details = 'Max: {max:.2f}'.format(max=max_value)
-                    else:
-                        object_units_details = 'No limits.'
-                    #object_units_details = '{min} to {max}'.format(min=min_value, max=max_value)
-                except TypeError:
-                    pass
-                except RemoteError:
-                    pass
-
-            if obj_type != 'analogInput':
-                try:
-                    default_value = read_prop(address, obj_type, index, "relinquishDefault")
-                    object_units_details += ' (default {default})'.format(default=default_value)
-                    object_units_details = object_units_details.strip()
-                    #writable = 'TRUE'
-                except TypeError:
-                    pass
-                except ValueError:
-                    pass
-                except RemoteError:
-                    pass
-
-    _log.debug('  object units = ' + str(object_units))
-    _log.debug('  object units details = ' + str(object_units_details))
-    if object_notes:
-        _log.debug('  object notes = ' + object_notes)
-
-    results = {}
-    results['Reference Point Name'] = results['Volttron Point Name'] = object_name
-    results['Units'] = object_units
-    results['Unit Details'] = object_units_details
-    results['BACnet Object Type'] = obj_type
-    results['Property'] = 'presentValue'
-    results['Writable'] = writable
-    results['Index'] = index
-    results['Notes'] = object_notes
-
-    config_writer.writerow(results)
-
-
 def bacnet_response(context, results):
+    """ Response function used as a callback.
+
+    This function is used during the retrieval of bacnet responses.
+
+    :param context:
+    :param results:
+    :return:
+    """
     global config_writer
     _log.debug("Handling bacnet responses: RESULTS: {}".format(results))
     message = dict(results=results)
@@ -416,16 +151,11 @@ def main():
 
     config_writer.writeheader()
 
-    agent = BACnetInteraction(args.proxy_id,
-                              address=get_address(),
-                              volttron_home=get_home(),
-                              publickey=key_store.public,
-                              secretkey=key_store.secret,
-                              enable_store=False)
-
-    event = gevent.event.Event()
-    gevent.spawn(agent.core.run, event)
-    event.wait()
+    agent = build_agent(address=get_address(),
+                        volttron_home=get_home(),
+                        publickey=key_store.public,
+                        secretkey=key_store.secret,
+                        enable_store=False)
 
     bn = BACnetReader(agent.vip, args.proxy_id, bacnet_response)
 
@@ -453,13 +183,11 @@ def main():
     elif results["address"]:
         args.address = results["address"]
 
-    greenlet = gevent.spawn(bn.read_device_properties,
-                            target_address=args.address,
-                            device_id=args.device_id)
+    bn.read_device_properties(target_address=args.address,
+                              device_id=args.device_id)
 
-    gevent.sleep(0.1)
-    greenlet.join()
     agent.core.stop()
+
 
 try:
     main()
