@@ -55,9 +55,10 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-import logging
 import argparse
 import csv
+import logging
+from pprint import pprint
 
 import gevent
 from volttron.platform.keystore import KeyStore
@@ -89,6 +90,7 @@ class BACnetInteraction(Agent):
     def iam_handler(self, peer, sender, bus,  topic, headers, message):
         if self.csv_writer is not None:
             self.csv_writer.writerow(message)
+        pprint(message)
 
 
 """
@@ -116,8 +118,19 @@ def main():
 
     arg_parser.add_argument("--csv-out", dest="csv_out",
                             help="Write results to the CSV file specified.")
+
+    arg_parser.add_argument("--debug", action="store_true",
+                            help="Set the logger in debug mode")
     
     args = arg_parser.parse_args()
+
+    core_logger = logging.getLogger("volttron.platform.vip.agent.core")
+    core_logger.setLevel(logging.WARN)
+    _log.setLevel(logging.WARN)
+
+    if args.debug:
+        _log.setLevel(logging.DEBUG)
+        core_logger.setLevel(logging.DEBUG)
 
     _log.debug("initialization")
     _log.debug("    - args: %r", args)
@@ -163,11 +176,9 @@ def main():
 
 try:
     main()
-except Exception, e:
-    _log.exception("an error has occurred: %s", e)
-finally:
-    _log.debug("finally")
-    
+except Exception as e:
+    _log.exception("an error has occurred: %s".format(repr(e)))
+
 
     
 
