@@ -126,3 +126,6 @@ class BasicAgent(object):
         kwargs.pop('identity', None)
         super(BasicAgent, self).__init__(**kwargs)
         self.core = BasicCore(self)
+
+
+from .utils import build_agent, build_connection

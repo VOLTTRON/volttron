@@ -74,6 +74,7 @@ __author__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 
 DEFAULT_TIMEOUT = 30
 
+
 class Connection(object):
     """ A class that manages a connection to a peer and/or server.
 

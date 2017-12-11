@@ -86,12 +86,15 @@ class VIPError(Exception):
             errno.EPROTONOSUPPORT: UnknownSubsystem,
         }.get(errnum, cls)(errnum, msg, *args)
 
+
 class Unreachable(VIPError):
     def __str__(self):
         return '%s: %s' % (super(Unreachable, self).__str__(), self.peer)
 
+
 class Again(VIPError):
     pass
+
 
 class UnknownSubsystem(VIPError):
     def __str__(self):
