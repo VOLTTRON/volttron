@@ -62,6 +62,7 @@ import logging
 import weakref
 
 import gevent
+from bacpypes.basetypes import EngineeringUnits
 from bacpypes.object import get_datatype
 from bacpypes.primitivedata import (Enumerated, Unsigned, Boolean, Integer,
                                     Real, Double)
@@ -81,8 +82,11 @@ class BACnetReader(object):
     The BACnetReader
     """
     def __init__(self, vip, bacnet_proxy_identity,
-                 iam_response_fn=None, config_response_fn=None):
+                 iam_response_fn=None, config_response_fn=None, batch_size=20):
 
+        if batch_size < 1:
+            raise ValueError("batch_size must be larger than 0")
+        self._batch_size = batch_size
         self._pubsub = weakref.ref(vip.pubsub)
         self._rpc = weakref.ref(vip.rpc)
         self._proxy_identity = bacnet_proxy_identity
@@ -276,7 +280,7 @@ class BACnetReader(object):
                 "device", device_id, list_property, object_index
             ]
 
-            if count >= 25:
+            if count >= self._batch_size:
                 _log.debug("query_map: {}".format(query_map))
                 results = self._read_props(target_address, query_map)
                 present_values = self._filter_present_value_from_results(
@@ -366,7 +370,7 @@ class BACnetReader(object):
 
         return query_map
 
-    def _build_results(self, object_type, query_map, result_map):
+    def _build_results(self, query_map, result_map):
         """ Create dictionary objects.
 
         The `build_results` function creates a dictionary of dictionaries.  The
@@ -399,17 +403,17 @@ class BACnetReader(object):
                 else:
                     obj['object_name'] = result_map[key]
             obj[property] = result_map[key]
+
             if 'object_type' not in obj:
-                obj['object_type'] = object_type
+                obj['object_type'] = query_map[key][0]
         _log.debug("Built objects")
         return objects
 
     def _process_enumerated(self, object_type, obj):
-        units = ''
-        units_details = ''
-        notes = ''
-
         units = 'Enum'
+        units_details = ''
+        notes = obj.get('description', '').strip()
+
         present_value_type = get_datatype(object_type, 'presentValue')
         values = present_value_type.enumerations.values()
         min_value = min(values)
@@ -426,15 +430,16 @@ class BACnetReader(object):
                                                      vendor=vendor_range)
 
         if not object_type.endswith('Input'):
-            default_value = obj.get("relinquishDefault")
-            if default_value:
+            if "relinquishDefault" in obj:
+                default_value = obj['relinquishDefault']
                 _log.debug('DEFAULT VALUE IS: {}'.format(default_value))
                 _log.debug('ENUMERATION VALUES: {}'.format(
                     present_value_type.enumerations))
                 for k, v in present_value_type.enumerations.items():
                     if v == default_value:
                         units_details += ' (default {default})'.format(
-                            default=k)
+                            default=default_value)
+                        break
 
         if not notes:
             enum_strings = []
@@ -450,7 +455,7 @@ class BACnetReader(object):
     def _process_units(self, object_type, obj):
         units = ''
         units_details = ''
-        notes = ''
+        notes = obj.get('description', '').strip()
 
         if object_type.startswith('multiState'):
             units = 'State'
@@ -480,11 +485,17 @@ class BACnetReader(object):
         return units, units_details, notes
 
     def _process_unknown(self, object_type, obj):
-        units = obj.get('units', 'UNKNOWN UNITS')
+
+        obj_units = "UNKNOWN UNIT ENUM VALUE"
+        try:
+            obj_units = EngineeringUnits(obj.get('units')).value
+            if isinstance(obj_units, (int, long)):
+                obj_units = 'UNKNOWN UNIT ENUM VALUE: ' + str(obj.get('units'))
+        except ValueError:
+            if obj.get('units'):
+                obj_units += ": " + str(obj.get('units'))
         units_details = ''
-        notes = ''
-        if isinstance(units, (int, long)):
-            units = 'UNKNOWN UNIT ENUM VALUE: ' + str(units)
+        notes = obj.get('description', '').strip()
 
         if object_type.startswith('analog') or object_type in (
                 'largeAnalogValue', 'integerValue',
@@ -495,36 +506,35 @@ class BACnetReader(object):
                     notes = 'Resolution: {resolution:.6g}'.format(
                         resolution=res_value)
 
-        if object_type not in (
-                'largeAnalogValue', 'integerValue',
-                'positiveIntegerValue'):
+            if object_type not in (
+                    'largeAnalogValue', 'integerValue',
+                    'positiveIntegerValue'):
 
-            min_value = obj.get('minPresValue', -MAX_RANGE_REPORT)
-            max_value = obj.get('maxPresValue', MAX_RANGE_REPORT)
+                min_value = obj.get('minPresValue', -MAX_RANGE_REPORT)
+                max_value = obj.get('maxPresValue', MAX_RANGE_REPORT)
 
-            has_min = min_value > -MAX_RANGE_REPORT
-            has_max = max_value < MAX_RANGE_REPORT
-            if has_min and has_max:
-                units_details = '{min:.2f} to {max:.2f}'.format(
-                    min=min_value, max=max_value)
-            elif has_min:
-                units_details = 'Min: {min:.2f}'.format(
-                    min=min_value)
-            elif has_max:
-                units_details = 'Max: {max:.2f}'.format(
-                    max=max_value)
-            else:
-                units_details = 'No limits.'
+                has_min = min_value > -MAX_RANGE_REPORT
+                has_max = max_value < MAX_RANGE_REPORT
+                if has_min and has_max:
+                    units_details = '{min:.2f} to {max:.2f}'.format(
+                        min=min_value, max=max_value)
+                elif has_min:
+                    units_details = 'Min: {min:.2f}'.format(
+                        min=min_value)
+                elif has_max:
+                    units_details = 'Max: {max:.2f}'.format(
+                        max=max_value)
+                else:
+                    units_details = 'No limits.'
 
-        if object_type != 'analogInput':
-            default_value = obj.get('relinquishDefault')
-            if default_value:
-                units_details += ' (default {default})'.format(
-                    default=default_value)
+            if object_type != 'analogInput':
+                if 'relinquishDefault' in obj:
+                    units_details += ' (default {default})'.format(
+                        default=obj.get('relinquishDefault'))
 
-                units_details = units_details.strip()
+                    units_details = units_details.strip()
 
-        return units, units_details, notes
+        return obj_units, units_details, notes
 
     def _emit_responses(self, device_id, target_address, objects):
         """
@@ -599,12 +609,11 @@ class BACnetReader(object):
             new_map = self._build_query_map_for_type(object_type, index)
             query_mapping.update(new_map)
 
-            if count >= 25:
+            if count >= self._batch_size:
                 try:
 
                     results = self._read_props(target_address, query_mapping)
-                    objects = self._build_results(object_type, query_mapping,
-                                                  results)
+                    objects = self._build_results(query_mapping, results)
                     _log.debug('Built bacnet Objects 1: {}'.format(objects))
                     self._emit_responses(device_id, target_address, objects)
                     count = 0
@@ -618,8 +627,7 @@ class BACnetReader(object):
         if query_mapping:
             try:
                 results = self._read_props(target_address, query_mapping)
-                objects = self._build_results(object_type, query_mapping,
-                                              results)
+                objects = self._build_results(query_mapping, results)
             except RemoteError as e:
                 _log.error("REMOTE ERROR 2:")
                 _log.error(e.args)
