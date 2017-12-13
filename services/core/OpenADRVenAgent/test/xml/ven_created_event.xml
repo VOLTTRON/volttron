@@ -5,17 +5,16 @@
             <pyld:eiCreatedEvent xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110">
                 <ei:eiResponse>
                     <ei:responseCode>200</ei:responseCode>
-                    <pyld:requestID>300</pyld:requestID>
                 </ei:eiResponse>
                 <ei:eventResponses>
                     <oadr:eventResponse>
                         <ei:responseCode>200</ei:responseCode>
                         <pyld:requestID>300</pyld:requestID>
                         <ei:qualifiedEventID>
-                            <ei:eventID>4</ei:eventID>
-                            <oadr:modificationNumber>0</oadr:modificationNumber>
+                            <ei:eventID>15</ei:eventID>
+                            <ei:modificationNumber>0</ei:modificationNumber>
                         </ei:qualifiedEventID>
-                        <ei:optType>none</ei:optType>
+                        <ei:optType>optIn</ei:optType>
                     </oadr:eventResponse>
                 </ei:eventResponses>
                 <ei:venID>0</ei:venID>

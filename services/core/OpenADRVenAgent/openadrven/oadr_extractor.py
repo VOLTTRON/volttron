@@ -138,7 +138,10 @@ class OadrEventExtractor(OadrExtractor):
             raise OpenADRInterfaceException('Missing eventDescriptor.modificationNumber', OADR_BAD_DATA)
 
         not_used = event_descriptor.modificationReason
-        not_used = event_descriptor.priority
+
+        if event_descriptor.priority:
+            self.event.priority = event_descriptor.priority
+
         market_context_holder = event_descriptor.eiMarketContext
         if market_context_holder:
             # OADR rule 48: Allow any valid URI as a marketContext (e.g., *).
@@ -277,8 +280,9 @@ class OadrReportExtractor(OadrExtractor):
         return report_specifier_id
 
     def extract_report(self):
-        """Validation various received report fields and add them to the report instance."""
-        report_interval = self.request.reportSpecifier.reportInterval
+        """Validate various received report fields and add them to the report instance."""
+        report_specifier = self.request.reportSpecifier
+        report_interval = report_specifier.reportInterval
         if report_interval is None:
             raise OpenADRInterfaceException('Missing reportInterval', OADR_BAD_DATA)
 
@@ -309,7 +313,7 @@ class OadrReportExtractor(OadrExtractor):
         self.report.telemetry_parameters = json.dumps(self.report_parameters.get('telemetry_parameters', None))
 
         default = self.report_parameters.get('report_interval_secs_default')
-        iso_duration = self.request.reportSpecifier.reportBackDuration
+        iso_duration = report_specifier.reportBackDuration
         if iso_duration is not None:
             try:
                 self.report.interval_secs = int(isodate.parse_duration(iso_duration.duration).total_seconds())
@@ -324,6 +328,14 @@ class OadrReportExtractor(OadrExtractor):
                 raise OpenADRInterfaceException(error_msg, OADR_BAD_DATA)
         else:
             self.report.interval_secs = None
+
+        if report_specifier.granularity:
+            try:
+                granularity = isodate.parse_duration(report_specifier.granularity.duration)
+                self.report.granularity_secs = int(granularity.total_seconds())
+            except Exception:
+                error_msg = 'Report granularity is missing or is not an ISO8601 duration'
+                raise OpenADRInterfaceException(error_msg, OADR_BAD_DATA)
 
 
 class OadrRegistrationExtractor(OadrExtractor):

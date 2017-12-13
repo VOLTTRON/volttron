@@ -33,11 +33,12 @@ Event JSON structure:
 ::
 
     {
-        "id"            : String,
-        "creation_time" : DateTime,
-        "start_time"    : DateTime,
-        "end_time"      : DateTime,
-        "level"         : Integer,    # Values: 1, 2, 3. Expected to be 1.
+        "event_id"      : String,
+        "creation_time" : DateTime - UTC,
+        "start_time"    : DateTime - UTC,
+        "end_time"      : DateTime - UTC,
+        "priority"      : Integer,    # Values: 0, 1, 2, 3. Usually expected to be 1.
+        "signals"       : String,     # Values: json string describing one or more signals.
         "status"        : String,     # Values: unresponded, far, near, active, completed, canceled.
         "opt_type"      : String      # Values: optIn, optOut, none.
     }
@@ -50,39 +51,52 @@ to the VEN by calling respond_to_event() (see below). The VEN then relays the ch
 PubSub: Telemetry Parameters Update
 -----------------------------------
 
-When the VEN telemetry reporting parameters have been updated (by the VTN), the parameters
+When the VEN telemetry reporting parameters have been updated (by the VTN), they
 are published with a topic that includes 'openadr/telemetry_parameters'.
 
-Telemetry parameters JSON example:
+These parameters include state information about the current report.
+
+Telemetry parameters structure:
 ::
 
     {
-        'online': True,
-        'manual_override': False,
-        'report_status': "Active",
-        'telemetry': {
+        'telemetry': '{
             "baseline_power_kw": {
-                "r_id": "baseline_power",
-                "report_type": "baseline",
-                "reading_type": "Mean",
-                "method_name": "get_baseline_power",
-                "frequency": 30
+                "r_id"            : "baseline_power",       # ID of the reporting metric
+                "report_type"     : "baseline",             # Type of reporting metric, e.g. baseline or reading
+                "reading_type"    : "Direct Read",          # (per OpenADR telemetry_usage report requirements)
+                "units"           : "powerReal",            # (per OpenADR telemetry_usage reoprt requirements)
+                "method_name"     : "get_baseline_power",   # Name of the VEN agent method that gets the metric
+                "min_frequency"   : (Integer),              # Data capture frequency in seconds (minimum)
+                "max_frequency"   : (Integer)               # Data capture frequency in seconds (maximum)
             },
             "current_power_kw": {
-                "r_id": "actual_power",
-                "report_type": "reading",
-                "reading_type": "Mean",
-                "method_name": "get_current_power",
-                "frequency": 30
+                "r_id"            : "actual_power",         # ID of the reporting metric
+                "report_type"     : "reading",              # Type of reporting metric, e.g. baseline or reading
+                "reading_type"    : "Direct Read",          # (per OpenADR telemetry_usage report requirements)
+                "units"           : "powerReal",            # (per OpenADR telemetry_usage report requirements)
+                "method_name"     : "get_current_power",    # Name of the VEN agent method that gets the metric
+                "min_frequency"   : (Integer),              # Data capture frequency in seconds (minimum)
+                "max_frequency"   : (Integer)               # Data capture frequency in seconds (maximum)
             }
-        }
+        }'
+        'report parameters': '{
+            "status"              : (String),               # active, inactive, completed, or cancelled
+            "report_specifier_id" : "telemetry",            # ID of the report definition
+            "report_request_id"   : (String),               # ID of the report request; supplied by the VTN
+            "request_id"          : (String),               # Request ID of the most recent VTN report modification
+            "interval_secs"       : (Integer),              # How often a report update is sent to the VTN
+            "granularity_secs"    : (Integer),              # How often a report update is sent to the VTN
+            "start_time"          : (DateTime - UTC),       # When the report started
+            "end_time"            : (DateTime - UTC),       # When the report is scheduled to end
+            "last_report"         : (DateTime - UTC),       # When a report update was last sent
+            "created_on"          : (DateTime - UTC)        # When this set of information was recorded in the VEN db
+        }',
+        'manual_override'         : (Boolean)               # VEN manual override status, as supplied by Control Agent
+        'online'                  : (Boolean)               # VEN online status, as supplied by Control Agent
     }
 
-The above example would indicate that, for reporting purposes, telemetry values for
-baseline_power_kw and current_power_kw should be updated -- via report_telemetry() -- at least
-once every 30 seconds.
-
-Telemetry value definitions such as baseline_power_kw and current_power_kw come from the agent config.
+Telemetry value definitions such as baseline_power_kw and current_power_kw come from the VEN agent config.
 
 RPC Calls
 ---------

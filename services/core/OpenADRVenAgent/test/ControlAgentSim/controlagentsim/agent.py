@@ -74,10 +74,6 @@ _log = logging.getLogger(__name__)
 
 __version__ = '1.0'
 
-BASELINE_POWER_KW = 6.2                 # Constant baseline power
-SINE_PERIOD_SECS = 600                  # Period of the measurement sine wave
-REPORT_INTERVAL_SECS = 30               # How often to report telemetry
-
 
 def control_agent(config_path, **kwargs):
     """
@@ -96,7 +92,10 @@ def control_agent(config_path, **kwargs):
         config = {}
     venagent_id = config.get('venagent_id')
     opt_type = config.get('opt_type')
-    return ControlAgentSim(venagent_id, opt_type, **kwargs)
+    report_interval_secs = config.get('report_interval_secs')
+    baseline_power_kw = config.get('baseline_power_kw')
+    sine_period_secs = config.get('sine_period_secs')
+    return ControlAgentSim(venagent_id, opt_type, report_interval_secs, baseline_power_kw, sine_period_secs, **kwargs)
 
 
 class ControlAgentSim(Agent):
@@ -106,12 +105,18 @@ class ControlAgentSim(Agent):
         OpenADRVenAgent.
     """
 
-    def __init__(self, venagent_id, opt_type, **kwargs):
+    def __init__(self, venagent_id, opt_type, report_interval_secs, baseline_power_kw, sine_period_secs, **kwargs):
         super(ControlAgentSim, self).__init__(**kwargs)
         self.venagent_id = None
         self.default_opt_type = None
+        self.report_interval_secs = None
+        self.baseline_power_kw = None
+        self.sine_period_secs = None
         self.default_config = {'venagent_id': venagent_id,
-                               'opt_type': opt_type}
+                               'opt_type': opt_type,
+                               'report_interval_secs': report_interval_secs,
+                               'baseline_power_kw': baseline_power_kw,
+                               'sine_period_secs': sine_period_secs}
         self.vip.config.set_default("config", self.default_config)
         self.vip.config.subscribe(self._configure, actions=["NEW", "UPDATE"], pattern="config")
         self.initialize_config(self.default_config)
@@ -123,14 +128,28 @@ class ControlAgentSim(Agent):
         self.initialize_config(config)
 
     def initialize_config(self, config):
-        """Initialize the agent's configuration."""
+        """
+            Initialize the Control Agent's configuration.
+
+                venagent_id          : (String) Volttron ID of the VEN agent
+                default_opt_type     : (String) optIn or optOut
+                report_interval_secs : (Integer) How often to issue RPCs to the VEN agent
+                baseline_power_kw    : (Fixed Point) Simulated baseline power measurement (constant)
+                sine_period_secs     : (Integer) Period of the simulated actual-measurement sine wave
+        """
         _log.debug("Configuring agent")
         self.venagent_id = config.get('venagent_id')
         self.default_opt_type = config.get('opt_type')
+        self.report_interval_secs = config.get('report_interval_secs')
+        self.baseline_power_kw = config.get('baseline_power_kw')
+        self.sine_period_secs = config.get('sine_period_secs')
 
         _log.debug('Configuration parameters:')
         _log.debug('\tvenagent_id={}'.format(self.venagent_id))
         _log.debug('\tOptIn/OptOut={}'.format(self.default_opt_type))
+        _log.debug('\tReport interval (secs)={}'.format(self.report_interval_secs))
+        _log.debug('\tBaseline power (kw)={}'.format(self.baseline_power_kw))
+        _log.debug('\tSine wave period (secs)={}'.format(self.sine_period_secs))
 
     @Core.receiver('onstart')
     def onstart_method(self, sender):
@@ -141,7 +160,7 @@ class ControlAgentSim(Agent):
         self.vip.pubsub.subscribe(peer='pubsub', prefix=topics.OPENADR_EVENT, callback=self.receive_event)
         self.vip.pubsub.subscribe(peer='pubsub', prefix=topics.OPENADR_STATUS, callback=self.receive_status)
 
-        self.core.periodic(REPORT_INTERVAL_SECS, self.issue_rpcs)
+        self.core.periodic(self.report_interval_secs, self.issue_rpcs)
 
     def issue_rpcs(self):
         """Periodically issue RPCs, including report_sample_telemetry, to the VEN agent."""
@@ -166,11 +185,11 @@ class ControlAgentSim(Agent):
             return numpy.sin(2 * numpy.pi * fraction_into_period)
 
         end_time = utils.get_aware_utc_now()
-        start_time = end_time - timedelta(seconds=REPORT_INTERVAL_SECS)
-        val = sine_wave(end_time, SINE_PERIOD_SECS)
-        # Adjust the sine wave upward so that all values are positive, with amplitude = BASELINE_POWER_KW.
-        measurement_kw = BASELINE_POWER_KW * ((val + 1) / 2)
-        self.report_telemetry({'baseline_power_kw': str(BASELINE_POWER_KW),
+        start_time = end_time - timedelta(seconds=self.report_interval_secs)
+        val = sine_wave(end_time, self.sine_period_secs)
+        # Adjust the sine wave upward so that all values are positive, with amplitude = self.baseline_power_kw.
+        measurement_kw = self.baseline_power_kw * ((val + 1) / 2)
+        self.report_telemetry({'baseline_power_kw': str(self.baseline_power_kw),
                                'current_power_kw': str(measurement_kw),
                                'start_time': start_time.__str__(),
                                'end_time': end_time.__str__()})
@@ -231,11 +250,10 @@ class ControlAgentSim(Agent):
         """
             (Send RPC) Request a JSON list of report parameters from the VENAgent.
 
-        @return: (JSON) A list of report parameters.
+            This method dumps the contents of the returned dictionary of report parameters as debug output.
         """
         _log.debug('Requesting report parameters')
         param_dict = self.send_rpc('get_telemetry_parameters')
-
         if param_dict:
             for key, val in param_dict.iteritems():
                 try:

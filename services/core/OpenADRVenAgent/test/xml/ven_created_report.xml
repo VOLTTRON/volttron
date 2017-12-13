@@ -4,12 +4,13 @@
         <oadr:oadrCreatedReport xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" schemaVersion="2.0b">
             <ei:eiResponse xmlns:pyld="http://docs.oasis-open.org/ns/energyinterop/201110/payloads">
                 <ei:responseCode>200</ei:responseCode>
-                <pyld:requestID>d4b098f0-d6c5-11e7-8346-34363bc85ec4</pyld:requestID>
+                <pyld:requestID>e0dfcafd-e431-11e7-b8f1-34363bc85ec4</pyld:requestID>
             </ei:eiResponse>
             <oadr:oadrPendingReports>
-                <oadr:reportRequestID>176</oadr:reportRequestID>
+                <ei:reportRequestID>RR_9fc07ef9a693bf66b10a</ei:reportRequestID>
+                <ei:reportRequestID>286</ei:reportRequestID>
             </oadr:oadrPendingReports>
-            <oadr:venID>0</oadr:venID>
+            <ei:venID>0</ei:venID>
         </oadr:oadrCreatedReport>
     </oadr:oadrSignedObject>
 </oadr:oadrPayload>

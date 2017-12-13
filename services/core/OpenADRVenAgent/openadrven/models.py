@@ -92,13 +92,15 @@ class EiEvent(ORMBase):
     signals = Column(String, nullable=False)
     status = Column(String, nullable=False)
     opt_type = Column(String, nullable=False)
+    priority = Column(Integer, nullable=False)
     modification_number = Column(Integer, nullable=False)
     test_event = Column(String, nullable=False, default='false')
     iso_dtstart = Column(String, nullable=True)                     # ISO 8601 timestamp in UTC
     duration = Column(String, nullable=True)                        # ISO 8601 duration string
     start_after = Column(String, nullable=True, default='')         # ISO 8601 duration string
 
-    attribute_names = ['event_id', 'creation_time', 'start_time', 'end_time', 'signals', 'status', 'opt_type']
+    attribute_names = ['event_id', 'creation_time', 'start_time', 'end_time', 'priority',
+                       'signals', 'status', 'opt_type']
 
     STATUS_UNRESPONDED = u'unresponded'
     STATUS_FAR = u'far'
@@ -120,6 +122,7 @@ class EiEvent(ORMBase):
         self.signals = ''
         self.status = self.STATUS_UNRESPONDED
         self.opt_type = self.OPT_TYPE_NONE
+        self.priority = 1
         self.modification_number = 0            # Incremented by the VTN if/when the event changes
         self.test_event = 'false'
 
@@ -132,6 +135,7 @@ class EiEvent(ORMBase):
         my_str += 'opt_type:{}; '.format(self.opt_type)
         my_str += 'event_id:{}; '.format(self.event_id)
         my_str += 'status:{}; '.format(self.status)
+        my_str += 'priority:{}; '.format(self.priority)
         my_str += 'modification_number:{}; '.format(self.modification_number)
         my_str += 'signals:{}; '.format(self.signals)
         return my_str
@@ -182,6 +186,7 @@ class EiEvent(ORMBase):
         self.request_id = another_event.request_id
         self.start_time = another_event.start_time
         self.end_time = another_event.end_time
+        self.priority = another_event.priority
         self.signals = another_event.signals
         # Do not copy status from another_event
         # Do not copy opt_type from another_event
@@ -214,11 +219,12 @@ class EiReport(ORMBase):
     iso_last_report = Column(String)                                # ISO 8601 timestamp in UTC
     name = Column(String)
     interval_secs = Column(Integer)
+    granularity_secs = Column(String)
     telemetry_parameters = Column(String)
 
-    attribute_names = ['created_on', 'request_id', 'start_time', 'end_time',
-                       'report_request_id', 'report_specifier_id',
-                       'status', 'interval_secs', 'last_report']
+    attribute_names = ["status", "report_specifier_id", "report_request_id", "request_id",
+                       "interval_secs", "granularity_secs",
+                       "start_time", "end_time", "last_report", "created_on"]
 
     def __init__(self, request_id, report_request_id, report_specifier_id):
         self.created_on = utils.get_aware_utc_now()
@@ -277,6 +283,7 @@ class EiReport(ORMBase):
         self.start_time = another_report.start_time
         self.end_time = another_report.end_time
         self.duration = another_report.duration
+        self.granularity_secs = another_report.granularity_secs
         # Do not copy created_on from another_report
         # Do not copy status from another_report
         # Do not copy last_report from another_report

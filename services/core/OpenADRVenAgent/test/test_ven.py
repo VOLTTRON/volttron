@@ -110,16 +110,20 @@ VEN_AGENT_CONFIG = {
                 "baseline_power_kw": {
                     "r_id": "baseline_power",
                     "report_type": "baseline",
-                    "reading_type": "Mean",
+                    "reading_type": "Direct Read",
+                    "units": "powerReal",
                     "method_name": "get_baseline_power",
-                    "frequency": 30
+                    "min_frequency": 30,
+                    "max_frequency": 60
                 },
                 "current_power_kw": {
                     "r_id": "actual_power",
                     "report_type": "reading",
-                    "reading_type": "Mean",
+                    "reading_type": "Direct Read",
+                    "units": "powerReal",
                     "method_name": "get_current_power",
-                    "frequency": 30
+                    "min_frequency": 30,
+                    "max_frequency": 60
                 }
             }
         }
@@ -194,7 +198,7 @@ class TestOpenADRVenAgent:
         @param test_agent: This test agent.
 
         """
-        self.vtn_request('EiEvent', 'kisensum_vtn_distribute_event')
+        self.vtn_request('EiEvent', 'test_vtn_distribute_event')
         self.send_rpc(test_agent, 'respond_to_event', '4', 'optIn')
         assert self.get_event_dict(test_agent, '4').get('opt_type') == 'optIn'
 
@@ -207,7 +211,7 @@ class TestOpenADRVenAgent:
         @param test_agent: This test agent.
 
         """
-        self.vtn_request('EiEvent', 'kisensum_vtn_distribute_event')
+        self.vtn_request('EiEvent', 'test_vtn_distribute_event')
         self.send_rpc(test_agent, 'respond_to_event', '4', 'optOut')
         assert self.get_event_dict(test_agent, '4').get('opt_type') == 'optOut'
 
@@ -241,8 +245,8 @@ class TestOpenADRVenAgent:
 
         @param test_agent: This test agent.
         """
-        self.vtn_request('EiEvent', 'kisensum_vtn_distribute_event_no_end')
-        self.vtn_request('EiEvent', 'kisensum_vtn_cancel_event')
+        self.vtn_request('EiEvent', 'test_vtn_distribute_event_no_end')
+        self.vtn_request('EiEvent', 'test_vtn_cancel_event')
         assert self.get_event_dict(test_agent, '5').get('status') == 'cancelled'
 
     def test_report_creation(self, test_agent):
@@ -251,8 +255,11 @@ class TestOpenADRVenAgent:
 
             Create a report by sending an XML request. Confirm that the report is active.
         """
-        self.vtn_request('EiReport', 'kisensum_vtn_registered_report')
-        assert self.send_rpc(test_agent, 'get_telemetry_parameters').get('report_status') == 'active'
+        self.vtn_request('EiReport', 'test_vtn_registered_report')
+        response = self.send_rpc(test_agent, 'get_telemetry_parameters')
+        report_param_string = response.get('report parameters')
+        report_params = json.loads(report_param_string)
+        assert report_params.get('status') == 'active'
 
     def get_event_dict(self, agt, event_id):
         """
@@ -289,7 +296,7 @@ class TestOpenADRVenAgent:
         @param duration_secs: (Integer seconds) The event's duration.
         """
         self.vtn_request('EiEvent',
-                         'kisensum_vtn_distribute_event_variable',
+                         'test_vtn_distribute_event_variable',
                          event_id=event_id,
                          event_start_time=isodate.datetime_isoformat(start_time),
                          event_duration=isodate.duration_isoformat(timedelta(seconds=duration_secs)))

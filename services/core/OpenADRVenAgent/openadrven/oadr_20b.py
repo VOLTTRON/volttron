@@ -3,7 +3,7 @@
 
 # See ../tests/oadr20b_schema/oadr_20b.xsd and other .xsd files in that directory.
 #
-# Generated Mon Dec 11 14:58:24 2017 by generateDS.py version 2.29.3.
+# Generated Thu Dec 14 15:50:25 2017 by generateDS.py version 2.29.4.
 # Python 2.7.14 (default, Sep 22 2017, 00:06:07)  [GCC 4.2.1 Compatible Apple LLVM 8.1.0 (clang-802.0.42)]
 #
 # Command line options:
@@ -49,6 +49,17 @@ def parsexml_(infile, parser=None, **kwargs):
     doc = etree_.parse(infile, parser=parser, **kwargs)
     return doc
 
+def parsexmlstring_(instring, parser=None, **kwargs):
+    if parser is None:
+        # Use the lxml ElementTree compatible parser so that, e.g.,
+        #   we ignore comments.
+        try:
+            parser = etree_.ETCompatXMLParser()
+        except AttributeError:
+            # fallback to xml.etree
+            parser = etree_.XMLParser()
+    element = etree_.fromstring(instring, parser=parser, **kwargs)
+    return element
 
 #
 # Namespace prefix definition table (and other attributes, too)
@@ -5340,7 +5351,7 @@ class oadrReportDescriptionType(GeneratedsSuper):
             outfile.write('<ei:reportType>%s</ei:reportType>%s' % (
             self.gds_encode(self.gds_format_string(quote_xml(self.reportType), input_name='reportType')), eol_))
         if self.itemBase is not None:
-            self.itemBase.export(outfile, level, namespace_, name_='itemBase', pretty_print=pretty_print)
+            self.itemBase.export(outfile, level, namespace_, pretty_print=pretty_print)
         if self.readingType is not None:
             showIndent(outfile, level, pretty_print)
             outfile.write('<ei:readingType>%s</ei:readingType>%s' % (
@@ -7510,8 +7521,7 @@ class IntervalType(GeneratedsSuper):
             outfile.write('<xcal:uid>%s</xcal:uid>%s' % (
             self.gds_encode(self.gds_format_string(quote_xml(self.uid), input_name='uid')), eol_))
         for streamPayloadBase_ in self.streamPayloadBase:
-            streamPayloadBase_.export(outfile, level, namespace_, name_='streamPayloadBase', pretty_print=pretty_print)
-
+            streamPayloadBase_.export(outfile, level, namespace_, pretty_print=pretty_print)
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -7832,23 +7842,17 @@ class PayloadFloatType(PayloadBaseType):
         if self.hasContent_():
             outfile.write('>%s' % (eol_,))
             # self.exportChildren(outfile, level + 1, namespace_='oadr:', name_='PayloadFloatType', pretty_print=pretty_print)
-            self.exportChildren(outfile, level + 1, namespace_='ei:', name_='PayloadFloatType',
-                                pretty_print=pretty_print)
+            self.exportChildren(outfile, level + 1, namespace_='ei:', name_='PayloadFloatType', pretty_print=pretty_print)
             showIndent(outfile, level, pretty_print)
             # outfile.write('</%s%s>%s' % (namespace_, name_, eol_))
             outfile.write('</%s%s>%s' % ('ei:', name_, eol_))
         else:
             outfile.write('/>%s' % (eol_,))
-
     # def exportAttributes(self, outfile, level, already_processed, namespace_='oadr:', name_='PayloadFloatType'):
     def exportAttributes(self, outfile, level, already_processed, namespace_='ei:', name_='PayloadFloatType'):
-        super(PayloadFloatType, self).exportAttributes(outfile, level, already_processed, namespace_,
-                                                       name_='PayloadFloatType')
-
-    # def exportChildren(self, outfile, level, namespace_='oadr:', name_='PayloadFloatType', fromsubclass_=False,
-    #                    pretty_print=True):
-    def exportChildren(self, outfile, level, namespace_='ei:', name_='PayloadFloatType', fromsubclass_=False,
-                       pretty_print=True):
+        super(PayloadFloatType, self).exportAttributes(outfile, level, already_processed, namespace_, name_='PayloadFloatType')
+    # def exportChildren(self, outfile, level, namespace_='oadr:', name_='PayloadFloatType', fromsubclass_=False, pretty_print=True):
+    def exportChildren(self, outfile, level, namespace_='ei:', name_='PayloadFloatType', fromsubclass_=False, pretty_print=True):
         super(PayloadFloatType, self).exportChildren(outfile, level, namespace_, name_, True, pretty_print=pretty_print)
         if pretty_print:
             eol_ = '\n'
@@ -7858,7 +7862,6 @@ class PayloadFloatType(PayloadBaseType):
             showIndent(outfile, level, pretty_print)
             # outfile.write('<oadr:value>%s</oadr:value>%s' % (self.gds_format_float(self.value, input_name='value'), eol_))
             outfile.write('<ei:value>%s</ei:value>%s' % (self.gds_format_float(self.value, input_name='value'), eol_))
-
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -8824,8 +8827,7 @@ class signalPayloadType(StreamPayloadBaseType):
         else:
             eol_ = ''
         if self.payloadBase is not None:
-            self.payloadBase.export(outfile, level, namespace_, name_='payloadBase', pretty_print=pretty_print)
-
+            self.payloadBase.export(outfile, level, namespace_, pretty_print=pretty_print)
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -9449,7 +9451,7 @@ class eiEventSignalType(GeneratedsSuper):
             outfile.write('<oadr:signalID>%s</oadr:signalID>%s' % (
             self.gds_encode(self.gds_format_string(quote_xml(self.signalID), input_name='signalID')), eol_))
         if self.itemBase is not None:
-            self.itemBase.export(outfile, level, namespace_, name_='itemBase', pretty_print=pretty_print)
+            self.itemBase.export(outfile, level, namespace_, pretty_print=pretty_print)
         if self.currentValue is not None:
             self.currentValue.export(outfile, level, namespace_='ei:', name_='currentValue', pretty_print=pretty_print)
 
@@ -9919,8 +9921,7 @@ class eiEventBaselineType(GeneratedsSuper):
             outfile.write('<oadr:baselineName>%s</oadr:baselineName>%s' % (
             self.gds_encode(self.gds_format_string(quote_xml(self.baselineName), input_name='baselineName')), eol_))
         if self.itemBase is not None:
-            self.itemBase.export(outfile, level, namespace_, name_='itemBase', pretty_print=pretty_print)
-
+            self.itemBase.export(outfile, level, namespace_, pretty_print=pretty_print)
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -10464,8 +10465,7 @@ class ReportPayloadType(StreamPayloadBaseType):
             outfile.write(
                 '<ei:accuracy>%s</ei:accuracy>%s' % (self.gds_format_float(self.accuracy, input_name='accuracy'), eol_))
         if self.payloadBase is not None:
-            self.payloadBase.export(outfile, level, namespace_, name_='payloadBase', pretty_print=pretty_print)
-
+            self.payloadBase.export(outfile, level, namespace_, pretty_print=pretty_print)
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -10800,7 +10800,7 @@ class SpecifierPayloadType(GeneratedsSuper):
             outfile.write('<ei:rID>%s</ei:rID>%s' % (
             self.gds_encode(self.gds_format_string(quote_xml(self.rID), input_name='rID')), eol_))
         if self.itemBase is not None:
-            self.itemBase.export(outfile, level, namespace_, name_='itemBase', pretty_print=pretty_print)
+            self.itemBase.export(outfile, level, namespace_, pretty_print=pretty_print)
         if self.readingType is not None:
             showIndent(outfile, level, pretty_print)
             outfile.write('<ei:readingType>%s</ei:readingType>%s' % (
@@ -12600,9 +12600,8 @@ class PowerRealType(GeneratedsSuper):
         else:
             return False
 
-    def export(self, outfile, level, namespace_='oadr:', name_='PowerRealType',
-               namespacedef_='xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:scale="http://docs.oasis-open.org/ns/emix/2011/06/siscale"  xmlns:power="http://docs.oasis-open.org/ns/emix/2011/06/power" ',
-               pretty_print=True):
+    # def export(self, outfile, level, namespace_='oadr:', name_='PowerRealType', namespacedef_='xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:scale="http://docs.oasis-open.org/ns/emix/2011/06/siscale"  xmlns:power="http://docs.oasis-open.org/ns/emix/2011/06/power" ', pretty_print=True):
+    def export(self, outfile, level, namespace_='power:', name_='PowerRealType', namespacedef_='xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:scale="http://docs.oasis-open.org/ns/emix/2011/06/siscale"  xmlns:power="http://docs.oasis-open.org/ns/emix/2011/06/power" ', pretty_print=True):
         imported_ns_def_ = GenerateDSNamespaceDefs_.get('PowerRealType')
         if imported_ns_def_ is not None:
             namespacedef_ = imported_ns_def_
@@ -12613,35 +12612,41 @@ class PowerRealType(GeneratedsSuper):
         if self.original_tagname_ is not None:
             name_ = self.original_tagname_
         showIndent(outfile, level, pretty_print)
-        outfile.write('<%s%s%s' % (namespace_, name_, namespacedef_ and ' ' + namespacedef_ or '',))
+        # outfile.write('<%s%s%s' % (namespace_, name_, namespacedef_ and ' ' + namespacedef_ or '',))
+        outfile.write('<%s%s%s' % ('power:', name_, namespacedef_ and ' ' + namespacedef_ or '',))
         already_processed = set()
-        self.exportAttributes(outfile, level, already_processed, namespace_, name_='PowerRealType')
+        # self.exportAttributes(outfile, level, already_processed, namespace_, name_='PowerRealType')
+        self.exportAttributes(outfile, level, already_processed, 'power:', name_='PowerRealType')
         if self.hasContent_():
             outfile.write('>%s' % (eol_,))
-            self.exportChildren(outfile, level + 1, namespace_='oadr:', name_='PowerRealType',
-                                pretty_print=pretty_print)
+            # self.exportChildren(outfile, level + 1, namespace_='oadr:', name_='PowerRealType', pretty_print=pretty_print)
+            self.exportChildren(outfile, level + 1, namespace_='power:', name_='PowerRealType', pretty_print=pretty_print)
             showIndent(outfile, level, pretty_print)
-            outfile.write('</%s%s>%s' % (namespace_, name_, eol_))
+            # outfile.write('</%s%s>%s' % (namespace_, name_, eol_))
+            outfile.write('</%s%s>%s' % ('power:', name_, eol_))
         else:
             outfile.write('/>%s' % (eol_,))
 
-    def exportAttributes(self, outfile, level, already_processed, namespace_='oadr:', name_='PowerRealType'):
+    # def exportAttributes(self, outfile, level, already_processed, namespace_='oadr:', name_='PowerRealType'):
+    def exportAttributes(self, outfile, level, already_processed, namespace_='power:', name_='PowerRealType'):
         pass
 
-    def exportChildren(self, outfile, level, namespace_='oadr:', name_='PowerRealType', fromsubclass_=False,
-                       pretty_print=True):
+    # def exportChildren(self, outfile, level, namespace_='oadr:', name_='PowerRealType', fromsubclass_=False, pretty_print=True):
+    def exportChildren(self, outfile, level, namespace_='power:', name_='PowerRealType', fromsubclass_=False, pretty_print=True):
         if pretty_print:
             eol_ = '\n'
         else:
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (
+            # outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (
+            outfile.write('<power:itemDescription>%s</power:itemDescription>%s' % (
             self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')),
             eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (
+            # outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (
+            outfile.write('<power:itemUnits>%s</power:itemUnits>%s' % (
             self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.siScaleCode is not None:
             showIndent(outfile, level, pretty_print)
@@ -29452,13 +29457,16 @@ def parseEtree(inFileName, silence=False):
 
 
 def parseString(inString, silence=False):
-    if sys.version_info.major == 2:
-        from StringIO import StringIO as IOBuffer
-    else:
-        from io import BytesIO as IOBuffer
+    '''Parse a string, create the object tree, and export it.
+
+    Arguments:
+    - inString -- A string.  This XML fragment should not start
+      with an XML declaration containing an encoding.
+    - silence -- A boolean.  If False, export the object.
+    Returns -- The root object in the tree.
+    '''
     parser = None
-    doc = parsexml_(IOBuffer(inString), parser)
-    rootNode = doc.getroot()
+    rootNode= parsexmlstring_(inString, parser)
     rootTag, rootClass = get_root_tag(rootNode)
     if rootClass is None:
         rootTag = 'oadrPayload'
@@ -29466,7 +29474,6 @@ def parseString(inString, silence=False):
     rootObj = rootClass.factory()
     rootObj.build(rootNode)
     # Enable Python to collect the space used by the DOM.
-    doc = None
     if not silence:
         sys.stdout.write('<?xml version="1.0" ?>\n')
         rootObj.export(

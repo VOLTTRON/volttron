@@ -88,27 +88,53 @@ Reporting Configuration
 
 The VEN’s reporting configuration, specified as a dictionary in the agent configuration,
 defines each telemetry element (metric) that the VEN can report to the VTN, if requested.
-By default, it defines a single report named “telemetry”, with a report configuration
-dictionary containing the following parameters:
+By default, it defines reports named “telemetry” and "telemetry_status", with a report
+configuration dictionary containing the following parameters:
 
-====================================================== =========================== ====================================================
-Report Parameter                                       Example                     Description
-====================================================== =========================== ====================================================
-report_name                                            “TELEMETRY_USAGE”           Friendly name of the report.
-report_name_metadata                                   “METADATA_TELEMETRY_USAGE”  Friendly name of the report’s metadata, when sent
-                                                                                   by the VEN’s oadrRegisterReport request.
-report_specifier_id                                    “telemetry”                 Uniquely identifies the report’s data set.
-report_interval_secs_default                           “300”                       How often to send a reporting update to the VTN.
-telemetry_parameters (baseline_power_kw): r_id         “baseline_power”            (baseline_power) Unique ID of the metric.
-telemetry_parameters (baseline_power_kw): report_type  “baseline”                  (baseline_power) The type of metric being reported.
-telemetry_parameters (baseline_power_kw): reading_type “Mean”                      (baseline_power) How the metric was calculated.
-telemetry_parameters (baseline_power_kw): method_name  “get_baseline_power”        (baseline_power) The VEN method to use when
-                                                                                   extracting the data for reporting.
-telemetry_parameters (baseline_power_kw): frequency    30                          (baseline_power) The metric’s sampling frequency.
-telemetry_parameters (current_power_kw): r_id          “actual_power”              (current_power) Unique ID of the metric.
-telemetry_parameters (current_power_kw): report_type   “reading”                   (current_power) The type of metric being reported.
-telemetry_parameters (current_power_kw): reading_type  “Mean”                      (current_power) How the metric was calculated.
-telemetry_parameters (current_power_kw): method_name   “get_current_power”         (current_power) The VEN method to use when
-                                                                                   extracting the data for reporting.
-telemetry_parameters (current_power_kw): frequency     30                          (current_power) The metric’s sampling frequency.
-====================================================== =========================== ====================================================
+======================================================= =========================== ====================================================
+"telemetry" report: parameters                          Example                     Description
+======================================================= =========================== ====================================================
+report_name                                             "TELEMETRY_USAGE"           Friendly name of the report.
+report_name_metadata                                    "METADATA_TELEMETRY_USAGE"  Friendly name of the report’s metadata, when sent
+                                                                                    by the VEN’s oadrRegisterReport request.
+report_specifier_id                                     "telemetry"                 Uniquely identifies the report’s data set.
+report_interval_secs_default                            "300"                       How often to send a reporting update to the VTN.
+telemetry_parameters (baseline_power_kw): r_id          "baseline_power"            (baseline_power) Unique ID of the metric.
+telemetry_parameters (baseline_power_kw): report_type   "baseline"                  (baseline_power) The type of metric being reported.
+telemetry_parameters (baseline_power_kw): reading_type  "Direct Read"               (baseline_power) How the metric was calculated.
+telemetry_parameters (baseline_power_kw): units         "powerReal"                 (baseline_power) The reading's data type.
+telemetry_parameters (baseline_power_kw): method_name   "get_baseline_power"        (baseline_power) The VEN method to use when
+                                                                                    extracting the data for reporting.
+telemetry_parameters (baseline_power_kw): min_frequency 30                          (baseline_power) The metric’s minimum sampling
+                                                                                    frequency.
+telemetry_parameters (baseline_power_kw): max_frequency 60                          (baseline_power) The metric’s maximum sampling
+                                                                                    frequency.
+telemetry_parameters (current_power_kw): r_id           "actual_power"              (current_power) Unique ID of the metric.
+telemetry_parameters (current_power_kw): report_type    "reading"                   (current_power) The type of metric being reported.
+telemetry_parameters (current_power_kw): reading_type   "Direct Read"               (current_power) How the metric was calculated.
+telemetry_parameters (current_power_kw): units          "powerReal"                 (baseline_power) The reading's data type.
+telemetry_parameters (current_power_kw): method_name    "get_current_power"         (current_power) The VEN method to use when
+                                                                                    extracting the data for reporting.
+telemetry_parameters (current_power_kw): min_frequency  30                          (current_power) The metric’s minimum sampling
+                                                                                    frequency.
+telemetry_parameters (current_power_kw): max_frequency  60                          (current_power) The metric’s maximum sampling
+                                                                                    frequency.
+======================================================= =========================== ====================================================
+
+======================================================= =========================== ====================================================
+"telemetry_status" report: parameters                   Example                     Description
+======================================================= =========================== ====================================================
+report_name                                             "TELEMETRY_STATUS"          Friendly name of the report.
+report_name_metadata                                    "METADATA_TELEMETRY_STATUS" Friendly name of the report’s metadata, when sent
+                                                                                    by the VEN’s oadrRegisterReport request.
+report_specifier_id                                     "telemetry_status"          Uniquely identifies the report’s data set.
+report_interval_secs_default                            "300"                       How often to send a reporting update to the VTN.
+telemetry_parameters (Status): r_id                     "Status"                    Unique ID of the metric.
+telemetry_parameters (Status): report_type              "x-resourceStatus"          The type of metric being reported.
+telemetry_parameters (Status): reading_type             "x-notApplicable"           How the metric was calculated.
+telemetry_parameters (Status): units                    ""                          The reading's data type.
+telemetry_parameters (Status): method_name              ""                          The VEN method to use when extracting the data
+                                                                                    for reporting.
+telemetry_parameters (Status): min_frequency            60                          The metric’s minimum sampling frequency.
+telemetry_parameters (Status): max_frequency            120                         The metric’s maximum sampling frequency.
+======================================================= =========================== ====================================================

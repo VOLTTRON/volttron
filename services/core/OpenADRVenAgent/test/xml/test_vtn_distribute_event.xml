@@ -12,23 +12,23 @@
             <oadr:oadrEvent xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110">
                 <ei:eiEvent xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110">
                     <ei:eventDescriptor xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
-                        <ei:eventID>15</ei:eventID>
-                        <oadr:modificationNumber>1</oadr:modificationNumber>
+                        <ei:eventID>4</ei:eventID>
+                        <oadr:modificationNumber>0</oadr:modificationNumber>
                         <oadr:priority>1</oadr:priority>
-                        <oadr:createdDateTime>2017-12-18T12:32:38</oadr:createdDateTime>
-                        <ei:eventStatus>cancelled</ei:eventStatus>
+                        <oadr:createdDateTime>2017-12-01T10:40:12</oadr:createdDateTime>
+                        <ei:eventStatus>far</ei:eventStatus>
                         <oadr:testEvent/>
                     </ei:eventDescriptor>
                     <ei:eiActivePeriod xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
                         <xcal:properties xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110">
                             <xcal:dtstart xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
-                                <oadr:date-time>2017-12-18T18:32:14Z</oadr:date-time>
+                                <oadr:date-time>2017-12-01T18:40:55Z</oadr:date-time>
                             </xcal:dtstart>
                             <xcal:duration xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
-                                <oadr:duration>PT2H58M</oadr:duration>
+                                <oadr:duration>PT23H57M1S</oadr:duration>
                             </xcal:duration>
                             <ei:x-eiNotification xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
-                                <oadr:duration>PT2H58M</oadr:duration>
+                                <oadr:duration>PT23H57M1S</oadr:duration>
                             </ei:x-eiNotification>
                         </xcal:properties>
                     </ei:eiActivePeriod>
@@ -37,10 +37,10 @@
                             <strm:intervals xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110">
                                 <ei:interval xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0" xmlns:strm="urn:ietf:params:xml:ns:icalendar-2.0:stream">
                                     <xcal:dtstart xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
-                                        <oadr:date-time>2017-12-18T18:32:14Z</oadr:date-time>
+                                        <oadr:date-time>2017-12-01T18:40:55Z</oadr:date-time>
                                     </xcal:dtstart>
                                     <xcal:duration xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
-                                        <oadr:duration>PT2H58M</oadr:duration>
+                                        <oadr:duration>PT23H57M1S</oadr:duration>
                                     </xcal:duration>
                                 </ei:interval>
                             </strm:intervals>

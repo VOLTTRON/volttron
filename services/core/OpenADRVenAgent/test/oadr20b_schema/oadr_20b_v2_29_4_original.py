@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #
-# Generated Tue Nov 14 15:31:11 2017 by generateDS.py version 2.28.2.
+# Generated Thu Dec 14 15:50:25 2017 by generateDS.py version 2.29.4.
 # Python 2.7.14 (default, Sep 22 2017, 00:06:07)  [GCC 4.2.1 Compatible Apple LLVM 8.1.0 (clang-802.0.42)]
 #
 # Command line options:
@@ -47,6 +47,18 @@ def parsexml_(infile, parser=None, **kwargs):
             parser = etree_.XMLParser()
     doc = etree_.parse(infile, parser=parser, **kwargs)
     return doc
+
+def parsexmlstring_(instring, parser=None, **kwargs):
+    if parser is None:
+        # Use the lxml ElementTree compatible parser so that, e.g.,
+        #   we ignore comments.
+        try:
+            parser = etree_.ETCompatXMLParser()
+        except AttributeError:
+            # fallback to xml.etree
+            parser = etree_.XMLParser()
+    element = etree_.fromstring(instring, parser=parser, **kwargs)
+    return element
 
 #
 # Namespace prefix definition table (and other attributes, too)
@@ -1193,10 +1205,10 @@ class oadrDistributeEventType(GeneratedsSuper):
             self.eiResponse.export(outfile, level, namespace_='ei:', name_='eiResponse', pretty_print=pretty_print)
         if self.requestID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srequestID>%s</%srequestID>%s' % ('pyld:', self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), 'pyld:', eol_))
+            outfile.write('<pyld:requestID>%s</pyld:requestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), eol_))
         if self.vtnID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svtnID>%s</%svtnID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.vtnID), input_name='vtnID')), 'ei:', eol_))
+            outfile.write('<ei:vtnID>%s</ei:vtnID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.vtnID), input_name='vtnID')), eol_))
         for oadrEvent_ in self.oadrEvent:
             oadrEvent_.export(outfile, level, namespace_, name_='oadrEvent', pretty_print=pretty_print)
     def build(self, node):
@@ -1464,7 +1476,7 @@ class oadrResponseType(GeneratedsSuper):
             self.eiResponse.export(outfile, level, namespace_='ei:', name_='eiResponse', pretty_print=pretty_print)
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), namespace_, eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -1559,13 +1571,13 @@ class oadrCancelOptType(GeneratedsSuper):
             eol_ = ''
         if self.requestID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srequestID>%s</%srequestID>%s' % ('pyld:', self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), 'pyld:', eol_))
+            outfile.write('<pyld:requestID>%s</pyld:requestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), eol_))
         if self.optID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soptID>%s</%soptID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.optID), input_name='optID')), 'ei:', eol_))
+            outfile.write('<ei:optID>%s</ei:optID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.optID), input_name='optID')), eol_))
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), 'ei:', eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -1661,7 +1673,7 @@ class oadrCanceledOptType(GeneratedsSuper):
             self.eiResponse.export(outfile, level, namespace_='ei:', name_='eiResponse', pretty_print=pretty_print)
         if self.optID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soptID>%s</%soptID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.optID), input_name='optID')), namespace_, eol_))
+            outfile.write('<ei:optID>%s</ei:optID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.optID), input_name='optID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -1754,7 +1766,7 @@ class oadrCreatedOptType(GeneratedsSuper):
             self.eiResponse.export(outfile, level, namespace_='ei:', name_='eiResponse', pretty_print=pretty_print)
         if self.optID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soptID>%s</%soptID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.optID), input_name='optID')), 'ei:', eol_))
+            outfile.write('<ei:optID>%s</ei:optID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.optID), input_name='optID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -1859,16 +1871,16 @@ class oadrCancelReportType(GeneratedsSuper):
             eol_ = ''
         if self.requestID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srequestID>%s</%srequestID>%s' % ('pyld:', self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), 'pyld:', eol_))
+            outfile.write('<pyld:requestID>%s</pyld:requestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), eol_))
         for reportRequestID_ in self.reportRequestID:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sreportRequestID>%s</%sreportRequestID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(reportRequestID_), input_name='reportRequestID')), namespace_, eol_))
+            outfile.write('<ei:reportRequestID>%s</ei:reportRequestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(reportRequestID_), input_name='reportRequestID')), eol_))
         if self.reportToFollow is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sreportToFollow>%s</%sreportToFollow>%s' % (namespace_, self.gds_format_boolean(self.reportToFollow, input_name='reportToFollow'), namespace_, eol_))
+            outfile.write('<pyld:reportToFollow>%s</pyld:reportToFollow>%s' % (self.gds_format_boolean(self.reportToFollow, input_name='reportToFollow'), eol_))
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), namespace_, eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -1980,7 +1992,7 @@ class oadrCanceledReportType(GeneratedsSuper):
             self.oadrPendingReports.export(outfile, level, namespace_='oadr:', name_='oadrPendingReports', pretty_print=pretty_print)
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), namespace_, eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -2086,12 +2098,12 @@ class oadrCreateReportType(GeneratedsSuper):
             eol_ = ''
         if self.requestID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srequestID>%s</%srequestID>%s' % ('pyld:', self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), 'pyld:', eol_))
+            outfile.write('<pyld:requestID>%s</pyld:requestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), eol_))
         for oadrReportRequest_ in self.oadrReportRequest:
             oadrReportRequest_.export(outfile, level, namespace_='oadr:', name_='oadrReportRequest', pretty_print=pretty_print)
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), namespace_, eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -2194,7 +2206,7 @@ class oadrCreatedReportType(GeneratedsSuper):
             self.oadrPendingReports.export(outfile, level, namespace_='oadr:', name_='oadrPendingReports', pretty_print=pretty_print)
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), namespace_, eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -2304,15 +2316,15 @@ class oadrRegisterReportType(GeneratedsSuper):
             eol_ = ''
         if self.requestID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srequestID>%s</%srequestID>%s' % ('pyld:', self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), 'pyld:', eol_))
+            outfile.write('<pyld:requestID>%s</pyld:requestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), eol_))
         for oadrReport_ in self.oadrReport:
             oadrReport_.export(outfile, level, namespace_='oadr:', name_='oadrReport', pretty_print=pretty_print)
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), namespace_, eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
         if self.reportRequestID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sreportRequestID>%s</%sreportRequestID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.reportRequestID), input_name='reportRequestID')), namespace_, eol_))
+            outfile.write('<ei:reportRequestID>%s</ei:reportRequestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.reportRequestID), input_name='reportRequestID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -2425,7 +2437,7 @@ class oadrRegisteredReportType(GeneratedsSuper):
             oadrReportRequest_.export(outfile, level, namespace_='oadr:', name_='oadrReportRequest', pretty_print=pretty_print)
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), namespace_, eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -2531,12 +2543,12 @@ class oadrUpdateReportType(GeneratedsSuper):
             eol_ = ''
         if self.requestID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srequestID>%s</%srequestID>%s' % ('pyld:', self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), 'pyld:', eol_))
+            outfile.write('<pyld:requestID>%s</pyld:requestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), eol_))
         for oadrReport_ in self.oadrReport:
             oadrReport_.export(outfile, level, namespace_='oadr:', name_='oadrReport', pretty_print=pretty_print)
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), namespace_, eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -2639,7 +2651,7 @@ class oadrUpdatedReportType(GeneratedsSuper):
             self.oadrCancelReport.export(outfile, level, namespace_='oadr:', name_='oadrCancelReport', pretty_print=pretty_print)
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), namespace_, eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -2739,12 +2751,12 @@ class oadrCancelPartyRegistrationType(GeneratedsSuper):
             eol_ = ''
         if self.requestID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srequestID>%s</%srequestID>%s' % ('pyld:', self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), 'pyld:', eol_))
+            outfile.write('<pyld:requestID>%s</pyld:requestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), eol_))
         if self.registrationID is not None:
             self.registrationID.export(outfile, level, namespace_='ei:', name_='registrationID', pretty_print=pretty_print)
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), namespace_, eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -2847,7 +2859,7 @@ class oadrCanceledPartyRegistrationType(GeneratedsSuper):
             self.registrationID.export(outfile, level, namespace_='ei:', name_='registrationID', pretty_print=pretty_print)
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), namespace_, eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -2975,33 +2987,33 @@ class oadrCreatePartyRegistrationType(GeneratedsSuper):
             eol_ = ''
         if self.requestID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srequestID>%s</%srequestID>%s' % ('pyld:', self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), 'pyld:', eol_))
+            outfile.write('<pyld:requestID>%s</pyld:requestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), eol_))
         if self.registrationID is not None:
             self.registrationID.export(outfile, level, namespace_='ei:', name_='registrationID', pretty_print=pretty_print)
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), namespace_, eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
         if self.oadrProfileName is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrProfileName>%s</%soadrProfileName>%s' % ('oadr:', self.gds_encode(self.gds_format_string(quote_xml(self.oadrProfileName), input_name='oadrProfileName')), 'oadr:', eol_))
+            outfile.write('<oadr:oadrProfileName>%s</oadr:oadrProfileName>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.oadrProfileName), input_name='oadrProfileName')), eol_))
         if self.oadrTransportName is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrTransportName>%s</%soadrTransportName>%s' % ('oadr:', self.gds_encode(self.gds_format_string(quote_xml(self.oadrTransportName), input_name='oadrTransportName')), 'oadr:', eol_))
+            outfile.write('<oadr:oadrTransportName>%s</oadr:oadrTransportName>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.oadrTransportName), input_name='oadrTransportName')), eol_))
         if self.oadrTransportAddress is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrTransportAddress>%s</%soadrTransportAddress>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.oadrTransportAddress), input_name='oadrTransportAddress')), namespace_, eol_))
+            outfile.write('<oadr:oadrTransportAddress>%s</oadr:oadrTransportAddress>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.oadrTransportAddress), input_name='oadrTransportAddress')), eol_))
         if self.oadrReportOnly is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrReportOnly>%s</%soadrReportOnly>%s' % (namespace_, self.gds_format_boolean(self.oadrReportOnly, input_name='oadrReportOnly'), namespace_, eol_))
+            outfile.write('<oadr:oadrReportOnly>%s</oadr:oadrReportOnly>%s' % (self.gds_format_boolean(self.oadrReportOnly, input_name='oadrReportOnly'), eol_))
         if self.oadrXmlSignature is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrXmlSignature>%s</%soadrXmlSignature>%s' % (namespace_, self.gds_format_boolean(self.oadrXmlSignature, input_name='oadrXmlSignature'), namespace_, eol_))
+            outfile.write('<oadr:oadrXmlSignature>%s</oadr:oadrXmlSignature>%s' % (self.gds_format_boolean(self.oadrXmlSignature, input_name='oadrXmlSignature'), eol_))
         if self.oadrVenName is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrVenName>%s</%soadrVenName>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.oadrVenName), input_name='oadrVenName')), namespace_, eol_))
+            outfile.write('<oadr:oadrVenName>%s</oadr:oadrVenName>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.oadrVenName), input_name='oadrVenName')), eol_))
         if self.oadrHttpPullModel is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrHttpPullModel>%s</%soadrHttpPullModel>%s' % (namespace_, self.gds_format_boolean(self.oadrHttpPullModel, input_name='oadrHttpPullModel'), namespace_, eol_))
+            outfile.write('<oadr:oadrHttpPullModel>%s</oadr:oadrHttpPullModel>%s' % (self.gds_format_boolean(self.oadrHttpPullModel, input_name='oadrHttpPullModel'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -3178,10 +3190,10 @@ class oadrCreatedPartyRegistrationType(GeneratedsSuper):
             self.registrationID.export(outfile, level, namespace_='ei:', name_='registrationID', pretty_print=pretty_print)
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), namespace_, eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
         if self.vtnID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svtnID>%s</%svtnID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.vtnID), input_name='vtnID')), 'ei:', eol_))
+            outfile.write('<ei:vtnID>%s</ei:vtnID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.vtnID), input_name='vtnID')), eol_))
         if self.oadrProfiles is not None:
             self.oadrProfiles.export(outfile, level, namespace_='oadr:', name_='oadrProfiles', pretty_print=pretty_print)
         if self.oadrRequestedOadrPollFreq is not None:
@@ -3305,7 +3317,7 @@ class oadrRequestReregistrationType(GeneratedsSuper):
             eol_ = ''
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), 'ei:', eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -3387,7 +3399,7 @@ class oadrQueryRegistrationType(GeneratedsSuper):
             eol_ = ''
         if self.requestID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srequestID>%s</%srequestID>%s' % ('pyld:', self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), 'pyld:', eol_))
+            outfile.write('<pyld:requestID>%s</pyld:requestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -3469,7 +3481,7 @@ class oadrPollType(GeneratedsSuper):
             eol_ = ''
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), 'ei:', eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -3794,10 +3806,10 @@ class oadrInfo(GeneratedsSuper):
             eol_ = ''
         if self.oadrKey is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrKey>%s</%soadrKey>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.oadrKey), input_name='oadrKey')), namespace_, eol_))
+            outfile.write('<oadr:oadrKey>%s</oadr:oadrKey>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.oadrKey), input_name='oadrKey')), eol_))
         if self.oadrValue is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrValue>%s</%soadrValue>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.oadrValue), input_name='oadrValue')), namespace_, eol_))
+            outfile.write('<oadr:oadrValue>%s</oadr:oadrValue>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.oadrValue), input_name='oadrValue')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -3881,7 +3893,7 @@ class oadrPendingReportsType(GeneratedsSuper):
             eol_ = ''
         for reportRequestID_ in self.reportRequestID:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sreportRequestID>%s</%sreportRequestID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(reportRequestID_), input_name='reportRequestID')), namespace_, eol_))
+            outfile.write('<ei:reportRequestID>%s</ei:reportRequestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(reportRequestID_), input_name='reportRequestID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -3960,7 +3972,7 @@ class oadrReportRequestType(GeneratedsSuper):
             eol_ = ''
         if self.reportRequestID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sreportRequestID>%s</%sreportRequestID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.reportRequestID), input_name='reportRequestID')), 'ei:', eol_))
+            outfile.write('<ei:reportRequestID>%s</ei:reportRequestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.reportRequestID), input_name='reportRequestID')), eol_))
         if self.reportSpecifier is not None:
             self.reportSpecifier.export(outfile, level, namespace_='ei:', name_='reportSpecifier', pretty_print=pretty_print)
     def build(self, node):
@@ -4070,22 +4082,22 @@ class oadrReportDescriptionType(GeneratedsSuper):
             eol_ = ''
         if self.rID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srID>%s</%srID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.rID), input_name='rID')), 'ei:', eol_))
+            outfile.write('<ei:rID>%s</ei:rID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.rID), input_name='rID')), eol_))
         if self.reportSubject is not None:
             self.reportSubject.export(outfile, level, namespace_='ei:', name_='reportSubject', pretty_print=pretty_print)
         if self.reportDataSource is not None:
             self.reportDataSource.export(outfile, level, namespace_='ei:', name_='reportDataSource', pretty_print=pretty_print)
         if self.reportType is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sreportType>%s</%sreportType>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.reportType), input_name='reportType')), 'ei:', eol_))
+            outfile.write('<ei:reportType>%s</ei:reportType>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.reportType), input_name='reportType')), eol_))
         if self.itemBase is not None:
-            self.itemBase.export(outfile, level, namespace_, name_='itemBase', pretty_print=pretty_print)
+            self.itemBase.export(outfile, level, namespace_, pretty_print=pretty_print)
         if self.readingType is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sreadingType>%s</%sreadingType>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.readingType), input_name='readingType')), 'ei:', eol_))
+            outfile.write('<ei:readingType>%s</ei:readingType>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.readingType), input_name='readingType')), eol_))
         if self.marketContext is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%smarketContext>%s</%smarketContext>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.marketContext), input_name='marketContext')), namespace_, eol_))
+            outfile.write('<emix:marketContext>%s</emix:marketContext>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.marketContext), input_name='marketContext')), eol_))
         if self.oadrSamplingRate is not None:
             self.oadrSamplingRate.export(outfile, level, namespace_='oadr:', name_='oadrSamplingRate', pretty_print=pretty_print)
     def build(self, node):
@@ -4352,13 +4364,13 @@ class oadrSamplingRateType(GeneratedsSuper):
             eol_ = ''
         if self.oadrMinPeriod is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrMinPeriod>%s</%soadrMinPeriod>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.oadrMinPeriod), input_name='oadrMinPeriod')), namespace_, eol_))
+            outfile.write('<oadr:oadrMinPeriod>%s</oadr:oadrMinPeriod>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.oadrMinPeriod), input_name='oadrMinPeriod')), eol_))
         if self.oadrMaxPeriod is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrMaxPeriod>%s</%soadrMaxPeriod>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.oadrMaxPeriod), input_name='oadrMaxPeriod')), namespace_, eol_))
+            outfile.write('<oadr:oadrMaxPeriod>%s</oadr:oadrMaxPeriod>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.oadrMaxPeriod), input_name='oadrMaxPeriod')), eol_))
         if self.oadrOnChange is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrOnChange>%s</%soadrOnChange>%s' % (namespace_, self.gds_format_boolean(self.oadrOnChange, input_name='oadrOnChange'), namespace_, eol_))
+            outfile.write('<oadr:oadrOnChange>%s</oadr:oadrOnChange>%s' % (self.gds_format_boolean(self.oadrOnChange, input_name='oadrOnChange'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -4569,16 +4581,16 @@ class oadrLoadControlStateTypeType(GeneratedsSuper):
             eol_ = ''
         if self.oadrMin is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrMin>%s</%soadrMin>%s' % (namespace_, self.gds_format_float(self.oadrMin, input_name='oadrMin'), namespace_, eol_))
+            outfile.write('<oadr:oadrMin>%s</oadr:oadrMin>%s' % (self.gds_format_float(self.oadrMin, input_name='oadrMin'), eol_))
         if self.oadrMax is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrMax>%s</%soadrMax>%s' % (namespace_, self.gds_format_float(self.oadrMax, input_name='oadrMax'), namespace_, eol_))
+            outfile.write('<oadr:oadrMax>%s</oadr:oadrMax>%s' % (self.gds_format_float(self.oadrMax, input_name='oadrMax'), eol_))
         if self.oadrCurrent is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrCurrent>%s</%soadrCurrent>%s' % (namespace_, self.gds_format_float(self.oadrCurrent, input_name='oadrCurrent'), namespace_, eol_))
+            outfile.write('<oadr:oadrCurrent>%s</oadr:oadrCurrent>%s' % (self.gds_format_float(self.oadrCurrent, input_name='oadrCurrent'), eol_))
         if self.oadrNormal is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrNormal>%s</%soadrNormal>%s' % (namespace_, self.gds_format_float(self.oadrNormal, input_name='oadrNormal'), namespace_, eol_))
+            outfile.write('<oadr:oadrNormal>%s</oadr:oadrNormal>%s' % (self.gds_format_float(self.oadrNormal, input_name='oadrNormal'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -4658,8 +4670,7 @@ class intervals(GeneratedsSuper):
             return True
         else:
             return False
-
-    def export(self, outfile, level, namespace_='oadr:', name_='intervals', namespacedef_='xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:strm="urn:ietf:params:xml:ns:icalendar-2.0:stream"', pretty_print=True):
+    def export(self, outfile, level, namespace_='oadr:', name_='intervals', namespacedef_='xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" ', pretty_print=True):
         imported_ns_def_ = GenerateDSNamespaceDefs_.get('intervals')
         if imported_ns_def_ is not None:
             namespacedef_ = imported_ns_def_
@@ -4954,7 +4965,7 @@ class DurationPropType(GeneratedsSuper):
             eol_ = ''
         if self.duration is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sduration>%s</%sduration>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.duration), input_name='duration')), namespace_, eol_))
+            outfile.write('<oadr:duration>%s</oadr:duration>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.duration), input_name='duration')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -5035,7 +5046,7 @@ class dtstart(GeneratedsSuper):
             eol_ = ''
         if self.date_time is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sdate-time>%s</%sdate-time>%s' % (namespace_, self.gds_format_datetime(self.date_time, input_name='date-time'), namespace_, eol_))
+            outfile.write('<xcal:date-time>%s</xcal:date-time>%s' % (self.gds_format_datetime(self.date_time, input_name='date-time'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -5303,7 +5314,7 @@ class dtend(GeneratedsSuper):
             eol_ = ''
         if self.date_time is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sdate-time>%s</%sdate-time>%s' % (namespace_, self.gds_format_datetime(self.date_time, input_name='date-time'), namespace_, eol_))
+            outfile.write('<xcal:date-time>%s</xcal:date-time>%s' % (self.gds_format_datetime(self.date_time, input_name='date-time'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -5686,10 +5697,10 @@ class QualifiedEventIDType(GeneratedsSuper):
             eol_ = ''
         if self.eventID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%seventID>%s</%seventID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.eventID), input_name='eventID')), 'ei:', eol_))
+            outfile.write('<ei:eventID>%s</ei:eventID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.eventID), input_name='eventID')), eol_))
         if self.modificationNumber is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%smodificationNumber>%s</%smodificationNumber>%s' % (namespace_, self.gds_format_integer(self.modificationNumber, input_name='modificationNumber'), namespace_, eol_))
+            outfile.write('<ei:modificationNumber>%s</ei:modificationNumber>%s' % (self.gds_format_integer(self.modificationNumber, input_name='modificationNumber'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -5718,8 +5729,7 @@ class QualifiedEventIDType(GeneratedsSuper):
 class IntervalType(GeneratedsSuper):
     subclass = None
     superclass = None
-    # def __init__(self, dtstart=None, duration=None, uid=None, streamPayloadBase=None):
-    def __init__(self, dtstart=None, duration=None, uid=None, streamPayloadBase=None, oadrReportPayload=None):
+    def __init__(self, dtstart=None, duration=None, uid=None, streamPayloadBase=None):
         self.original_tagname_ = None
         self.dtstart = dtstart
         self.duration = duration
@@ -5728,10 +5738,6 @@ class IntervalType(GeneratedsSuper):
             self.streamPayloadBase = []
         else:
             self.streamPayloadBase = streamPayloadBase
-        if oadrReportPayload is None:
-            self.oadrReportPayload = []
-        else:
-            self.oadrReportPayload = oadrReportPayload
     def factory(*args_, **kwargs_):
         if CurrentSubclassModule_ is not None:
             subclass = getSubclassFromModule_(
@@ -5754,17 +5760,11 @@ class IntervalType(GeneratedsSuper):
     def add_streamPayloadBase(self, value): self.streamPayloadBase.append(value)
     def insert_streamPayloadBase_at(self, index, value): self.streamPayloadBase.insert(index, value)
     def replace_streamPayloadBase_at(self, index, value): self.streamPayloadBase[index] = value
-    def get_oadrReportPayload(self): return self.oadrReportPayload
-    def set_oadrReportPayload(self, oadrReportPayload): self.oadrReportPayload = oadrReportPayload
-    def add_oadrReportPayload(self, value): self.oadrReportPayload.append(value)
-    def insert_oadrReportPayload_at(self, index, value): self.oadrReportPayload.insert(index, value)
-    def replace_oadrReportPayload_at(self, index, value): self.oadrReportPayload[index] = value
     def hasContent_(self):
         if (
             self.dtstart is not None or
             self.duration is not None or
             self.uid is not None or
-            self.oadrReportPayload is not None or
             self.streamPayloadBase
         ):
             return True
@@ -5804,12 +5804,9 @@ class IntervalType(GeneratedsSuper):
             self.duration.export(outfile, level, namespace_='xcal:', name_='duration', pretty_print=pretty_print)
         if self.uid is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%suid>%s</%suid>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.uid), input_name='uid')), namespace_, eol_))
+            outfile.write('<xcal:uid>%s</xcal:uid>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.uid), input_name='uid')), eol_))
         for streamPayloadBase_ in self.streamPayloadBase:
-            streamPayloadBase_.export(outfile, level, namespace_, name_='streamPayloadBase', pretty_print=pretty_print)
-        for oadrReportPayload_ in self.oadrReportPayload:
-            oadrReportPayload_.export(outfile, level, namespace_, name_='oadrReportPayload', pretty_print=pretty_print)
-
+            streamPayloadBase_.export(outfile, level, namespace_, pretty_print=pretty_print)
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -5863,25 +5860,6 @@ class IntervalType(GeneratedsSuper):
                     'Class not implemented for <streamPayloadBase> element')
             self.streamPayloadBase.append(obj_)
             obj_.original_tagname_ = 'streamPayloadBase'
-        elif nodeName_ == 'oadrReportPayload':
-            type_name_ = child_.attrib.get(
-                '{http://www.w3.org/2001/XMLSchema-instance}type')
-            if type_name_ is None:
-                type_name_ = child_.attrib.get('type')
-            if type_name_ is not None:
-                type_names_ = type_name_.split(':')
-                if len(type_names_) == 1:
-                    type_name_ = type_names_[0]
-                else:
-                    type_name_ = type_names_[1]
-                class_ = globals()[type_name_]
-                obj_ = class_.factory()
-                obj_.build(child_)
-            else:
-                raise NotImplementedError(
-                    'Class not implemented for <oadrReportPayload> element')
-            self.oadrReportPayload.append(obj_)
-            obj_.original_tagname_ = 'oadrReportPayload'
         elif nodeName_ == 'oadrGBPayload':
             obj_ = oadrGBStreamPayloadBase.factory()
             obj_.build(child_)
@@ -5890,8 +5868,7 @@ class IntervalType(GeneratedsSuper):
         elif nodeName_ == 'oadrReportPayload':
             obj_ = oadrReportPayloadType.factory()
             obj_.build(child_)
-            self.oadrReportPayload.append(obj_)
-            # self.streamPayloadBase.append(obj_)
+            self.streamPayloadBase.append(obj_)
             obj_.original_tagname_ = 'oadrReportPayload'
         elif nodeName_ == 'signalPayload':
             obj_ = signalPayloadType.factory()
@@ -6076,8 +6053,7 @@ class PayloadFloatType(PayloadBaseType):
             return True
         else:
             return False
-    # def export(self, outfile, level, namespace_='oadr:', name_='PayloadFloatType', namespacedef_='xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07"', pretty_print=True):
-    def export(self, outfile, level, namespace_='ei:', name_='PayloadFloatType', namespacedef_='xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110"', pretty_print=True):
+    def export(self, outfile, level, namespace_='oadr:', name_='PayloadFloatType', namespacedef_='xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07"', pretty_print=True):
         imported_ns_def_ = GenerateDSNamespaceDefs_.get('PayloadFloatType')
         if imported_ns_def_ is not None:
             namespacedef_ = imported_ns_def_
@@ -6093,17 +6069,14 @@ class PayloadFloatType(PayloadBaseType):
         self.exportAttributes(outfile, level, already_processed, namespace_, name_='PayloadFloatType')
         if self.hasContent_():
             outfile.write('>%s' % (eol_, ))
-            # self.exportChildren(outfile, level + 1, namespace_='oadr:', name_='PayloadFloatType', pretty_print=pretty_print)
-            self.exportChildren(outfile, level + 1, namespace_='ei:', name_='PayloadFloatType', pretty_print=pretty_print)
+            self.exportChildren(outfile, level + 1, namespace_='oadr:', name_='PayloadFloatType', pretty_print=pretty_print)
             showIndent(outfile, level, pretty_print)
             outfile.write('</%s%s>%s' % (namespace_, name_, eol_))
         else:
             outfile.write('/>%s' % (eol_, ))
-    # def exportAttributes(self, outfile, level, already_processed, namespace_='oadr:', name_='PayloadFloatType'):
-    def exportAttributes(self, outfile, level, already_processed, namespace_='ei:', name_='PayloadFloatType'):
+    def exportAttributes(self, outfile, level, already_processed, namespace_='oadr:', name_='PayloadFloatType'):
         super(PayloadFloatType, self).exportAttributes(outfile, level, already_processed, namespace_, name_='PayloadFloatType')
-    # def exportChildren(self, outfile, level, namespace_='oadr:', name_='PayloadFloatType', fromsubclass_=False, pretty_print=True):
-    def exportChildren(self, outfile, level, namespace_='ei:', name_='PayloadFloatType', fromsubclass_=False, pretty_print=True):
+    def exportChildren(self, outfile, level, namespace_='oadr:', name_='PayloadFloatType', fromsubclass_=False, pretty_print=True):
         super(PayloadFloatType, self).exportChildren(outfile, level, namespace_, name_, True, pretty_print=pretty_print)
         if pretty_print:
             eol_ = '\n'
@@ -6111,7 +6084,7 @@ class PayloadFloatType(PayloadBaseType):
             eol_ = ''
         if self.value is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svalue>%s</%svalue>%s' % (namespace_, self.gds_format_float(self.value, input_name='value'), namespace_, eol_))
+            outfile.write('<oadr:value>%s</oadr:value>%s' % (self.gds_format_float(self.value, input_name='value'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -6198,13 +6171,13 @@ class EiResponseType(GeneratedsSuper):
             eol_ = ''
         if self.responseCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sresponseCode>%s</%sresponseCode>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.responseCode), input_name='responseCode')), 'ei:', eol_))
+            outfile.write('<ei:responseCode>%s</ei:responseCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.responseCode), input_name='responseCode')), eol_))
         if self.responseDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sresponseDescription>%s</%sresponseDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.responseDescription), input_name='responseDescription')), namespace_, eol_))
+            outfile.write('<ei:responseDescription>%s</ei:responseDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.responseDescription), input_name='responseDescription')), eol_))
         if self.requestID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srequestID>%s</%srequestID>%s' % ('pyld:', self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), 'pyld:', eol_))
+            outfile.write('<pyld:requestID>%s</pyld:requestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -6693,33 +6666,33 @@ class eventDescriptorType(GeneratedsSuper):
             eol_ = ''
         if self.eventID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%seventID>%s</%seventID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.eventID), input_name='eventID')), 'ei:', eol_))
+            outfile.write('<ei:eventID>%s</ei:eventID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.eventID), input_name='eventID')), eol_))
         if self.modificationNumber is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%smodificationNumber>%s</%smodificationNumber>%s' % (namespace_, self.gds_format_integer(self.modificationNumber, input_name='modificationNumber'), namespace_, eol_))
+            outfile.write('<ei:modificationNumber>%s</ei:modificationNumber>%s' % (self.gds_format_integer(self.modificationNumber, input_name='modificationNumber'), eol_))
         if self.modificationDateTime is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%smodificationDateTime>%s</%smodificationDateTime>%s' % (namespace_, self.gds_format_datetime(self.modificationDateTime, input_name='modificationDateTime'), namespace_, eol_))
+            outfile.write('<oadr:modificationDateTime>%s</oadr:modificationDateTime>%s' % (self.gds_format_datetime(self.modificationDateTime, input_name='modificationDateTime'), eol_))
         if self.modificationReason is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%smodificationReason>%s</%smodificationReason>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.modificationReason), input_name='modificationReason')), namespace_, eol_))
+            outfile.write('<oadr:modificationReason>%s</oadr:modificationReason>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.modificationReason), input_name='modificationReason')), eol_))
         if self.priority is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%spriority>%s</%spriority>%s' % (namespace_, self.gds_format_integer(self.priority, input_name='priority'), namespace_, eol_))
+            outfile.write('<oadr:priority>%s</oadr:priority>%s' % (self.gds_format_integer(self.priority, input_name='priority'), eol_))
         if self.eiMarketContext is not None:
             self.eiMarketContext.export(outfile, level, namespace_, name_='eiMarketContext', pretty_print=pretty_print)
         if self.createdDateTime is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%screatedDateTime>%s</%screatedDateTime>%s' % (namespace_, self.gds_format_datetime(self.createdDateTime, input_name='createdDateTime'), namespace_, eol_))
+            outfile.write('<ei:createdDateTime>%s</ei:createdDateTime>%s' % (self.gds_format_datetime(self.createdDateTime, input_name='createdDateTime'), eol_))
         if self.eventStatus is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%seventStatus>%s</%seventStatus>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.eventStatus), input_name='eventStatus')), 'ei:', eol_))
+            outfile.write('<ei:eventStatus>%s</ei:eventStatus>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.eventStatus), input_name='eventStatus')), eol_))
         if self.testEvent is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%stestEvent>%s</%stestEvent>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.testEvent), input_name='testEvent')), namespace_, eol_))
+            outfile.write('<oadr:testEvent>%s</oadr:testEvent>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.testEvent), input_name='testEvent')), eol_))
         if self.vtnComment is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svtnComment>%s</%svtnComment>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.vtnComment), input_name='vtnComment')), namespace_, eol_))
+            outfile.write('<oadr:vtnComment>%s</oadr:vtnComment>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.vtnComment), input_name='vtnComment')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -6846,7 +6819,7 @@ class signalPayloadType(StreamPayloadBaseType):
         else:
             eol_ = ''
         if self.payloadBase is not None:
-            self.payloadBase.export(outfile, level, namespace_, name_='payloadBase', pretty_print=pretty_print)
+            self.payloadBase.export(outfile, level, namespace_, pretty_print=pretty_print)
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -7088,19 +7061,19 @@ class EiTargetType(GeneratedsSuper):
             transportInterface_.export(outfile, level, namespace_='power:', name_='transportInterface', pretty_print=pretty_print)
         for groupID_ in self.groupID:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sgroupID>%s</%sgroupID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(groupID_), input_name='groupID')), namespace_, eol_))
+            outfile.write('<ei:groupID>%s</ei:groupID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(groupID_), input_name='groupID')), eol_))
         for groupName_ in self.groupName:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sgroupName>%s</%sgroupName>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(groupName_), input_name='groupName')), namespace_, eol_))
+            outfile.write('<ei:groupName>%s</ei:groupName>%s' % (self.gds_encode(self.gds_format_string(quote_xml(groupName_), input_name='groupName')), eol_))
         for resourceID_ in self.resourceID:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sresourceID>%s</%sresourceID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(resourceID_), input_name='resourceID')), namespace_, eol_))
+            outfile.write('<ei:resourceID>%s</ei:resourceID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(resourceID_), input_name='resourceID')), eol_))
         for venID_ in self.venID:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(venID_), input_name='venID')), namespace_, eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(venID_), input_name='venID')), eol_))
         for partyID_ in self.partyID:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%spartyID>%s</%spartyID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(partyID_), input_name='partyID')), namespace_, eol_))
+            outfile.write('<ei:partyID>%s</ei:partyID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(partyID_), input_name='partyID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -7258,15 +7231,15 @@ class eiEventSignalType(GeneratedsSuper):
             self.eiTarget.export(outfile, level, namespace_='ei:', name_='eiTarget', pretty_print=pretty_print)
         if self.signalName is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssignalName>%s</%ssignalName>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.signalName), input_name='signalName')), 'ei:', eol_))
+            outfile.write('<ei:signalName>%s</ei:signalName>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.signalName), input_name='signalName')), eol_))
         if self.signalType is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssignalType>%s</%ssignalType>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.signalType), input_name='signalType')), 'ei:', eol_))
+            outfile.write('<ei:signalType>%s</ei:signalType>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.signalType), input_name='signalType')), eol_))
         if self.signalID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssignalID>%s</%ssignalID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.signalID), input_name='signalID')), namespace_, eol_))
+            outfile.write('<oadr:signalID>%s</oadr:signalID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.signalID), input_name='signalID')), eol_))
         if self.itemBase is not None:
-            self.itemBase.export(outfile, level, namespace_, name_='itemBase', pretty_print=pretty_print)
+            self.itemBase.export(outfile, level, namespace_, pretty_print=pretty_print)
         if self.currentValue is not None:
             self.currentValue.export(outfile, level, namespace_='ei:', name_='currentValue', pretty_print=pretty_print)
     def build(self, node):
@@ -7643,15 +7616,15 @@ class eiEventBaselineType(GeneratedsSuper):
             self.intervals.export(outfile, level, namespace_='strm:', name_='intervals', pretty_print=pretty_print)
         if self.baselineID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sbaselineID>%s</%sbaselineID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.baselineID), input_name='baselineID')), namespace_, eol_))
+            outfile.write('<oadr:baselineID>%s</oadr:baselineID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.baselineID), input_name='baselineID')), eol_))
         for resourceID_ in self.resourceID:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sresourceID>%s</%sresourceID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(resourceID_), input_name='resourceID')), namespace_, eol_))
+            outfile.write('<ei:resourceID>%s</ei:resourceID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(resourceID_), input_name='resourceID')), eol_))
         if self.baselineName is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sbaselineName>%s</%sbaselineName>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.baselineName), input_name='baselineName')), namespace_, eol_))
+            outfile.write('<oadr:baselineName>%s</oadr:baselineName>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.baselineName), input_name='baselineName')), eol_))
         if self.itemBase is not None:
-            self.itemBase.export(outfile, level, namespace_, name_='itemBase', pretty_print=pretty_print)
+            self.itemBase.export(outfile, level, namespace_, pretty_print=pretty_print)
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -7938,24 +7911,24 @@ class EiOptType(GeneratedsSuper):
             eol_ = ''
         if self.optID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soptID>%s</%soptID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.optID), input_name='optID')), 'ei:', eol_))
+            outfile.write('<ei:optID>%s</ei:optID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.optID), input_name='optID')), eol_))
         if self.optType is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soptType>%s</%soptType>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.optType), input_name='optType')), 'ei:', eol_))
+            outfile.write('<ei:optType>%s</ei:optType>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.optType), input_name='optType')), eol_))
         if self.optReason is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soptReason>%s</%soptReason>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.optReason), input_name='optReason')), 'ei:', eol_))
+            outfile.write('<ei:optReason>%s</ei:optReason>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.optReason), input_name='optReason')), eol_))
         if self.marketContext is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%smarketContext>%s</%smarketContext>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.marketContext), input_name='marketContext')), namespace_, eol_))
+            outfile.write('<emix:marketContext>%s</emix:marketContext>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.marketContext), input_name='marketContext')), eol_))
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), 'ei:', eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
         if self.vavailability is not None:
             self.vavailability.export(outfile, level, namespace_='xcal:', name_='vavailability', pretty_print=pretty_print)
         if self.createdDateTime is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%screatedDateTime>%s</%screatedDateTime>%s' % (namespace_, self.gds_format_datetime(self.createdDateTime, input_name='createdDateTime'), namespace_, eol_))
+            outfile.write('<ei:createdDateTime>%s</ei:createdDateTime>%s' % (self.gds_format_datetime(self.createdDateTime, input_name='createdDateTime'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -8013,9 +7986,7 @@ class ReportPayloadType(StreamPayloadBaseType):
     """Report Payload for use in Reports, snaps, and projections."""
     subclass = None
     superclass = StreamPayloadBaseType
-    # def __init__(self, rID=None, confidence=None, accuracy=None, payloadBase=None, extensiontype_=None):
-    def __init__(self, rID=None, confidence=None, accuracy=None, payloadBase=None, extensiontype_=None,
-                 payloadFloat=None, oadrPayloadResourceStatus=None):
+    def __init__(self, rID=None, confidence=None, accuracy=None, payloadBase=None, extensiontype_=None):
         self.original_tagname_ = None
         super(ReportPayloadType, self).__init__(extensiontype_, )
         self.rID = rID
@@ -8023,8 +7994,6 @@ class ReportPayloadType(StreamPayloadBaseType):
         self.accuracy = accuracy
         self.payloadBase = payloadBase
         self.extensiontype_ = extensiontype_
-        self.payloadFloat = payloadFloat
-        self.oadrPayloadResourceStatus = oadrPayloadResourceStatus
     def factory(*args_, **kwargs_):
         if CurrentSubclassModule_ is not None:
             subclass = getSubclassFromModule_(
@@ -8044,10 +8013,6 @@ class ReportPayloadType(StreamPayloadBaseType):
     def set_accuracy(self, accuracy): self.accuracy = accuracy
     def get_payloadBase(self): return self.payloadBase
     def set_payloadBase(self, payloadBase): self.payloadBase = payloadBase
-    def get_payloadFloat(self): return self.payloadFloat
-    def set_payloadFloat(self, payloadFloat): self.payloadFloat = payloadFloat
-    def get_oadrPayloadResourceStatus(self): return self.oadrPayloadResourceStatus
-    def set_oadrPayloadResourceStatus(self, oadrPayloadResourceStatus): self.oadrPayloadResourceStatus = oadrPayloadResourceStatus
     def get_extensiontype_(self): return self.extensiontype_
     def set_extensiontype_(self, extensiontype_): self.extensiontype_ = extensiontype_
     def hasContent_(self):
@@ -8056,8 +8021,6 @@ class ReportPayloadType(StreamPayloadBaseType):
             self.confidence is not None or
             self.accuracy is not None or
             self.payloadBase is not None or
-            self.payloadFloat is not None or
-            self.oadrPayloadResourceStatus is not None or
             super(ReportPayloadType, self).hasContent_()
         ):
             return True
@@ -8098,19 +8061,15 @@ class ReportPayloadType(StreamPayloadBaseType):
             eol_ = ''
         if self.rID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srID>%s</%srID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.rID), input_name='rID')), 'ei:', eol_))
+            outfile.write('<ei:rID>%s</ei:rID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.rID), input_name='rID')), eol_))
         if self.confidence is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sconfidence>%s</%sconfidence>%s' % (namespace_, self.gds_format_integer(self.confidence, input_name='confidence'), namespace_, eol_))
+            outfile.write('<ei:confidence>%s</ei:confidence>%s' % (self.gds_format_integer(self.confidence, input_name='confidence'), eol_))
         if self.accuracy is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%saccuracy>%s</%saccuracy>%s' % (namespace_, self.gds_format_float(self.accuracy, input_name='accuracy'), namespace_, eol_))
+            outfile.write('<ei:accuracy>%s</ei:accuracy>%s' % (self.gds_format_float(self.accuracy, input_name='accuracy'), eol_))
         if self.payloadBase is not None:
-            self.payloadBase.export(outfile, level, namespace_, name_='payloadBase', pretty_print=pretty_print)
-        if self.payloadFloat is not None:
-            self.payloadFloat.export(outfile, level, 'ei:', name_='payloadFloat', pretty_print=pretty_print)
-        if self.oadrPayloadResourceStatus is not None:
-            self.oadrPayloadResourceStatus.export(outfile, level, 'ei:', name_='oadrPayloadResourceStatus', pretty_print=pretty_print)
+            self.payloadBase.export(outfile, level, namespace_, pretty_print=pretty_print)
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -8164,30 +8123,16 @@ class ReportPayloadType(StreamPayloadBaseType):
                     'Class not implemented for <payloadBase> element')
             self.payloadBase = obj_
             obj_.original_tagname_ = 'payloadBase'
-        elif nodeName_ == 'payloadFloat':
-            type_name_ = child_.attrib.get(
-                '{http://www.w3.org/2001/XMLSchema-instance}type')
-            if type_name_ is None:
-                type_name_ = child_.attrib.get('type')
-            if type_name_ is not None:
-                type_names_ = type_name_.split(':')
-                if len(type_names_) == 1:
-                    type_name_ = type_names_[0]
-                else:
-                    type_name_ = type_names_[1]
-                class_ = globals()[type_name_]
-                obj_ = class_.factory()
-                obj_.build(child_)
-            else:
-                raise NotImplementedError(
-                    'Class not implemented for <payloadFloat> element')
-            self.payloadFloat = obj_
-            obj_.original_tagname_ = 'payloadFloat'
         elif nodeName_ == 'oadrPayloadResourceStatus':
             obj_ = oadrPayloadResourceStatusType.factory()
             obj_.build(child_)
             self.payloadBase = obj_
             obj_.original_tagname_ = 'oadrPayloadResourceStatus'
+        elif nodeName_ == 'payloadFloat':
+            obj_ = PayloadFloatType.factory()
+            obj_.build(child_)
+            self.payloadBase = obj_
+            obj_.original_tagname_ = 'payloadFloat'
         super(ReportPayloadType, self).buildChildren(child_, node, nodeName_, True)
 # end class ReportPayloadType
 
@@ -8271,7 +8216,7 @@ class ReportSpecifierType(GeneratedsSuper):
             eol_ = ''
         if self.reportSpecifierID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sreportSpecifierID>%s</%sreportSpecifierID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.reportSpecifierID), input_name='reportSpecifierID')), 'ei:', eol_))
+            outfile.write('<ei:reportSpecifierID>%s</ei:reportSpecifierID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.reportSpecifierID), input_name='reportSpecifierID')), eol_))
         if self.granularity is not None:
             self.granularity.export(outfile, level, namespace_='xcal:', name_='granularity', pretty_print=pretty_print)
         if self.reportBackDuration is not None:
@@ -8382,12 +8327,12 @@ class SpecifierPayloadType(GeneratedsSuper):
             eol_ = ''
         if self.rID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srID>%s</%srID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.rID), input_name='rID')), 'ei:', eol_))
+            outfile.write('<ei:rID>%s</ei:rID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.rID), input_name='rID')), eol_))
         if self.itemBase is not None:
-            self.itemBase.export(outfile, level, namespace_, name_='itemBase', pretty_print=pretty_print)
+            self.itemBase.export(outfile, level, namespace_, pretty_print=pretty_print)
         if self.readingType is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sreadingType>%s</%sreadingType>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.readingType), input_name='readingType')), 'ei:', eol_))
+            outfile.write('<ei:readingType>%s</ei:readingType>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.readingType), input_name='readingType')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -8741,7 +8686,7 @@ class EndDeviceAssetType(GeneratedsSuper):
             eol_ = ''
         if self.mrid is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%smrid>%s</%smrid>%s' % ('power:', self.gds_encode(self.gds_format_string(quote_xml(self.mrid), input_name='mrid')), 'power:', eol_))
+            outfile.write('<power:mrid>%s</power:mrid>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.mrid), input_name='mrid')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -8817,7 +8762,7 @@ class MeterAssetType(GeneratedsSuper):
             eol_ = ''
         if self.mrid is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%smrid>%s</%smrid>%s' % ('power:', self.gds_encode(self.gds_format_string(quote_xml(self.mrid), input_name='mrid')), 'power:', eol_))
+            outfile.write('<power:mrid>%s</power:mrid>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.mrid), input_name='mrid')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -8894,7 +8839,7 @@ class PnodeType(GeneratedsSuper):
             eol_ = ''
         if self.node is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%snode>%s</%snode>%s' % ('power:', self.gds_encode(self.gds_format_string(quote_xml(self.node), input_name='node')), 'power:', eol_))
+            outfile.write('<power:node>%s</power:node>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.node), input_name='node')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -8973,7 +8918,7 @@ class AggregatedPnodeType(GeneratedsSuper):
             eol_ = ''
         if self.node is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%snode>%s</%snode>%s' % ('power:', self.gds_encode(self.gds_format_string(quote_xml(self.node), input_name='node')), 'power:', eol_))
+            outfile.write('<power:node>%s</power:node>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.node), input_name='node')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -9131,7 +9076,7 @@ class ServiceDeliveryPointType(GeneratedsSuper):
             eol_ = ''
         if self.node is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%snode>%s</%snode>%s' % ('power:', self.gds_encode(self.gds_format_string(quote_xml(self.node), input_name='node')), 'power:', eol_))
+            outfile.write('<power:node>%s</power:node>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.node), input_name='node')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -9217,10 +9162,10 @@ class TransportInterfaceType(GeneratedsSuper):
             eol_ = ''
         if self.pointOfReceipt is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%spointOfReceipt>%s</%spointOfReceipt>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.pointOfReceipt), input_name='pointOfReceipt')), namespace_, eol_))
+            outfile.write('<oadr:pointOfReceipt>%s</oadr:pointOfReceipt>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.pointOfReceipt), input_name='pointOfReceipt')), eol_))
         if self.pointOfDelivery is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%spointOfDelivery>%s</%spointOfDelivery>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.pointOfDelivery), input_name='pointOfDelivery')), namespace_, eol_))
+            outfile.write('<oadr:pointOfDelivery>%s</oadr:pointOfDelivery>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.pointOfDelivery), input_name='pointOfDelivery')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -9311,13 +9256,13 @@ class EnergyApparentType(GeneratedsSuper):
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemDescription>%s</%sitemDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), namespace_, eol_))
+            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemUnits>%s</%sitemUnits>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), namespace_, eol_))
+            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.siScaleCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssiScaleCode>%s</%ssiScaleCode>%s' % ('scale:', self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), 'scale:', eol_))
+            outfile.write('<scale:siScaleCode>%s</scale:siScaleCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -9408,13 +9353,13 @@ class EnergyReactiveType(GeneratedsSuper):
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemDescription>%s</%sitemDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), namespace_, eol_))
+            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemUnits>%s</%sitemUnits>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), namespace_, eol_))
+            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.siScaleCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssiScaleCode>%s</%ssiScaleCode>%s' % ('scale:', self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), 'scale:', eol_))
+            outfile.write('<scale:siScaleCode>%s</scale:siScaleCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -9505,13 +9450,13 @@ class EnergyRealType(GeneratedsSuper):
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemDescription>%s</%sitemDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), namespace_, eol_))
+            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemUnits>%s</%sitemUnits>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), namespace_, eol_))
+            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.siScaleCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssiScaleCode>%s</%ssiScaleCode>%s' % ('scale:', self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), 'scale:', eol_))
+            outfile.write('<scale:siScaleCode>%s</scale:siScaleCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -9606,13 +9551,13 @@ class PowerApparentType(GeneratedsSuper):
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemDescription>%s</%sitemDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), namespace_, eol_))
+            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemUnits>%s</%sitemUnits>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), namespace_, eol_))
+            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.siScaleCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssiScaleCode>%s</%ssiScaleCode>%s' % ('scale:', self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), 'scale:', eol_))
+            outfile.write('<scale:siScaleCode>%s</scale:siScaleCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), eol_))
         if self.powerAttributes is not None:
             self.powerAttributes.export(outfile, level, namespace_='power:', name_='powerAttributes', pretty_print=pretty_print)
     def build(self, node):
@@ -9714,13 +9659,13 @@ class PowerReactiveType(GeneratedsSuper):
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemDescription>%s</%sitemDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), namespace_, eol_))
+            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemUnits>%s</%sitemUnits>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), namespace_, eol_))
+            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.siScaleCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssiScaleCode>%s</%ssiScaleCode>%s' % ('scale:', self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), 'scale:', eol_))
+            outfile.write('<scale:siScaleCode>%s</scale:siScaleCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), eol_))
         if self.powerAttributes is not None:
             self.powerAttributes.export(outfile, level, namespace_='power:', name_='powerAttributes', pretty_print=pretty_print)
     def build(self, node):
@@ -9835,13 +9780,13 @@ class PowerRealType(GeneratedsSuper):
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemDescription>%s</%sitemDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), namespace_, eol_))
+            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemUnits>%s</%sitemUnits>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), namespace_, eol_))
+            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.siScaleCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssiScaleCode>%s</%ssiScaleCode>%s' % ('scale:', self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), 'scale:', eol_))
+            outfile.write('<scale:siScaleCode>%s</scale:siScaleCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), eol_))
         if self.powerAttributes is not None:
             self.powerAttributes.export(outfile, level, namespace_='power:', name_='powerAttributes', pretty_print=pretty_print)
     def build(self, node):
@@ -9944,13 +9889,13 @@ class PowerAttributesType(GeneratedsSuper):
             eol_ = ''
         if self.hertz is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%shertz>%s</%shertz>%s' % (namespace_, self.gds_format_float(self.hertz, input_name='hertz'), namespace_, eol_))
+            outfile.write('<oadr:hertz>%s</oadr:hertz>%s' % (self.gds_format_float(self.hertz, input_name='hertz'), eol_))
         if self.voltage is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svoltage>%s</%svoltage>%s' % (namespace_, self.gds_format_float(self.voltage, input_name='voltage'), namespace_, eol_))
+            outfile.write('<oadr:voltage>%s</oadr:voltage>%s' % (self.gds_format_float(self.voltage, input_name='voltage'), eol_))
         if self.ac is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sac>%s</%sac>%s' % (namespace_, self.gds_format_boolean(self.ac, input_name='ac'), namespace_, eol_))
+            outfile.write('<oadr:ac>%s</oadr:ac>%s' % (self.gds_format_boolean(self.ac, input_name='ac'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -10286,13 +10231,13 @@ class eiRequestEvent(GeneratedsSuper):
             eol_ = ''
         if self.requestID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srequestID>%s</%srequestID>%s' % ('pyld:', self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), 'pyld:', eol_))
+            outfile.write('<pyld:requestID>%s</pyld:requestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), eol_))
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), 'ei:', eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
         if self.replyLimit is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sreplyLimit>%s</%sreplyLimit>%s' % (namespace_, self.gds_format_integer(self.replyLimit, input_name='replyLimit'), namespace_, eol_))
+            outfile.write('<pyld:replyLimit>%s</pyld:replyLimit>%s' % (self.gds_format_integer(self.replyLimit, input_name='replyLimit'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -10391,7 +10336,7 @@ class eiCreatedEvent(GeneratedsSuper):
             self.eventResponses.export(outfile, level, namespace_='ei:', name_='eventResponses', pretty_print=pretty_print)
         if self.venID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svenID>%s</%svenID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), 'ei:', eol_))
+            outfile.write('<ei:venID>%s</ei:venID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.venID), input_name='venID')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -10482,7 +10427,7 @@ class Object(GeneratedsSuper):
             eol_ = ''
         for extension_ in self.extension:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sextension>%s</%sextension>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(extension_), input_name='extension')), namespace_, eol_))
+            outfile.write('<oadr:extension>%s</oadr:extension>%s' % (self.gds_encode(self.gds_format_string(quote_xml(extension_), input_name='extension')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -10564,7 +10509,7 @@ class ServiceStatus(Object):
             eol_ = ''
         if self.currentStatus is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%scurrentStatus>%s</%scurrentStatus>%s' % (namespace_, self.gds_format_integer(self.currentStatus, input_name='currentStatus'), namespace_, eol_))
+            outfile.write('<oadr:currentStatus>%s</oadr:currentStatus>%s' % (self.gds_format_integer(self.currentStatus, input_name='currentStatus'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -10650,10 +10595,10 @@ class RationalNumber(GeneratedsSuper):
             eol_ = ''
         if self.numerator is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%snumerator>%s</%snumerator>%s' % (namespace_, self.gds_format_integer(self.numerator, input_name='numerator'), namespace_, eol_))
+            outfile.write('<oadr:numerator>%s</oadr:numerator>%s' % (self.gds_format_integer(self.numerator, input_name='numerator'), eol_))
         if self.denominator is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sdenominator>%s</%sdenominator>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.denominator), input_name='denominator')), namespace_, eol_))
+            outfile.write('<oadr:denominator>%s</oadr:denominator>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.denominator), input_name='denominator')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -10803,10 +10748,10 @@ class ReadingInterharmonic(GeneratedsSuper):
             eol_ = ''
         if self.numerator is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%snumerator>%s</%snumerator>%s' % (namespace_, self.gds_format_integer(self.numerator, input_name='numerator'), namespace_, eol_))
+            outfile.write('<oadr:numerator>%s</oadr:numerator>%s' % (self.gds_format_integer(self.numerator, input_name='numerator'), eol_))
         if self.denominator is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sdenominator>%s</%sdenominator>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.denominator), input_name='denominator')), namespace_, eol_))
+            outfile.write('<oadr:denominator>%s</oadr:denominator>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.denominator), input_name='denominator')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -10921,16 +10866,16 @@ class LineItem(GeneratedsSuper):
             eol_ = ''
         if self.amount is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%samount>%s</%samount>%s' % (namespace_, self.gds_format_integer(self.amount, input_name='amount'), namespace_, eol_))
+            outfile.write('<oadr:amount>%s</oadr:amount>%s' % (self.gds_format_integer(self.amount, input_name='amount'), eol_))
         if self.rounding is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srounding>%s</%srounding>%s' % (namespace_, self.gds_format_integer(self.rounding, input_name='rounding'), namespace_, eol_))
+            outfile.write('<oadr:rounding>%s</oadr:rounding>%s' % (self.gds_format_integer(self.rounding, input_name='rounding'), eol_))
         if self.dateTime is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sdateTime>%s</%sdateTime>%s' % (namespace_, self.gds_format_integer(self.dateTime, input_name='dateTime'), namespace_, eol_))
+            outfile.write('<oadr:dateTime>%s</oadr:dateTime>%s' % (self.gds_format_integer(self.dateTime, input_name='dateTime'), eol_))
         if self.note is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%snote>%s</%snote>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.note), input_name='note')), namespace_, eol_))
+            outfile.write('<oadr:note>%s</oadr:note>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.note), input_name='note')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -11221,12 +11166,12 @@ class personType(GeneratedsSuper):
             eol_ = ''
         for name_ in self.name:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sname>%s</%sname>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(name_), input_name='name')), namespace_, eol_))
+            outfile.write('<oadr:name>%s</oadr:name>%s' % (self.gds_encode(self.gds_format_string(quote_xml(name_), input_name='name')), eol_))
         for uri_ in self.uri:
             uri_.export(outfile, level, namespace_, name_='uri', pretty_print=pretty_print)
         for email_ in self.email:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%semail>%s</%semail>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(email_), input_name='email')), namespace_, eol_))
+            outfile.write('<oadr:email>%s</oadr:email>%s' % (self.gds_encode(self.gds_format_string(quote_xml(email_), input_name='email')), eol_))
         if self.anytypeobjs_ is not None:
             self.anytypeobjs_.export(outfile, level, namespace_, pretty_print=pretty_print)
     def build(self, node):
@@ -13226,7 +13171,7 @@ class ECKeyValueType(GeneratedsSuper):
             self.NamedCurve.export(outfile, level, namespace_, name_='NamedCurve', pretty_print=pretty_print)
         if self.PublicKey is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sPublicKey>%s</%sPublicKey>%s' % (namespace_, self.gds_format_base64(self.PublicKey, input_name='PublicKey'), namespace_, eol_))
+            outfile.write('<oadr:PublicKey>%s</oadr:PublicKey>%s' % (self.gds_format_base64(self.PublicKey, input_name='PublicKey'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -13425,13 +13370,13 @@ class ECParametersType(GeneratedsSuper):
             self.Curve.export(outfile, level, namespace_, name_='Curve', pretty_print=pretty_print)
         if self.Base is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sBase>%s</%sBase>%s' % (namespace_, self.gds_format_base64(self.Base, input_name='Base'), namespace_, eol_))
+            outfile.write('<oadr:Base>%s</oadr:Base>%s' % (self.gds_format_base64(self.Base, input_name='Base'), eol_))
         if self.Order is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sOrder>%s</%sOrder>%s' % (namespace_, self.gds_format_base64(self.Order, input_name='Order'), namespace_, eol_))
+            outfile.write('<oadr:Order>%s</oadr:Order>%s' % (self.gds_format_base64(self.Order, input_name='Order'), eol_))
         if self.CoFactor is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sCoFactor>%s</%sCoFactor>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.CoFactor), input_name='CoFactor')), namespace_, eol_))
+            outfile.write('<oadr:CoFactor>%s</oadr:CoFactor>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.CoFactor), input_name='CoFactor')), eol_))
         if self.ValidationData is not None:
             self.ValidationData.export(outfile, level, namespace_, name_='ValidationData', pretty_print=pretty_print)
     def build(self, node):
@@ -13676,10 +13621,10 @@ class CurveType(GeneratedsSuper):
             eol_ = ''
         if self.A is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sA>%s</%sA>%s' % (namespace_, self.gds_format_base64(self.A, input_name='A'), namespace_, eol_))
+            outfile.write('<oadr:A>%s</oadr:A>%s' % (self.gds_format_base64(self.A, input_name='A'), eol_))
         if self.B is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sB>%s</%sB>%s' % (namespace_, self.gds_format_base64(self.B, input_name='B'), namespace_, eol_))
+            outfile.write('<oadr:B>%s</oadr:B>%s' % (self.gds_format_base64(self.B, input_name='B'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -13785,7 +13730,7 @@ class ECValidationDataType(GeneratedsSuper):
             eol_ = ''
         if self.seed is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sseed>%s</%sseed>%s' % (namespace_, self.gds_format_base64(self.seed, input_name='seed'), namespace_, eol_))
+            outfile.write('<oadr:seed>%s</oadr:seed>%s' % (self.gds_format_base64(self.seed, input_name='seed'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -13876,7 +13821,7 @@ class PrimeFieldParamsType(GeneratedsSuper):
             eol_ = ''
         if self.P is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sP>%s</%sP>%s' % (namespace_, self.gds_format_base64(self.P, input_name='P'), namespace_, eol_))
+            outfile.write('<oadr:P>%s</oadr:P>%s' % (self.gds_format_base64(self.P, input_name='P'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -13966,7 +13911,7 @@ class CharTwoFieldParamsType(GeneratedsSuper):
             eol_ = ''
         if self.M is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sM>%s</%sM>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.M), input_name='M')), namespace_, eol_))
+            outfile.write('<oadr:M>%s</oadr:M>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.M), input_name='M')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -14046,7 +13991,7 @@ class TnBFieldParamsType(CharTwoFieldParamsType):
             eol_ = ''
         if self.K is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sK>%s</%sK>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.K), input_name='K')), namespace_, eol_))
+            outfile.write('<oadr:K>%s</oadr:K>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.K), input_name='K')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -14132,13 +14077,13 @@ class PnBFieldParamsType(CharTwoFieldParamsType):
             eol_ = ''
         if self.K1 is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sK1>%s</%sK1>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.K1), input_name='K1')), namespace_, eol_))
+            outfile.write('<oadr:K1>%s</oadr:K1>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.K1), input_name='K1')), eol_))
         if self.K2 is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sK2>%s</%sK2>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.K2), input_name='K2')), namespace_, eol_))
+            outfile.write('<oadr:K2>%s</oadr:K2>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.K2), input_name='K2')), eol_))
         if self.K3 is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sK3>%s</%sK3>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.K3), input_name='K3')), namespace_, eol_))
+            outfile.write('<oadr:K3>%s</oadr:K3>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.K3), input_name='K3')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -14905,7 +14850,7 @@ class SignatureMethodType(GeneratedsSuper):
             eol_ = ''
         if self.HMACOutputLength is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sHMACOutputLength>%s</%sHMACOutputLength>%s' % (namespace_, self.gds_format_integer(self.HMACOutputLength, input_name='HMACOutputLength'), namespace_, eol_))
+            outfile.write('<oadr:HMACOutputLength>%s</oadr:HMACOutputLength>%s' % (self.gds_format_integer(self.HMACOutputLength, input_name='HMACOutputLength'), eol_))
         for obj_ in self.anytypeobjs_:
             obj_.export(outfile, level, namespace_, pretty_print=pretty_print)
     def build(self, node):
@@ -15037,7 +14982,7 @@ class ReferenceType(GeneratedsSuper):
             self.DigestMethod.export(outfile, level, namespace_='ds:', name_='DigestMethod', pretty_print=pretty_print)
         if self.DigestValue is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sDigestValue>%s</%sDigestValue>%s' % (namespace_, self.gds_format_base64(self.DigestValue, input_name='DigestValue'), namespace_, eol_))
+            outfile.write('<ds:DigestValue>%s</ds:DigestValue>%s' % (self.gds_format_base64(self.DigestValue, input_name='DigestValue'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -15250,7 +15195,7 @@ class TransformType(GeneratedsSuper):
             eol_ = ''
         for XPath_ in self.XPath:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sXPath>%s</%sXPath>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(XPath_), input_name='XPath')), namespace_, eol_))
+            outfile.write('<oadr:XPath>%s</oadr:XPath>%s' % (self.gds_encode(self.gds_format_string(quote_xml(XPath_), input_name='XPath')), eol_))
         if self.anytypeobjs_ is not None:
             self.anytypeobjs_.export(outfile, level, namespace_, pretty_print=pretty_print)
     def build(self, node):
@@ -15557,7 +15502,7 @@ class KeyInfoType(GeneratedsSuper):
             eol_ = ''
         for KeyName_ in self.KeyName:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sKeyName>%s</%sKeyName>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(KeyName_), input_name='KeyName')), namespace_, eol_))
+            outfile.write('<ds:KeyName>%s</ds:KeyName>%s' % (self.gds_encode(self.gds_format_string(quote_xml(KeyName_), input_name='KeyName')), eol_))
         for KeyValue_ in self.KeyValue:
             KeyValue_.export(outfile, level, namespace_='ds:', name_='KeyValue', pretty_print=pretty_print)
         for RetrievalMethod_ in self.RetrievalMethod:
@@ -15570,7 +15515,7 @@ class KeyInfoType(GeneratedsSuper):
             SPKIData_.export(outfile, level, namespace_='ds:', name_='SPKIData', pretty_print=pretty_print)
         for MgmtData_ in self.MgmtData:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sMgmtData>%s</%sMgmtData>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(MgmtData_), input_name='MgmtData')), namespace_, eol_))
+            outfile.write('<ds:MgmtData>%s</ds:MgmtData>%s' % (self.gds_encode(self.gds_format_string(quote_xml(MgmtData_), input_name='MgmtData')), eol_))
         if self.anytypeobjs_ is not None:
             self.anytypeobjs_.export(outfile, level, namespace_, pretty_print=pretty_print)
     def build(self, node):
@@ -16004,16 +15949,16 @@ class X509DataType(GeneratedsSuper):
             X509IssuerSerial_.export(outfile, level, namespace_, name_='X509IssuerSerial', pretty_print=pretty_print)
         for X509SKI_ in self.X509SKI:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sX509SKI>%s</%sX509SKI>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(X509SKI_), input_name='X509SKI')), namespace_, eol_))
+            outfile.write('<oadr:X509SKI>%s</oadr:X509SKI>%s' % (self.gds_encode(self.gds_format_string(quote_xml(X509SKI_), input_name='X509SKI')), eol_))
         for X509SubjectName_ in self.X509SubjectName:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sX509SubjectName>%s</%sX509SubjectName>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(X509SubjectName_), input_name='X509SubjectName')), namespace_, eol_))
+            outfile.write('<oadr:X509SubjectName>%s</oadr:X509SubjectName>%s' % (self.gds_encode(self.gds_format_string(quote_xml(X509SubjectName_), input_name='X509SubjectName')), eol_))
         for X509Certificate_ in self.X509Certificate:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sX509Certificate>%s</%sX509Certificate>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(X509Certificate_), input_name='X509Certificate')), namespace_, eol_))
+            outfile.write('<oadr:X509Certificate>%s</oadr:X509Certificate>%s' % (self.gds_encode(self.gds_format_string(quote_xml(X509Certificate_), input_name='X509Certificate')), eol_))
         for X509CRL_ in self.X509CRL:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sX509CRL>%s</%sX509CRL>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(X509CRL_), input_name='X509CRL')), namespace_, eol_))
+            outfile.write('<oadr:X509CRL>%s</oadr:X509CRL>%s' % (self.gds_encode(self.gds_format_string(quote_xml(X509CRL_), input_name='X509CRL')), eol_))
         if self.anytypeobjs_ is not None:
             self.anytypeobjs_.export(outfile, level, namespace_, pretty_print=pretty_print)
     def build(self, node):
@@ -16114,10 +16059,10 @@ class X509IssuerSerialType(GeneratedsSuper):
             eol_ = ''
         if self.X509IssuerName is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sX509IssuerName>%s</%sX509IssuerName>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.X509IssuerName), input_name='X509IssuerName')), namespace_, eol_))
+            outfile.write('<oadr:X509IssuerName>%s</oadr:X509IssuerName>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.X509IssuerName), input_name='X509IssuerName')), eol_))
         if self.X509SerialNumber is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sX509SerialNumber>%s</%sX509SerialNumber>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.X509SerialNumber), input_name='X509SerialNumber')), namespace_, eol_))
+            outfile.write('<oadr:X509SerialNumber>%s</oadr:X509SerialNumber>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.X509SerialNumber), input_name='X509SerialNumber')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -16208,10 +16153,10 @@ class PGPDataType(GeneratedsSuper):
             eol_ = ''
         if self.PGPKeyID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sPGPKeyID>%s</%sPGPKeyID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.PGPKeyID), input_name='PGPKeyID')), namespace_, eol_))
+            outfile.write('<oadr:PGPKeyID>%s</oadr:PGPKeyID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.PGPKeyID), input_name='PGPKeyID')), eol_))
         if self.PGPKeyPacket is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sPGPKeyPacket>%s</%sPGPKeyPacket>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.PGPKeyPacket), input_name='PGPKeyPacket')), namespace_, eol_))
+            outfile.write('<oadr:PGPKeyPacket>%s</oadr:PGPKeyPacket>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.PGPKeyPacket), input_name='PGPKeyPacket')), eol_))
         for obj_ in self.anytypeobjs_:
             obj_.export(outfile, level, namespace_, pretty_print=pretty_print)
     def build(self, node):
@@ -16305,7 +16250,7 @@ class SPKIDataType(GeneratedsSuper):
             eol_ = ''
         for SPKISexp_ in self.SPKISexp:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sSPKISexp>%s</%sSPKISexp>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(SPKISexp_), input_name='SPKISexp')), namespace_, eol_))
+            outfile.write('<oadr:SPKISexp>%s</oadr:SPKISexp>%s' % (self.gds_encode(self.gds_format_string(quote_xml(SPKISexp_), input_name='SPKISexp')), eol_))
         if self.anytypeobjs_ is not None:
             self.anytypeobjs_.export(outfile, level, namespace_, pretty_print=pretty_print)
     def build(self, node):
@@ -16850,25 +16795,25 @@ class DSAKeyValueType(GeneratedsSuper):
             eol_ = ''
         if self.P is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sP>%s</%sP>%s' % (namespace_, self.gds_format_base64(self.P, input_name='P'), namespace_, eol_))
+            outfile.write('<oadr:P>%s</oadr:P>%s' % (self.gds_format_base64(self.P, input_name='P'), eol_))
         if self.Q is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sQ>%s</%sQ>%s' % (namespace_, self.gds_format_base64(self.Q, input_name='Q'), namespace_, eol_))
+            outfile.write('<oadr:Q>%s</oadr:Q>%s' % (self.gds_format_base64(self.Q, input_name='Q'), eol_))
         if self.G is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sG>%s</%sG>%s' % (namespace_, self.gds_format_base64(self.G, input_name='G'), namespace_, eol_))
+            outfile.write('<oadr:G>%s</oadr:G>%s' % (self.gds_format_base64(self.G, input_name='G'), eol_))
         if self.Y is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sY>%s</%sY>%s' % (namespace_, self.gds_format_base64(self.Y, input_name='Y'), namespace_, eol_))
+            outfile.write('<oadr:Y>%s</oadr:Y>%s' % (self.gds_format_base64(self.Y, input_name='Y'), eol_))
         if self.J is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sJ>%s</%sJ>%s' % (namespace_, self.gds_format_base64(self.J, input_name='J'), namespace_, eol_))
+            outfile.write('<oadr:J>%s</oadr:J>%s' % (self.gds_format_base64(self.J, input_name='J'), eol_))
         if self.Seed is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sSeed>%s</%sSeed>%s' % (namespace_, self.gds_format_base64(self.Seed, input_name='Seed'), namespace_, eol_))
+            outfile.write('<oadr:Seed>%s</oadr:Seed>%s' % (self.gds_format_base64(self.Seed, input_name='Seed'), eol_))
         if self.PgenCounter is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sPgenCounter>%s</%sPgenCounter>%s' % (namespace_, self.gds_format_base64(self.PgenCounter, input_name='PgenCounter'), namespace_, eol_))
+            outfile.write('<oadr:PgenCounter>%s</oadr:PgenCounter>%s' % (self.gds_format_base64(self.PgenCounter, input_name='PgenCounter'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -17039,10 +16984,10 @@ class RSAKeyValueType(GeneratedsSuper):
             eol_ = ''
         if self.Modulus is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sModulus>%s</%sModulus>%s' % (namespace_, self.gds_format_base64(self.Modulus, input_name='Modulus'), namespace_, eol_))
+            outfile.write('<oadr:Modulus>%s</oadr:Modulus>%s' % (self.gds_format_base64(self.Modulus, input_name='Modulus'), eol_))
         if self.Exponent is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sExponent>%s</%sExponent>%s' % (namespace_, self.gds_format_base64(self.Exponent, input_name='Exponent'), namespace_, eol_))
+            outfile.write('<oadr:Exponent>%s</oadr:Exponent>%s' % (self.gds_format_base64(self.Exponent, input_name='Exponent'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -17157,7 +17102,7 @@ class oadrEventType(GeneratedsSuper):
             self.eiEvent.export(outfile, level, namespace_='ei:', name_='eiEvent', pretty_print=pretty_print)
         if self.oadrResponseRequired is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrResponseRequired>%s</%soadrResponseRequired>%s' % ('oadr:', self.gds_encode(self.gds_format_string(quote_xml(self.oadrResponseRequired), input_name='oadrResponseRequired')), 'oadr:', eol_))
+            outfile.write('<oadr:oadrResponseRequired>%s</oadr:oadrResponseRequired>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.oadrResponseRequired), input_name='oadrResponseRequired')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -17328,7 +17273,7 @@ class oadrExtensionType(GeneratedsSuper):
             eol_ = ''
         if self.oadrExtensionName is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrExtensionName>%s</%soadrExtensionName>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.oadrExtensionName), input_name='oadrExtensionName')), namespace_, eol_))
+            outfile.write('<oadr:oadrExtensionName>%s</oadr:oadrExtensionName>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.oadrExtensionName), input_name='oadrExtensionName')), eol_))
         for oadrInfo_ in self.oadrInfo:
             oadrInfo_.export(outfile, level, namespace_='oadr:', name_='oadrInfo', pretty_print=pretty_print)
     def build(self, node):
@@ -17426,7 +17371,7 @@ class oadrProfileType1(GeneratedsSuper):
             eol_ = ''
         if self.oadrProfileName is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrProfileName>%s</%soadrProfileName>%s' % ('oadr:', self.gds_encode(self.gds_format_string(quote_xml(self.oadrProfileName), input_name='oadrProfileName')), 'oadr:', eol_))
+            outfile.write('<oadr:oadrProfileName>%s</oadr:oadrProfileName>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.oadrProfileName), input_name='oadrProfileName')), eol_))
         if self.oadrTransports is not None:
             self.oadrTransports.export(outfile, level, namespace_='oadr:', name_='oadrTransports', pretty_print=pretty_print)
     def build(self, node):
@@ -17526,7 +17471,7 @@ class oadrTransportType2(GeneratedsSuper):
             eol_ = ''
         if self.oadrTransportName is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrTransportName>%s</%soadrTransportName>%s' % ('oadr:', self.gds_encode(self.gds_format_string(quote_xml(self.oadrTransportName), input_name='oadrTransportName')), 'oadr:', eol_))
+            outfile.write('<oadr:oadrTransportName>%s</oadr:oadrTransportName>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.oadrTransportName), input_name='oadrTransportName')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -17629,7 +17574,7 @@ class oadrServiceType(GeneratedsSuper):
             eol_ = ''
         if self.oadrServiceName is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrServiceName>%s</%soadrServiceName>%s' % ('oadr:', self.gds_encode(self.gds_format_string(quote_xml(self.oadrServiceName), input_name='oadrServiceName')), 'oadr:', eol_))
+            outfile.write('<oadr:oadrServiceName>%s</oadr:oadrServiceName>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.oadrServiceName), input_name='oadrServiceName')), eol_))
         for oadrInfo_ in self.oadrInfo:
             oadrInfo_.export(outfile, level, namespace_='oadr:', name_='oadrInfo', pretty_print=pretty_print)
     def build(self, node):
@@ -17798,7 +17743,7 @@ class tolerateType(GeneratedsSuper):
             eol_ = ''
         if self.startafter is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sstartafter>%s</%sstartafter>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.startafter), input_name='startafter')), namespace_, eol_))
+            outfile.write('<oadr:startafter>%s</oadr:startafter>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.startafter), input_name='startafter')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -17890,18 +17835,18 @@ class eventResponseType(GeneratedsSuper):
             eol_ = ''
         if self.responseCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sresponseCode>%s</%sresponseCode>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.responseCode), input_name='responseCode')), 'ei:', eol_))
+            outfile.write('<ei:responseCode>%s</ei:responseCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.responseCode), input_name='responseCode')), eol_))
         if self.responseDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sresponseDescription>%s</%sresponseDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.responseDescription), input_name='responseDescription')), namespace_, eol_))
+            outfile.write('<ei:responseDescription>%s</ei:responseDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.responseDescription), input_name='responseDescription')), eol_))
         if self.requestID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srequestID>%s</%srequestID>%s' % ('pyld:', self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), 'pyld:', eol_))
+            outfile.write('<pyld:requestID>%s</pyld:requestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), eol_))
         if self.qualifiedEventID is not None:
             self.qualifiedEventID.export(outfile, level, namespace_='ei:', name_='qualifiedEventID', pretty_print=pretty_print)
         if self.optType is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soptType>%s</%soptType>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.optType), input_name='optType')), 'ei:', eol_))
+            outfile.write('<ei:optType>%s</ei:optType>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.optType), input_name='optType')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -17996,7 +17941,7 @@ class eiMarketContextType(GeneratedsSuper):
             eol_ = ''
         if self.marketContext is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%smarketContext>%s</%smarketContext>%s' % ('emix:', self.gds_encode(self.gds_format_string(quote_xml(self.marketContext), input_name='marketContext')), 'emix:', eol_))
+            outfile.write('<emix:marketContext>%s</emix:marketContext>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.marketContext), input_name='marketContext')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -18300,7 +18245,7 @@ class LinearRingType(GeneratedsSuper):
             eol_ = ''
         if self.posList is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sposList>%s</%sposList>%s' % (namespace_, self.gds_format_double(self.posList, input_name='posList'), namespace_, eol_))
+            outfile.write('<gml:posList>%s</gml:posList>%s' % (self.gds_format_double(self.posList, input_name='posList'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -18477,10 +18422,10 @@ class DateTimeInterval(Object):
             eol_ = ''
         if self.duration is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sduration>%s</%sduration>%s' % (namespace_, self.gds_format_integer(self.duration, input_name='duration'), namespace_, eol_))
+            outfile.write('<oadr:duration>%s</oadr:duration>%s' % (self.gds_format_integer(self.duration, input_name='duration'), eol_))
         if self.start is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sstart>%s</%sstart>%s' % (namespace_, self.gds_format_integer(self.start, input_name='start'), namespace_, eol_))
+            outfile.write('<oadr:start>%s</oadr:start>%s' % (self.gds_format_integer(self.start, input_name='start'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -18592,13 +18537,13 @@ class ServiceDeliveryPoint(Object):
             eol_ = ''
         if self.name is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sname>%s</%sname>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.name), input_name='name')), namespace_, eol_))
+            outfile.write('<oadr:name>%s</oadr:name>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.name), input_name='name')), eol_))
         if self.tariffProfile is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%stariffProfile>%s</%stariffProfile>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.tariffProfile), input_name='tariffProfile')), namespace_, eol_))
+            outfile.write('<oadr:tariffProfile>%s</oadr:tariffProfile>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.tariffProfile), input_name='tariffProfile')), eol_))
         if self.customerAgreement is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%scustomerAgreement>%s</%scustomerAgreement>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.customerAgreement), input_name='customerAgreement')), namespace_, eol_))
+            outfile.write('<oadr:customerAgreement>%s</oadr:customerAgreement>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.customerAgreement), input_name='customerAgreement')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -18724,16 +18669,16 @@ class BatchItemInfo(Object):
             eol_ = ''
         if self.name is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sname>%s</%sname>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.name), input_name='name')), namespace_, eol_))
+            outfile.write('<oadr:name>%s</oadr:name>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.name), input_name='name')), eol_))
         if self.operation is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soperation>%s</%soperation>%s' % (namespace_, self.gds_format_integer(self.operation, input_name='operation'), namespace_, eol_))
+            outfile.write('<oadr:operation>%s</oadr:operation>%s' % (self.gds_format_integer(self.operation, input_name='operation'), eol_))
         if self.statusCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sstatusCode>%s</%sstatusCode>%s' % (namespace_, self.gds_format_integer(self.statusCode, input_name='statusCode'), namespace_, eol_))
+            outfile.write('<oadr:statusCode>%s</oadr:statusCode>%s' % (self.gds_format_integer(self.statusCode, input_name='statusCode'), eol_))
         if self.statusReason is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sstatusReason>%s</%sstatusReason>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.statusReason), input_name='statusReason')), namespace_, eol_))
+            outfile.write('<oadr:statusReason>%s</oadr:statusReason>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.statusReason), input_name='statusReason')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -18873,16 +18818,16 @@ class SummaryMeasurement(Object):
             eol_ = ''
         if self.powerOfTenMultiplier is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%spowerOfTenMultiplier>%s</%spowerOfTenMultiplier>%s' % (namespace_, self.gds_format_integer(self.powerOfTenMultiplier, input_name='powerOfTenMultiplier'), namespace_, eol_))
+            outfile.write('<oadr:powerOfTenMultiplier>%s</oadr:powerOfTenMultiplier>%s' % (self.gds_format_integer(self.powerOfTenMultiplier, input_name='powerOfTenMultiplier'), eol_))
         if self.timeStamp is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%stimeStamp>%s</%stimeStamp>%s' % (namespace_, self.gds_format_integer(self.timeStamp, input_name='timeStamp'), namespace_, eol_))
+            outfile.write('<oadr:timeStamp>%s</oadr:timeStamp>%s' % (self.gds_format_integer(self.timeStamp, input_name='timeStamp'), eol_))
         if self.uom is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%suom>%s</%suom>%s' % (namespace_, self.gds_format_integer(self.uom, input_name='uom'), namespace_, eol_))
+            outfile.write('<oadr:uom>%s</oadr:uom>%s' % (self.gds_format_integer(self.uom, input_name='uom'), eol_))
         if self.value is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svalue>%s</%svalue>%s' % (namespace_, self.gds_format_integer(self.value, input_name='value'), namespace_, eol_))
+            outfile.write('<oadr:value>%s</oadr:value>%s' % (self.gds_format_integer(self.value, input_name='value'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -19001,7 +18946,7 @@ class ServiceCategory(Object):
             eol_ = ''
         if self.kind is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%skind>%s</%skind>%s' % (namespace_, self.gds_format_integer(self.kind, input_name='kind'), namespace_, eol_))
+            outfile.write('<oadr:kind>%s</oadr:kind>%s' % (self.gds_format_integer(self.kind, input_name='kind'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -19094,7 +19039,7 @@ class ReadingQuality(Object):
             eol_ = ''
         if self.quality is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%squality>%s</%squality>%s' % (namespace_, self.gds_format_integer(self.quality, input_name='quality'), namespace_, eol_))
+            outfile.write('<oadr:quality>%s</oadr:quality>%s' % (self.gds_format_integer(self.quality, input_name='quality'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -19207,14 +19152,14 @@ class IntervalReading(Object):
             eol_ = ''
         if self.cost is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%scost>%s</%scost>%s' % (namespace_, self.gds_format_integer(self.cost, input_name='cost'), namespace_, eol_))
+            outfile.write('<oadr:cost>%s</oadr:cost>%s' % (self.gds_format_integer(self.cost, input_name='cost'), eol_))
         for ReadingQuality_ in self.ReadingQuality:
             ReadingQuality_.export(outfile, level, namespace_, name_='ReadingQuality', pretty_print=pretty_print)
         if self.timePeriod is not None:
             self.timePeriod.export(outfile, level, namespace_, name_='timePeriod', pretty_print=pretty_print)
         if self.value is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%svalue>%s</%svalue>%s' % (namespace_, self.gds_format_integer(self.value, input_name='value'), namespace_, eol_))
+            outfile.write('<oadr:value>%s</oadr:value>%s' % (self.gds_format_integer(self.value, input_name='value'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -19345,16 +19290,16 @@ class TimeConfiguration(IdentifiedObject):
             eol_ = ''
         if self.dstEndRule is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sdstEndRule>%s</%sdstEndRule>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.dstEndRule), input_name='dstEndRule')), namespace_, eol_))
+            outfile.write('<oadr:dstEndRule>%s</oadr:dstEndRule>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.dstEndRule), input_name='dstEndRule')), eol_))
         if self.dstOffset is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sdstOffset>%s</%sdstOffset>%s' % (namespace_, self.gds_format_integer(self.dstOffset, input_name='dstOffset'), namespace_, eol_))
+            outfile.write('<oadr:dstOffset>%s</oadr:dstOffset>%s' % (self.gds_format_integer(self.dstOffset, input_name='dstOffset'), eol_))
         if self.dstStartRule is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sdstStartRule>%s</%sdstStartRule>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.dstStartRule), input_name='dstStartRule')), namespace_, eol_))
+            outfile.write('<oadr:dstStartRule>%s</oadr:dstStartRule>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.dstStartRule), input_name='dstStartRule')), eol_))
         if self.tzOffset is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%stzOffset>%s</%stzOffset>%s' % (namespace_, self.gds_format_integer(self.tzOffset, input_name='tzOffset'), namespace_, eol_))
+            outfile.write('<oadr:tzOffset>%s</oadr:tzOffset>%s' % (self.gds_format_integer(self.tzOffset, input_name='tzOffset'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -19564,18 +19509,18 @@ class ElectricPowerUsageSummary(IdentifiedObject):
             self.billingPeriod.export(outfile, level, namespace_, name_='billingPeriod', pretty_print=pretty_print)
         if self.billLastPeriod is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sbillLastPeriod>%s</%sbillLastPeriod>%s' % (namespace_, self.gds_format_integer(self.billLastPeriod, input_name='billLastPeriod'), namespace_, eol_))
+            outfile.write('<oadr:billLastPeriod>%s</oadr:billLastPeriod>%s' % (self.gds_format_integer(self.billLastPeriod, input_name='billLastPeriod'), eol_))
         if self.billToDate is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sbillToDate>%s</%sbillToDate>%s' % (namespace_, self.gds_format_integer(self.billToDate, input_name='billToDate'), namespace_, eol_))
+            outfile.write('<oadr:billToDate>%s</oadr:billToDate>%s' % (self.gds_format_integer(self.billToDate, input_name='billToDate'), eol_))
         if self.costAdditionalLastPeriod is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%scostAdditionalLastPeriod>%s</%scostAdditionalLastPeriod>%s' % (namespace_, self.gds_format_integer(self.costAdditionalLastPeriod, input_name='costAdditionalLastPeriod'), namespace_, eol_))
+            outfile.write('<oadr:costAdditionalLastPeriod>%s</oadr:costAdditionalLastPeriod>%s' % (self.gds_format_integer(self.costAdditionalLastPeriod, input_name='costAdditionalLastPeriod'), eol_))
         for costAdditionalDetailLastPeriod_ in self.costAdditionalDetailLastPeriod:
             costAdditionalDetailLastPeriod_.export(outfile, level, namespace_, name_='costAdditionalDetailLastPeriod', pretty_print=pretty_print)
         if self.currency is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%scurrency>%s</%scurrency>%s' % (namespace_, self.gds_format_integer(self.currency, input_name='currency'), namespace_, eol_))
+            outfile.write('<oadr:currency>%s</oadr:currency>%s' % (self.gds_format_integer(self.currency, input_name='currency'), eol_))
         if self.overallConsumptionLastPeriod is not None:
             self.overallConsumptionLastPeriod.export(outfile, level, namespace_, name_='overallConsumptionLastPeriod', pretty_print=pretty_print)
         if self.currentBillingPeriodOverAllConsumption is not None:
@@ -19596,14 +19541,14 @@ class ElectricPowerUsageSummary(IdentifiedObject):
             self.previousDayOverallConsumption.export(outfile, level, namespace_, name_='previousDayOverallConsumption', pretty_print=pretty_print)
         if self.qualityOfReading is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%squalityOfReading>%s</%squalityOfReading>%s' % (namespace_, self.gds_format_integer(self.qualityOfReading, input_name='qualityOfReading'), namespace_, eol_))
+            outfile.write('<oadr:qualityOfReading>%s</oadr:qualityOfReading>%s' % (self.gds_format_integer(self.qualityOfReading, input_name='qualityOfReading'), eol_))
         if self.ratchetDemand is not None:
             self.ratchetDemand.export(outfile, level, namespace_, name_='ratchetDemand', pretty_print=pretty_print)
         if self.ratchetDemandPeriod is not None:
             self.ratchetDemandPeriod.export(outfile, level, namespace_, name_='ratchetDemandPeriod', pretty_print=pretty_print)
         if self.statusTimeStamp is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sstatusTimeStamp>%s</%sstatusTimeStamp>%s' % (namespace_, self.gds_format_integer(self.statusTimeStamp, input_name='statusTimeStamp'), namespace_, eol_))
+            outfile.write('<oadr:statusTimeStamp>%s</oadr:statusTimeStamp>%s' % (self.gds_format_integer(self.statusTimeStamp, input_name='statusTimeStamp'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -19888,45 +19833,45 @@ class ElectricPowerQualitySummary(IdentifiedObject):
             eol_ = ''
         if self.flickerPlt is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sflickerPlt>%s</%sflickerPlt>%s' % (namespace_, self.gds_format_integer(self.flickerPlt, input_name='flickerPlt'), namespace_, eol_))
+            outfile.write('<oadr:flickerPlt>%s</oadr:flickerPlt>%s' % (self.gds_format_integer(self.flickerPlt, input_name='flickerPlt'), eol_))
         if self.flickerPst is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sflickerPst>%s</%sflickerPst>%s' % (namespace_, self.gds_format_integer(self.flickerPst, input_name='flickerPst'), namespace_, eol_))
+            outfile.write('<oadr:flickerPst>%s</oadr:flickerPst>%s' % (self.gds_format_integer(self.flickerPst, input_name='flickerPst'), eol_))
         if self.harmonicVoltage is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sharmonicVoltage>%s</%sharmonicVoltage>%s' % (namespace_, self.gds_format_integer(self.harmonicVoltage, input_name='harmonicVoltage'), namespace_, eol_))
+            outfile.write('<oadr:harmonicVoltage>%s</oadr:harmonicVoltage>%s' % (self.gds_format_integer(self.harmonicVoltage, input_name='harmonicVoltage'), eol_))
         if self.longInterruptions is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%slongInterruptions>%s</%slongInterruptions>%s' % (namespace_, self.gds_format_integer(self.longInterruptions, input_name='longInterruptions'), namespace_, eol_))
+            outfile.write('<oadr:longInterruptions>%s</oadr:longInterruptions>%s' % (self.gds_format_integer(self.longInterruptions, input_name='longInterruptions'), eol_))
         if self.mainsVoltage is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%smainsVoltage>%s</%smainsVoltage>%s' % (namespace_, self.gds_format_integer(self.mainsVoltage, input_name='mainsVoltage'), namespace_, eol_))
+            outfile.write('<oadr:mainsVoltage>%s</oadr:mainsVoltage>%s' % (self.gds_format_integer(self.mainsVoltage, input_name='mainsVoltage'), eol_))
         if self.measurementProtocol is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%smeasurementProtocol>%s</%smeasurementProtocol>%s' % (namespace_, self.gds_format_integer(self.measurementProtocol, input_name='measurementProtocol'), namespace_, eol_))
+            outfile.write('<oadr:measurementProtocol>%s</oadr:measurementProtocol>%s' % (self.gds_format_integer(self.measurementProtocol, input_name='measurementProtocol'), eol_))
         if self.powerFrequency is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%spowerFrequency>%s</%spowerFrequency>%s' % (namespace_, self.gds_format_integer(self.powerFrequency, input_name='powerFrequency'), namespace_, eol_))
+            outfile.write('<oadr:powerFrequency>%s</oadr:powerFrequency>%s' % (self.gds_format_integer(self.powerFrequency, input_name='powerFrequency'), eol_))
         if self.rapidVoltageChanges is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srapidVoltageChanges>%s</%srapidVoltageChanges>%s' % (namespace_, self.gds_format_integer(self.rapidVoltageChanges, input_name='rapidVoltageChanges'), namespace_, eol_))
+            outfile.write('<oadr:rapidVoltageChanges>%s</oadr:rapidVoltageChanges>%s' % (self.gds_format_integer(self.rapidVoltageChanges, input_name='rapidVoltageChanges'), eol_))
         if self.shortInterruptions is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sshortInterruptions>%s</%sshortInterruptions>%s' % (namespace_, self.gds_format_integer(self.shortInterruptions, input_name='shortInterruptions'), namespace_, eol_))
+            outfile.write('<oadr:shortInterruptions>%s</oadr:shortInterruptions>%s' % (self.gds_format_integer(self.shortInterruptions, input_name='shortInterruptions'), eol_))
         if self.summaryInterval is not None:
             self.summaryInterval.export(outfile, level, namespace_, name_='summaryInterval', pretty_print=pretty_print)
         if self.supplyVoltageDips is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssupplyVoltageDips>%s</%ssupplyVoltageDips>%s' % (namespace_, self.gds_format_integer(self.supplyVoltageDips, input_name='supplyVoltageDips'), namespace_, eol_))
+            outfile.write('<oadr:supplyVoltageDips>%s</oadr:supplyVoltageDips>%s' % (self.gds_format_integer(self.supplyVoltageDips, input_name='supplyVoltageDips'), eol_))
         if self.supplyVoltageImbalance is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssupplyVoltageImbalance>%s</%ssupplyVoltageImbalance>%s' % (namespace_, self.gds_format_integer(self.supplyVoltageImbalance, input_name='supplyVoltageImbalance'), namespace_, eol_))
+            outfile.write('<oadr:supplyVoltageImbalance>%s</oadr:supplyVoltageImbalance>%s' % (self.gds_format_integer(self.supplyVoltageImbalance, input_name='supplyVoltageImbalance'), eol_))
         if self.supplyVoltageVariations is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssupplyVoltageVariations>%s</%ssupplyVoltageVariations>%s' % (namespace_, self.gds_format_integer(self.supplyVoltageVariations, input_name='supplyVoltageVariations'), namespace_, eol_))
+            outfile.write('<oadr:supplyVoltageVariations>%s</oadr:supplyVoltageVariations>%s' % (self.gds_format_integer(self.supplyVoltageVariations, input_name='supplyVoltageVariations'), eol_))
         if self.tempOvervoltage is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%stempOvervoltage>%s</%stempOvervoltage>%s' % (namespace_, self.gds_format_integer(self.tempOvervoltage, input_name='tempOvervoltage'), namespace_, eol_))
+            outfile.write('<oadr:tempOvervoltage>%s</oadr:tempOvervoltage>%s' % (self.gds_format_integer(self.tempOvervoltage, input_name='tempOvervoltage'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -20161,12 +20106,12 @@ class UsagePoint(IdentifiedObject):
             eol_ = ''
         if self.roleFlags is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sroleFlags>%s</%sroleFlags>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.roleFlags), input_name='roleFlags')), namespace_, eol_))
+            outfile.write('<oadr:roleFlags>%s</oadr:roleFlags>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.roleFlags), input_name='roleFlags')), eol_))
         if self.ServiceCategory is not None:
             self.ServiceCategory.export(outfile, level, namespace_, name_='ServiceCategory', pretty_print=pretty_print)
         if self.status is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sstatus>%s</%sstatus>%s' % (namespace_, self.gds_format_integer(self.status, input_name='status'), namespace_, eol_))
+            outfile.write('<oadr:status>%s</oadr:status>%s' % (self.gds_format_integer(self.status, input_name='status'), eol_))
         if self.ServiceDeliveryPoint is not None:
             self.ServiceDeliveryPoint.export(outfile, level, namespace_, name_='ServiceDeliveryPoint', pretty_print=pretty_print)
     def build(self, node):
@@ -20398,54 +20343,54 @@ class ReadingType(IdentifiedObject):
             eol_ = ''
         if self.accumulationBehaviour is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%saccumulationBehaviour>%s</%saccumulationBehaviour>%s' % (namespace_, self.gds_format_integer(self.accumulationBehaviour, input_name='accumulationBehaviour'), namespace_, eol_))
+            outfile.write('<oadr:accumulationBehaviour>%s</oadr:accumulationBehaviour>%s' % (self.gds_format_integer(self.accumulationBehaviour, input_name='accumulationBehaviour'), eol_))
         if self.commodity is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%scommodity>%s</%scommodity>%s' % (namespace_, self.gds_format_integer(self.commodity, input_name='commodity'), namespace_, eol_))
+            outfile.write('<oadr:commodity>%s</oadr:commodity>%s' % (self.gds_format_integer(self.commodity, input_name='commodity'), eol_))
         if self.consumptionTier is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sconsumptionTier>%s</%sconsumptionTier>%s' % (namespace_, self.gds_format_integer(self.consumptionTier, input_name='consumptionTier'), namespace_, eol_))
+            outfile.write('<oadr:consumptionTier>%s</oadr:consumptionTier>%s' % (self.gds_format_integer(self.consumptionTier, input_name='consumptionTier'), eol_))
         if self.currency is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%scurrency>%s</%scurrency>%s' % (namespace_, self.gds_format_integer(self.currency, input_name='currency'), namespace_, eol_))
+            outfile.write('<oadr:currency>%s</oadr:currency>%s' % (self.gds_format_integer(self.currency, input_name='currency'), eol_))
         if self.dataQualifier is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sdataQualifier>%s</%sdataQualifier>%s' % (namespace_, self.gds_format_integer(self.dataQualifier, input_name='dataQualifier'), namespace_, eol_))
+            outfile.write('<oadr:dataQualifier>%s</oadr:dataQualifier>%s' % (self.gds_format_integer(self.dataQualifier, input_name='dataQualifier'), eol_))
         if self.defaultQuality is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sdefaultQuality>%s</%sdefaultQuality>%s' % (namespace_, self.gds_format_integer(self.defaultQuality, input_name='defaultQuality'), namespace_, eol_))
+            outfile.write('<oadr:defaultQuality>%s</oadr:defaultQuality>%s' % (self.gds_format_integer(self.defaultQuality, input_name='defaultQuality'), eol_))
         if self.flowDirection is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sflowDirection>%s</%sflowDirection>%s' % (namespace_, self.gds_format_integer(self.flowDirection, input_name='flowDirection'), namespace_, eol_))
+            outfile.write('<oadr:flowDirection>%s</oadr:flowDirection>%s' % (self.gds_format_integer(self.flowDirection, input_name='flowDirection'), eol_))
         if self.intervalLength is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sintervalLength>%s</%sintervalLength>%s' % (namespace_, self.gds_format_integer(self.intervalLength, input_name='intervalLength'), namespace_, eol_))
+            outfile.write('<oadr:intervalLength>%s</oadr:intervalLength>%s' % (self.gds_format_integer(self.intervalLength, input_name='intervalLength'), eol_))
         if self.kind is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%skind>%s</%skind>%s' % (namespace_, self.gds_format_integer(self.kind, input_name='kind'), namespace_, eol_))
+            outfile.write('<oadr:kind>%s</oadr:kind>%s' % (self.gds_format_integer(self.kind, input_name='kind'), eol_))
         if self.phase is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sphase>%s</%sphase>%s' % (namespace_, self.gds_format_integer(self.phase, input_name='phase'), namespace_, eol_))
+            outfile.write('<oadr:phase>%s</oadr:phase>%s' % (self.gds_format_integer(self.phase, input_name='phase'), eol_))
         if self.powerOfTenMultiplier is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%spowerOfTenMultiplier>%s</%spowerOfTenMultiplier>%s' % (namespace_, self.gds_format_integer(self.powerOfTenMultiplier, input_name='powerOfTenMultiplier'), namespace_, eol_))
+            outfile.write('<oadr:powerOfTenMultiplier>%s</oadr:powerOfTenMultiplier>%s' % (self.gds_format_integer(self.powerOfTenMultiplier, input_name='powerOfTenMultiplier'), eol_))
         if self.timeAttribute is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%stimeAttribute>%s</%stimeAttribute>%s' % (namespace_, self.gds_format_integer(self.timeAttribute, input_name='timeAttribute'), namespace_, eol_))
+            outfile.write('<oadr:timeAttribute>%s</oadr:timeAttribute>%s' % (self.gds_format_integer(self.timeAttribute, input_name='timeAttribute'), eol_))
         if self.tou is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%stou>%s</%stou>%s' % (namespace_, self.gds_format_integer(self.tou, input_name='tou'), namespace_, eol_))
+            outfile.write('<oadr:tou>%s</oadr:tou>%s' % (self.gds_format_integer(self.tou, input_name='tou'), eol_))
         if self.uom is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%suom>%s</%suom>%s' % (namespace_, self.gds_format_integer(self.uom, input_name='uom'), namespace_, eol_))
+            outfile.write('<oadr:uom>%s</oadr:uom>%s' % (self.gds_format_integer(self.uom, input_name='uom'), eol_))
         if self.cpp is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%scpp>%s</%scpp>%s' % (namespace_, self.gds_format_integer(self.cpp, input_name='cpp'), namespace_, eol_))
+            outfile.write('<oadr:cpp>%s</oadr:cpp>%s' % (self.gds_format_integer(self.cpp, input_name='cpp'), eol_))
         if self.interharmonic is not None:
             self.interharmonic.export(outfile, level, namespace_, name_='interharmonic', pretty_print=pretty_print)
         if self.measuringPeriod is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%smeasuringPeriod>%s</%smeasuringPeriod>%s' % (namespace_, self.gds_format_integer(self.measuringPeriod, input_name='measuringPeriod'), namespace_, eol_))
+            outfile.write('<oadr:measuringPeriod>%s</oadr:measuringPeriod>%s' % (self.gds_format_integer(self.measuringPeriod, input_name='measuringPeriod'), eol_))
         if self.argument is not None:
             self.argument.export(outfile, level, namespace_, name_='argument', pretty_print=pretty_print)
     def build(self, node):
@@ -20865,13 +20810,13 @@ class PowerItemType(ItemBaseType):
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemDescription>%s</%sitemDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), namespace_, eol_))
+            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemUnits>%s</%sitemUnits>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), namespace_, eol_))
+            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.siScaleCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssiScaleCode>%s</%ssiScaleCode>%s' % ('scale:', self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), 'scale:', eol_))
+            outfile.write('<scale:siScaleCode>%s</scale:siScaleCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), eol_))
         if self.powerAttributes is not None:
             self.powerAttributes.export(outfile, level, namespace_='power:', name_='powerAttributes', pretty_print=pretty_print)
     def build(self, node):
@@ -20973,13 +20918,13 @@ class EnergyItemType(ItemBaseType):
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemDescription>%s</%sitemDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), namespace_, eol_))
+            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemUnits>%s</%sitemUnits>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), namespace_, eol_))
+            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.siScaleCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssiScaleCode>%s</%ssiScaleCode>%s' % ('scale:', self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), 'scale:', eol_))
+            outfile.write('<scale:siScaleCode>%s</scale:siScaleCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -21074,13 +21019,13 @@ class VoltageType(ItemBaseType):
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemDescription>%s</%sitemDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), namespace_, eol_))
+            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemUnits>%s</%sitemUnits>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), namespace_, eol_))
+            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.siScaleCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssiScaleCode>%s</%ssiScaleCode>%s' % ('scale:', self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), 'scale:', eol_))
+            outfile.write('<scale:siScaleCode>%s</scale:siScaleCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -21111,11 +21056,9 @@ class oadrReportPayloadType(ReportPayloadType):
     """Report payload for use in reports."""
     subclass = None
     superclass = ReportPayloadType
-    # def __init__(self, rID=None, confidence=None, accuracy=None, payloadBase=None, oadrDataQuality=None):
-    def __init__(self, rID=None, confidence=None, accuracy=None, payloadBase=None, oadrDataQuality=None, payloadFloat=None):
+    def __init__(self, rID=None, confidence=None, accuracy=None, payloadBase=None, oadrDataQuality=None):
         self.original_tagname_ = None
-        # super(oadrReportPayloadType, self).__init__(rID, confidence, accuracy, payloadBase, )
-        super(oadrReportPayloadType, self).__init__(rID, confidence, accuracy, payloadBase, payloadFloat, )
+        super(oadrReportPayloadType, self).__init__(rID, confidence, accuracy, payloadBase, )
         self.oadrDataQuality = oadrDataQuality
     def factory(*args_, **kwargs_):
         if CurrentSubclassModule_ is not None:
@@ -21169,7 +21112,7 @@ class oadrReportPayloadType(ReportPayloadType):
             eol_ = ''
         if self.oadrDataQuality is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrDataQuality>%s</%soadrDataQuality>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.oadrDataQuality), input_name='oadrDataQuality')), namespace_, eol_))
+            outfile.write('<oadr:oadrDataQuality>%s</oadr:oadrDataQuality>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.oadrDataQuality), input_name='oadrDataQuality')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -21412,10 +21355,10 @@ class oadrPayloadResourceStatusType(PayloadBaseType):
             eol_ = ''
         if self.oadrOnline is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrOnline>%s</%soadrOnline>%s' % (namespace_, self.gds_format_boolean(self.oadrOnline, input_name='oadrOnline'), namespace_, eol_))
+            outfile.write('<oadr:oadrOnline>%s</oadr:oadrOnline>%s' % (self.gds_format_boolean(self.oadrOnline, input_name='oadrOnline'), eol_))
         if self.oadrManualOverride is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%soadrManualOverride>%s</%soadrManualOverride>%s' % (namespace_, self.gds_format_boolean(self.oadrManualOverride, input_name='oadrManualOverride'), namespace_, eol_))
+            outfile.write('<oadr:oadrManualOverride>%s</oadr:oadrManualOverride>%s' % (self.gds_format_boolean(self.oadrManualOverride, input_name='oadrManualOverride'), eol_))
         if self.oadrLoadControlState is not None:
             self.oadrLoadControlState.export(outfile, level, namespace_='oadr:', name_='oadrLoadControlState', pretty_print=pretty_print)
     def build(self, node):
@@ -21549,21 +21492,21 @@ class oadrReportType(StreamBaseType):
             eol_ = ''
         if self.eiReportID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%seiReportID>%s</%seiReportID>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.eiReportID), input_name='eiReportID')), namespace_, eol_))
+            outfile.write('<ei:eiReportID>%s</ei:eiReportID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.eiReportID), input_name='eiReportID')), eol_))
         for oadrReportDescription_ in self.oadrReportDescription:
             oadrReportDescription_.export(outfile, level, namespace_='oadr:', name_='oadrReportDescription', pretty_print=pretty_print)
         if self.reportRequestID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sreportRequestID>%s</%sreportRequestID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.reportRequestID), input_name='reportRequestID')), 'ei:', eol_))
+            outfile.write('<ei:reportRequestID>%s</ei:reportRequestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.reportRequestID), input_name='reportRequestID')), eol_))
         if self.reportSpecifierID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sreportSpecifierID>%s</%sreportSpecifierID>%s' % ('ei:', self.gds_encode(self.gds_format_string(quote_xml(self.reportSpecifierID), input_name='reportSpecifierID')), 'ei:', eol_))
+            outfile.write('<ei:reportSpecifierID>%s</ei:reportSpecifierID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.reportSpecifierID), input_name='reportSpecifierID')), eol_))
         if self.reportName is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sreportName>%s</%sreportName>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.reportName), input_name='reportName')), namespace_, eol_))
+            outfile.write('<ei:reportName>%s</ei:reportName>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.reportName), input_name='reportName')), eol_))
         if self.createdDateTime is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%screatedDateTime>%s</%screatedDateTime>%s' % (namespace_, self.gds_format_datetime(self.createdDateTime, input_name='createdDateTime'), namespace_, eol_))
+            outfile.write('<ei:createdDateTime>%s</ei:createdDateTime>%s' % (self.gds_format_datetime(self.createdDateTime, input_name='createdDateTime'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -21671,13 +21614,13 @@ class pulseCountType(ItemBaseType):
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemDescription>%s</%sitemDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), namespace_, eol_))
+            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemUnits>%s</%sitemUnits>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), namespace_, eol_))
+            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.pulseFactor is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%spulseFactor>%s</%spulseFactor>%s' % (namespace_, self.gds_format_float(self.pulseFactor, input_name='pulseFactor'), namespace_, eol_))
+            outfile.write('<oadr:pulseFactor>%s</oadr:pulseFactor>%s' % (self.gds_format_float(self.pulseFactor, input_name='pulseFactor'), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -21789,13 +21732,13 @@ class temperatureType(ItemBaseType):
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemDescription>%s</%sitemDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), namespace_, eol_))
+            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemUnits>%s</%sitemUnits>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), namespace_, eol_))
+            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.siScaleCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssiScaleCode>%s</%ssiScaleCode>%s' % ('scale:', self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), 'scale:', eol_))
+            outfile.write('<scale:siScaleCode>%s</scale:siScaleCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -21896,13 +21839,13 @@ class ThermType(ItemBaseType):
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemDescription>%s</%sitemDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), namespace_, eol_))
+            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemUnits>%s</%sitemUnits>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), namespace_, eol_))
+            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.siScaleCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssiScaleCode>%s</%ssiScaleCode>%s' % ('scale:', self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), 'scale:', eol_))
+            outfile.write('<scale:siScaleCode>%s</scale:siScaleCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -21997,13 +21940,13 @@ class FrequencyType(ItemBaseType):
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemDescription>%s</%sitemDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), namespace_, eol_))
+            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemUnits>%s</%sitemUnits>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), namespace_, eol_))
+            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.siScaleCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssiScaleCode>%s</%ssiScaleCode>%s' % ('scale:', self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), 'scale:', eol_))
+            outfile.write('<scale:siScaleCode>%s</scale:siScaleCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -22124,13 +22067,13 @@ class currencyType(ItemBaseType):
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemDescription>%s</%sitemDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), namespace_, eol_))
+            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemUnits>%s</%sitemUnits>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), namespace_, eol_))
+            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.siScaleCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssiScaleCode>%s</%ssiScaleCode>%s' % ('scale:', self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), 'scale:', eol_))
+            outfile.write('<scale:siScaleCode>%s</scale:siScaleCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -22237,13 +22180,13 @@ class CurrentType(ItemBaseType):
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemDescription>%s</%sitemDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), namespace_, eol_))
+            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemUnits>%s</%sitemUnits>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), namespace_, eol_))
+            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.siScaleCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssiScaleCode>%s</%ssiScaleCode>%s' % ('scale:', self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), 'scale:', eol_))
+            outfile.write('<scale:siScaleCode>%s</scale:siScaleCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -22338,13 +22281,13 @@ class BaseUnitType(ItemBaseType):
             eol_ = ''
         if self.itemDescription is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemDescription>%s</%sitemDescription>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), namespace_, eol_))
+            outfile.write('<oadr:itemDescription>%s</oadr:itemDescription>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemDescription), input_name='itemDescription')), eol_))
         if self.itemUnits is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%sitemUnits>%s</%sitemUnits>%s' % (namespace_, self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), namespace_, eol_))
+            outfile.write('<oadr:itemUnits>%s</oadr:itemUnits>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.itemUnits), input_name='itemUnits')), eol_))
         if self.siScaleCode is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%ssiScaleCode>%s</%ssiScaleCode>%s' % ('scale:', self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), 'scale:', eol_))
+            outfile.write('<scale:siScaleCode>%s</scale:siScaleCode>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.siScaleCode), input_name='siScaleCode')), eol_))
     def build(self, node):
         already_processed = set()
         self.buildAttributes(node, node.attrib, already_processed)
@@ -22442,7 +22385,7 @@ class oadrCreateOptType(EiOptType):
             eol_ = ''
         if self.requestID is not None:
             showIndent(outfile, level, pretty_print)
-            outfile.write('<%srequestID>%s</%srequestID>%s' % ('pyld:', self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), 'pyld:', eol_))
+            outfile.write('<pyld:requestID>%s</pyld:requestID>%s' % (self.gds_encode(self.gds_format_string(quote_xml(self.requestID), input_name='requestID')), eol_))
         if self.qualifiedEventID is not None:
             self.qualifiedEventID.export(outfile, level, namespace_='ei:', name_='qualifiedEventID', pretty_print=pretty_print)
         if self.eiTarget is not None:
@@ -22689,13 +22632,16 @@ def parseEtree(inFileName, silence=False):
 
 
 def parseString(inString, silence=False):
-    if sys.version_info.major == 2:
-        from StringIO import StringIO as IOBuffer
-    else:
-        from io import BytesIO as IOBuffer
+    '''Parse a string, create the object tree, and export it.
+
+    Arguments:
+    - inString -- A string.  This XML fragment should not start
+      with an XML declaration containing an encoding.
+    - silence -- A boolean.  If False, export the object.
+    Returns -- The root object in the tree.
+    '''
     parser = None
-    doc = parsexml_(IOBuffer(inString), parser)
-    rootNode = doc.getroot()
+    rootNode= parsexmlstring_(inString, parser)
     rootTag, rootClass = get_root_tag(rootNode)
     if rootClass is None:
         rootTag = 'oadrPayload'
@@ -22703,7 +22649,6 @@ def parseString(inString, silence=False):
     rootObj = rootClass.factory()
     rootObj.build(rootNode)
     # Enable Python to collect the space used by the DOM.
-    doc = None
     if not silence:
         sys.stdout.write('<?xml version="1.0" ?>\n')
         rootObj.export(
