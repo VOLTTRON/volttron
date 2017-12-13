@@ -94,6 +94,9 @@ Create a postgres database named openadr.
 **$PROJECT_HOME/openadr/openadr/settings/base.py** or the override settings
 in **$PROJECT_HOME/openadr/openadr/settings/local.py**.)
 
+You may have to edit **/etc/postgresql/9.5/main/pg_hba.conf** to be 'md5' authorization
+for 'local'.
+
 Migrate the Database and Create an Initial Superuser
 ----------------------------------------------------
 ::
@@ -115,15 +118,16 @@ Install and run rabbitmq as follows (for further information, see http://www.rab
 ::
 
     $ sudo apt-get install rabbitmq-server
+
+Start the rabbitmq server if it isn't already running:
+::
+
     $ sudo rabbitmq-server -detached (note the single dash)
 
 Start the VTN Server
 --------------------
-
-This process is executed from **screen** so that it remains active if the shell’s ssh session ends:
 ::
 
-    $ screen -t openadr-server
     $ workon openadr
     $ cd openadr
     $ python manage.py runserver 0.0.0.0:8000
@@ -131,10 +135,33 @@ This process is executed from **screen** so that it remains active if the shell�
 Start Celery
 ------------
 
-This process is executed from **screen** so that it remains active if the shell’s ssh session ends:
 ::
 
-    $ screen -t openadr-celery
     $ workon openadr
     $ cd openadr
     $ celery -A openadr worker -B
+
+Configuration Parameters
+------------------------
+
+The VTN supports the following configuration parameters, which can be found in
+**base.py** and overriden in **site.py**:
+
+========================= ======================== ====================================================
+Parameter                 Example                  Description
+========================= ======================== ====================================================
+VTN_ID                    “vtn01”                  OpenADR ID of this virtual top node. Virtual end
+                                                   nodes must know this VTN_ID to be able to
+                                                   communicate with the VTN.
+ONLINE_INTERVAL_MINUTES   15                       The amount of time, in minutes, that determines how
+                                                   long the VTN will wait until dsplaying a given VEN
+                                                   offline. In other words, if the VTN does not receive
+                                                   any communication from a given VEN within
+                                                   ONLINE_INTERVAL_MINUTES minutes, the VTN will display
+                                                   said VEN as offline.
+GRAPH_TIMECHUNK_SECONDS   360                      The VTN displays DR Event graph data by averaging
+                                                   individual VENs' telemetry by GRAPH_TIMECHUNK_SECONDS
+                                                   seconds. This value should be adjusted according to
+                                                   how often VENs are sending the VTN telemetry.
+
+========================= ======================== ====================================================
