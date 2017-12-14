@@ -53,14 +53,12 @@
 
 #}}}
 
-import datetime
 from volttron.platform.vip.agent import BasicAgent, Core
 from volttron.platform.agent import utils
-from volttron.platform.agent import json as jsonapi
 import logging
-import sys
 import random
 import gevent
+import traceback
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging.topics import (DRIVER_TOPIC_BASE,
                                                 DRIVER_TOPIC_ALL,
@@ -267,7 +265,8 @@ class DriverAgent(BasicAgent):
                 depth_first_topic = self.base_topic(point=point)
                 _log.error("Failed to scrape point: "+depth_first_topic)
         except (Exception, gevent.Timeout) as ex:
-            _log.error('Failed to scrape ' + self.device_name + ': ' + str(ex))
+            tb = traceback.format_exc()
+            _log.error('Failed to scrape ' + self.device_name + ':\n' + tb)
             return
 
         # XXX: Does a warning need to be printed?
