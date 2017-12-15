@@ -100,7 +100,7 @@ from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.web import DiscoveryInfo, DiscoveryError
 from .vcconnection import VCConnection
 
-__version__ = '4.6.0'
+__version__ = '4.6'
 
 RegistrationStates = Enum('AgentStates',
                           'NotRegistered Unregistered Registered '
