@@ -58,39 +58,13 @@
 
 from __future__ import absolute_import, print_function
 
-import base64
-from collections import defaultdict
-import datetime
-from enum import Enum
-import hashlib
 import logging
-import os
-import shutil
-import sys
-import tempfile
-import urlparse
 
-import gevent
-import gevent.event
-import psutil
-
-from volttron.platform import jsonrpc
-from volttron.platform.agent.utils import (get_utc_seconds_from_epoch)
-from volttron.platform.agent import utils
-from volttron.platform.agent.exit_codes import INVALID_CONFIGURATION_CODE
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, CONTROL, CONFIGURATION_STORE)
-from volttron.platform.agent.utils import (get_aware_utc_now)
-from volttron.platform.auth import AuthEntry, AuthFile
-from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS)
-from volttron.platform.messaging import topics
-from volttron.platform.messaging.topics import (LOGGER, )
-from volttron.platform.vip.agent import (Agent, Core, RPC, PubSub, Unreachable)
-from volttron.platform.vip.agent.connection import Connection
-from volttron.platform.vip.agent.subsystems.query import Query
-from volttron.platform.vip.agent.utils import build_connection
-from volttron.platform.web import DiscoveryInfo, DiscoveryError
-from . bacnet_proxy_reader import BACnetReader
+    VOLTTRON_CENTRAL)
+from volttron.platform.vip.agent import (Agent, RPC)
+
+_log = logging.getLogger(__name__)
 
 
 class VCConnection(Agent):
@@ -124,7 +98,7 @@ class VCConnection(Agent):
         :param message:
         :param headers:
         """
-        self.vip.pubsub.publish('pubsub', topic, headers, message)
+        self.vip.pubsub.publish('pubsub', topic, headers, message).get(timeout=5)
 
     @RPC.export
     def start_bacnet_scan(self, iam_topic, proxy_identity, low_device_id=None,
@@ -142,13 +116,12 @@ class VCConnection(Agent):
         :param scan_length:
         :return:
         """
-        self._main_agent.start_bacnet_scan(iam_topic=iam_topic,
+        self._main_agent.start_bacnet_scan(iam_vc_response_topic=iam_topic,
                                            proxy_identity=proxy_identity,
                                            low_device_id=low_device_id,
                                            high_device_id=high_device_id,
                                            target_address=target_address,
                                            scan_length=scan_length)
-
 
     @RPC.export
     def get_instance_uuid(self):
@@ -199,7 +172,7 @@ class VCConnection(Agent):
         stop_result = self.stop_agent(agent_uuid)
         start_result = self.start_agent(agent_uuid)
 
-        return (stop_result, start_result)
+        return stop_result, start_result
 
     @RPC.export
     def agent_status(self, agent_uuid):
@@ -293,6 +266,8 @@ class VCConnection(Agent):
         Allows volttron.central to listen to the message bus on vcp instance.
 
         :param prefix: The prefix to listen for.
+        :param prefix_on_vc:
+            The prefix to publish to on volttron central instance.
         """
         self._log.info("VC subscribing to prefix: {}".format(prefix))
         self._log.info("VCP will publish to {} on VC".format(prefix_on_vc))
@@ -343,7 +318,7 @@ class VCConnection(Agent):
         :param params:
         :return:
         """
-        self._log.debug("inside route_to_agent_method")
+        self._log.debug("Routing method: {}".format(agent_method))
         return self._main_agent.route_request(id, agent_method, params)
 
     @RPC.export

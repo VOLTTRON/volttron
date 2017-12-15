@@ -61,25 +61,113 @@ from collections import defaultdict
 import logging
 import weakref
 
+import gevent
+from bacpypes.basetypes import EngineeringUnits
 from bacpypes.object import get_datatype
 from bacpypes.primitivedata import (Enumerated, Unsigned, Boolean, Integer,
                                     Real, Double)
 
 from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.messaging import topics
 
 # Deals with the largest numbers that can be reported.
 # see proxy_grab_bacnet_config.py
 MAX_RANGE_REPORT = 1.0e+20
 
+_log = logging.getLogger(__name__)
+
 
 class BACnetReader(object):
-    def __init__(self, rpc, bacnet_proxy_identity,
-                 response_function=None):
-        self._log = logging.getLogger(self.__class__.__name__)
-        self._log.info("Creating {}".format(self.__class__.__name__))
-        self._rpc = weakref.ref(rpc)
+    """
+    The BACnetReader
+    """
+    def __init__(self, vip, bacnet_proxy_identity,
+                 iam_response_fn=None, config_response_fn=None, batch_size=20):
+
+        if batch_size < 1:
+            raise ValueError("batch_size must be larger than 0")
+        self._batch_size = batch_size
+        self._pubsub = weakref.ref(vip.pubsub)
+        self._rpc = weakref.ref(vip.rpc)
         self._proxy_identity = bacnet_proxy_identity
-        self._response_function = response_function
+        self._response_function = iam_response_fn
+        self._iam_response_fn = iam_response_fn
+        self._config_response_fn = config_response_fn
+        self._iam_callbacks = {}
+        self._send_iam_responses = False
+        self._caller_callback = {}
+
+    def start_whois(self, low_device_id=None, high_device_id=None,
+                    target_address=None):
+        _log.info("Starting WHOIS")
+        self._pubsub().subscribe(peer='pubsub', prefix=topics.BACNET_I_AM,
+                                 callback=self._iam_handler).get(timeout=3)
+
+        self._send_iam_responses = True
+        self._rpc().call(self._proxy_identity, "who_is",
+                         low_device_id=low_device_id,
+                         high_device_id=high_device_id,
+                         target_address=target_address).get(timeout=5.0)
+
+    def stop_iam_responses(self):
+        _log.info("Stopping WHOIS")
+        self._pubsub().unsubscribe(peer='pubsub', prefix=topics.BACNET_I_AM,
+                                   callback=self._iam_handler).get(timeout=3)
+
+        self._send_iam_responses = False
+
+    def get_iam(self, device_id, callback, address=None, timeout=10):
+        _log.debug("Getting iam callback")
+        self._caller_callback[device_id] = callback
+        self._pubsub().subscribe(peer='pubsub', prefix=topics.BACNET_I_AM,
+                                 callback=self._iam_handler).get(timeout=3)
+        self._rpc().call(self._proxy_identity, "who_is",
+                         low_device_id=device_id,
+                         high_device_id=device_id,
+                         target_address=address).get(timeout=5.0)
+
+    def _iam_handler(self, peer, sender, bus, topic, headers, message):
+        """ Handle publishes from who_is.
+
+        There are two different modes that this handler supports.  The first
+        is a sending of a single device_id which was started through a call
+        to get_iam.  This allows the caller to retrieve only the single device's
+        information.  This method is meant to be run from the
+        scripts/bacnet/proxy_grab_bacnet_config.py script.
+
+        The second method is when the user calls start_whois.  This will keep
+        open the whois publish for the specified number of seconds before
+        unsubscribing.  In this method we respond each time any information
+        comes into the system.
+
+        These two methods are mutually exclusive.
+        """
+
+        device_id = message["device_id"]
+        if device_id in self._caller_callback:
+            callback = self._caller_callback.pop(device_id)
+            _log.info("Received iam for device_id {}".format(device_id))
+            _log.debug("Callback received: {}".format(message))
+            callback(message)
+
+            # Not 100% sure this won't have issues, but it didn't throw
+            # any errors during scripts nor from the vc/vcp combinations.
+            gevent.spawn_later(3, self._pubsub().unsubscribe, peer='pubsub',
+                               prefix=topics.BACNET_I_AM,
+                               callback=self._iam_handler)
+            return
+
+        if self._iam_response_fn is None:
+            _log.error("No handler set for iam responses.")
+            _log.error("IAM response was {}".format(message))
+            return
+
+        if self._send_iam_responses:
+            _log.info("Received iam for device_id {}".format(device_id))
+            _log.debug("iam message is: {}".format(message))
+            self._iam_response_fn(message)
+        else:
+            _log.debug("IAM response not processed {}".format(device_id))
 
     def read_device_name(self, address, device_id):
         """ Reads the device name from the specified address and device_id
@@ -89,13 +177,20 @@ class BACnetReader(object):
             :return: The device name or the string "MISSING DEVICE NAME"
         """
         try:
-            self._log.debug("Reading device name.")
+            _log.debug("Reading device name.")
             device_name = self._read_prop(address, "device", device_id,
                                          "objectName")
-            self._log.debug('device_name = ' + str(device_name))
+            _log.debug('device_name = ' + str(device_name))
         except TypeError:
-            self._log.debug("device missing objectName")
+            _log.debug("device missing objectName")
             device_name = "MISSING DEVICE NAME"
+        except gevent.Timeout:
+            device_name = "Device Timeout"
+        except RemoteError as ex:
+            device_name = repr(ex)
+        except Exception as ex:
+            device_name = repr(ex)
+
         return device_name
 
     def read_device_description(self, address, device_id):
@@ -106,21 +201,23 @@ class BACnetReader(object):
             :return: The device desciption or an empty string
         """
         try:
-            self._log.debug("Reading device description.")
+            _log.debug("Reading device description.")
             device_description = self._read_prop(address, "device", device_id,
                                                 "description")
-            self._log.debug('description = ' + str(device_description))
+            _log.debug('description = ' + str(device_description))
         except TypeError:
-            self._log.debug('device missing description')
+            _log.debug('device missing description')
             device_description = ""
         except RemoteError as e:
-            self._log.error("REMOTE ERROR")
-            self._log.error(e.args)
+            _log.error("REMOTE ERROR")
+            _log.error(e.args)
             device_description = ""
+        except Exception as ex:
+            device_description = repr(ex)
 
         return device_description
 
-    def read_device_properties(self, target_address, device_id, filter):
+    def read_device_properties(self, target_address, device_id, filter=None):
         """ Starts the processes of reading a device's meta data.
 
             The device will first be queried for all of it's objects.  For each
@@ -140,26 +237,27 @@ class BACnetReader(object):
                 where the bacnet_type is one of the bacnet_type strings and the
                 [index] is an array of indexes to return.
         """
-        self._log.info(
+        _log.info(
             'read_device_properties called target_address: {} device_id: {}'.format(
                 target_address, device_id
             ))
         try:
-            self._log.debug("Reading objectList from device index 0")
+            _log.debug("Reading objectList from device index 0")
             object_count = self._read_prop(target_address, "device", device_id,
                                            "objectList", index=0)
             list_property = "objectList"
         except TypeError:
-            self._log.debug("Type error so reading structuredObjectList of index 0")
+            _log.debug("Type error so reading structuredObjectList of index 0")
             object_count = self._read_prop(target_address, "device", device_id,
                                            "structuredObjectList", index=0)
             list_property = "structuredObjectList"
         except RemoteError as e:
-            self._log.error("REMOTE ERROR read_device_properties")
-            self._log.error(e.args)
-            object_count = 0
+            _log.error("REMOTE ERROR read_device_properties")
+            _log.error(e.args)
+        except RuntimeError as ex:
+            _log.error(repr(ex))
 
-        self._log.debug('object_count = ' + str(object_count))
+        _log.debug('object_count = ' + str(object_count))
 
         query_map = {}
         count = 0
@@ -170,7 +268,7 @@ class BACnetReader(object):
         # that specific datatype.
         type_map = defaultdict(list)
 
-        self._log.debug("query_map: {}".format(query_map))
+        _log.debug("query_map: {}".format(query_map))
         # Loop over each of the objects and interrogate the device for the
         # properties types and indexes.  After this for loop type_map will
         # hold the readable properties from the bacnet device ordered by
@@ -182,8 +280,8 @@ class BACnetReader(object):
                 "device", device_id, list_property, object_index
             ]
 
-            if count >= 25:
-                self._log.debug("query_map: {}".format(query_map))
+            if count >= self._batch_size:
+                _log.debug("query_map: {}".format(query_map))
                 results = self._read_props(target_address, query_map)
                 present_values = self._filter_present_value_from_results(
                     results)
@@ -192,7 +290,7 @@ class BACnetReader(object):
                 count = 0
 
         if count > 0:
-            self._log.debug("query_map: {}".format(query_map))
+            _log.debug("query_map: {}".format(query_map))
             results = self._read_props(target_address, query_map)
             present_values = self._filter_present_value_from_results(results)
             self._process_input(target_address, device_id, present_values)
@@ -272,7 +370,7 @@ class BACnetReader(object):
 
         return query_map
 
-    def _build_results(self, object_type, query_map, result_map):
+    def _build_results(self, query_map, result_map):
         """ Create dictionary objects.
 
         The `build_results` function creates a dictionary of dictionaries.  The
@@ -289,10 +387,11 @@ class BACnetReader(object):
         :returns: dict: dictionary of dictinaries based upon the index of
             device properties.
         """
+        from pprint import pprint
         objects = defaultdict(dict)
         for key in query_map:
             if key not in result_map:
-                print("MISSING KEY {}".format(key))
+                _log.debug("MISSING KEY {}".format(key))
                 continue
             index, property = key.split('-')
 
@@ -304,17 +403,17 @@ class BACnetReader(object):
                 else:
                     obj['object_name'] = result_map[key]
             obj[property] = result_map[key]
+
             if 'object_type' not in obj:
-                obj['object_type'] = object_type
-        print('Built objects: {}'.format(objects))
+                obj['object_type'] = query_map[key][0]
+        _log.debug("Built objects")
         return objects
 
     def _process_enumerated(self, object_type, obj):
-        units = ''
-        units_details = ''
-        notes = ''
-
         units = 'Enum'
+        units_details = ''
+        notes = obj.get('description', '').strip()
+
         present_value_type = get_datatype(object_type, 'presentValue')
         values = present_value_type.enumerations.values()
         min_value = min(values)
@@ -331,15 +430,16 @@ class BACnetReader(object):
                                                      vendor=vendor_range)
 
         if not object_type.endswith('Input'):
-            default_value = obj.get("relinquishDefault")
-            if default_value:
-                self._log.debug('DEFAULT VALUE IS: {}'.format(default_value))
-                self._log.debug('ENUMERATION VALUES: {}'.format(
+            if "relinquishDefault" in obj:
+                default_value = obj['relinquishDefault']
+                _log.debug('DEFAULT VALUE IS: {}'.format(default_value))
+                _log.debug('ENUMERATION VALUES: {}'.format(
                     present_value_type.enumerations))
                 for k, v in present_value_type.enumerations.items():
                     if v == default_value:
                         units_details += ' (default {default})'.format(
-                            default=k)
+                            default=default_value)
+                        break
 
         if not notes:
             enum_strings = []
@@ -355,7 +455,7 @@ class BACnetReader(object):
     def _process_units(self, object_type, obj):
         units = ''
         units_details = ''
-        notes = ''
+        notes = obj.get('description', '').strip()
 
         if object_type.startswith('multiState'):
             units = 'State'
@@ -385,11 +485,17 @@ class BACnetReader(object):
         return units, units_details, notes
 
     def _process_unknown(self, object_type, obj):
-        units = obj.get('units', 'UNKNOWN UNITS')
+
+        obj_units = "UNKNOWN UNIT ENUM VALUE"
+        try:
+            obj_units = EngineeringUnits(obj.get('units')).value
+            if isinstance(obj_units, (int, long)):
+                obj_units = 'UNKNOWN UNIT ENUM VALUE: ' + str(obj.get('units'))
+        except ValueError:
+            if obj.get('units'):
+                obj_units += ": " + str(obj.get('units'))
         units_details = ''
-        notes = ''
-        if isinstance(units, (int, long)):
-            units = 'UNKNOWN UNIT ENUM VALUE: ' + str(units)
+        notes = obj.get('description', '').strip()
 
         if object_type.startswith('analog') or object_type in (
                 'largeAnalogValue', 'integerValue',
@@ -400,36 +506,35 @@ class BACnetReader(object):
                     notes = 'Resolution: {resolution:.6g}'.format(
                         resolution=res_value)
 
-        if object_type not in (
-                'largeAnalogValue', 'integerValue',
-                'positiveIntegerValue'):
+            if object_type not in (
+                    'largeAnalogValue', 'integerValue',
+                    'positiveIntegerValue'):
 
-            min_value = obj.get('minPresValue', -MAX_RANGE_REPORT)
-            max_value = obj.get('maxPresValue', MAX_RANGE_REPORT)
+                min_value = obj.get('minPresValue', -MAX_RANGE_REPORT)
+                max_value = obj.get('maxPresValue', MAX_RANGE_REPORT)
 
-            has_min = min_value > -MAX_RANGE_REPORT
-            has_max = max_value < MAX_RANGE_REPORT
-            if has_min and has_max:
-                units_details = '{min:.2f} to {max:.2f}'.format(
-                    min=min_value, max=max_value)
-            elif has_min:
-                units_details = 'Min: {min:.2f}'.format(
-                    min=min_value)
-            elif has_max:
-                units_details = 'Max: {max:.2f}'.format(
-                    max=max_value)
-            else:
-                units_details = 'No limits.'
+                has_min = min_value > -MAX_RANGE_REPORT
+                has_max = max_value < MAX_RANGE_REPORT
+                if has_min and has_max:
+                    units_details = '{min:.2f} to {max:.2f}'.format(
+                        min=min_value, max=max_value)
+                elif has_min:
+                    units_details = 'Min: {min:.2f}'.format(
+                        min=min_value)
+                elif has_max:
+                    units_details = 'Max: {max:.2f}'.format(
+                        max=max_value)
+                else:
+                    units_details = 'No limits.'
 
-        if object_type != 'analogInput':
-            default_value = obj.get('relinquishDefault')
-            if default_value:
-                units_details += ' (default {default})'.format(
-                    default=default_value)
+            if object_type != 'analogInput':
+                if 'relinquishDefault' in obj:
+                    units_details += ' (default {default})'.format(
+                        default=obj.get('relinquishDefault'))
 
-                units_details = units_details.strip()
+                    units_details = units_details.strip()
 
-        return units, units_details, notes
+        return obj_units, units_details, notes
 
     def _emit_responses(self, device_id, target_address, objects):
         """
@@ -448,7 +553,7 @@ class BACnetReader(object):
         :return:
         """
 
-        self._log.debug('emit_responses: objects: {}'.format(objects))
+        _log.debug('emit_responses: objects: {}'.format(objects))
         for index, obj in objects.items():
             object_type = obj['object_type']
             present_value_type = get_datatype(object_type, 'presentValue')
@@ -483,7 +588,7 @@ class BACnetReader(object):
                                          address=target_address), results)
 
     def _process_input(self, target_address, device_id, input_items):
-        self._log.debug('process_input: items: {}'.format(input_items))
+        _log.debug('process_input: items: {}'.format(input_items))
         query_mapping = {}
         results = None
         object_notes = None
@@ -496,7 +601,7 @@ class BACnetReader(object):
             object_type = item['bacnet_type']
             key = (target_address, device_id, object_type, index)
             if key in processed:
-                self._log.debug("Duplicate detected continuing")
+                _log.debug("Duplicate detected continuing")
                 continue
 
             processed[key] = 1
@@ -504,30 +609,32 @@ class BACnetReader(object):
             new_map = self._build_query_map_for_type(object_type, index)
             query_mapping.update(new_map)
 
-            if count >= 25:
+            if count >= self._batch_size:
                 try:
 
                     results = self._read_props(target_address, query_mapping)
-                    objects = self._build_results(object_type, query_mapping,
-                                                  results)
-                    self._log.debug('Built bacnet Objects 1: {}'.format(objects))
+                    objects = self._build_results(query_mapping, results)
+                    _log.debug('Built bacnet Objects 1: {}'.format(objects))
                     self._emit_responses(device_id, target_address, objects)
                     count = 0
+                except Exception as ex:
+                    _log.error(repr(ex))
                 except RemoteError as e:
-                    self._log.error('REMOTE ERROR: {}'.format(e))
+                    _log.error('REMOTE ERROR: {}'.format(e))
                 query_mapping = {}
             count += 1
 
         if query_mapping:
             try:
                 results = self._read_props(target_address, query_mapping)
-                objects = self._build_results(object_type, query_mapping,
-                                              results)
+                objects = self._build_results(query_mapping, results)
             except RemoteError as e:
-                self._log.error("REMOTE ERROR 2:")
-                self._log.error(e.args)
+                _log.error("REMOTE ERROR 2:")
+                _log.error(e.args)
+            except Exception as ex:
+                _log.error(repr(ex))
             else:
-                self._log.debug('Built bacnet Objects 2: {}'.format(objects))
+                _log.debug('Built bacnet Objects 2: {}'.format(objects))
                 self._emit_responses(device_id, target_address, objects)
 
     def _filter_present_value_from_results(self, results):
@@ -550,12 +657,11 @@ class BACnetReader(object):
         return presentValues
 
     def _read_props(self, address, parameters):
-        self._log.debug("_read_props for address: {} params: {}".format(
+        _log.debug("_read_props for address: {} params: {}".format(
             address, parameters
         ))
         return self._rpc().call(self._proxy_identity, "read_properties",
-                                address,
-                                parameters).get(timeout=20)
+                                address, parameters).get(timeout=20)
 
     def _read_prop(self, address, obj_type, obj_inst, prop_id, index=None):
         point_map = {"result": [obj_type,
@@ -580,7 +686,7 @@ class BACnetReader(object):
                                        property_name, index=0)
 
         for object_index in xrange(1, object_count + 1):
-            self._log.debug('property_name index = ' + repr(object_index))
+            _log.debug('property_name index = ' + repr(object_index))
 
             object_reference = self._read_prop(address,
                                                obj_type,
@@ -599,8 +705,8 @@ class BACnetReader(object):
                                  config_writer)
 
     def _process_object(self, address, obj_type, index, max_range_report):
-        self._log.debug('obj_type = ' + repr(obj_type))
-        self._log.debug('bacnet_index = ' + repr(index))
+        _log.debug('obj_type = ' + repr(obj_type))
+        _log.debug('bacnet_index = ' + repr(index))
         context = None
         if obj_type == "device":
             context = dict(address=address, device=index)
@@ -609,7 +715,7 @@ class BACnetReader(object):
 
         subondinate_list_property = get_datatype(obj_type, 'subordinateList')
         if subondinate_list_property is not None:
-            self._log.debug('Processing StructuredViewObject')
+            _log.debug('Processing StructuredViewObject')
             # self._process_device_object_reference(address, obj_type, index,
             #                                      'subordinateList',
             #                                      max_range_report,
@@ -618,7 +724,7 @@ class BACnetReader(object):
 
         subondinate_list_property = get_datatype(obj_type, 'zoneMembers')
         if subondinate_list_property is not None:
-            self._log.debug('Processing LifeSafetyZoneObject')
+            _log.debug('Processing LifeSafetyZoneObject')
             # self._process_device_object_reference(address, obj_type, index,
             #                                      'zoneMembers',
             #                                      max_range_report,
@@ -627,7 +733,7 @@ class BACnetReader(object):
 
         present_value_type = get_datatype(obj_type, 'presentValue')
         if present_value_type is None:
-            self._log.debug('This object type has no presentValue. Skipping.')
+            _log.debug('This object type has no presentValue. Skipping.')
             return
 
         if not issubclass(present_value_type, (Enumerated,
@@ -636,14 +742,14 @@ class BACnetReader(object):
                                                Integer,
                                                Real,
                                                Double)):
-            self._log.debug(
+            _log.debug(
                 'presenValue is an unsupported type: ' + repr(
                     present_value_type))
             return
 
         try:
             object_name = self._read_prop(address, obj_type, index, "objectName")
-            self._log.debug('object name = ' + object_name)
+            _log.debug('object name = ' + object_name)
         except TypeError:
             object_name = "NO NAME! PLEASE NAME THIS."
 
@@ -796,9 +902,9 @@ class BACnetReader(object):
                     except (TypeError, ValueError):
                         pass
 
-        self._log.debug('  object units = ' + str(object_units))
-        self._log.debug('  object units details = ' + str(object_units_details))
-        self._log.debug('  object notes = ' + str(object_notes))
+        _log.debug('  object units = ' + str(object_units))
+        _log.debug('  object units details = ' + str(object_units_details))
+        _log.debug('  object notes = ' + str(object_notes))
 
         results = {}
         results['Reference Point Name'] = results[

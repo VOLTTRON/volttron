@@ -171,7 +171,6 @@ class Dispatcher(jsonrpc.Dispatcher):
             return method(*args, **kwargs)
         except Exception as exc:   # pylint: disable=broad-except
             exc_tb = traceback.format_exc()
-            print("RPC ERROR",exc_tb)
             _log.error('unhandled exception in JSON-RPC method %r: \n%s',
                        name, exc_tb)
             if getattr(method, 'traceback', True):

@@ -55,23 +55,19 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 import logging
 import os
 import re
 import requests
-import sys
 import base64
 from urlparse import urlparse, urljoin
-
-from gevent import pywsgi
 
 import gevent
 import gevent.pywsgi
 from ws4py.websocket import WebSocket
 
 from ws4py.server.geventserver import (WebSocketWSGIApplication,
-                                       WebSocketWSGIHandler,
                                        WSGIServer)
 import zlib
 
@@ -85,7 +81,7 @@ from .auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
 from .vip.agent import Agent, Core, RPC
 from .vip.agent.subsystems import query
 from .jsonrpc import (
-    json_result, json_error, json_validate_request, UNAUTHORIZED)
+    json_result, json_validate_request, UNAUTHORIZED)
 from .vip.socket import encode_key
 
 _log = logging.getLogger(__name__)
