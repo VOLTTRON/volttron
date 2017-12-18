@@ -590,7 +590,7 @@ class BACnetProxyAgent(Agent):
 
         iocb = self.iocb_class(request)
         self.this_application.submit_request(iocb)
-        result = iocb.ioResult.wait()
+        result = iocb.ioResult.get(10)
         if isinstance(result, SimpleAckPDU):
             return value
         raise RuntimeError("Failed to set value: " + str(result))
