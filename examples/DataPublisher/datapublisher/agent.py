@@ -56,9 +56,7 @@
 # }}}
 import csv
 import datetime
-from dateutil import parser
 import logging
-import os
 import re
 import sys
 
