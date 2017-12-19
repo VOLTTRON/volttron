@@ -319,6 +319,7 @@ class OadrUpdateReportBuilder(OadrReportBuilder):
                 payload = oadr_20b.oadrReportPayloadType(rID='Status')
                 payload_status = oadr_20b.oadrPayloadResourceStatusType(oadrOnline=self.online,
                                                                         oadrManualOverride=self.manual_override)
+                payload_status.original_tagname_ = 'oadrPayloadResourceStatus'
                 payload.set_payloadBase(payload_status)
                 interval.set_streamPayloadBase([payload])
             else:
@@ -353,7 +354,9 @@ class OadrUpdateReportBuilder(OadrReportBuilder):
             payload = None
         else:
             payload = oadr_20b.oadrReportPayloadType(rID=r_id)
+            payload.original_tagname_ = 'oadrReportPayload'
             payload_float = oadr_20b.PayloadFloatType(value=metric)
+            payload_float.original_tagname_ = 'payloadFloat'
             payload.set_payloadBase(payload_float)
         return payload
 
