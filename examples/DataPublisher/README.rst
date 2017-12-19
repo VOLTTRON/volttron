@@ -21,8 +21,8 @@ Configuration
 ::
 
     {
-        # basetopic can be devices, analysis, or custom base topic
-        "basepath": "devices/PNNL/ISB1",
+        # basepath is prepended to the topic that is published to the message bus.
+        "basepath": "devices/campus/building",
 
         # use_timestamp uses the included in the input_data if present.
         # Currently the column must be named `Timestamp`.
