@@ -1034,30 +1034,40 @@ class OpenADRVenAgent(Agent):
             self.publish_telemetry_parameters_for_report(rpt)
 
         oadr_report_request_ids = []
-        if report_list:
-            for oadr_report_request in report_list:
-                temp_report = create_temp_rpt(oadr_report_request)
-                existing_report = self.get_report_for_report_request_id(temp_report.report_request_id)
-                if temp_report.status == temp_report.STATUS_CANCELED:
-                    if existing_report:
+
+        try:
+            if report_list:
+                for oadr_report_request in report_list:
+                    temp_report = create_temp_rpt(oadr_report_request)
+                    existing_report = self.get_report_for_report_request_id(temp_report.report_request_id)
+                    if temp_report.status == temp_report.STATUS_CANCELED:
+                        if existing_report:
+                            oadr_report_request_ids.append(temp_report.report_request_id)
+                            cancel_rpt(existing_report)
+                            self.send_oadr_created_report(oadr_report_request)
+                        else:
+                            # Received notification of a new report, but it's already canceled. Take no action.
+                            pass
+                    else:
                         oadr_report_request_ids.append(temp_report.report_request_id)
-                        cancel_rpt(existing_report)
-                        self.send_oadr_created_report(oadr_report_request)
-                    else:
-                        # Received notification of a new report, but it's already canceled. Take no action.
-                        pass
-                else:
-                    oadr_report_request_ids.append(temp_report.report_request_id)
-                    if temp_report.report_specifier_id == 'METADATA':
-                        # Rule 301/327: If the request's specifierID is 'METADATA', send an oadrRegisterReport.
-                        self.send_oadr_created_report(oadr_report_request)
-                        self.send_oadr_register_report()
-                    elif existing_report:
-                        update_rpt(temp_report, existing_report)
-                        self.send_oadr_created_report(oadr_report_request)
-                    else:
-                        create_rpt(temp_report)
-                        self.send_oadr_created_report(oadr_report_request)
+                        if temp_report.report_specifier_id == 'METADATA':
+                            # Rule 301/327: If the request's specifierID is 'METADATA', send an oadrRegisterReport.
+                            self.send_oadr_created_report(oadr_report_request)
+                            self.send_oadr_register_report()
+                        elif existing_report:
+                            update_rpt(temp_report, existing_report)
+                            self.send_oadr_created_report(oadr_report_request)
+                        else:
+                            create_rpt(temp_report)
+                            self.send_oadr_created_report(oadr_report_request)
+        except OpenADRInterfaceException, err:
+            # If a VTN message contains a mix of valid and invalid reports, respond to the valid ones.
+            # Don't reject the entire message due to an invalid report.
+            _log.warning('Report error: {}'.format(err), exc_info=True)
+            self.send_oadr_response(err.message, err.error_code or OADR_BAD_DATA)
+        except Exception, err:
+            _log.warning('Unanticipated error during report processing: {}'.format(err), exc_info=True)
+            self.send_oadr_response(err.message, OADR_BAD_DATA)
 
         all_active_reports = self._get_reports()
         for agent_report in all_active_reports:
