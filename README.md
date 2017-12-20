@@ -102,4 +102,4 @@ There are several options for VOLTTRONTM [support](https://volttron.readthedocs.
 * GitHub issue tracker for feature requests, bug reports, and following development activities https://github.com/VOLTTRON/volttron/issues
 
 ## License
-The project is [licensed](TERMS.md) under a modified BSD license.
+The project is [licensed](LICENSE.md) under Apache 2.0.
