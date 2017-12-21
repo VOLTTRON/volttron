@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
 # Copyright 2017, Battelle Memorial Institute.
 #
@@ -33,7 +30,6 @@
 # Contract DE-AC05-76RL01830
 # }}}
 
-# }}}
 
 from volttronwebrpc import VolttronWebRPC
 
