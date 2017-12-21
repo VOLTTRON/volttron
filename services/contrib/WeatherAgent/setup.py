@@ -54,7 +54,8 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
+# }}}
+
 
 from setuptools import setup, find_packages
 
