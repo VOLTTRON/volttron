@@ -29,7 +29,6 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY under
 # Contract DE-AC05-76RL01830
 # }}}
-# }}}
 
 from dateutil.parser import parse
 from  volttron.platform.agent.utils import fix_sqlite3_datetime 
