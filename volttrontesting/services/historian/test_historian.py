@@ -28,7 +28,7 @@
 #
 # PACIFIC NORTHWEST NATIONAL LABORATORY operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY under
 # Contract DE-AC05-76RL01830
-}}}"""
+# }}}"""
 pytest test cases for SQLHistorian and MongodbHistorian
 For mysql tests and MongodbHistorian test
  1. MySql server/Mongod process should be running

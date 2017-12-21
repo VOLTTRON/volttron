@@ -28,7 +28,9 @@
 #
 # PACIFIC NORTHWEST NATIONAL LABORATORY operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY under
 # Contract DE-AC05-76RL01830
-}}}import csv
+# }}}
+
+import csv
 from datetime import datetime, timedelta as td
 import logging
 import sys
