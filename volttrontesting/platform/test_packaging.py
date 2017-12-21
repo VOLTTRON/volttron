@@ -30,8 +30,6 @@
 # Contract DE-AC05-76RL01830
 # }}}
 
-# }}}
-
 """
 unit test cases for packaging.py (volttron-pkg package). This does not yet
 cover test cases for restricted code as volttron-restricted is currently

@@ -30,8 +30,6 @@
 # Contract DE-AC05-76RL01830
 # }}}
 
-# }}}
-
 from setuptools import setup, find_packages
 from os import path
 

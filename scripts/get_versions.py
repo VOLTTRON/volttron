@@ -30,8 +30,6 @@
 # Contract DE-AC05-76RL01830
 # }}}
 
-# }}}
-
 """Gets the version numbers of all agents in the services, examples, and applications directories.
 Outputs to stdout in CSV format."""
 

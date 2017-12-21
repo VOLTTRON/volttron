@@ -30,8 +30,6 @@
 # Contract DE-AC05-76RL01830
 # }}}
 
-# }}}
-
 from __future__ import absolute_import
 
 from datetime import datetime

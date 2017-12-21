@@ -30,8 +30,6 @@
 # Contract DE-AC05-76RL01830
 # }}}
 
-# }}}
-
 """Script for adding or updating a JSON file in an agent's
 :ref:`configuration store <VOLTTRON-Configuration-Store>`.
 
