@@ -93,7 +93,7 @@ from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
 
 
-__version__ = '2.1.0'
+__version__ = '2.2.0'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -572,6 +572,36 @@ class CrateHistorian(BaseHistorian):
         cursor.execute(sql)
 
         results = [self.get_renamed_topic(x[0]) for x in cursor.fetchall()]
+        return results
+
+    @doc_inherit
+    def query_topics_by_pattern(self, topic_pattern):
+        """ Find the list of topics and its id for a given topic_pattern.
+            Pattern match used is "topic starts with topic_pattern"
+            :return: returns list of dictionary object {topic_name:id}"""
+
+        _log.debug("Querying topic by pattern: {}".format(topic_pattern))
+
+        if topic_pattern[-2:] != ".*":
+            topic_pattern = topic_pattern + ".*"
+            _log.debug("changing topic_pattern to end with .* as pattern might"
+                       "be for a topic_prefix.")
+
+        cursor = self.get_connection().cursor()
+        sql = "SELECT topic FROM {schema}.topic " \
+              "WHERE topic ~* ? ;".format(schema=self._schema)
+
+        _log.debug("Query: {}".format(sql))
+        _log.debug("args:{}".format([topic_pattern]))
+
+        cursor.execute(sql, [topic_pattern])
+
+        # cratedb schema doesn't use topic_id so use just placeholder
+        results = dict()
+        for topic in cursor.fetchall():
+            results[topic[0]] = 1
+
+        _log.debug("Returning topics: {}".format(results))
         return results
 
     def get_connection(self):

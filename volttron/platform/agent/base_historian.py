@@ -1436,7 +1436,7 @@ class BaseQueryHistorianAgent(Agent):
         return self.query_topics_by_pattern(topic_pattern)
 
     @abstractmethod
-    def query_topics_by_pattern(topic_pattern):
+    def query_topics_by_pattern(self, topic_pattern):
         """ Find the list of topics and its id for a given topic_pattern
 
             :return: returns list of dictionary object {topic_name:id}"""
