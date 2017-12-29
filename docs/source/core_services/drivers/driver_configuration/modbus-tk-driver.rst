@@ -141,7 +141,7 @@ in ``services/core/MasterDriverAgent/master_driver/interfaces/modbus_tk/maps``.
 
 Here is a sample Modbus-TK registry configuration:
 
-.. csv-table:: BACnet
+.. csv-table::
         :header: Volttron Point Name,Register Name,Address,Type,Units,Writable,Default Value,Transform
 
         unsigned short,unsigned_short,0,uint16,None,TRUE,0,scale(10)
