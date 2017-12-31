@@ -1,0 +1,51 @@
+.. _Simple-Web Agent-Walkthrough:
+
+Simple Web Agent Walkthrough
+=============================
+
+A simple web enabled agent that will hook up with a volttron message bus and allow interaction between it via http.This example agent shows a simple file serving agent, a json-rpc based call, and a websocket based connection mechanism.
+
+Starting VOLTTRON Platform
+--------------------------
+In order to start the simple web agent, we need to bind the VOLTTRON instance to the a web server . We need to specify the address and the port for the web-server. For example, if we want to bind the localhost:8080 as the web server we start the VOLTTRON platform as follows:
+
+``volttron -vv -l volttron.log --bind-web-address http://127.0.0.1:8080 &``
+
+Once the platform is started , we are ready to run the Simple Web Agent.
+
+Running Simple Web Agent
+------------------------
+
+To run the agent , a script file can be created as follows:
+
+.. code-block:: console
+
+	export SOURCE=examples/SimpleWebAgent/
+	export TAG=simpleWebAgent
+
+	# Uncomment this to set the identity of the agent. Overrides the platform default identity and the agent's
+	# preferred identity.
+	export AGENT_VIP_IDENTITY="webagent"
+
+	./scripts/core/upgrade-agent.sh
+
+This will create a web server on http://localhost:8080. The index.html file under ``simpleweb/webroot/simpleweb/`` can be any html page which binds to the VOLTTRON message bus .This provides a simple example of providing a web endpoint in VOLTTRON
+
+Path based registration examples
+--------------------------------
+
+- Files will need to be in webroot/simpleweb in order for them to be browsed from http://localhost:8080/simpleweb/index.html
+
+- Filename is required as we don't currently autoredirect to any default pages as shown in ``self.vip.web.register_path("/simpleweb", os.path.join(WEBROOT))``
+
+The following two examples show the way to call either a jsonrpc (default) endpoint and one that returns a different content-type. With the JSON-RPC example from vc we only allow post requests, however this is not required.
+
+- Endpoint will be available at http://localhost:8080/simple/text ``self.vip.web.register_endpoint("/simple/text", self.text)``
+        
+- Endpoint will be available at http://localhost:8080/simple/jsonrpc ``self.vip.web.register_endpoint("/simpleweb/jsonrpc", self.rpcendpoint)``
+- Text/html content type specified so the browser can act appropriately like ``[("Content-Type", "text/html")]``
+- The default response is application/json so our endpoint returns appropriately with a json based response.
+        
+
+
+
