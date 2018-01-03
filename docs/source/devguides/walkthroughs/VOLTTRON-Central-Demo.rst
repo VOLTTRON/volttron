@@ -73,18 +73,8 @@ to select defaults on all fields except **credentials**, where we will type
 
 .. code-block:: console
 
-   $ volttron-ctl auth add
-   domain []:
-   address []:
-   user_id []:
-   capabilities (delimit multiple entries with comma) []:
-   roles (delimit multiple entries with comma) []:
-   groups (delimit multiple entries with comma) []:
-   mechanism [CURVE]:
-   credentials []: /.*/
-   comments []:
-   enabled [True]:
-   added entry domain=None, address=None, mechanism='CURVE', credentials=u'/.*/', user_id=None
+   $ volttron-ctl auth add --credentials "/.*/"
+   added entry domain=None, address=None, mechanism='CURVE', credentials=u'/.*/', user_id='63b126a7-2941-4ebe-8588-711d1e6c70d1'
 
 For more information on authorization see :ref:`authentication<VIP-Authentication>`.
 
@@ -113,8 +103,8 @@ should be different for each instance.
 
     $ volttron -l log1&
 
-If you choose to not start your agents with their platforms they will need to
-be started by hand. List the installed agents with
+.. note:: If you choose to not start your agents with their platforms they will
+need to be started by hand.  List the installed agents with
 
 .. code-block:: console
 
@@ -135,9 +125,12 @@ or
 
     $ volttron-ctl start --tag tag
 
-Now point your browser to `localhost:8080` and and log in with the credentials
-you provided. The platform agents should automatically register with VOLTTRON
-central.
+.. note:: In each of the above examples one could use * suffix to match more
+than one agent.
+
+Open your browser to `localhost:8080/vc/index.hmtl` and and log in with the
+credentials you provided. The platform agents should be automatically register
+with VOLTTRON central.
 
 Stopping the Demo
 -----------------
@@ -234,21 +227,6 @@ of its agents. The platform's name is a link that can be clicked on
 to go to the platform management view.
 
 |Platforms|
-
-Register New Platform
----------------------
-
-To register a new VOLTTRON platform, click the Register Platform button.
-You'll need to provide a name and the IP address of the platform. Click
-the Advanced link for additional configuration options.
-
-|Register Platform Information|
-
-Deregister Platform
--------------------
-
-To deregister a VOLTTRON Platform, click on the X button for that platform
-in the list.
 
 Platform View
 ~~~~~~~~~~~~~
@@ -351,7 +329,6 @@ removes it from the Charts page and the Dashboard.
 .. |Login Screen| image:: files/login-screen.png
 .. |Logout Button| image:: files/logout-button.png
 .. |Platforms| image:: files/platforms.png
-.. |Register Platform Information| image:: files/register-new-platform.png
 .. |Platform Screen| image:: files/manage-platforms.png
 .. |Platforms Tree| image:: files/side-panel-open.png
 .. |Platforms Panel| image:: files/side-panel-closed.png
