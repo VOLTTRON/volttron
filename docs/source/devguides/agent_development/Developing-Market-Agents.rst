@@ -33,6 +33,7 @@ Arguments 3-7 are callback methods that the agent may implement as needed for th
 
 The Reservation Callback
 ------------------------
+
 ::
     reservation\_callback(self, timestamp, market\_name, buyer\_seller)
 
@@ -51,6 +52,7 @@ with the reason that the market has not formed.
 
 The Offer Callback
 ------------------
+
 ::
     offer_callback(self, timestamp, market_name, buyer_seller)
 
@@ -65,6 +67,7 @@ For each market joined either an offer callback, an aggregate callback, or a cle
 
 The Aggregate Callback
 ----------------------
+
 ::
     aggregate_callback(self, timestamp, market_name, buyer_seller, aggregate_curve)
 
@@ -84,6 +87,7 @@ For each market joined either an offer callback, an aggregate callback, or a cle
 
 The Price Callback
 ------------------
+
 ::
     price_callback(self, timestamp, market_name, buyer_seller, price, quantity)
 
@@ -100,6 +104,7 @@ For each market joined either an offer callback, an aggregate callback, or a cle
 
 The Error Callback
 ------------------
+
 ::
     error\_callback(self, timestamp, market\_name, buyer\_seller, error\_code, error\_message, aux)
 
