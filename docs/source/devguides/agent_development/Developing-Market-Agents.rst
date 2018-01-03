@@ -34,8 +34,9 @@ Arguments 3-7 are callback methods that the agent may implement as needed for th
 The Reservation Callback
 ------------------------
 
-::
-    reservation\_callback(self, timestamp, market\_name, buyer\_seller)
+.. code-block:: python
+
+    reservation_callback(self, timestamp, market_name, buyer_seller)
 
 This method is called when it is time to reserve a slot in the market for the current market cycle.
 If this callback is not registered a slot is reserved for every market cycle.  If this callback is registered
@@ -53,7 +54,8 @@ with the reason that the market has not formed.
 The Offer Callback
 ------------------
 
-::
+.. code-block:: python
+
     offer_callback(self, timestamp, market_name, buyer_seller)
 
 If the agent has made a reservation for the market and a callback has been registered this callback is called.
@@ -68,7 +70,8 @@ For each market joined either an offer callback, an aggregate callback, or a cle
 The Aggregate Callback
 ----------------------
 
-::
+.. code-block:: python
+
     aggregate_callback(self, timestamp, market_name, buyer_seller, aggregate_curve)
 
 When a market has received all its buy offers it calculates an aggregate demand curve.
@@ -88,7 +91,8 @@ For each market joined either an offer callback, an aggregate callback, or a cle
 The Price Callback
 ------------------
 
-::
+.. code-block:: python
+
     price_callback(self, timestamp, market_name, buyer_seller, price, quantity)
 
 This callback is called when the market clears.
@@ -105,8 +109,9 @@ For each market joined either an offer callback, an aggregate callback, or a cle
 The Error Callback
 ------------------
 
-::
-    error\_callback(self, timestamp, market\_name, buyer\_seller, error\_code, error\_message, aux)
+.. code-block:: python
+
+    error_callback(self, timestamp, market_name, buyer_seller, error_code, error_message, aux)
 
 This callback is called when an error occurs isn't in response to an RPC call.
 The error codes are documented in::
