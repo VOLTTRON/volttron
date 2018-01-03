@@ -92,7 +92,6 @@ def install_agent(opts, package, config):
     """
     The main installation method for installing the agent on the correct local
     platform instance.
-
     :param opts:
     :param package:
     :param config:
