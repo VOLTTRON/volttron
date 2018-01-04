@@ -36,22 +36,18 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-AUTH = 'platform.auth'
+from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
 
-VOLTTRON_CENTRAL = 'volttron.central'
-VOLTTRON_CENTRAL_PLATFORM = 'platform.agent'
+class MarketParticipant(object):
+    def __init__(self, buyer_seller, identity):
+        self.buyer_seller = buyer_seller
+        self.identity = identity
+        if not self.is_buyer() and not self.is_seller():
+            raise ValueError('expected either %s or %s, but got %s instead.' % (BUYER, SELLER, buyer_seller))
 
-PLATFORM_ALERTER = 'platform.alerter'
-PLATFORM_HISTORIAN = 'platform.historian'
+    def is_buyer(self):
+        return self.buyer_seller == BUYER
 
-PLATFORM_MARKET_SERVICE = 'platform.market'
+    def is_seller(self):
+        return self.buyer_seller == SELLER
 
-CONTROL = 'control'
-CONTROL_CONNECTION = 'control.connection'
-MASTER_WEB = 'master.web'
-CONFIGURATION_STORE = 'config.store'
-PLATFORM_DRIVER = 'platform.driver'
-
-all_known = (VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, PLATFORM_HISTORIAN,
-             CONTROL, CONTROL_CONNECTION, MASTER_WEB, AUTH, PLATFORM_ALERTER,
-             CONFIGURATION_STORE, PLATFORM_MARKET_SERVICE)

@@ -36,22 +36,28 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-AUTH = 'platform.auth'
+import pytest
+from volttron.platform.agent.base_market_agent.point import Point
+from volttron.platform.agent.base_market_agent.poly_line import PolyLine
+from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
+from market_service.offer_manager import OfferManager
 
-VOLTTRON_CENTRAL = 'volttron.central'
-VOLTTRON_CENTRAL_PLATFORM = 'platform.agent'
+@pytest.mark.market
+def test_offer_settle_no_intersection():
+    demand1 = create_demand_curve()
+    demand2 = create_demand_curve()
+    offer_manager = OfferManager()
+    offer_manager.make_offer(BUYER, demand1)
+    offer_manager.make_offer(SELLER, demand2)
+    quantity, price, aux = offer_manager.settle()
+    assert len(aux) == 4
 
-PLATFORM_ALERTER = 'platform.alerter'
-PLATFORM_HISTORIAN = 'platform.historian'
-
-PLATFORM_MARKET_SERVICE = 'platform.market'
-
-CONTROL = 'control'
-CONTROL_CONNECTION = 'control.connection'
-MASTER_WEB = 'master.web'
-CONFIGURATION_STORE = 'config.store'
-PLATFORM_DRIVER = 'platform.driver'
-
-all_known = (VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, PLATFORM_HISTORIAN,
-             CONTROL, CONTROL_CONNECTION, MASTER_WEB, AUTH, PLATFORM_ALERTER,
-             CONFIGURATION_STORE, PLATFORM_MARKET_SERVICE)
+def create_demand_curve():
+    demand_curve = PolyLine()
+    price = 0
+    quantity = 1000
+    demand_curve.add(Point(price,quantity))
+    price = 1000
+    quantity = 0
+    demand_curve.add(Point(price,quantity))
+    return demand_curve

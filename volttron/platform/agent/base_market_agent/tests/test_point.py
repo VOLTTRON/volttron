@@ -36,22 +36,36 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-AUTH = 'platform.auth'
+import pytest
+from volttron.platform.agent.base_market_agent.point import Point
 
-VOLTTRON_CENTRAL = 'volttron.central'
-VOLTTRON_CENTRAL_PLATFORM = 'platform.agent'
+@pytest.mark.market
+def test_point_init():
+    p = Point(4,8)
+    assert p.x == 4.0
+    assert p.y == 8.0
 
-PLATFORM_ALERTER = 'platform.alerter'
-PLATFORM_HISTORIAN = 'platform.historian'
+@pytest.mark.market
+def test_point_x_none():
+    with pytest.raises(ValueError):
+        p = Point(None,8)
 
-PLATFORM_MARKET_SERVICE = 'platform.market'
+@pytest.mark.market
+def test_point_x_negative():
+    with pytest.raises(ValueError):
+        p = Point(-8,8)
 
-CONTROL = 'control'
-CONTROL_CONNECTION = 'control.connection'
-MASTER_WEB = 'master.web'
-CONFIGURATION_STORE = 'config.store'
-PLATFORM_DRIVER = 'platform.driver'
+@pytest.mark.market
+def test_point_y_none():
+    with pytest.raises(ValueError):
+        p = Point(4,None)
 
-all_known = (VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, PLATFORM_HISTORIAN,
-             CONTROL, CONTROL_CONNECTION, MASTER_WEB, AUTH, PLATFORM_ALERTER,
-             CONFIGURATION_STORE, PLATFORM_MARKET_SERVICE)
+def test_point_y_negative():
+    with pytest.raises(ValueError):
+        p = Point(4,-4)
+
+@pytest.mark.market
+def test_point_tuppleize():
+    p = Point(4,8)
+    assert p == (4.0,8.0)
+

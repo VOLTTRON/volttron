@@ -36,22 +36,44 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-AUTH = 'platform.auth'
+import pytest
+from market_service.market_participant import MarketParticipant
+from market_service.market import Market, ACCEPT_RESERVATIONS
+from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
 
-VOLTTRON_CENTRAL = 'volttron.central'
-VOLTTRON_CENTRAL_PLATFORM = 'platform.agent'
+@pytest.mark.market
+def test_market_state_create_name():
+    market_name = 'test_market'
+    market = build_test_machine(market_name, BUYER)
+    assert market_name == market.market_name
 
-PLATFORM_ALERTER = 'platform.alerter'
-PLATFORM_HISTORIAN = 'platform.historian'
+def build_test_machine(market_name = 'test_market', buyer_seller = BUYER):
+    participant = MarketParticipant(buyer_seller, 'agent_id')
+    publisher = Publisher()
+    market = Market(market_name, participant, publisher.publish)
+    return market
 
-PLATFORM_MARKET_SERVICE = 'platform.market'
+@pytest.mark.market
+def test_market_state_create_state():
+    market = build_test_machine()
+    assert market.state == ACCEPT_RESERVATIONS
 
-CONTROL = 'control'
-CONTROL_CONNECTION = 'control.connection'
-MASTER_WEB = 'master.web'
-CONFIGURATION_STORE = 'config.store'
-PLATFORM_DRIVER = 'platform.driver'
+@pytest.mark.market
+def test_market_state_create_has_formed_false():
+    market = build_test_machine()
+    assert market.has_market_formed() == False
 
-all_known = (VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, PLATFORM_HISTORIAN,
-             CONTROL, CONTROL_CONNECTION, MASTER_WEB, AUTH, PLATFORM_ALERTER,
-             CONFIGURATION_STORE, PLATFORM_MARKET_SERVICE)
+@pytest.mark.market
+def test_market_state_create_has_formed_true():
+    market_name = 'test_market'
+    market = build_test_machine(market_name, BUYER)
+    participant = MarketParticipant(SELLER, 'agent_id2')
+    market.make_reservation(participant)
+    assert market.has_market_formed() == True
+
+class Publisher(object):
+    def __init__(self):
+        pass
+
+    def publish(self, peer, topic, headers=None, message=None, bus=''):
+        pass

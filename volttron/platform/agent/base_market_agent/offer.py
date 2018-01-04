@@ -36,22 +36,21 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-AUTH = 'platform.auth'
+class Offer(object):
 
-VOLTTRON_CENTRAL = 'volttron.central'
-VOLTTRON_CENTRAL_PLATFORM = 'platform.agent'
+    BUY = 'BUY'
+    SELL = 'SELL'
 
-PLATFORM_ALERTER = 'platform.alerter'
-PLATFORM_HISTORIAN = 'platform.historian'
+    def __init__(self, offer_type, commodity, curve):
+        self.__type = offer_type
+        self.__commodity = commodity
+        self.__curve = curve
 
-PLATFORM_MARKET_SERVICE = 'platform.market'
+    def type(self):
+        return self.__type
 
-CONTROL = 'control'
-CONTROL_CONNECTION = 'control.connection'
-MASTER_WEB = 'master.web'
-CONFIGURATION_STORE = 'config.store'
-PLATFORM_DRIVER = 'platform.driver'
+    def commodity(self):
+        return self.__commodity
 
-all_known = (VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, PLATFORM_HISTORIAN,
-             CONTROL, CONTROL_CONNECTION, MASTER_WEB, AUTH, PLATFORM_ALERTER,
-             CONFIGURATION_STORE, PLATFORM_MARKET_SERVICE)
+    def curve(self):
+        return self.__curve

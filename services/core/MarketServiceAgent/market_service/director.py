@@ -36,22 +36,32 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-AUTH = 'platform.auth'
+import logging
+import gevent
+from volttron.platform.agent import utils
 
-VOLTTRON_CENTRAL = 'volttron.central'
-VOLTTRON_CENTRAL_PLATFORM = 'platform.agent'
+_log = logging.getLogger(__name__)
+utils.setup_logging()
 
-PLATFORM_ALERTER = 'platform.alerter'
-PLATFORM_HISTORIAN = 'platform.historian'
+class Director(object):
+    def __init__(self, market_period, reservation_delay, offer_delay):
+        _log.debug("Creating Director for MarketServiceAgent")
+        self.market_period = market_period
+        self.reservation_delay = reservation_delay
+        self.offer_delay = offer_delay
 
-PLATFORM_MARKET_SERVICE = 'platform.market'
+    def start(self, sender):
+        _log.debug("Starting Director for MarketServiceAgent")
+        self.sender = sender
+        self.sender.core.periodic(self.market_period, self._trigger)
 
-CONTROL = 'control'
-CONTROL_CONNECTION = 'control.connection'
-MASTER_WEB = 'master.web'
-CONFIGURATION_STORE = 'config.store'
-PLATFORM_DRIVER = 'platform.driver'
+    def _trigger(self):
+        _log.debug("Trigger market period in Director for MarketServiceAgent")
+        gevent.sleep(self.reservation_delay)
+        self.sender.send_collect_reservations_request(self._get_time())
+        gevent.sleep(self.offer_delay)
+        self.sender.send_collect_offers_request(self._get_time())
 
-all_known = (VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, PLATFORM_HISTORIAN,
-             CONTROL, CONTROL_CONNECTION, MASTER_WEB, AUTH, PLATFORM_ALERTER,
-             CONFIGURATION_STORE, PLATFORM_MARKET_SERVICE)
+    def _get_time(self):
+        now = utils.get_aware_utc_now()
+        return now
