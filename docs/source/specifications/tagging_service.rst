@@ -164,8 +164,8 @@ rpc call to to tagging service method **'add_topic_tags'** with parameters:
 ------------------------------
 rpc call to to tagging service method **'add_tags'** with parameters:
 
-    1. **tags** - dictionary object or file containing the topic and the tag details.
-       dictionary object or the file content should be of the format:
+    1. **tags** - dictionary object containing the topic and the tag details.
+       format:
 
        .. code-block:: python
 
@@ -199,10 +199,10 @@ Current topic names:
 
 Step 1:
 ^^^^^^^
-Create a file that contains topic name pattern and its corresponding tag/value
-pair. Use topic pattern names to fill out tags that can be applied to more than
-one topic or topic prefix. Use specific topic name and topic prefix for tags that
-apply only to a single entityFor example:
+Create a python dictionary object contains topic name pattern and its
+corresponding tag/value pair. Use topic pattern names to fill out tags that
+can be applied to more than one topic or topic prefix. Use specific topic name
+and topic prefix for tags that apply only to a single entity. For example:
 
     .. code-block:: python
 
@@ -210,7 +210,6 @@ apply only to a single entityFor example:
         # tags specific to building1
         '/campus1/building1':
             {
-            'id': '@buildingname',
             'site': true,
             'dis': ": 'some building description',
             'yearBuilt': 2015,
@@ -221,7 +220,8 @@ apply only to a single entityFor example:
             {
             'dis': "building1 chilled water system - CHW",
             'equip': true,
-            'siteRef': '@buildingname',
+            'campusRef':'campus1',
+            'siteRef': 'campus1/building1',
             'chilled': true,
             'water' : true,
             'secondaryLoop': true
@@ -232,7 +232,8 @@ apply only to a single entityFor example:
             'dis': "building1 chilled water system - point1",
             'point': true,
             'kind': 'Bool',
-            'siteRef': '@buildingname'
+            'campusRef':'campus1',
+            'siteRef': 'campus1/building1'
             }
         # tags that apply to point2 of all device of a specific type
         '/campus1/building1/deviceA*/point2':
@@ -240,7 +241,8 @@ apply only to a single entityFor example:
             'dis': "building1 chilled water system - point2",
             'point': true,
             'kind': 'Number',
-            'siteRef': '@buildingname'
+            'campusRef':'campus1',
+            'siteRef': 'campus1/building1'
             }
         # tags that apply to point3 of all device of a specific type
         '/campus1/building1/deviceA*/point3':
@@ -248,7 +250,8 @@ apply only to a single entityFor example:
             'dis': "building1 chilled water system - point3",
             'point': true,
             'kind': 'Number',
-            'siteRef': '@buildingname'
+            'campusRef':'campus1',
+            'siteRef': 'campus1/building1'
             }
         # tags that apply to all device of a specific type
         '/campus1/building1/deviceB*':
@@ -258,7 +261,8 @@ apply only to a single entityFor example:
             'chilled': true,
             'water' : true,
             'secondaryLoop': true,
-            'siteRef': '@buildingname'
+            'campusRef':'campus1',
+            'siteRef': 'campus1/building1'
             }
         # tags that apply to point1 of all device of a specific type
         '/campus1/building1/deviceB*/point1':
@@ -266,7 +270,8 @@ apply only to a single entityFor example:
             'dis': "building1 device B - point1",
             'point': true,
             'kind': 'Bool',
-            'siteRef': '@buildingname',
+            'campusRef':'campus1',
+            'siteRef': 'campus1/building1',
             'command':true
             }
         # tags that apply to point1 of all device of a specific type
@@ -275,13 +280,14 @@ apply only to a single entityFor example:
             'dis': "building1 device B - point2",
             'point': true,
             'kind': 'Number',
-            'siteRef': '@buildingname',
+            'campusRef':'campus1',
+            'siteRef': 'campus1/building1'
             }
         }
 
 Step 2: Create tags using template above
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Make an RPC call to the add_tags method and pass a pointer to the above file
+Make an RPC call to the add_tags method and pass the python dictionary object
 
 Step 3: Create tags specific to a point or device
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -297,7 +303,7 @@ added using the rpc call to tagging service either the method
                 'platform.tagging',
                 'add_topic_tags',
                 topic_prefix='/campus1/building1/deviceA1',
-                tags={'id':'@buildingname.deviceA1','tag1':'value'})
+                tags={'tag1':'value'})
 
 
     .. code-block:: python
@@ -307,9 +313,9 @@ added using the rpc call to tagging service either the method
                 'add_topic_tags',
                 tags={
                     '/campus1/building1/deviceA2':
-                        {'id':'@buildingname.deviceA2','tag1':'value'},
+                        {'tag1':'value'},
                     '/campus1/building1/deviceA2/point1':
-                        {'equipRef':'@buildingname.deviceA2'}
+                        {'equipRef':'campus1/building1/deviceA2'}
                      }
                 )
 
@@ -342,8 +348,9 @@ tags in the system are as follows
         'dis': "building1 device B - point1",
         'point': true,
         'kind': 'Bool',
-        'siteRef': '@buildingname',
-        'equipRef: '@buildingname.deviceB1',
+        'campusRef':'campus1',
+        'siteRef': 'campus1/building1',
+        'equipRef': 'campus1/building1/deviceB1',
         'command':true
         }
 
@@ -357,7 +364,8 @@ tags in the system are as follows
         'chilled': true,
         'water' : true,
         'secondaryLoop': true,
-        'siteRef': '@buildingname'
+        'campusRef':'campus1',
+        'siteRef': 'campus1/building1'
         }
 
 
