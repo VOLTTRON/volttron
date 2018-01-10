@@ -1356,10 +1356,7 @@ class OpenADRVenAgent(Agent):
         """
         _log.debug('RPC get_events')
         events = self._get_events(**kwargs)
-        if events is None:
-            return None
-        else:
-            return json.dumps([e.as_json_compatible_object() for e in events], default=self.json_converter)
+        return None if events is None else self.json_object([e.as_json_compatible_object() for e in events])
 
     @RPC.export
     def get_telemetry_parameters(self):
@@ -1377,7 +1374,7 @@ class OpenADRVenAgent(Agent):
         return {'online': self.ven_online,
                 'manual_override': self.ven_manual_override,
                 'telemetry': report.telemetry_parameters,
-                'report parameters': json.dumps(report.as_json_compatible_object(), default=self.json_converter)}
+                'report parameters': self.json_object(report.as_json_compatible_object())}
 
     @RPC.export
     def set_telemetry_status(self, online, manual_override):
@@ -1456,11 +1453,10 @@ class OpenADRVenAgent(Agent):
         else:
             _log.debug('Publishing event {}'.format(an_event))
             request_headers = {headers.TIMESTAMP: format_timestamp(utils.get_aware_utc_now())}
-            message_json = json.dumps(an_event.as_json_compatible_object(), default=self.json_converter)
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=topics.OPENADR_EVENT,
                                     headers=request_headers,
-                                    message=message_json)
+                                    message=self.json_object(an_event.as_json_compatible_object()))
 
     def publish_telemetry_parameters_for_report(self, report):
         """
@@ -1762,6 +1758,12 @@ class OpenADRVenAgent(Agent):
         _log.debug("Registering Endpoints: {}".format(self.__class__.__name__))
         for endpoint in OPENADR_ENDPOINTS.itervalues():
             self.vip.web.register_endpoint(endpoint.url, getattr(self, endpoint.callback), "raw")
+
+    def json_object(self, obj):
+        """Ensure that an object is valid JSON by dumping it with json_converter and then reloading it."""
+        obj_string = json.dumps(obj, default=self.json_converter)
+        obj_json = json.loads(obj_string)
+        return obj_json
 
     @staticmethod
     def json_converter(object_to_dump):

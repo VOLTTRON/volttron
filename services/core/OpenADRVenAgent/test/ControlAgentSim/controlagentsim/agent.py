@@ -196,26 +196,24 @@ class ControlAgentSim(Agent):
 
     def receive_event(self, peer, sender, bus, topic, headers, message):
         """(Subscription callback) Receive a list of active events as JSON."""
-        event = json.loads(message)
         debug_string = 'Received event: ID={}, status={}, start={}, end={}, opt_type={}, all params={}'
-        _log.debug(debug_string.format(event['event_id'],
-                                       event['status'],
-                                       event['start_time'],
-                                       event['end_time'],
-                                       event['opt_type'],
+        _log.debug(debug_string.format(message['event_id'],
+                                       message['status'],
+                                       message['start_time'],
+                                       message['end_time'],
+                                       message['opt_type'],
                                        message))
-        if event['opt_type'] != self.default_opt_type:
+        if message['opt_type'] != self.default_opt_type:
             # Send an optIn decision to the VENAgent.
-            self.respond_to_event(event['event_id'], self.default_opt_type)
+            self.respond_to_event(message['event_id'], self.default_opt_type)
 
     def receive_status(self, peer, sender, bus, topic, headers, message):
         """(Subscription callback) Receive a list of report parameters as JSON."""
-        report = json.loads(message)
         debug_string = 'Received report parameters: request_id={}, status={}, start={}, end={}, all params={}'
-        _log.debug(debug_string.format(report['report_request_id'],
-                                       report['status'],
-                                       report['start_time'],
-                                       report['end_time'],
+        _log.debug(debug_string.format(message['report_request_id'],
+                                       message['status'],
+                                       message['start_time'],
+                                       message['end_time'],
                                        message))
         _log.debug('Received report(s) status: {}'.format(message))
 
@@ -236,8 +234,7 @@ class ControlAgentSim(Agent):
         @return: (JSON) A list of events.
         """
         _log.debug('Requesting an event list')
-        events_string = self.send_rpc('get_events')
-        events_list = json.loads(events_string)
+        events_list = self.send_rpc('get_events')
         if events_list:
             for event_dict in events_list:
                 _log.debug('\tevent_id {}:'.format(event_dict.get('event_id')))
@@ -257,10 +254,9 @@ class ControlAgentSim(Agent):
         if param_dict:
             for key, val in param_dict.iteritems():
                 try:
-                    loaded_val = json.loads(val)
-                    if type(loaded_val) == dict:
+                    if type(val) == dict:
                         _log.debug('\t{}:'.format(key))
-                        for key2, val2 in loaded_val.iteritems():
+                        for key2, val2 in val.iteritems():
                             if type(val2) == dict:
                                 _log.debug('\t\t{}:'.format(key2))
                                 for key3, val3 in val2.iteritems():
@@ -268,7 +264,7 @@ class ControlAgentSim(Agent):
                             else:
                                 _log.debug('\t\t{}={}'.format(key2, val2))
                     else:
-                        _log.debug('\t{}={}'.format(key, loaded_val))
+                        _log.debug('\t{}={}'.format(key, val))
                 except ValueError:
                     _log.debug('\t{}={}'.format(key, val))
         else:

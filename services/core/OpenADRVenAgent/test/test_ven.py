@@ -257,8 +257,7 @@ class TestOpenADRVenAgent:
         """
         self.vtn_request('EiReport', 'test_vtn_registered_report')
         response = self.send_rpc(test_agent, 'get_telemetry_parameters')
-        report_param_string = response.get('report parameters')
-        report_params = json.loads(report_param_string)
+        report_params = response.get('report parameters')
         assert report_params.get('status') == 'active'
 
     def get_event_dict(self, agt, event_id):
@@ -268,9 +267,8 @@ class TestOpenADRVenAgent:
         @param agt: This test agent.
         @param event_id: ID of the test event.
         """
-        events_string = self.send_rpc(agt, 'get_events', event_id=event_id)
-        print('events returned from get_events RPC call: {}'.format(events_string))
-        events_list = json.loads(events_string)
+        events_list = self.send_rpc(agt, 'get_events', event_id=event_id)
+        print('events returned from get_events RPC call: {}'.format(events_list))
         assert len(events_list) > 0
         assert events_list[0].get('event_id') == event_id
         return events_list[0]
