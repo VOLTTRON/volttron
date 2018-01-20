@@ -20,8 +20,10 @@ source "$SCRIPT_DIR/env/bin/activate"
 if [ "$1" = '--rotating' ]; then
     echo "Starting VOLTTRON with rotatinglog.py in the background."
     volttron -L examples/rotatinglog.py > volttron.log 2>&1 &
+    disown
 else
     echo "Starting VOLTTRON verbosely in the background"
     volttron -vv -l volttron.log > volttron.log 2>&1 &
+    disown
 fi
 

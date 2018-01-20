@@ -1,57 +1,38 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2017, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2017, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
@@ -59,60 +40,48 @@
 from __future__ import absolute_import, print_function
 
 import base64
-from collections import defaultdict
 import datetime
-from enum import Enum
 import hashlib
 import logging
 import os
 import re
 import shutil
-import string
 import sys
 import tempfile
 import urlparse
+from collections import defaultdict
 
 import gevent
 import gevent.event
 import psutil
+from enum import Enum
 
-from volttron.platform.messaging.health import GOOD_STATUS
-from volttron.platform.messaging.health import Status
-from .vcconnection import VCConnection
-
-from volttron.platform import jsonrpc
-from volttron.platform.agent.utils import (get_utc_seconds_from_epoch,
-                                           format_timestamp, normalize_identity)
 from volttron.platform.agent import utils
-from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, CONTROL, CONFIGURATION_STORE)
-from volttron.platform.agent.utils import (get_aware_utc_now)
-from volttron.platform.auth import AuthEntry, AuthFile
-from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS)
-from volttron.platform.messaging import topics
-from volttron.platform.messaging.topics import (LOGGER, )
-from volttron.platform.vip.agent import (Agent, Core, RPC, PubSub, Unreachable)
-from volttron.platform.vip.agent.subsystems.query import Query
-from volttron.platform.vip.agent.utils import build_agent
-from volttron.platform.web import DiscoveryInfo, DiscoveryError
-from .bacnet_proxy_reader import BACnetReader
-
-__version__ = '4.5.3'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+from volttron.platform import jsonrpc
 
-class NotManagedError(StandardError):
-    """ Raised if vcp cannot connect to the vc trying to manage it.
+from volttron.platform.agent.bacnet_proxy_reader import BACnetReader
+from volttron.platform.agent.known_identities import (
+    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, CONTROL, CONFIGURATION_STORE)
+from volttron.platform.agent.utils import (get_aware_utc_now)
+from volttron.platform.agent.utils import (get_utc_seconds_from_epoch,
+                                           format_timestamp, normalize_identity)
+from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS)
+from volttron.platform.messaging import topics
+from volttron.platform.messaging.health import GOOD_STATUS
+from volttron.platform.messaging.health import Status
+from volttron.platform.messaging.topics import (LOGGER, )
+from volttron.platform.vip.agent import (Agent, Core, RPC, Unreachable)
+from volttron.platform.vip.agent.subsystems.query import Query
+from volttron.platform.vip.agent.utils import build_agent
+from volttron.platform.web import DiscoveryInfo, DiscoveryError
+from .vcconnection import VCConnection
 
-    Some examples of this could be if the serverkey is not valid, if the
-    tcp address is invalid, if the http address is invalid.
-
-    Other examples could be permissions issues from auth.
-    """
-    pass
-
+__version__ = '4.6'
 
 RegistrationStates = Enum('AgentStates',
                           'NotRegistered Unregistered Registered '
@@ -232,6 +201,19 @@ class VolttronCentralPlatform(Agent):
         # This is used internally so we don't have to do replacements more
         # than one time.
         self._topic_replacement = {}
+
+        # When this is not None then we are in the middle of a scan and should
+        # not be able to start another scan.
+        self._iam_vc_response_topic = None
+
+        # This allows us to use a bacnet agent that is not on the local
+        # platform to do the scan (In most cases this will be set to self)
+        self._bacnet_communication_agent = self
+        self._bacnet_proxy_identity = None
+
+        # This uses convience methods so we can get information from the proxied
+        # devices
+        self._bacnet_proxy_readers = None
 
     def _retrieve_address_and_serverkey(self, discovery_address):
         info = DiscoveryInfo.request_discovery_info(discovery_address)
@@ -826,70 +808,124 @@ volttron-central-serverkey."""
 
             self._pub_to_vc(publish_topic, message=message)
 
-        bn = BACnetReader(self.vip.rpc, proxy_identity, bacnet_response)
+        bn = BACnetReader(self.vip, proxy_identity, bacnet_response)
 
         gevent.spawn(bn.read_device_properties, address, device_id, filter)
         gevent.sleep(0.1)
 
         return "PUBLISHING"
 
-    def start_bacnet_scan(self, iam_topic, proxy_identity, low_device_id=None,
+    def _stop_listening_for_iam(self):
+
+        _log.debug('Stopping IAM Done publishing i am responses.')
+        stop_timestamp = get_utc_seconds_from_epoch()
+        self._pub_to_vc(self._iam_vc_response_topic, message=dict(
+            status="FINISHED IAM",
+            timestamp=stop_timestamp
+        ))
+        self._iam_vc_response_topic = None
+        if self._bacnet_communication_agent is not self:
+            try:
+                self._bacnet_communication_agent.core.stop(timeout=3)
+            except gevent.Timeout:
+                _log.error("Couldn't stop dynamic agent during bacnet scan")
+            finally:
+                self._bacnet_communication_agent = None
+        self._bacnet_proxy_identity = None
+        self._bacnet_proxy_readers.stop_iam_responses()
+
+    def _iam_response_handler(self, message):
+        _log.debug("IAM response message: {}".format(message))
+        address = message['address']
+        device_id = message['device_id']
+        _log.info("IAM response for (andress, devices_id) ({}, {})".format(
+            address, device_id
+        ))
+
+        try:
+            message['device_name'] = self._bacnet_proxy_readers.read_device_name(
+                address, device_id)
+
+        except gevent.Timeout:
+            message['is_error'] = True
+            message['device_name'] = "Timeout receiving name of device"
+        except Exception as ex:
+            message['is_error'] = True
+            message['device_name'] = repr(ex)
+            _log.error(repr(ex))
+
+        self._pub_to_vc(self._iam_vc_response_topic, message=message)
+
+    def start_bacnet_scan(self, iam_vc_response_topic, proxy_identity,
+                          low_device_id=None,
                           high_device_id=None, target_address=None,
                           scan_length=5, instance_address=None,
                           instance_serverkey=None):
-        """This function is a wrapper around the bacnet proxy scan.
+        """Start a bacnet scan, monitoring the iam topic for responses.
+
+        If there is already a scan being processed then the method logs a
+        warning and returns immediately.
+
+        If instances_address and instance_serverkey are specified then a
+        dynamic agent will attempt to connect to thte isntance_address and
+        contact the bacnet proxy.  If not successful then the agent will
+        raise and Unreachable error.
+
+        The bacnet proxy identity must be available on the target platform or
+        an Unreachable error will be raised.
         """
+        if self._iam_vc_response_topic:
+            _log.warning("Duplicate scan request.")
+            return
+
+        # Avoid a race condition by immediately marking as in use.
+        self._iam_vc_response_topic = "Hold"
+
+        # Assume we are going to use the current vcp as the connection to the
+        # proxy.
         agent_to_use = self
         if instance_address is not None:
+            if not instance_serverkey:
+                self._iam_vc_response_topic = None
+                raise Unreachable("Invalid instance_serverkey specified.")
             agent_to_use = build_agent(address=instance_address,
                                        identity="proxy_bacnetplatform",
                                        publickey=self.core.publickey,
                                        secretkey=self.core.secretkey,
                                        serverkey=instance_serverkey)
 
+        # Verify that we have a connection to the proxy we need to talk with.
         if proxy_identity not in agent_to_use.vip.peerlist().get(timeout=5):
+            self._iam_vc_response_topic = None
             raise Unreachable("Can't reach agent identity {}".format(
                 proxy_identity))
         _log.info('Starting bacnet_scan with who_is request to {}'.format(
             proxy_identity))
 
-        def handle_iam(peer, sender, bus, topic, headers, message):
-            proxy_identity = sender
-            address = message['address']
-            device_id = message['device_id']
-            bn = BACnetReader(agent_to_use.vip.rpc, proxy_identity)
-            message['device_name'] = bn.read_device_name(address, device_id)
-            message['device_description'] = bn.read_device_description(
-                address,
-                device_id)
+        # Update member variables to determine state
+        self._iam_vc_response_topic = iam_vc_response_topic
+        self._bacnet_proxy_identity = proxy_identity
+        self._bacnet_communication_agent = agent_to_use
 
-            self._pub_to_vc(iam_topic, message=message)
-
-        def stop_iam():
-            _log.debug('Done publishing i am responses.')
-            stop_timestamp = get_utc_seconds_from_epoch()
-            self._pub_to_vc(iam_topic, message=dict(
-                status="FINISHED IAM",
-                timestamp=stop_timestamp
-            ))
-            agent_to_use.vip.pubsub.unsubscribe('pubsub', topics.BACNET_I_AM,
-                                                handle_iam)
-
-        agent_to_use.vip.pubsub.subscribe('pubsub', topics.BACNET_I_AM,
-                                          handle_iam)
+        self._bacnet_proxy_readers = BACnetReader(
+            vip=self._bacnet_communication_agent.vip,
+            bacnet_proxy_identity=self._bacnet_proxy_identity,
+            iam_response_fn=self._iam_response_handler
+        )
 
         timestamp = get_utc_seconds_from_epoch()
 
-        self._pub_to_vc(iam_topic, message=dict(status="STARTED IAM",
-                                                timestamp=timestamp))
+        # Report to vc that we are starting the IAM publishing.
+        self._pub_to_vc(iam_vc_response_topic,
+                        message=dict(status="STARTED IAM",
+                                     timestamp=timestamp))
 
-        agent_to_use.vip.rpc.call(proxy_identity, "who_is",
-                                  low_device_id=low_device_id,
-                                  high_device_id=high_device_id,
-                                  target_address=target_address).get(
-            timeout=5.0)
+        self._bacnet_proxy_readers.start_whois(low_device_id=low_device_id,
+                                               high_device_id=high_device_id,
+                                               target_address=target_address)
 
-        gevent.spawn_later(float(scan_length), stop_iam)
+        gevent.spawn_later(float(scan_length * 2),
+                           self._stop_listening_for_iam)
 
     def _pub_to_vc(self, topic_leaf, headers=None, message=None):
         if self._vc_connection is None:
@@ -902,9 +938,10 @@ volttron-central-serverkey."""
 
         topic = "platforms/{}/{}".format(self.get_instance_uuid(),
                                          topic_leaf)
-        _log.debug('Publishing to vc topic: {}'.format(topic))
-        _log.debug('Publishing to vc headers: {}'.format(headers))
-        _log.debug('Publishing to vc message: {}'.format(message))
+        # _log.debug('Publishing to vc topic: {}'.format(topic))
+        # _log.debug('Publishing to vc headers: {}'.format(headers))
+        # _log.debug('Publishing to vc message: {}'.format(message))
+
         # Note because vc is a vcconnection object we are explicitly
         # saying to publish to the vc platform.
         self._vc_connection.publish_to_vc(topic=topic,
@@ -1026,7 +1063,7 @@ volttron-central-serverkey."""
     def _on_device_publish(self, peer, sender, bus, topic, headers, message):
         # Update the devices store for get_devices function call
         if not topic.endswith('/all'):
-            self._log.debug("Skipping publish to {}".format(topic))
+            _log.debug("Skipping publish to {}".format(topic))
             return
 
         _log.debug("topic: {}, message: {}".format(topic, message))
@@ -1346,21 +1383,22 @@ volttron-central-serverkey."""
         return result
 
     def _publish_device_health(self):
-        if self._device_status_event is not None:
-            self._device_status_event.cancel()
-
-        try:
-            self._vc_connection.publish_to_vc(
-                "platforms/{}/device_update".format(self.get_instance_uuid()),
-                message=self._device_publishes)
-        finally:
-            # The stats publisher publishes both to the local bus and the vc
-            # bus the platform specific topics.
-            next_update_time = self._next_update_time(
-                seconds=self._device_status_interval)
-
-            self._device_status_event = self.core.schedule(
-                next_update_time, self._publish_device_health)
+        _log.debug("SHOULD BE PUBLISHING DEVICE HEALTH HERE!")
+        # if self._device_status_event is not None:
+        #     self._device_status_event.cancel()
+        #
+        # try:
+        #     self._vc_connection.publish_to_vc(
+        #         "platforms/{}/device_update".format(self.get_instance_uuid()),
+        #         message=self._device_publishes)
+        # finally:
+        #     # The stats publisher publishes both to the local bus and the vc
+        #     # bus the platform specific topics.
+        #     next_update_time = self._next_update_time(
+        #         seconds=self._device_status_interval)
+        #
+        #     self._device_status_event = self.core.schedule(
+        #         next_update_time, self._publish_device_health)
 
 
 
