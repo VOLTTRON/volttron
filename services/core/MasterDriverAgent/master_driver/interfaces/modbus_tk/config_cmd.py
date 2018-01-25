@@ -405,6 +405,7 @@ class ConfigCmd (cmd.Cmd):
             Each entry look like:
                     addressing: offset
                     endian: big
+                    write_multiple_registers: False
                     file: elkor_wattson.csv
                     name: elkor wattson
                     description: reading some selected registers from elkor wattson meter
@@ -448,6 +449,9 @@ class ConfigCmd (cmd.Cmd):
             if addressing not in ('offset', 'offset_plus', 'address'):
                 addressing = 'offset'
 
+            print('Write multiple registers (default to True) [T/F]: ', end='')
+            write_multiple_registers = False if raw_input().lower() in ("f", "false") else True
+
             print('CSV file: ', end='')
             csv_file = raw_input().lower()
             csv_file = csv_file if csv_file.endswith('.csv') else "{0}.csv".format(csv_file)
@@ -465,6 +469,7 @@ class ConfigCmd (cmd.Cmd):
                     name = device_type_name,
                     endian = endian,
                     addressing = addressing,
+                    write_multiple_registers = write_multiple_registers,
                     file = csv_file,
                     selected_registers = selected_registers,
                     description = description
@@ -474,6 +479,7 @@ class ConfigCmd (cmd.Cmd):
                     name=device_type_name,
                     endian=endian,
                     addressing=addressing,
+                    write_multiple_registers=write_multiple_registers,
                     file=csv_file,
                     description=description
                 ))
@@ -529,6 +535,12 @@ class ConfigCmd (cmd.Cmd):
                     new_addressing = raw_input().lower()
                     if new_addressing in ('offset', 'offset_plus', 'address') and new_addressing != device_type['addressing']:
                         device_type['addressing'] = new_addressing
+                        edited = True
+
+                    print('Change write multiple registers option [T/F]: ', end='')
+                    new_write_multiple_registers = False if raw_input().lower() in ("f", "false") else True
+                    if new_write_multiple_registers != device_type.get('write_multiple_registers', "True"):
+                        device_type['write_multiple_registers'] = new_write_multiple_registers
                         edited = True
 
                     print('Change CSV file: ', end='')
@@ -632,7 +644,8 @@ class ConfigCmd (cmd.Cmd):
                                           "stopbits": 1,
                                           "xonxoff": 0,
                                           "addressing": "offset",
-                                          "endian": "big"},
+                                          "endian": "big",
+                                          "write_multiple_registers": True},
                         "driver_type": "modbus_tk",
                         "registry_config":"config://watts_on.csv",
                         "interval": 120,
@@ -669,11 +682,14 @@ class ConfigCmd (cmd.Cmd):
                     cont = False
                     for f in os.listdir(config_dir):
                         if f.endswith('.config') and f.split('.')[0] == name:
+                            self.do_driver_config(name)
                             print("Driver '{0}' already existed. Continue to edit the driver [y/n]: ".format(name), end='')
                             option = raw_input().lower()
                             if not option or not str2bool(option):
-                                print("Please choose a different driver name: ", end='')
+                                print("Please choose a different driver name OR press <Enter> to quit: ", end='')
                                 name = raw_input().lower()
+                                if not name:
+                                    self.do_quit('')
                                 cont = True
 
             print('Enter interval (default to 60 seconds): ', end='')
@@ -705,6 +721,8 @@ class ConfigCmd (cmd.Cmd):
                 if new_endian in ('big', 'little', 'mixed'):
                     endian = new_endian
 
+            write_multiple_registers = str2bool(str(device_type.get('write_multiple_registers', 'True')))
+
             csv_file = self.get_existed_file(self._directories['csv_dir'], device_type.get('file'))
 
             current_selected_registers = device_type.get('selected_registers', '')
@@ -728,6 +746,7 @@ class ConfigCmd (cmd.Cmd):
                                       "port": port,
                                       "addressing": addressing,
                                       "endian": endian,
+                                      "write_multiple_registers": write_multiple_registers,
                                       "selected_registers": selected_registers,
                                       "description": description},
                     "driver_type": "modbus_tk",
@@ -743,6 +762,7 @@ class ConfigCmd (cmd.Cmd):
                                       "port": port,
                                       "addressing": addressing,
                                       "endian": endian,
+                                      "write_multiple_registers": write_multiple_registers,
                                       "description": description},
                     "driver_type": "modbus_tk",
                     "registry_config": "config://" + csv_file,

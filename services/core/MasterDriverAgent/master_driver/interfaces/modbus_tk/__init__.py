@@ -250,6 +250,7 @@ class Interface(BasicRevert, BaseInterface):
         xonxoff = config_dict.get('xonxoff', 0)
         addressing = config_dict.get('addressing', OFFSET).lower()
         endian = endian_map[config_dict.get('endian', BIG)]
+        write_single_values = not str2bool(str(config_dict.get('write_multiple_registers', "True")))
 
         # Convert original modbus csv config format to the new modbus_tk registry_config_lst
         if registry_config_lst and 'Point Address' in registry_config_lst[0].keys():
@@ -272,9 +273,10 @@ class Interface(BasicRevert, BaseInterface):
             registry_config_lst=selected_registry_config_lst
         ).get_class()
 
-        self.modbus_client = modbus_client_class(device_address,
-                                                 port,
-                                                 slave_address)
+        self.modbus_client = modbus_client_class(device_address=device_address,
+                                                 port=port,
+                                                 slave_address=slave_address,
+                                                 write_single_values=write_single_values)
 
         # Set modbus client transport based on device configure
         if port:

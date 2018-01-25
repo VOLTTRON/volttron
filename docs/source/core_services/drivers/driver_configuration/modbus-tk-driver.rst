@@ -45,6 +45,7 @@ but only **device_address** is required:
             - Type!=bool, Writable=TRUE:  30000
             - Type!=bool, Writable=FALSE: 40000
     - **endian** (Optional) - Byte order: big, little, or mixed. Defaults to big.
+    - **write_multiple_registers** (Optional) - Write registers or coils one value at a time. Defaults to true.
     - **selected_registers** (Optional) - Comma-separated list of "Register Name" values, selected from the
       registry_config. Defaults to all.
         - example: "register_a,register_b,register_c"
@@ -100,6 +101,7 @@ Here is a sample RTU Modbus-TK device configuration, with completely-specified s
             "xonxoff": 0,
             "addressing": "offset",
             "endian": "big",
+            "write_multiple_registers": true
             "selected_registers": "active_power_total,reactive_power_total,voltage_average"
         },
         "driver_type": "modbus_tk",
@@ -190,6 +192,7 @@ Here is a sample ``maps.yaml`` file:
       file: modbus_tk_test.csv
       addressing: offset
       endian: little
+      write_multiple_registers: true
     - name: watts_on
       description: Read selected points from Elkor WattsOn meter
       file: watts_on.csv
