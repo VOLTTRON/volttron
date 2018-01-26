@@ -45,7 +45,9 @@ but only **device_address** is required:
             - Type!=bool, Writable=TRUE:  30000
             - Type!=bool, Writable=FALSE: 40000
     - **endian** (Optional) - Byte order: big, little, or mixed. Defaults to big.
-    - **write_multiple_registers** (Optional) - Write registers or coils one value at a time. Defaults to true.
+    - **write_multiple_registers** (Optional) - Write multiple coils or registers at a time. Defaults to true.
+        - : If write_multiple_registers is set to false, only register types unsigned short (uint16) and boolean (bool)
+        is supported. The exception raised during the configure process.
     - **selected_registers** (Optional) - Comma-separated list of "Register Name" values, selected from the
       registry_config. Defaults to all.
         - example: "register_a,register_b,register_c"
@@ -174,6 +176,7 @@ Each device type definition in ``maps.yaml`` consists of the following propertie
     - **description** (Optional) - A description of the device type.
     - **addressing** (Optional) - Data address type: offset, offset_plus, or address (see the driver_config parameters).
     - **endian** (Optional) - Byte order: big, little, or mixed (see the driver_config parameters).
+    - **write_multiple_registers** (Optional) - Write multiple registers at a time. Defaults to true.
     - **selected_registers** (Optional) - Comma-separated list of "Register Name" values, selected from the
       registry_config (see the driver_config parameters).
 

@@ -189,7 +189,7 @@ class Map(object):
        all the Fields (Registers) defined in the CSV.
     """
 
-    def __init__(self, file='', map_dir='', addressing='offset',  name='', endian='big', description='', registry_config_lst=''):
+    def __init__(self, file='', map_dir='', addressing='offset',  name='', endian='big', description='', registry_config_lst='', **kwargs):
         """
         :param kwargs: map_dir= ,name=modbus_tk, addressing=offset, endian=big, file=example.csv
         """

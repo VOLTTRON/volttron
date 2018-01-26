@@ -24,3 +24,9 @@
 - description: modbus driver
   file: modbus_test.csv
   name: modbus_test
+- addressing: offset
+  description: example of reading single registers for modbus_tk driver testing
+  endian: big
+  write_multiple_registers: false
+  file: write_single_registers.csv
+  name: write_single_registers

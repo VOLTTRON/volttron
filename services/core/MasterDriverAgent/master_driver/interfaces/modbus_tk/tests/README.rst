@@ -59,3 +59,14 @@ Regression test for modbus_tk interface with rtu transport:
 a correct device_address and slave_id. On Mac OS, the device_address is /dev/tty.usbserial-AL00IEEY with default
 slave_id 1
 - Do regression test on set_point, get_point, and scrape_all
+
+
+test_write_single_registers.py
+------------------------------
+Regression test for modbus_tk interface with tcp transport:
+
+- Build master driver agent and define write_single_registers driver config and register csv set with the additional
+feature write_multiple_registers = false (it means write single register with modbus function code 06)
+- With the set-up server running, do regression test on set_point, get_point, scrape_all, revert_point,
+and revert_device for the driver
+

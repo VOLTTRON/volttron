@@ -258,9 +258,12 @@ class Interface(BasicRevert, BaseInterface):
 
         # Get the list of register dictionary based on selected register names
         selected_registry_config_lst = []
-        selected_registers = config_dict.get('selected_registers', '').replace(' ','')
+        selected_registers = config_dict.get('selected_registers', '').replace(' ', '')
         register_names = [] if not selected_registers else selected_registers.split(',')
+
         for reg_dict in registry_config_lst:
+            if write_single_values and reg_dict['Type'] not in ("uint16", "bool"):
+                raise ModbusInterfaceException('Only support unsigned short and bool types for write single registers')
             reg_name = reg_dict.get('Register Name', reg_dict['Volttron Point Name']).replace(' ', '_')
             if not register_names or reg_name in register_names:
                 selected_registry_config_lst.append(reg_dict)
