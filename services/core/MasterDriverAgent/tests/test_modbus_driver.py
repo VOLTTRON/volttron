@@ -6,7 +6,7 @@ import time
 from volttron.platform import get_services_core
 from master_driver.interfaces.modbus_tk.server import Server
 from master_driver.interfaces.modbus_tk.client import Client, Field
-from master_driver.interfaces.modbus_tk.define import *
+from master_driver.interfaces.modbus_tk import helpers
 from struct import pack, unpack
 
 logger = logging.getLogger(__name__)
@@ -109,30 +109,30 @@ class PPSPi32Client (Client):
     def __init__(self, *args, **kwargs):
         super(PPSPi32Client, self).__init__(*args, **kwargs)
 
-    byte_order = BIG_ENDIAN
-    addressing = ADDRESS_OFFSET
+    byte_order = helpers.BIG_ENDIAN
+    addressing = helpers.ADDRESS_OFFSET
 
-    BigUShort = Field("BigUShort", 0, USHORT, 'PPM', 2, no_op, REGISTER_READ_WRITE, OP_MODE_READ_WRITE)
-    BigUInt = Field("BigUInt", 1, UINT, 'PPM', 2, no_op, REGISTER_READ_WRITE, OP_MODE_READ_WRITE)
-    BigULong = Field("BigULong", 3, UINT64, 'PPM', 2, no_op, REGISTER_READ_WRITE, OP_MODE_READ_WRITE)
-    BigShort = Field("BigShort", 7, SHORT, 'PPM', 2, no_op, REGISTER_READ_WRITE, OP_MODE_READ_WRITE)
-    BigInt = Field("BigInt", 8, INT, 'PPM', 2, no_op, REGISTER_READ_WRITE, OP_MODE_READ_WRITE)
-    BigFloat = Field("BigFloat", 10, FLOAT, 'PPM', 2, no_op, REGISTER_READ_WRITE, OP_MODE_READ_WRITE)
-    BigLong = Field("BigLong", 12, INT64, 'PPM', 2, no_op, REGISTER_READ_WRITE, OP_MODE_READ_WRITE)
+    BigUShort = Field("BigUShort", 0, helpers.USHORT, 'PPM', 2, helpers.no_op, helpers.helper.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+    BigUInt = Field("BigUInt", 1, helpers.UINT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+    BigULong = Field("BigULong", 3, helpers.UINT64, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+    BigShort = Field("BigShort", 7, helpers.SHORT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+    BigInt = Field("BigInt", 8, helpers.INT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+    BigFloat = Field("BigFloat", 10, helpers.FLOAT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+    BigLong = Field("BigLong", 12, helpers.INT64, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
     LittleUShort = Field(
-        "LittleUShort", 100, USHORT, 'PPM', 2, no_op, REGISTER_READ_WRITE, OP_MODE_READ_WRITE)
+        "LittleUShort", 100, helpers.USHORT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
     LittleUInt = Field(
-        "LittleUInt", 101, UINT, 'PPM', 2, no_op, REGISTER_READ_WRITE, OP_MODE_READ_WRITE)
+        "LittleUInt", 101, helpers.UINT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
     LittleULong = Field(
-        "LittleULong", 103, UINT64, 'PPM', 2, no_op, REGISTER_READ_WRITE, OP_MODE_READ_WRITE)
+        "LittleULong", 103, helpers.UINT64, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
     LittleShort = Field(
-        "LittleShort", 107, SHORT, 'PPM', 2, no_op, REGISTER_READ_WRITE, OP_MODE_READ_WRITE)
+        "LittleShort", 107, helpers.SHORT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
     LittleInt = Field(
-        "LittleInt", 108, INT, 'PPM', 2, no_op, REGISTER_READ_WRITE, OP_MODE_READ_WRITE)
+        "LittleInt", 108, helpers.INT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
     LittleFloat = Field(
-        "LittleFloat", 110, FLOAT, 'PPM', 2, no_op, REGISTER_READ_WRITE, OP_MODE_READ_WRITE)
+        "LittleFloat", 110, helpers.FLOAT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
     LittleLong = Field(
-        "LittleLong", 112, INT64, 'PPM', 2, no_op, REGISTER_READ_WRITE, OP_MODE_READ_WRITE)
+        "LittleLong", 112, helpers.INT64, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
 
 @pytest.fixture(scope='class')
 def modbus_server(request):
@@ -147,13 +147,13 @@ def modbus_server(request):
     modbus_server.set_values(1, PPSPi32Client().field_by_name("BigInt"), 0)
     modbus_server.set_values(1, PPSPi32Client().field_by_name("BigFloat"), 0)
     modbus_server.set_values(1, PPSPi32Client().field_by_name("BigLong"), 0)
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleUShort"), unpack('<H', pack('>H', 0)))
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleUInt"), unpack('<I', pack('>I', 0)))
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleULong"), unpack('<Q', pack('>Q', 0)))
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleShort"), unpack('<h', pack('>h', 0)))
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleInt"), unpack('<i', pack('>i', 0)))
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleFloat"), unpack('<f', pack('>f', 0)))
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleLong"), unpack('<q', pack('>q', 0)))
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleUShort"), unpack('<H', pack('>H', 0))[0])
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleUInt"), unpack('<I', pack('>I', 0))[0])
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleULong"), unpack('<Q', pack('>Q', 0))[0])
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleShort"), unpack('<h', pack('>h', 0))[0])
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleInt"), unpack('<i', pack('>i', 0))[0])
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleFloat"), unpack('<f', pack('>f', 0))[0])
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleLong"), unpack('<q', pack('>q', 0))[0])
 
     modbus_server.start()
     time.sleep(1)

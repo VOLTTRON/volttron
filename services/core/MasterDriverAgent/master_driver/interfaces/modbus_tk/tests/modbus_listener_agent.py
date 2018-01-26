@@ -142,6 +142,12 @@ class ListenerAgent(Agent):
         print ('SLAVE ID 1', self.scrape_all('watts_on_1'))
         print ('SLAVE ID 2', self.scrape_all('watts_on_2'))
 
+        # Define modbus_tk_test driver for master_driver agent, do set point, get point, and scrape_all
+        print self.set_point('modbus_tk_test', 'unsigned short', 1234)
+        print self.get_point('modbus_tk_test', 'unsigned short')
+        print self.scrape_all('modbus_tk_test')
+
+
     def get_config(self, driver_name):
         return self.vip.rpc.call('platform.driver', 'config', driver_name).get()
 

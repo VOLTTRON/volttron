@@ -1,0 +1,10 @@
+Register Name,Address,Type,Units,Writable,Default Value,Transform
+unsigned_short,0,uint16,None,TRUE,0,scale(10)
+unsigned_int,1,uint32,None,TRUE,0,scale(10)
+unsigned_long,3,uint64,None,TRUE,0,scale(10)
+sample_short,7,int16,None,TRUE,0,scale(10)
+sample_int,8,int32,None,TRUE,0,scale(10)
+sample_float,10,float,None,TRUE,0.0,scale(10)
+sample_long,12,int64,None,TRUE,0,scale(10)
+sample_bool,16,bool,None,TRUE,False,
+sample_str,17,string[12],None,TRUE,hello world!,

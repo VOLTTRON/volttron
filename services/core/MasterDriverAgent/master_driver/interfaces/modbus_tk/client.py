@@ -74,21 +74,27 @@
 
 
 """
-from define import *
 from datetime import datetime
 import collections
 import struct
 import serial
-import six
+import six.moves
 import logging
+
 import modbus_tk.defines as modbus_constants
 import modbus_tk.modbus_tcp as modbus_tcp
 import modbus_tk.modbus_rtu as modbus_rtu
+
+import helpers
 
 logger = logging.getLogger(__name__)
 
 # In cache representation of modbus field.
 Datum = collections.namedtuple('Datum', ('value', 'timestamp'))
+
+
+class ModbusFieldException(Exception): pass
+
 
 class Field(object):
     """Describes/defines a logical modbus field.
@@ -112,14 +118,90 @@ class Field(object):
     """
 
     def __init__(self, name, address, datatype, units, precision, transform, table, op_mode):
-        self.name = name
-        self.address = address
-        self.type = datatype
-        self.units = units
-        self.precision = precision
-        self.transform = transform
-        self.table = table
-        self.op_mode = op_mode
+        self._name = name
+        self._address = address
+        self._type = datatype
+        self._units = units
+        self._precision = precision
+        self._transform = transform
+        self._table = table
+        self._op_mode = op_mode
+
+    @property
+    def is_struct_format(self):
+        """Returns True if the type of this field is described by a struct
+            format string, eg:  ">h", instead of one of the field tuples.
+        """
+        return isinstance(self._type, str) and len(self._type) and \
+               self._type[0] in (helpers.BIG_ENDIAN, helpers.LITTLE_ENDIAN)
+
+    @property
+    def format_string(self):
+        """Generate a struct format string from the type, which may be a tuple
+           like:  ("I", 2, 1)   # representing UINT
+           or an actual struct format strng like:  ">2h"
+        """
+        if isinstance(self._type, tuple):
+            try:
+                return str(self.length) + self._type[helpers.FORMAT]
+            except TypeError:
+                logger.warning("Undefined type for {0}".format(self))
+        elif isinstance(self._type, str):
+            return self._type[1:]
+        else:
+            raise ModbusFieldException("Unknown type string for {0}".format(self))
+
+    @property
+    def byte_order(self):
+        """Byte order is None (default) unless self._type is a format string
+        with the first character specifying byte order.
+
+        :return: byte_order is specified or None
+        """
+        if self.is_struct_format:
+            return self._type[0]
+
+        return None
+
+    @property
+    def length(self):
+        if isinstance(self._type, tuple):
+            return self._type[helpers.LENGTH]
+        # Returning length of 1 on struct types (non tuples) which means that they
+        # will not be converted into list by modbus client
+        return 1
+
+    @property
+    def table(self):
+        return self._table
+
+    @property
+    def address(self):
+        return self._address
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def type(self):
+        return self._type
+
+    @property
+    def units(self):
+        return self._units
+
+    @property
+    def precision(self):
+        return self._precision
+
+    @property
+    def transform(self):
+        return self._transform
+
+    @property
+    def is_array_field(self):
+        return self.length > 1 and self._type[helpers.FORMAT] != 's'
 
     def value_for_transport(self, value):
         """
@@ -135,9 +217,9 @@ class Field(object):
         """
         transformed_value = value
 
-        if hasattr(self.transform, 'inverse'):
+        if hasattr(self._transform, 'inverse'):
             try:
-                transformed_value = self.transform.inverse(value)
+                transformed_value = self._transform.inverse(value)
             except ZeroDivisionError:
                 transformed_value = 0
 
@@ -156,11 +238,11 @@ class Field(object):
     @classmethod
     def default_holding_register(cls,  name, address, type, units, transform):
         """Shortcut for common definition format."""
-        return cls(name, address, type, units, 1, transform, REGISTER_READ_WRITE, OP_MODE_READ_WRITE)
+        return cls(name, address, type, units, 1, transform, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
 
     @property
     def absolute_address(self):
-        return self.address + TABLE_ADDRESS[self.table]
+        return self.address + helpers.TABLE_ADDRESS[self._table]
 
     def transform_value(self, value):
         """
@@ -170,26 +252,28 @@ class Field(object):
         :param value: value to be transformed.
         :return:
         """
-        return value if self.transform is None else self.transform(value)
+        return value if self._transform is None else self._transform(value)
 
     @property
     def writable(self):
-        return self.table in (COIL_READ_WRITE, REGISTER_READ_WRITE) and \
-               self.op_mode in (OP_MODE_READ_WRITE, OP_MODE_WRITE_ONLY)
+        return self._table in (helpers.COIL_READ_WRITE, helpers.REGISTER_READ_WRITE) and \
+               self._op_mode in (helpers.OP_MODE_READ_WRITE, helpers.OP_MODE_WRITE_ONLY)
+
     @property
     def single_write_function_code(self):
-        if self.table == REGISTER_READ_WRITE:
+        if self._table == helpers.REGISTER_READ_WRITE:
             return modbus_constants.WRITE_SINGLE_REGISTER
-        elif self.table == COIL_READ_WRITE:
+        elif self._table == helpers.COIL_READ_WRITE:
             return modbus_constants.WRITE_SINGLE_COIL
         else:
-            raise Exception("Unknown table type or write operation not supported : {0}".format(self.table))
+            raise Exception("Unknown table type or write operation not supported : {0}".format(self._table))
 
     def __get__(self, instance, owner):
         """
-        Read one field from the modbus slave.
-        :param field: The Field to be read.
-        :return: Field values transformed according to specification in Field()
+        Return fields data value.
+        :param instance: Modbus client
+        :param owner: Field object
+        :return: Field value from modbus client.
         """
         datum = instance.get_data(self)
         if datum is None or (datetime.utcnow() - datum.timestamp).total_seconds()*1000 >= instance.latency:
@@ -200,24 +284,23 @@ class Field(object):
     def __set__(self, instance, value):
         # If value is None, its a No Op, the field is not updated
         if value is not None:
-            if value < 0 and self.type in (USHORT, UINT, UINT64):
+            if value < 0 and self._type in (helpers.USHORT, helpers.UINT, helpers.UINT64):
                 raise ValueError("Attempting to assign negative value to unisgned type.")
-            if not instance._ignore_op_mode and self.op_mode == OP_MODE_READ_ONLY:
+            if not instance._ignore_op_mode and self._op_mode == helpers.OP_MODE_READ_ONLY:
                 raise ValueError("Attempting to write read-only field.")
             instance._pending_writes[self] = value
 
     def fix_address(self, address_style):
         # Translate modbus addressing to absolute offsets
-        if address_style in (ADDRESS_MODBUS, ADDRESS_OFFSET_PLUS_ONE):
+        if address_style in (helpers.ADDRESS_MODBUS, helpers.ADDRESS_OFFSET_PLUS_ONE):
 
-            if address_style == ADDRESS_MODBUS:
-                self.address = self.address - TABLE_ADDRESS[self.table]
-                if self.address < 0 or self.address > 10000:
-                    raise Exception("Modbus address out of range for table.")
-            elif address_style == ADDRESS_OFFSET_PLUS_ONE:
-                self.address = self.address - 1
-                if self.address < 0 or self.address > 10000:
-                    raise Exception("Modbus address out of range for table.")
+            if address_style == helpers.ADDRESS_MODBUS:
+                self._address = self._address - helpers.TABLE_ADDRESS[self._table]
+            elif address_style == helpers.ADDRESS_OFFSET_PLUS_ONE:
+                self._address = self._address - 1
+            if self._address < 0 or self._address > 10000:
+                raise Exception("Modbus address out of range for table.")
+
 
 class Request (object):
     """
@@ -229,51 +312,70 @@ class Request (object):
 
     """
 
-    def __init__(self, name=None, table=None, address=0, count=0, data_format='>', fields=None):
-        self.table = table
-        self.address = address
-        self.count = count
-        self.data_format = data_format
-        self.fields = fields if fields else list()
-        self.name = name
+    def __init__(self, first_field, data_format='>'):
+        self._table = first_field.table
+        self._address = first_field.address
+        self._next_address = first_field.address
+        self._name = first_field.name
+        self._count = 0
+        self._data_format = first_field.byte_order or data_format
+        self._fields = list()
+
+        self.add_field(first_field)
 
     def table_name(self):
         """Returns display name of modbus table to be accessed by request"""
 
-        if self.table == REGISTER_READ_WRITE:
+        if self._table == helpers.REGISTER_READ_WRITE:
             return "REGISTER_READ_WRITE"
-        elif self.table == REGISTER_READ_ONLY:
+        elif self._table == helpers.REGISTER_READ_ONLY:
             return "REGISTER_READ_ONLY"
-        elif self.table == COIL_READ_WRITE:
+        elif self._table == helpers.COIL_READ_WRITE:
             return "COIL_READ_WRITE"
-        elif self.table == COIL_READ_ONLY:
+        elif self._table == helpers.COIL_READ_ONLY:
             return "COIL_READ_ONLY"
         else:
             return "UNKNOWN"
 
     def __str__(self):
         return u"<Request: {0} - {1}[{2}] x {3} | {4}".format(
-            self.name,
+            self._name,
             self.table_name(),
-            self.address,
-            self.count,
-            self.data_format
+            self._address,
+            self._count,
+            self._data_format
         )
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def fields(self):
+        return self._fields
+
+    @property
+    def address(self):
+        return self._address
+
+    @property
+    def count(self):
+        return self._count
 
     @property
     def read_function_code(self):
         """Returns a modbus read function code appropriate for the table."""
 
-        if self.table == REGISTER_READ_WRITE:
+        if self._table == helpers.REGISTER_READ_WRITE:
             modbus_function_code = modbus_constants.READ_HOLDING_REGISTERS
-        elif self.table == REGISTER_READ_ONLY:
+        elif self._table == helpers.REGISTER_READ_ONLY:
             modbus_function_code = modbus_constants.READ_INPUT_REGISTERS
-        elif self.table == COIL_READ_WRITE:
+        elif self._table == helpers.COIL_READ_WRITE:
             modbus_function_code = modbus_constants.READ_COILS
-        elif self.table == COIL_READ_ONLY:
+        elif self._table == helpers.COIL_READ_ONLY:
             modbus_function_code = modbus_constants.READ_DISCRETE_INPUTS
         else:
-            raise Exception("Unknown table type : {0}".format(self.table))
+            raise Exception("Unknown table type : {0}".format(self._table))
 
         return modbus_function_code
 
@@ -281,15 +383,15 @@ class Request (object):
     def write_function_code(self):
         """Returns a modbus write function code appropriate for the table."""
 
-        if self.table == REGISTER_READ_WRITE:
+        if self._table == helpers.REGISTER_READ_WRITE:
             # WRITE_MULTIPLE is used unless client cannot support it, see _write_single_values in Client.__init__
             return modbus_constants.WRITE_MULTIPLE_REGISTERS
-        elif self.table == COIL_READ_WRITE:
+        elif self._table == helpers.COIL_READ_WRITE:
             # @TODO Temp hack around COIL write problem.
-            return modbus_constants.WRITE_SINGLE_COIL if self.count == 1 \
+            return modbus_constants.WRITE_SINGLE_COIL if self._count == 1 \
                 else modbus_constants.WRITE_MULTIPLE_COILS
         else:
-            raise Exception("Unknown table type or write operation not supported : {0}".format(self.table))
+            raise Exception("Unknown table type or write operation not supported : {0}".format(self._table))
 
     @property
     def formatting(self):
@@ -298,63 +400,100 @@ class Request (object):
 
             For COILS, we leave the formatting to modbus-tk.
         """
-        if self.table not in (COIL_READ_ONLY, COIL_READ_WRITE):
-            return self.data_format
+        if self._table not in (helpers.COIL_READ_ONLY, helpers.COIL_READ_WRITE):
+            return self._data_format
         else:
             return None
 
-def compile_requests(fields, byte_order):
-    """
+    def able_to_add(self, field):
+        return self._table == field.table and \
+           self._next_address == field.address and \
+           field.length == 1 and not field.byte_order and \
+           not field.is_struct_format
 
-    Creates a set of Modbus requests for the fields provided.  The fields
-    are sorted by table and address so that a minimum number of
-    requests can be created.
+    def add_field(self, field):
+        """Add field to request if it is compatible and contiguous
+        otherwise raise
 
-    These requests are used for both reading and writing.
-
-    :param fields: List of fields sorted by address.
-    :param byte_order: Byte order of the modbus slave.
-    :return: List of Requests
-    """
-
-    register_count = 0
-    requests = list()
-
-    if not fields:
-        return requests
-
-    fields.sort(key=lambda f: f.table * 100000 + f.address)
-
-    # Set up the initial request before starting the loop
-    current_request = None
-    next_address = None
-
-    for f in fields:
-        # Decide if we need to start a new request
-        if ((current_request is None) or
-                (current_request.table != f.table or next_address != f.address) or
-                (f.type[LENGTH] > 1)):
-            current_request = Request(name=f.name, table=f.table, address=f.address, data_format=byte_order)
-            requests.append(current_request)
-            next_address = f.address
-
-        # Add the field to the current request.
-        # current_request.data_format += (f.type[FORMAT] * f.type[LENGTH])
-        try:
-            struct_format = str(f.type[LENGTH]) + f.type[FORMAT]
-        except TypeError:
-            print(f)
-            print(f)
+        :return:
+        """
+        struct_format = field.format_string
         struct_size = struct.calcsize(struct_format)
         if struct_size % 2 == 1:
             struct_size += 1
-        current_request.data_format += struct_format
+        self._data_format += struct_format
         # current_request.count += f.type[SIZE] * f.type[LENGTH]
-        current_request.count += struct_size / 2
-        current_request.fields.append(f)
-        next_address += struct_size / 2
+        self._count += struct_size / 2
+        self._fields.append(field)
+        self._next_address += struct_size / 2
 
-    return requests
+    def block_info(self):
+        return self._name, self._table, self._address, self._count
+
+    def parse_values(self, results):
+        """Parse field values out of the modbus_tk results
+
+        :param results: unpacked results from modbus_tk execute()
+        :return: a dictionary of {field_name: value, ...}
+        """
+        now = datetime.utcnow()
+        field_values = {}
+        if len(self.fields) == 1 and self.fields[0].is_array_field:
+            field = self.fields[0]
+            # Array
+            field_values = {
+                field: Datum([field.transform_value(r) for r in results], now)
+            }
+        else:
+            # Struct formatted registers and processed as a single field.
+            if self.fields and self.fields[0].is_struct_format:
+                if type(results) is list or type(results) is tuple:
+                    if len(results) > 1:
+                        results = (results,)
+            # Everything else
+            field_values = collections.OrderedDict(
+                [(field, Datum(field.transform_value(value), now))
+                 for field, value in six.moves.zip(self.fields, results)]
+            )
+        return field_values
+
+    @classmethod
+    def compile_requests(cls, fields, byte_order):
+        """
+
+        Creates a set of Modbus requests for the fields provided.  The fields
+        are sorted by table and address so that a minimum number of
+        requests can be created.
+
+        These requests are used for both reading and writing.
+
+        :param fields: List of fields sorted by address.
+        :param byte_order: Byte order of the modbus slave.
+        :return: List of Requests
+        """
+        requests = list()
+
+        if not fields:
+            return requests
+
+        fields.sort(key=lambda f: f.table * 100000 + f.address)
+
+        # Set up the initial request before starting the loop
+        current_request = None
+
+        for f in fields:
+            # Decide if we need to start a new request
+
+            if current_request is None or not current_request.able_to_add(f):
+                current_request = Request(f, data_format=byte_order)
+                requests.append(current_request)
+                if f.is_struct_format or f.is_array_field:
+                    current_request = None
+            else:
+                current_request.add_field(f)
+
+        return requests
+
 
 class Client (object):
 
@@ -365,8 +504,8 @@ class Client (object):
     Subclass this class with Field class variables.  See module description above.
     """
 
-    byte_order = BIG_ENDIAN
-    addressing = ADDRESS_OFFSET
+    byte_order = helpers.BIG_ENDIAN
+    addressing = helpers.ADDRESS_OFFSET
 
     __meta = None
 
@@ -380,11 +519,12 @@ class Client (object):
                     meta[name] = obj
 
             # Maintain a list of fields sorted by address (ascending)
-            meta[META_FIELDS] = list(meta.values())                         # Turns Python3 view into a list.
-            meta[META_FIELDS].sort(key=lambda f : f.address)
-            meta[META_REQUESTS] = compile_requests(meta[META_FIELDS], cls.byte_order)
+            meta[helpers.META_FIELDS] = list(meta.values())                         # Turns Python3 view into a list.
+            meta[helpers.META_FIELDS].sort(key=lambda f: f.address)
+            meta[helpers.META_REQUESTS] = Request.compile_requests(meta[helpers.META_FIELDS], cls.byte_order)
             # Dictionary for easy lookup of the request that corresponds to a field.
-            meta[META_REQUEST_MAP] = { field:request for request in meta[META_REQUESTS] for field in request.fields }
+            meta[helpers.META_REQUEST_MAP] = {field: request for request in meta[helpers.META_REQUESTS]
+                                              for field in request._fields}
             cls.__meta = meta
         return cls.__meta
 
@@ -418,7 +558,7 @@ class Client (object):
         if self.slave_address is None:
             self.slave_address = kwargs.pop('slave_address', 1)
         self.latency = kwargs.pop('latency', 1000)
-        self._ignore_op_mode = kwargs.pop('ignore_op_mode', False) #Protection against unintended writes
+        self._ignore_op_mode = kwargs.pop('ignore_op_mode', False)  # Protection against unintended writes
 
         # Some modbus clients do not support the WRITE_MULTIPLE_REGISTERS function call.
         self._write_single_values = kwargs.pop('write_single_values', False)
@@ -467,19 +607,19 @@ class Client (object):
 
     def pprint(self):
         response = "pending writes: \n"
-        for f,v in six.iteritems(self._pending_writes):
-            response = response + "\t{0} : {1}".format(f,v)
+        for f, v in six.iteritems(self._pending_writes):
+            response = response + "\t{0} : {1}".format(f, v)
         return response
 
     @property
     def has_pending_writes(self):
         return bool(self._pending_writes)
 
-    def requests (self):
-        return self.__meta[META_REQUESTS]
+    def requests(self):
+        return self.__meta[helpers.META_REQUESTS]
 
     def fields(self):
-        return self.__meta[META_FIELDS]
+        return self.__meta[helpers.META_FIELDS]
 
     def field_by_name(self, name):
         return self.__meta.get(name, None)
@@ -496,7 +636,7 @@ class Client (object):
         return self._write_single_values
 
     def get_request(self, field):
-        return self.__meta[META_REQUEST_MAP].get(field, None)
+        return self.__meta[helpers.META_REQUEST_MAP].get(field, None)
 
     def read_request(self, request):
         logger.debug("Requesting: %s", request)
@@ -509,32 +649,19 @@ class Client (object):
                 data_format=request.formatting,
                 threadsafe=False
             )
-            # @TODO - this additional param, added above is causing problemss: expected_length=request.count+5
-            now = datetime.utcnow()
-            if len(request.fields) == 1 and request.fields[0].type[LENGTH] > 1 and request.fields[0].type[FORMAT] != 's':
-                field = request.fields[0]
-                # Array
-                field_values = {
-                    field : Datum([field.transform_value(r) for r in results], now)
-                }
-            else:
-                # Everything else
-                field_values = collections.OrderedDict(
-                    [(field, Datum(field.transform_value(value), now)) for field, value in six.moves.zip(request.fields, results)]
-                )
-            self._data.update(field_values)
+            self._data.update(request.parse_values(results))
         except AttributeError as err:
             logger.warning("modbus read_all() failure on request: %s\tError: %s", request, err)
 
     def read_all(self):
-        requests = self.__meta[META_REQUESTS]
+        requests = self.__meta[helpers.META_REQUESTS]
         self._data.clear()
         for r in requests:
             self.read_request(r)
 
     def dump_all(self):
         self.read_all()
-        return [(f, d.value, d.timestamp) for f,d in six.iteritems(self._data)]
+        return [(f, d.value, d.timestamp) for f, d in six.iteritems(self._data)]
 
     def write_all(self):
         logger.debug("In write_all")
@@ -553,7 +680,7 @@ class Client (object):
                     threadsafe=False
                 )
         else:
-            requests = compile_requests(fields, self.byte_order)
+            requests = Request.compile_requests(fields, self.byte_order)
             for r in requests:
                 values = list()
                 # Convert values if necessary for transport as modbus supported types.

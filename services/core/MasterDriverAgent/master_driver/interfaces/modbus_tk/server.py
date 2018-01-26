@@ -65,8 +65,6 @@ from modbus_tk.modbus_tcp import TcpServer
 from modbus_tk.modbus_rtu import RtuServer
 from modbus_tk.hooks import install_hook
 
-
-
 logger = logging.getLogger(__name__)
 
 ###########################################################################################
@@ -79,6 +77,7 @@ logger = logging.getLogger(__name__)
 #   "Address already in use" error.
 #
 ###########################################################################################
+
 
 def _do_init(self):
     """initialize server"""
@@ -111,6 +110,7 @@ def _do_exit(self):
 #  The two methods above are patched the TcpServer instance that is created by Server
 #  below. See Server.__init__ method.
 ###########################################################################################
+
 
 class Server (object):
     """Base Modbus Server.
@@ -181,8 +181,8 @@ class Server (object):
             raise TypeError("client_class must be subclass of {0}".format(Client))
 
         for request in client_class().requests():
-            logger.info("Adding [%s], %s, %s, %s", request.name, request.table, request.address, request.count)
-            slave.add_block(request.name, request.table, request.address, request.count)
+            logger.info("Adding %s", request)
+            slave.add_block(*request.block_info())
         return slave
 
     @classmethod

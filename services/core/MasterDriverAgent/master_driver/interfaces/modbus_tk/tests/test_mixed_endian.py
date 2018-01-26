@@ -9,20 +9,34 @@ from master_driver.interfaces.modbus_tk.maps import Map, Catalog
 
 logger = logging.getLogger(__name__)
 
-# New modbus_tk driver config
-DRIVER_CONFIG_STRING = """{
+# Original VOLTTRON modbus driver & registry config
+ORIGINAL_DRIVER_CONFIG = """{
+    "driver_config": {
+        "device_address": "127.0.0.1",
+         "port": 5020,
+         "slave_id": 1
+    },
+    "driver_type": "modbus",
+    "registry_config":"config://modbus.csv",
+    "interval": 120,
+    "timezone": "UTC"
+}"""
+
+ORIGINAL_REGISTRY_CONFIG = """Volttron Point Name,Units,Modbus Register,Writable,Point Address,Default Value,Mixed Endian
+unsigned short,None,>H,True,0,0,True
+unsigned int,None,>I,True,1,0,True
+unsigned long,None,>Q,True,3,0,True
+sample short,None,>h,True,7,0,True
+sample int,None,>i,True,8,0,True
+sample float,None,>f,True,10,0.0,True
+sample long,None,>q,True,12,0,True"""
+
+# New Kisensum modbus driver & registry config
+NEW_DRIVER_CONFIG = """{
     "driver_config": {
         "name": "test",
         "device_address": "127.0.0.1",
         "port": 5020,
-        "slave_id": 1,
-        "baudrate": 9600,
-        "bytesize": 8,
-        "parity": "none",
-        "stopbits": 1,
-        "xonxoff": 0,
-        "addressing": "offset",
-        "endian": "big",
         "register_map": "config://modbus_tk_map.csv"
 },
     "driver_type": "modbus_tk",
@@ -31,53 +45,24 @@ DRIVER_CONFIG_STRING = """{
     "timezone": "UTC"
 }"""
 
-# Old voltron modbus driver config
-OLD_VOLTTRON_DRIVER_CONFIG = """{
-    "driver_config": {
-        "device_address": "127.0.0.1",
-         "port": 5020,
-         "slave_id": 1
-    },
-    "driver_type": "modbus_tk",
-    "registry_config":"config://modbus.csv",
-    "interval": 120,
-    "timezone": "UTC"
-}"""
-
-# New modbus_tk csv config
-REGISTRY_CONFIG_STRING = """Volttron Point Name,Register Name
+NEW_REGISTRY_CONFIG = """Volttron Point Name,Register Name
 unsigned short,unsigned_short
 unsigned int,unsigned_int
 unsigned long,unsigned_long
 sample short,sample_short
 sample int,sample_int
 sample float,sample_float
-sample long,sample_long
-sample bool,sample_bool
-sample str,sample_str"""
+sample long,sample_long"""
 
-REGISTER_MAP = """Register Name,Address,Type,Units,Writable,Default Value,Transform
-unsigned_short,0,uint16,None,TRUE,0,scale(10)
-unsigned_int,1,uint32,None,TRUE,0,scale(10)
-unsigned_long,3,uint64,None,TRUE,0,scale(10)
-sample_short,7,int16,None,TRUE,0,scale(10)
-sample_int,8,int32,None,TRUE,0,scale(10)
-sample_float,10,float,None,TRUE,0.0,scale(10)
-sample_long,12,int64,None,TRUE,0,scale(10)
-sample_bool,16,bool,None,TRUE,False,
-sample_str,17,string[12],None,TRUE,hello world!,"""
+NEW_REGISTER_MAP = """Register Name,Address,Type,Units,Writable,Default Value,Mixed Endian
+unsigned_short,0,uint16,None,TRUE,0,True
+unsigned_int,1,>I,None,TRUE,0,True
+unsigned_long,3,uint64,None,TRUE,0,True
+sample_short,7,>h,None,TRUE,0,True
+sample_int,8,int32,None,TRUE,0,True
+sample_float,10,>f,None,TRUE,0.0,True
+sample_long,12,int64,None,TRUE,0,True"""
 
-# Old volttron modbus csv config
-OLD_VOLTTRON_REGISTRY_CONFIG = """Volttron Point Name,Units,Modbus Register,Writable,Point Address,Default Value
-unsigned short,None,>H,True,0,0
-unsigned int,None,>I,True,1,0
-unsigned long,None,>Q,True,3,0
-sample short,None,>h,True,7,0
-sample int,None,>i,True,8,0
-sample float,None,>f,True,10,0.0
-sample long,None,>q,True,12,0
-sample bool,None,BOOL,True,16,False
-sample str,None,string[12],True,17,hello world!"""
 
 # Register values dictionary for testing set_point and get_point
 registers_dict = {"unsigned short": 65530,
@@ -86,9 +71,7 @@ registers_dict = {"unsigned short": 65530,
                   "sample short": -32760,
                   "sample int": -2147483640,
                   "sample float": -12340.0,
-                  "sample long": -922337203685470,
-                  "sample bool": True,
-                  "sample str": "SampleString"}
+                  "sample long": -922337203685470}
 
 @pytest.fixture(scope="module")
 def agent(request, volttron_instance):
@@ -107,37 +90,37 @@ def agent(request, volttron_instance):
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
                           'platform.driver',
-                          'devices/modbus_tk',
-                          DRIVER_CONFIG_STRING,
+                          'devices/modbus',
+                          ORIGINAL_DRIVER_CONFIG,
                           config_type='json')
 
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
                           'platform.driver',
-                          'devices/modbus',
-                          OLD_VOLTTRON_DRIVER_CONFIG,
+                          'devices/modbus_tk',
+                          NEW_DRIVER_CONFIG,
                           config_type='json')
 
     # Add csv configurations
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
                           'platform.driver',
+                          'modbus.csv',
+                          ORIGINAL_REGISTRY_CONFIG,
+                          config_type='csv')
+
+    md_agent.vip.rpc.call('config.store',
+                          'manage_store',
+                          'platform.driver',
                           'modbus_tk.csv',
-                          REGISTRY_CONFIG_STRING,
+                          NEW_REGISTRY_CONFIG,
                           config_type='csv')
 
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
                           'platform.driver',
                           'modbus_tk_map.csv',
-                          REGISTER_MAP,
-                          config_type='csv')
-
-    md_agent.vip.rpc.call('config.store',
-                          'manage_store',
-                          'platform.driver',
-                          'modbus.csv',
-                          OLD_VOLTTRON_REGISTRY_CONFIG,
+                          NEW_REGISTER_MAP,
                           config_type='csv')
 
     master_uuid = volttron_instance.install_agent(agent_dir=get_services_core("MasterDriverAgent"),
@@ -232,8 +215,41 @@ class TestModbusTKDriver:
         """
         return agent.vip.rpc.call('platform.driver', 'revert_point', device_name, point_name).get(timeout=10)
 
-    def test_default_values_old(self, agent):
-        """Test setting default values from old volttron modbus driver & csv config
+    def test_simple_set_point(self, agent):
+        """
+            Do set point and get point from different client to the same server with same set of registers
+
+        :param agent: The test Agent.
+        :return: Return value from the RPC call.
+        """
+        self.set_point(agent, 'modbus', 'unsigned short', 12345)
+        assert self.get_point(agent, 'modbus_tk', 'unsigned short') == 12345
+
+        self.set_point(agent, 'modbus_tk', 'unsigned int', 7654321)
+        assert self.get_point(agent, 'modbus', 'unsigned int') == 7654321
+
+    def test_original_set_point(self, agent):
+        """Test setting new values for original volttron modbus driver & csv config
+        """
+        for key in registers_dict.keys():
+            self.set_point(agent, 'modbus', key, registers_dict[key])
+            assert self.get_point(agent, 'modbus', key) == registers_dict[key]
+
+        assert self.scrape_all(agent, 'modbus') == registers_dict
+        assert self.scrape_all(agent, 'modbus') == self.scrape_all(agent, 'modbus_tk')
+
+    def test_new_set_point(self, agent):
+        """Test setting new values for new modbus_tk driver & csv config
+        """
+        for key in registers_dict.keys():
+            self.set_point(agent, 'modbus_tk', key, registers_dict[key])
+            assert self.get_point(agent, 'modbus_tk', key) == registers_dict[key]
+
+        assert self.scrape_all(agent, 'modbus_tk') == registers_dict
+        assert self.scrape_all(agent, 'modbus_tk') == self.scrape_all(agent, 'modbus')
+
+    def test_revert_all(self, agent):
+        """Test revert device to default values
         """
         self.revert_all(agent, 'modbus')
 
@@ -241,62 +257,6 @@ class TestModbusTKDriver:
         assert type(default_values) is dict
 
         for key in default_values.keys():
-            if key == 'sample str':
-                assert default_values[key] == 'hello world!'
-            else:
-                assert default_values[key] == 0 or 0.0
+            assert default_values[key] == 0 or 0.0
 
-    def test_default_values_new(self, agent):
-        """Test setting default values from new modbus_tk driver & csv config
-        """
-        self.revert_all(agent, 'modbus_tk')
-
-        default_values = self.scrape_all(agent, 'modbus_tk')
-        assert type(default_values) is dict
-
-        for key in default_values.keys():
-            if key == 'sample str':
-                assert default_values[key] == 'hello world!'
-            else:
-                assert default_values[key] == 0 or 0.0
-
-    def test_set_point_old(self, agent):
-        """Test setting new values for old volttron modbus driver & csv config
-        """
-        for key in registers_dict.keys():
-            self.set_point(agent, 'modbus', key, registers_dict[key])
-            assert self.get_point(agent, 'modbus', key) == registers_dict[key]
-        assert self.scrape_all(agent, 'modbus') == registers_dict
-
-    def test_set_point_new(self, agent):
-        """Test setting new values for new modbus_tk driver & csv config
-        """
-        for key in registers_dict.keys():
-            self.set_point(agent, 'modbus_tk', key, registers_dict[key])
-            assert self.get_point(agent, 'modbus_tk', key) == registers_dict[key]
-        assert self.scrape_all(agent, 'modbus_tk') == registers_dict
-
-    def test_get_point_new(self, agent):
-        """Simple test case to set & get value for one single register from new modbus_tk driver & csv config
-        """
-        set_value = self.set_point(agent, 'modbus_tk', 'unsigned short', 10)
-        assert set_value == 10
-
-        self.revert_point(agent, 'modbus_tk', 'unsigned short')
-
-        get_value = self.get_point(agent, 'modbus_tk', 'unsigned short')
-        assert get_value == 0
-
-    def test_revert_all_new(self, agent):
-        """Test revert device to default values for new modbus_tk driver
-        """
-        self.revert_all(agent, 'modbus_tk')
-
-        default_values = self.scrape_all(agent, 'modbus_tk')
-        assert type(default_values) is dict
-
-        for key in default_values.keys():
-            if key == 'sample str':
-                assert default_values[key] == 'hello world!'
-            else:
-                assert default_values[key] == 0 or 0.0
+        assert self.scrape_all(agent, 'modbus') == self.scrape_all(agent, 'modbus_tk')

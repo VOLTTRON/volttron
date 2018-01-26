@@ -18,26 +18,39 @@ DRIVER_CONFIG_STRING = """{
         "stopbits": 1,
         "xonxoff": 0,
         "addressing": "offset",
-        "endian": "big"
+        "endian": "big",
+        "register_map": "config://watts_on_map.csv"
 },
     "driver_type": "modbus_tk",
-    "registry_config":"config://watts_on.csv",
+    "registry_config": "config://watts_on.csv",
     "interval": 120,
     "timezone": "UTC"
 }"""
 
 # This registry configuration contains only required fields
-REGISTRY_CONFIG_STRING = """Volttron Point Name,Register Name,Address,Type,Units,Writable
-Active Power Total,active_power_total,0x200,float,kW,TRUE
-Reactive Power Total,reactive_power_total,0x202,float,kVAR,TRUE
-Apparent Power Total,apparent_power_total,0x204,float,kVA,TRUE
-Voltage Average,voltage_average,0x206,float,V,TRUE
-Current Average,current_average,0x20A,float,A,TRUE
-Voltage AB,voltage_ab,0x226,float,V,TRUE
-Current A,current_a,0x22C,float,A,TRUE
-Little Endian Mode,little_endian_mode,0x51A,uint16,None,TRUE
-Serial Baud Rate,serial_baud_rate,0x601,uint16,None,TRUE
-Serial Commit,serial_commit,0x605,uint16,None,TRUE"""
+REGISTRY_CONFIG_STRING = """Volttron Point Name,Register Name
+Active Power Total,active_power_total
+Reactive Power Total,reactive_power_total
+Apparent Power Total,apparent_power_total
+Voltage Average,voltage_average
+Current Average,current_average
+Voltage AB,voltage_ab
+Current A,current_a
+Little Endian Mode,little_endian_mode
+Serial Baud Rate,serial_baud_rate
+Serial Commit,serial_commit"""
+
+REGISTRY_CONFIG_MAP = """Register Name,Address,Type,Units,Writable
+active_power_total,0x200,float,kW,TRUE
+reactive_power_total,0x202,float,kVAR,TRUE
+apparent_power_total,0x204,float,kVA,TRUE
+voltage_average,0x206,float,V,TRUE
+current_average,0x20A,float,A,TRUE
+voltage_ab,0x226,float,V,TRUE
+current_a,0x22C,float,A,TRUE
+little_endian_mode,0x51A,uint16,None,TRUE
+serial_baud_rate,0x601,uint16,None,TRUE
+serial_commit,0x605,uint16,None,TRUE"""
 
 @pytest.fixture(scope="module")
 def agent(request, volttron_instance):
@@ -66,6 +79,13 @@ def agent(request, volttron_instance):
                           'platform.driver',
                           'watts_on.csv',
                           REGISTRY_CONFIG_STRING,
+                          config_type='csv')
+
+    md_agent.vip.rpc.call('config.store',
+                          'manage_store',
+                          'platform.driver',
+                          'watts_on_map.csv',
+                          REGISTRY_CONFIG_MAP,
                           config_type='csv')
 
     master_uuid = volttron_instance.install_agent(agent_dir=get_services_core("MasterDriverAgent"),

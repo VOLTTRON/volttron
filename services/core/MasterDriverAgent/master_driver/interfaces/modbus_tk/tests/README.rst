@@ -14,6 +14,7 @@ to its csv config using this script:
     $ vctl config store platform.driver devices/modbus_test <config_path>
 - Add watts_on_1 and watts_on_2 driver config and csv using similar script for rtu transport testing:
     $ vctl config store platform.driver watts_on.csv <csv_path> --csv
+    $ vctl config store platform.driver watts_on_map.csv <csv_path> --csv
     $ vctl config store platform.driver devices/watts_on_1 <config_path>
     $ vctl config store platform.driver devices/watts_on_2 <config_path>
     For this paricular test, we need to connect to the Elkor Watts On meter by usb to the RS-485 interface
@@ -59,3 +60,14 @@ Regression test for modbus_tk interface with rtu transport:
 a correct device_address and slave_id. On Mac OS, the device_address is /dev/tty.usbserial-AL00IEEY with default
 slave_id 1
 - Do regression test on set_point, get_point, and scrape_all
+
+
+test_write_single_registers.py
+------------------------------
+Regression test for modbus_tk interface with tcp transport:
+
+- Build master driver agent and define write_single_registers driver config and register csv set with the additional
+feature write_multiple_registers = false (it means write single register with modbus function code 06)
+- With the set-up server running, do regression test on set_point, get_point, scrape_all, revert_point,
+and revert_device for the driver
+
