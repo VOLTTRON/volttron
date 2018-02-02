@@ -1,0 +1,63 @@
+{
+    "agentid": "economizerrcx",
+    "application": "economizer.economizer_rcx.Application",
+
+    "device": {
+        "campus": "campus1",
+        "building": "building1",
+        "unit": {
+            "rtu4": {
+                "subdevices": []
+             }
+        },
+        "analysis_name": "Economizer_RCx"
+    },
+
+    "output_file": "./junk.csv",
+
+    "mode": "PASSIVE",
+
+    "arguments": {
+        "fan_status": "supplyfanstatus",
+        "oa_temp": "outdoorairtemperature",
+        "ra_temp": "returnairtemperature",
+        "ma_temp": "mixedairtemperature",
+        "damper_signal": "outdoordampersignal",
+        "cool_call": "coolingvalveposition",
+        "fan_speedcmd": "supplyfanspeed",
+        "data_window": 1,
+        "no_required_data": 1,
+        "open_damper_time": 0,
+        "low_supply_fan_threshold": 20.0,
+        "mat_low_threshold": 50.0,
+        "mat_high_threshold": 90.0,
+        "oat_low_threshold": 30.0,
+        "oat_high_threshold": 100.0,
+        "rat_low_threshold": 50.0,
+        "rat_high_threshold": 90.0,
+        "temp_difference_threshold": 4.0,
+        "oat_mat_check": 5.0,
+        "open_damper_threshold": 90.0,
+        "oaf_economizing_threshold": 25.0,
+        "oaf_temperature_threshold": 4.0,
+        "cooling_enabled_threshold": 5.0,
+        "minimum_damper_setpoint": 10.0,
+        "excess_damper_threshold": 20.0,
+        "excess_oaf_threshold": 20.0,
+        "desired_oaf": 10.0,
+        "ventilation_oaf_threshold": 5.0,
+        "insufficient_damper_threshold": 15.0,
+        "temp_damper_threshold": 90.0,
+        "rated_cfm": 1000.0,
+        "eer": 10.0
+    },
+
+    "conversion_map": {
+        ".*Temperature": "float",
+        ".*Command": "float",
+        ".*Signal": "float",
+        "SupplyFanStatus": "int",
+        "Cooling.*": "float",
+        "SupplyFanSpeed": "int"
+    }
+}

@@ -1,0 +1,86 @@
+{
+    "agentid": "passiveafdd",
+    "campus": "campus1",
+    "building": "building1",
+    "unit": "RTU1",
+
+    # Required data for diagnostic
+    "points": {
+        "oat_point_name": "OutsideAirTemp",
+        "rat_point_name": "ReturnAirTemp",
+        "damper_point_name": "Damper",
+        "fan_status_point_name": "FanStatus",
+        # mat_point_name can be "Not Measured" or mixed-air temperature point name
+        "mat_point_name": "MixedAirTemp",
+
+		# cool_cmd_point_name can be "Not Measured" or unit compressor status point name.
+		# cool_call_point_name can be "Not Measured" or unit cool call point name.
+		# One of the cooling status points must be measured, either cool_call_point_name or cool_cmd_point_name.
+        "cool_cmd_point_name": "CompressorStatus",
+        "cool_call_point_name": "CoolCall",
+
+        # heat_cmd_point_name can be "None" (no heating on this unit), "Not Measured", or the heating status point name.
+        # if the mixed-air temperature is not measured then heat_cmd_point_name must be specified (measured) unless the 
+        # unit is not a heat pump or does not supply heating.
+        "heat_cmd_point_name": "Heating",
+        # timestamp_name is only used when analysis is on csv file data.
+        "timestamp_name": "Timestamp"
+    },
+
+	# If the matemp_missing flag is set true then the cool_cmd_point_name must be specified
+	# as well as the discharge-air temperature point name.  If the matemp_missing is true and the
+	# compressor command (cool_cmd_point_name) or the discharge-air temperature are not measured
+	# then the diagnostics cannot be run.  
+	
+	# "mat not measured" is list with a boolean as first entry and the discharge-air temperature name as second entry.
+	# if the first entry is set to false the second entry is disregarded.
+    "mat not measured": [false, ""],
+    "sampling_rate": 1,
+    "csv_input": false,
+    
+    # data is aggregated by time and unit mode of operation
+    # this list should contain at a minimum the fan status point name
+    # and the cooling call (or compressor status) point name
+    "status list": [
+        "CompressorStatus",
+        "Heating",
+        "FanStatus",
+        "CoolCall"
+    ],
+
+    "input file": "passiveafdd/sample_data/sample_data.csv",
+    "results directory": "Results",
+    "temperature_diff_requirement": 4.0,
+    "temperature sensor threshold": 5.0,
+
+    "mat_low": 50,
+    "mat_high": 90,
+    "rat_low": 50,
+    "rat_high": 90,
+    "oat_low": 30,
+    "oat_high": 120,
+    "uncertainty_deadband": 2.5,
+
+    # "high_limit": 70,
+    # supports hightlimit and differential_ddb
+    "economizer type": "differential_ddb",
+    "oae2_damper_threshold": 30.0,
+    "oae2_oaf_threshold": 25.0, 
+
+    "minimum oad command": 20,
+    "oad uncertainty band": 15.0,
+    "minimum oa": 10.0,
+    "oae4_oaf_threshold": 25.0,
+    "oae5_oaf_threshold": 0.0,
+
+    "Sunday": [0,23],
+    "Monday": [0,23],
+    "Tuesday":[0,23],
+    "Wednesday": [0,23],
+    "Thursday": [0,23],
+    "Friday": [0,23],
+    "Saturday": [0,23],
+
+    "EER": 10,
+    "tonnage": 10                   
+}

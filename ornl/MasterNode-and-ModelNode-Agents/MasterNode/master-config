@@ -1,0 +1,8 @@
+{
+    "model_node_addresses" : [
+        "tcp://127.0.0.2:22916?serverkey=&publickey=&secretkey="
+    ],
+    "data_file": "reg-data-external-may-2014.csv",
+    "u_file": "u.csv",
+    "d1_file": "d1.csv"
+}
