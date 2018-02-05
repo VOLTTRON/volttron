@@ -79,9 +79,9 @@ from volttron.platform.vip.agent import (Agent, Core, RPC, Unreachable)
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.web import DiscoveryInfo, DiscoveryError
-from vcconnection import VCConnection
+from .vcconnection import VCConnection
 
-__version__ = '4.6'
+__version__ = '4.7'
 
 RegistrationStates = Enum('AgentStates',
                           'NotRegistered Unregistered Registered '
