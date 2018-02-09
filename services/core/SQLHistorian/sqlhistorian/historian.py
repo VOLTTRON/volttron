@@ -150,6 +150,13 @@ class SQLHistorian(BaseHistorian):
         self.bg_thread_dbutils.record_table_definitions(self.tables_def,
                                              meta_table_name)
 
+    def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
+        """
+        Optional function to manage database size.
+        """
+        self.bg_thread_dbutils.manage_db_size(history_limit_timestamp,
+                                              storage_limit_gb)
+
     @doc_inherit
     def publish_to_historian(self, to_publish_list):
         thread_name = threading.currentThread().getName()

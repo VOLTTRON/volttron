@@ -282,6 +282,15 @@ class SqlLiteFuncts(DbDriver):
             datetime.utcnow()-start_t))
         return values
 
+    def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
+        """
+        Optional function to manage database size.
+
+        :param history_limit_timestamp: remove all data older than this timestamp
+        :param storage_limit_gb: remove oldest data until database is smaller than this value.
+        """
+        pass
+
     def insert_meta_query(self):
         return '''INSERT OR REPLACE INTO ''' + self.meta_table + \
                ''' values(?, ?)'''

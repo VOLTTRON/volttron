@@ -233,6 +233,14 @@ class DbDriver(object):
         """
         pass
 
+    def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
+        """
+        Optional function to manage database size.
+
+        :param history_limit_timestamp: remove all data older than this timestamp
+        :param storage_limit_gb: remove oldest data until database is smaller than this value.
+        """
+        pass
 
     def insert_meta(self, topic_id, metadata):
         """

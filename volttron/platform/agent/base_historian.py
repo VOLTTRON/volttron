@@ -332,6 +332,8 @@ class BaseHistorianAgent(Agent):
                  capture_log_data=True,
                  capture_analysis_data=True,
                  capture_record_data=True,
+                 history_limit_days=None,
+                 storage_limit_gb=None,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -351,6 +353,8 @@ class BaseHistorianAgent(Agent):
         self._retry_period = float(retry_period)
         self._submit_size_limit = int(submit_size_limit)
         self._max_time_publishing = float(max_time_publishing)
+        self._history_limit_days = history_limit_days
+        self._storage_limit_gb = storage_limit_gb
         self._successful_published = set()
         # Remove the need to reset subscriptions to eliminate possible data
         # loss at config change.
@@ -365,17 +369,20 @@ class BaseHistorianAgent(Agent):
         self.no_query = False
         self.instance_name = None
 
-        self._default_config = {"retry_period":self._retry_period,
-                               "submit_size_limit": self._submit_size_limit,
-                               "max_time_publishing": self._max_time_publishing,
-                               "backup_storage_limit_gb": self._backup_storage_limit_gb,
-                               "topic_replace_list": self._topic_replace_list,
-                               "gather_timing_data": self.gather_timing_data,
-                               "readonly": self._readonly,
-                               "capture_device_data": capture_device_data,
-                               "capture_log_data": capture_log_data,
-                               "capture_analysis_data": capture_analysis_data,
-                               "capture_record_data": capture_record_data
+        self._default_config = {
+                                "retry_period":self._retry_period,
+                                "submit_size_limit": self._submit_size_limit,
+                                "max_time_publishing": self._max_time_publishing,
+                                "backup_storage_limit_gb": self._backup_storage_limit_gb,
+                                "topic_replace_list": self._topic_replace_list,
+                                "gather_timing_data": self.gather_timing_data,
+                                "readonly": self._readonly,
+                                "capture_device_data": capture_device_data,
+                                "capture_log_data": capture_log_data,
+                                "capture_analysis_data": capture_analysis_data,
+                                "capture_record_data": capture_record_data,
+                                "storage_limit_gb": storage_limit_gb,
+                                "history_limit_days": history_limit_days
                                }
 
         self.vip.config.set_default("config", self._default_config)
@@ -400,6 +407,18 @@ class BaseHistorianAgent(Agent):
             self._process_thread.start()
             _log.debug("Process thread started.")
 
+    def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
+        """
+        Called in the process thread after data is published.
+        This can be overridden in historian implementations
+        to apply the storage_limit_gb and history_limit_days
+        settings to the storage medium.
+
+        :param history_limit_timestamp: remove all data older than this timestamp
+        :param storage_limit_gb: remove oldest data until database is smaller than this value.
+        """
+        pass
+
     def stop_process_thread(self):
         _log.debug("Stopping the process loop.")
         if self._process_thread is None:
@@ -412,7 +431,6 @@ class BaseHistorianAgent(Agent):
 
         # 9 seconds as configuration timeout is 10 seconds.
         self._process_thread.join(9.0)
-        #Greenlets have slightly different API than threads in this case.
         # Greenlets have slightly different API than threads in this case.
         if self._process_loop_in_greenlet:
             if not self._process_thread.ready():
@@ -433,9 +451,21 @@ class BaseHistorianAgent(Agent):
             topic_replace_list = list(config.get("topic_replace_list", []))
             gather_timing_data = bool(config.get("gather_timing_data", False))
             backup_storage_limit_gb = config.get("backup_storage_limit_gb")
+            if backup_storage_limit_gb:
+                backup_storage_limit_gb = float(backup_storage_limit_gb)
             retry_period = float(config.get("retry_period", 300.0))
+
+            storage_limit_gb = config.get("storage_limit_gb")
+            if storage_limit_gb:
+                storage_limit_gb = float(storage_limit_gb)
+
+            history_limit_days = config.get("history_limit_days")
+            if history_limit_days:
+                history_limit_days = float(history_limit_days)
+
             submit_size_limit = int(config.get("submit_size_limit", 1000))
             max_time_publishing = float(config.get("max_time_publishing", 30.0))
+
             readonly = bool(config.get("readonly", False))
         except ValueError as e:
             _log.error("Failed to load base historian settings. Settings not applied!")
@@ -457,6 +487,9 @@ class BaseHistorianAgent(Agent):
         self._retry_period = retry_period
         self._submit_size_limit = submit_size_limit
         self._max_time_publishing = timedelta(seconds=max_time_publishing)
+        self._history_limit_days = timedelta(days=history_limit_days) if history_limit_days else None
+        self._storage_limit_gb = storage_limit_gb
+
         self._readonly = readonly
 
         self._update_subscriptions(bool(config.get("capture_device_data", True)),
@@ -917,11 +950,18 @@ class BaseHistorianAgent(Agent):
                 if not to_publish_list or self._stop_process_loop:
                     break
 
+                history_limit_timestamp = None
+                if self._history_limit_days is not None:
+                    last_element = to_publish_list[-1]
+                    last_time_stamp = last_element["timestamp"]
+                    history_limit_timestamp = last_time_stamp - self._history_limit_days
+
                 try:
                     self.publish_to_historian(to_publish_list)
-                except Exception as exp:
+                    self.manage_db_size(history_limit_timestamp, self._storage_limit_gb)
+                except (Exception, gevent.Timeout):
                     _log.exception(
-                        "An unhandled exception occured while publishing.")
+                        "An unhandled exception occurred while publishing.")
 
                 # if the successful queue is empty then we need not remove
                 # them from the database.
