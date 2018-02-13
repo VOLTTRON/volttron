@@ -44,11 +44,11 @@ All historians support the following settings:
 
         # Limit how far back the historian will keep data in days.
         # Partial days supported via floating point numbers.
-        # A historian must implement this feature in for it to be enforced.
+        # A historian must implement this feature for it to be enforced.
         "history_limit_days": 366,
 
         # Limit the size of the historian data store in gigabytes.
-        # A historian must implement this feature in for it to be enforced.
+        # A historian must implement this feature for it to be enforced.
         "storage_limit_gb": 2.5
 
         # Size limit of the backup cache in Gigabytes.
