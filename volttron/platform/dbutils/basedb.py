@@ -444,7 +444,7 @@ class DbDriver(object):
             cursor.execute(stmt)
         if commit:
             self.commit()
-        return True
+        return cursor.rowcount
 
     def execute_many(self, stmt, args, commit=False):
         """
@@ -462,7 +462,7 @@ class DbDriver(object):
         cursor.executemany(stmt, args)
         if commit:
             self.commit()
-        return True
+        return cursor.rowcount
 
     @abstractmethod
     def query(self, topic_ids, id_name_map, start=None, end=None,
