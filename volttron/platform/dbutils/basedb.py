@@ -433,7 +433,7 @@ class DbDriver(object):
         :param args: optional arguments
         :param commit: True if transaction should be committed. Defaults to
         False
-        :return: True if successful, False otherwise
+        :return: count of the number of affected rows
         """
 
         self.__connect()
@@ -454,7 +454,7 @@ class DbDriver(object):
         :param args: optional arguments
         :param commit: True if transaction should be committed. Defaults to
         False
-        :return: True if successful, False otherwise
+        :return: count of the number of affected rows
         """
 
         self.__connect()
