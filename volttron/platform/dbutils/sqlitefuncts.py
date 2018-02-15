@@ -43,6 +43,7 @@ import pytz
 import threading
 from collections import defaultdict
 from datetime import datetime
+from math import ceil
 
 import os
 import re
@@ -113,6 +114,16 @@ class SqlLiteFuncts(DbDriver):
         super(SqlLiteFuncts, self).__init__('sqlite3', **connect_params)
 
     def setup_historian_tables(self):
+
+        result = self.select('''PRAGMA auto_vacuum''')
+        auto_vacuum = result[0][0]
+
+        if auto_vacuum != 1:
+            _log.info("auto_vacuum set to 0 (None), updating to 1 (full).")
+            _log.info("VACCUMing DB to cause new auto_vacuum setting to take effect. "
+                      "This could be slow on a large database.")
+            self.select('''PRAGMA auto_vacuum=1''')
+            self.select('''VACUUM;''')
 
         self.execute_stmt(
             '''CREATE TABLE IF NOT EXISTS ''' + self.data_table +
@@ -281,6 +292,53 @@ class SqlLiteFuncts(DbDriver):
         _log.debug("Time taken to load results from db:{}".format(
             datetime.utcnow()-start_t))
         return values
+
+    def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
+        """
+        Manage database size.
+
+        :param history_limit_timestamp: remove all data older than this timestamp
+        :param storage_limit_gb: remove oldest data until database is smaller than this value.
+        """
+
+        _log.debug("Managing store - timestamp limit: {}  GB size limit: {}".format(history_limit_timestamp, storage_limit_gb))
+
+        commit = False
+
+        if history_limit_timestamp is not None:
+            count = self.execute_stmt(
+                '''DELETE FROM ''' + self.data_table + \
+                ''' WHERE ts < ?''', (history_limit_timestamp,))
+
+            if count is not None and count > 0:
+                _log.debug("Deleted {} old items from historian. (TTL exceeded)".format(count))
+                commit = True
+
+        if storage_limit_gb is not None:
+            result = self.select('''PRAGMA page_size''')
+            page_size = result[0][0]
+            max_storage_bytes = storage_limit_gb * 1024 ** 3
+            max_pages = int(ceil(max_storage_bytes / page_size))
+
+            def page_count():
+                result = self.select("PRAGMA page_count")
+                return result[0][0]
+
+            while page_count() >= max_pages:
+                count = self.execute_stmt(
+                    '''DELETE FROM ''' + self.data_table + \
+                    '''
+                    WHERE ts IN
+                    (SELECT ts FROM ''' + self.data_table + \
+                    '''
+                    ORDER BY ts ASC LIMIT 100)''')
+
+                _log.debug("Deleted 100 old items from historian. (Managing store size)".format(count))
+                commit = True
+
+        if commit:
+            _log.debug("Committing changes for manage_db_size.")
+            self.commit()
 
     def insert_meta_query(self):
         return '''INSERT OR REPLACE INTO ''' + self.meta_table + \
