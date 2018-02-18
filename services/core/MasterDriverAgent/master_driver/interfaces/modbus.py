@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016, Battelle Memorial Institute
+# Copyright (c) 2017, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -277,7 +277,7 @@ class Interface(BasicRevert, BaseInterface):
     
     def scrape_byte_registers(self, client, read_only):
         result_dict = {}
-        register_ranges = self.register_ranges[('byte',read_only)]
+        register_ranges = self.register_ranges[('byte', read_only)]
 
         read_func = client.read_input_registers if read_only else client.read_holding_registers
 
@@ -303,7 +303,7 @@ class Interface(BasicRevert, BaseInterface):
     
     def scrape_bit_registers(self, client, read_only):
         result_dict = {}
-        register_ranges = self.registers[('bit',read_only)]
+        register_ranges = self.register_ranges[('bit', read_only)]
 
         for register_range in register_ranges:
             start, end, registers = register_range

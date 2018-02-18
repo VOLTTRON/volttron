@@ -55,10 +55,15 @@
 from datetime import datetime, timedelta
 import __init__ as sep2
 import calendar
+import logging
 import pytz
 import StringIO
 import time
 import xsd_models
+from volttron.platform.agent import utils
+
+utils.setup_logging()
+_log = logging.getLogger(__name__)
 
 
 class EndDevice:
@@ -89,6 +94,8 @@ class EndDevice:
         # Global Device ID. Updates as End Devices are registered.
         self.id = EndDevice.enddevice_id
         EndDevice.enddevice_id += 1
+
+        self.mappings = {}
 
         # SEP2 Resource Initialization
         self._end_device = xsd_models.EndDevice(
@@ -186,75 +193,15 @@ class EndDevice:
                     value = reading.get_Reading().get_value()
                     return float(value) * pow(10, int(power_of_ten.get_powerOfTenMultiplier().get_valueOf_())) \
                         if power_of_ten is not None else float(value)
+        return None
 
     ##############################################################
-    # These methods map SEP2 Resources to SunSpec registers.     #
-    # Each variable is named according to SunSpec standard, with #
-    # the preceding 'b<#>' representing which block the value    #
-    # belongs to.                                                #
+    # Currently WChaMax is the only SunSpec register we support  #
+    # writing to. Because of the way SEP2 is set up, we can read #
+    # any register by giving it a proper SEP2 resource and field #
+    # but writing to registers will require special agent config #
     ##############################################################
 
-    @property
-    def b1_Md(self): return self.device_information.get_mfModel()
-
-    @property
-    def b1_Opt(self): return self.lfdi
-
-    @property
-    def b1_SN(self): return self.sfdi
-
-    @property
-    def b1_Vr(self): return self.device_information.get_mfHwVer()
-
-    @property
-    def b113_A(self): return self.meter_reading_helper("PhaseCurrentAvg")
-
-    @property
-    def b113_DCA(self): return self.meter_reading_helper("InstantPackCurrent")
-
-    @property
-    def b113_DCV(self): return self.meter_reading_helper("LineVoltageAvg")
-
-    @property
-    def b113_DCW(self): return self.meter_reading_helper("PhasePowerAvg")
-
-    @property
-    def b113_PF(self): return self.meter_reading_helper("PhasePFA")
-
-    @property
-    def b113_WH(self): return self.meter_reading_helper("EnergyIMP")
-
-    @property
-    def b120_AhrRtg(self): return expand_multiplier(self.der_capability.get_rtgAh())
-
-    @property
-    def b120_ARtg(self): return expand_multiplier(self.der_capability.get_rtgA())
-
-    @property
-    def b120_MaxChaRte(self): return expand_multiplier(self.der_capability.get_rtgMaxChargeRate())
-
-    @property
-    def b120_MaxDisChaRte(self): return expand_multiplier(self.der_capability.get_rtgMaxDischargeRate())
-
-    @property
-    def b120_WHRtg(self): return expand_multiplier(self.der_capability.get_rtgWh())
-
-    @property
-    def b120_WRtg(self): return expand_multiplier(self.der_capability.get_rtgW())
-
-    @property
-    def b121_WMax(self): return expand_multiplier(self.der_settings.get_setMaxChargeRate())
-
-    @property
-    def b122_ActWh(self): return self.meter_reading_helper("EnergyEXP")
-
-    @property
-    def b122_StorConn(self): return status_value(self.der_status.get_storConnectStatus())
-
-    @property
-    def b124_WChaMax(self): return self.der_control.get_DERControlBase().get_opModFixedFlow()
-
-    @b124_WChaMax.setter
     def b124_WChaMax(self, value):
         now = datetime.utcnow().replace(tzinfo=pytz.utc)
         mrid = mrid_helper(self.id, long(time.mktime(now.timetuple())))
@@ -270,29 +217,71 @@ class EndDevice:
         ))
         self.der_control.set_interval(xsd_models.DateTimeInterval(duration=3600 * 24, start=sep2_time(now)))
 
-    @property
-    def b403_Tmp(self): return self.meter_reading_helper("InstantPackTemp")
+    def field_value(self, resource, field):
+        """ Given a SEP2 resource and field name, return the value of that field.
 
-    @property
-    def b404_DCW(self):
-        if self.power_status.get_PEVInfo() is not None:
-            return expand_multiplier(self.power_status.get_PEVInfo().get_chargingPowerNow())
+        :param resource: SEP2 resource name
+        :param field: SEP2 field name (may be dotted notation if a nested field)
+        :return: field value
+        """
 
-    @property
-    def b404_DCWh(self):
-        if self.der_availability.get_availabilityDuration() is not None and self.b121_WMax is not None:
-            return (self.der_availability.get_availabilityDuration()/3600.0)*self.b121_WMax
+        # Special Corner cases that exist outside of official SEP2 fields
+        if field == 'sFDI':
+            return self.sfdi
+        elif field == 'SOC':
+            _log.debug('Calculating DERAvailability.soc...')
+            if self.field_value("DERAvailability", "availabilityDuration") is not None and \
+                            self.field_value("DERSettings", "setMaxChargeRate") is not None:
+                duration = self.field_value("DERAvailability", "availabilityDuration") / 3600.0
+                max_charge = self.field_value("DERSettings", "setMaxChargeRate")
+                soc = duration * max_charge
+            else:
+                soc = None
+            return soc
 
-    @property
-    def b802_LocRemCtl(self):
-        return status_value(self.der_status.get_localControlModeStatus())
+        # Translate from SEP2 resource (DeviceInformation) to EndDevice attribute (device_information)
+        converted_resource = sep2.RESOURCE_MAPPING[resource]
+        if hasattr(self, converted_resource):
+            sep2_resource = getattr(self, converted_resource)
+        else:
+            raise AttributeError("{} is not a valid SEP2 Resource".format(resource))
 
-    @property
-    def b802_State(self): return status_value(self.der_status.get_inverterStatus())
+        # MUPs have special case handling
+        if converted_resource == "mup":
+            return self.meter_reading_helper(field)
 
-    @property
-    def b802_SoC(self): return percent_to_float(self.der_status.get_stateOfChargeStatus())
+        sep2_field = self.get_field(sep2_resource, field)
+        if hasattr(sep2_field, 'value'):
+            field_value = sep2_field.value
+            if hasattr(sep2_field, 'multiplier') and type(sep2_field.multiplier) == xsd_models.PowerOfTenMultiplierType:
+                field_value = float(field_value) * pow(10, int(sep2_field.multiplier.get_valueOf_()))
+            elif type(field_value) == xsd_models.PerCent:
+                field_value = int(field_value.get_valueOf_()) / 100.0
+            else:
+                # Depending on field choice, this could be a nested xsd model, not JSON serializable.
+                pass
+        else:
+            field_value = sep2_field
 
+        return field_value
+
+    @staticmethod
+    def get_field(resource, field):
+        """ Recursive helper method to retrieve field from SEP2 resource
+
+        If SEP2 fields have not been defined, this method will return None
+
+        :param resource: SEP2 resource (xsd_models object)
+        :param field: SEP2 field name
+        :return: value of field
+        """
+        fields = field.split('.', 1)
+        if len(fields) == 1:
+            sep2_field = getattr(resource, field, None)
+        else:
+            meta_field = getattr(resource, fields[0], None)
+            sep2_field = EndDevice.get_field(meta_field, fields[1]) if meta_field else None
+        return sep2_field
 
     ############################################################
     # XSD Object representation methods.                       #
@@ -499,36 +488,3 @@ def sep2_time(dt_obj, local=False):
         return xsd_models.TimeType(valueOf_=int(time.mktime(dt_obj.timetuple())))
     else:
         return xsd_models.TimeType(valueOf_=int(calendar.timegm(dt_obj.timetuple())))
-
-
-def expand_multiplier(multiplied_element):
-    """ Expand SEP2 Element with value and multiplier
-
-    :param multiplied_element: XSD Element (includes power of ten multiplier and value)
-    :return: power in kw
-    """
-    if multiplied_element is not None:
-        multiplier = multiplied_element.multiplier
-        value = multiplied_element.value
-        if multiplier is not None and value is not None:
-            return float(value) * pow(10, int(multiplier.get_valueOf_()))
-
-
-def percent_to_float(percent_element):
-    """ Convert XSD PerCent object to float percent value.
-
-    :param percent_element: XSD PerCent element
-    :return: 0-100 value as percent
-    """
-    if percent_element is not None:
-        return int(percent_element.get_value().get_valueOf_())/100.0
-
-
-def status_value(status_element):
-    """ Helper method to extract value from XSD Status element
-
-    :param status_element: XSD Status element
-    :return: value from status_element
-    """
-    if status_element is not None:
-        return status_element.get_value()

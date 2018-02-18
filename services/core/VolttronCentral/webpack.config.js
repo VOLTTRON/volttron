@@ -19,7 +19,7 @@ var url = require('url');
 // --p or --optimize-minimize
 const IS_PRODUCTION = argv.p || argv['optimize-minimize'];
 
-const BUILD_PATH = path.join(__dirname, './volttroncentral/webroot');
+const BUILD_PATH = path.join(__dirname, './volttroncentral/webroot/vc');
 
 const HTML_FILE_NAME = 'index.html';
 
@@ -33,7 +33,7 @@ module.exports = {
     },
     output: {
         path: BUILD_PATH,
-        publicPath: '/',
+        publicPath: './',
         filename: 'js/[name]-[hash].js',
     },
     resolve: {

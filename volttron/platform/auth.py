@@ -1,59 +1,39 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2017, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
 
 
@@ -71,7 +51,7 @@ import uuid
 import gevent
 from gevent.fileobject import FileObject
 from zmq import green as zmq
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from .agent.utils import strip_comments, create_file_if_missing, watch_file
 from .vip.agent import Agent, Core, RPC
@@ -105,7 +85,7 @@ class AuthException(Exception):
 
 
 class AuthService(Agent):
-    def __init__(self, auth_file, protected_topics_file, aip, *args, **kwargs):
+    def __init__(self, auth_file, protected_topics_file, setup_mode, aip, *args, **kwargs):
         self.allow_any = kwargs.pop('allow_any', False)
         super(AuthService, self).__init__(*args, **kwargs)
 
@@ -123,6 +103,8 @@ class AuthService(Agent):
         self._protected_topics_file = protected_topics_file
         self._protected_topics_file_path = os.path.abspath(protected_topics_file)
         self._protected_topics = {}
+        self._setup_mode = setup_mode
+        self._auth_failures = []
 
     @Core.receiver('onsetup')
     def setup_zap(self, sender, **kwargs):
@@ -218,10 +200,11 @@ class AuthService(Agent):
             now = time()
             if events:
                 zap = sock.recv_multipart()
+
                 version = zap[2]
                 if version != b'1.0':
                     continue
-                domain, address, _, kind = zap[4:8]
+                domain, address, userid, kind = zap[4:8]
                 credentials = zap[8:]
                 if kind == b'CURVE':
                     credentials[0] = encode_key(credentials[0])
@@ -241,6 +224,19 @@ class AuthService(Agent):
                         'authentication failure: domain=%r, address=%r, '
                         'mechanism=%r, credentials=%r',
                         domain, address, kind, credentials)
+                    #If in setup mode, add/update auth entry
+                    if self._setup_mode:
+                        self._update_auth_entry(domain, address, kind, credentials[0], userid)
+                        _log.info(
+                            'new authentication entry added in setup mode: domain=%r, address=%r, '
+                            'mechanism=%r, credentials=%r, user_id=%r',
+                            domain, address, kind, credentials[:1], userid)
+                        response.extend([b'200', b'SUCCESS', '', b''])
+                        _log.debug("AUTH response: {}".format(response))
+                        sock.send_multipart(response)
+                    else:
+                        self._update_auth_failures(domain, address, kind, credentials[0], userid)
+
                     try:
                         expire, delay = blocked[address]
                     except KeyError:
@@ -324,6 +320,10 @@ class AuthService(Agent):
                 if entry.match(domain, address, mechanism, [credentials]):
                     return entry.capabilities, entry.groups, entry.roles
 
+    @RPC.export
+    def get_authorization_failures(self):
+        return list(self._auth_failures)
+
     def _get_authorizations(self, user_id, index):
         """Convenience method for getting authorization component by index"""
         auths = self.get_authorizations(user_id)
@@ -370,6 +370,45 @@ class AuthService(Agent):
         """
         return self._get_authorizations(user_id, 2)
 
+    def _update_auth_entry(self, domain, address, mechanism, credential, user_id):
+        #Make a new entry
+        fields = {
+            "domain": domain,
+            "address": address,
+            "mechanism": mechanism,
+            "credentials": credential,
+            "groups": "",
+            "roles": "",
+            "capabilities": "",
+            "comments": "Auth entry added in setup mode",
+        }
+        new_entry = AuthEntry(**fields)
+
+        try:
+            self.auth_file.add(new_entry, overwrite=False)
+        except AuthException as err:
+            _log.error('ERROR: %s\n' % err.message)
+
+    def _update_auth_failures(self, domain, address, mechanism, credential, user_id):
+        for entry in self._auth_failures:
+            #Check if failure entry exists. If so, increment the failure count
+            if ((entry['domain'] == domain) and
+                (entry['address'] == address) and
+                (entry['mechanism'] == mechanism) and
+                    (entry['credentials'] == credential)):
+                entry['retries'] += 1
+                return
+        # Add a new failure entry
+        fields = {
+            "domain": domain,
+            "address": address,
+            "mechanism": mechanism,
+            "credentials": credential,
+            "user_id": user_id,
+            "retries": 1
+        }
+        self._auth_failures.append(dict(fields))
+        return
 
 class String(unicode):
     def __new__(cls, value):
@@ -497,7 +536,7 @@ class AuthEntry(object):
         if isregex(cred):
             return
         if mechanism == 'CURVE' and len(cred) != BASE64_ENCODED_CURVE_KEY_LEN:
-            raise AuthEntryInvalid('Invalid CURVE public key')
+            raise AuthEntryInvalid('Invalid CURVE public key {}')
 
     @staticmethod
     def valid_mechanism(mechanism):

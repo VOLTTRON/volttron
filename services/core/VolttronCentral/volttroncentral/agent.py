@@ -1,57 +1,38 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2017, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
@@ -89,7 +70,7 @@ from urlparse import urlparse
 import datetime
 import gevent
 from volttron.platform.auth import AuthFile, AuthEntry
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 from authenticate import Authenticate
 from platforms import Platforms, PlatformHandler
@@ -114,7 +95,7 @@ from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 
-__version__ = "4.0.3"
+__version__ = "4.2"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -127,6 +108,23 @@ Platform = namedtuple('Platform', ['instance_name', 'serverkey', 'vip_address'])
 RequiredArgs = namedtuple('RequiredArgs', ['id', 'session_user',
                                            'platform_uuid'])
 
+def init_volttron_central(config_path, **kwargs):
+    # Load the configuration into a dictionary
+    config = utils.load_config(config_path)
+
+    # Required users
+    users = config.get('users', None)
+
+    # Expose the webroot property to be customized through the config
+    # file.
+    webroot = config.get('webroot', DEFAULT_WEB_ROOT)
+    if webroot.endswith('/'):
+        webroot = webroot[:-1]
+
+    topic_replace_list = config.get('topic-replace-list', [])
+
+    return VolttronCentralAgent(webroot, users, topic_replace_list, **kwargs)
+
 
 class VolttronCentralAgent(Agent):
     """ Agent for managing many volttron instances from a central web ui.
@@ -136,7 +134,8 @@ class VolttronCentralAgent(Agent):
 
     """
 
-    def __init__(self, config_path, **kwargs):
+    def __init__(self, webroot=DEFAULT_WEB_ROOT, users={},
+                 topic_replace_list=[], **kwargs):
         """ Creates a `VolttronCentralAgent` object to manage instances.
 
          Each instances that is registered must contain a running
@@ -151,67 +150,118 @@ class VolttronCentralAgent(Agent):
         _log.info("{} constructing...".format(self.__class__.__name__))
 
         super(VolttronCentralAgent, self).__init__(enable_web=True, **kwargs)
-        # Load the configuration into a dictionary
-        config = utils.load_config(config_path)
-
-        # Required users
-        users = config.get('users', None)
-
-        # Expose the webroot property to be customized through the config
-        # file.
-        webroot = config.get('webroot', DEFAULT_WEB_ROOT)
-        if webroot.endswith('/'):
-            webroot = webroot[:-1]
-
-        topic_replace_list = config.get('topic-replace-list', [])
 
         # Create default configuration to be used in case of problems in the
         # packaged agent configuration file.
-        self.default_config = dict(
+        self._default_config = dict(
             webroot=os.path.abspath(webroot),
             users=users,
             topic_replace_list=topic_replace_list
         )
 
-        # During the configuration update/new/delete action this will be
-        # updated to the current configuration.
-        self.runtime_config = None
+        self.vip.config.set_default("config", self._default_config)
 
         # Start using config store.
-        self.vip.config.set_default("config", config)
-        self.vip.config.subscribe(self.configure_main,
-                                  actions=['NEW', 'UPDATE', 'DELETE'],
+        self.vip.config.subscribe(self._configure,
+                                  actions=["NEW", "UPDATE"],
                                   pattern="config")
 
-        # Use config store to update the settings of a platform's configuration.
-        self.vip.config.subscribe(self.configure_platforms,
-                                  actions=['NEW', 'UPDATE', 'DELETE'],
-                                  pattern="platforms/*")
 
-        # mapping from the real topic into the replacement.
-        self.replaced_topic_map = {}
 
-        # mapping from md5 hash of address to the actual connection to the
-        # remote instance.
-        self.vcp_connections = {}
-
-        # Current sessions available to the
-        self.web_sessions = None
-
-        # Platform health based upon device driver publishes
-        self.device_health = defaultdict(dict)
-
-        # Used to hold scheduled reconnection event for vcp agents.
-        self._vcp_reconnect_event = None
-
-        # the registered socket endpoints so we can send out management
-        # events to all the registered session.
+        #
+        # # During the configuration update/new/delete action this will be
+        # # updated to the current configuration.
+        # self.runtime_config = None
+        #
+        # # Start using config store.
+        # self.vip.config.set_default("config", config)
+        # self.vip.config.subscribe(self.configure_main,
+        #                           actions=['NEW', 'UPDATE', 'DELETE'],
+        #                           pattern="config")
+        #
+        # # Use config store to update the settings of a platform's configuration.
+        # self.vip.config.subscribe(self.configure_platforms,
+        #                           actions=['NEW', 'UPDATE', 'DELETE'],
+        #                           pattern="platforms/*")
+        #
+        # # mapping from the real topic into the replacement.
+        # self.replaced_topic_map = {}
+        #
+        # # mapping from md5 hash of address to the actual connection to the
+        # # remote instance.
+        # self.vcp_connections = {}
+        #
+        # # Current sessions available to the
+        # self.web_sessions = None
+        #
+        # # Platform health based upon device driver publishes
+        # self.device_health = defaultdict(dict)
+        #
+        # # Used to hold scheduled reconnection event for vcp agents.
+        # self._vcp_reconnect_event = None
+        #
+        # # the registered socket endpoints so we can send out management
+        # # events to all the registered session.
         self._websocket_endpoints = set()
 
         self._platforms = Platforms(self)
 
         self._platform_scan_event = None
-        self._connected_platforms = dict()
+
+        # Sessions that have been authentication with the system.
+        self._authenticated_sessions = None
+
+    def _configure(self, config_name, action, contents):
+        """
+        The main configuration for volttron central.  This is where validation
+        will occur.
+
+        Note this method is called:
+
+            1. When the agent first starts (with the params from packaged agent
+               file)
+            2. When 'store' is called through the volttron-ctl config command
+               line with 'config' as the name.
+
+        Required Configuration:
+
+        The volttron central requires a user mapping.
+
+        :param config_name:
+        :param action:
+        :param contents:
+        """
+        config = self._default_config.copy()
+
+        config.update(contents)
+
+        users = config.get("users", None)
+
+        if self._authenticated_sessions:
+            self._authenticated_sessions.clear()
+
+        if users is None:
+            users = {}
+            _log.warn("No users are available for logging in!")
+
+        # Unregister all routes for vc and then re-add down below.
+        self.vip.web.unregister_all_routes()
+
+        self._authenticated_sessions = SessionHandler(Authenticate(users))
+
+        self.vip.web.register_endpoint(r'/vc/jsonrpc', self.jsonrpc)
+
+        self.vip.web.register_websocket(r'/vc/ws',
+                                        self.open_authenticate_ws_endpoint,
+                                        self._ws_closed,
+                                        self._ws_received)
+
+        self.vip.web.register_path(r'^/vc/.*',
+                                   config.get('webroot'))
+
+        # Start scanning for new platforms connections as well as for
+        # disconnects that happen.
+        self._scan_platform_connect_disconnect()
 
     @staticmethod
     def _get_next_time_seconds(seconds=10):
@@ -232,7 +282,7 @@ class VolttronCentralAgent(Agent):
         # TODO send alert that there was a platform disconnect.
         self._platforms.disconnect_platform(platform_vip_identity)
 
-    def _scan_for_platforms(self):
+    def _scan_platform_connect_disconnect(self):
         """
         Scan the local bus for peers that start with 'vcp-'.  Handle the
         connection and disconnection events here.
@@ -260,73 +310,8 @@ class VolttronCentralAgent(Agent):
 
         # reschedule the next scan.
         self._platform_scan_event = self.core.schedule(
-            next_platform_scan, self._scan_for_platforms)
+            next_platform_scan, self._scan_platform_connect_disconnect)
 
-    def configure_main(self, config_name, action, contents):
-        """
-        The main configuration for volttron central.  This is where validation
-        will occur.
-
-        Note this method is called:
-
-            1. When the agent first starts (with the params from packaged agent
-               file)
-            2. When 'store' is called through the volttron-ctl config command
-               line with 'config' as the name.
-
-        Required Configuration:
-
-        The volttron central requires a user mapping.
-
-        :param config_name:
-        :param action:
-        :param contents:
-        """
-
-        _log.debug('Main config updated')
-        _log.debug('ACTION IS {}'.format(action))
-        _log.debug('CONTENT IS {}'.format(contents))
-        if action == 'DELETE':
-            # Remove the registry and keep the service running.
-            self.runtime_config = None
-            # Now stop the exposition of service.
-        else:
-            self.runtime_config = self.default_config.copy()
-            self.runtime_config.update(contents)
-
-            problems = self._validate_config_params(self.runtime_config)
-
-            if len(problems) > 0:
-                _log.error(
-                    "The following configuration problems were detected!")
-                for p in problems:
-                    _log.error(p)
-                sys.exit(INVALID_CONFIGURATION_CODE)
-            else:
-                _log.info('volttron central webroot is: {}'.format(
-                    self.runtime_config.get('webroot')
-                ))
-
-                users = self.runtime_config.get('users')
-                self.web_sessions = SessionHandler(Authenticate(users))
-
-            _log.debug('Querying router for addresses and serverkey.')
-            q = Query(self.core)
-
-            external_addresses = q.query('addresses').get(timeout=5)
-            self.runtime_config['local_external_address'] = external_addresses[0]
-
-        self.vip.web.register_websocket(r'/vc/ws',
-                                        self.open_authenticate_ws_endpoint,
-                                        self._ws_closed,
-                                        self._ws_received)
-        self.vip.web.register_endpoint(r'/jsonrpc', self.jsonrpc)
-        self.vip.web.register_path(r'^/.*',
-                                   self.runtime_config.get('webroot'))
-
-        # Start scanning for new platforms connections as well as for
-        # disconnects that happen.
-        self._scan_for_platforms()
 
     def configure_platforms(self, config_name, action, contents):
         _log.debug('Platform configuration updated.')
@@ -353,7 +338,7 @@ class VolttronCentralAgent(Agent):
                 'Endpoint must have valid session in second to last position')
             return False
 
-        if not self.web_sessions.check_session(session, fromip):
+        if not self._authenticated_sessions.check_session(session, fromip):
             _log.error("Authentication error for session!")
             return False
 
@@ -455,7 +440,7 @@ class VolttronCentralAgent(Agent):
                 args = {'username': rpcdata.params['username'],
                         'password': rpcdata.params['password'],
                         'ip': env['REMOTE_ADDR']}
-                sess = self.web_sessions.authenticate(**args)
+                sess = self._authenticated_sessions.authenticate(**args)
                 if not sess:
                     _log.info('Invalid username/password for {}'.format(
                         rpcdata.params['username']))
@@ -478,7 +463,7 @@ class VolttronCentralAgent(Agent):
             token = rpcdata.authorization
             ip = env['REMOTE_ADDR']
             _log.debug('REMOTE_ADDR: {}'.format(ip))
-            session_user = self.web_sessions.check_session(token, ip)
+            session_user = self._authenticated_sessions.check_session(token, ip)
             _log.debug('SESSION_USER IS: {}'.format(session_user))
             if not session_user:
                 _log.debug("Session Check Failed for Token: {}".format(token))
@@ -1037,11 +1022,13 @@ class VolttronCentralAgent(Agent):
 
 
 def main(argv=sys.argv):
-    """ Main method called by the eggsecutable.
+    """
+    Main method called by the eggsecutable.
+
     :param argv:
     :return:
     """
-    utils.vip_main(VolttronCentralAgent, identity=VOLTTRON_CENTRAL,
+    utils.vip_main(init_volttron_central, identity=VOLTTRON_CENTRAL,
                    version=__version__)
 
 

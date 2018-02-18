@@ -1,0 +1,10 @@
+{
+    "agentid": "kafkaagent",
+    "services_topic_list" :[
+        "devices/fake-campus/fake-building/fake-device/all"
+     ],
+     "kafka_broker_ip": "127.0.0.1",
+     "kafka_broker_port": "9092",
+     "kafka_producer_topic": "msg-to-volttron",
+     "kafka_consumer_topic": "msg-from-volttron"
+}

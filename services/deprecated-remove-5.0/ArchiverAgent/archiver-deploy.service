@@ -1,8 +1,0 @@
-{
-    "agent": {
-        "exec": "archiveragent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
-    },
-    "archiver_url": "http://<SMAP URL>/backend/api/query",
-    "agentid": "SMAP Archiver",
-    "source_name": "<Your Source Here>"
-}

@@ -5,7 +5,9 @@ import tempfile
 
 import gevent
 import pytest
-from zmq.utils import jsonapi
+
+from volttron.platform import get_services_core
+from volttron.platform.agent import json as jsonapi
 
 from volttron.platform.messaging import headers as headers_mod
 
@@ -19,9 +21,6 @@ FORWARDER_CONFIG = {
     "agentid": "forwarder",
     "destination-vip": {},
     "custom_topic_list": [],
-    "services_topic_list": [
-        "devices", "analysis", "record", "datalogger", "actuators"
-    ],
     "topic_replace_list": [
         {"from": "PNNL/BUILDING_1", "to": "PNNL/BUILDING1_ANON"}
     ]
@@ -102,7 +101,7 @@ def test_reconnect_forwarder(get_volttron_instances):
     forwarder_config['destination-serverkey'] = to_instance.keystore.public
 
     fuuid = from_instance.install_agent(
-        agent_dir="services/core/ForwardHistorian",start=True,
+        agent_dir=get_services_core("ForwardHistorian"),start=True,
         config_file=forwarder_config)
     assert from_instance.is_agent_running(fuuid)
     print('Before Subscribing')

@@ -11,6 +11,8 @@ import gevent
 import pytest
 import re
 from dateutil.parser import parse
+
+from volttron.platform import get_services_core
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 
@@ -38,8 +40,8 @@ pymongo_skipif = pytest.mark.skipif(not HAS_PYMONGO,
 
 # table_defs with prefix
 sqlite_aggregator = {
-    "source_historian": "services/core/SQLHistorian",
-    "source_agg_historian": "services/core/SQLAggregateHistorian",
+    "source_historian": get_services_core("SQLHistorian"),
+    "source_agg_historian": get_services_core("SQLAggregateHistorian"),
     "connection": {
         "type": "sqlite",
         "params": {
@@ -60,8 +62,8 @@ sqlite_aggregator = {
 
 # table_defs with prefix
 mysql_aggregator = {
-    "source_historian": "services/core/SQLHistorian",
-    "source_agg_historian": "services/core/SQLAggregateHistorian",
+    "source_historian": get_services_core("SQLHistorian"),
+    "source_agg_historian": get_services_core("SQLAggregateHistorian"),
     "agentid": "test",
     "connection": {
         "type": "mysql",
@@ -76,8 +78,8 @@ mysql_aggregator = {
 }
 
 mongo_aggregator = {
-    "source_historian": "services/core/MongodbHistorian",
-    "source_agg_historian": "services/core/MongodbAggregateHistorian",
+    "source_historian": get_services_core("MongodbHistorian"),
+    "source_agg_historian": get_services_core("MongodbAggregateHistorian"),
     "connection": {
         "type": "mongodb",
         "params": {
@@ -378,6 +380,7 @@ def test_get_supported_aggregations(aggregate_agent, query_agent):
         elif conn.get("type") == "mongodb":
             assert result == ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX',
                               'STDDEVPOP', 'STDDEVSAMP']
+
 
 @pytest.mark.aggregator
 def test_single_topic_pattern(aggregate_agent, query_agent):

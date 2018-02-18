@@ -1,59 +1,39 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2017, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
 
 """
@@ -70,6 +50,8 @@ from collections import Counter
 import os
 import pytest
 import stat
+
+from volttron.platform import get_examples
 from volttron.platform.packaging import AgentPackageError
 from volttron.platform.packaging import (create_package, repackage,
                                          extract_package)
@@ -122,6 +104,7 @@ zip_safe = False,
         os.chdir(cwd)
     return tmpdir, 'distribution_name', '0.1', 'packagetest'
 
+
 @pytest.mark.packaging
 def test_create_package_no_id(test_package):
     """
@@ -140,6 +123,7 @@ def test_create_package_no_id(test_package):
     result = create_package(tmpdir, wheel_dir)
     assert result == os.path.join(wheel_dir, '-'.join(
         [distribution_name, version, 'py2-none-any.whl']))
+
 
 @pytest.mark.packaging
 def test_create_package_with_id(test_package):
@@ -174,6 +158,7 @@ def test_create_package_with_id(test_package):
         data = f.read().replace('\n', '')
         assert data == "test_vip_id"
 
+
 @pytest.mark.packaging
 def test_create_package_invalid_input():
     """
@@ -195,6 +180,7 @@ def test_create_package_invalid_input():
     except NotImplementedError:
         pass
 
+
 @pytest.mark.packaging
 def test_repackage_output_to_cwd(volttron_instance):
     """
@@ -213,7 +199,7 @@ def test_repackage_output_to_cwd(volttron_instance):
         dest_dir = tempfile.mkdtemp()
         os.chdir(dest_dir)
         agent_uuid = volttron_instance.install_agent(
-            agent_dir=os.path.join(cwd, "examples/ListenerAgent"))
+            agent_dir=os.path.join(cwd, get_examples("ListenerAgent")))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
             agent_uuid, 'listeneragent-3.2')
         print agent_dir
@@ -228,6 +214,7 @@ def test_repackage_output_to_cwd(volttron_instance):
         os.chdir(cwd)
         if dest_dir:
             shutil.rmtree(dest_dir)
+
 
 @pytest.mark.packaging
 def test_repackage_valid_dest_dir(volttron_instance):
@@ -244,7 +231,7 @@ def test_repackage_valid_dest_dir(volttron_instance):
     try:
         dest_dir = tempfile.mkdtemp()
         agent_uuid = volttron_instance.install_agent(
-            agent_dir=os.path.join("examples/ListenerAgent"))
+            agent_dir=os.path.join(get_examples("ListenerAgent")))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
             agent_uuid, 'listeneragent-3.2')
         print agent_dir
@@ -258,6 +245,7 @@ def test_repackage_valid_dest_dir(volttron_instance):
     finally:
         if dest_dir:
             shutil.rmtree(dest_dir)
+
 
 @pytest.mark.packaging
 def test_repackage_new_dest_dir(volttron_instance):
@@ -277,7 +265,7 @@ def test_repackage_new_dest_dir(volttron_instance):
         print ("cwd {}".format(os.getcwd()))
 
         agent_uuid = volttron_instance.install_agent(
-            agent_dir=os.path.join("examples/ListenerAgent"))
+            agent_dir=os.path.join(get_examples("ListenerAgent")))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
             agent_uuid, 'listeneragent-3.2')
         print agent_dir
@@ -291,6 +279,7 @@ def test_repackage_new_dest_dir(volttron_instance):
     finally:
         if dest_dir:
             shutil.rmtree(dest_dir)
+
 
 @pytest.mark.packaging
 def test_repackage_invalid_dest_dir(volttron_instance):
@@ -307,7 +296,7 @@ def test_repackage_invalid_dest_dir(volttron_instance):
     dest_dir = "/abcdef/ghijkl"
     try:
         agent_uuid = volttron_instance.install_agent(
-            agent_dir="examples/ListenerAgent")
+            agent_dir=get_examples("ListenerAgent"))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
                                  agent_uuid, 'listeneragent-3.2')
         repackage(agent_dir, dest=dest_dir)
@@ -321,7 +310,7 @@ def test_repackage_invalid_dest_dir(volttron_instance):
         dest_dir = tempfile.mkdtemp()
         os.chmod(dest_dir, stat.S_IREAD)
         agent_uuid = volttron_instance.install_agent(
-            agent_dir="examples/ListenerAgent")
+            agent_dir=get_examples("ListenerAgent"))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
                                  agent_uuid, 'listeneragent-3.2')
         repackage(agent_dir, dest=dest_dir)
@@ -329,6 +318,7 @@ def test_repackage_invalid_dest_dir(volttron_instance):
                     "successfully")
     except Exception as a:
         assert str(a).find("Permission denied") != -1
+
 
 @pytest.mark.packaging
 def test_repackage_invalid_agent_dir():
@@ -357,6 +347,7 @@ def test_repackage_invalid_agent_dir():
     finally:
         if temp_dir:
             os.rmdir(temp_dir)
+
 
 @pytest.mark.packaging
 def test_extract_valid_wheel_and_dir(test_package):
@@ -396,6 +387,7 @@ def test_extract_valid_wheel_and_dir(test_package):
     finally:
         if install_dir:
             shutil.rmtree(install_dir)
+
 
 @pytest.mark.packaging
 def test_extract_include_uuid(test_package):
@@ -439,6 +431,7 @@ def test_extract_include_uuid(test_package):
         if install_dir:
             shutil.rmtree(install_dir)
 
+
 @pytest.mark.packaging
 def test_extract_specific_uuid(test_package):
     """
@@ -481,6 +474,7 @@ def test_extract_specific_uuid(test_package):
         if install_dir:
             shutil.rmtree(install_dir)
 
+
 @pytest.mark.packaging
 def test_extract_invalid_wheel():
     """
@@ -499,6 +493,7 @@ def test_extract_invalid_wheel():
     finally:
         if install_dir:
             shutil.rmtree(install_dir)
+
 
 @pytest.mark.packaging
 def test_extract_invalid_install_dir(test_package):
@@ -529,6 +524,7 @@ def test_extract_invalid_install_dir(test_package):
     finally:
         if install_dir:
             shutil.rmtree(install_dir)
+
 
 @pytest.mark.packaging
 def test_extract_new_install_dir(test_package):

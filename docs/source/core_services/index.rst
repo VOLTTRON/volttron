@@ -18,6 +18,7 @@ Platform services provide the underlying functionality used by applications to p
     security/index
     restricted/index
     config_store/index
+    multiplatform/index
 
     *
 

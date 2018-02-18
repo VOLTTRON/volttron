@@ -1,59 +1,39 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2017, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
 
 from __future__ import absolute_import, print_function
@@ -1339,13 +1319,20 @@ def get_config(opts):
 def edit_config(opts):
     opts.connection.peer = CONFIGURATION_STORE
     call = opts.connection.call
-    results = call("manage_get_metadata", opts.identity, opts.name)
 
-    config_type = results["type"]
-    raw_data = results["data"]
-
-    #Work out what editor to use.
-
+    if opts.new_config:
+        config_type = opts.config_type
+        raw_data = ''
+    else:
+        try:
+            results = call("manage_get_metadata", opts.identity, opts.name)
+            config_type = results["type"]
+            raw_data = results["data"]
+        except RemoteError as e:
+            if "No configuration file" not in e.message:
+                raise
+            config_type = opts.config_type
+            raw_data = ''
 
     #Write raw data to temp file
     #This will not work on Windows, FYI
@@ -1801,8 +1788,18 @@ def main(argv=sys.argv):
     config_store_edit.add_argument('--editor', dest="editor",
                                     help='Set the editor to use to change the file. Defaults to nano if EDITOR is not set',
                                    default=os.getenv("EDITOR", "nano"))
+    config_store_edit.add_argument('--raw', const="raw", dest="config_type", action="store_const",
+                                    help='Interpret the configuration as raw data. If the file already exists this is ignored.')
+    config_store_edit.add_argument('--json', const="json", dest="config_type", action="store_const",
+                                    help='Interpret the configuration as json. If the file already exists this is ignored.')
+    config_store_edit.add_argument('--csv', const="csv", dest="config_type", action="store_const",
+                                    help='Interpret the configuration as csv. If the file already exists this is ignored.')
+    config_store_edit.add_argument('--new', dest="new_config", action="store_true",
+                                     help='Ignore any existing configuration and creates new empty file.'
+                                          ' Configuration is not written if left empty. Type defaults to JSON.')
 
-    config_store_edit.set_defaults(func=edit_config)
+    config_store_edit.set_defaults(func=edit_config,
+                                    config_type="json")
 
     config_store_delete = add_parser("delete",
                                     help="delete a configuration",

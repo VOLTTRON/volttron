@@ -3,23 +3,34 @@
 PubSub Communication Between Remote Platforms
 =============================================
 
-This document describes pubsub communication between different platforms. The goal of this specification is to improve the current setup of having a forward historian to forward local pubsub messages to remote platforms. The specification also covers pubsub communication between platforms that are multiple hops away. The VIP router of each platform will maintain a routing table and will use it to forward pubsub messages to subscribed platforms that are multiple hops away. The routing table will contain shortest path to each destination platform.
+This document describes pubsub communication between different platforms. The goal of this specification is to improve
+the current setup of having a forward historian to forward local pubsub messages to remote platforms. So the agents
+interested in receiving PubSub messages from external platforms will not need to have a forward historian running in
+source platform to forward pubsub messages to the interested destination platforms. The VIP router will now do all the
+work; it shall use Routing Service to internally manage connections with external VOLTTRON platforms and use PubSubService
+for the actual inter platform PubSub communication.
+For Future:
+The specification will need to be extended to support PubSub communication between platforms that are multiple hops away.
+The VIP router of each platform shall need to maintain a routing table and use it to forward pubsub messages to subscribed
+platforms that are multiple hops away. The routing table shall contain shortest path to each destination platform.
 
 
 Functional Capabilities
-========================
+***********************
 
-1. Each VOLTTRON platform shall have a list of other VOLTTRON platforms that it has to get connected to in a config file.
+1. Each VOLTTRON platform shall have a list of other VOLTTRON platforms that it has to connect to in a config file.
 
-2. The VIP router of each platform connects to other platforms on startup.
+2. Routing Service of each platform connects to other platforms on startup.
 
-3. The VIP router shall maintain a routing table containing a list of all the remote platforms and corresponding shortest, most stable route/path to each platform. The behavior of routing table is described in the Routing table section.
+3. The Routing Service in each platform is responsible for connecting to (and also initiate reconnection if required),
+monitoring and disconnecting from each external platform. The function of Routing Service is explained in detail in
+Routing Service section.
 
 4. Platform to platform pubsub communication shall be using VIP protocol with the subsystem frame set to "pubsub".
 
 5. PubSubService of each VOLTTRON platform shall maintain a list of local and external subscriptions.
 
-6. Each VIP router sends its list of local and external subscriptions to other connected platforms in the following cases
+6. Each VIP router sends its list of external subscriptions to other connected platforms in the following cases
 
     a. On startup
 
@@ -29,44 +40,102 @@ Functional Capabilities
 
     d. When a new platform gets connected
 
-7. Each platform sends periodic heartbeat messages to its connected platforms to confirm its aliveness.
+7. When a remote platform disconnection is detected, all stale subscriptions related to that platform shall be removed.
 
-8. Heartbeat communication between VIP routers shall also be using VIP protocol with the subsystem frame set to "heartbeat".
+8. Whenever an agent publishes a message to a specific topic, the PubSubService on the local platform first checks the
+topic against its list of local subscriptions. If a local subscription exists, it sends the publish message to
+corresponding local subscribers.
 
-9. When a platform does not receive a heartbeat message from its neighboring platform within a specific grace period, it sets that platform as disconnected and informs the same to other platforms. All stale subscriptions of the disconnected platform shall be removed.
+9. PubSubService shall also check the topic against list of external subscriptions. If an external subscription exists,
+it shall use Routing Service to send the publish message to the corresponding external platform.
 
-10. Whenever an agent publishes a message to a specific topic, the PubSubService on the local platform first checks the topic against its list of local subscriptions. If a local subscription exists, it sends the publish message to corresponding local subscribers.
+10. Whenever a router receives messages from other platform, it shall check the destination platform in the incoming
+message.
 
-11. PubSubService shall also check the topic against list of external subscriptions. If an external subscription exists, it hands over the message and destination platform identity to the VIP router.
+    a. If the destination platform is the local platform, it hand overs the publish message to PubSubService which
+     checks the topic against list of external subscriptions. If an external subscription matches, PubSubService forwards
+     the message to all the local subscribers subscribed to that topic.
 
-12. The VIP router checks its routing table to find the forwarding path to the destination platform and forwards forwarding path and publish message to the first platform in the forwarding path.
-
-13. Whenever a router receives messages from other platform, it shall check the destination platform in the forwarding path in the incoming message.
-
-    a. If the destination platform is the local platform, it hand overs the publish message to PubSubService which checks the topic against list of local subscriptions. If local subscription exists, PubSubService forwards the message to all the local subscribers.
-
-    b. If the destination platform is not the local platform, it retrieves the next hop in the forwarding path and forwards the message to that platform.
-
-
-Routing Table
-++++++++++++++
+    b. If the destination platform is not the local platform, it discards the message.
 
 
-1. VIP routers shall exchange routing information using VIP protocol with the subsystem frame set to "routing_table".
+Routing Service
++++++++++++++++
 
-2. Each VIP router shall exchange its routing table with its connected platforms on startup and whenever a new platform gets connected or disconnected.
+1. Routing Service shall maintain connection status (CONNECTING, CONNECTED, DISCONNECTED etc.) for each external platform.
 
-3. The router shall go through each entry in the routing table that it received from other platforms and calculate the shortest, most stable path to each remote platform. It then sends the updated routing table to other platforms for adjustments in the forwarding paths (in their local routing table) if any.
+2. In order to establish connection with an external VOLTTRON platform, the server key of the remote platform is needed.
+ The Routing Service shall connect to an external platform once it obtains the server key for that platform from the
+ KeyDiscoveryService.
 
-4. Whenever a VIP router detects a new connection, it adds an entry into the routing table and sends updated routing table to its neighboring platforms. Each router in the other platforms shall update and re-calculate the forwarding paths in its local routing table and forward to rest of the platforms.
+3. Routing Service shall exchange "hello"/"welcome" handshake messages with the newly connected remote platform to
+confirm the connection. It shall use VIP protocol with the subsystem frame set to “routing_table” for the handshake
+messages.
 
-5. Similarly, whenever a VIP router detects a remote platform disconnection, it deletes the entry in the routing table for that platform and forwards the routing table to other platforms to do the same.
+3. Routing Service shall monitor the connection status and inform PubSubService whenever a remote platform gets
+connected/disconnected.
 
 
-Messages for Routing information
-********************************
-The VIP routers in each platform shall use VIP protocol message semantics to send routing information. Below example shows the routing table information sent by VOLTTRON platform V1 to VOLTTRON platform V2.
+For Future
 
+1. Each VIP router shall exchange its routing table with its connected platforms on startup and whenever a new platform
+gets connected or disconnected.
+
+2. The router shall go through each entry in the routing table that it received from other platforms and calculate the
+shortest, most stable path to each remote platform. It then sends the updated routing table to other platforms for
+adjustments in the forwarding paths (in their local routing table) if any.
+
+3. Whenever a VIP router detects a new connection, it adds an entry into the routing table and sends updated routing
+table to its neighboring platforms. Each router in the other platforms shall update and re-calculate the forwarding
+paths in its local routing table and forward to rest of the platforms.
+
+4. Similarly, whenever a VIP router detects a remote platform disconnection, it deletes the entry in the routing table
+for that platform and forwards the routing table to other platforms to do the same.
+
+
+KeyDiscovery Service
+++++++++++++++++++++
+
+1. Each platform tries to obtain the platform discovery information - platform name, VIP address and server key of
+remote VOLTTRON platforms through HTTP discovery service at startup.
+
+2. If unsuccessful, it shall make regular attempts to obtain discovery information until successful.
+
+3. The platform discovery information shall then be sent to the Routing Service using VIP protocol with subsystem
+frame set to "routing_table".
+
+
+Messages for Routing Service
+****************************
+Below shows example messages that are applicable to the Routing Service.
+
+Message sent by KeyDiscovery Service containing the platform discovery information (platform name, VIP address and
+server key) of a remote platform.
+::
+
+    +-+
+    | |                                Empty recipient frame
+    +-+----+
+    | VIP1 |                           Signature frame
+    +-+----+
+    | |                                Empty user ID frame
+    +-+----+
+    | 0001 |                           Request ID, for example "0001"
+    +---------------+
+    | routing_table |                  Subsystem, "routing_table"
+    +---------------+----------------+
+    | normalmode_platform_connection | Type of operation, "normalmode_platform_connection"
+    +--------------------------------+
+    | platform discovery information |
+    | of external platform           | platform name, VIP address and server key of external platform
+    +--------------------------------+
+    | platform name       | Remote platform for which the server key belongs to.
+    +---------------------+
+
+
+Handshake messages between two newly connected external VOLTTRON platform to confirm successful connection.
+
+Message from initiating platform
 ::
 
     +-+
@@ -80,16 +149,18 @@ The VIP routers in each platform shall use VIP protocol message semantics to sen
     +--------------++
     | routing_table |       Subsystem, "routing_table"
     +---------------+
-    | data  |               Routing table dictionary
-    +-------+
+    | hello  |              Operation, "hello"
+    +--------+
+    | hello  |              Hello handshake request frame
+    +--------+------+
+    | platform name |       Platform initiating a "hello"
+    +---------------+
 
 
-This shows routing table information received by VOLTTRON platform V2 router from VOLTTRON platform V1 router.
+Reply message from the destination platform
 ::
 
-    +-------+
-    | V1    |               Sender frame, "V1" in this case
-    +-+-----+
+    +-+
     | |                     Empty recipient frame
     +-+----+
     | VIP1 |                Signature frame
@@ -99,14 +170,18 @@ This shows routing table information received by VOLTTRON platform V2 router fro
     | 0001 |                Request ID, for example "0001"
     +--------------++
     | routing_table |       Subsystem, "routing_table"
+    +--------+------+
+    | hello  |              Operation, "hello"
+    +--------++
+    | welcome |             Welcome handshake reply frame
+    +---------+-----+
+    | platform name |       Platform sending reply to "hello"
     +---------------+
-    | data  |               Routing table dictionary
-    +-------+
-
 
 Messages for PubSub communication
 *********************************
-The VIP routers of each platform shall send pubsub messages between platforms using VIP protocol message semantics. Below shows an example of external subscription list message sent by VOLTTRON platform V1 router to VOLTTRON platform V2.
+The VIP routers of each platform shall send pubsub messages between platforms using VIP protocol message semantics.
+Below shows an example of external subscription list message sent by VOLTTRON platform V1 router to VOLTTRON platform V2.
 
 ::
 
@@ -128,31 +203,6 @@ The VIP routers of each platform shall send pubsub messages between platforms us
     +---------------+   key - value pairings, for example: { "V1": ["devices/rtu3"]}
 
 
-This shows an example of external subscription list message received by VOLTTRON platform V2 router from
-VOLTTRON platform V1.
-
-::
-
-    +-------+
-    | V1    |           Sender frame, "V1" in this case
-    +-+-----+
-    | |                 Empty recipient frame
-    +-+----+
-    | VIP1 |            Signature frame
-    +-+---------+
-    |V1 user id |       Empty user ID frame
-    +-+---------+
-    | 0001 |            Request ID, for example "0001"
-    +-------++
-    | pubsub |          Subsystem, "pubsub"
-    +---------------+
-    | external_list |   Operation, "external_list" in this case
-    +---------------+
-    | List of       |   Subscriptions dictionary consisting of VOLTTRON platform id and list of topics as
-    | subscriptions |   key - value pairings, for example: { "V1": ["devices/rtu3"]}
-    +---------------+
-
-
 This shows an example of external publish message sent by VOLTTRON platform V2 router to VOLTTRON platform V1.
 ::
 
@@ -170,124 +220,59 @@ This shows an example of external publish message sent by VOLTTRON platform V2 r
     +------------------+
     | external_publish |    Operation, "external_publish" in this case
     +------------------+
-    | forwarding path  |    Forwarding path containing list of VOLTTRON platform IDs in the path. For example, ["V1"]
+    | topic            |    Message topic
     +------------------+
     | publish message  |    Actual publish message frame
     +------------------+
 
-
-This shows an example of external publish message received by VOLTTRON platform V1 router from VOLTTRON platform V2.
-
-::
+API
+***
 
 
-    +-------+
-    | V2    |               Sender frame, "V2" in this case
-    +-+-----+
-    | |                     Empty recipient frame
-    +-+----+
-    | VIP1 |                Signature frame
-    +-+---------+
-    |V1 user id |           Empty user ID frame
-    +-+---------+
-    | 0001 |                Request ID, for example "0001"
-    +-------++
-    | pubsub |              Subsystem, "pubsub"
-    +------------------+
-    | external_publish |    Operation, "external_publish" in this case
-    +------------------+
-    | forwarding path  |    Forwarding path containing list of VOLTTRON platform IDs in the path. For example, ["V1"]
-    +------------------+
-    | publish message  |    Actual publish message frame
-    +------------------+
+Methods for Routing Service
++++++++++++++++++++++++++++
 
+external_route( ) - This method receives message frames from external platforms, checks the subsystem frame and
+redirects to appropriate subsystem (routing table, pubsub) handler. It shall run within a separate thread and get
+executed whenever there is a new incoming message from other platforms.
 
+setup( ) - This method initiates socket connections with all the external VOLTTRON platforms configured in the config
+file. It also starts monitor thread to monitor connections with external platforms.
 
-Messages for Heartbeat
-***********************
-Heartbeat messages shall also follow VIP protocol semantics. Below an example of external heartbeat message sent by VOLTTRON platform V1 router to VOLTTRON platform V2.
-::
+handle_subsystem( frames ) - Routing Service subsytem handler to handle serverkey message from KeyDiscoveryService and
+"hello/welcome" handshake message from external platforms.
 
-    +-+
-    | |                     Empty recipient frame
-    +-+----+
-    | VIP1 |                Signature frame
-    +-+----+
-    | |                     Empty user ID frame
-    +-+----+
-    | 0001 |                Request ID, for example "0001"
-    +--------------++
-    | heartbeat     |       Subsystem, "heartbeat"
-    +---------------+
-    | alive |               heartbeat status - "alive"
-    +-------+
+send_external( instance_name, frames ) - This method sends input message to specified VOLTTRON platform/instance.
 
+register( type, handler ) - Register method for PubSubService to register for connection and disconnection events.
 
-This shows an example of external heartbeat message received by VOLTTRON platform V2 router from VOLTTRON platform V1.
-::
+disconnect_external_instances( instance_name ) - Disconnect from specified VOLTTRON platform.
 
-    +-------+
-    | V2    |               Sender frame, "V2" in this case
-    +-+-----+
-    | |                     Empty recipient frame
-    +-+----+
-    | VIP1 |                Signature frame
-    +-+----+
-    | |                     Empty user ID frame
-    +-+----+
-    | 0001 |                Request ID, for example "0001"
-    +--------------++
-    | routing_table |       Subsystem, "heartbeat"
-    +---------------+
-    | alive  |              heartbeat status - "alive"
-    +--------+
+close_external_connections( ) - Disconnect from all external VOLTTRON platforms.
 
-
-Methods for Router
-******************
-
-external_route() - This method receives message frames from external platforms, checks the subsystem frame and redirects to appropriate subsystem (routing table, pubsub, heartbeat) handler. It shall run within a separate thread and get executed whenever there is a new incoming message from other platforms.
-
-manage_routing_table( external_routing_table ) - This method manages the local routing table. It performs the following operations
-
- - Go through each entry in the external routing table and recalculates the routing path to all platforms
-
- - Update local routing table if necessary
-
- - If any changes are made to local routing table, send routing table message to all neighboring platforms.
-
-connect_external_platforms() - Connect to all VOLTTRON platforms provided in the config file. This method is called during router startup.
-
-disconnect_external_platforms(platform_ids) - Disconnect from all VOLTTRON platforms provided in "platform_ids" list.
-
-send_periodic_heartbeat() - Send periodic heartbeat messages to all connected platforms
-
-update_heartbeat_replies(frames) - Update status of other platforms (GOOD or BAD) based on heartbeat message received from other platforms.
-
-check_heartbeat_status() - This method periodically checks the status of all heartbeat messages received from external platforms so far. If any of the heartbeat messages are missing, it does the following
-
- - Set the platform as disconnected
-
- - Remove the platform from routing table
-
- - Remove corresponding subscriptions for the platform
-
- - Send updated routing table to other platforms
-
-get_connected_platforms() - Return list of connected platforms.
-
-send_external_pubsub_message( frames, platform_ids ) - Send the pubsub message to all the platforms in the platform ids list.
+get_connected_platforms( ) - Return list of connected platforms.
 
 
 Methods for PubSubService
-*************************
++++++++++++++++++++++++++
 
-external_peer_add( platform_id ) - Add external VOLTTRON platform.
+external_platform_add( instance_name ) - Send external subscription list to newly connected external VOLTTRON platform.
 
-external_peer_drop( platform_id ) - Remove all subscriptions for the specified VOLTTRON platform
+external_platform_drop( instance_name ) - Remove all subscriptions for the specified VOLTTRON platform
 
-update_external_subscriptions( frames ) - Update list of external subscriptions as per the subscription list provided in the message frame.
+update_external_subscriptions( frames ) - Store/Update list of external subscriptions as per the subscription list
+provided in the message frame.
 
-publish_external_message( topic, headers, message, platform_ids ) - Publish the message all the external platforms that have subscribed to the topic. It uses send_external_pubsub_message() of router to send out the message.
+_distribute_external( frames ) - Publish the message all the external platforms that have subscribed to the topic. It
+uses send_external_pubsub_message() of router to send out the message.
 
-external_to_local_publish( frames ) - This method retrieves actual message from the message frame, checks the message topic against list of local subscriptions and sends the message to corresponding subscribed agents.
+external_to_local_publish( frames ) - This method retrieves actual message from the message frame, checks the message
+topic against list of external subscriptions and sends the message to corresponding subscribed agents.
+
+
+Methods for agent pubsub subsystem
+++++++++++++++++++++++++++++++++++
+
+subscribe(peer, prefix, callback, bus='', all_platforms=False) - The existing 'subscribe' method is modified to include
+optional keyword argument - 'all_platforms'. If 'all_platforms' is set to True, the agent is subscribing to topic from
+local publisher and from external platform publishers.

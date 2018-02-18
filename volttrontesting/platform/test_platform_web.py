@@ -3,13 +3,14 @@ import logging
 import gevent
 from volttron.platform.vip.agent import Agent
 from volttrontesting.utils.platformwrapper import start_wrapper_platform
-from zmq.utils import jsonapi as json
+from volttron.platform.agent import json
 import pytest
 import random
 import requests
 import os
 import tempfile
 
+from volttrontesting.fixtures.volttron_platform_fixtures import *
 
 logging.basicConfig(level=logging.DEBUG)
 from volttrontesting.utils.build_agent import build_agent, build_agent_with_key
@@ -179,7 +180,11 @@ def _build_web_dir(vhome):
 
 
 @pytest.mark.web
-def test_can_discover_key(web_instance):
+def test_can_discover_info(web_instance):
+    """
+    Tests whether the web instance returns the key, instance name and
+    instance tcp address.
+    """
 
     vi = web_instance
 
@@ -192,6 +197,7 @@ def test_can_discover_key(web_instance):
     d = res.json()
     assert vi.serverkey == d['serverkey']
     assert d['vip-address']
+    assert d['instance-name']
 
 
 @pytest.mark.web

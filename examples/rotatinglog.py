@@ -1,6 +1,3 @@
-# Use with --log-config option:
-#    volttron --log-config rotatinglog.py
-
 {
     'version': 1,
     'disable_existing_loggers': False,

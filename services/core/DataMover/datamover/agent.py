@@ -1,57 +1,38 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2017, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 from __future__ import absolute_import, print_function
@@ -70,6 +51,7 @@ from volttron.platform.agent import utils
 from volttron.platform.keystore import KnownHostsStore
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.messaging.health import STATUS_BAD, Status
+from volttron.platform.agent.known_identities import PLATFORM_HISTORIAN
 
 DATAMOVER_TIMEOUT_KEY = 'DATAMOVER_TIMEOUT_KEY'
 utils.setup_logging()
@@ -100,8 +82,7 @@ class DataMover(BaseHistorian):
     """
 
     def __init__(self, destination_vip, destination_serverkey,
-                 services_topic_list=('all'), custom_topic_list =(),
-                 destination_historian_identity='platform.historian',
+                 destination_historian_identity=PLATFORM_HISTORIAN,
                  **kwargs):
         """
         
@@ -117,37 +98,39 @@ class DataMover(BaseHistorian):
         destination historian. default is 'platform.historian'
         :param kwargs: additional arguments to be passed along to parent class
         """
-
-        if not services_topic_list or 'all' in services_topic_list:
-            services_topic_list = [topics.DRIVER_TOPIC_BASE,
-                                   topics.LOGGER_BASE,
-                                   topics.RECORD_BASE,
-                                   topics.ANALYSIS_TOPIC_BASE]
-
-        self.services_topic_list = services_topic_list
-        self.custom_topic_list = custom_topic_list
+        kwargs["process_loop_in_greenlet"] = True
+        super(DataMover, self).__init__(**kwargs)
         self.destination_vip = destination_vip
         self.destination_serverkey = destination_serverkey
         self.destination_historian_identity = destination_historian_identity
 
+        config = {"destination_vip":self.destination_vip,
+                  "destination_serverkey": self.destination_serverkey,
+                  "destination_historian_identity": self.destination_historian_identity}
+
+        self.update_default_config(config)
+
         # will be available in both threads.
         self._last_timeout = 0
-        super(DataMover, self).__init__(**kwargs)
 
-    @Core.receiver("onstart")
-    def starting_base(self, sender, **kwargs):
-        """
-        Subscribes to the platform message bus on the actuator, record,
-        datalogger, and device topics to capture data.
-        """
-        _log.debug("Starting DataMover")
+    def configure(self, configuration):
+        self.destination_vip = str(configuration.get('destination_vip', ""))
+        self.destination_serverkey = str(configuration.get('destination_serverkey', ""))
+        self.destination_historian_identity = str(configuration.get('destination_historian_identity', PLATFORM_HISTORIAN))
 
-        for topic in self.services_topic_list + self.custom_topic_list:
-            _log.debug("subscribing to {}".format(topic))
-            self.vip.pubsub.subscribe(peer='pubsub',
-                                      prefix=topic,
-                                      callback=self.capture_data)
-        self._started = True
+
+    #Redirect the normal capture functions to capture_data.
+    def _capture_device_data(self, peer, sender, bus, topic, headers, message):
+        self.capture_data(peer, sender, bus, topic, headers, message)
+
+    def _capture_log_data(self, peer, sender, bus, topic, headers, message):
+        self.capture_data(peer, sender, bus, topic, headers, message)
+
+    def _capture_analysis_data(self, peer, sender, bus, topic, headers, message):
+        self.capture_data(peer, sender, bus, topic, headers, message)
+
+    def _capture_record_data(self, peer, sender, bus, topic, headers, message):
+        self.capture_data(peer, sender, bus, topic, headers, message)
 
     def timestamp(self):
         return time.mktime(datetime.datetime.now().timetuple())
@@ -182,7 +165,7 @@ class DataMover(BaseHistorian):
 
         topic = self.get_renamed_topic(topic)
 
-        if self._gather_timing_data:
+        if self.gather_timing_data:
             add_timing_data_to_header(
                 headers,
                 self.core.agent_uuid or self.core.identity,
@@ -218,7 +201,7 @@ class DataMover(BaseHistorian):
             headers = x['value']['headers']
             message = x['value']['message']
 
-            if self._gather_timing_data:
+            if self.gather_timing_data:
                 add_timing_data_to_header(
                     headers,
                     self.core.agent_uuid or self.core.identity,
@@ -230,6 +213,7 @@ class DataMover(BaseHistorian):
 
         with gevent.Timeout(30):
             try:
+                _log.debug("Sending to destination historian.")
                 self._target_platform.vip.rpc.call(
                     self.destination_historian_identity, 'insert',
                     to_send).get(timeout=10)
@@ -238,6 +222,7 @@ class DataMover(BaseHistorian):
                 self._last_timeout = self.timestamp()
                 self._target_platform.core.stop()
                 self._target_platform = None
+                _log.error("Timeout when attempting to publish to target.")
                 self.vip.health.set_status(
                     STATUS_BAD, "Timeout occurred")
 
@@ -257,6 +242,12 @@ class DataMover(BaseHistorian):
                                        status)
         else:
             self._target_platform = agent
+
+    def historian_teardown(self):
+        # Kill the forwarding agent if it is currently running.
+        if self._target_platform is not None:
+            self._target_platform.core.stop()
+            self._target_platform = None
 
 
 def main(argv=sys.argv):

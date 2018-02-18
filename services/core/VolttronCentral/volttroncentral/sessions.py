@@ -3,8 +3,7 @@ import os
 import uuid
 from copy import deepcopy
 
-from zmq.utils import jsonapi
-
+from volttron.platform.agent import json as jsonapi
 
 class SessionHandler:
     """A handler for dealing with authentication of sessions
@@ -24,6 +23,10 @@ class SessionHandler:
         self._session_tokens = {}
         self._authenticator = authenticator
         self._stored_session_path = None
+
+    def clear(self):
+        self._sessions.clear()
+        self._session_tokens.clear()
 
     def authenticate(self, username, password, ip):
         """Authenticates a user with the authenticator.

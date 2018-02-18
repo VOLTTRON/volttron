@@ -1,4 +1,0 @@
-{
-    "agentid": "Central Platform",
-    "volttron_central_vip_address": "ipc://@/tmp/v1home/run/vip.socket"
-}

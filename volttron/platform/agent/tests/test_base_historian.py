@@ -4,7 +4,9 @@ import sqlite3
 import json
 
 import gevent
-from zmq.utils import jsonapi
+
+from volttron.platform import get_services_core
+from volttron.platform.agent import json as jsonapi
 
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 from volttron.platform.vip.agent import Agent
@@ -53,7 +55,7 @@ def test_base_historian(volttron_instance):
     assert v1.is_running()
 
     master_config = prep_config(v1.volttron_home)
-    master_uuid = v1.install_agent(agent_dir="services/core/MasterDriverAgent",
+    master_uuid = v1.install_agent(agent_dir=get_services_core("MasterDriverAgent"),
                                    config_file=master_config)
     gevent.sleep(2)
 

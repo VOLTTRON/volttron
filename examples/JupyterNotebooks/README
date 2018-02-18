@@ -1,0 +1,7 @@
+Jupyter Notebooks for VOLTTRON
+==============================
+
+In order to run Jupyter notebooks with VOLTTRON, please begin by executing the server setup
+and configuration steps described in:
+
+http://volttron.readthedocs.io/en/develop/devguides/supporting/JupyterNotebooks.html

@@ -1,57 +1,38 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2017, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 import ast
@@ -62,12 +43,13 @@ import pytz
 import threading
 from collections import defaultdict
 from datetime import datetime
+from math import ceil
 
 import os
 import re
 from basedb import DbDriver
 from volttron.platform.agent import utils
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -132,6 +114,16 @@ class SqlLiteFuncts(DbDriver):
         super(SqlLiteFuncts, self).__init__('sqlite3', **connect_params)
 
     def setup_historian_tables(self):
+
+        result = self.select('''PRAGMA auto_vacuum''')
+        auto_vacuum = result[0][0]
+
+        if auto_vacuum != 1:
+            _log.info("auto_vacuum set to 0 (None), updating to 1 (full).")
+            _log.info("VACCUMing DB to cause new auto_vacuum setting to take effect. "
+                      "This could be slow on a large database.")
+            self.select('''PRAGMA auto_vacuum=1''')
+            self.select('''VACUUM;''')
 
         self.execute_stmt(
             '''CREATE TABLE IF NOT EXISTS ''' + self.data_table +
@@ -301,6 +293,53 @@ class SqlLiteFuncts(DbDriver):
             datetime.utcnow()-start_t))
         return values
 
+    def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
+        """
+        Manage database size.
+
+        :param history_limit_timestamp: remove all data older than this timestamp
+        :param storage_limit_gb: remove oldest data until database is smaller than this value.
+        """
+
+        _log.debug("Managing store - timestamp limit: {}  GB size limit: {}".format(history_limit_timestamp, storage_limit_gb))
+
+        commit = False
+
+        if history_limit_timestamp is not None:
+            count = self.execute_stmt(
+                '''DELETE FROM ''' + self.data_table + \
+                ''' WHERE ts < ?''', (history_limit_timestamp,))
+
+            if count is not None and count > 0:
+                _log.debug("Deleted {} old items from historian. (TTL exceeded)".format(count))
+                commit = True
+
+        if storage_limit_gb is not None:
+            result = self.select('''PRAGMA page_size''')
+            page_size = result[0][0]
+            max_storage_bytes = storage_limit_gb * 1024 ** 3
+            max_pages = int(ceil(max_storage_bytes / page_size))
+
+            def page_count():
+                result = self.select("PRAGMA page_count")
+                return result[0][0]
+
+            while page_count() >= max_pages:
+                count = self.execute_stmt(
+                    '''DELETE FROM ''' + self.data_table + \
+                    '''
+                    WHERE ts IN
+                    (SELECT ts FROM ''' + self.data_table + \
+                    '''
+                    ORDER BY ts ASC LIMIT 100)''')
+
+                _log.debug("Deleted 100 old items from historian. (Managing store size)".format(count))
+                commit = True
+
+        if commit:
+            _log.debug("Committing changes for manage_db_size.")
+            self.commit()
+
     def insert_meta_query(self):
         return '''INSERT OR REPLACE INTO ''' + self.meta_table + \
                ''' values(?, ?)'''
@@ -391,28 +430,48 @@ class SqlLiteFuncts(DbDriver):
         _log.debug("item {} matched against expr {}".format(item, expr))
         return re.search(expr, item, re.IGNORECASE) is not None
 
-    def regex_select(self, query, args):
-        conn = sqlite3.connect(
-            self.__database,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+    def set_cache(self, cache_size):
+        self.execute_stmt("PRAGMA CACHE_SIZE={}".format(cache_size))
 
-        if conn is None:
-            _log.error("Unable to connect to sqlite database {} ".format(
-                self.__database))
-            return []
+    def regex_select(self, query, args, fetch_all=True, cache_size=None):
+        conn = None
+        cursor = None
+        try:
+            conn = sqlite3.connect(
+                self.__database,
+                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
 
-        conn.create_function("REGEXP", 2, SqlLiteFuncts.regexp)
-        _log.debug(" REGEXP query {}  ARGS: {}".format(query, args))
-        cursor = conn.cursor()
-        if args is not None:
-            cursor.execute(query, args)
-        else:
-            cursor.execute(query)
-        rows = cursor.fetchall()
-        conn.close()
-        return rows
+            if conn is None:
+                _log.error("Unable to connect to sqlite database {} ".format(
+                    self.__database))
+                return []
+            conn.create_function("REGEXP", 2, SqlLiteFuncts.regexp)
+            if cache_size:
+                conn.execute("PRAGMA CACHE_SIZE={}".format(cache_size))
+            _log.debug("REGEXP query {}  ARGS: {}".format(query, args))
+            cursor = conn.cursor()
+            if args is not None:
+                cursor.execute(query, args)
+            else:
+                _log.debug("executing query")
+                cursor.execute(query)
+            if fetch_all:
+                rows = cursor.fetchall()
+                _log.debug("Regex returning {}".format(rows))
+                return rows
+            else:
+                return cursor, conn
+        except Exception as e:
+            _log.error("Exception querying database based on regular "
+                       "expression:{}".format(e.args))
+        finally:
+            if fetch_all:
+                if cursor:
+                    cursor.close()
+                if conn:
+                    conn.close()
 
-    def find_topics_by_pattern(self, topic_pattern):
+    def query_topics_by_pattern(self, topic_pattern):
         id_map, name_map = self.get_topic_map()
         _log.debug("Contents of topics table {}".format(id_map.keys()))
         q = "SELECT topic_id, topic_name FROM " + self.topics_table + \
@@ -422,7 +481,7 @@ class SqlLiteFuncts(DbDriver):
         _log.debug("loading topic map from db")
         id_map = dict()
         for t, n in rows:
-            id_map[n.lower()] = t
+            id_map[n] = t
         _log.debug("topics that matched the pattern {} : {}".format(
             topic_pattern, id_map))
         return id_map
@@ -511,6 +570,237 @@ class SqlLiteFuncts(DbDriver):
             return 0, 0
 
 
+    @staticmethod
+    def get_tagging_query_from_ast(topic_tags_table, tup, tag_refs):
+        """
+        Get a query condition syntax tree and generate sqlite query to query
+        topic names by tags. It calls the get_compound_query to parse the
+        abstract syntax tree tuples and then fixes the precedence
+
+        Example:
+        # User input query string :
+
+        .. code-block::
+
+        campus.geoPostalCode="20500" and equip and boiler and "equip_tag 7" > 4
+
+        # Example output sqlite query
+
+        .. code-block::
+
+        SELECT topic_prefix from test_topic_tags WHERE tag="campusRef"
+         and value  IN(
+          SELECT topic_prefix from test_topic_tags WHERE tag="campus" and
+          value=1
+          INTERSECT
+          SELECT topic_prefix  from test_topic_tags WHERE tag="geoPostalCode"
+          and value="20500"
+         )
+        INTERSECT
+        SELECT topic_prefix from test_tags WHERE tag="equip" and value=1
+        INTERSECT
+        SELECT topic_prefix from test_tags WHERE tag="boiler" and value=1
+        INTERSECT
+        SELECT topic_prefix from test_tags WHERE tag = "equip_tag 7" and
+        value > 4
+
+        :param topic_tags_table: table to query
+        :param tup: parsed query string (abstract syntax tree)
+        :param tag_refs: dictionary of ref tags and its parent tag
+        :return: sqlite query
+        :rtype str
+        """
+
+        query = SqlLiteFuncts._get_compound_query(topic_tags_table, tup,
+                                                  tag_refs)
+
+        # Verify for parent tag finally. if present convert to subquery
+        # Process parent tag
+        # Convert
+        # WHERE tag='campusRef.geoPostalCode' AND value="20500"
+        # to
+        # where tag='campusRef' and value  IN (
+        #  SELECT topic_prefix FROM test_topic_tags
+        #    WHERE tag='campus' AND value=1
+        #  INTERSECT
+        #  SELECT topic_prefix  FROM test_topic_tags
+        #    WHERE tag='geoPostalCode'  and value="20500"
+        # )
+        parent = ""
+
+        search_pattern = r"WHERE\s+tag='(.+)\.(" \
+                         r".+)'\s+AND\s+value\s+(.+)($|\n)"
+        results = re.findall(search_pattern, query, flags=re.IGNORECASE)
+        # Example result :<type 'list'>: [('campusRef', 'tag1', '= 2', '\n'),
+        #                                 ('siteRef', 'tag2', '= 3 ', '\n')]
+        # Loop through and replace comparison operation with sub query
+        for result in results:
+            parent = tag_refs[result[0]]
+            replace_pattern = r"WHERE tag = '\1' AND value IN \n  (" \
+                              r"SELECT topic_prefix " \
+                              r"FROM {table} WHERE tag = '{parent}' AND " \
+                              r"value = 1\n  " \
+                              r"INTERSECT\n  " \
+                              r"SELECT topic_prefix FROM {table} WHERE " \
+                              r"tag = '\2' " \
+                              r"AND " \
+                              r"value \3 \4)".format(table=topic_tags_table,
+                                                     parent=parent)
+            query = re.sub(search_pattern, replace_pattern, query, count=1,
+                           flags=re.I)
+
+        _log.debug("Returning sqlite query condition {}".format(query))
+        return query
+
+    @staticmethod
+    def _get_compound_query(topic_tags_table, tup, tag_refs, root=True):
+        """
+        Get a query condition syntax tree and generate sqlite query to query
+        topic names by tags
+
+        Example:
+        # User input query string :
+        campus.geoPostalCode="20500" and equip and boiler and "equip_tag 7" > 4
+
+
+        SELECT topic_prefix FROM test_topic_tags WHERE tag="campusRef"
+         and value  IN(
+          SELECT topic_prefix FROM test_topic_tags WHERE tag="campus" AND
+            value=1
+          INTERSECT
+          SELECT topic_prefix  FROM test_topic_tags WHERE tag="geoPostalCode"
+            AND value="20500"
+         )
+        INTERSECT
+        SELECT topic_prefix FROM test_tags WHERE tag="equip" AND value=1
+        INTERSECT
+        SELECT topic_prefix FROM test_tags WHERE tag="boiler" AND value=1
+        INTERSECT
+        SELECT topic_prefix FROM test_tags WHERE tag = "equip_tag 7" AND
+          value > 4
+
+        :param topic_tags_table: table to query
+        :param tup: parsed query string (abstract syntax tree)
+        :param tag_refs: dictionary of ref tags and its parent tag
+        :param root: Boolean to indicate if it is the top most tuple in the
+        abstract syntax tree.
+        :return: sqlite query
+        :rtype str
+        """
+
+        # Instead of using sqlite LIKE operator we use python regular
+        # expression and sqlite REGEXP operator
+        reserved_words = {'and':'INTERSECT', "or":'UNION', 'not':'NOT',
+                          'like':'REGEXP'}
+        prefix = 'SELECT topic_prefix FROM {} WHERE '.format(topic_tags_table)
+        # _log.debug("In get sqlite query condition. tup: {}".format(tup))
+
+        if tup is None:
+            return tup
+        if not isinstance(tup[1], tuple):
+            left = repr(tup[1]) # quote the tag
+        else:
+            left = SqlLiteFuncts._get_compound_query(topic_tags_table,
+                                                     tup[1], tag_refs,
+                                                     False)
+        if not isinstance(tup[2], tuple):
+            if isinstance(tup[2],str):
+                right = repr(tup[2])
+            elif isinstance(tup[2],bool):
+                right = 1 if tup[2] else 0
+            else:
+                right = tup[2]
+        else:
+            right = SqlLiteFuncts._get_compound_query(topic_tags_table,
+                                                      tup[2],
+                                                      tag_refs,
+                                                      False)
+
+        assert isinstance(tup[0], str)
+
+        lower_tup0 = tup[0].lower()
+        operator = lower_tup0
+        if reserved_words.has_key(lower_tup0):
+            operator = reserved_words[lower_tup0]
+
+        query = ""
+        if operator == 'NOT':
+            query = SqlLiteFuncts._negate_condition(right, topic_tags_table)
+        elif operator == 'INTERSECT' or operator == 'UNION':
+            if root:
+                query = "{left}\n{operator}\n{right}".format(left=left,
+                                                             operator=operator,
+                                                             right=right)
+            else:
+                query = 'SELECT topic_prefix FROM ({left} \n{operator}\n{' \
+                        'right})'.format(
+                    left=left, operator=operator, right=right)
+        else:
+            query = "{prefix} tag={tag} AND value {operator} {value}".format(
+                prefix=prefix, tag=left, operator=operator, value=right)
+
+        return query
+
+    @staticmethod
+    def _negate_condition(condition, table_name):
+        """
+        change NOT(bool_expr AND bool_expr) to NOT(bool_expr) OR NOT(bool_expr)
+        recursively. In sqlite syntax:
+        TO negate the following sql query:
+
+        SELECT * FROM
+          (SELECT * FROM
+            (SELECT topic_prefix FROM topic_tags WHERE  tag='tag3' AND value > 1
+            INTERSECT
+            SELECT topic_prefix FROM topic_tags WHERE  tag='tag2' AND value > 2)
+          UNION
+          SELECT topic_prefix FROM topic_tags WHERE  tag='tag4' AND value < 2)
+
+        We have to change it to:
+
+        SELECT * FROM
+          (SELECT * FROM
+            (SELECT topic_prefix FROM topic_tags WHERE topic_prefix NOT IN
+              (SELECT topic_prefix FROM topic_tags WHERE tag='tag3' AND
+                value > 1)
+            UNION
+            SELECT topic_prefix FROM topic_tags WHERE topic_prefix NOT IN
+             (SELECT topic_prefix FROM topic_tags WHERE  tag='tag2' AND
+                value > 2))
+          INTERSECT
+          SELECT topic_prefix FROM topic_tags WHERE topic_prefix NOT IN(
+            SELECT topic_prefix FROM topic_tags WHERE  tag='tag4' AND
+             value < 2))
+
+        :param condition: select query that needs to be negated. It could be a
+        compound query.
+        :return: negated select query
+        :rtype str
+        """
+
+        _log.debug("Query condition to negate: {}".format(condition))
+        # Change and to or and or to and
+        condition = condition.replace('INTERSECT\n', 'UNION_1\n')
+        condition = condition.replace('UNION\n', 'INTERSECT\n')
+        condition = condition.replace('UNION_1\n', 'UNION\n')
+        # Now negate all SELECT... value<operator><value> with
+        # SELECT topic_prefix FROM topic_tags WHERE topic_prefix NOT IN (
+        #     SELECT....value<operator><value>)
+
+        search_pattern = r'(SELECT\s+topic_prefix\s+FROM\s+' + table_name + \
+                         r'\s+WHERE\s+tag=\'.*\'\s+AND\s+value.*($|\n))'
+
+        replace_pattern = r'SELECT topic_prefix FROM ' + table_name + \
+                          r' WHERE topic_prefix NOT IN (\1)\2'
+        c = re.search(search_pattern, condition)
+        condition = re.sub(search_pattern,
+                           replace_pattern,
+                           condition,
+                           flags=re.I
+                           )
+        _log.debug("Condition after negation: {}".format(condition))
+        return condition
+
 if __name__ == '__main__':
     con = {
         "database": '/tmp/tmpgLzWr3/historian.sqlite'
@@ -521,7 +811,6 @@ if __name__ == '__main__':
         "topics_table": "topics_table",
         "meta_table": "meta_table"
     }
-
     functs = SqlLiteFuncts(con, tables_def)
     functs.collect_aggregate('device1/in_temp',
                              'sum',

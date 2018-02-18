@@ -148,11 +148,11 @@ def build_protected_pubsub(instance, topic, capabilities, topic_regex=None,
     topic_file = os.path.join(instance.volttron_home, 'protected_topics.json')
     with open(topic_file, 'w') as f:
         json.dump(topic_dict, f)
-        gevent.sleep(.1)
+        gevent.sleep(.5)
 
     if add_capabilities:
         instance.add_capabilities(agent2.publickey, capabilities)
-        gevent.sleep(.1)
+        gevent.sleep(.2)
 
     return {'agent1': agent2, 'agent2': agent2, 'topic': topic,
             'instance': instance, 'messages': msgs,
@@ -169,7 +169,7 @@ def pubsub_unauthorized(volttron_instance_encrypt, topic='foo', regex=None, peer
     agent2 = setup['agent2']
     topic = setup['topic']
     with pytest.raises(VIPError):
-        agent2.vip.pubsub.publish(peer, topic, message='hello').get(timeout=1)
+        agent2.vip.pubsub.publish(peer, topic, message='hello').get(timeout=2)
 
 
 def pubsub_authorized(volttron_instance_encrypt, topic='foo', regex=None, peer='pubsub'):
@@ -183,7 +183,7 @@ def pubsub_authorized(volttron_instance_encrypt, topic='foo', regex=None, peer='
     agent2 = setup['agent2']
     topic = setup['topic']
     msgs = setup['messages']
-    agent2.vip.pubsub.publish(peer, topic, message='hello agent').get(timeout=1)
+    agent2.vip.pubsub.publish(peer, topic, message='hello agent').get(timeout=2)
     assert poll_gevent_sleep(2, lambda: 'hello agent' in msgs)
 
 
