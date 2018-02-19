@@ -596,8 +596,6 @@ class BaseHistorianAgent(Agent):
         :return: 
         """
         output_topic = input_topic
-        _log.debug(
-            "_topic_replace_list  is {}".format(self._topic_replace_list))
         input_topic_lower = input_topic.lower()
         # Only if we have some topics to replace.
         if self._topic_replace_list:
