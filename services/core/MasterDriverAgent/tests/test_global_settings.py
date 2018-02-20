@@ -210,7 +210,7 @@ def test_default_publish(config_store, subscriber_agent):
 
     results = subscriber_agent.get_results()
 
-    assert results == depth_all_set | breadth_all_set | depth_set | breadth_set
+    assert results == depth_all_set
 
 @pytest.mark.driver
 def test_default_global_off(config_store, subscriber_agent):
