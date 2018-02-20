@@ -335,7 +335,7 @@ class CrateHistorian(BaseHistorian):
 
             try:
                 query = insert_data_query(self._schema)
-                _log.debug("Inserting batch data: {}".format(batch_data))
+                # _log.debug("Inserting batch data: {}".format(batch_data))
                 results = cursor.executemany(query, batch_data)
 
                 index = 0

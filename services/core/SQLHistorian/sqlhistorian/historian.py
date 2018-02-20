@@ -157,7 +157,6 @@ class SQLHistorian(BaseHistorian):
             "publish_to_historian number of items: {} Thread: {}:{}".format(
                 len(to_publish_list), threading.current_thread(), thread_name))
 
-
         try:
             real_published = []
             for x in to_publish_list:
@@ -172,8 +171,6 @@ class SQLHistorian(BaseHistorian):
                 topic_id = self.topic_id_map.get(lowercase_name, None)
                 db_topic_name = self.topic_name_map.get(lowercase_name,
                                                         None)
-                _log.debug('topic is {}, db topic is {}'.format(
-                    topic, db_topic_name))
                 if topic_id is None:
                     _log.debug('Inserting topic: {}'.format(topic))
                     # Insert topic name as is in db

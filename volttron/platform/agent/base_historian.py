@@ -241,11 +241,13 @@ from volttron.platform.vip.agent.subsystems.query import Query
 try:
     import ujson
     from zmq.utils.jsonapi import dumps as _dumps, loads as _loads
+
     def dumps(data):
         try:
             return ujson.dumps(data, double_precision=15)
         except:
             return _dumps(data)
+
     def loads(data_string):
         try:
             return ujson.loads(data_string, precise_float=True)
@@ -833,9 +835,9 @@ class BaseHistorianAgent(Agent):
             return
 
         source = 'actuator'
-        _log.debug(
-            "Queuing {topic} from {source} for publish".format(topic=topic,
-                                                               source=source))
+        # _log.debug(
+        #     "Queuing {topic} from {source} for publish".format(topic=topic,
+        #                                                        source=source))
 
         if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
@@ -896,11 +898,11 @@ class BaseHistorianAgent(Agent):
                         break
 
 
-            #We wake the thread after a configuration change by passing a None to the queue.
-            #Backup anything new before checking for a stop.
+            # We wake the thread after a configuration change by passing a None to the queue.
+            # Backup anything new before checking for a stop.
             backupdb.backup_new_data((x for x in new_to_publish if x is not None))
 
-            #Check for a stop for reconfiguration.
+            # Check for a stop for reconfiguration.
             if self._stop_process_loop:
                 break
 
@@ -1046,8 +1048,6 @@ class BaseHistorianAgent(Agent):
         table name prefix for data, topics, and meta tables should be inserted
         """
 
-
-
 #TODO: Finish this.
 # from collections import deque
 #
@@ -1109,8 +1109,6 @@ class BaseHistorianAgent(Agent):
 #         my_deque = self._deque
 #         for i in xrange(submit_size):
 #             my_deque.popleft()
-
-
 
 
 class BackupDatabase:
@@ -1190,9 +1188,9 @@ class BackupDatabase:
                         values(NULL, ?, ?, ?, ?, ?)''',
                         (timestamp, source, topic_id, dumps(value), dumps(headers)))
                 except sqlite3.IntegrityError:
-                    #In the case where we are upgrading an existing installed historian the
-                    #unique constraint may still exist on the outstanding database.
-                    #Ignore this case.
+                    # In the case where we are upgrading an existing installed historian the
+                    # unique constraint may still exist on the outstanding database.
+                    # Ignore this case.
                     pass
 
         self._connection.commit()
@@ -1299,7 +1297,7 @@ class BackupDatabase:
                                          value_string TEXT NOT NULL,
                                          header_string TEXT)''')
         else:
-            #Check to see if we have a header_string column.
+            # Check to see if we have a header_string column.
             c.execute("pragma table_info(outstanding);")
             name_index = 0
             for description in c.description:
