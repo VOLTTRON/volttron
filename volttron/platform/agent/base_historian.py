@@ -787,9 +787,9 @@ class BaseHistorianAgent(Agent):
             source = 'analysis'
         else:
             source = 'scrape'
-        _log.debug(
-            "Queuing {topic} from {source} for publish".format(topic=topic,
-                                                               source=source))
+        # _log.debug(
+        #     "Queuing {topic} from {source} for publish".format(topic=topic,
+        #                                                        source=source))
 
         if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
