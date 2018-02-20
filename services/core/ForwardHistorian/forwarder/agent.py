@@ -337,9 +337,9 @@ class ForwardHistorian(BaseHistorian):
                 break
             with gevent.Timeout(30):
                 try:
-                    _log.debug('debugger: {} {} {}'.format(topic,
-                                                           headers,
-                                                           payload))
+                    # _log.debug('debugger: {} {} {}'.format(topic,
+                    #                                        headers,
+                    #                                        payload))
 
                     self._target_platform.vip.pubsub.publish(
                         peer='pubsub',
