@@ -11,7 +11,7 @@
             'class': 'logging.handlers.TimedRotatingFileHandler',
             'level': 'INFO',
             'formatter': 'agent',
-            'filename': 'volttron.log',
+            'filename': '/var/log/volttron/volttron_22916/volttron.log',
             'encoding': 'utf-8',
             'when': 'midnight',
             'backupCount': 7,
