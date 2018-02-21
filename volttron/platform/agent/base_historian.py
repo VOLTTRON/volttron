@@ -334,6 +334,7 @@ class BaseHistorianAgent(Agent):
                  capture_log_data=True,
                  capture_analysis_data=True,
                  capture_record_data=True,
+                 message_publish_count=10000,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -362,6 +363,7 @@ class BaseHistorianAgent(Agent):
         self._readonly = bool(readonly)
         self._stop_process_loop = False
         self._process_thread = None
+        self._message_publish_count = int(message_publish_count)
 
         self.no_insert = False
         self.no_query = False
@@ -377,7 +379,8 @@ class BaseHistorianAgent(Agent):
                                "capture_device_data": capture_device_data,
                                "capture_log_data": capture_log_data,
                                "capture_analysis_data": capture_analysis_data,
-                               "capture_record_data": capture_record_data
+                               "capture_record_data": capture_record_data,
+                               "message_publish_count": self._message_publish_count
                                }
 
         self.vip.config.set_default("config", self._default_config)
@@ -439,6 +442,7 @@ class BaseHistorianAgent(Agent):
             submit_size_limit = int(config.get("submit_size_limit", 1000))
             max_time_publishing = float(config.get("max_time_publishing", 30.0))
             readonly = bool(config.get("readonly", False))
+            message_publish_count = int(config.get("message_publish_count", 10000))
         except ValueError as e:
             _log.error("Failed to load base historian settings. Settings not applied!")
             return
@@ -460,6 +464,7 @@ class BaseHistorianAgent(Agent):
         self._submit_size_limit = submit_size_limit
         self._max_time_publishing = timedelta(seconds=max_time_publishing)
         self._readonly = readonly
+        self._message_publish_count = message_publish_count
 
         self._update_subscriptions(bool(config.get("capture_device_data", True)),
                                    bool(config.get("capture_log_data", True)),
@@ -628,7 +633,7 @@ class BaseHistorianAgent(Agent):
 
     def _capture_record_data(self, peer, sender, bus, topic, headers,
                              message):
-        _log.debug('Capture record data {}'.format(topic))
+        # _log.debug('Capture record data {}'.format(topic))
         # Anon the topic if necessary.
         topic = self.get_renamed_topic(topic)
         timestamp_string = headers.get(headers_mod.DATE, None)
@@ -855,6 +860,8 @@ class BaseHistorianAgent(Agent):
         """
 
         _log.debug("Starting process loop.")
+        current_published_count = 0
+        next_report_count = current_published_count + self._message_publish_count
 
         # Sets up the concrete historian
         # call this method even in case of readonly mode in case historian
@@ -882,7 +889,7 @@ class BaseHistorianAgent(Agent):
 
         while True:
             try:
-                _log.debug("Reading from/waiting for queue.")
+                #_log.debug("Reading from/waiting for queue.")
                 new_to_publish = [
                     self._event_queue.get(wait_for_input, self._retry_period)]
             except Empty:
@@ -890,7 +897,7 @@ class BaseHistorianAgent(Agent):
                 new_to_publish = []
 
             if new_to_publish:
-                _log.debug("Checking for queue build up.")
+                #_log.debug("Checking for queue build up.")
                 while True:
                     try:
                         new_to_publish.append(self._event_queue.get_nowait())
@@ -908,6 +915,7 @@ class BaseHistorianAgent(Agent):
 
             wait_for_input = True
             start_time = datetime.utcnow()
+            _log.debug("Beginning publish loop.")
 
             while True:
                 to_publish_list = backupdb.get_outstanding_to_publish(
@@ -930,6 +938,11 @@ class BaseHistorianAgent(Agent):
 
                 backupdb.remove_successfully_published(
                     self._successful_published, self._submit_size_limit)
+                current_published_count += len(self._successful_published)
+                if self._message_publish_count > 0:
+                    if current_published_count >= next_report_count:
+                        _log.info("Historian processed {} total records.".format(current_published_count))
+                        next_report_count = current_published_count + self._message_publish_count
                 self._successful_published = set()
                 now = datetime.utcnow()
                 if now - start_time > self._max_time_publishing:
@@ -939,6 +952,8 @@ class BaseHistorianAgent(Agent):
                 # Check for a stop for reconfiguration.
                 if self._stop_process_loop:
                     break
+
+            _log.debug("Exiting publish loop.")
 
             # Check for a stop for reconfiguration.
             if self._stop_process_loop:
@@ -1135,7 +1150,7 @@ class BackupDatabase:
         :param new_publish_list: An iterable of records to cache to disk.
         :type new_publish_list: iterable
         """
-        _log.debug("Backing up unpublished values.")
+        #_log.debug("Backing up unpublished values.")
         c = self._connection.cursor()
 
         if self._backup_storage_limit_gb is not None:
@@ -1211,7 +1226,7 @@ class BackupDatabase:
 
         """
 
-        _log.debug("Cleaning up successfully published values.")
+        #_log.debug("Cleaning up successfully published values.")
         c = self._connection.cursor()
 
         if None in successful_publishes:
@@ -1238,7 +1253,7 @@ class BackupDatabase:
         :returns: List of records for publication.
         :rtype: list
         """
-        _log.debug("Getting oldest outstanding to publish.")
+        # _log.debug("Getting oldest outstanding to publish.")
         c = self._connection.cursor()
         c.execute('select * from outstanding order by ts limit ?',
                   (size_limit,))
