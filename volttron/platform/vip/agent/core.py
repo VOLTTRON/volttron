@@ -170,7 +170,10 @@ class BasicCore(object):
         self.onstart = Signal()
         self.onstop = Signal()
         self.onfinish = Signal()
-        self.oninterrupt = gevent.signal.signal(signal.SIGINT, self._on_sigint_handler)
+        self.oninterrupt = None
+        prev_int_signal = gevent.signal.getsignal(signal.SIGINT)
+        if prev_int_signal in [None, signal.SIG_IGN, signal.SIG_DFL]:
+            self.oninterrupt = gevent.signal.signal(signal.SIGINT, self._on_sigint_handler)
         self._owner = owner
 
     def setup(self):
@@ -314,7 +317,7 @@ class BasicCore(object):
         if signo == signal.SIGINT:
             self._stop_event.set()
             #self.stop()
-            
+
     def send(self, func, *args, **kwargs):
         self._async_calls.append((func, args, kwargs))
         self._async.send()
