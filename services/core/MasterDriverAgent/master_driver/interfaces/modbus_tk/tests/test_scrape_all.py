@@ -24,10 +24,11 @@ DRIVER_CONFIG_STRING = """{
         "stopbits": 1,
         "xonxoff": 0,
         "addressing": "offset",
-        "endian": "big"
+        "endian": "big",
+        "register_map": "config://modbus_tk_map.csv"
 },
     "driver_type": "modbus_tk",
-    "registry_config":"config://modbus_tk.csv",
+    "registry_config": "config://modbus_tk.csv",
     "interval": 120,
     "timezone": "UTC"
 }"""
@@ -46,26 +47,37 @@ OLD_VOLTTRON_DRIVER_CONFIG = """{
 }"""
 
 # New modbus_tk csv config
-REGISTRY_CONFIG_STRING = """Volttron Point Name,Register Name,Address,Type,Units,Writable,Default Value,Transform
-unsigned short,unsigned_short,0,uint16,None,TRUE,0,scale(10)
-unsigned int,unsigned_int,1,uint32,None,TRUE,0,scale(10)
-unsigned long,unsigned_long,3,uint64,None,TRUE,0,scale(10)
-sample short,sample_short,7,int16,None,TRUE,0,scale(10)
-sample int,sample_int,8,int32,None,TRUE,0,scale(10)
-sample float,sample_float,10,float,None,TRUE,0.0,scale(10)
-sample long,sample_long,12,int64,None,TRUE,0,scale(10)
-sample bool,sample_bool,16,bool,None,TRUE,False,
-sample str,sample_str,17,string[12],None,TRUE,hello world!,"""
+REGISTRY_CONFIG_STRING = """Volttron Point Name,Register Name
+unsigned short,unsigned_short
+unsigned int,unsigned_int
+unsigned long,unsigned_long
+sample short,sample_short
+sample int,sample_int
+sample float,sample_float
+sample long,sample_long
+sample bool,sample_bool
+sample str,sample_str"""
+
+REGISTER_MAP = """Register Name,Address,Type,Units,Writable,Default Value,Transform
+unsigned_short,0,uint16,None,TRUE,0,scale(10)
+unsigned_int,1,uint32,None,TRUE,0,scale(10)
+unsigned_long,3,uint64,None,TRUE,0,scale(10)
+sample_short,7,int16,None,TRUE,0,scale(10)
+sample_int,8,int32,None,TRUE,0,scale(10)
+sample_float,10,float,None,TRUE,0.0,scale(10)
+sample_long,12,int64,None,TRUE,0,scale(10)
+sample_bool,16,bool,None,TRUE,False,
+sample_str,17,string[12],None,TRUE,hello world!,"""
 
 # Old volttron modbus csv config
 OLD_VOLTTRON_REGISTRY_CONFIG = """Volttron Point Name,Units,Modbus Register,Writable,Point Address,Default Value
 unsigned short,None,>H,True,0,0
 unsigned int,None,>I,True,1,0
-unsigned long,None,>L,True,3,0
+unsigned long,None,>Q,True,3,0
 sample short,None,>h,True,7,0
 sample int,None,>i,True,8,0
 sample float,None,>f,True,10,0.0
-sample long,None,>l,True,12,0
+sample long,None,>q,True,12,0
 sample bool,None,BOOL,True,16,False
 sample str,None,string[12],True,17,hello world!"""
 
@@ -104,6 +116,13 @@ def agent(request, volttron_instance):
                           'platform.driver',
                           'modbus_tk.csv',
                           REGISTRY_CONFIG_STRING,
+                          config_type='csv')
+
+    md_agent.vip.rpc.call('config.store',
+                          'manage_store',
+                          'platform.driver',
+                          'modbus_tk_map.csv',
+                          REGISTER_MAP,
                           config_type='csv')
 
     md_agent.vip.rpc.call('config.store',

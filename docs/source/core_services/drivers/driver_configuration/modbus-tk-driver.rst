@@ -17,7 +17,6 @@ interpreted as a Modbus-TK "Address". Backward-compatibility exceptions are:
 
     - If the config file has no **port**, the default is 0, not 502.
     - If the config file has no **slave_id**, the default is 1, not 0.
-    - An **endian** value other than **big** (the default) will not be interpreted correctly.
 
 driver_config
 *************
@@ -44,13 +43,11 @@ but only **device_address** is required:
             - Type=bool, Writable=FALSE:  10000
             - Type!=bool, Writable=TRUE:  30000
             - Type!=bool, Writable=FALSE: 40000
-    - **endian** (Optional) - Byte order: big, little, or mixed. Defaults to big.
+    - **endian** (Optional) - Byte order: big or little. Defaults to big.
     - **write_multiple_registers** (Optional) - Write multiple coils or registers at a time. Defaults to true.
         - : If write_multiple_registers is set to false, only register types unsigned short (uint16) and boolean (bool)
-        is supported. The exception raised during the configure process.
-    - **selected_registers** (Optional) - Comma-separated list of "Register Name" values, selected from the
-      registry_config. Defaults to all.
-        - example: "register_a,register_b,register_c"
+        are supported. The exception raised during the configure process.
+    - **register_map** (Optional) - Register map csv of unchanged register variables. Defaults to registry_config csv.
 
 Sample Modbus-TK configuration files are checked into the VOLTTRON repository
 in ``services/core/MasterDriverAgent/master_driver/interfaces/modbus_tk/maps``.
@@ -62,10 +59,11 @@ Here is a sample TCP/IP Modbus-TK device configuration:
     {
         "driver_config": {
             "device_address": "10.1.1.2",
-            "port": "5020"
+            "port": "5020",
+            "register_map": "config://modbus_tk_test_map.csv"
         },
         "driver_type": "modbus_tk",
-        "registry_config":"config://modbus_tk_test.csv",
+        "registry_config": "config://modbus_tk_test.csv",
         "interval": 60,
         "timezone": "UTC",
         "heart_beat_point": "heartbeat"
@@ -77,7 +75,8 @@ Here is a sample RTU Modbus-TK device configuration, using all default settings:
 
     {
         "driver_config": {
-            "device_address": "10.1.1.2"
+            "device_address": "/dev/tty.usbserial-AL00IEEY",
+            "register_map": "config://modbus_tk_test_map.csv"
         },
         "driver_type": "modbus_tk",
         "registry_config":"config://modbus_tk_test.csv",
@@ -103,27 +102,23 @@ Here is a sample RTU Modbus-TK device configuration, with completely-specified s
             "xonxoff": 0,
             "addressing": "offset",
             "endian": "big",
-            "write_multiple_registers": true
-            "selected_registers": "active_power_total,reactive_power_total,voltage_average"
+            "write_multiple_registers": true,
+            "register_map": "config://watts_on_map.csv"
         },
         "driver_type": "modbus_tk",
-        "registry_config":"config://watts_on.csv",
+        "registry_config": "config://watts_on.csv",
         "interval": 120,
         "timezone": "UTC"
     }
 
 .. _Modbus-TK-Driver:
-Modbus-TK Registry Configuration CSV File
-*****************************************
+Modbus-TK Register Map CSV File
+*******************************
 
 The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file.
-Each row configures a point on the device.
+Each row configures a register definition on the device.
 
-    - **Volttron Point Name** (Required) - The name by which the platform and agents refer to the point.
-      For instance, if the Volttron Point Name is HeatCall1, then an agent would use ``pnnl/isb2/hvac1/HeatCall1``
-      to refer to the point when using the RPC interface of the actuator agent.
-    - **Register Name** (Required) - The field name in the modbus client. Used by **selected_registers** in the driver
-      configuration. No spaces are allowed in this name.
+    - **Register Name** (Required) - The field name in the modbus client. This field is distinct and unchangeable.
     - **Address** (Required) - The point's modbus address. The **addressing** option in the driver configuration
       controls whether this is interpreted as an exact address or an offset.
     - **Type** (Required) - The point's data type: bool, string[length], float, int16, int32, int64, uint16,
@@ -136,6 +131,19 @@ Each row configures a point on the device.
       to this value. If this value is missing, it will revert to the last known value not set by an agent.
     - **Transform** (Optional) - Scaling algorithm: scale(multiplier), scale_int(multiplier), mod10k(reverse),
       or none. Default is an empty string.
+    - **Table** (Optional) - Standard modbus table name defining how information is stored in slave device.
+      There are 4 different tables:
+            - discrete_output_coils: read/write coil numbers 1-9999
+            - discrete_input_contacts: read only coil numbers 10001-19999
+            - analog_input_registers: read only register numbers 30001-39999
+            - analog_output_holding_registers: read/write register numbers 40001-49999
+      If this field is empty, the modbus table will be defined by **type** and **writable** fields. By that, when user
+      sets read only for read/write coils/registers or sets read/write for read only coils/registers, it will select
+      wrong table, and therefore raise exception.
+    - **Mixed Endian** (Optional) - TRUE/FALSE. If Mixed Endian is set to TRUE, the order of the MODBUS registers will
+      be reversed before parsing the value or writing it out to the device. By setting mixed endian, transform must be
+      None (no op).
+      Defaults to FALSE.
     - **Description** (Optional) - Additional information about the point. Default is an empty string.
 
 Any additional columns are ignored.
@@ -146,17 +154,49 @@ in ``services/core/MasterDriverAgent/master_driver/interfaces/modbus_tk/maps``.
 Here is a sample Modbus-TK registry configuration:
 
 .. csv-table::
-        :header: Volttron Point Name,Register Name,Address,Type,Units,Writable,Default Value,Transform
+        :header: Register Name,Address,Type,Units,Writable,Default Value,Transform,Table
 
-        unsigned short,unsigned_short,0,uint16,None,TRUE,0,scale(10)
-        unsigned int,unsigned_int,1,uint32,None,TRUE,0,scale(10)
-        unsigned long,unsigned_long,3,uint64,None,TRUE,0,scale(10)
-        sample short,sample_short,7,int16,None,TRUE,0,scale(10)
-        sample int,sample_int,8,int32,None,TRUE,0,scale(10)
-        sample float,sample_float,10,float,None,TRUE,0.0,scale(10)
-        sample long,sample_long,12,int64,None,TRUE,0,scale(10)
-        sample bool,sample_bool,16,bool,None,TRUE,False,
-        sample str,sample_str,17,string[12],None,TRUE,hello world!,
+        unsigned_short,0,uint16,None,TRUE,0,scale(10),analog_output_holding_registers
+        unsigned_int,1,uint32,None,TRUE,0,scale(10),analog_output_holding_registers
+        unsigned_long,3,uint64,None,TRUE,0,scale(10),analog_output_holding_registers
+        sample_short,7,int16,None,TRUE,0,scale(10),analog_output_holding_registers
+        sample_int,8,int32,None,TRUE,0,scale(10),analog_output_holding_registers
+        sample_float,10,float,None,TRUE,0.0,scale(10),analog_output_holding_registers
+        sample_long,12,int64,None,TRUE,0,scale(10),analog_output_holding_registers
+        sample_bool,16,bool,None,TRUE,False,,analog_output_holding_registers
+        sample_str,17,string[12],None,TRUE,hello world!,,analog_output_holding_registers
+
+Modbus-TK Registry Configuration CSV File
+*****************************************
+
+The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file.
+Each row configures a point on the device.
+
+    - **Volttron Point Name** (Required) - The name by which the platform and agents refer to the point.
+      For instance, if the Volttron Point Name is HeatCall1, then an agent would use ``pnnl/isb2/hvac1/HeatCall1``
+      to refer to the point when using the RPC interface of the actuator agent.
+    - **Register Name** (Required) - The field name in the modbus client.
+      It must be matched with the field name from **register_map**.
+
+Any additional columns will override the existed fields from **register_map**.
+
+Sample Modbus-TK registry CSV files are checked into the VOLTTRON repository
+in ``services/core/MasterDriverAgent/master_driver/interfaces/modbus_tk/maps``.
+
+Here is a sample Modbus-TK registry configuration with defined **register_map**:
+
+.. csv-table::
+        :header: Volttron Point Name,Register Name
+
+        unsigned short,unsigned_short
+        unsigned int,unsigned_int
+        unsigned long,unsigned_long
+        sample short,sample_short
+        sample int,sample_int
+        sample float,sample_float
+        sample long,sample_long
+        sample bool,sample_bool
+        sample str,sample_str
 
 .. _Modbus-TK-Maps:
 Modbus-TK Driver Maps
@@ -175,10 +215,8 @@ Each device type definition in ``maps.yaml`` consists of the following propertie
       e.g. watts_on.csv.
     - **description** (Optional) - A description of the device type.
     - **addressing** (Optional) - Data address type: offset, offset_plus, or address (see the driver_config parameters).
-    - **endian** (Optional) - Byte order: big, little, or mixed (see the driver_config parameters).
+    - **endian** (Optional) - Byte order: big or little (see the driver_config parameters).
     - **write_multiple_registers** (Optional) - Write multiple registers at a time. Defaults to true.
-    - **selected_registers** (Optional) - Comma-separated list of "Register Name" values, selected from the
-      registry_config (see the driver_config parameters).
 
 A device type definition is a template for a device configuration. Some additional data must
 be supplied when a specific device's configuration is generated. In particular, the device_address must be supplied.
@@ -192,24 +230,20 @@ Here is a sample ``maps.yaml`` file:
 
     - name: modbus_tk_test
       description: Example of reading selected points for Modbus-TK driver testing
-      file: modbus_tk_test.csv
+      file: modbus_tk_test_map.csv
       addressing: offset
       endian: little
       write_multiple_registers: true
     - name: watts_on
       description: Read selected points from Elkor WattsOn meter
-      file: watts_on.csv
-      addressing: offset
-    - name: watts_on_tcp
-      description: Read selected points from Elkor WattsOn meter (TCP)
-      file: watts_on.csv
+      file: watts_on_map.csv
       addressing: offset
     - name: ion6200
       description: ION 6200 meter
-      file: ion6200.csv
+      file: ion6200_map.csv
     - name: ion8600
       description: ION 8600 meter
-      file: ion8600.csv
+      file: ion8600_map.csv
 
 .. _Modbus-TK-Config-Cmd:
 Modbus-TK Config Command Tool

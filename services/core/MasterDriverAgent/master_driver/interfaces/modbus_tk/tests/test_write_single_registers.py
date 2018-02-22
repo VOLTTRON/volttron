@@ -23,18 +23,23 @@ DRIVER_CONFIG_STRING = """{
         "xonxoff": 0,
         "addressing": "offset",
         "endian": "big",
-        "write_multiple_registers": false
+        "write_multiple_registers": false,
+        "register_map": "config://write_single_registers_map.csv"
 },
     "driver_type": "modbus_tk",
-    "registry_config":"config://write_single_registers.csv",
+    "registry_config": "config://write_single_registers.csv",
     "interval": 120,
     "timezone": "UTC"
 }"""
 
 # modbus_tk csv config
-REGISTRY_CONFIG_STRING = """Volttron Point Name,Register Name,Address,Type,Units,Writable,Default Value,Transform
-unsigned short,unsigned_short,0,uint16,None,TRUE,0,scale(10)
-sample bool,sample_bool,16,bool,None,TRUE,False,"""
+REGISTRY_CONFIG_STRING = """Volttron Point Name,Register Name
+unsigned short,unsigned_short
+sample bool,sample_bool"""
+
+REGISTRY_CONFIG_MAP = """Register Name,Address,Type,Units,Writable,Default Value,Transform
+unsigned_short,0,uint16,None,TRUE,0,scale(10)
+sample_bool,16,bool,None,TRUE,False,"""
 
 
 @pytest.fixture(scope="module")
@@ -64,6 +69,13 @@ def agent(request, volttron_instance):
                           'platform.driver',
                           'write_single_registers.csv',
                           REGISTRY_CONFIG_STRING,
+                          config_type='csv')
+
+    md_agent.vip.rpc.call('config.store',
+                          'manage_store',
+                          'platform.driver',
+                          'write_single_registers_map.csv',
+                          REGISTRY_CONFIG_MAP,
                           config_type='csv')
 
     master_uuid = volttron_instance.install_agent(agent_dir=get_services_core("MasterDriverAgent"),

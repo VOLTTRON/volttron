@@ -22,34 +22,56 @@ ION6200_DRIVER_CONFIG = """{
                       "stopbits": 1,
                       "xonxoff": 0,
                       "addressing": "address",
-                      "endian": "big"},
+                      "endian": "big",
+                      "register_map": "config://ion6200_map.csv"},
     "driver_type": "modbus_tk",
-    "registry_config":"config://ion6200.csv",
+    "registry_config": "config://ion6200.csv",
     "interval": 120,
     "timezone": "UTC"
 }"""
 
 # ion6200 csv config
-ION6200_CSV_CONFIG = """Volttron Point Name,Register Name,Address,Type,Units,Writable,Transform,Default Value
-Serial,serial,40001,uint32,SERIAL,TRUE,,0
-Freq,freq,40025,uint32,Hz,TRUE,,0
-Vln_a,vln_a,40100,uint16,Volts,TRUE,scale(0.1),0
-Vln_avg,vln_avg,40103,uint16,Volts,TRUE,,0
-Vll_avg,vll_avg,40107,uint16,Volts,TRUE,scale(0.1),0
-I_a,i_a,40108,uint16,Amps,TRUE,scale(1),0
-I_b,i_b,40109,uint16,Amps,TRUE,scale(1),0
-I_c,i_c,40110,uint16,Amps,TRUE,scale(1),0
-I_avg,i_avg,40111,uint16,Amps,TRUE,scale(0.1),0
-kW sum,kw_sum,40120,int16,kW,TRUE,scale(0.1),0
-kVAR sum,kvar_sum,40121,int16,kVAR,TRUE,scale(1.0),0
-kW peak demand,kw_peak_demand,40133,int16,kW,TRUE,scale(0.1),0
-kWh del,kwh_del,40138,uint32,kWh,TRUE,mod10k(True),0
-kWh rec,kwh_rec,40140,uint32,kWh,TRUE,mod10k(True),0
-kVARh del,kvar_del,40142,uint32,kVARh,TRUE,scale(1.0),0
-kVARh rec,kvar_rec,40144,uint32,kVARh,TRUE,scale(1.0),0
-kVARh del+rec,kvarh_del_p_rec,40146,uint32,kVARh,TRUE,scale(1.0),0
-PPS,prog_power_scale,44015,uint16,kVAR,TRUE,,0
-Demand sub interval,demand_sub_interval,44016,uint16,interval,TRUE,,0"""
+ION6200_CSV_CONFIG = """Volttron Point Name,Register Name
+Serial,serial
+Freq,freq
+Vln_a,vln_a
+Vln_avg,vln_avg
+Vll_avg,vll_avg
+I_a,i_a
+I_b,i_b
+I_c,i_c
+I_avg,i_avg
+kW sum,kw_sum
+kVAR sum,kvar_sum
+kW peak demand,kw_peak_demand
+kWh del,kwh_del
+kWh rec,kwh_rec
+kVARh del,kvar_del
+kVARh rec,kvar_rec
+kVARh del+rec,kvarh_del_p_rec
+PPS,prog_power_scale
+Demand sub interval,demand_sub_interval"""
+
+ION6200_CSV_MAP = """Register Name,Address,Type,Units,Writable,Transform,Table
+serial,40001,uint32,SERIAL,TRUE,,analog_output_holding_registers
+freq,40025,uint32,Hz,TRUE,,analog_output_holding_registers
+vln_a,40100,uint16,Volts,TRUE,scale(0.1),analog_output_holding_registers
+vln_avg,40103,uint16,Volts,TRUE,,analog_output_holding_registers
+vll_avg,40107,uint16,Volts,TRUE,scale(0.1),analog_output_holding_registers
+i_a,40108,uint16,Amps,TRUE,scale(1),analog_output_holding_registers
+i_b,40109,uint16,Amps,TRUE,scale(1),analog_output_holding_registers
+i_c,40110,uint16,Amps,TRUE,scale(1),analog_output_holding_registers
+i_avg,40111,uint16,Amps,TRUE,scale(0.1),analog_output_holding_registers
+kw_sum,40120,int16,kW,TRUE,scale(0.1),analog_output_holding_registers
+kvar_sum,40121,int16,kVAR,TRUE,scale(1.0),analog_output_holding_registers
+kw_peak_demand,40133,int16,kW,TRUE,scale(0.1),analog_output_holding_registers
+kwh_del,40138,uint32,kWh,TRUE,mod10k(True),analog_output_holding_registers
+kwh_rec,40140,uint32,kWh,TRUE,mod10k(True),analog_output_holding_registers
+kvar_del,40142,uint32,kVARh,TRUE,scale(1.0),analog_output_holding_registers
+kvar_rec,40144,uint32,kVARh,TRUE,scale(1.0),analog_output_holding_registers
+kvarh_del_p_rec,40146,uint32,kVARh,TRUE,scale(1.0),analog_output_holding_registers
+prog_power_scale,44015,uint16,kVAR,TRUE,,analog_output_holding_registers
+demand_sub_interval,44016,uint16,interval,TRUE,,analog_output_holding_registers"""
 
 
 @pytest.fixture(scope="module")
@@ -79,6 +101,13 @@ def agent(request, volttron_instance):
                           'platform.driver',
                           'ion6200.csv',
                           ION6200_CSV_CONFIG,
+                          config_type='csv')
+
+    md_agent.vip.rpc.call('config.store',
+                          'manage_store',
+                          'platform.driver',
+                          'ion6200_map.csv',
+                          ION6200_CSV_MAP,
                           config_type='csv')
 
     master_uuid = volttron_instance.install_agent(agent_dir=get_services_core("MasterDriverAgent"),

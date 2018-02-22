@@ -53,7 +53,7 @@
 # }}}
 
 from master_driver.interfaces.modbus_tk.client import Field, Client
-from master_driver.interfaces.modbus_tk.define import *
+from master_driver.interfaces.modbus_tk import helpers
 from collections import Mapping
 
 import csv
@@ -66,19 +66,30 @@ class MapException(Exception):
     pass
 
 # Types that can be specified in the map csv file.
-data_type_map = dict(bool=BOOL,
-                     char=CHAR,
-                     int16=SHORT,
-                     uint16=USHORT,
-                     int32=INT,
-                     uint32=UINT,
-                     int64=INT64,
-                     uint64=UINT64,
-                     float=FLOAT)
+data_type_map = dict(
+    bool=helpers.BOOL,
+    char=helpers.CHAR,
+    int16=helpers.SHORT,
+    uint16=helpers.USHORT,
+    int32=helpers.INT,
+    uint32=helpers.UINT,
+    int64=helpers.INT64,
+    uint64=helpers.UINT64,
+    float=helpers.FLOAT
+)
 
-transform_map = dict(scale=scale,
-                     scale_int=scale_int,
-                     mod10k=mod10k)
+transform_map = dict(
+    scale=helpers.scale,
+    scale_int=helpers.scale_int,
+    mod10k=helpers.mod10k
+)
+
+table_map = dict(
+    discrete_output_coils=helpers.COIL_READ_WRITE,
+    discrete_input_contacts=helpers.COIL_READ_ONLY,
+    analog_input_registers=helpers.REGISTER_READ_ONLY,
+    analog_output_holding_registers=helpers.REGISTER_READ_WRITE
+)
 
 
 class CSVRegister(object):
@@ -92,7 +103,10 @@ class CSVRegister(object):
 
     @property
     def _name(self):
-        return self._reg_dict.get('Register Name', 'UNKNOWN')
+        try:
+            return self._reg_dict['Register Name']
+        except KeyError:
+            raise MapException("Register Name does not exist")
 
     @property
     def _datatype(self):
@@ -103,15 +117,17 @@ class CSVRegister(object):
         :return: Modbus Type (using struct)
         """
         csv_type = self._reg_dict.get('Type', 'UNDEFINED').strip()
-        datatype = data_type_map.get(csv_type, None)
-        if datatype is None:
+
+        if csv_type == 'UNDEFINED':
+            raise MapException("Type required for each field: %s" % self._reg_dict)
+
+        if csv_type.startswith('string'):
             match = re.match('string\[(\d+)\]', csv_type)
             if match:
                 length = int(match.group(1))
-                datatype = string(length)
-
-        if datatype is None:
-            raise MapException("Type required for each field: %s" % self._reg_dict)
+                datatype = helpers.string(length)
+        else:
+            datatype = data_type_map.get(csv_type.lower(), csv_type)
 
         return datatype
 
@@ -127,7 +143,7 @@ class CSVRegister(object):
     def _transform(self):
         # "scale(0.001)", "scale_int(1.0)", "mod10k(True)", or None for no_op
 
-        transform_func = no_op
+        transform_func = helpers.no_op
         csv_transform = self._reg_dict.get('Transform', None)
 
         if csv_transform:
@@ -144,20 +160,25 @@ class CSVRegister(object):
 
     @property
     def _writable(self):
-        return str2bool(self._reg_dict.get('Writable', 'False'))
+        return helpers.str2bool(self._reg_dict.get('Writable', 'False'))
 
     @property
     def _table(self):
         """ Select one of the four modbus tables.
         """
-        if self._datatype == BOOL:
-            return COIL_READ_WRITE if self._writable else COIL_READ_ONLY
+        table = self._reg_dict.get('Table', '')
+        if table:
+            return table_map[table]
         else:
-            return REGISTER_READ_WRITE if self._writable else REGISTER_READ_ONLY
+            if self._datatype == helpers.BOOL:
+                return helpers.COIL_READ_WRITE if self._writable else helpers.COIL_READ_ONLY
+            else:
+                return helpers.REGISTER_READ_WRITE if self._writable else helpers.REGISTER_READ_ONLY
 
     @property
     def _op_mode(self):
-        return OP_MODE_READ_WRITE if str2bool(self._reg_dict.get('Writable', 'False')) else OP_MODE_READ_ONLY
+        return helpers.OP_MODE_READ_WRITE if helpers.str2bool(self._reg_dict.get('Writable', 'False')) \
+            else helpers.OP_MODE_READ_ONLY
 
     @property
     def _address(self):
@@ -190,22 +211,19 @@ class Map(object):
     """
 
     def __init__(self, file='', map_dir='', addressing='offset',  name='', endian='big', description='', registry_config_lst='', **kwargs):
-        """
-        :param kwargs: map_dir= ,name=modbus_tk, addressing=offset, endian=big, file=example.csv
-        """
         self._filename = file
         self._map_dir = map_dir
 
         if addressing not in ('offset', 'offset_plus', 'address'):
             raise MapException("addressing must be one of: (offset, offset_plus, address)")
         elif addressing == 'address':
-            self._addressing = ADDRESS_MODBUS
+            self._addressing = helpers.ADDRESS_MODBUS
         elif addressing == 'offset_plus':
-            self._addressing = ADDRESS_OFFSET_PLUS_ONE
+            self._addressing = helpers.ADDRESS_OFFSET_PLUS_ONE
         else:
-            self._addressing = ADDRESS_OFFSET
+            self._addressing = helpers.ADDRESS_OFFSET
 
-        self._endian = LITTLE_ENDIAN if endian.lower() == 'little' else BIG_ENDIAN
+        self._endian = helpers.LITTLE_ENDIAN if endian.lower() == 'little' else helpers.BIG_ENDIAN
         self._name = name
         self._description = description
         self._registry_config_lst = registry_config_lst
@@ -252,6 +270,7 @@ class Map(object):
                                    class_attrs)
         return modbus_client_class
 
+
 class Catalog(Mapping):
 
     _data = None
@@ -277,8 +296,7 @@ class Catalog(Mapping):
 
             with open(yaml_path, 'rb') as yaml_file:
                 for map in yaml.load(yaml_file):
-                    m = Map(map_dir=os.path.dirname(__file__), **map)
-                    Catalog._data[map['name']] = m
+                    Catalog._data[map['name']] = Map(map_dir=os.path.dirname(__file__), **map)
 
     def __getitem__(self, item):
         return self._data[item]
