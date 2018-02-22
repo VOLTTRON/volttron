@@ -568,6 +568,8 @@ class BaseHistorianAgent(Agent):
         """
         if not self._readonly:
             try:
+                _log.debug("Inside BaseHistorianAgent Onstop method")
+                self.stop_process_thread()
                 # unsubscribes to all topics that we are subscribed to.
                 self.vip.pubsub.unsubscribe(peer='pubsub', prefix=None,
                                             callback=None)

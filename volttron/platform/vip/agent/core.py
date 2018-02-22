@@ -51,6 +51,7 @@ import time
 import urlparse
 import uuid
 import weakref
+import signal
 
 import gevent.event
 from zmq import green as zmq
@@ -169,6 +170,7 @@ class BasicCore(object):
         self.onstart = Signal()
         self.onstop = Signal()
         self.onfinish = Signal()
+        self.oninterrupt = gevent.signal.signal(signal.SIGINT, self._on_sigint_handler)
         self._owner = owner
 
     def setup(self):
@@ -301,6 +303,18 @@ class BasicCore(object):
             return halt()
         return self.send_async(halt).get()
 
+    def _on_sigint_handler(self, signo, *_):
+        '''
+        Event handler to set onstop event when the agent needs to stop
+        :param signo:
+        :param _:
+        :return:
+        '''
+        _log.debug("SIG interrupt received. Calling stop")
+        if signo == signal.SIGINT:
+            self._stop_event.set()
+            #self.stop()
+            
     def send(self, func, *args, **kwargs):
         self._async_calls.append((func, args, kwargs))
         self._async.send()
