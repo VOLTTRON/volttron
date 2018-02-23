@@ -50,8 +50,18 @@
 # expressed herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
+#-------------------------------------------------------------------------------
+#	History
+#		02/22/18 - CHM: Changed 'self.data_type' to 'self.python_type' so scraped messages have correct metadata.
+#-------------------------------------------------------------------------------
 # }}}
 
+__author1__   = 'James Sheriden <james@kisensum.com>'
+__author2__   = 'Bob Barcklay <bob@kisensum.com>'
+__author3__   = 'Carl Miller <carl.miller@pnnl.gov>'
+__copyright__ = '2016, SLAC National Laboratory / Kisensum Inc.'
+__license__   = 'FreeBSD'
+__version__   = '1.0.1'
 
 import gevent
 import logging
@@ -120,7 +130,7 @@ class ChargepointRegister(BaseRegister):
     :param attribute_name: Name used in Chargepoint API call. Needs to syntacticly match any value in class
     'attribute_list' variables.
     :param units: Required by parent class. Not used by Chargepoint.
-    :param data_type: Python type of register. Used to cast API call results.
+	:param python_type: Python type of register. Used to cast API call results.
     :param station_id: ID of Chargepoint Station register describes.
     :param default_value: Default value of register.
     :param description: Basic description of register.
@@ -133,7 +143,7 @@ class ChargepointRegister(BaseRegister):
     def __init__(self, read_only, point_name, attribute_name, units, data_type, station_id,
                  default_value=None, description='', port_number=None, username=None, timeout=0):
         super(ChargepointRegister, self).__init__("byte", read_only, point_name, units, description=description)
-        self.data_type = data_type
+        self.python_type = data_type
         self.station_id = station_id
         self.port = int(port_number) if port_number else None
         self.attribute_name = attribute_name
@@ -184,7 +194,7 @@ class ChargepointRegister(BaseRegister):
             value = getattr(result, self.attribute_name)(self.port)[0] \
                 if port_flag \
                 else getattr(result, self.attribute_name)(None)[0]
-            return self.sanitize_output(self.data_type, value)
+            self.m_value = self.sanitize_output(self.python_type, value)
         except cps.CPAPIException as exception:
             if exception._responseCode not in ['153']:
                 _log.error('{0} did not execute for station {1}.'.format(method, self.station_id))
@@ -285,9 +295,9 @@ class LoadRegister(ChargepointRegister):
         if self.read_only_check():
             global service
             try:
-                value = self.data_type(x)
+                value = self.python_type(x)
             except ValueError:
-                _log.error("{0} cannot be cast to {1}".format(x, self.data_type))
+                _log.error("{0} cannot be cast to {1}".format(x, self.python_type))
                 return
 
             kwargs = {'stationID': self.station_id}
@@ -370,9 +380,9 @@ class AlarmRegister(ChargepointRegister):
         if self.read_only_check():
             global service
             try:
-                value = self.data_type(x)
+                value = self.python_type(x)
             except ValueError:
-                _log.error("{0} cannot be cast to {1}".format(x, self.data_type))
+                _log.error("{0} cannot be cast to {1}".format(x, self.python_type))
                 return
 
             if self.attribute_name == 'clearAlarms' and value:
