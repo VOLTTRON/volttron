@@ -14,3 +14,5 @@ are BACnet and Modbus.
     :maxdepth: 2
 
     *
+
+    driver_configuration/index

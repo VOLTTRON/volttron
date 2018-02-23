@@ -1,0 +1,11 @@
+Register Name,Address,Type,Units,Writable
+active_power_total,0x200,float,kW,TRUE
+reactive_power_total,0x202,float,kVAR,TRUE
+apparent_power_total,0x204,float,kVA,TRUE
+voltage_average,0x206,float,V,TRUE
+current_average,0x20A,float,A,TRUE
+voltage_ab,0x226,float,V,TRUE
+current_a,0x22C,float,A,TRUE
+little_endian_mode,0x51A,uint16,None,TRUE
+serial_baud_rate,0x601,uint16,None,TRUE
+serial_commit,0x605,uint16,None,TRUE
