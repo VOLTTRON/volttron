@@ -210,7 +210,7 @@ class Map(object):
        all the Fields (Registers) defined in the CSV.
     """
 
-    def __init__(self, file='', map_dir='', addressing='offset',  name='', endian='big', description='', registry_config_lst='', **kwargs):
+    def __init__(self, file='', map_dir='', addressing='offset',  name='', endian='big', description='', registry_config_lst=''):
         self._filename = file
         self._map_dir = map_dir
 
@@ -296,7 +296,12 @@ class Catalog(Mapping):
 
             with open(yaml_path, 'rb') as yaml_file:
                 for map in yaml.load(yaml_file):
-                    Catalog._data[map['name']] = Map(map_dir=os.path.dirname(__file__), **map)
+                    Catalog._data[map['name']] = Map(file=map.get('file',''),
+                                                     map_dir=os.path.dirname(__file__),
+                                                     addressing=map.get('addressing','offset'),
+                                                     name=map['name'],
+                                                     endian=map.get('endian','big'),
+                                                     description=map.get('description',''))
 
     def __getitem__(self, item):
         return self._data[item]
