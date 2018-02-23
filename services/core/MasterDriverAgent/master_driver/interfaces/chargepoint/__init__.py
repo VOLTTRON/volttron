@@ -52,7 +52,8 @@
 #
 #-------------------------------------------------------------------------------
 #	History
-#		02/22/18 - CHM: Changed 'self.data_type' to 'self.python_type' so scraped messages have correct metadata.
+#		02/22/18 - CHM: Changed 'self.data_type' to 'self.python_type' so scraped 
+#                       messages will have correct metadata.
 #-------------------------------------------------------------------------------
 # }}}
 
