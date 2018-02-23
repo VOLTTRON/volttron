@@ -363,6 +363,10 @@ class Request (object):
         return self._count
 
     @property
+    def table(self):
+        return self._table
+
+    @property
     def read_function_code(self):
         """Returns a modbus read function code appropriate for the table."""
 

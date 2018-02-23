@@ -181,8 +181,8 @@ class Server (object):
             raise TypeError("client_class must be subclass of {0}".format(Client))
 
         for request in client_class().requests():
-            logger.info("Adding %s", request)
-            slave.add_block(*request.block_info())
+            logger.info("Adding [%s], %s, %s, %s", request.name, request.table, request.address, request.count)
+            slave.add_block(request.name, request.table, request.address, request.count)
         return slave
 
     @classmethod
