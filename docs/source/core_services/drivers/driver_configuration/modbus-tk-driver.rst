@@ -173,7 +173,7 @@ The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-s
 Each row configures a point on the device.
 
     - **Volttron Point Name** (Required) - The name by which the platform and agents refer to the point.
-      For instance, if the Volttron Point Name is HeatCall1, then an agent would use ``pnnl/isb2/hvac1/HeatCall1``
+      For instance, if the Volttron Point Name is HeatCall1, then an agent would use ``my_campus/building2/hvac1/HeatCall1``
       to refer to the point when using the RPC interface of the actuator agent.
     - **Register Name** (Required) - The field name in the modbus client.
       It must be matched with the field name from **register_map**.
