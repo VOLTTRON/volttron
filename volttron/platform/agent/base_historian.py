@@ -1587,7 +1587,7 @@ class BaseQueryHistorianAgent(Agent):
         if start is not None:
             try:
                 start = parse_timestamp_string(start)
-            except TypeError:
+            except (ValueError, TypeError):
                 start = time_parser.parse(start)
             if start and start.tzinfo is None:
                 start = start.replace(tzinfo=pytz.UTC)
@@ -1595,7 +1595,7 @@ class BaseQueryHistorianAgent(Agent):
         if end is not None:
             try:
                 end = parse_timestamp_string(end)
-            except TypeError:
+            except (ValueError, TypeError):
                 end = time_parser.parse(end)
             if end and end.tzinfo is None:
                 end = end.replace(tzinfo=pytz.UTC)
@@ -1711,14 +1711,14 @@ def now(tzstr='UTC'):
         tz = local
     else:
         tz = gettz(tzstr)
-    return datetime.datetime.now(tz)
+    return datetime.now(tz)
 
 
 def strptime_tz(str, format='%x %X', tzstr='Local'):
     """Returns an aware datetime object. tzstr is a timezone string such as
        'US/Pacific' or 'Local' by default which uses the local timezone.
     """
-    dt = datetime.datetime.strptime(str, format)
+    dt = datetime.strptime(str, format)
     if tzstr == 'Local':
         tz = local
     else:
@@ -1849,14 +1849,14 @@ def p_abstime(t):
     elif type(t[1]) == type(''):
         t[0] = parse_time(t[1])
     else:
-        t[0] = datetime.datetime.utcfromtimestamp(t[1] / 1000)
+        t[0] = datetime.utcfromtimestamp(t[1] / 1000)
 
 
 def p_reltime(t):
     """reltime : NUMBER LVALUE
                | NUMBER LVALUE reltime"""
     timeunit = get_timeunit(t[2])
-    delta = datetime.timedelta(**{timeunit: t[1]})
+    delta = timedelta(**{timeunit: t[1]})
     if len(t) == 3:
         t[0] = delta
     else:
