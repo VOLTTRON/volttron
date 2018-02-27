@@ -150,6 +150,13 @@ class SQLHistorian(BaseHistorian):
         self.bg_thread_dbutils.record_table_definitions(self.tables_def,
                                              meta_table_name)
 
+    def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
+        """
+        Optional function to manage database size.
+        """
+        self.bg_thread_dbutils.manage_db_size(history_limit_timestamp,
+                                              storage_limit_gb)
+
     @doc_inherit
     def publish_to_historian(self, to_publish_list):
         thread_name = threading.currentThread().getName()
@@ -354,7 +361,7 @@ class SQLHistorian(BaseHistorian):
         topic_id_map, topic_name_map = self.bg_thread_dbutils.get_topic_map()
         self.topic_id_map.update(topic_id_map)
         self.topic_name_map.update(topic_name_map)
-        _log.debug("updated topic name map. {}".format(self.topic_name_map))
+        #_log.debug("updated topic name map. {}".format(self.topic_name_map))
         self.agg_topic_id_map = self.bg_thread_dbutils.get_agg_topic_map()
 
 
