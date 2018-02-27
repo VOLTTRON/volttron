@@ -1,0 +1,4 @@
+{
+    "heartbeat_period": 10,
+    "heartbeat_autostart": true
+}
