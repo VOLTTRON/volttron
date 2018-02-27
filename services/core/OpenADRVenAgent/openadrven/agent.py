@@ -1435,7 +1435,7 @@ class OpenADRVenAgent(Agent):
             _log.debug('Publishing event {}'.format(an_event))
             request_headers = {headers.TIMESTAMP: format_timestamp(utils.get_aware_utc_now())}
             self.vip.pubsub.publish(peer='pubsub',
-                                    topic=topics.OPENADR_EVENT,
+                                    topic=topics.OPENADR_EVENT+'/'+self.ven_id,
                                     headers=request_headers,
                                     message=self.json_object(an_event.as_json_compatible_object()))
 
@@ -1486,7 +1486,7 @@ class OpenADRVenAgent(Agent):
         _log.debug('Publishing telemetry parameters')
         request_headers = {headers.TIMESTAMP: format_timestamp(utils.get_aware_utc_now())}
         self.vip.pubsub.publish(peer='pubsub',
-                                topic=topics.OPENADR_STATUS,
+                                topic=topics.OPENADR_STATUS+'/'+self.ven_id,
                                 headers=request_headers,
                                 message=report.telemetry_parameters)
 
