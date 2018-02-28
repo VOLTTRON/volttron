@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!-- edited with XMLSpy v2010 rel. 3 (http://www.altova.com) by James Zuber (private) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:emix="http://docs.oasis-open.org/ns/emix/2011/06" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:gmlsf="http://www.opengis.net/gmlsf/2.0" xmlns:power="http://docs.oasis-open.org/ns/emix/2011/06/power" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" targetNamespace="http://docs.oasis-open.org/ns/emix/2011/06" elementFormDefault="qualified" attributeFormDefault="qualified">
+   <xs:import namespace="http://www.opengis.net/gml/3.2" schemaLocation="oadr_gml_20b.xsd"/>
+   <!-- ##### SAME AS A ##### -->
+   <!--  ******* marketContext ******** -->
+   <xs:element name="marketContext" type="emix:MarketContextType">
+      <xs:annotation>
+         <xs:documentation>A URI identifying a DR Program</xs:documentation>
+      </xs:annotation>
+   </xs:element>
+   <xs:simpleType name="MarketContextType">
+      <xs:restriction base="xs:anyURI"/>
+   </xs:simpleType>
+   <!-- ##### NEW FOR B ##### -->
+   <!--  ******* serviceArea ******** -->
+   <xs:element name="serviceArea" type="emix:ServiceAreaType"/>
+   <xs:complexType name="ServiceAreaType">
+      <xs:annotation>
+         <xs:documentation>The Service Area is the geographic region that is affected by the EMIX market condition</xs:documentation>
+      </xs:annotation>
+      <xs:sequence>
+         <xs:element ref="gml:FeatureCollection"/>
+      </xs:sequence>
+   </xs:complexType>
+   <!--  ******* itemBase (units) ******** -->
+   <xs:element name="itemBase" type="emix:ItemBaseType" abstract="true"/>
+   <xs:complexType name="ItemBaseType" abstract="true" mixed="false">
+      <xs:annotation>
+         <xs:documentation>Abstract base type for units for EMIX Product delivery, measurement, and warrants.</xs:documentation>
+      </xs:annotation>
+   </xs:complexType>
+</xs:schema>
