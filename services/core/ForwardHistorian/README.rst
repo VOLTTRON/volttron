@@ -98,5 +98,13 @@ by the ForwardHistorian agent.
         #   replacements from the VCP on the current instance.
         "topic_replace_list": [
             #{"from": "FromString", "to": "ToString"}
-        ]
+        ],
+
+        # Publish a message to the log after a certain number of "successful"
+        # publishes.  To disable the message to not print anything set the
+        # count to 0.
+        #
+        # Note "successful" means that it was removed from the backup cache.
+        "message_publish_count": 10000
+
     }

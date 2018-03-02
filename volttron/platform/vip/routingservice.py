@@ -218,6 +218,10 @@ class RoutingService(object):
             _log.error("Missing parameter in instance info message {}".format(exc))
             return
 
+        #Return immediately if vip_address of external instance is same as self address
+        if address in self._my_addr:
+            _log.debug("Same instance: {}".format(address))
+            return
         sock = zmq.Socket(zmq.Context(), zmq.DEALER)
         sock.sndtimeo = 0
         sock.tcp_keepalive = True

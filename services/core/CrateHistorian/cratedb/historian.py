@@ -287,8 +287,8 @@ class CrateHistorian(BaseHistorian):
 
     @doc_inherit
     def publish_to_historian(self, to_publish_list):
-        _log.debug("publish_to_historian number of items: {}".format(
-            len(to_publish_list)))
+        # _log.debug("publish_to_historian number of items: {}".format(
+        #     len(to_publish_list)))
         start_time = get_utc_seconds_from_epoch()
         if self._client is None:
             success = self._establish_client_connection()
@@ -335,7 +335,7 @@ class CrateHistorian(BaseHistorian):
 
             try:
                 query = insert_data_query(self._schema)
-                _log.debug("Inserting batch data: {}".format(batch_data))
+                # _log.debug("Inserting batch data: {}".format(batch_data))
                 results = cursor.executemany(query, batch_data)
 
                 index = 0
@@ -392,9 +392,9 @@ class CrateHistorian(BaseHistorian):
                 cursor.close()
                 cursor = None
 
-        end_time = get_utc_seconds_from_epoch()
-        full_time = end_time - start_time
-        _log.debug("Took {} seconds to publish.".format(full_time))
+        # end_time = get_utc_seconds_from_epoch()
+        # full_time = end_time - start_time
+        # _log.debug("Took {} seconds to publish.".format(full_time))
 
     @staticmethod
     def _build_single_topic_select_query(start, end, agg_type, agg_period, skip,
