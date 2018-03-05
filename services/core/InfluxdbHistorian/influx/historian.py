@@ -176,14 +176,14 @@ class InfluxdbHistorian(BaseHistorian):
             _log.error('Invalid configuration: %s', err)
             raise err
 
-        if host is None:
+        if not host:
             _log.error("Invalid configuration for params: Host is empty")
             raise ValueError("Host cannot be None")
         if host != self._host:
             _log.info("Changing host to {}".format(host))
             self._host = host
 
-        if db is None:
+        if not db:
             _log.error("Invalid configuration for params: Database is empty")
             raise ValueError("Database cannot be None")
         if db != self._database:
@@ -200,12 +200,12 @@ class InfluxdbHistorian(BaseHistorian):
 
         client = influxdbutils.get_client(params)
 
-        if client is None:
+        if not client:
             _log.error("Couldn't reach host: {}".format(host))
             raise ValueError("Connection to host not made!")
 
         # Close and reconnect the client or connect to different hosts.
-        if self._client is not None:
+        if self._client:
             try:
                 self._client.close()
             except InfluxDBClientError:
@@ -287,7 +287,7 @@ class InfluxdbHistorian(BaseHistorian):
         if not topic:
             return {}
 
-        if count is None or count > 1000:
+        if not count or count > 1000:
             # protect the querying of the database limit to 1000 at a time.
             count = 1000
 

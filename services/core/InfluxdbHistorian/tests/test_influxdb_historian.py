@@ -65,7 +65,7 @@ from volttron.platform.agent.utils import format_timestamp, \
                                           parse_timestamp_string, \
                                           get_aware_utc_now
 from volttron.platform.messaging import headers as headers_mod
-from volttron.platform.dbutils import influxdbutils
+
 
 try:
     from influxdb import InfluxDBClient
@@ -74,6 +74,7 @@ except ImportError:
     HAS_INFLUXDB = False
 
 from fixtures import *
+from volttron.platform.dbutils import influxdbutils
 
 
 def clean_database(client, clean_updated_database=False):
@@ -1271,3 +1272,4 @@ def test_update_config_store(volttron_instance, influxdb_client):
         volttron_instance.stop_agent(agent_uuid)
         volttron_instance.remove_agent(agent_uuid)
         clean_database(influxdb_client, clean_updated_database=True)
+
