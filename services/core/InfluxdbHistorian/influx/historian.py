@@ -70,6 +70,10 @@ __version__ = "0.1"
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+# Quiet client and connection pool a bit
+logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
+logging.getLogger("urllib3.util.retry").setLevel(logging.WARN)
+
 
 def historian(config_path, **kwargs):
     """
