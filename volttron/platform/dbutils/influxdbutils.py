@@ -82,6 +82,17 @@ TOPIC_REGEX = r"^[-\w\/]+$"  # Alphanumeric + '_' + '-' + '/'
 AGG_PERIOD_REGEX = r"^\d+[mhdw]$"   # Number + 'm'/'h'/'d'/'w'
 
 
+def value_type_matching(value_type, value):
+    if value_type == 'integer':
+        return int(value)
+    elif value_type == 'float':
+        return float(value)
+    elif value_type == 'boolean':
+        return bool(value)
+    else:
+        return str(value)
+
+
 def get_client(connection_params):
     """
     Connect to InfluxDB client
@@ -154,13 +165,13 @@ def get_topic_values(client, topic_id, start, end,
 
     tags_values = topic_id.rsplit('/', 3)
     measurement = tags_values.pop()
-    tags_title = ["campus", "building", "device"]
+    tags_title = ["device", "building", "campus"]
     tags_conditions = ''
 
     # Construct tag condition, which is part of WHERE statement
     # E.g: if topic = a/b/c/d, measurement=d and condition of
     #      tag is: "campus='a' and building='b' and device='c'"
-    for i, tag in enumerate(tags_values):
+    for i, tag in enumerate(tags_values[::-1]):
         tags_conditions += '{}=\'{}\''.format(tags_title[i], tag)
         if i != len(tags_values) - 1:
             tags_conditions += " and "
@@ -290,7 +301,7 @@ def insert_meta(client, topic_id, topic, meta, updated_time):
     client.write_points(json_body)
 
 
-def insert_data_point(client, time, topic_id, source, value):
+def insert_data_point(client, time, topic_id, source, value, value_string):
     """
     Insert one data point of a specific topic into the database.
     Measurement name is parsed from topic_id.
@@ -298,33 +309,49 @@ def insert_data_point(client, time, topic_id, source, value):
 
     See Schema description for InfluxDB Historian in README
     """
-    tags_values = topic_id.split('/')
+    tags_values = topic_id.rsplit('/', 3)
+    measurement = tags_values.pop()
     tags_title = ["device", "building", "campus"]
     tags_dict = {}
 
-    if len(tags_values) > 4:
-        first_tag = tags_values[0]
-        for tag in tags_values[1:-3]:
-            first_tag += "/" + tag
-        tags_values = [first_tag] + tags_values[-3:]
-
-    for i, tag in enumerate(tags_values[:-1][::-1]):
+    for i, tag in enumerate(tags_values[::-1]):
         tags_dict[tags_title[i]] = tag
 
     tags_dict["source"] = source
 
     json_body = [
         {
-            "measurement": tags_values[len(tags_values) - 1],
+            "measurement": measurement,
             "tags": tags_dict,
             "time": time,
             "fields": {
-                "value": value
+                "value": value,
+                "value_string": value_string
             }
         }
     ]
 
-    client.write_points(json_body)
+    try:
+        client.write_points(json_body)
+    except InfluxDBClientError as e:
+        matching = re.findall('type \w+', json.loads(e.content)["error"])
+        inserted_type = matching[1]
+        existed_type = matching[2]
+        _log.warning('{} value exists as {}, while inserted value={} has {}'.format(measurement,
+                                                                                    existed_type,
+                                                                                    value,
+                                                                                    inserted_type))
+        existed_type = existed_type[5:]
+        try:
+            value = value_type_matching(existed_type, value)
+        except ValueError:
+            _log.warning('Cannot cast value={} {} to type {}. \'value\' field will be empty'.format(value,
+                                                                                                    inserted_type,
+                                                                                                    existed_type))
+            value = None
+
+        json_body[0]["fields"]["value"] = value
+        client.write_points(json_body)
 
 
 def get_topics_by_pattern(client, pattern):

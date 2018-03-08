@@ -73,8 +73,10 @@ try:
 except ImportError:
     HAS_INFLUXDB = False
 
-from fixtures import *
 from volttron.platform.dbutils import influxdbutils
+if HAS_INFLUXDB:
+    from fixtures import *
+
 
 
 def clean_database(client, clean_updated_database=False):
@@ -91,7 +93,7 @@ def start_influxdb_instance(vi, config):
                             vip_identity="influxdb.historian")
 
 
-def publish_some_fake_data(publish_agent, data_count):
+def publish_some_fake_data(publish_agent, data_count, value_type='float'):
     """
     Generate some random data for all query_topics and uses the passed
     publish_agent's vip pubsub to publish all messages.
@@ -103,6 +105,7 @@ def publish_some_fake_data(publish_agent, data_count):
     :param data_count: number of data points generated
                       E.g: if data_count = 10 and number of topics is 3,
                            then 30 data points are inserted into database
+    :param value_type: type of data values
     :return: the expected list of data and meta stored in database
              E.g:
              .. code-block:: python
@@ -139,11 +142,21 @@ def publish_some_fake_data(publish_agent, data_count):
 
         timestamp = datetime(now.year, now.month, now.day, hour, minute, second, 0, tzinfo=pytz.utc)
 
-        # Make some random readings. round to 14 digit precision
-        # as influx only store 14 digit precision
-        oat_reading = round(random.uniform(30, 100), 14)
-        mixed_reading = round(oat_reading + random.uniform(-5, 5), 14)
-        damper_reading = round(random.uniform(0, 100), 14)
+        # Make some random readings
+        if value_type == 'float':
+            # Round to 14 digit precision
+            # as influx only store 14 digit precision
+            oat_reading = round(random.uniform(30, 100), 14)
+            mixed_reading = round(oat_reading + random.uniform(-5, 5), 14)
+            damper_reading = round(random.uniform(0, 100), 14)
+        elif value_type == 'integer':
+            oat_reading = random.randint(30, 100)
+            mixed_reading = oat_reading + random.randint(-5, 5)
+            damper_reading = random.randint(0, 100)
+        else:   # value_type = string
+            oat_reading = str('123')
+            mixed_reading = str('123.456')
+            damper_reading = str('def')
 
         # Create a message for all points.
         all_message = [{
@@ -434,14 +447,16 @@ def test_publish_abnormal_topic_name(volttron_instance, influxdb_client):
     try:
         assert influxdb_client is not None
         for topic in long_topics:
+            value = random.randint(0, 100)
             influxdbutils.insert_data_point(client=influxdb_client, time=get_aware_utc_now(),
                                             topic_id=topic.lower(), source="scrape",
-                                            value=random.randint(0, 100))
+                                            value=value, value_string=str(value))
 
         for topic in short_topics:
+            value = random.randint(0, 100)
             influxdbutils.insert_data_point(client=influxdb_client, time=get_aware_utc_now(),
                                             topic_id=topic.lower(), source="scrape",
-                                            value=random.randint(100, 1000))
+                                            value=value, value_string=str(value))
 
         query = "SELECT * FROM outsideairtemperature"
         rs = influxdb_client.query(query)
@@ -466,6 +481,87 @@ def test_publish_abnormal_topic_name(volttron_instance, influxdb_client):
         assert rs[1]["campus"] is None
         assert rs[1]["building"] == "lab2"
         assert rs[1]["device"] == "device2"
+
+    finally:
+        volttron_instance.stop_agent(agent_uuid)
+        volttron_instance.remove_agent(agent_uuid)
+        clean_database(influxdb_client)
+
+
+@pytest.mark.historian
+@pytest.mark.skipif(not HAS_INFLUXDB, reason='No influxdb library. Please run \'pip install influxdb\'')
+def test_publish_with_changed_value_type(volttron_instance, influxdb_client):
+    clean_database(influxdb_client)
+    db = influxdb_config['connection']['params']['database']
+    influxdb_client.create_database(db)
+
+    agent_uuid = start_influxdb_instance(volttron_instance, influxdb_config)
+    assert agent_uuid is not None
+    assert volttron_instance.is_agent_running(agent_uuid)
+
+    try:
+        assert influxdb_client is not None
+        publisher = volttron_instance.build_agent()
+        assert publisher is not None
+
+        # Publish some float first
+        expected_float = publish_some_fake_data(publisher, 1)
+        # Then publish some integer
+        expected_int = publish_some_fake_data(publisher, 1, value_type='integer')
+        # Then publish some float as string
+        expected_str = publish_some_fake_data(publisher, 1, value_type='string')
+
+        expected = expected_float['data'].copy()
+        expected.update(expected_int['data'])
+        expected.update(expected_str['data'])
+
+        # Check for measurement OutsideAirTemperature
+        query = 'SELECT value, value_string FROM outsideairtemperature ' \
+                'WHERE campus=\'building\' and building=\'lab\' and device=\'device\''
+        rs = influxdb_client.query(query)
+        rs = list(rs.get_points())
+        topic = query_topics["oat_point"]
+
+        assert len(rs) == 3
+
+        for point in rs:
+            ts = parser.parse(point['time'])
+            ts = format_timestamp(ts)
+            assert point["value"] == float(expected[ts][topic])
+            assert point["value_string"] == str(expected[ts][topic])
+
+        # Check for measurement MixedAirTemperature
+        query = 'SELECT value, value_string FROM mixedairtemperature ' \
+                'WHERE campus=\'building\' and building=\'lab\' and device=\'device\''
+        rs = influxdb_client.query(query)
+        rs = list(rs.get_points())
+        topic = query_topics["mixed_point"]
+
+        assert len(rs) == 3
+
+        for point in rs:
+            ts = parser.parse(point['time'])
+            ts = format_timestamp(ts)
+            assert point["value"] == float(expected[ts][topic])
+            assert point["value_string"] == str(expected[ts][topic])
+
+        # Check for measurement DamperSignal
+        query = 'SELECT value, value_string FROM dampersignal ' \
+                'WHERE campus=\'building\' and building=\'lab\' and device=\'device\''
+        rs = influxdb_client.query(query)
+        rs = list(rs.get_points())
+        topic = query_topics["damper_point"]
+
+        assert len(rs) == 3
+
+        for point in rs:
+            ts = parser.parse(point['time'])
+            ts = format_timestamp(ts)
+            assert point["value_string"] == str(expected[ts][topic])
+            try:
+                assert point["value"] == float(expected[ts][topic])
+            except ValueError:
+                assert point["value"] is None
 
     finally:
         volttron_instance.stop_agent(agent_uuid)

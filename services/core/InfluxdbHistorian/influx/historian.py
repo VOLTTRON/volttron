@@ -241,6 +241,18 @@ class InfluxdbHistorian(BaseHistorian):
                 topic = row['topic']
                 meta = row['meta']
                 value = row['value']
+                value_string = str(value)
+
+                # Check type of value from metadata if it exists,
+                # then cast value to that type
+                try:
+                    value_type = meta["type"]
+                    value = influxdbutils.value_type_matching(value_type, value)
+                except KeyError:
+                    _log.info("Metadata doesn't include \'type\' keyword")
+                except ValueError:
+                    _log.warning("Metadata specifies \'type\' of value is {} while "
+                                 "value={} is type {}".format(value_type, value, type(value)))
 
                 topic_id = topic.lower()
 
@@ -266,7 +278,7 @@ class InfluxdbHistorian(BaseHistorian):
                     influxdbutils.insert_meta(self._client, topic_id, topic, meta, ts)
 
                 # Insert data point
-                influxdbutils.insert_data_point(self._client, ts, topic_id, source, value)
+                influxdbutils.insert_data_point(self._client, ts, topic_id, source, value, value_string)
 
             # After all data points are published
             self.report_all_handled()
