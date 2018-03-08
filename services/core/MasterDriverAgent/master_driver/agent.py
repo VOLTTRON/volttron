@@ -109,9 +109,9 @@ def master_driver_agent(config_path, **kwargs):
         _log.warning('Use the script "scripts/update_master_driver_config.py" to convert the configuration.')
 
     publish_depth_first_all = bool(get_config("publish_depth_first_all", True))
-    publish_breadth_first_all = bool(get_config("publish_breadth_first_all", True))
-    publish_depth_first = bool(get_config("publish_depth_first", True))
-    publish_breadth_first = bool(get_config("publish_breadth_first", True))
+    publish_breadth_first_all = bool(get_config("publish_breadth_first_all", False))
+    publish_depth_first = bool(get_config("publish_depth_first", False))
+    publish_breadth_first = bool(get_config("publish_breadth_first", False))
 
     group_offset_interval = get_config("group_offset_interval", 0.0)
 
@@ -137,9 +137,9 @@ class MasterDriverAgent(Agent):
                  max_concurrent_publishes = 10000,
                  system_socket_limit = None,
                  publish_depth_first_all=True,
-                 publish_breadth_first_all=True,
-                 publish_depth_first=True,
-                 publish_breadth_first=True,
+                 publish_breadth_first_all=False,
+                 publish_depth_first=False,
+                 publish_breadth_first=False,
                  **kwargs):
         super(MasterDriverAgent, self).__init__(**kwargs)
         self.instances = {}

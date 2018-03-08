@@ -27,7 +27,7 @@ The VEN implements the following VOLTTRON PubSub and RPC calls.
 PubSub: Event Update
 --------------------
 
-When an event is created/updated, the event is published with a topic that includes 'openadr/event_update'.
+When an event is created/updated, the event is published with a topic that includes 'openadr/event/{ven_id}'.
 
 Event JSON structure:
 ::
@@ -52,7 +52,7 @@ PubSub: Telemetry Parameters Update
 -----------------------------------
 
 When the VEN telemetry reporting parameters have been updated (by the VTN), they
-are published with a topic that includes 'openadr/telemetry_parameters'.
+are published with a topic that includes 'openadr/status/{ven_id}'.
 
 These parameters include state information about the current report.
 
