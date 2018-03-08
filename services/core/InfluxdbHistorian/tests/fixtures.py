@@ -1,8 +1,5 @@
 import pytest
-
-from test_influxdb_historian import HAS_INFLUXDB
-if HAS_INFLUXDB:
-    from influxdb import InfluxDBClient
+from influxdb import InfluxDBClient
 
 influxdb_config = {
     "connection": {

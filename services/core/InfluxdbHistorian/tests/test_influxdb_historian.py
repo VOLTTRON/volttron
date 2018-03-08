@@ -73,8 +73,8 @@ try:
 except ImportError:
     HAS_INFLUXDB = False
 
-from volttron.platform.dbutils import influxdbutils
 if HAS_INFLUXDB:
+    from volttron.platform.dbutils import influxdbutils
     from fixtures import *
 
 
