@@ -52,7 +52,7 @@ from volttron.platform import get_address, get_home, get_volttron_root, \
     is_instance_running
 from volttron.platform.packaging import create_package, add_files_to_package
 
-__version__ = '0.2'
+__version__ = '0.3'
 
 
 def _build_copy_env(opts):
@@ -86,6 +86,17 @@ def remove_agent(opts, agent_uuid):
     process = subprocess.Popen(cmds, env=env, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
     process.wait()
+
+
+def install_requirements(agent_source):
+    req_file = os.path.join(agent_source, "requirements.txt")
+    if os.path.exists(req_file):
+        log.info("Installing requirements for agent.")
+        cmds = ["pip", "install", "-r", req_file]
+        try:
+            subprocess.check_call(cmds)
+        except subprocess.CalledProcessError:
+            sys.exit(1)
 
 
 def install_agent(opts, package, config):
@@ -310,6 +321,8 @@ if __name__ == '__main__':
         log.error(
             "Force option specified without a target identity to force.")
         sys.exit(-10)
+    # use pip requirements.txt file and install dependencies if nessary.
+    install_requirements(agent_source)
 
     opts.package = create_package(agent_source, wheelhouse, opts.vip_identity)
 
