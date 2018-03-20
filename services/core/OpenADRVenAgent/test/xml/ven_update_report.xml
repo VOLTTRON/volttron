@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<oadr:oadrPayload xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07">
+  <oadr:oadrSignedObject>
+        <oadr:oadrUpdateReport xmlns:pyld="http://docs.oasis-open.org/ns/energyinterop/201110/payloads" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" schemaVersion="2.0b">
+            <pyld:requestID>f2c277c5-e431-11e7-b309-34363bc85ec4</pyld:requestID>
+            <oadr:oadrReport>
+                <xcal:dtstart xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                    <xcal:date-time>2017-12-18T20:27:33.485788Z</xcal:date-time>
+                </xcal:dtstart>
+                <xcal:duration xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                    <oadr:duration>PT0S</oadr:duration>
+                </xcal:duration>
+                <strm:intervals xmlns:strm="urn:ietf:params:xml:ns:icalendar-2.0:stream">
+                    <ei:interval xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                        <xcal:dtstart>
+                            <xcal:date-time>2017-12-18T20:27:14.091298Z</xcal:date-time>
+                        </xcal:dtstart>
+                        <xcal:duration>
+                            <oadr:duration>PT30S</oadr:duration>
+                        </xcal:duration>
+                        <oadr:oadrReportPayloadType>
+                            <ei:rID>baseline_power</ei:rID>
+                            <ei:PayloadFloatType>
+                                <ei:value>6.2</ei:value>
+                            </ei:PayloadFloatType>
+                        </oadr:oadrReportPayloadType>
+                        <oadr:oadrReportPayloadType>
+                            <ei:rID>actual_power</ei:rID>
+                            <ei:PayloadFloatType>
+                                <ei:value>0.0332557678147</ei:value>
+                            </ei:PayloadFloatType>
+                        </oadr:oadrReportPayloadType>
+                    </ei:interval>
+                </strm:intervals>
+                <ei:reportRequestID>286</ei:reportRequestID>
+                <ei:reportSpecifierID>telemetry</ei:reportSpecifierID>
+                <ei:reportName>TELEMETRY_USAGE</ei:reportName>
+                <ei:createdDateTime>2017-12-18T20:28:03.545045Z</ei:createdDateTime>
+            </oadr:oadrReport>
+            <ei:venID>0</ei:venID>
+        </oadr:oadrUpdateReport>
+    </oadr:oadrSignedObject>
+</oadr:oadrPayload>

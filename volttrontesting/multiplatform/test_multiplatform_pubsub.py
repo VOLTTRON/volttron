@@ -14,7 +14,7 @@ from volttrontesting.utils.platformwrapper import PlatformWrapper
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER, CONFIGURATION_STORE
 
 subscription_results = {}
-
+count = 0
 
 def onmessage(peer, sender, bus, topic, headers, message):
     global subscription_results
@@ -111,7 +111,7 @@ def build_instances(request):
     """
     all_instances = []
 
-    def build_n_volttron_instances(n, bad_config=False):
+    def build_n_volttron_instances(n, bad_config=False, add_my_address=True):
         build_n_volttron_instances.count = n
         instances = []
         vip_addresses = []
@@ -139,7 +139,7 @@ def build_instances(request):
         for i in range(0, n):
             addr_config.clear()
             for j in range(0, n):
-                if j != i:
+                if j != i or (j==i and add_my_address):
                     name = names[j]
                     addr_config[name] = dict()
                     addr_config[name]['instance-name'] = names[j]
@@ -148,6 +148,7 @@ def build_instances(request):
                     else:
                         addr_config[name]['vip-address'] = vip_addresses[j]
                     addr_config[name]['serverkey'] = instances[j].serverkey
+
             address_file = os.path.join(instances[i].volttron_home, 'external_platform_discovery.json')
             if address_file:
                 with open(address_file, 'w') as f:
@@ -493,6 +494,43 @@ def test_multiplatform_without_setup_mode(request, build_instances):
 
             message = subscription_results1['devices/building1']['message']
             assert message == [{'point': 'value' + str(i)}]
+        except KeyError:
+            pass
+
+def test_multiplatform_local_subscription(request, build_instances):
+    subscription_results1 = {}
+    p1 = build_instances(1, add_my_address=True)
+    gevent.sleep(1)
+    #Get twon agents
+    agent1 = p1.build_agent(identity="agent1")
+    agent2 = p1.build_agent(identity="agent2")
+
+    def stop():
+        agent1.core.stop()
+        agent2.core.stop()
+        p1.shutdown_platform()
+    request.addfinalizer(stop)
+
+    def callback1(peer, sender, bus, topic, headers, message):
+        global count
+        count += 1
+        subscription_results1[topic] = {'headers': headers, 'message': message, 'count': count}
+        print("platform2 sub results [{}] = {}".format(topic, subscription_results1[topic]))
+
+    agent1.vip.pubsub.subscribe(peer='pubsub',
+                                 prefix='devices',
+                                 callback=callback1,
+                                 all_platforms=True)
+
+    gevent.sleep(1)
+    for i in range(1, 5):
+        agent2.vip.pubsub.publish(peer='pubsub', topic='devices/building1',
+                                 message=[{'point': 'value' + str(i)}])
+        gevent.sleep(1)
+        try:
+            message = subscription_results1['devices/building1']['message']
+            assert message == [{'point': 'value' + str(i)}]
+            assert i == subscription_results1['devices/building1']['count']
         except KeyError:
             pass
 

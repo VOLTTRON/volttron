@@ -1,0 +1,15 @@
+Volttron Point Name,Units,Modbus Register,Writable,Point Address
+BigUShort,PPM,>H,TRUE,0
+BigUInt,PPM,>I,TRUE,1
+BigULong,PPM,>Q,TRUE,3
+BigShort,PPM,>h,TRUE,7
+BigInt,PPM,>i,TRUE,8
+BigFloat,PPM,>f,TRUE,10
+BigLong,PPM,>q,TRUE,12
+LittleUShort,PPM,<H,TRUE,100
+LittleUInt,PPM,<I,TRUE,101
+LittleULong,PPM,<Q,TRUE,103
+LittleShort,PPM,<h,TRUE,107
+LittleInt,PPM,<i,TRUE,108
+LittleFloat,PPM,<f,TRUE,110
+LittleLong,PPM,<q,TRUE,112

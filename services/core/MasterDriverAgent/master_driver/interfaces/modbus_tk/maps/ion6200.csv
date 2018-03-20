@@ -1,0 +1,20 @@
+Volttron Point Name,Register Name
+Serial,serial
+Freq,freq
+Vln_a,vln_a
+Vln_avg,vln_avg
+Vll_avg,vll_avg
+I_a,i_a
+I_b,i_b
+I_c,i_c
+I_avg,i_avg
+kW sum,kw_sum
+kVAR sum,kvar_sum
+kW peak demand,kw_peak_demand
+kWh del,kwh_del
+kWh rec,kwh_rec
+kVARh del,kvar_del
+kVARh rec,kvar_rec
+kVARh del+rec,kvarh_del_p_rec
+PPS,prog_power_scale
+Demand sub interval,demand_sub_interval
