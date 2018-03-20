@@ -38,7 +38,6 @@
 
 from datetime import timedelta
 import gevent
-import isodate
 import json
 import logging
 import os
@@ -167,6 +166,7 @@ def test_agent(request, get_volttron_instances):
     yield test_agt
 
 
+@pytest.mark.skip(reason="Dependencies on Python libraries in OpenADRVenAgent/requirements.txt")
 class TestOpenADRVenAgent:
     """Regression tests for the Open ADR VEN Agent."""
 
@@ -274,6 +274,7 @@ class TestOpenADRVenAgent:
         @param start_time: (DateTime) The event's start_time.
         @param duration_secs: (Integer seconds) The event's duration.
         """
+        import isodate                      # Import the library only if the test is not skipped
         self.vtn_request('EiEvent',
                          'test_vtn_distribute_event_variable',
                          event_id=event_id,
