@@ -1,0 +1,12 @@
+Register Name,Address,Type,Units,Writable,Transform
+kwh_del,40091,int32,kWh,TRUE,mod10k(False)
+kwh_rec,40093,int32,kWh,TRUE,mod10k(False)
+kwh_del_p_rec,40095,int32,kWh,TRUE,mod10k(False)
+kwh_del_m_rec,40097,int32,kWh,TRUE,mod10k(False)
+kvarh_del,40099,int32,kVARh,TRUE,mod10k(False)
+kvarh_rec,40101,int32,kVARh,TRUE,mod10k(False)
+kvarh_del_p_rec,40103,int32,kVARh,TRUE,mod10k(False)
+kvarh_del_m_rec,40105,int32,kVARh,TRUE,mod10k(False)
+vll_avg,40184,uint32,Volts,TRUE,scale(1.0)
+kw_sum,40204,int32,kW,TRUE,scale(0.001)
+kvar_sum,40214,int32,kVAR,TRUE,scale(1.000)

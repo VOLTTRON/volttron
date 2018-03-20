@@ -150,13 +150,19 @@ class SQLHistorian(BaseHistorian):
         self.bg_thread_dbutils.record_table_definitions(self.tables_def,
                                              meta_table_name)
 
+    def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
+        """
+        Optional function to manage database size.
+        """
+        self.bg_thread_dbutils.manage_db_size(history_limit_timestamp,
+                                              storage_limit_gb)
+
     @doc_inherit
     def publish_to_historian(self, to_publish_list):
         thread_name = threading.currentThread().getName()
-        _log.debug(
-            "publish_to_historian number of items: {} Thread: {}:{}".format(
-                len(to_publish_list), threading.current_thread(), thread_name))
-
+        #_log.debug(
+        #    "publish_to_historian number of items: {} Thread: {}:{}".format(
+        #        len(to_publish_list), threading.current_thread(), thread_name))
 
         try:
             real_published = []
@@ -172,10 +178,8 @@ class SQLHistorian(BaseHistorian):
                 topic_id = self.topic_id_map.get(lowercase_name, None)
                 db_topic_name = self.topic_name_map.get(lowercase_name,
                                                         None)
-                _log.debug('topic is {}, db topic is {}'.format(
-                    topic, db_topic_name))
                 if topic_id is None:
-                    _log.debug('Inserting topic: {}'.format(topic))
+                    # _log.debug('Inserting topic: {}'.format(topic))
                     # Insert topic name as is in db
                     row = self.bg_thread_dbutils.insert_topic(topic)
                     topic_id = row[0]
@@ -183,17 +187,17 @@ class SQLHistorian(BaseHistorian):
                     # for case insensitive comparison
                     self.topic_id_map[lowercase_name] = topic_id
                     self.topic_name_map[lowercase_name] = topic
-                    _log.debug('TopicId: {} => {}'.format(topic_id, topic))
+                    # _log.debug('TopicId: {} => {}'.format(topic_id, topic))
                 elif db_topic_name != topic:
-                    _log.debug('Updating topic: {}'.format(topic))
+                    # _log.debug('Updating topic: {}'.format(topic))
                     self.bg_thread_dbutils.update_topic(topic, topic_id)
                     self.topic_name_map[lowercase_name] = topic
 
                 old_meta = self.topic_meta.get(topic_id, {})
                 if set(old_meta.items()) != set(meta.items()):
-                    _log.debug(
-                        'Updating meta for topic: {} {}'.format(topic,
-                                                                meta))
+                    # _log.debug(
+                    #    'Updating meta for topic: {} {}'.format(topic,
+                    #                                            meta))
                     self.bg_thread_dbutils.insert_meta(topic_id, meta)
                     self.topic_meta[topic_id] = meta
 
@@ -203,8 +207,8 @@ class SQLHistorian(BaseHistorian):
 
             if len(real_published) > 0:
                 if self.bg_thread_dbutils.commit():
-                    _log.debug('published {} data values'.format(
-                        len(to_publish_list)))
+                    # _log.debug('published {} data values'.format(
+                    #     len(to_publish_list)))
                     self.report_all_handled()
                 else:
                     msg = 'commit error. rolling back {} values.'
@@ -337,7 +341,7 @@ class SQLHistorian(BaseHistorian):
 
             if values:
                 metadata = self.topic_meta.get(meta_tid, {})
-                _log.debug("metadata is {}".format(metadata))
+                # _log.debug("metadata is {}".format(metadata))
                 results = {'values': values, 'metadata': metadata}
             else:
                 results = dict()
@@ -357,7 +361,7 @@ class SQLHistorian(BaseHistorian):
         topic_id_map, topic_name_map = self.bg_thread_dbutils.get_topic_map()
         self.topic_id_map.update(topic_id_map)
         self.topic_name_map.update(topic_name_map)
-        _log.debug("updated topic name map. {}".format(self.topic_name_map))
+        #_log.debug("updated topic name map. {}".format(self.topic_name_map))
         self.agg_topic_id_map = self.bg_thread_dbutils.get_agg_topic_map()
 
 

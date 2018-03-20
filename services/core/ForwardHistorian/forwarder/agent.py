@@ -204,11 +204,11 @@ class ForwardHistorian(BaseHistorian):
         try:
             # 2.0 agents compatability layer makes sender = pubsub.compat
             # so we can do the proper thing when it is here
-            _log.debug("message in capture_data {}".format(message))
+            # _log.debug("message in capture_data {}".format(message))
             if sender == 'pubsub.compat':
                 # data = jsonapi.loads(message[0])
                 data = compat.unpack_legacy_message(headers, message)
-                _log.debug("data in capture_data {}".format(data))
+                #_log.debug("data in capture_data {}".format(data))
             if isinstance(data, dict):
                 data = data
             elif isinstance(data, int) or \
@@ -337,9 +337,9 @@ class ForwardHistorian(BaseHistorian):
                 break
             with gevent.Timeout(30):
                 try:
-                    _log.debug('debugger: {} {} {}'.format(topic,
-                                                           headers,
-                                                           payload))
+                    # _log.debug('debugger: {} {} {}'.format(topic,
+                    #                                        headers,
+                    #                                        payload))
 
                     self._target_platform.vip.pubsub.publish(
                         peer='pubsub',

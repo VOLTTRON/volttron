@@ -241,11 +241,13 @@ from volttron.platform.vip.agent.subsystems.query import Query
 try:
     import ujson
     from zmq.utils.jsonapi import dumps as _dumps, loads as _loads
+
     def dumps(data):
         try:
             return ujson.dumps(data, double_precision=15)
         except:
             return _dumps(data)
+
     def loads(data_string):
         try:
             return ujson.loads(data_string, precise_float=True)
@@ -332,6 +334,9 @@ class BaseHistorianAgent(Agent):
                  capture_log_data=True,
                  capture_analysis_data=True,
                  capture_record_data=True,
+                 message_publish_count=10000,
+                 history_limit_days=None,
+                 storage_limit_gb=None,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -351,6 +356,8 @@ class BaseHistorianAgent(Agent):
         self._retry_period = float(retry_period)
         self._submit_size_limit = int(submit_size_limit)
         self._max_time_publishing = float(max_time_publishing)
+        self._history_limit_days = history_limit_days
+        self._storage_limit_gb = storage_limit_gb
         self._successful_published = set()
         # Remove the need to reset subscriptions to eliminate possible data
         # loss at config change.
@@ -360,22 +367,27 @@ class BaseHistorianAgent(Agent):
         self._readonly = bool(readonly)
         self._stop_process_loop = False
         self._process_thread = None
+        self._message_publish_count = int(message_publish_count)
 
         self.no_insert = False
         self.no_query = False
         self.instance_name = None
 
-        self._default_config = {"retry_period":self._retry_period,
-                               "submit_size_limit": self._submit_size_limit,
-                               "max_time_publishing": self._max_time_publishing,
-                               "backup_storage_limit_gb": self._backup_storage_limit_gb,
-                               "topic_replace_list": self._topic_replace_list,
-                               "gather_timing_data": self.gather_timing_data,
-                               "readonly": self._readonly,
-                               "capture_device_data": capture_device_data,
-                               "capture_log_data": capture_log_data,
-                               "capture_analysis_data": capture_analysis_data,
-                               "capture_record_data": capture_record_data
+        self._default_config = {
+                                "retry_period":self._retry_period,
+                                "submit_size_limit": self._submit_size_limit,
+                                "max_time_publishing": self._max_time_publishing,
+                                "backup_storage_limit_gb": self._backup_storage_limit_gb,
+                                "topic_replace_list": self._topic_replace_list,
+                                "gather_timing_data": self.gather_timing_data,
+                                "readonly": self._readonly,
+                                "capture_device_data": capture_device_data,
+                                "capture_log_data": capture_log_data,
+                                "capture_analysis_data": capture_analysis_data,
+                                "capture_record_data": capture_record_data,          
+                                "message_publish_count": self._message_publish_count,
+                                "storage_limit_gb": storage_limit_gb,
+                                "history_limit_days": history_limit_days
                                }
 
         self.vip.config.set_default("config", self._default_config)
@@ -400,6 +412,18 @@ class BaseHistorianAgent(Agent):
             self._process_thread.start()
             _log.debug("Process thread started.")
 
+    def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
+        """
+        Called in the process thread after data is published.
+        This can be overridden in historian implementations
+        to apply the storage_limit_gb and history_limit_days
+        settings to the storage medium.
+
+        :param history_limit_timestamp: remove all data older than this timestamp
+        :param storage_limit_gb: remove oldest data until database is smaller than this value.
+        """
+        pass
+
     def stop_process_thread(self):
         _log.debug("Stopping the process loop.")
         if self._process_thread is None:
@@ -412,7 +436,6 @@ class BaseHistorianAgent(Agent):
 
         # 9 seconds as configuration timeout is 10 seconds.
         self._process_thread.join(9.0)
-        #Greenlets have slightly different API than threads in this case.
         # Greenlets have slightly different API than threads in this case.
         if self._process_loop_in_greenlet:
             if not self._process_thread.ready():
@@ -433,10 +456,23 @@ class BaseHistorianAgent(Agent):
             topic_replace_list = list(config.get("topic_replace_list", []))
             gather_timing_data = bool(config.get("gather_timing_data", False))
             backup_storage_limit_gb = config.get("backup_storage_limit_gb")
+            if backup_storage_limit_gb:
+                backup_storage_limit_gb = float(backup_storage_limit_gb)
             retry_period = float(config.get("retry_period", 300.0))
+
+            storage_limit_gb = config.get("storage_limit_gb")
+            if storage_limit_gb:
+                storage_limit_gb = float(storage_limit_gb)
+
+            history_limit_days = config.get("history_limit_days")
+            if history_limit_days:
+                history_limit_days = float(history_limit_days)
+
             submit_size_limit = int(config.get("submit_size_limit", 1000))
             max_time_publishing = float(config.get("max_time_publishing", 30.0))
+
             readonly = bool(config.get("readonly", False))
+            message_publish_count = int(config.get("message_publish_count", 10000))
         except ValueError as e:
             _log.error("Failed to load base historian settings. Settings not applied!")
             return
@@ -457,7 +493,11 @@ class BaseHistorianAgent(Agent):
         self._retry_period = retry_period
         self._submit_size_limit = submit_size_limit
         self._max_time_publishing = timedelta(seconds=max_time_publishing)
+        self._history_limit_days = timedelta(days=history_limit_days) if history_limit_days else None
+        self._storage_limit_gb = storage_limit_gb
+
         self._readonly = readonly
+        self._message_publish_count = message_publish_count
 
         self._update_subscriptions(bool(config.get("capture_device_data", True)),
                                    bool(config.get("capture_log_data", True)),
@@ -561,6 +601,8 @@ class BaseHistorianAgent(Agent):
         """
         if not self._readonly:
             try:
+                # stop the process loop thread/greenlet before exiting
+                self.stop_process_thread()
                 # unsubscribes to all topics that we are subscribed to.
                 self.vip.pubsub.unsubscribe(peer='pubsub', prefix=None,
                                             callback=None)
@@ -596,8 +638,6 @@ class BaseHistorianAgent(Agent):
         :return: 
         """
         output_topic = input_topic
-        _log.debug(
-            "_topic_replace_list  is {}".format(self._topic_replace_list))
         input_topic_lower = input_topic.lower()
         # Only if we have some topics to replace.
         if self._topic_replace_list:
@@ -628,7 +668,7 @@ class BaseHistorianAgent(Agent):
 
     def _capture_record_data(self, peer, sender, bus, topic, headers,
                              message):
-        _log.debug('Capture record data {}'.format(topic))
+        # _log.debug('Capture record data {}'.format(topic))
         # Anon the topic if necessary.
         topic = self.get_renamed_topic(topic)
         timestamp_string = headers.get(headers_mod.DATE, None)
@@ -787,9 +827,9 @@ class BaseHistorianAgent(Agent):
             source = 'analysis'
         else:
             source = 'scrape'
-        _log.debug(
-            "Queuing {topic} from {source} for publish".format(topic=topic,
-                                                               source=source))
+        # _log.debug(
+        #     "Queuing {topic} from {source} for publish".format(topic=topic,
+        #                                                        source=source))
 
         if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
@@ -835,9 +875,9 @@ class BaseHistorianAgent(Agent):
             return
 
         source = 'actuator'
-        _log.debug(
-            "Queuing {topic} from {source} for publish".format(topic=topic,
-                                                               source=source))
+        # _log.debug(
+        #     "Queuing {topic} from {source} for publish".format(topic=topic,
+        #                                                        source=source))
 
         if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
@@ -855,6 +895,8 @@ class BaseHistorianAgent(Agent):
         """
 
         _log.debug("Starting process loop.")
+        current_published_count = 0
+        next_report_count = current_published_count + self._message_publish_count
 
         # Sets up the concrete historian
         # call this method even in case of readonly mode in case historian
@@ -882,7 +924,7 @@ class BaseHistorianAgent(Agent):
 
         while True:
             try:
-                _log.debug("Reading from/waiting for queue.")
+                #_log.debug("Reading from/waiting for queue.")
                 new_to_publish = [
                     self._event_queue.get(wait_for_input, self._retry_period)]
             except Empty:
@@ -890,7 +932,7 @@ class BaseHistorianAgent(Agent):
                 new_to_publish = []
 
             if new_to_publish:
-                _log.debug("Checking for queue build up.")
+                #_log.debug("Checking for queue build up.")
                 while True:
                     try:
                         new_to_publish.append(self._event_queue.get_nowait())
@@ -898,16 +940,17 @@ class BaseHistorianAgent(Agent):
                         break
 
 
-            #We wake the thread after a configuration change by passing a None to the queue.
-            #Backup anything new before checking for a stop.
+            # We wake the thread after a configuration change by passing a None to the queue.
+            # Backup anything new before checking for a stop.
             backupdb.backup_new_data((x for x in new_to_publish if x is not None))
 
-            #Check for a stop for reconfiguration.
+            # Check for a stop for reconfiguration.
             if self._stop_process_loop:
                 break
 
             wait_for_input = True
             start_time = datetime.utcnow()
+            _log.debug("Beginning publish loop.")
 
             while True:
                 to_publish_list = backupdb.get_outstanding_to_publish(
@@ -917,11 +960,18 @@ class BaseHistorianAgent(Agent):
                 if not to_publish_list or self._stop_process_loop:
                     break
 
+                history_limit_timestamp = None
+                if self._history_limit_days is not None:
+                    last_element = to_publish_list[-1]
+                    last_time_stamp = last_element["timestamp"]
+                    history_limit_timestamp = last_time_stamp - self._history_limit_days
+
                 try:
                     self.publish_to_historian(to_publish_list)
-                except Exception as exp:
+                    self.manage_db_size(history_limit_timestamp, self._storage_limit_gb)
+                except (Exception, gevent.Timeout):
                     _log.exception(
-                        "An unhandled exception occured while publishing.")
+                        "An unhandled exception occurred while publishing.")
 
                 # if the successful queue is empty then we need not remove
                 # them from the database.
@@ -930,6 +980,11 @@ class BaseHistorianAgent(Agent):
 
                 backupdb.remove_successfully_published(
                     self._successful_published, self._submit_size_limit)
+                current_published_count += len(self._successful_published)
+                if self._message_publish_count > 0:
+                    if current_published_count >= next_report_count:
+                        _log.info("Historian processed {} total records.".format(current_published_count))
+                        next_report_count = current_published_count + self._message_publish_count
                 self._successful_published = set()
                 now = datetime.utcnow()
                 if now - start_time > self._max_time_publishing:
@@ -939,6 +994,8 @@ class BaseHistorianAgent(Agent):
                 # Check for a stop for reconfiguration.
                 if self._stop_process_loop:
                     break
+
+            _log.debug("Exiting publish loop.")
 
             # Check for a stop for reconfiguration.
             if self._stop_process_loop:
@@ -1048,8 +1105,6 @@ class BaseHistorianAgent(Agent):
         table name prefix for data, topics, and meta tables should be inserted
         """
 
-
-
 #TODO: Finish this.
 # from collections import deque
 #
@@ -1113,8 +1168,6 @@ class BaseHistorianAgent(Agent):
 #             my_deque.popleft()
 
 
-
-
 class BackupDatabase:
     """
     A creates and manages backup cache for the
@@ -1139,7 +1192,7 @@ class BackupDatabase:
         :param new_publish_list: An iterable of records to cache to disk.
         :type new_publish_list: iterable
         """
-        _log.debug("Backing up unpublished values.")
+        #_log.debug("Backing up unpublished values.")
         c = self._connection.cursor()
 
         if self._backup_storage_limit_gb is not None:
@@ -1192,9 +1245,9 @@ class BackupDatabase:
                         values(NULL, ?, ?, ?, ?, ?)''',
                         (timestamp, source, topic_id, dumps(value), dumps(headers)))
                 except sqlite3.IntegrityError:
-                    #In the case where we are upgrading an existing installed historian the
-                    #unique constraint may still exist on the outstanding database.
-                    #Ignore this case.
+                    # In the case where we are upgrading an existing installed historian the
+                    # unique constraint may still exist on the outstanding database.
+                    # Ignore this case.
                     pass
 
         self._connection.commit()
@@ -1215,7 +1268,7 @@ class BackupDatabase:
 
         """
 
-        _log.debug("Cleaning up successfully published values.")
+        #_log.debug("Cleaning up successfully published values.")
         c = self._connection.cursor()
 
         if None in successful_publishes:
@@ -1242,7 +1295,7 @@ class BackupDatabase:
         :returns: List of records for publication.
         :rtype: list
         """
-        _log.debug("Getting oldest outstanding to publish.")
+        # _log.debug("Getting oldest outstanding to publish.")
         c = self._connection.cursor()
         c.execute('select * from outstanding order by ts limit ?',
                   (size_limit,))
@@ -1301,7 +1354,7 @@ class BackupDatabase:
                                          value_string TEXT NOT NULL,
                                          header_string TEXT)''')
         else:
-            #Check to see if we have a header_string column.
+            # Check to see if we have a header_string column.
             c.execute("pragma table_info(outstanding);")
             name_index = 0
             for description in c.description:
@@ -1574,7 +1627,7 @@ class BaseQueryHistorianAgent(Agent):
         if start is not None:
             try:
                 start = parse_timestamp_string(start)
-            except TypeError:
+            except (ValueError, TypeError):
                 start = time_parser.parse(start)
             if start and start.tzinfo is None:
                 start = start.replace(tzinfo=pytz.UTC)
@@ -1582,7 +1635,7 @@ class BaseQueryHistorianAgent(Agent):
         if end is not None:
             try:
                 end = parse_timestamp_string(end)
-            except TypeError:
+            except (ValueError, TypeError):
                 end = time_parser.parse(end)
             if end and end.tzinfo is None:
                 end = end.replace(tzinfo=pytz.UTC)
@@ -1698,14 +1751,14 @@ def now(tzstr='UTC'):
         tz = local
     else:
         tz = gettz(tzstr)
-    return datetime.datetime.now(tz)
+    return datetime.now(tz)
 
 
 def strptime_tz(str, format='%x %X', tzstr='Local'):
     """Returns an aware datetime object. tzstr is a timezone string such as
        'US/Pacific' or 'Local' by default which uses the local timezone.
     """
-    dt = datetime.datetime.strptime(str, format)
+    dt = datetime.strptime(str, format)
     if tzstr == 'Local':
         tz = local
     else:
@@ -1836,14 +1889,14 @@ def p_abstime(t):
     elif type(t[1]) == type(''):
         t[0] = parse_time(t[1])
     else:
-        t[0] = datetime.datetime.utcfromtimestamp(t[1] / 1000)
+        t[0] = datetime.utcfromtimestamp(t[1] / 1000)
 
 
 def p_reltime(t):
     """reltime : NUMBER LVALUE
                | NUMBER LVALUE reltime"""
     timeunit = get_timeunit(t[2])
-    delta = datetime.timedelta(**{timeunit: t[1]})
+    delta = timedelta(**{timeunit: t[1]})
     if len(t) == 3:
         t[0] = delta
     else:

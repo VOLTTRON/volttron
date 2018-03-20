@@ -233,6 +233,14 @@ class DbDriver(object):
         """
         pass
 
+    def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
+        """
+        Optional function to manage database size.
+
+        :param history_limit_timestamp: remove all data older than this timestamp
+        :param storage_limit_gb: remove oldest data until database is smaller than this value.
+        """
+        pass
 
     def insert_meta(self, topic_id, metadata):
         """
@@ -425,7 +433,7 @@ class DbDriver(object):
         :param args: optional arguments
         :param commit: True if transaction should be committed. Defaults to
         False
-        :return: True if successful, False otherwise
+        :return: count of the number of affected rows
         """
 
         self.__connect()
@@ -436,7 +444,7 @@ class DbDriver(object):
             cursor.execute(stmt)
         if commit:
             self.commit()
-        return True
+        return cursor.rowcount
 
     def execute_many(self, stmt, args, commit=False):
         """
@@ -446,7 +454,7 @@ class DbDriver(object):
         :param args: optional arguments
         :param commit: True if transaction should be committed. Defaults to
         False
-        :return: True if successful, False otherwise
+        :return: count of the number of affected rows
         """
 
         self.__connect()
@@ -454,7 +462,7 @@ class DbDriver(object):
         cursor.executemany(stmt, args)
         if commit:
             self.commit()
-        return True
+        return cursor.rowcount
 
     @abstractmethod
     def query(self, topic_ids, id_name_map, start=None, end=None,
