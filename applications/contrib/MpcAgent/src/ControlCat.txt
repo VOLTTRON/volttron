@@ -1,2 +1,0 @@
-zones 4
-max_units 2
