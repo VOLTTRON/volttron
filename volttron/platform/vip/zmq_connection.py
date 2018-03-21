@@ -60,26 +60,36 @@ import gevent
 import logging
 import green as vip
 
-from volttron.platform.vip.mbconnection import BaseConnection
+from volttron.platform.vip.rmq_connection import BaseConnection
 from volttron.platform.vip.socket import Message
 
-class ZMQConnection(BaseConnection):
-    def __init__(self, url, instance_name, identity, *args, **kwargs):
-        super(BaseConnection, self).__init__(url, instance_name, identity, args, kwargs)
-        self.socket = None
-        self.context = zmq.Context.instance()
-        self._logger = logging.getLogger(__name__)
 
-    def open_connection(self, connection_type):
-        if connection_type == zmq.DEALER:
+class ZMQConnection(BaseConnection):
+    """
+    Maintains ZMQ socket connection
+    """
+    def __init__(self, url, identity, instance_name, context, *args, **kwargs):
+        super(ZMQConnection, self).__init__(url, instance_name, identity, args, kwargs)
+
+        self.socket = None
+        self.context = context
+        self._logger = logging.getLogger(__name__)
+        self._logger.debug("ZMQ connection {}".format(identity))
+
+    def open_connection(self, type):
+        if type == zmq.DEALER:
             self.socket = vip.Socket(self.context)
-            self.socket.set_hwm(6000)
-            if self.reconnect_interval:
-                self.socket.setsockopt(zmq.RECONNECT_IVL, self.reconnect_interval)
             if self._identity:
                 self.socket.identity = self._identity
         else:
             self.socket = zmq.Socket()
+
+    def set_properties(self,flags):
+        hwm = flags.get('hwm', 6000)
+        self.socket.set_hwm(hwm)
+        reconnect_interval = flags.get('reconnect_interval', None)
+        if reconnect_interval:
+            self.socket.setsockopt(zmq.RECONNECT_IVL, reconnect_interval)
 
     def connect(self, callback=None):
         self.socket.connect(self._url)
@@ -92,8 +102,8 @@ class ZMQConnection(BaseConnection):
     def register(self, handler):
         self._vip_handler = handler
 
-    def send_vip_object(self, vip_message):
-        self.socket.send_vip_object(vip_message)
+    def send_vip_object(self, message):
+        self.socket.send_vip_object(message)
 
     def recv_vip_object(self):
         return self.socket.recv_vip_object()
@@ -101,7 +111,7 @@ class ZMQConnection(BaseConnection):
     def disconnect(self):
         self.socket.disconnect(self._url)
 
-    def close_connection(self):
+    def close_connection(self, linger=1):
         """This method closes ZeroMQ socket"""
-        self.socket.close()
+        self.socket.close(linger)
 

@@ -44,12 +44,12 @@ import logging
 import random
 import re
 import weakref
-
+import sys
 import gevent
+
 from zmq import green as zmq
 from zmq import SNDMORE
 from volttron.platform.agent import json as jsonapi
-
 from .base import SubsystemBase
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..errors import Unreachable, VIPError, UnknownSubsystem
@@ -59,10 +59,9 @@ from ..results import ResultsDictionary
 from gevent.queue import Queue, Empty
 from collections import defaultdict
 from datetime import timedelta
-import pika
-import sys
 
-__all__ = ['PubSub']
+__all__ = ['PubSub', 'BasePubSub']
+
 min_compatible_version = '3.0'
 max_compatible_version = ''
 
@@ -80,7 +79,26 @@ def decode_peer(peer):
     return peer
 
 
-class PubSub(SubsystemBase):
+class BasePubSub(SubsystemBase):
+    def __init_(self, core, rpc_subsys, peerlist_subsys, owner):
+        self._instance_name = core.instance_name
+
+    def synchronize(self):
+        raise NotImplementedError()
+
+    def subscribe(self, prefix, callback, all_platforms=False, persistent_queue=None):
+        raise NotImplementedError()
+
+    def publish(self):
+        raise NotImplementedError()
+
+    def list(self, peer, prefix='', bus='', subscribed=True, reverse=False, all_platforms=False):
+        raise NotImplementedError()
+
+    def unsubscribe(self, peer, prefix, callback, bus='', all_platforms=False):
+        raise NotImplementedError()
+
+class PubSub(BasePubSub):
     def __init__(self, core, rpc_subsys, peerlist_subsys, owner):
         self.core = weakref.ref(core)
         self.rpc = weakref.ref(rpc_subsys)
@@ -111,14 +129,8 @@ class PubSub(SubsystemBase):
             # pylint: disable=unused-argument
             self._processgreenlet = gevent.spawn(self._process_loop)
             core.onconnected.connect(self._connected)
-            self.vip_socket = self.core().socket
-            try:
-                self.connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
-                self._channel = self.connection.channel()
-                self._channel.exchange_declare(exchange='federation.exchange',
-                                               exchange_type='topic')
-            except Exception as e:
-                print e
+            self.vip_socket = self.core().connection.socket
+
             def subscribe(member):   # pylint: disable=redefined-outer-name
                 for peer, bus, prefix, all_platforms in annotations(
                         member, set, 'pubsub.subscriptions'):
@@ -414,18 +426,6 @@ class PubSub(SubsystemBase):
             self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
             return result
 
-    def rabbitmq_subscribe(self, prefix, callback, all_platforms=False):
-        queue_name = 'demoqueue'
-        result = self._channel.queue_declare(queue=queue_name)
-        #result.method.queue
-        self._channel.queue_bind(exchange='federation.exchange',
-                                 queue=queue_name,
-                                 routing_key=prefix.replace("/",".")+".#")
-        self._channel.basic_consume(callback,
-                              queue=queue_name,
-                              no_ack=True)
-        self._channel.start_consuming()
-
     @subscribe.classmethod
     def subscribe(cls, peer, prefix, bus='', all_platforms=False):
         def decorate(method):
@@ -499,6 +499,8 @@ class PubSub(SubsystemBase):
                         del bus_subscriptions[bus]
                     if not bus_subscriptions:
                         del self._my_subscriptions[platform]
+            if not topics:
+                raise KeyError('no such subscription')
         else:
             _log.debug("PUSUB unsubscribe my subscriptions: {0} {1}".format(prefix, self._my_subscriptions))
             if platform in self._my_subscriptions:
@@ -600,7 +602,6 @@ class PubSub(SubsystemBase):
         :Return Values:
         Number of subscribers
         """
-        self.rabbitmq_publish(topic,headers,message)
         if headers is None:
             headers = {}
         headers['min_compatible_version'] = min_compatible_version
@@ -628,16 +629,6 @@ class PubSub(SubsystemBase):
             #<recipient, subsystem, args, msg_id, flags>
             self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
             return result
-
-    def rabbitmq_publish(self, topic, headers=None, message=None):
-        topic = topic.replace('\/', '.')
-        if headers is None:
-            headers = {}
-        headers['min_compatible_version'] = min_compatible_version
-        headers['max_compatible_version'] = max_compatible_version
-        self._channel.basic_publish(exchange='federation.exchange',
-                              routing_key=topic.replace("/","."),
-                              body=str(message))
 
     def _check_if_protected_topic(self, topic):
         required_caps = self.protected_topics.get(topic)

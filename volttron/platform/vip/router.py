@@ -124,9 +124,6 @@ class BaseRouter(object):
         sock.tcp_keepalive_intvl = 20
         sock.tcp_keepalive_cnt = 6
         self.context.set(zmq.MAX_SOCKETS, 30690)
-        # sock.setsockopt(zmq.SNDBUF, 40000)
-        # sock.setsockopt(zmq.RCVBUF, 40000)
-        # sock.set_hwm(60000)
         sock.set_hwm(6000)
         _log.debug("ROUTER SENDBUF: {0}, {1}".format(sock.getsockopt(zmq.SNDBUF), sock.getsockopt(zmq.RCVBUF)))
         self.setup()
@@ -250,9 +247,7 @@ class BaseRouter(object):
         '''
         socket = self.socket
         issue = self.issue
-        # Expecting incoming frames:
-        #   [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
-        frames = socket.recv_multipart(copy=False)
+
         issue(INCOMING, frames)
         # for f in frames:
         #    _log.debug("ROUTER Receiving frames: {}".format(bytes(f)))
@@ -318,6 +313,7 @@ class BaseRouter(object):
             frames[:4] = [recipient, sender, proto, user_id]
         for peer in self._send(frames):
             self._drop_peer(peer)
+
 
     def _send(self, frames):
         issue = self.issue

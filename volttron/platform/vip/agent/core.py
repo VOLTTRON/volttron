@@ -79,7 +79,7 @@ _log = logging.getLogger(__name__)
 
 
 class Periodic(object):  # pylint: disable=invalid-name
-    '''Decorator to set a method up as a periodic callback.
+    ''' Decorator to set a method up as a periodic callback.
 
     The decorated method will be called with the given arguments every
     period seconds while the agent is executing its run loop.
@@ -177,7 +177,7 @@ class BasicCore(object):
         self.oninterrupt = None
         prev_int_signal = gevent.signal.getsignal(signal.SIGINT)
         # To avoid a child agent handler overwriting the parent agent handler
-        if prev_int_signal in [None, signal.SIG_IGN, signal.SIG_DFL, signal.default_int_handler]:
+        if prev_int_signal in [None, signal.SIG_IGN, signal.SIG_DFL]:
             self.oninterrupt = gevent.signal.signal(signal.SIGINT, self._on_sigint_handler)
         self._owner = owner
 
@@ -318,9 +318,10 @@ class BasicCore(object):
         :param _:
         :return:
         '''
-        _log.debug("SIG interrupt received. Setting stop event")
+        _log.debug("SIG interrupt received. Calling stop")
         if signo == signal.SIGINT:
             self._stop_event.set()
+            #self.stop()
 
     def send(self, func, *args, **kwargs):
         self._async_calls.append((func, args, kwargs))

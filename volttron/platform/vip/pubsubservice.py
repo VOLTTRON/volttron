@@ -192,8 +192,8 @@ class PubSubService(object):
         :param frames list of frames
         :type frames list
         """
-        # for f in frames:
-        #     self._logger.debug("sub frames: {}".format(bytes(f)))
+        for f in frames:
+            self._logger.debug("sub frames: {}".format(bytes(f)))
         if len(frames) < 8:
             return False
         else:
@@ -391,10 +391,10 @@ class PubSubService(object):
         Number of subscribers to whom the mess
         """
         publisher, receiver, proto, _, msg_id, subsystem, op, topic, data = frames[0:9]
-        #Check if peer is authorized to publish the topic
+        # Check if peer is authorized to publish the topic
         errmsg = self._check_if_protected_topic(bytes(user_id), bytes(topic))
 
-        #Send error message as peer is not authorized to publish to the topic
+        # Send error message as peer is not authorized to publish to the topic
         if errmsg is not None:
             try:
                 frames = [publisher, b'', proto, user_id, msg_id,
@@ -451,6 +451,7 @@ class PubSubService(object):
         for prefix, subscription in subs.iteritems():
             if subscription and topic.startswith(prefix):
                 subscribers |= subscription
+
         if subscribers:
             #self._logger.debug("PUBSUBSERVICE: found subscribers: {}".format(subscribers))
             for subscriber in subscribers:
@@ -462,6 +463,7 @@ class PubSubService(object):
                         self.peer_drop(sub)
                 except ZMQError:
                     raise
+
         return len(subscribers)
 
     def _distribute_external(self, frames):

@@ -215,18 +215,23 @@ class AIPplatform(object):
 
     def shutdown(self):
         for agent_uuid in self.agents.iterkeys():
+            _log.debug("Stopping agent {}".format(agent_uuid))
             self.stop_agent(agent_uuid)
         event = gevent.event.Event()
         agent = Agent(identity='aip', address='inproc://vip')
         task = gevent.spawn(agent.core.run, event)
         try:
+            _log.debug("I'm waiting")
             event.wait()
-            agent.vip.pubsub.publish(
-                'pubsub', topics.PLATFORM_SHUTDOWN,
-                {'reason': 'Received shutdown command'}).get()
+            _log.debug("I'm done waiting")
+            # agent.vip.pubsub.publish(
+            #     'pubsub', topics.PLATFORM_SHUTDOWN,
+            #     {'reason': 'Received shutdown command'}).get()
+
         finally:
             agent.core.stop()
             task.kill()
+        _log.debug("I'm done with aip shutdown")
 
     subscribe_address = property(lambda me: me.env.subscribe_address)
     publish_address = property(lambda me: me.env.publish_address)

@@ -67,6 +67,7 @@ from . import config
 from .jsonrpc import RemoteError
 from .auth import AuthEntry, AuthFile, AuthException
 from .keystore import KeyStore, KnownHostsStore
+from volttron.platform.vip.socket import Message
 
 try:
     import volttron.restricted
@@ -171,7 +172,7 @@ class ControlService(BaseAgent):
         #Send message to router that agent is shutting down
         frames = [bytes(identity)]
 
-        self.core.connection.socket.send_vip(b'', 'agentstop', frames, copy=False)
+        self.core.connection.send_vip_object(Message(peer=b'', subsystem='agentstop', args=frames))
 
     @RPC.export
     def restart_agent(self, uuid):
@@ -180,12 +181,14 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def shutdown(self):
+        _log.debug("Control Shutdown")
         self._aip.shutdown()
 
     @RPC.export
     def stop_platform(self):
+        _log.debug("Stop platform")
         # XXX: Restrict call as it kills the process
-        self.core.connection.socket.send_vip(b'', b'quit')
+        self.core.connection.send_vip_object(Message(peer=b'', subsystem=b'quit'))
 
     @RPC.export
     def list_agents(self):
@@ -748,6 +751,7 @@ def run_agent(opts):
 
 def shutdown_agents(opts):
     opts.connection.call('shutdown')
+    _log.debug("Calling stop_platform")
     if opts.platform:
         opts.connection.notify('stop_platform')
 
@@ -1371,7 +1375,7 @@ class ControlConnection(object):
                                  secretkey=secretkey, serverkey=serverkey,
                                  enable_store=False,
                                  identity=CONTROL_CONNECTION,
-                                 enable_channel=True)
+                                 enable_channel=False)
         self._greenlet = None
 
     @property

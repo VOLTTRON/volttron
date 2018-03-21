@@ -61,48 +61,35 @@ from __future__ import absolute_import
 from base64 import b64encode, b64decode
 import inspect
 import logging
-import random
-import re
-import weakref
-import gevent
 
+import weakref
+import pika
+import uuid
 from volttron.platform.agent import json as jsonapi
 
 from .base import SubsystemBase
 from ..decorators import annotate, annotations, dualmethod, spawn
-from ..errors import Unreachable, VIPError, UnknownSubsystem
-from .... import jsonrpc
-from volttron.platform.agent import utils
-from ..results import ResultsDictionary
-from gevent.queue import Queue, Empty
+from .pubsub import BasePubSub
 from collections import defaultdict
-from datetime import timedelta
-import pika
-import sys
+from ..results import ResultsDictionary
+from gevent import monkey
+monkey.patch_socket()
 
+__all__ = ['RMQPubSub']
 min_compatible_version = '3.0'
 max_compatible_version = ''
 
-class BasePubSub(SubsystemBase):
-    def __init__(self):
-
-    def synchronize(self):
-
-    def subscribe(self):
-
-    def publish(self):
-
-    def list(self):
-
-    def unsubscribe(self):
 
 class RMQPubSub(BasePubSub):
     def __init__(self, core, rpc_subsys, peerlist_subsys, owner):
         self.core = weakref.ref(core)
-        self._connection = None
         self.rpc = weakref.ref(rpc_subsys)
         self.peerlist = weakref.ref(peerlist_subsys)
         self._owner = owner
+        self._logger = logging.getLogger(__name__)
+        self._results = ResultsDictionary()
+        self._message_number = 0
+        self._pubcount = dict()
 
         def subscriptions():
             return defaultdict(set)
@@ -111,14 +98,23 @@ class RMQPubSub(BasePubSub):
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
-            self._processgreenlet = gevent.spawn(self._process_loop)
+            self._connection = self.core().connection
+            self._channel = self.core().connection.channel
+
             core.onconnected.connect(self._connected)
 
             def subscribe(member):  # pylint: disable=redefined-outer-name
-                for peer, bus, prefix, all_platforms in annotations(
+                for peer, prefix, all_platforms, queue in annotations(
                         member, set, 'pubsub.subscriptions'):
-                    # XXX: needs updated in light of onconnected signal
-                    self._add_subscription(prefix, member, bus, all_platforms)
+                    if all_platforms:
+                        # '__pubsub__.*.<prefix>.#'
+                        routing_key = "__pubsub__.*.{}.#".format(prefix.replace("/", "."))
+                    else:
+                        routing_key = "__pubsub__.{0}.{1}.#".format(self.core().instance_name,
+                                                                    prefix.replace("/", "."))
+                    if not queue:
+                        queue = "volttron.{}".format(bytes(uuid.uuid4()))
+                    self._add_subscription(routing_key, member, queue)
                     # _log.debug("SYNC: all_platforms {}".format(self._my_subscriptions['internal'][bus][prefix]))
 
             inspect.getmembers(owner, subscribe)
@@ -133,120 +129,114 @@ class RMQPubSub(BasePubSub):
         param kwargs: optional arguments
         type kwargs: pointer to arguments
         """
-        self.synchronize()
-
+        pass
+        #self.core().connection.channel.confirm_delivery(self.on_delivery_confirmation,nowait=True)
+        #self.synchronize()
 
     def synchronize(self):
-        """Synchronize local subscriptions with the PubSubService.
+        """Synchronize local subscriptions with RMQ broker.
         """
-        result = next(self._results)
-        items = [{platform: {bus: subscriptions.keys()} for platform, bus_subscriptions in self._my_subscriptions.items()
-                  for bus, subscriptions in bus_subscriptions.items()}]
-        for subscriptions in items:
-            sync_msg = jsonapi.dumps(
-                        dict(subscriptions=subscriptions)
-                        )
-            frames = [b'synchronize', b'connected', sync_msg]
-            # For backward compatibility with old pubsub
-            if self._send_via_rpc:
-                delay = random.random()
-                self.core().spawn_later(delay, self.rpc().notify, 'pubsub', 'pubsub.sync', subscriptions)
-            else:
-                # Parameters are stored initially, in case remote agent/platform is using old pubsub
-                if self._parameters_needed:
-                    kwargs = dict(op='synchronize', subscriptions=subscriptions)
-                    self._save_parameters(result.ident, **kwargs)
-                self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
+        connection = self.core().connection
+        for prefix, subscriptions in self._my_subscriptions.iteritems():
+            for queue, callback in subscriptions.iteritems():
+                if queue.startswith('volttron'):
+                    result = connection.channel.queue_declare(queue=queue,
+                                                              durable=False,
+                                                              exclusive=False,
+                                                              callback=self.on_queue_declare_ok)
+                else:
+                    connection.channel.queue_declare(queue=queue, exclusive=True)
+                connection.channel.queue_bind(exchange=self.core().connection.exchange,
+                                              queue=queue,
+                                              routing_key=prefix,
+                                              callback=self.on_bind_ok)
+                connection.channel.basic_consume(callback,
+                                                 queue=queue,
+                                                 no_ack=True)
+        return True
 
-    def _add_subscription(self, prefix, queue_name, callback, isPersistent=False):
+    def on_queue_declare_ok(self, method_frame):
+        self._logger.debug("declare ok")
+
+    def on_bind_ok(self, unused_frame):
+        self._logger.debug("bind ok")
+
+
+    def _add_subscription(self, prefix, callback, queue):
         if not callable(callback):
             raise ValueError('callback %r is not callable' % (callback,))
         try:
-            self._my_subscriptions[prefix].add((queue_name, isPersistent, callback))
+            self._my_subscriptions[prefix][queue].add(callback)
             #_log.debug("SYNC: add subscriptions: {}".format(self._my_subscriptions['internal'][bus][prefix]))
         except KeyError:
             self._logger.error("PUBSUB something went wrong in add subscriptions")
 
     @dualmethod
     @spawn
-    def subscribe(self, peer, prefix, callback, bus='', all_platforms=False):
-        """Subscribe to topic and register callback.
-
-        Subscribes to topics beginning with prefix. If callback is
-        supplied, it should be a function taking four arguments,
-        callback(peer, sender, bus, topic, headers, message), where peer
-        is the ZMQ identity of the bus owner sender is identity of the
-        publishing peer, topic is the full message topic, headers is a
-        case-insensitive dictionary (mapping) of message headers, and
-        message is a possibly empty list of message parts.
-        :param peer
-        :type peer
-        :param prefix prefix to the topic
-        :type prefix str
-        :param callback callback method
-        :type callback method
-        :param bus bus
-        :type bus str
-        :param platforms
-        :type platforms
-        :returns: Subscribe is successful or not
-        :rtype: boolean
-
-        :Return Values:
-        Success or Failure
-        """
-
-        # For backward compatibility with old pubsub
-        if self._send_via_rpc == True:
-            self._add_subscription(prefix, callback, bus)
-            return self.rpc().call(peer, 'pubsub.subscribe', prefix, bus=bus)
+    def subscribe(self, prefix, callback, bus='', all_platforms=False, persistent_queue=None):
+        result = None
+        routing_key = ''
+        queue_name = None
+        connection = self.core().connection # bytes(uuid.uuid4())
+        if not all_platforms:
+            routing_key = "__pubsub__.{0}.{1}.#".format(self.core().instance_name, prefix.replace("/", "."))
         else:
-            result = self._results.next()
-            # Parameters are stored initially, in case remote agent/platform is using old pubsub
-            if self._parameters_needed:
-                kwargs = dict(op='subscribe', prefix=prefix, bus=bus)
-                self._save_parameters(result.ident, **kwargs)
-            self._add_subscription(prefix, callback, bus, all_platforms)
+            # '__pubsub__.*.<prefix>.#'
+            routing_key = "__pubsub__.*.{}.#".format(prefix.replace("/", "."))
+            rkey = self.core().instance_name + '.proxy.router.pubsub'
             sub_msg = jsonapi.dumps(
                 dict(prefix=prefix, bus=bus, all_platforms=all_platforms)
             )
-
-            frames = [b'subscribe', sub_msg]
-            self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
-            return result
-
-    def rabbitmq_subscribe(self, prefix, callback, all_platforms=False, persistent_queue=None):
-        result = None
-        routing_key = '__pubsub__.'
-        queue_name = None
-        if all_platforms:
-            #'__pubsub__.*.<prefix>.#'
-            routing_key += '*.' + prefix.replace("/",".")+".#"
-        else:
-            routing_key += self.core.instance_name + '.' + prefix.replace("/",".")+".#"
+            # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
+            frames = [self.core().identity, b'', b'VIP1', b'', b'', b'pubsub', b'subscribe', sub_msg]
+            connection.channel.basic_publish(exchange=connection.exchange,
+                                             routing_key=rkey,
+                                             body=jsonapi.dumps(frames, ensure_ascii=False))
 
         if persistent_queue:
-            self._channel.queue_declare(queue=persistent_queue, exclusive=True)
+            connection.channel.queue_declare(queue=persistent_queue, exclusive=True)
             queue_name = persistent_queue
         else:
-            result = self._channel.queue_declare(exclusive=False)
-            queue_name = result.method.queue
-        #Store subscriptions for later use
-        self._add_subscription(prefix, queue_name, callback)
-        self._channel.queue_bind(exchange=self._exchange,
-                                 queue=queue_name,
-                                 routing_key=routing_key)
-        self._channel.basic_consume(callback,
-                                    queue=queue_name,
-                                    no_ack=True)
+            queue_name = "volttron.{}".format(bytes(uuid.uuid4()))
+            result = connection.channel.queue_declare(self.on_queue_declare_ok,
+                                                      queue=queue_name,
+                                                      durable=False,
+                                                      exclusive=False)
+        self._logger.debug("PUBUB subscribing to {}".format(routing_key))
+
+        def rmq_callback(ch, method, properties, body):
+            # Strip prefix from routing key
+            topic = str(method.routing_key)
+            _, _, topic = topic.split(".", 2)
+            topic = topic.replace(".", "/")
+            try:
+                msg = jsonapi.loads(body)
+                headers = msg['headers']
+                message = msg['message']
+                bus = msg['bus']
+                sender = msg['sender']
+                callback('pubsub', sender, bus, topic, headers, message)
+            except KeyError as esc:
+                self._logger.error("Missing keys in pubsub message {}".format(esc))
+
+        # Store subscriptions for later use
+        self._add_subscription(prefix, callback, queue_name)
+        connection.channel.queue_bind(self.on_bind_ok,
+                                      exchange=connection.exchange,
+                                      queue=queue_name,
+                                      routing_key=routing_key)
+        connection.channel.basic_consume(rmq_callback,
+                                         queue=queue_name,
+                                         no_ack=True)
         return result
 
     def _on_queue_declareok(self, method_frame):
+        self._logger.debug("queue declared")
 
     @subscribe.classmethod
-    def subscribe(cls, peer, prefix, bus='', all_platforms=False):
+    def subscribe(cls, peer, prefix, bus='', all_platforms=False, persistent_queue=None):
         def decorate(method):
-            annotate(method, set, 'pubsub.subscriptions', (peer, bus, prefix, all_platforms))
+            annotate(method, set, 'pubsub.subscriptions', (peer, prefix, all_platforms, persistent_queue))
             return method
         return decorate
 
@@ -293,14 +283,79 @@ class RMQPubSub(BasePubSub):
         :Return Values:
         Number of subscribers
         """
-        routing_key = '__pubsub__.' + self._instance_name + '.' + topic.replace('\/', '.')
+        result = next(self._results)
+        self._pubcount[self._message_number] = result.ident
+        self._message_number += 1
+        topicx = topic.replace("/", ".")
+        routing_key = '__pubsub__.' + self.core().instance_name + '.' + topic.replace("/", ".")
+        connection = self.core().connection
+        self.core().spawn_later(0.01, self.set_result, result.ident)
         if headers is None:
             headers = {}
+
         headers['min_compatible_version'] = min_compatible_version
         headers['max_compatible_version'] = max_compatible_version
-        self._channel.basic_publish(exchange=self._exchange,
-                              routing_key=routing_key,
-                              body=str(message))
+        # self._logger.debug("PUBSUB publish message To. {0}, {1}, {2}, {3} ".format(routing_key,
+        #                                                                        self.core().identity,
+        #                                                                        message,
+        #                                                                        result.ident))
+
+        # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
+        dct = {
+            'app_id': connection.routing_key,  # SENDER
+            'headers': dict(recipient=b'',  # RECEIVER
+                            proto=b'VIP',  # PROTO
+                            userid=b'',    # USER_ID
+                            ),
+            'message_id': result.ident,  # MSG_ID
+            'type': 'pubsub',  # SUBSYS
+            'content_type': 'application/json'
+        }
+        properties = pika.BasicProperties(**dct)
+        json_msg = dict(sender=self.core().identity, bus=bus, headers=headers, message=message)
+        connection.channel.basic_publish(exchange=connection.exchange,
+                                         routing_key=routing_key,
+                                         properties=properties,
+                                         body=jsonapi.dumps(json_msg, ensure_ascii=False))
+                                         #body=str(message))
+        return result
+
+    def set_result(self, ident):
+        try:
+            result = self._results.pop(bytes(ident))
+            if result:
+                result.set(2)
+        except KeyError:
+            pass
+
+    def on_delivery_confirmation(self, method_frame):
+        """Invoked by pika when RabbitMQ responds to a Basic.Publish RPC
+        command, passing in either a Basic.Ack or Basic.Nack frame with
+        the delivery tag of the message that was published. The delivery tag
+        is an integer counter indicating the message number that was sent
+        on the channel via Basic.Publish. Here we're just doing house keeping
+        to keep track of stats and remove message numbers that we expect
+        a delivery confirmation of from the list used to keep track of messages
+        that are pending confirmation.
+
+        :param pika.frame.Method method_frame: Basic.Ack or Basic.Nack frame
+
+        """
+        try:
+            delivery_number = method_frame.method.delivery_tag
+            self._logger.info("PUBSUB Delivery confirmation {0}, pending {1}, ".
+                              format(method_frame.method.delivery_tag, len(self._pubcount)))
+            ident = self._pubcount.pop(delivery_number, None)
+            if ident:
+                result = None
+                try:
+                    result = self._results.pop(bytes(ident))
+                    if result:
+                        result.set(delivery_number)
+                except KeyError:
+                    pass
+        except TypeError:
+            pass
 
 
     def unsubscribe(self, peer, prefix, callback, bus='', all_platforms=False):
@@ -322,31 +377,57 @@ class RMQPubSub(BasePubSub):
         :Return Values:
         success or not
         """
-
-        # For backward compatibility with old pubsub
-        if self._send_via_rpc == True:
-            topics = self._drop_subscription(prefix, callback, bus)
-            return self.rpc().call(peer, 'pubsub.unsubscribe', topics, bus=bus)
-        else:
-            subscriptions = dict()
-            result = next(self._results)
-            if not all_platforms:
-                platform = 'internal'
-                topics = self._drop_subscription(prefix, callback, bus, platform)
-                subscriptions[platform] = dict(prefix=topics, bus=bus)
-            else:
+        routing_key = None
+        platform = 'internal'
+        if prefix:
+            if all_platforms:
                 platform = 'all'
-                topics = self._drop_subscription(prefix, callback, bus, platform)
-                subscriptions[platform] = dict(prefix=topics, bus=bus)
+                routing_key = '__pubsub__.' + '*.' + prefix.replace('\/', '.') + '.#'
+            else:
+                routing_key = '__pubsub__.' + self._instance_name + '.' + prefix.replace('\/', '.') + '.#'
+        topics = self._drop_subscription(routing_key, callback)
 
-            # Parameters are stored initially, in case remote agent/platform is using old pubsub
-            if self._parameters_needed:
-                kwargs = dict(op='unsubscribe', prefix=topics, bus=bus)
-                self._save_parameters(result.ident, **kwargs)
+        if all_platforms: # Send it proxy router to send it to external 'zmq' platforms
+            subscriptions = dict()
+            subscriptions['all'] = dict(prefix=topics, bus=bus)
+            rkey = self.core().instance_name + '.proxy.router.pubsub'
+            frames = [self.core().identity, b'', b'VIP1', b'', b'', b'pubsub',
+                      b'unsubscribe', jsonapi.dumps(subscriptions)]
+            self.core().connection.channel.basic_publish(exchange=self.core().connection.exchange,
+                                             routing_key=rkey,
+                                             body=frames)
+        return topics
 
-            unsub_msg = jsonapi.dumps(subscriptions)
-            topics = self._drop_subscription(prefix, callback, bus)
-            frames = [b'unsubscribe', unsub_msg]
-            self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
-            return result
-
+    def _drop_subscription(self, routing_key, callback):
+        topics = []
+        remove = []
+        subscriptions = set()
+        if routing_key is None:
+            if callback is None:
+                return []
+            else:
+                for key in self._my_subscriptions:
+                    subscriptions = self._my_subscriptions[key]
+                    for queue, cback in subscriptions:
+                        if callback == cback:
+                            #Delete queue
+                            self.core().connection.channel.queue_delete(queue)
+                        topics.append(key)
+                        remove.append((queue, cback))
+                    for subs in remove:
+                        subscriptions.remove(subs)
+                if not topics:
+                    raise KeyError('no such subscription')
+        else:
+            if routing_key in self._my_subscriptions:
+                topics.append(routing_key)
+                subscriptions = self._my_subscriptions[routing_key]
+                for queue, cback in subscriptions:
+                    if cback is None or callback == cback:
+                        self.core().connection.channel.queue_delete(queue)
+                    remove.append((queue,cback))
+                for subs in remove:
+                    subscriptions.remove(subs)
+                if not subscriptions:
+                    del subscriptions[routing_key]
+        return topics

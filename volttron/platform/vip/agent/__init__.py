@@ -50,7 +50,6 @@ from .subsystems import *
 from .... import platform
 from .... platform.agent.utils import is_valid_identity
 
-
 class Agent(object):
     class Subsystems(object):
         def __init__(self, owner, core, heartbeat_autostart,

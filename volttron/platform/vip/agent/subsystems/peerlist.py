@@ -62,7 +62,7 @@ class PeerList(SubsystemBase):
         self.ondrop = Signal()
 
     def list(self):
-        socket = self.core().socket
+        connection = self.core().connection
         result = next(self._results)
         #socket.send_vip(b'', b'peerlist', [b'list'], result.ident)
         connection.send_vip_object(Message(peer=b'',
