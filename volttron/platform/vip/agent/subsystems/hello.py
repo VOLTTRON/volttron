@@ -46,6 +46,7 @@ from ..errors import VIPError
 from ..results import ResultsDictionary
 from zmq import ZMQError
 from zmq.green import ENOTSOCK
+from volttron.platform.vip.socket import Message
 
 __all__ = ['Hello']
 
@@ -64,6 +65,7 @@ class Hello(SubsystemBase):
 
     def __init__(self, core):
         self.core = weakref.ref(core)
+        self.connection = self.core().connection
         self._results = ResultsDictionary()
         core.register('hello', self._handle_hello, self._handle_error)
 
@@ -86,7 +88,11 @@ class Hello(SubsystemBase):
         socket = self.core().socket
         result = next(self._results)
         try:
-            socket.send_vip(peer, b'hello', [b'hello'], msg_id=result.ident)
+            self.connection.send_vip_object(Message(peer=peer,
+                                                    subsystem=b'hello',
+                                                    args=[b'hello'],
+                                                    id=result.ident))
+            #socket.send_vip(peer, b'hello', [b'hello'], msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.debug("Socket send on non socket {}".format(self.core().identity))
@@ -103,10 +109,11 @@ class Hello(SubsystemBase):
             _log.error('missing hello subsystem operation')
             return
         if op == b'hello':
-            socket = self.core().socket
+            #socket = self.core().socket
             message.user = b''
-            message.args = [b'welcome', b'1.0', socket.identity, message.peer]
-            socket.send_vip_object(message, copy=False)
+            message.args = [b'welcome', b'1.0', self.core.identity, message.peer]
+            #socket.send_vip_object(message, copy=False)
+            self.connection.send_vip_object(message, copy=False)
         elif op == b'welcome':
             try:
                 result = self._results.pop(bytes(message.id))

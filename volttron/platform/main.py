@@ -69,7 +69,7 @@ from . import config
 from . import vip
 from .vip.agent import Agent, Core
 from .vip.agent.compat import CompatPubSub
-from .vip.router import *
+from .vip.zmq_router import *
 from .vip.socket import decode_key, encode_key, Address
 from .vip.tracking import Tracker
 from .auth import AuthService, AuthFile, AuthEntry
@@ -244,7 +244,7 @@ class FramesFormatter(object):
     __str__ = __repr__
 
 
-class Router(BaseRouter):
+class Router(ZMQRouter):
     '''Concrete VIP router.'''
 
     def __init__(self, local_address, addresses=(),
@@ -360,7 +360,7 @@ class Router(BaseRouter):
         subsystem = bytes(frames[5])
         if subsystem == b'quit':
             sender = bytes(frames[0])
-            if sender == b'control' or b'platform.auth' and user_id == self.default_user_id:
+            if sender == b'control' and user_id == self.default_user_id:
                 if self._ext_routing:
                     self._ext_routing.close_external_connections()
                 self.stop()
@@ -657,8 +657,6 @@ def start_volttron_process(opts):
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise
-        except KeyboardInterrupt:
-            pass
         finally:
             stop()
 
@@ -780,13 +778,11 @@ def start_volttron_process(opts):
         try:
             gevent.wait(tasks, count=1)
         except KeyboardInterrupt:
-            _log.debug('SIGINT received; shutting down')
-        finally:
+            _log.info('SIGINT received; shutting down')
             sys.stderr.write('Shutting down.\n')
             for task in tasks:
                 task.kill(block=False)
             gevent.wait(tasks)
-            del tasks
     finally:
         opts.aip.finish()
 

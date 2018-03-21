@@ -85,6 +85,7 @@ class PubSubService(object):
         if self._ext_router is not None:
             self._ext_router.register('on_connect', self.external_platform_add)
             self._ext_router.register('on_disconnect', self.external_platform_drop)
+        self._proxy_agent = None
 
     def _add_peer_subscription(self, peer, bus, prefix, platform='internal'):
         """
@@ -111,6 +112,9 @@ class PubSubService(object):
     def peer_add(self, peer):
         #To do
         temp = {}
+
+    def add_proxy_agent(self, agent):
+        self._proxy_agent = agent
 
     def external_platform_add(self, instance_name):
         self._logger.debug("PUBSUBSERVICE send subs external {}".format(instance_name))
@@ -194,9 +198,13 @@ class PubSubService(object):
             return False
         else:
             self._logger.debug("Subscribe before: {}".format(self._peer_subscriptions))
-            data = frames[7].bytes
+            if isinstance(frames[7], str): data = bytes(frames[7])
+            else: data = frames[7].bytes
+
             msg = jsonapi.loads(data)
-            peer = frames[0].bytes
+            if isinstance(frames[0], str): peer = bytes(frames[0])
+            else: peer = frames[0].bytes
+
             try:
                 prefix = msg['prefix']
                 bus = msg['bus']
@@ -210,6 +218,9 @@ class PubSubService(object):
                 platform = 'all'
             else:
                 platform = 'internal'
+                if self._proxy_agent:
+                    # Subscribe to RMQ bus
+                    self._proxy_agent.vip.pubsub.subscribe(prefix, self.publish_callback, all_platforms=is_all)
 
             for prefix in prefix if isinstance(prefix, list) else [prefix]:
                 self._add_peer_subscription(peer, bus, prefix, platform)
@@ -305,6 +316,8 @@ class PubSubService(object):
             except ValueError:
                 self._logger.error("JSON decode error. Invalid character")
                 return 0
+            if self._proxy_agent:
+                self._publish_rmq_bus(frames)
             return self._distribute(frames, user_id)
 
     def _peer_list(self, frames):
@@ -405,9 +418,9 @@ class PubSubService(object):
         :param frames: list of frames
         :return: Number of local subscribers
         """
-        publisher = frames[0].bytes
-        topic = frames[7].bytes
-        data = frames[8].bytes
+        publisher = bytes(frames[0])
+        topic = bytes(frames[7])
+        data = bytes(frames[8])
         try:
             msg = jsonapi.loads(data)
             bus = msg['bus']
@@ -587,8 +600,7 @@ class PubSubService(object):
             self._protected_topics = topics
             self._logger.info('protected-topics loaded')
 
-
-    def handle_subsystem(self, frames, user_id):
+    def handle_subsystem(self, frames, user_id=b''):
         """
          Handler for incoming pubsub frames. It checks operation frame and directs it for appropriate action handler.
         :param frames list of frames
@@ -770,6 +782,8 @@ class PubSubService(object):
             # Make it an internal publish
             frames[6] = 'publish'
             subscribers_count = self._distribute_internal(frames)
+            if self._proxy_agent:
+                self._publish_rmq_bus(frames)
             # There are no subscribers, send error message back to source platform
             if subscribers_count == 0:
                 try:
@@ -796,6 +810,38 @@ class PubSubService(object):
             if error_type == INVALID_REQUEST:
                 topic = frames[8].bytes
                 #Remove subscriber for that topic
+
+    def publish_callback(self, peer, sender, bus,  topic, headers, message):
+        """
+
+        :param peer:
+        :param sender:
+        :param bus:
+        :param topic:
+        :param headers:
+        :param message:
+        :return:
+        """
+        json_msg = jsonapi.dumps(dict(sender=peer, bus=bus, headers=headers, message=message))
+        frames = [sender, b'', b'VIP1', '', '', b'pubsub', b'publish', topic, json_msg]
+        # Send it through ZMQ bus
+        self._distribute(frames, '')
+
+    def _publish_rmq_bus(self, frames):
+        publisher = bytes(frames[0])
+        topic = bytes(frames[7])
+        data = bytes(frames[8])
+        try:
+            msg = jsonapi.loads(data)
+            bus = msg['bus']
+        except KeyError as exc:
+            self._logger.error("Missing key in _peer_publish message {}".format(exc))
+            return 0
+        except ValueError:
+            self._logger.error("JSON decode error. Invalid character")
+            return 0
+        if self._proxy_agent:
+            self._proxy_agent.vip.pubsub.publish('pubsub', topic, msg['headers'], msg['message'], bus=bus)
 
 class ProtectedPubSubTopics(object):
     '''Simple class to contain protected pubsub topics'''

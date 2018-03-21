@@ -55,12 +55,15 @@ class Agent(object):
     class Subsystems(object):
         def __init__(self, owner, core, heartbeat_autostart,
                      heartbeat_period, enable_store, enable_web,
-                     enable_channel):
+                     enable_channel, message_bus):
             self.peerlist = PeerList(core)
             self.ping = Ping(core)
             self.rpc = RPC(core, owner)
             self.hello = Hello(core)
-            self.pubsub = PubSub(core, self.rpc, self.peerlist, owner)
+            if message_bus == 'rmq':
+                self.pubsub = RMQPubSub(core, self.rpc, self.peerlist, owner)
+            else:
+                self.pubsub = PubSub(core, self.rpc, self.peerlist, owner)
             if enable_channel:
                 self.channel = Channel(core)
             self.health = Health(owner, core, self.rpc)
@@ -78,7 +81,7 @@ class Agent(object):
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, enable_store=True,
                  enable_web=False, enable_channel=False,
-                 reconnect_interval=None, version='0.1'):
+                 reconnect_interval=None, version='0.1', message_bus='rmq'):
 
         self._version = version
 
@@ -88,16 +91,24 @@ class Agent(object):
                 'All characters in {identity} are not in the valid set.'.format(
                     identity=identity))
 
-        self.core = Core(self, identity=identity, address=address,
+        if message_bus == 'rmq':
+            self.core = RMQCore(self, identity=identity, address=address,
                          context=context, publickey=publickey,
                          secretkey=secretkey, serverkey=serverkey,
                          volttron_home=volttron_home, agent_uuid=agent_uuid,
                          reconnect_interval=reconnect_interval,
                          version=version)
+        else:
+            self.core = ZMQCore(self, identity=identity, address=address,
+                                context=context, publickey=publickey,
+                                secretkey=secretkey, serverkey=serverkey,
+                                volttron_home=volttron_home, agent_uuid=agent_uuid,
+                                reconnect_interval=reconnect_interval,
+                                version=version)
 
         self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
                                     heartbeat_period, enable_store, enable_web,
-                                    enable_channel)
+                                    enable_channel, message_bus)
         self.core.setup()
         self.vip.rpc.export(self.core.version, 'agent.version')
 

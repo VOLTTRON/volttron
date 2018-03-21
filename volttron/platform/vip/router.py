@@ -85,6 +85,7 @@ class BaseRouter(object):
 
     _context_class = zmq.Context
     _socket_class = zmq.Socket
+    _poller_class = zmq.Poller
 
     def __init__(self, context=None, default_user_id=None):
         '''Initialize the object instance.
@@ -96,7 +97,7 @@ class BaseRouter(object):
         self.default_user_id = default_user_id
         self.socket = None
         self._peers = set()
-        self._poller = zmq.Poller()
+        self._poller = self._poller_class()
         self._ext_sockets = []
         self._socket_id_mapping = {}
 
@@ -238,7 +239,7 @@ class BaseRouter(object):
         self._distribute(b'peerlist', b'drop', peer)
         self._drop_pubsub_peers(peer)
 
-    def route(self):
+    def route(self, frames):
         '''Route one message and return.
 
         One message is read from the socket and processed. If the
