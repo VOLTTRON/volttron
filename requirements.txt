@@ -22,4 +22,6 @@ tzlocal==1.2.2
 ujson==1.35
 ws4py==0.3.5
 zope.interface==4.3.2
-pika==0.11.0
+modbus-tk==0.5.8
+PyYAML==3.12
+pika=0.11.0

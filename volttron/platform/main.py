@@ -1,57 +1,38 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2017, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2017, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
@@ -71,6 +52,7 @@ import struct
 import sys
 import threading
 import uuid
+import signal
 
 import gevent
 from gevent.fileobject import FileObject
@@ -378,7 +360,7 @@ class Router(BaseRouter):
         subsystem = bytes(frames[5])
         if subsystem == b'quit':
             sender = bytes(frames[0])
-            if sender == b'control' and user_id == self.default_user_id:
+            if sender == b'control' or b'platform.auth' and user_id == self.default_user_id:
                 if self._ext_routing:
                     self._ext_routing.close_external_connections()
                 self.stop()
@@ -615,6 +597,7 @@ def start_volttron_process(opts):
         if opts.resource_monitor:
             _log.info('Resource monitor enabled')
             opts.resmon = resmon.ResourceMonitor()
+
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
 
@@ -674,11 +657,29 @@ def start_volttron_process(opts):
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise
+        except KeyboardInterrupt:
+            pass
         finally:
             stop()
 
     address = 'inproc://vip'
     try:
+        def on_sigint_handler(signo, *_):
+            '''
+            Event handler to set onstop event when the platform wants to shutdown
+            :param signo: signal interrupt number
+            :param _:
+            :return:
+            '''
+            if signo == signal.SIGINT:
+                _log.info('SIGINT received; shutting down platform')
+                auth.core.socket.send_vip(b'', b'quit')
+
+        oninterrupt = None
+        prev_int_signal = gevent.signal.getsignal(signal.SIGINT)
+        # To override default handler
+        if prev_int_signal in [None, signal.SIG_IGN, signal.SIG_DFL, signal.default_int_handler]:
+            oninterrupt = gevent.signal.signal(signal.SIGINT, on_sigint_handler)
 
         # Start the config store before auth so we may one day have auth use it.
         config_store = ConfigStoreService(address=address, identity=CONFIGURATION_STORE)
@@ -705,6 +706,7 @@ def start_volttron_process(opts):
         thread = threading.Thread(target=router, args=(auth.core.stop,))
         thread.daemon = True
         thread.start()
+
 
         gevent.sleep(0.1)
         if not thread.isAlive():
@@ -778,14 +780,15 @@ def start_volttron_process(opts):
         try:
             gevent.wait(tasks, count=1)
         except KeyboardInterrupt:
-            _log.info('SIGINT received; shutting down')
+            _log.debug('SIGINT received; shutting down')
+        finally:
             sys.stderr.write('Shutting down.\n')
             for task in tasks:
                 task.kill(block=False)
             gevent.wait(tasks)
+            del tasks
     finally:
         opts.aip.finish()
-
 
 def main(argv=sys.argv):
     # Refuse to run as root

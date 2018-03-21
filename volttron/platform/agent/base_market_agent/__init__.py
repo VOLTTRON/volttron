@@ -1,71 +1,50 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2017, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
 
 import logging
 
-from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import PubSub
 from volttron.platform.vip.agent import Agent
 from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID, MARKET_CLEAR, MARKET_AGGREGATE, MARKET_ERROR
 from volttron.platform.agent.base_market_agent.registration_manager import RegistrationManager
 from volttron.platform.agent.base_market_agent.poly_line_factory import PolyLineFactory
-from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.agent.base_market_agent.rpc_proxy import RpcProxy
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
@@ -81,8 +60,8 @@ class MarketAgent(Agent):
     def __init__(self, verbose_logging = True, **kwargs):
         super(MarketAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
-        self.registrations = RegistrationManager(self)
-        self.has_reservation = False
+        rpc_proxy = RpcProxy(self.vip.rpc.call, verbose_logging)
+        self.registrations = RegistrationManager(rpc_proxy)
         self.verbose_logging = verbose_logging
 
     @PubSub.subscribe('pubsub', MARKET_RESERVE)
@@ -96,9 +75,10 @@ class MarketAgent(Agent):
     @PubSub.subscribe('pubsub', MARKET_BID)
     def match_make_offer(self, peer, sender, bus, topic, headers, message):
         timestamp = utils.parse_timestamp_string(message[0])
+        unformed_markets = message[1]
         decoded_message = "Timestamp: {}".format(timestamp)
         self.log_event("match_make_offer", peer, sender, bus, topic, headers, decoded_message)
-        self.registrations.request_offers(timestamp)
+        self.registrations.request_offers(timestamp, unformed_markets)
 
     @PubSub.subscribe('pubsub', MARKET_CLEAR)
     def match_report_clear_price(self, peer, sender, bus, topic, headers, message):
@@ -179,22 +159,6 @@ class MarketAgent(Agent):
                                           reservation_callback, offer_callback,
                                           aggregate_callback, price_callback, error_callback)
 
-    def make_reservation(self, market_name, buyer_seller):
-        """
-        This call makes a reservation with the MarketService.  This allows the agent to submit a bid and receive
-        a cleared market price.
-
-        :param market_name: The name of the market commodity.
-
-        :param buyer_seller: A string indicating whether the agent is buying from or selling to the market.
-        The agent shall use the pre-defined strings provided.
-        """
-        try:
-            self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_reservation', market_name, buyer_seller).get(timeout=5.0)
-            self.has_reservation = True
-        except RemoteError as e:
-            self.has_reservation = False
-
     def make_offer(self, market_name, buyer_seller, curve):
         """
         This call makes an offer with the MarketService.
@@ -206,16 +170,6 @@ class MarketAgent(Agent):
 
         :param curve: The demand curve for buyers or the supply curve for sellers.
         """
-        try:
-            self.vip.rpc.call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller,
-                              curve.tuppleize()).get(timeout=5.0)
-            result = (True, None)
-            if self.verbose_logging:
-                _log.debug("Market: {} {} has made an offer Curve: {}".format(market_name,
-                                                                                       buyer_seller,
-                                                                                       curve.points))
-        except RemoteError as e:
-            result = (False, e.message)
-            _log.info("Market: {} {} has had an offer rejected because {}".format(market_name, buyer_seller, e.message))
+        result = self.registrations.make_offer(market_name, buyer_seller, curve)
         return result
 

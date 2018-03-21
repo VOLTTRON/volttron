@@ -1,57 +1,39 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2017, Battelle Memorial Institute
-# All rights reserved.
+# Copyright 2017, Battelle Memorial Institute.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# 1. Redistributions of source code must retain the above copyright notice,
-#    this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-# THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
-# OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# The views and conclusions contained in the software and documentation are
-# those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD Project.
-#
-
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization
-# that has cooperated in the development of these materials, makes
-# any warranty, express or implied, or assumes any legal liability
-# or responsibility for the accuracy, completeness, or usefulness or
-# any information, apparatus, product, software, or process disclosed,
-# or represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does
-# not necessarily constitute or imply its endorsement, recommendation,
-# r favoring by the United States Government or any agency thereof,
-# or Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
 from __future__ import absolute_import, print_function
 
@@ -168,13 +150,19 @@ class SQLHistorian(BaseHistorian):
         self.bg_thread_dbutils.record_table_definitions(self.tables_def,
                                              meta_table_name)
 
+    def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
+        """
+        Optional function to manage database size.
+        """
+        self.bg_thread_dbutils.manage_db_size(history_limit_timestamp,
+                                              storage_limit_gb)
+
     @doc_inherit
     def publish_to_historian(self, to_publish_list):
         thread_name = threading.currentThread().getName()
-        _log.debug(
-            "publish_to_historian number of items: {} Thread: {}:{}".format(
-                len(to_publish_list), threading.current_thread(), thread_name))
-
+        #_log.debug(
+        #    "publish_to_historian number of items: {} Thread: {}:{}".format(
+        #        len(to_publish_list), threading.current_thread(), thread_name))
 
         try:
             real_published = []
@@ -190,10 +178,8 @@ class SQLHistorian(BaseHistorian):
                 topic_id = self.topic_id_map.get(lowercase_name, None)
                 db_topic_name = self.topic_name_map.get(lowercase_name,
                                                         None)
-                _log.debug('topic is {}, db topic is {}'.format(
-                    topic, db_topic_name))
                 if topic_id is None:
-                    _log.debug('Inserting topic: {}'.format(topic))
+                    # _log.debug('Inserting topic: {}'.format(topic))
                     # Insert topic name as is in db
                     row = self.bg_thread_dbutils.insert_topic(topic)
                     topic_id = row[0]
@@ -201,17 +187,17 @@ class SQLHistorian(BaseHistorian):
                     # for case insensitive comparison
                     self.topic_id_map[lowercase_name] = topic_id
                     self.topic_name_map[lowercase_name] = topic
-                    _log.debug('TopicId: {} => {}'.format(topic_id, topic))
+                    # _log.debug('TopicId: {} => {}'.format(topic_id, topic))
                 elif db_topic_name != topic:
-                    _log.debug('Updating topic: {}'.format(topic))
+                    # _log.debug('Updating topic: {}'.format(topic))
                     self.bg_thread_dbutils.update_topic(topic, topic_id)
                     self.topic_name_map[lowercase_name] = topic
 
                 old_meta = self.topic_meta.get(topic_id, {})
                 if set(old_meta.items()) != set(meta.items()):
-                    _log.debug(
-                        'Updating meta for topic: {} {}'.format(topic,
-                                                                meta))
+                    # _log.debug(
+                    #    'Updating meta for topic: {} {}'.format(topic,
+                    #                                            meta))
                     self.bg_thread_dbutils.insert_meta(topic_id, meta)
                     self.topic_meta[topic_id] = meta
 
@@ -221,8 +207,8 @@ class SQLHistorian(BaseHistorian):
 
             if len(real_published) > 0:
                 if self.bg_thread_dbutils.commit():
-                    _log.debug('published {} data values'.format(
-                        len(to_publish_list)))
+                    # _log.debug('published {} data values'.format(
+                    #     len(to_publish_list)))
                     self.report_all_handled()
                 else:
                     msg = 'commit error. rolling back {} values.'
@@ -355,7 +341,7 @@ class SQLHistorian(BaseHistorian):
 
             if values:
                 metadata = self.topic_meta.get(meta_tid, {})
-                _log.debug("metadata is {}".format(metadata))
+                # _log.debug("metadata is {}".format(metadata))
                 results = {'values': values, 'metadata': metadata}
             else:
                 results = dict()
@@ -375,7 +361,7 @@ class SQLHistorian(BaseHistorian):
         topic_id_map, topic_name_map = self.bg_thread_dbutils.get_topic_map()
         self.topic_id_map.update(topic_id_map)
         self.topic_name_map.update(topic_name_map)
-        _log.debug("updated topic name map. {}".format(self.topic_name_map))
+        #_log.debug("updated topic name map. {}".format(self.topic_name_map))
         self.agg_topic_id_map = self.bg_thread_dbutils.get_agg_topic_map()
 
 

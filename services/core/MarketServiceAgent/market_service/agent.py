@@ -1,59 +1,39 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2017, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
 
 """
@@ -105,9 +85,8 @@ import sys
 from transitions import Machine
 from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
 from volttron.platform.agent import utils
-from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID, MARKET_ERROR
+from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID
 from volttron.platform.vip.agent import Agent, Core, RPC
-from volttron.platform.agent.base_market_agent.error_codes import NOT_FORMED
 from market_service.director import Director
 from market_service.market_list import MarketList
 from market_service.market_participant import MarketParticipant
@@ -184,6 +163,7 @@ class MarketServiceAgent(Agent):
     def send_collect_reservations_request(self, timestamp):
         _log.debug("send_collect_reservations_request at {}".format(timestamp))
         self.start_reservations()
+        self.market_list.send_market_failure_errors()
         self.market_list.clear_reservations()
         self.vip.pubsub.publish(peer='pubsub',
                                 topic=MARKET_RESERVE,
@@ -199,10 +179,10 @@ class MarketServiceAgent(Agent):
         _log.debug("send_collect_offers_request at {}".format(timestamp))
         self.start_offers_has_markets()
         self.market_list.collect_offers()
-        self._send_unformed_market_errors(timestamp)
+        unformed_markets = self.market_list.unformed_market_list()
         self.vip.pubsub.publish(peer='pubsub',
                                 topic=MARKET_BID,
-                                message=utils.format_timestamp(timestamp))
+                                message=[utils.format_timestamp(timestamp), unformed_markets])
 
     @RPC.export
     def make_reservation(self, market_name, buyer_seller):
@@ -242,15 +222,6 @@ class MarketServiceAgent(Agent):
     def reject_offer(self, buyer_seller, identity, market_name, offer):
         _log.info("Offer on Market: {} {} made by {} was rejected.".format(market_name, buyer_seller, identity))
         raise RuntimeError("Error: Market service not accepting offers at this time.")
-
-    def _send_unformed_market_errors(self, timestamp):
-        unformed_markets = self.market_list.unformed_market_list()
-        for market_name in unformed_markets:
-            log_message = "Sent unformed market error for market {}".format(market_name)
-            _log.info(log_message)
-            self.vip.pubsub.publish(peer='pubsub',
-                                    topic=MARKET_ERROR,
-                                    message=[timestamp, market_name, NOT_FORMED, 'Error: market {} does not have both a buyer and a seller.'.format(market_name), None])
 
     def has_any_markets(self):
         unformed_markets = self.market_list.unformed_market_list()

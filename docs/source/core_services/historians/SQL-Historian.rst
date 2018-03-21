@@ -65,7 +65,7 @@ will respect a rooted or relative path to the database.
         "connection": {
             "type": "sqlite",
             "params": {
-                "database": "data/historian.sqlite",
+                "database": "data/historian.sqlite"
             }
         }
     }
