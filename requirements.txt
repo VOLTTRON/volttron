@@ -24,4 +24,4 @@ ws4py==0.3.5
 zope.interface==4.3.2
 modbus-tk==0.5.8
 PyYAML==3.12
-pika=0.11.0
+

@@ -89,7 +89,7 @@ class ListenerAgent(Agent):
         # Demonstrate accessing a value from the config file
         _log.info(self.config.get('message', DEFAULT_MESSAGE))
         self._agent_id = self.config.get('agentid')
-        self.vip.pubsub.rabbitmq_subscribe(prefix="devices", callback=self.rmq_callback)
+        self.vip.pubsub.subscribe(prefix="devices", callback=self.on_match)
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
