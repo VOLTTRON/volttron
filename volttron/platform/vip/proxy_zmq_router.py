@@ -268,8 +268,8 @@ class ZMQProxyRouter(Agent):
         sender, recipient, proto, auth_token, msg_id, subsystem = frames[:6]
         args = frames[6:]
         args = [bytes(arg) for arg in args]
-        for f in frames:
-            _log.debug("Frames:; {}".format(bytes(f)))
+        # for f in frames:
+        #     _log.debug("Frames:; {}".format(bytes(f)))
         connection = self.core.connection
 
         app_id = "{0}.{1}".format(self.core.instance_name, bytes(sender))
