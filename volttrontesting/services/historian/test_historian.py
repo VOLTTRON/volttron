@@ -68,9 +68,10 @@ following
 
 
 """
+
+import ast
 import copy
 from datetime import datetime, timedelta
-import os
 import random
 import sqlite3
 import sys
@@ -82,7 +83,6 @@ import re
 import pytz
 
 from volttron.platform import get_volttron_root, get_services_core
-from volttron.platform.agent import PublishMixin
 from volttron.platform.agent import utils
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import headers as headers_mod
@@ -120,12 +120,35 @@ try:
 except:
     HAS_PYMONGO = False
 
+try:
+    import psycopg2
+    import psycopg2.errorcodes
+    from psycopg2 import sql as pgsql
+
+    HAS_POSTGRESQL = True
+except:
+    HAS_POSTGRESQL = False
+
+redshift_params = {}
+if HAS_POSTGRESQL:
+    try:
+        with open('redshift.params') as file:
+            redshift_params = ast.literal_eval(file.read(4096))
+    except OSError:
+        pass
+
 mysql_skipif = pytest.mark.skipif(not HAS_MYSQL_CONNECTOR,
                                   reason='No mysql connector available')
 pymongo_skipif = pytest.mark.skipif(not HAS_PYMONGO,
                                     reason='No pymongo client available.')
 crate_skipif = pytest.mark.skipif(not HAS_CRATE_CONNECTOR,
                                   reason='No crate client available.')
+postgresql_skipif = pytest.mark.skipif(not HAS_POSTGRESQL,
+                                       reason='No psycopg2 client available')
+redshift_skipif = pytest.mark.skipif(
+    not redshift_params, reason='No {} available'.format(
+        'redshift params' if HAS_POSTGRESQL else 'psycopg2 client'))
+
 # Module level variables
 DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
 MICROSECOND_PRECISION = 0
@@ -193,6 +216,24 @@ mongo_platform = {
             "passwd": "test"
         }
     }
+}
+
+postgresql_platform = {
+    'source_historian': get_services_core('SQLHistorian'),
+    'connection': {
+        'type': 'postgresql',
+        'params': {
+            'dbname': 'historian_test',
+        },
+    },
+}
+
+redshift_platform = {
+    'source_historian': get_services_core('SQLHistorian'),
+    'connection': {
+        'type': 'redshift',
+        'params': redshift_params,
+    },
 }
 
 offset = timedelta(seconds=3)
@@ -273,6 +314,22 @@ def setup_mongodb(connection_params, table_names):
     db["volttron_table_definitions"].remove()
     return db, 3
 
+def setup_postgresql(connection_params, table_names):
+    print("setup postgresql", connection_params, table_names)
+    connection = psycopg2.connect(**connection_params)
+    connection.autocommit = True
+    prefix = table_names.get('table_prefix')
+    fmt = (prefix + '_{}' if prefix else '{}').format
+    truncate_tables = [fmt(name) for id_, name in table_names.items()
+                       if id_ != 'table_prefix' and name]
+    truncate_tables.append(fmt('volttron_table_definitions'))
+    try:
+        cleanup_postgresql(connection, truncate_tables)
+    except Exception as exc:
+        print('Error truncating existing tables: {}'.format(exc))
+    return connection, 6
+
+setup_redshift = setup_postgresql
 
 def cleanup_sql(db_connection, truncate_tables):
     cursor = db_connection.cursor()
@@ -298,6 +355,20 @@ def cleanup_mongodb(db_connection, truncate_tables):
 def cleanup_crate(db_connection, truncate_tables):
     crate_utils.drop_schema(db_connection, truncate_tables,
                             schema=crate_platform['schema'])
+
+def cleanup_postgresql(connection, truncate_tables):
+    print('cleanup_postgreql({!r}, {!r})'.format(connection, truncate_tables))
+    for table in truncate_tables:
+        with connection.cursor() as cursor:
+            try:
+                cursor.execute(pgsql.SQL('TRUNCATE TABLE {}').format(
+                    pgsql.Identifier(table)))
+            except psycopg2.ProgrammingError as exc:
+                if exc.pgcode != psycopg2.errorcodes.UNDEFINED_TABLE:
+                    raise
+                print("Error truncating {!r} table: {}".format(table, exc))
+
+cleanup_redshift = cleanup_postgresql
 
 
 def random_uniform(a, b):
@@ -379,7 +450,9 @@ def query_agent(request, volttron_instance):
                     crate_skipif(crate_platform),
                     mysql_skipif(mysql_platform),
                     sqlite_platform,
-                    pymongo_skipif(mongo_platform)
+                    pymongo_skipif(mongo_platform),
+                    postgresql_skipif(postgresql_platform),
+                    redshift_skipif(redshift_platform),
                 ])
 def historian(request, volttron_instance, query_agent):
     global db_connection, MICROSECOND_PRECISION, table_names, \
