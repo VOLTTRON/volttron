@@ -85,30 +85,31 @@ class DbDriver(object):
     """
     def __init__(self, dbapimodule, **kwargs):
         thread_name = threading.currentThread().getName()
-        _log.debug("Constructing Driver for %s in thread: %s",
-                   dbapimodule, thread_name)
-        _log.debug("kwargs for connect is %r", kwargs)
-        dbapimodule = importlib.import_module(dbapimodule)
-        self.__connect = lambda: dbapimodule.connect(**kwargs)
+        if callable(dbapimodule):
+            _log.debug("Constructing Driver for %s in thread: %s",
+                       dbapimodule.__name__, thread_name)
+            connect = dbapimodule
+        else:
+            _log.debug("Constructing Driver for %s in thread: %s",
+                       dbapimodule, thread_name)
+            _log.debug("kwargs for connect is %r", kwargs)
+            dbapimodule = importlib.import_module(dbapimodule)
+            connect = lambda: dbapimodule.connect(**kwargs)
+        self.__connect = connect
         self.__connection = None
 
-    def cursor(self):
-        if self.__connection is not None and not getattr(self.__connection, "closed", False):
-            try:
-                return self.__connection.cursor()
-            except Exception:
-                _log.exception("An exception occured while creating "
-                               "a cursor and is being ignored")
-        self.__connection = None
-        try:
-            self.__connection = self.__connect()
-        except Exception as e:
-            _log.error("Could not connect to database. Raise ConnectionError")
-            raise ConnectionError(e), None, sys.exc_info()[2]
+    @property
+    def connection(self):
         if self.__connection is None:
-            raise ConnectionError(
-                "Unknown error. Could not connect to database")
-        return self.__connection.cursor()
+            try:
+                self.__connection = self.__connect()
+            except Exception as e:
+                _log.error("Could not connect to database. Raise ConnectionError")
+                raise ConnectionError(e), None, sys.exc_info()[2]
+            if self.__connection is None:
+                raise ConnectionError(
+                    "Unknown error. Could not connect to database")
+        return self.__connection
 
 
     def read_tablenames_from_db(self, meta_table_name):
@@ -298,7 +299,7 @@ class DbDriver(object):
         :return: id of the topic inserted if insert was successful.
                  Raises exception if unable to connect to database
         """
-        with closing(self.cursor()) as cursor:
+        with closing(self.connection.cursor()) as cursor:
             cursor.execute(self.insert_topic_query(), (topic,))
             return cursor.lastrowid
 
@@ -338,7 +339,7 @@ class DbDriver(object):
         :return: id of the topic inserted if insert was successful.
                  Raises exception if unable to connect to database
         """
-        with closing(self.cursor()) as cursor:
+        with closing(self.connection.cursor()) as cursor:
             cursor.execute(self.insert_agg_topic_stmt(),
                            (topic, agg_type, agg_time_period))
             return cursor.lastrowid
@@ -416,7 +417,7 @@ class DbDriver(object):
         """
         if not args:
             args = ()
-        cursor = self.cursor()
+        cursor = self.connection.cursor()
         try:
             cursor.execute(query, args)
         except Exception:
@@ -439,7 +440,7 @@ class DbDriver(object):
         """
         if args is None:
             args = ()
-        with closing(self.cursor()) as cursor:
+        with closing(self.connection.cursor()) as cursor:
             cursor.execute(stmt, args)
             if commit:
                 self.commit()
@@ -455,7 +456,7 @@ class DbDriver(object):
         False
         :return: count of the number of affected rows
         """
-        with closing(self.cursor()) as cursor:
+        with closing(self.connection.cursor()) as cursor:
             cursor.executemany(stmt, args)
             if commit:
                 self.commit()
