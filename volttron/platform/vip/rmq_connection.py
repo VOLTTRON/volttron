@@ -6,6 +6,8 @@ from volttron.platform.vip.socket import Message
 import errno
 from volttron.platform.agent import json as jsonapi
 from gevent import monkey
+from volttron.utils.rmq_mgmt import build_rmq_address
+
 monkey.patch_socket()
 
 _log = logging.getLogger(__name__)
@@ -37,14 +39,15 @@ class RMQConnection(BaseConnection):
         self._closing = False
         self._consumer_tag = None
         self._error_tag = None
-        self._url = 'amqp://guest:guest@localhost:5672/%2F'
+        self._url = 'amqp://volttron:volttron@localhost:5672/volttron'
+        _log.debug("AMQP address: {}".format(self._url))#'amqp://guest:guest@localhost:5672/%2F'
         self.routing_key = "{0}.{1}".format(instance_name, identity)
         #self.routing_key = identity
         self._vip_queue = "__{0}__.{1}".format(instance_name, identity)#identity
         self._logger = logging.getLogger(__name__)
         self.exchange = 'volttron'
         self._vip_queue = identity
-        self._alternate_exchange = 'alternate_exchange'
+        self._alternate_exchange = 'undeliverable'
         self._alternate_queue = 'alternate_queue'
         self._connect_callback = None
         self._type = type
@@ -72,11 +75,11 @@ class RMQConnection(BaseConnection):
         # self.channel.exchange_delete(exchange=self._alternate_exchange)
         args = dict()
         args['alternate-exchange'] = self._alternate_exchange
-        self.channel.exchange_declare(exchange=self.exchange,
-                                        exchange_type="topic"
-                                        ,arguments=args)
-        self.channel.exchange_declare(exchange=self._alternate_exchange,
-                                        exchange_type="fanout")
+        # self.channel.exchange_declare(exchange=self.exchange,
+        #                                 exchange_type="topic"
+        #                                 ,arguments=args)
+        # self.channel.exchange_declare(exchange=self._alternate_exchange,
+        #                                 exchange_type="fanout")
         self.channel.queue_declare(queue=self._vip_queue,
                                     durable=self._queue_properties['durable'],
                                     exclusive=self._queue_properties['exclusive'],

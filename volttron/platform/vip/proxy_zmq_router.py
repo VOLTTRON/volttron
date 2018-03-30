@@ -138,7 +138,7 @@ class ZMQProxyRouter(Agent):
         args = json.loads(body)
         args = json.loads(args[0])
         userid = props.headers.get('userid', b'')
-        _log.debug("Proxy ZMQ Router Outbound handler {0}, {1}".format(to_identity, args))
+        #_log.debug("Proxy ZMQ Router Outbound handler {0}, {1}".format(to_identity, args))
         # Fit message into ZMQ VIP format
         frames = [bytes(to_identity), bytes(from_identity), b'VIP1', bytes(userid),
                   bytes(props.message_id), bytes(props.type), json.dumps(args)]
@@ -299,7 +299,7 @@ class ZMQProxyRouter(Agent):
             'content_type': 'application/json'
         }
         properties = pika.BasicProperties(**dct)
-        _log.debug("PROXY PUBLISHING TO CHANNEL {0}, {1}, {2}".format(destination_routing_key, app_id, properties))
+        #_log.debug("PROXY PUBLISHING TO CHANNEL {0}, {1}, {2}".format(destination_routing_key, app_id, properties))
         connection.channel.basic_publish(connection.exchange,
                                    destination_routing_key,
                                    jsonapi.dumps(args, ensure_ascii=False),

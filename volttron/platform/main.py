@@ -707,31 +707,35 @@ def start_volttron_process(opts):
         messagebus = 'rmq'
         stop_event = None
 
+
         auth_task = None
         protected_topics = {}
-        #
-        # # Ensure auth service is running before router
-        auth_file = os.path.join(opts.volttron_home, 'auth.json')
-        auth = AuthService(
-            auth_file, protected_topics_file, opts.setup_mode, opts.aip, address=address, identity=AUTH,
-            enable_store=False, message_bus='zmq')
-
-        event = gevent.event.Event()
-        auth_task = gevent.spawn(auth.core.run, event)
-        event.wait()
-        del event
-        protected_topics = auth.get_protected_topics()
-        _log.debug("MAIN: protected topics content {}".format(protected_topics))
-
-        # Start the config store before auth so we may one day have auth use it.
-        config_store = ConfigStoreService(address=address, identity=CONFIGURATION_STORE)
-
-        event = gevent.event.Event()
-        config_store_task = gevent.spawn(config_store.core.run, event)
+        config_store_task = None
 
         zmqrouter = None
         zmq_router_task = None
         if messagebus == 'zmq':
+            # Start the config store before auth so we may one day have auth use it.
+            config_store = ConfigStoreService(address=address, identity=CONFIGURATION_STORE)
+
+            event = gevent.event.Event()
+            config_store_task = gevent.spawn(config_store.core.run, event)
+            event.wait()
+            del event
+
+            # Ensure auth service is running before router
+            auth_file = os.path.join(opts.volttron_home, 'auth.json')
+            auth = AuthService(
+                auth_file, protected_topics_file, opts.setup_mode, opts.aip, address=address, identity=AUTH,
+                enable_store=False, message_bus='zmq')
+
+            event = gevent.event.Event()
+            auth_task = gevent.spawn(auth.core.run, event)
+            event.wait()
+            del event
+
+            protected_topics = auth.get_protected_topics()
+            _log.debug("MAIN: protected topics content {}".format(protected_topics))
             # Start router in separate thread to remain responsive
             thread = threading.Thread(target=router, args=(config_store.core.stop,))
             thread.daemon = True
@@ -741,6 +745,22 @@ def start_volttron_process(opts):
             if not thread.isAlive():
                 sys.exit()
         else:
+            # Start the config store before auth so we may one day have auth use it.
+            config_store = ConfigStoreService(address=address, identity=CONFIGURATION_STORE)
+
+            # Ensure auth service is running before router
+            auth_file = os.path.join(opts.volttron_home, 'auth.json')
+            auth = AuthService(
+                auth_file, protected_topics_file, opts.setup_mode, opts.aip, address=address, identity=AUTH,
+                enable_store=False, message_bus='zmq')
+
+            event = gevent.event.Event()
+            auth_task = gevent.spawn(auth.core.run, event)
+            event.wait()
+            del event
+
+            protected_topics = auth.get_protected_topics()
+
             thread = threading.Thread(target=rmq_router, args=(config_store.core.stop,))
             thread.daemon = True
             thread.start()
@@ -748,10 +768,13 @@ def start_volttron_process(opts):
             gevent.sleep(0.1)
             if not thread.isAlive():
                 sys.exit()
+
+            gevent.sleep(1)
+            event = gevent.event.Event()
+            config_store_task = gevent.spawn(config_store.core.run, event)
             event.wait()
             del event
 
-            gevent.sleep(2)
             # Start router in separate thread to remain responsive
             green_router = GreenRouter(opts.vip_local_address, opts.vip_address,
                    secretkey=secretkey, publickey=publickey,
@@ -817,7 +840,7 @@ def start_volttron_process(opts):
                                external_address_config=external_address_file,
                                setup_mode=opts.setup_mode,
                                bind_web_address=opts.bind_web_address,
-                              message_bus='zmq'),
+                               message_bus='zmq'),
 
             # PubSubWrapper(address=address,
             #               identity='pubsub', heartbeat_autostart=True,
@@ -827,8 +850,7 @@ def start_volttron_process(opts):
         tasks = [gevent.spawn(service.core.run, event)
                  for service, event in zip(services, events)]
         tasks.append(config_store_task)
-        if auth_task:
-            tasks.append(auth_task)
+        tasks.append(auth_task)
         if stop_event:
             tasks.append(stop_event)
         gevent.wait(events)

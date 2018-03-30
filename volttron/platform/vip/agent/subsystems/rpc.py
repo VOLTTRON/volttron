@@ -387,8 +387,8 @@ class RPC(SubsystemBase):
 
             try:
                 #self.core().socket.send_vip(peer, 'RPC', frames, msg_id=ident)
-                _log.debug("peer: {0}, subsytem: {1}, args:{2}, id: {3}".format(peer, subsystem,
-                                                                                args, id))
+                # _log.debug("peer: {0}, subsytem: {1}, args:{2}, id: {3}".format(peer, subsystem,
+                #                                                                 args, id))
                 self.core().connection.send_vip_object(Message(peer=peer,
                                                                subsystem=subsystem,
                                                                args=frames,

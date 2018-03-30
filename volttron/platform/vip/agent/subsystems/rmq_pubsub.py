@@ -76,11 +76,15 @@ from gevent import monkey
 monkey.patch_socket()
 
 __all__ = ['RMQPubSub']
-min_compatible_version = '3.0'
+min_compatible_version = '6.0'
 max_compatible_version = ''
 
 
 class RMQPubSub(BasePubSub):
+    """
+    Pubsub subsystem concrete class implementation for RabbitMQ message bus.
+    """
+
     def __init__(self, core, rpc_subsys, peerlist_subsys, owner):
         self.core = weakref.ref(core)
         self.rpc = weakref.ref(rpc_subsys)
@@ -123,7 +127,7 @@ class RMQPubSub(BasePubSub):
 
     def _connected(self, sender, **kwargs):
         """
-        Synchronize local subscriptions with RMQ broker.
+        After connection to RMQ broker is established, synchronize local subscriptions with RMQ broker.
         param sender: identity of sender
         type sender: str
         param kwargs: optional arguments
@@ -134,7 +138,9 @@ class RMQPubSub(BasePubSub):
         #self.synchronize()
 
     def synchronize(self):
-        """Synchronize local subscriptions with RMQ broker.
+        """
+        Synchronize local subscriptions with RMQ broker.
+        :return:
         """
         connection = self.core().connection
         for prefix, subscriptions in self._my_subscriptions.iteritems():
@@ -143,26 +149,26 @@ class RMQPubSub(BasePubSub):
                     result = connection.channel.queue_declare(queue=queue,
                                                               durable=False,
                                                               exclusive=False,
-                                                              callback=self.on_queue_declare_ok)
+                                                              callback=None)
                 else:
                     connection.channel.queue_declare(queue=queue, exclusive=True)
                 connection.channel.queue_bind(exchange=self.core().connection.exchange,
                                               queue=queue,
                                               routing_key=prefix,
-                                              callback=self.on_bind_ok)
+                                              callback=None)
                 connection.channel.basic_consume(callback,
                                                  queue=queue,
                                                  no_ack=True)
         return True
 
-    def on_queue_declare_ok(self, method_frame):
-        self._logger.debug("declare ok")
-
-    def on_bind_ok(self, unused_frame):
-        self._logger.debug("bind ok")
-
-
     def _add_subscription(self, prefix, callback, queue):
+        """
+        Store subscriptions so that
+        :param prefix:
+        :param callback:
+        :param queue:
+        :return:
+        """
         if not callable(callback):
             raise ValueError('callback %r is not callable' % (callback,))
         try:
@@ -198,7 +204,7 @@ class RMQPubSub(BasePubSub):
             queue_name = persistent_queue
         else:
             queue_name = "volttron.{}".format(bytes(uuid.uuid4()))
-            result = connection.channel.queue_declare(self.on_queue_declare_ok,
+            result = connection.channel.queue_declare(callback=None,
                                                       queue=queue_name,
                                                       durable=False,
                                                       exclusive=False)
@@ -221,7 +227,7 @@ class RMQPubSub(BasePubSub):
 
         # Store subscriptions for later use
         self._add_subscription(prefix, callback, queue_name)
-        connection.channel.queue_bind(self.on_bind_ok,
+        connection.channel.queue_bind(callback=None,
                                       exchange=connection.exchange,
                                       queue=queue_name,
                                       routing_key=routing_key)
@@ -229,9 +235,6 @@ class RMQPubSub(BasePubSub):
                                          queue=queue_name,
                                          no_ack=True)
         return result
-
-    def _on_queue_declareok(self, method_frame):
-        self._logger.debug("queue declared")
 
     @subscribe.classmethod
     def subscribe(cls, peer, prefix, bus='', all_platforms=False, persistent_queue=None):

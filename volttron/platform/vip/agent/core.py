@@ -432,7 +432,7 @@ class ZMQCore(BasicCore):
                  publickey=None, secretkey=None, serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, reconnect_interval=None,
-                 version='0.1'):
+                 version='0.1', messagebus='zmq'):
 
         self.volttron_home = volttron_home
 
@@ -454,7 +454,7 @@ class ZMQCore(BasicCore):
         self._reconnect_attempt = 0
         self.instance_name = None
         self.connection = None
-        self.messagebus = 'zmq'
+        self.messagebus = messagebus
         self._set_keys()
 
         _log.debug('address: %s', address)
@@ -583,6 +583,8 @@ class ZMQCore(BasicCore):
         flags = dict(hwm=True, reconnect_interval=self.reconnect_interval)
         self.connection.set_properties(flags)
         self.socket = self.connection.socket
+        if self.identity:
+            self.socket.identity = self.identity
         yield
 
         # pre-start
@@ -709,6 +711,10 @@ class ZMQCore(BasicCore):
                         raise
 
                 subsystem = bytes(message.subsystem)
+                # _log.debug("Received new message {0}, {1}, {2}, {3}".format(subsystem,
+                #                                                              message.id,
+                #                                                              len(message.args),
+                #                                                              message.args[0]))
                 # Handle hellos sent by CONNECTED event
                 if (subsystem == b'hello' and
                             bytes(message.id) == state.ident and
@@ -909,10 +915,10 @@ class RMQCore(BasicCore):
                     raise
                 if message:
                     subsystem = bytes(message.subsystem)
-                    _log.debug("Received new message {0}, {1}, {2}, {3}".format(subsystem,
-                                                                                 message.id,
-                                                                                 len(message.args),
-                                                                                 message.args[0]))
+                    # _log.debug("Received new message {0}, {1}, {2}, {3}".format(subsystem,
+                    #                                                              message.id,
+                    #                                                              len(message.args),
+                    #                                                              message.args[0]))
                     if subsystem == b'hello':
                         if (subsystem == b'hello' and
                                     bytes(message.id) == state.ident and

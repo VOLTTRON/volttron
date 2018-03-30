@@ -89,7 +89,7 @@ class ListenerAgent(Agent):
         # Demonstrate accessing a value from the config file
         _log.info(self.config.get('message', DEFAULT_MESSAGE))
         self._agent_id = self.config.get('agentid')
-        self.vip.pubsub.subscribe(prefix="devices", callback=self.on_match)
+        #self.vip.pubsub.subscribe(prefix="devices", callback=self.on_match)
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
@@ -97,6 +97,7 @@ class ListenerAgent(Agent):
         if self._heartbeat_period != 0:
             self.vip.heartbeat.start_with_period(self._heartbeat_period)
             self.vip.health.set_status(STATUS_GOOD, self._message)
+        self.vip.pubsub.subscribe(prefix='devices', callback=self.on_match)
 
     #@PubSub.subscribe('pubsub', '')
     def on_match(self, peer, sender, bus,  topic, headers, message):

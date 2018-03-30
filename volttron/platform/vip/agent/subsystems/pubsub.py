@@ -80,6 +80,10 @@ def decode_peer(peer):
 
 
 class BasePubSub(SubsystemBase):
+    """
+    Abstract Base class for pubsub subsystem. Pubsub concrete implementations will vary depending on the
+    underlying message bus
+    """
     def __init_(self, core, rpc_subsys, peerlist_subsys, owner):
         self._instance_name = core.instance_name
 
@@ -99,6 +103,9 @@ class BasePubSub(SubsystemBase):
         raise NotImplementedError()
 
 class PubSub(BasePubSub):
+    """
+    Pubsub subsystem concrete class implementation for ZMQ message bus.
+    """
     def __init__(self, core, rpc_subsys, peerlist_subsys, owner):
         self.core = weakref.ref(core)
         self.rpc = weakref.ref(rpc_subsys)

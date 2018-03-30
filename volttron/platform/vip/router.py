@@ -250,7 +250,7 @@ class BaseRouter(object):
 
         issue(INCOMING, frames)
         # for f in frames:
-        #    _log.debug("ROUTER Receiving frames: {}".format(bytes(f)))
+        #     _log.debug("ROUTER Receiving frames: {}".format(bytes(f)))
         if len(frames) < 6:
             # Cannot route if there are insufficient frames, such as
             # might happen with a router probe.
@@ -322,8 +322,8 @@ class BaseRouter(object):
         recipient, sender = frames[:2]
         # Expecting outgoing frames:
         #   [RECIPIENT, SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
-        #for f in frames:
-        #    _log.debug("ROUTER sending frames: {}".format(bytes(f)))
+        # for f in frames:
+        #     _log.debug("ROUTER sending frames: {}".format(bytes(f)))
         try:
             # Try sending the message to its recipient
             socket.send_multipart(frames, flags=NOBLOCK, copy=False)
