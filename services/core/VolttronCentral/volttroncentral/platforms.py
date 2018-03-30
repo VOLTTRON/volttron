@@ -1,57 +1,38 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2017, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
@@ -73,7 +54,7 @@ from volttron.platform.messaging.health import Status, UNKNOWN_STATUS, \
     GOOD_STATUS, BAD_STATUS
 from volttron.platform.vip.agent import Unreachable
 from volttron.platform.vip.agent.utils import build_connection
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 
 class Platforms(object):
@@ -133,6 +114,7 @@ class Platforms(object):
         for k, o in self._platforms.items():
             self._log.debug("vip: {}, identity: {}".format(o.address,
                                                            o.vip_identity))
+
     @property
     def vc(self):
         return self._vc
@@ -351,9 +333,14 @@ class PlatformHandler(object):
         platform_prefix = "platforms/{}/".format(self.vip_identity)
 
         # Setup callbacks to listen to the local bus from the vcp instance.
+        #
+        # Note: the platform/{}/ is prepended to the vcp_topics below for
+        #   communication from the vcp in the field.
         vcp_topics = (
+            # ('device_updates', self._on_device_message),
+            # ('devices/update', self._on_device_message),
             # devices and status.
-            ('devices/', self._on_device_message),
+            # ('devices/', self._on_device_message),
             # statistics for showing performance in the ui.
             ('datalogger/platform/status', self._on_platform_stats),
             # iam and configure callbacks
@@ -460,7 +447,7 @@ class PlatformHandler(object):
             self._log.debug("Calling store_agent_config on external platform.")
             self.call("store_agent_config", **params)
         except Exception as e:
-            self._log.error(str(e))
+            self._log.error(repr(e))
             return jsonrpc.json_error(message_id, INTERNAL_ERROR,
                                       str(e))
         config_name = params.get("config_name")
@@ -573,8 +560,8 @@ class PlatformHandler(object):
     def get_devices(self, session_user, params):
         self._log.debug('handling get_devices platform: {} ({})'.format(
             self.vip_identity, self.address))
-
-        return self._current_devices or {}
+        return self.call("get_devices")
+        # return self._current_devices or {}
 
     def get_stats(self, stat_type):
         # TODO Change so stat_type is available.
@@ -611,69 +598,69 @@ class PlatformHandler(object):
     def _on_heartbeat(self, peer, sender, bus, topic, headers, message):
         self._log.debug("HEARTBEAT MESSAGE: {}".format(message))
 
-    def _on_device_message(self, peer, sender, bus, topic, headers, message):
-        """
-        Handle device data coming from the platform represented by this
-        object.
-
-        this method only cares about the /all messages that are published to
-        the message bus.
-
-        :param peer:
-        :param sender:
-        :param bus:
-        :param topic:
-        :param headers:
-        :param message:
-        """
-
-        expected_prefix = "platforms/{}/".format(self.vip_identity)
-        self._log.debug("TOPIC WAS: {}".format(topic))
-        self._log.debug("MESSAGE WAS: {}".format(message))
-        self._log.debug("Expected topic: {}".format(expected_prefix))
-        self._log.debug("Are Equal: {}".format(topic.startswith(expected_prefix)))
-        self._log.debug("topic type: {} prefix_type: {}".format(type(topic), type(expected_prefix)))
-        if topic is None or not topic.startswith(expected_prefix):
-            self._log.error("INVALID DEVICE DATA FOR {}".format(self.vip_identity))
-            return
-
-        if topic is None or not topic.startswith(expected_prefix):
-            self._log.error('INVALID DEVICE TOPIC/MESSAGE DETECTED ON {}'.format(
-                self.vip_identity
-            ))
-            return
-
-        # Update the devices store for get_devices function call
-        if not topic.endswith('/all'):
-            self._log.debug("Skipping publish to {}".format(topic))
-            return
-
-        #
-        topic = topic[len(expected_prefix):]
-
-        self._log.debug("topic: {}, message: {}".format(topic, message))
-
-        ts = format_timestamp(get_aware_utc_now())
-        context = "Last received data on: {}".format(ts)
-        status = Status.build(GOOD_STATUS, context=context)
-
-        base_topic = topic[:-len('/all')]
-        base_topic_no_prefix = base_topic[len('devices/'):]
-
-        if base_topic_no_prefix not in self._current_devices:
-            self._current_devices[base_topic_no_prefix] = {}
-
-        device_dict = self._current_devices[base_topic_no_prefix]
-
-        points = [k for k, v in message[0].items()]
-
-        device_dict['points'] = points
-        device_dict['health'] = status.as_dict()
-        device_dict['last_publish_utc'] = ts
-
-        self._vc.send_management_message(
-            "DEVICE_STATUS_UPDATED", data=dict(context=context,
-                                               topic=base_topic))
+    # def _on_device_message(self, peer, sender, bus, topic, headers, message):
+    #     """
+    #     Handle device data coming from the platform represented by this
+    #     object.
+    #
+    #     this method only cares about the /all messages that are published to
+    #     the message bus.
+    #
+    #     :param peer:
+    #     :param sender:
+    #     :param bus:
+    #     :param topic:
+    #     :param headers:
+    #     :param message:
+    #     """
+    #
+    #     expected_prefix = "platforms/{}/".format(self.vip_identity)
+    #     self._log.debug("TOPIC WAS: {}".format(topic))
+    #     self._log.debug("MESSAGE WAS: {}".format(message))
+    #     self._log.debug("Expected topic: {}".format(expected_prefix))
+    #     self._log.debug("Are Equal: {}".format(topic.startswith(expected_prefix)))
+    #     self._log.debug("topic type: {} prefix_type: {}".format(type(topic), type(expected_prefix)))
+    #     if topic is None or not topic.startswith(expected_prefix):
+    #         self._log.error("INVALID DEVICE DATA FOR {}".format(self.vip_identity))
+    #         return
+    #
+    #     if topic is None or not topic.startswith(expected_prefix):
+    #         self._log.error('INVALID DEVICE TOPIC/MESSAGE DETECTED ON {}'.format(
+    #             self.vip_identity
+    #         ))
+    #         return
+    #
+    #     # Update the devices store for get_devices function call
+    #     if not topic.endswith('/all'):
+    #         self._log.debug("Skipping publish to {}".format(topic))
+    #         return
+    #
+    #     #
+    #     topic = topic[len(expected_prefix):]
+    #
+    #     self._log.debug("topic: {}, message: {}".format(topic, message))
+    #
+    #     ts = format_timestamp(get_aware_utc_now())
+    #     context = "Last received data on: {}".format(ts)
+    #     status = Status.build(GOOD_STATUS, context=context)
+    #
+    #     base_topic = topic[:-len('/all')]
+    #     base_topic_no_prefix = base_topic[len('devices/'):]
+    #
+    #     if base_topic_no_prefix not in self._current_devices:
+    #         self._current_devices[base_topic_no_prefix] = {}
+    #
+    #     device_dict = self._current_devices[base_topic_no_prefix]
+    #
+    #     points = [k for k, v in message[0].items()]
+    #
+    #     device_dict['points'] = points
+    #     device_dict['health'] = status.as_dict()
+    #     device_dict['last_publish_utc'] = ts
+    #
+    #     self._vc.send_management_message(
+    #         "DEVICE_STATUS_UPDATED", data=dict(context=context,
+    #                                            topic=base_topic))
 
     def _on_platform_stats(self, peer, sender, bus, topic, headers, message):
 
@@ -737,7 +724,7 @@ class PlatformHandler(object):
         the agent_list and other interesting things that the volttron
         central shsould want to know.
         """
-        self._log.debug('ON PLATFORM MESSAGE!')
+        self._log.debug('ON PLATFORM MESSAGE! {}'.format(message))
         expected_prefix = "platforms/{}/".format(self.vip_identity)
 
         if not topic.startswith(expected_prefix):
@@ -774,8 +761,8 @@ class PlatformHandler(object):
 
         _, platform_uuid, op_or_datatype, other = topicsplit[0], \
                                                   topicsplit[1], \
-                                                  topicsplit[2], topicsplit[
-                                                                 3:]
+                                                  topicsplit[2], \
+                                                  topicsplit[3:]
 
         if op_or_datatype in ('iam', 'configure'):
             if not other:

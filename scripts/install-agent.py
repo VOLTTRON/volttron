@@ -52,7 +52,7 @@ from volttron.platform import get_address, get_home, get_volttron_root, \
     is_instance_running
 from volttron.platform.packaging import create_package, add_files_to_package
 
-__version__ = '0.2'
+__version__ = '0.3'
 
 
 def _build_copy_env(opts):
@@ -88,11 +88,21 @@ def remove_agent(opts, agent_uuid):
     process.wait()
 
 
+def install_requirements(agent_source):
+    req_file = os.path.join(agent_source, "requirements.txt")
+    if os.path.exists(req_file):
+        log.info("Installing requirements for agent.")
+        cmds = ["pip", "install", "-r", req_file]
+        try:
+            subprocess.check_call(cmds)
+        except subprocess.CalledProcessError:
+            sys.exit(1)
+
+
 def install_agent(opts, package, config):
     """
     The main installation method for installing the agent on the correct local
     platform instance.
-
     :param opts:
     :param package:
     :param config:
@@ -228,8 +238,6 @@ if __name__ == '__main__':
                         help="identity of the agent to be installed (unique per instance)")
     parser.add_argument("-c", "--config", default=None, type=file,
                         help="agent configuration file that will be packaged with the agent.")
-    parser.add_argument("-co", "--config-object", type=str, default="{}",
-                        help="json string that will be used as the configuration of the agent.")
     parser.add_argument("-wh", "--wheelhouse", default=None,
                         help="location of agents after they have been built")
     parser.add_argument("-t", "--tag", default=None,
@@ -248,9 +256,11 @@ if __name__ == '__main__':
                         help="format the standard out output to csv")
     parser.add_argument("--json", action="store_true",
                         help="format the standard out output to jso")
+    parser.add_argument("--skip-requirements", action="store_true",
+                        help="skip a requirements.txt file if it exists.")
 
     opts = parser.parse_args()
-
+    
     agent_source = opts.agent_source
     if not os.path.isdir(agent_source):
         if os.path.isdir(os.path.join(opts.volttron_root, agent_source)):
@@ -314,6 +324,10 @@ if __name__ == '__main__':
             "Force option specified without a target identity to force.")
         sys.exit(-10)
 
+    if not opts.skip_requirements:
+        # use pip requirements.txt file and install dependencies if nessary.
+        install_requirements(agent_source)
+
     opts.package = create_package(agent_source, wheelhouse, opts.vip_identity)
 
     if not os.path.isfile(opts.package):
@@ -335,19 +349,11 @@ if __name__ == '__main__':
                 opts.config = jsonapi.loads(f.read())
         finally:
             tmpconfigfile.close()
-    else:
-        try:
-            jsonobj = jsonapi.loads(opts.config_object)
-        except Exception as ex:
-            log.error("Invalid json passed in config_object: {}".format(ex.args))
-            sys.exit(-10)
 
     if opts.config:
         install_agent(opts, opts.package, opts.config)
     else:
-        install_agent(opts, opts.package, jsonobj)
-
-
+        install_agent(opts, opts.package, {})
 
 
 

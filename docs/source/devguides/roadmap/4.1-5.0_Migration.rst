@@ -1,0 +1,113 @@
+.. _4.1_to_5.0:
+Migration from 4.1 to 5.0
+=========================
+
+5.0 includes numerous changes (Tagging Service, Message Bus performance increase, Multi-platform pub/sub, etc.), but
+the majority of these should be invisible to most users.
+
+Key issues to note are:
+
+
+Operations Agents
+-----------------
+
+Several agents have been moved from "services/core" to "services/ops" to highlight their use in monitoring a
+deployment. They are not necessary when developing against a single instance, but are essential for VOLTTRON(tm) in a
+deployed environment.
+
+Agents affected:
+
+- services/ops/AgentWatcher
+- services/ops/AlertAgent,0.4
+- services/ops/AlertMonitor
+- services/ops/Alerter
+- services/ops/EmailerAgent
+- services/ops/FailoverAgent
+- services/ops/FileWatchPublisher
+- services/ops/LogStatisticsAgent
+- services/ops/MessageDebuggerAgent
+- services/ops/SysMonAgent
+- services/ops/ThresholdDetectionAgent
+
+
+Rebuild Agents
+--------------
+
+Rebuilding agents is :underline:`required` when upgrading to a new VOLTTRON(tm) version to ensure that agents are
+operating with the latest code. Errors will occur if agents built in a previous version attempt to run with the
+latest version of the platform.
+
+ForwardHistorian
+----------------
+The ForwardHistorian configuration has been changed.
+Please see: https://github.com/VOLTTRON/volttron/blob/develop/services/core/ForwardHistorian/README.rst for the
+new options.
+
+.. note:: NOTE If you have no entry for service_topic_list in your configuration, the new default will cause
+ALL data to be forwarded. Please update your configuration if you are forwarding a subset of data.
+
+
+VOLTTRON Central Management UI
+------------------------------
+
+The url for VOLTTRON Central Management is now http://IP:port/vc/index.html
+
+Agent Versions
+--------------
+
+To get the versions of agents in the VOLTTRON project, run "python scripts/get_versions.py".
+
+
+========================== ====== =======
+Agent Name                 4.1    5.0
+========================== ====== =======
+CAgent                     1.0    1.0
+CSVHistorian               N/A    1.0.1
+ConfigActuation            0.1    0.1
+DataPublisher              3.0.1  3.0.1
+DataPuller                 N/A    3.5
+ExampleDrivenControlAgent  0.1    0.1
+ExampleSubscriber          3.0    3.0
+ListenerAgent              3.2    3.2
+ProcessAgent               0.1    0.1
+SchedulerExample           0.1    0.1
+SimpleForwarder            3.0    3.0
+SimpleWebAgent             0.1    0.1
+WeatherForecastCSV_UW
+WebRPC
+WebSocketAgent             0.0.1  0.0.1
+PrometheusScrapeAgent      N/A    0.0.1
+WeatherAgent
+ActuatorAgent              1.0    1.0
+BACnetProxy                0.2    0.3
+CrateHistorian             1.0.1  1.0.2
+DataMover                  0.1    0.1
+ExternalData               1.0    1.0
+ForwardHistorian           3.7    4.0
+MQTTHistorian              0.1    0.2
+MasterDriverAgent          3.1.1  3.1.1
+MongodbAggregateHistorian  1.0    1.0
+MongodbHistorian           2.1    2.1
+MongodbTaggingService      N/A    1.0
+OpenEISHistorian           3.1    3.1
+SEP2Agent                  N/A    1.0
+SEP2DriverTestAgent        N/A    1.0
+SQLAggregateHistorian      1.0    1.0
+SQLHistorian               3.6.1  3.6.1
+SQLiteTaggingService       N/A    1.0
+VolttronCentral            4.0.3  4.2
+VolttronCentralPlatform    4.0    4.5.2
+WeatherAgent               3.0    3.0
+AgentWatcher               0.1    0.1
+AlertAgent                 0.4    0.4
+AlertMonitor               0.1    0.1
+Alerter                    0.1    0.1
+EmailerAgent               1.3    1.3.1
+FailoverAgent              0.2    0.2
+FileWatchPublisher         3.6    3.6
+LogStatisticsAgent         1.0    1.0
+MessageDebuggerAgent       N/A    1.0
+SysMonAgent                3.6    3.6
+ThresholdDetectionAgent    3.7    3.7
+========================== ====== =======
+

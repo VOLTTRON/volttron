@@ -7,6 +7,7 @@ import shutil
 import sys
 import tempfile
 import time
+import re
 from contextlib import closing
 from os.path import dirname
 from subprocess import CalledProcessError
@@ -14,7 +15,7 @@ from subprocess import CalledProcessError
 import gevent
 import gevent.subprocess as subprocess
 import requests
-from agent_additions import add_vc_to_instance
+from agent_additions import add_volttron_central
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging
@@ -28,7 +29,7 @@ from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.connection import Connection
 from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -56,12 +57,6 @@ TMP_SMAP_CONFIG_FILENAME = "test-smap.ini"
 
 # Used to fill in TWISTED_CONFIG template
 TEST_CONFIG_FILE = 'base-platform-test.json'
-
-PLATFORM_CONFIG_UNRESTRICTED = """
-no-resource-monitor
-no-verify
-no-mobility
-"""
 
 PLATFORM_CONFIG_RESTRICTED = """
 mobility-address = {mobility-address}
@@ -198,6 +193,7 @@ class PlatformWrapper:
         self.discovery_address = None
         self.jsonrpc_endpoint = None
         self.volttron_central_address = None
+        self.volttron_central_serverkey = None
         self.instance_name = None
         self.serverkey = None
 
@@ -307,7 +303,8 @@ class PlatformWrapper:
             secretkey = keys.secret
 
         if address is None:
-            self.logit('Using vip-address ' + self.vip_address)
+            self.logit('Using vip-address {address}'.format(
+                address=self.vip_address))
             address = self.vip_address
 
         if publickey and not serverkey:
@@ -333,7 +330,7 @@ class PlatformWrapper:
             gevent.spawn(agent.core.run, event)  # .join(0)
             event.wait(timeout=2)
 
-            hello = agent.vip.hello().get(timeout=.3)
+            hello = agent.vip.hello().get(timeout=.5)
             self.logit('Got hello response {}'.format(hello))
         agent.publickey = publickey
         return agent
@@ -362,7 +359,7 @@ class PlatformWrapper:
             pass
 
     def add_vc(self):
-        return add_vc_to_instance(self)
+        return add_volttron_central(self)
 
     def add_capabilities(self, publickey, capabilities):
         if isinstance(capabilities, basestring):
@@ -386,7 +383,10 @@ class PlatformWrapper:
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
                          mode=UNRESTRICTED, bind_web_address=None,
                          volttron_central_address=None,
-                         volttron_central_serverkey=None):
+                         volttron_central_serverkey=None,
+                         msgdebug=False,
+                         setupmode=False,
+                         instance_name=''):
 
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
@@ -395,15 +395,19 @@ class PlatformWrapper:
 
         self.vip_address = vip_address
         self.mode = mode
+        self.volttron_central_address=volttron_central_address
+        self.volttron_central_serverkey=volttron_central_serverkey
+
         self.bind_web_address = bind_web_address
         if self.bind_web_address:
             self.discovery_address = "{}/discovery/".format(
                 self.bind_web_address)
 
             # Only available if vc is installed!
-            self.jsonrpc_endpoint = "{}/jsonrpc".format(
+            self.jsonrpc_endpoint = "{}/vc/jsonrpc".format(
                 self.bind_web_address)
 
+        msgdebug = self.env.get('MSG_DEBUG', False)
         enable_logging = self.env.get('ENABLE_LOGGING', False)
         debug_mode = self.env.get('DEBUG_MODE', False)
         if not debug_mode:
@@ -412,6 +416,7 @@ class PlatformWrapper:
         if debug_mode:
             self.skip_cleanup = True
             enable_logging = True
+            msgdebug = True
         self.logit(
             "In start up platform enable_logging is {} ".format(enable_logging))
         assert self.mode in MODES, 'Invalid platform mode set: ' + str(mode)
@@ -463,14 +468,11 @@ class PlatformWrapper:
         if volttron_central_serverkey:
             parser.set('volttron', 'volttron-central-serverkey',
                        volttron_central_serverkey)
+        if instance_name:
+            parser.set('volttron', 'instance-name',
+                       instance_name)
         if self.mode == UNRESTRICTED:
-            # TODO Restricted code should set with volttron as contianer
-            # if RESTRICTED_AVAILABLE:
-            #     config['mobility'] = False
-            #     config['resource-monitor'] = False
-            #     config['verify'] = False
-            with closing(open(pconfig, 'wb')) as cfg:
-                cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
+            with open(pconfig, 'wb') as cfg:
                 parser.write(cfg)
 
         elif self.mode == RESTRICTED:
@@ -489,10 +491,15 @@ class PlatformWrapper:
                 "Invalid platform mode specified: {}".format(mode))
 
         log = os.path.join(self.volttron_home, 'volttron.log')
+
+        cmd = ['volttron']
+        if msgdebug:
+            cmd.append('--msgdebug')
         if enable_logging:
-            cmd = ['volttron', '-vv', '-l{}'.format(log)]
-        else:
-            cmd = ['volttron', '-l{}'.format(log)]
+            cmd.append('-vv')
+        cmd.append('-l{}'.format(log))
+        if setupmode:
+            cmd.append('--setup-mode')
 
         print('process environment: {}'.format(self.env))
         print('popen params: {}'.format(cmd))
@@ -595,7 +602,7 @@ class PlatformWrapper:
         cmd = ['volttron-ctl', '-vv', 'install', wheel_file]
         if vip_identity:
             cmd.extend(['--vip-identity', vip_identity])
-        self.logit("cmd: {}".format(cmd))
+
         res = subprocess.check_output(cmd, env=env)
         assert res, "failed to install wheel:{}".format(wheel_file)
         agent_uuid = res.split(' ')[-2]
@@ -603,8 +610,10 @@ class PlatformWrapper:
 
         if start:
             self.start_agent(agent_uuid)
+        return agent_uuid
 
         return agent_uuid
+
 
     def install_multiple_agents(self, agent_configs):
         """
@@ -706,25 +715,29 @@ class PlatformWrapper:
                 cmd.extend(["--vip-identity", vip_identity])
             if start:
                 cmd.extend(["--start"])
+            try:
+                response = subprocess.check_output(cmd)
+            except Exception as e:
+                _log.error(repr(e))
+                raise e
 
-            results = subprocess.check_output(cmd)
-
+            self.logit(response)
             # Because we are no longer silencing output from the install, the
             # the results object is now much more verbose.  Our assumption is
-            # the line before the output we care about has WHEEL at the end
-            # of it.
-            new_results = ""
-            found_wheel = False
-            for line in results.split("\n"):
-                if line.endswith("WHEEL"):
-                    found_wheel = True
-                elif found_wheel:
-                    new_results += line
-            results = new_results
+            # that the result we are looking for is the only JSON block in
+            # the output
+
+            match = re.search(r'^({.*})', response, flags=re.M | re.S)
+            if match:
+                results = match.group(0)
+            else:
+                raise ValueError(
+                    "The results were not found in the command output")
+            self.logit("here are the results: {}".format(results))
 
             #
             # Response from results is expected as follows depending on
-            # parameters, note this is a json string so parse to get dictionary.
+            # parameters, note this is a json string so parse to get dictionary
             # {
             #     "started": true,
             #     "agent_pid": 26241,
@@ -802,6 +815,14 @@ class PlatformWrapper:
         except CalledProcessError as ex:
             _log.error("Exception: {}".format(ex))
         return self.agent_pid(agent_uuid)
+
+    def remove_all_agents(self):
+        agent = self.build_agent()
+        print('PEER LIST: {}'.format(agent.vip.peerlist().get(timeout=10)))
+        agent_list = agent.vip.rpc('control', 'list_agents').get(timeout=10)
+        for agent_props in agent_list:
+            agent.vip.rpc('control', 'remove_agent', agent_props['uuid']).get(timeout=10)
+        agent.core.stop(timeout=3)
 
     def is_agent_running(self, agent_uuid):
         return self.agent_pid(agent_uuid) is not None
@@ -884,9 +905,38 @@ class PlatformWrapper:
             time.sleep(timeout_seconds)
         return running
 
-    # def direct_stop_agent(self, agent_uuid):
-    #     result = self.conn.call.stop_agent(agent_uuid)
-    #     print result
+    def restart_platform(self):
+        self.startup_platform(vip_address=self.vip_address,
+                              bind_web_address=self.bind_web_address,
+                              volttron_central_address=self.volttron_central_address,
+                              volttron_central_serverkey=self.volttron_central_serverkey)
+        gevent.sleep(1)
+
+    def stop_platform(self):
+        """
+        Stop the platform without cleaning up any agents or context of the
+        agent.  This should be paired with restart platform in order to
+        maintain the context of the platform.
+        :return:
+        """
+        if not self.is_running():
+            return
+
+        cmd = ['volttron-ctl']
+        cmd.extend(['shutdown', '--platform'])
+        try:
+            res = subprocess.check_output(cmd, env=self.env)
+        except CalledProcessError:
+            if self.p_process is not None:
+                try:
+                    gevent.sleep(0.2)
+                    self.p_process.terminate()
+                    gevent.sleep(0.2)
+                except OSError:
+                    self.logit('Platform process was terminated.')
+            else:
+                self.logit("platform process was null")
+        gevent.sleep(1)
 
     def shutdown_platform(self):
         """

@@ -1,0 +1,9 @@
+{
+    "connection": {
+        "type": "sqlite",
+        "params": {
+            "database": "~/.volttron/data/volttron.tags.sqlite"
+        }
+    },
+    "table_prefix": "volttron"
+}

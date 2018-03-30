@@ -1,4 +1,4 @@
-# Copyright (c) 2016, Battelle Memorial Institute
+# Copyright (c) 2017, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -312,6 +312,14 @@ class BaseInterface(object):
         :rtype: list
         """
         return self.point_map.keys()
+
+    def get_register_names_view(self):
+        """
+        Get a dictview of register names.
+        :return: Dictview of names
+        :rtype: dictview
+        """
+        return self.point_map.viewkeys()
         
     def get_registers_by_type(self, reg_type, read_only):
         """

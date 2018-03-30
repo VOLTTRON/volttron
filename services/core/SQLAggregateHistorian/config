@@ -1,0 +1,43 @@
+{
+    # configuration from historian. given example is for mysql - START
+    "connection": {
+        "type": "mysql",
+        "params": {
+            "host": "localhost",
+            "port": 3306,
+            "database": "test_historian",
+            "user": "historian",
+            "passwd": "historian"
+        }
+    },
+    # configuration from historian. given example is for mysql - END
+
+    "aggregations":[
+        {
+        "aggregation_period": "1m",
+        "use_calendar_time_periods": "true",
+        "points": [
+                {
+                "topic_names": ["device1/out_temp"],
+                "aggregation_type": "sum",
+                "min_count": 2
+                },
+                {
+                "topic_names": ["device1/in_temp"],
+                "aggregation_type": "sum",
+                "min_count": 2
+                }
+            ]
+        },
+        {
+            "aggregation_period": "2m",
+            "use_calendar_time_periods": "false",
+            "points": [
+                {"topic_names": ["device1/out_temp"],
+                 "aggregation_type": "sum", "min_count": 2},
+                {"topic_names": ["device1/in_temp"],
+                 "aggregation_type": "sum", "min_count": 2}
+            ]
+        }
+    ]
+}

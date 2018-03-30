@@ -1,0 +1,27 @@
+name,description
+Site,"Tags used to models a single building with its own street address"
+Equip,"Tags used to model physical or logical piece of equipment within a site"
+Point,"Tags used to model sensor, actuator or setpoint value for an equip"
+Weather,"Tags used to models outside weather conditions"
+Device,"Tags used to models a physical device. Devices include servers, area controllers, field controllers, etc."
+Network,"Tags used to models a network. Networks are used to setup logical connections between devices"
+Connection,"Tags used to model device-to-device communication"
+Energy,"Tags related to meters, submeters and their relationships, equip and point loads on meters"
+Unitary Equipment,"Tags related to unitary HVAC equipment which combines heating and/or cooling into packaged units"
+Electric Panels,"Tagging model  for equipment definitions for electric panels and their circuits. However, no points have yet been defined for this model"
+Lighting,"Tags to model the equip level of the lighting system and should follow all the standard rules for equip entities."
+AHU,"Tags related to air handling equipment designed to heat or cool air"
+Boiler,"Tags for heating plants"
+Chilled Water Plant,"Tags that apply to a chilled water plant that is composed of multiple pieces of equipment used to generate chilled water"
+Chiller,"Tags related to a chiller and its points"
+Cooling Tower,"Tags related to a cooling tower and its points"
+Electric Meter,
+Heat Exchanger,"Tags related to Heat exchanger equipment and its points"
+Hot Water Plant,
+Steam Plant,
+Tank,"Tags associated with a storage vessels"
+VAV,"Tags related to variable air volume assets"
+VFD,"Tags related to variable frequency drives"
+Zone Point,"Tags used for points associated with a conditioned space in a building"
+
+

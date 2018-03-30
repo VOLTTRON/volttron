@@ -22,9 +22,10 @@ matrix:
       python: "2.7.11"
       
 before_install:
+  - sudo rm -vf /etc/apt/sources.list.d/*riak*
   - sudo apt-get update -qq
   - sudo apt-get install -y build-essential python-dev openssl libssl-dev libevent-dev
-  - sudo bash -c "$(curl -L install.crate.io)"
+  #- sudo bash -c "$(curl -L install.crate.io)"
 
   #- ./services/core/MongodbHistorian/tests/mongosetup.sh
 

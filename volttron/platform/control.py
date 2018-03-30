@@ -1,59 +1,39 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2017, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
 
 from __future__ import absolute_import, print_function
@@ -69,11 +49,10 @@ import shutil
 import sys
 import tempfile
 import traceback
-import StringIO
 import uuid
-import base64
 import hashlib
 import tarfile
+import subprocess
 
 import gevent
 import gevent.event
@@ -186,10 +165,12 @@ class ControlService(BaseAgent):
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
+
         identity = self.agent_vip_identity(uuid)
         self._aip.stop_agent(uuid)
         #Send message to router that agent is shutting down
         frames = [bytes(identity)]
+
         self.core.socket.send_vip(b'', 'agentstop', frames, copy=False)
 
     @RPC.export
@@ -1335,6 +1316,52 @@ def get_config(opts):
             _stdout.write("\n")
 
 
+def edit_config(opts):
+    opts.connection.peer = CONFIGURATION_STORE
+    call = opts.connection.call
+
+    if opts.new_config:
+        config_type = opts.config_type
+        raw_data = ''
+    else:
+        try:
+            results = call("manage_get_metadata", opts.identity, opts.name)
+            config_type = results["type"]
+            raw_data = results["data"]
+        except RemoteError as e:
+            if "No configuration file" not in e.message:
+                raise
+            config_type = opts.config_type
+            raw_data = ''
+
+    #Write raw data to temp file
+    #This will not work on Windows, FYI
+    with tempfile.NamedTemporaryFile(suffix=".txt") as f:
+        f.write(raw_data)
+        f.flush()
+
+        success = True
+        try:
+            subprocess.check_call([opts.editor, f.name])
+        except subprocess.CalledProcessError as e:
+            _stderr.write("Editor returned with code {}. Changes not committed.\n".format(e.returncode))
+            success = False
+
+        if not success:
+            return
+
+        f.seek(0)
+        new_raw_data = f.read()
+
+        if new_raw_data == raw_data:
+            _stderr.write("No changes detected.\n")
+            return
+
+        call("manage_store", opts.identity, opts.name, new_raw_data, config_type=config_type)
+
+
+
+
 class ControlConnection(object):
     def __init__(self, address, peer='control',
                  publickey=None, secretkey=None, serverkey=None):
@@ -1410,6 +1437,8 @@ def main(argv=sys.argv):
                              help='show tracbacks for errors rather than a brief message')
     global_args.add_argument('-t', '--timeout', type=float, metavar='SECS',
                              help='timeout in seconds for remote calls (default: %(default)g)')
+    global_args.add_argument('--msgdebug',
+                             help='route all messages to an agent while debugging')
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
@@ -1746,6 +1775,30 @@ def main(argv=sys.argv):
                                     help='interpret the input file as csv')
 
     config_store_store.set_defaults(func=add_config_to_store,
+                                    config_type="json")
+
+    config_store_edit = add_parser("edit",
+                                    help="edit a configuration. (nano by default, respects EDITOR env variable)",
+                                    subparser=config_store_subparsers)
+
+    config_store_edit.add_argument('identity',
+                                    help='VIP IDENTITY of the store')
+    config_store_edit.add_argument('name',
+                                    help='name used to reference the configuration by in the store')
+    config_store_edit.add_argument('--editor', dest="editor",
+                                    help='Set the editor to use to change the file. Defaults to nano if EDITOR is not set',
+                                   default=os.getenv("EDITOR", "nano"))
+    config_store_edit.add_argument('--raw', const="raw", dest="config_type", action="store_const",
+                                    help='Interpret the configuration as raw data. If the file already exists this is ignored.')
+    config_store_edit.add_argument('--json', const="json", dest="config_type", action="store_const",
+                                    help='Interpret the configuration as json. If the file already exists this is ignored.')
+    config_store_edit.add_argument('--csv', const="csv", dest="config_type", action="store_const",
+                                    help='Interpret the configuration as csv. If the file already exists this is ignored.')
+    config_store_edit.add_argument('--new', dest="new_config", action="store_true",
+                                     help='Ignore any existing configuration and creates new empty file.'
+                                          ' Configuration is not written if left empty. Type defaults to JSON.')
+
+    config_store_edit.set_defaults(func=edit_config,
                                     config_type="json")
 
     config_store_delete = add_parser("delete",

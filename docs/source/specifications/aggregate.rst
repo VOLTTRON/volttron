@@ -1,4 +1,4 @@
-.. _AggregateHistorian:
+.. _AggregateHistorianSpec:
 
 =======================================
 Aggregate Historian Agent Specification

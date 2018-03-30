@@ -1,57 +1,38 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2017, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
@@ -59,134 +40,186 @@
 from __future__ import absolute_import, print_function
 
 import base64
-from collections import defaultdict
 import datetime
-from enum import Enum
 import hashlib
 import logging
 import os
-import platform
+import re
 import shutil
 import sys
 import tempfile
 import urlparse
+from collections import defaultdict
 
 import gevent
 import gevent.event
 import psutil
-from . vcconnection import VCConnection
+from enum import Enum
 
-from volttron.platform import jsonrpc
-from volttron.platform.agent.utils import (get_utc_seconds_from_epoch)
 from volttron.platform.agent import utils
-from volttron.platform.agent.exit_codes import INVALID_CONFIGURATION_CODE
-from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, CONTROL, CONFIGURATION_STORE)
-from volttron.platform.agent.utils import (get_aware_utc_now)
-from volttron.platform.auth import AuthEntry, AuthFile
-from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS)
-from volttron.platform.messaging import topics
-from volttron.platform.messaging.topics import (LOGGER, )
-from volttron.platform.vip.agent import (Agent, Core, RPC, PubSub, Unreachable)
-from volttron.platform.vip.agent.connection import Connection
-from volttron.platform.vip.agent.subsystems.query import Query
-from volttron.platform.vip.agent.utils import build_connection, build_agent
-from volttron.platform.web import DiscoveryInfo, DiscoveryError
-from . bacnet_proxy_reader import BACnetReader
-
-__version__ = '4.0'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+from volttron.platform import jsonrpc
 
-class NotManagedError(StandardError):
-    """ Raised if vcp cannot connect to the vc trying to manage it.
+from volttron.platform.agent.bacnet_proxy_reader import BACnetReader
+from volttron.platform.agent.known_identities import (
+    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, CONTROL, CONFIGURATION_STORE)
+from volttron.platform.agent.utils import (get_aware_utc_now)
+from volttron.platform.agent.utils import (get_utc_seconds_from_epoch,
+                                           format_timestamp, normalize_identity)
+from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS)
+from volttron.platform.messaging import topics
+from volttron.platform.messaging.health import GOOD_STATUS
+from volttron.platform.messaging.health import Status
+from volttron.platform.messaging.topics import (LOGGER, )
+from volttron.platform.vip.agent import (Agent, Core, RPC, Unreachable)
+from volttron.platform.vip.agent.subsystems.query import Query
+from volttron.platform.vip.agent.utils import build_agent
+from volttron.platform.web import DiscoveryInfo, DiscoveryError
+from .vcconnection import VCConnection
 
-    Some examples of this could be if the serverkey is not valid, if the
-    tcp address is invalid, if the http address is invalid.
-
-    Other examples could be permissions issues from auth.
-    """
-    pass
-
+__version__ = '4.6'
 
 RegistrationStates = Enum('AgentStates',
-                               'NotRegistered Unregistered Registered '
-                               'Registering')
+                          'NotRegistered Unregistered Registered '
+                          'Registering')
+
+
+def vcp_init(config_path, **kwargs):
+    """
+    The vcp_init method is used to parse the configuration file and provide
+    relatively good defaults for all of the configuration options for the
+    `pyclass::vcplatform.VolttronCentralPlatform`.
+
+    :param config_path:
+    :param kwargs:
+    :return: An instance of the `pyclass::vcplatform.VolttronCentralPlatform`
+    """
+
+    config = utils.load_config(config_path)
+
+    reconnect_interval = config.get(
+        'volttron-central-reconnect-interval', 5)
+    vc_address = config.get('volttron-central-address')
+    vc_serverkey = config.get('volttron-central-serverkey')
+    instance_name = config.get('instance-name')
+    stats_publish_interval = config.get('stats-publish-interval', 30)
+    # Interval to wait before publishing the status of the devices on this
+    # instance up to volttron central
+    device_status_interval = config.get('device-status-interval', 60)
+    topic_replace_map = config.get('topic-replace-map', {})
+
+    return VolttronCentralPlatform(reconnect_interval=reconnect_interval,
+                                   vc_address=vc_address,
+                                   vc_serverkey=vc_serverkey,
+                                   instance_name=instance_name,
+                                   stats_publish_interval=stats_publish_interval,
+                                   topic_replace_map=topic_replace_map,
+                                   device_status_interval=device_status_interval,
+                                   **kwargs)
 
 
 class VolttronCentralPlatform(Agent):
-    __name__ = 'VolttronCentralPlatform'
 
-    def __init__(self, config_path, **kwargs):
+    def __init__(self, reconnect_interval, vc_address,
+                 vc_serverkey, instance_name, stats_publish_interval,
+                 topic_replace_map, device_status_interval, **kwargs):
         super(VolttronCentralPlatform, self).__init__(**kwargs)
-
-        config = utils.load_config(config_path)
-
-        vc_reconnect_interval = config.get(
-            'volttron-central-reconnect-interval', 5)
-        vc_address = config.get('volttron-central-address')
-        vc_serverkey = config.get('volttron-central-serverkey')
-        instance_name = config.get('instance-name')
-        stats_publish_interval = config.get('stats-publish-interval', 30)
-        topic_replace_map = config.get('topic-replace-map', {})
 
         # This is scheduled after first call to the reconnect function
         self._scheduled_connection_event = None
         self._publish_bacnet_iam = False
 
+        d = {}
+        d['volttron-central-reconnect-interval'] = reconnect_interval
+        d['volttron-central-address'] = vc_address
+        d['volttron-central-serverkey'] = vc_serverkey
+        d['instance-name'] = instance_name
+        d['stats-publish-interval'] = stats_publish_interval
+        d['topic-replace-map'] = topic_replace_map
+        d['device-status-interval'] = device_status_interval
+
         # default_configuration is what is specified if there isn't a "config"
         # sent in through the volttron-ctl config store command.
-        self.default_config = dict(
-            volttron_central_reconnect_interval=vc_reconnect_interval,
-            volttron_central_address=vc_address,
-            volttron_central_serverkey=vc_serverkey,
-            instance_name=instance_name,
-            stats_publish_interval=stats_publish_interval,
-            topic_replace_map=topic_replace_map,
-            local_serverkey=None,
-            local_external_addresses=None
-        )
-
-        # current_config can be used an manipulated at runtime, while
-        # default_config is passed to the config_store as the defaults
-        self.current_config = None
+        self.default_config = d
 
         # Start using config store.
-        self.vip.config.set_default("default_config", self.default_config)
-        self.vip.config.subscribe(self._configure_main,
-                                  actions=["NEW", "UPDATE", "DELETE"],
-                                  pattern="default_config")
-        # self.vip.config.subscribe(self._configure_main,
-        #                           actions=["NEW", "UPDATE", "DELETE"],
-        #                           pattern="config")
-        # self.vip.config.subscribe(self.configure_platform,
-        #                           actions=["NEW", "UPDATE", "DELETE"],
-        #                           pattern="platform")
+        self.vip.config.set_default("config", self.default_config)
+        self.vip.config.subscribe(self._configure,
+                                  actions=["NEW", "UPDATE"],
+                                  pattern="config")
 
         # Allows the periodic check for registration.  It is set to true after
         # a main configuration is changed.
         self.enable_registration = False
 
         # A connection to the volttron central agent.
-        self.vc_connection = None
+        self._vc_connection = None
 
         # This publickey is set during the manage rpc call.
         self.manager_publickey = None
 
         # The state of registration of vcp with the vc instance.
-        self.registration_state = RegistrationStates.NotRegistered
+        self._registration_state = RegistrationStates.NotRegistered
 
         self._stats_publisher = None
 
         self._still_connected_event = None
         self._establish_connection_event = None
+        self._device_status_event = None
+        self._stat_publish_event = None
 
-        # This becomes a connection using the vcconnection.py file.
-        self.volttron_central_connection = None
+        # This becomes a connection to the vc instance either specified from the
+        # instance level or from the config file.
+        self._vc_connection = None
+        self._vc_address = None
+        self._vc_serverkey = None
+        self._instance_name = None
+        self._local_external_address = None
+        self._local_serverkey = None
+        self._stats_publish_interval = None
+        self._device_status_interval = None
+        self._device_publishes = {}
+        self._devices = {}
+        # master driver config store stat time
+        self._master_driver_stat_time = None
 
-    def _configure_main(self, config_name, action, contents):
+        # instance id is the vip identity of this agent on the remote platform.
+        self._instance_id = None
+
+        # where on the vc this instance will publish things
+        self._publish_topic = None
+
+        # topic_replace_map is a key value dictionary with strings to be
+        # replaced with values for all topics.
+        #
+        self._topic_replace_map = topic_replace_map
+
+        # This is used internally so we don't have to do replacements more
+        # than one time.
+        self._topic_replacement = {}
+
+        # When this is not None then we are in the middle of a scan and should
+        # not be able to start another scan.
+        self._iam_vc_response_topic = None
+
+        # This allows us to use a bacnet agent that is not on the local
+        # platform to do the scan (In most cases this will be set to self)
+        self._bacnet_communication_agent = self
+        self._bacnet_proxy_identity = None
+
+        # This uses convience methods so we can get information from the proxied
+        # devices
+        self._bacnet_proxy_readers = None
+
+    def _retrieve_address_and_serverkey(self, discovery_address):
+        info = DiscoveryInfo.request_discovery_info(discovery_address)
+        return info.vip_address, info.serverkey
+
+    def _configure(self, config_name, action, contents):
         """
         This is the main configuration point for the agent.
 
@@ -195,114 +228,229 @@ class VolttronCentralPlatform(Agent):
         :param contents:
         :return:
         """
+
+        config = self.default_config.copy()
+        config.update(contents)
         self.enable_registration = False
-        # If we are updating the main configuration we need to reset the
-        # connection to vc if present and initialize the state for reconnection.
-        if self.vc_connection is not None:
-            self.vc_connection.kill()
-            self.vc_connection = None
-        self.registration_state = RegistrationStates.NotRegistered
 
-        if config_name == 'default_config':
-            # we know this came from the config file that was specified
-            # with the agent
-            config = self.default_config.copy()
-
-        elif config_name == 'config':
-            config = self.default_config.copy()
-            config.update(contents)
-
-        else:
-            _log.error('Invalid configuration name!')
-            sys.exit(INVALID_CONFIGURATION_CODE)
-
+        # get the instance variables from the router.  The instance variables
+        # are located in the configuration file for the local instance.
+        # The query returns None if there is no value set.
         _log.debug('Querying router for addresses and serverkey.')
         q = Query(self.core)
 
-        external_addresses = q.query('addresses').get(timeout=5)
-        local_serverkey = q.query('serverkey').get(timeout=5)
-        vc_address = q.query('volttron-central-address').get(timeout=5)
-        vc_serverkey = q.query('volttron-central-serverkey').get(timeout=5)
-        instance_name = q.query('instance-name').get(timeout=5)
-        bind_web_address = q.query('bind-web-address').get(timeout=5)
-        address_hash = hashlib.md5(external_addresses[0]).hexdigest()
+        # qry prefix is from the query subsystem.
+        qry_external_addresses = q.query('addresses').get(timeout=5)
+        qry_local_serverkey = q.query('serverkey').get(timeout=5)
+        qry_vc_address = q.query('volttron-central-address').get(timeout=5)
+        qry_vc_serverkey = q.query('volttron-central-serverkey').get(timeout=5)
+        qry_instance_name = q.query('instance-name').get(timeout=5)
+        qry_bind_web_address = q.query('bind-web-address').get(timeout=5)
 
-        updates = dict(
-            bind_web_address=bind_web_address,
-            volttron_central_address=vc_address,
-            volttron_central_serverkey=vc_serverkey,
-            instance_name=instance_name,
-            address_hash=address_hash,
-            local_serverkey=local_serverkey,
-            local_external_addresses=external_addresses
-        )
+        cfg_vc_address = config.get("volttron-central-address")
+        cfg_vc_serverkey = config.get("volttron-central-serverkey")
 
-        if config_name == 'default_config':
-            for k, v in updates.items():
-                if v:
-                    config[k] = v
-        elif config_name == 'config':
-            for k, v in updates.items():
-                # Only update from the platform's configuration file if the
-                # value doesn't exist in the config or if it is empty.
-                if k not in config:
-                    config[k] = v
-                elif not config[k]:
-                    config[k] = v
+        try:
+            a, s = self._determine_vc_address_and_serverkey(cfg_vc_address,
+                                                            cfg_vc_serverkey,
+                                                            qry_bind_web_address)
+        except AttributeError:
+            try:
+                a, s = self._determine_vc_address_and_serverkey(qry_vc_address,
+                                                                qry_vc_serverkey,
+                                                                qry_bind_web_address)
+            except AttributeError:
+                error = """The global configuration contains an invalid/unavailable
+reference to an volttron discovery server and there was not a configuration
+for the platform agent that contains a volttron-central-agent and 
+volttron-central-serverkey."""
+                _log.error(error)
+                return
 
-        self.current_config = config.copy()
+        try:
+            if not a or not s:
+                _log.error("Couldn't determine server key and address")
+        except NameError:
+            _log.error("Couldn't determine server key and address")
+            return
 
-        vc_address = self.current_config['volttron_central_address']
-        vc_serverkey = self.current_config['volttron_central_serverkey']
+        # Reset the connection if necessary.  The case that we are changing
+        # configuration to a new vc.
+        if action == "UPDATE":
+            if self._vc_connection is not None:
+                self._stop_event_timers()
+                self._vc_connection.core.stop()
+                self._vc_connection = None
 
-        if vc_address:
-            parsed = urlparse.urlparse(vc_address)
+        self._topic_replacement.clear()
+        self._topic_replace_map = config['topic-replace-map']
+        self._vc_address = a
+        self._vc_serverkey = s
+        self._registration_state = RegistrationStates.NotRegistered
 
-            if parsed.scheme in ('http', 'https'):
-                _log.debug('vc_address is {}'.format(vc_address))
-                info = None
-                while info is None:
-                    try:
-                        info = DiscoveryInfo.request_discovery_info(vc_address)
-                    except DiscoveryError as e:
-                        _log.error(
-                            "Unable to retrieve discovery info from volttron central.")
-                        gevent.sleep(10)
+        if not self._vc_address or not self._vc_serverkey:
+            _log.error("vc address and serverkey could not be determined. "
+                       "registration is not allowed.")
+            return
 
-                self.current_config['vc_connect_address'] = info.vip_address
-                self.current_config['vc_connect_serverkey'] = info.serverkey
-            else:
-                self.current_config['vc_connect_address'] = vc_address
-                self.current_config['vc_connect_serverkey'] = vc_serverkey
+        cfg_instance_name = config.get("instance-name")
+        if cfg_instance_name is not None:
+            self._instance_name = cfg_instance_name
         else:
-            if bind_web_address:
-                info = DiscoveryInfo.request_discovery_info(bind_web_address)
-                # This will allow us to register with the current instance if
-                # there is an http server running here.
-                self.current_config['vc_connect_address'] = info.vip_address
-                self.current_config['vc_connect_serverkey'] = info.serverkey
+            self._instance_name = qry_instance_name
 
-        # Address hash that uniquely defines this instance in the network.
-        # Note: if there isn't a true tcp address then external_address[0] is
-        # going to be the ipc address
-        address_hash = hashlib.md5(external_addresses[0]).hexdigest()
-        _log.debug('External hash is set using external_addresses[0] {}'.format(external_addresses[0]))
-        self.current_config['address_hash'] = address_hash
-        self.current_config['instance_id'] = 'vcp-{}'.format(address_hash)
-        self.current_config['host'] = platform.uname()[1]
+        # Normalize the identity that we are connecting to VC with, however
+        # we are also going to replace the '.' with an '_' so that it
+        # does not confuse our web api.
+        norm_identity = normalize_identity(self._instance_name)
+        norm_identity = norm_identity.replace('.', '_')
+        self._instance_id = 'vcp-{}'.format(norm_identity)
 
-        # Connect to volttron central instance.
+        self._publish_topic = 'platforms/{}'.format(self._instance_id)
+
+        self._local_external_address = qry_external_addresses
+        self._local_serverkey = qry_local_serverkey
+        self._stats_publish_interval = config['stats-publish-interval']
+
+        self._device_status_interval = config['device-status-interval']
+
+        # Subscribe to devices
+        self._devices = self.get_devices()
+        self.vip.pubsub.subscribe('pubsub', 'devices', self._on_device_publish)
+        self.vip.pubsub.publish('pubsub', topic='platform/config_updated')
+
+        # Begin a connection loop that will automatically attempt to reconnect
+        # and publish stats to volttron central if the connection is successful.
         self._establish_connection_to_vc()
-        # Start publishing stats to the local bus.
-        self._start_stats_publisher()
+
+    def _stop_event_timers(self):
+        if self._establish_connection_event is not None:
+            self._establish_connection_event.cancel()
+            self._establish_connection_event = None
+        if self._stat_publish_event is not None:
+            self._stat_publish_event.cancel()
+            self._stat_publish_event = None
+        if self._still_connected_event is not None:
+            self._still_connected_event.cancel()
+            self._still_connected_event = None
+        if self._device_status_event is not None:
+            self._device_status_event.cancel()
+            self._device_status_event = None
+
+    def _determine_vc_address_and_serverkey(self, vc_address, vc_serverkey,
+                                            local_web_address):
+        if vc_address is None and local_web_address is None:
+            raise AttributeError("Must have local or vc address specified.")
+
+        _log.debug("Determining vc_address and serverkey")
+        _log.debug(
+            "\nvc_address={}\nvc_serverkey={}\nlocal_web_address={}".format(
+                vc_address, vc_serverkey, local_web_address
+            ))
+
+        if vc_address is None:
+            try:
+                address = local_web_address
+                parsed_address = urlparse.urlparse(local_web_address)
+            except AttributeError:
+                _log.error("local_web_address is invalid: {}".format(
+                    local_web_address))
+                raise
+        else:
+            try:
+                address = vc_address
+                parsed_address = urlparse.urlparse(vc_address)
+            except AttributeError:
+                _log.error("vc_address invalid: {}".format(vc_address))
+                raise
+
+        if parsed_address.scheme in ('https', 'http'):
+            try:
+                a, s = self._retrieve_address_and_serverkey(address)
+            except DiscoveryError:
+                raise AttributeError(
+                    "Cannot retrieve data from address: {}".format(address))
+        else:
+            if parsed_address.scheme not in ('tcp', 'ipc'):
+                raise AttributeError("Invalid scheme detected for vc_address "
+                                     "{}".format(vc_address))
+            if not vc_serverkey:
+                raise AttributeError("Invalid serverkey specified when "
+                                     "tcp address for vc_address")
+            a, s = vc_address, vc_serverkey
+
+        return a, s
+
+    def _update_vc_connection_params(self, updated_config,
+                                     inst_bind_web_address,
+                                     inst_vc_address, inst_vc_serverkey):
+        """
+        Updates the instance variables _vc_address and _vc_serverkey with a
+        true tcp based address.  This method will look up a discovery address
+        if that is what is specified.
+
+        When this method is complete, there will either be an error or the
+        _vc_address and _vc_serverkey variables will be set with "correct"
+        values to connect _vc_connection.
+
+        Note: if inst_vc_address is an http address then loop
+
+        :param updated_config:
+        :param inst_bind_web_address:
+        :param inst_vc_address:
+        :param inst_vc_serverkey:
+        :return:
+        """
+        vc_address = updated_config.get('volttron-central-address')
+
+        if vc_address is None:
+            vc_address = inst_vc_address
+
+            if vc_address is None:
+                if inst_bind_web_address is not None:
+                    info = DiscoveryInfo.request_discovery_info(
+                        inst_bind_web_address)
+                    self._vc_address = info.vip_address
+                    self._vc_serverkey = info.serverkey
+            else:
+                parsed = urlparse.urlparse(inst_vc_address)
+
+                if parsed.scheme in ('http', 'https'):
+                    _log.debug('inst_vc_address is {}'.format(inst_vc_address))
+                    info = None
+                    while info is None:
+                        try:
+                            info = DiscoveryInfo.request_discovery_info(
+                                inst_vc_address)
+                        except DiscoveryError as e:
+                            _log.error(
+                                "Unable to retrieve discovery info from volttron central.")
+                            gevent.sleep(10)
+
+                    self._vc_address = info.vip_address
+                    self._vc_serverkey = info.serverkey
+                else:
+                    self._vc_address = inst_vc_address
+                    self._vc_serverkey = inst_vc_serverkey
 
     @RPC.export
     def get_external_vip_addresses(self):
-        return self.current_config['local_external_addresses']
+        return self._local_external_address
 
     @RPC.export
     def get_instance_name(self):
-        return self.current_config['instance_name']
+        return self._instance_name
+
+    @RPC.export
+    def get_instance_details(self):
+        return dict(
+            instance_name=self._instance_name,
+            instance_id=self._instance_id,
+            topic_root=self._publish_topic,
+            publickey=self.core.publickey,
+            serverkey=self._local_serverkey,
+            address=self._local_external_address
+        )
 
     @RPC.export
     def get_public_keys(self):
@@ -334,46 +482,49 @@ class VolttronCentralPlatform(Agent):
 
     def _establish_connection_to_vc(self):
 
-        if not self.current_config.get("vc_connect_address"):
-            raise ValueError("vc_connect_address was not resolved properly.")
+        if not self._vc_address:
+            raise ValueError("vc_address was not resolved properly.")
 
-        if not self.current_config.get("vc_connect_serverkey"):
-            raise ValueError("vc_connect_serverkey was not resolved properly.")
+        if not self._vc_serverkey:
+            raise ValueError("vc_serverkey was not resolved properly.")
 
         if self._establish_connection_event is not None:
             self._establish_connection_event.cancel()
 
-        if self.vc_connection is None:
-            _log.info("Attempting to reconnect with volttron central.")
-            instance_id = self.current_config['instance_id']
-            # Note using the connect_address and connect_serverkey because they
-            # are now resolved to the correct values based upon the different
-            # ways of configuring the agent.
-            vc_address = self.current_config['vc_connect_address']
-            vc_serverkey =self.current_config['vc_connect_serverkey']
+        if self._vc_connection is None:
+            _log.debug("Attempting to connect with volttron central.")
+            _log.debug(
+                "Serverkey is going to be: {}".format(self._vc_serverkey))
 
             try:
 
-                self.volttron_central_connection = build_agent(
-                    identity=instance_id,
-                    address=vc_address,
-                    serverkey=vc_serverkey,
+                self._vc_connection = build_agent(
+                    identity=self._instance_id,
+                    address=self._vc_address,
+                    serverkey=self._vc_serverkey,
                     publickey=self.core.publickey,
                     secretkey=self.core.secretkey,
                     agent_class=VCConnection
                 )
+            except ValueError as ex:
+                _log.warn("Unable to connect to volttron central due to "
+                          "invalid configuration.")
+                _log.warn("Value Error! {}".format(ex.message))
+                self._vc_connection = None
 
             except gevent.Timeout:
-                _log.debug("No connection to volttron central instance.")
-                self.volttron_central_connection = None
+                _log.warn("No connection to volttron central instance.")
+                self._vc_connection = None
 
                 next_update_time = self._next_update_time()
 
                 self._establish_connection_event = self.core.schedule(
                     next_update_time, self._establish_connection_to_vc)
             else:
-                self.volttron_central_connection.set_main_agent(self)
+                self._vc_connection.set_main_agent(self)
                 self._still_connected()
+                self._publish_stats()
+                self._publish_device_health()
 
     def _still_connected(self):
 
@@ -382,17 +533,19 @@ class VolttronCentralPlatform(Agent):
 
         try:
             with gevent.Timeout(seconds=5):
-                hello = self.volttron_central_connection.vip.ping(
-                    b'', self.current_config['instance_id']).get()
+                hello = self._vc_connection.vip.ping(
+                    b'', self._instance_id).get()
         except gevent.Timeout:
-            self.volttron_central_connection = None
+            self._vc_connection = None
+            self._establish_connection_to_vc()
+        except AttributeError as ae:
+            self._vc_connection = None
             self._establish_connection_to_vc()
         else:
             next_update_time = self._next_update_time(seconds=10)
 
             self._still_connected_event = self.core.schedule(
                 next_update_time, self._still_connected)
-
 
     def _update_vcp_config(self, external_addresses, local_serverkey,
                            vc_address, vc_serverkey, instance_name):
@@ -450,13 +603,13 @@ class VolttronCentralPlatform(Agent):
             if vc is None:
                 _log.debug("vc not connected")
                 return
-            local_address = self.current_config.get(
-                'local_external_addresses')[0]
-            if not vc.call("is_registered", address=local_address):
-                _log.debug("platform agent is not registered.")
-                self.registration_state = RegistrationStates.NotRegistered
 
-            if self.registration_state == RegistrationStates.NotRegistered:
+            if not vc.call("is_registered",
+                           address=self._local_external_address):
+                _log.debug("platform agent is not registered.")
+                self._registration_state = RegistrationStates.NotRegistered
+
+            if self._registration_state == RegistrationStates.NotRegistered:
                 vc_agent_publickey = vc.call("get_publickey")
                 _log.debug('vc agent publickey is {}'.format(
                     vc_agent_publickey))
@@ -479,28 +632,18 @@ class VolttronCentralPlatform(Agent):
                     authfile = AuthFile()
                     authfile.add(entry)
 
-                local_address = self.current_config.get(
-                    'local_external_addresses')[0]
-                local_name = self.current_config.get('local_instance_name',
-                                                     local_address)
-                local_serverkey = self.current_config.get('local_serverkey')
-                vc_address = self.current_config.get('volttron_central_address')
-
-                _log.debug("Registering with vc from vcp.")
-                _log.debug("Instance is named: {}".format(local_name))
-                _log.debug("Local Address is: {}".format(local_address))
-                _log.debug("VC Address is: {}".format(vc_address))
-
-                vc.call('register_instance', address=local_address,
-                        display_name=local_name, vcpserverkey=local_serverkey,
+                vc.call('register_instance',
+                        address=self._local_external_address,
+                        display_name=self._instance_name,
+                        vcpserverkey=self._local_serverkey,
                         vcpagentkey=self.core.publickey)
 
             else:
                 _log.debug("Current platform registration state: {}".format(
-                    self.registration_state))
+                    self._registration_state))
         except Unreachable as e:
             _log.error("Couldn't connect to volttron.central. {}".format(
-                self.current_config.get('volttron_central_address')
+                self._vc_address
             ))
         except ValueError as e:
             _log.error(e.message)
@@ -541,17 +684,17 @@ class VolttronCentralPlatform(Agent):
         :return:
         """
 
-        if self.vc_connection:
+        if self._vc_connection:
             # if connected return the connection.
-            if self.vc_connection.is_connected(5) and \
-                    self.vc_connection.is_peer_connected(5):
+            if self._vc_connection.is_connected(5) and \
+                    self._vc_connection.is_peer_connected(5):
                 _log.debug('Returning current connection')
-                return self.vc_connection
+                return self._vc_connection
 
             _log.debug("Resetting connection as the peer wasn't responding.")
             # reset the connection so we can try it again below.
-            self.vc_connection.kill()
-            self.vc_connection = None
+            self._vc_connection.kill()
+            self._vc_connection = None
 
         def sync_status_to_vc(status, context):
             """
@@ -561,7 +704,7 @@ class VolttronCentralPlatform(Agent):
             :param status:
             :param context:
             """
-            conn = self.vc_connection
+            conn = self._vc_connection
             conn.vip.health.set_status(status, context)
 
         self.vip.health.add_status_callback(sync_status_to_vc)
@@ -570,7 +713,7 @@ class VolttronCentralPlatform(Agent):
             """
             Start publishing the heartbeat with the status messages.
             """
-            conn = self.vc_connection
+            conn = self._vc_connection
             status = self.vip.health.get_status()
             conn.vip.health.set_status(
                 status['status'], status['context']
@@ -587,79 +730,58 @@ class VolttronCentralPlatform(Agent):
         # identity, if there is use it as the manager of the platform.
         peers = self.vip.peerlist().get(timeout=5)
         if VOLTTRON_CENTRAL in peers:
-            _log.debug('VC is a local peer.')
-            # Address hash that uniquely defines this platform in the network.
-            address_hash = hashlib.md5(self.core.address).hexdigest()
-            self.current_config['address_hash'] = address_hash
-            vcp_identity_on_vc += address_hash
-            vc_serverkey = self.current_config['volttron_connect_serverkey']
-            self.vc_connection = build_agent(
+            _log.debug('VC is a local peer, using {} as instance_id'.format(
+                self._instance_id))
+            self._vc_connection = build_agent(
                 self.core.address,
-                #peer=VOLTTRON_CENTRAL,
+                # peer=VOLTTRON_CENTRAL,
                 publickey=self.core.publickey,
                 secretkey=self.core.secretkey,
-                serverkey=vc_serverkey,
-                identity=vcp_identity_on_vc,
+                serverkey=self._vc_serverkey,
+                identity=self._instance_id,
                 agent_class=VCConnection
             )
-            self.vc_connection.set_main_agent(self)
-            if self.vc_connection.is_connected() and \
-                    self.vc_connection.is_peer_connected():
+            self._vc_connection.set_main_agent(self)
+            if self._vc_connection.is_connected() and \
+                    self._vc_connection.is_peer_connected():
                 _log.debug("Connection has been established to local peer.")
             else:
                 _log.error('Unable to connect to local peer!')
-            if self.vc_connection.is_connected():
+            if self._vc_connection.is_connected():
                 enable_connection_heartbeat()
 
-            return self.vc_connection
+            return self._vc_connection
 
-        if self.current_config.get('vc_connect_address') is None or \
-                self.current_config.get('vc_connect_serverkey') is None:
+        if self._vc_address is None or self._vc_serverkey is None:
             _log.warn('volttron_central_address is None in config store '
                       'and volttron.central is not a peer.')
             _log.warn('Recommend adding volttron.central address or adding a '
                       '"config" file to the config store.')
             return None
 
-        c = self.current_config
-        address_hash = c.get('address_hash')
-        vcp_identity_on_vc += address_hash
-        self.vc_connection = build_agent(
+        self._vc_connection = build_agent(
             identity=vcp_identity_on_vc,
             # peer=VOLTTRON_CENTRAL,
-            address=c.get('vc_connect_address'),
-            serverkey=c.get('vc_connect_serverkey'),
+            address=self._vc_address,
+            serverkey=self._vc_serverkey,
             publickey=self.core.publickey,
             secretkey=self.core.secretkey,
             agent_class=VCConnection
         )
 
-        self.vc_connection.set_main_agent(self)
-        if not self.vc_connection.is_peer_connected():
+        self._vc_connection.set_main_agent(self)
+        if not self._vc_connection.is_peer_connected():
             _log.error('Peer: {} is not connected to the external platform'
-                       .format(self.vc_connection.peer))
-            self.vc_connection.kill()
-            self.vc_connection = None
-            self.registration_state = RegistrationStates.NotRegistered
+                       .format(self._vc_connection.peer))
+            self._vc_connection.kill()
+            self._vc_connection = None
+            self._registration_state = RegistrationStates.NotRegistered
             return None
 
-        if self.vc_connection.is_connected():
+        if self._vc_connection.is_connected():
             enable_connection_heartbeat()
 
-        return self.vc_connection
-
-    def _start_stats_publisher(self):
-
-        if self._stats_publisher:
-            self._stats_publisher.kill()
-
-        _log.debug("Starting stats publisher.")
-        stats_publish_interval = self.current_config.get(
-            'stats-publish-interval', 30)
-        # The stats publisher publishes both to the local bus and the vc
-        # bus the platform specific topics.
-        self._stats_publisher = self.core.periodic(
-            stats_publish_interval, self._publish_stats)
+        return self._vc_connection
 
     @RPC.export
     def get_health(self):
@@ -667,7 +789,11 @@ class VolttronCentralPlatform(Agent):
         return self.vip.health.get_status()
 
     def get_instance_uuid(self):
-        return self.current_config.get('instance_id')
+        return self._instance_id
+
+    @RPC.export
+    def get_replace_map(self):
+        return self._topic_replace_map
 
     @RPC.export
     def publish_bacnet_props(self, proxy_identity, publish_topic, address,
@@ -682,71 +808,127 @@ class VolttronCentralPlatform(Agent):
 
             self._pub_to_vc(publish_topic, message=message)
 
-        bn = BACnetReader(self.vip.rpc, proxy_identity, bacnet_response)
+        bn = BACnetReader(self.vip, proxy_identity, bacnet_response)
 
         gevent.spawn(bn.read_device_properties, address, device_id, filter)
         gevent.sleep(0.1)
 
         return "PUBLISHING"
 
-    def start_bacnet_scan(self, iam_topic, proxy_identity, low_device_id=None,
+    def _stop_listening_for_iam(self):
+
+        _log.debug('Stopping IAM Done publishing i am responses.')
+        stop_timestamp = get_utc_seconds_from_epoch()
+        self._pub_to_vc(self._iam_vc_response_topic, message=dict(
+            status="FINISHED IAM",
+            timestamp=stop_timestamp
+        ))
+        self._iam_vc_response_topic = None
+        if self._bacnet_communication_agent is not self:
+            try:
+                self._bacnet_communication_agent.core.stop(timeout=3)
+            except gevent.Timeout:
+                _log.error("Couldn't stop dynamic agent during bacnet scan")
+            finally:
+                self._bacnet_communication_agent = None
+        self._bacnet_proxy_identity = None
+        self._bacnet_proxy_readers.stop_iam_responses()
+
+    def _iam_response_handler(self, message):
+        _log.debug("IAM response message: {}".format(message))
+        address = message['address']
+        device_id = message['device_id']
+        _log.info("IAM response for (andress, devices_id) ({}, {})".format(
+            address, device_id
+        ))
+
+        try:
+            message['device_name'] = self._bacnet_proxy_readers.read_device_name(
+                address, device_id)
+
+        except gevent.Timeout:
+            message['is_error'] = True
+            message['device_name'] = "Timeout receiving name of device"
+        except Exception as ex:
+            message['is_error'] = True
+            message['device_name'] = repr(ex)
+            _log.error(repr(ex))
+
+        self._pub_to_vc(self._iam_vc_response_topic, message=message)
+
+    def start_bacnet_scan(self, iam_vc_response_topic, proxy_identity,
+                          low_device_id=None,
                           high_device_id=None, target_address=None,
                           scan_length=5, instance_address=None,
                           instance_serverkey=None):
-        """This function is a wrapper around the bacnet proxy scan.
+        """Start a bacnet scan, monitoring the iam topic for responses.
+
+        If there is already a scan being processed then the method logs a
+        warning and returns immediately.
+
+        If instances_address and instance_serverkey are specified then a
+        dynamic agent will attempt to connect to thte isntance_address and
+        contact the bacnet proxy.  If not successful then the agent will
+        raise and Unreachable error.
+
+        The bacnet proxy identity must be available on the target platform or
+        an Unreachable error will be raised.
         """
+        if self._iam_vc_response_topic:
+            _log.warning("Duplicate scan request.")
+            return
+
+        # Avoid a race condition by immediately marking as in use.
+        self._iam_vc_response_topic = "Hold"
+
+        # Assume we are going to use the current vcp as the connection to the
+        # proxy.
         agent_to_use = self
         if instance_address is not None:
+            if not instance_serverkey:
+                self._iam_vc_response_topic = None
+                raise Unreachable("Invalid instance_serverkey specified.")
             agent_to_use = build_agent(address=instance_address,
                                        identity="proxy_bacnetplatform",
                                        publickey=self.core.publickey,
                                        secretkey=self.core.secretkey,
                                        serverkey=instance_serverkey)
 
+        # Verify that we have a connection to the proxy we need to talk with.
         if proxy_identity not in agent_to_use.vip.peerlist().get(timeout=5):
+            self._iam_vc_response_topic = None
             raise Unreachable("Can't reach agent identity {}".format(
                 proxy_identity))
         _log.info('Starting bacnet_scan with who_is request to {}'.format(
             proxy_identity))
 
-        def handle_iam(peer, sender, bus, topic, headers, message):
-            proxy_identity = sender
-            address = message['address']
-            device_id = message['device_id']
-            bn = BACnetReader(agent_to_use.vip.rpc, proxy_identity)
-            message['device_name'] = bn.read_device_name(address, device_id)
-            message['device_description'] = bn.read_device_description(
-                address,
-                device_id)
+        # Update member variables to determine state
+        self._iam_vc_response_topic = iam_vc_response_topic
+        self._bacnet_proxy_identity = proxy_identity
+        self._bacnet_communication_agent = agent_to_use
 
-            self._pub_to_vc(iam_topic, message=message)
-
-        def stop_iam():
-            _log.debug('Done publishing i am responses.')
-            stop_timestamp = get_utc_seconds_from_epoch()
-            self._pub_to_vc(iam_topic, message=dict(
-                status="FINISHED IAM",
-                timestamp=stop_timestamp
-            ))
-            agent_to_use.vip.pubsub.unsubscribe('pubsub', topics.BACNET_I_AM,
-                                        handle_iam)
-
-        agent_to_use.vip.pubsub.subscribe('pubsub', topics.BACNET_I_AM, handle_iam)
+        self._bacnet_proxy_readers = BACnetReader(
+            vip=self._bacnet_communication_agent.vip,
+            bacnet_proxy_identity=self._bacnet_proxy_identity,
+            iam_response_fn=self._iam_response_handler
+        )
 
         timestamp = get_utc_seconds_from_epoch()
 
-        self._pub_to_vc(iam_topic, message=dict(status="STARTED IAM",
-                                                timestamp=timestamp))
+        # Report to vc that we are starting the IAM publishing.
+        self._pub_to_vc(iam_vc_response_topic,
+                        message=dict(status="STARTED IAM",
+                                     timestamp=timestamp))
 
-        agent_to_use.vip.rpc.call(proxy_identity, "who_is",
-                                  low_device_id=low_device_id,
-                                  high_device_id=high_device_id,
-                                  target_address=target_address).get(timeout=5.0)
+        self._bacnet_proxy_readers.start_whois(low_device_id=low_device_id,
+                                               high_device_id=high_device_id,
+                                               target_address=target_address)
 
-        gevent.spawn_later(float(scan_length), stop_iam)
+        gevent.spawn_later(float(scan_length * 2),
+                           self._stop_listening_for_iam)
 
     def _pub_to_vc(self, topic_leaf, headers=None, message=None):
-        if self.volttron_central_connection is None:
+        if self._vc_connection is None:
             _log.error('Platform must have connection to vc to publish {}'
                        .format(topic_leaf))
             return
@@ -756,14 +938,15 @@ class VolttronCentralPlatform(Agent):
 
         topic = "platforms/{}/{}".format(self.get_instance_uuid(),
                                          topic_leaf)
-        _log.debug('Publishing to vc topic: {}'.format(topic))
-        _log.debug('Publishing to vc headers: {}'.format(headers))
-        _log.debug('Publishing to vc message: {}'.format(message))
+        # _log.debug('Publishing to vc topic: {}'.format(topic))
+        # _log.debug('Publishing to vc headers: {}'.format(headers))
+        # _log.debug('Publishing to vc message: {}'.format(message))
+
         # Note because vc is a vcconnection object we are explicitly
         # saying to publish to the vc platform.
-        self.volttron_central_connection.publish_to_vc(topic=topic,
-                                                       headers=headers,
-                                                       message=message)
+        self._vc_connection.publish_to_vc(topic=topic,
+                                          headers=headers,
+                                          message=message)
 
     @RPC.export
     def list_agents(self):
@@ -840,7 +1023,7 @@ class VolttronCentralPlatform(Agent):
         return agents
 
     def store_agent_config(self, agent_identity, config_name, raw_contents,
-                            config_type='raw'):
+                           config_type='raw'):
         _log.debug("Storeing configuration file: {}".format(config_name))
         self.vip.rpc.call(CONFIGURATION_STORE, "manage_store", agent_identity,
                           config_name, raw_contents, config_type)
@@ -851,15 +1034,15 @@ class VolttronCentralPlatform(Agent):
 
     def get_agent_config(self, agent_identity, config_name, raw=True):
         data = self.vip.rpc.call(CONFIGURATION_STORE, "manage_get",
-                                 agent_identity, config_name, raw).get(timeout=5)
+                                 agent_identity, config_name, raw).get(
+            timeout=5)
         return data or ""
 
     def start_agent(self, agent_uuid):
-        return self.vip.rpc.call(CONTROL, "start_agent", agent_uuid).get(timeout=5)
-
+        return self.vip.rpc.call(CONTROL, "start_agent", agent_uuid).get(
+            timeout=5)
 
     def stop_agent(self, agent_uuid):
-        _log.debug("Stopping agent: {}".format(agent_uuid))
         proc_result = self.vip.rpc.call(CONTROL, "stop_agent",
                                         agent_uuid).get(timeout=5)
         return proc_result
@@ -870,19 +1053,100 @@ class VolttronCentralPlatform(Agent):
         return self.agent_status(agent_uuid).get(timeout=5)
 
     def agent_status(self, agent_uuid):
-        return self.vip.rpc.call(CONTROL, "agent_status", agent_uuid).get(timeout=5)
+        return self.vip.rpc.call(CONTROL, "agent_status", agent_uuid).get(
+            timeout=5)
 
     def status_agents(self):
         _log.debug('STATUS AGENTS')
         return self.vip.rpc.call(CONTROL, 'status_agents').get(timeout=5)
 
-    @PubSub.subscribe('pubsub', 'devices')
-    def _on_record_message(self, peer, sender, bus, topic, headers, message):
-        pass
+    def _on_device_publish(self, peer, sender, bus, topic, headers, message):
+        # Update the devices store for get_devices function call
+        if not topic.endswith('/all'):
+            _log.debug("Skipping publish to {}".format(topic))
+            return
 
-    @PubSub.subscribe('pubsub', 'devices')
-    def _on_analysis_message(self, peer, sender, bus, topic, headers, message):
-        pass
+        _log.debug("topic: {}, message: {}".format(topic, message))
+
+        ts = format_timestamp(get_aware_utc_now())
+        context = "Last received data on: {}".format(ts)
+        status = Status.build(GOOD_STATUS, context=context)
+
+        device_topic = topic[:-len('/all')]
+        renamed_topic = self.get_renamed_topic(device_topic)
+
+        if renamed_topic not in self._devices:
+            self._devices = self.get_devices()
+
+            if renamed_topic not in self._devices:
+                _log.error("Unknown device was published to this address!")
+                return
+
+        device_dict = self._devices[device_topic]
+
+        if not device_dict.get('points', None):
+            points = message[0].keys() # [k for k, v in message[0].items()]
+            device_dict['points'] = points
+
+        device_dict['health'] = status.as_dict()
+        device_dict['last_publish_utc'] = ts
+
+    def _replace_topic(self, original):
+        # only need to replace if we have some items in the list.
+        if not self._topic_replace_map:
+            return original
+
+        if original in self._topic_replacement:
+            return self._topic_replacement
+
+        new_value = original
+
+        for x in self._topic_replace_map:
+            new_value = new_value.replace(x, self._topic_replace_map[x])
+
+        if new_value == original:
+            return None
+
+        self._topic_replacement[original] = new_value
+
+        return new_value
+
+    def get_renamed_topic(self, input_topic):
+        """
+        replace topic name based on configured topic replace list, is any
+        :param input_topic: 
+        :return: 
+        """
+        output_topic = input_topic
+        _log.debug(
+            "_topic_replace_list  is {}".format(self._topic_replace_map))
+        input_topic_lower = input_topic.lower()
+        # Only if we have some topics to replace.
+        if self._topic_replace_map:
+            # if we have already cached the topic then return it.
+            if input_topic_lower in self._topic_replacement.keys():
+                output_topic = self._topic_replacement[input_topic_lower]
+            else:
+                self._topic_replacement[input_topic_lower] = input_topic
+                temptopics = {}
+                for k, v in self._topic_replace_map.items():
+
+                    if k in input_topic_lower:
+                        # this allows multiple things to be replaced from
+                        # from a given topic.
+                        new_topic = temptopics.get(input_topic_lower,
+                                                   input_topic)
+                        # temptopics[input_topic] = new_topic.replace(
+                        #     x['from'], x['to'])
+
+                        temptopics[input_topic_lower] = re.compile(
+                            re.escape(k), re.IGNORECASE).sub(v, new_topic)
+
+                for k, v in temptopics.items():
+                    self._topic_replacement[k] = v
+                output_topic = self._topic_replacement[input_topic_lower]
+            _log.debug("Output topic after replacements {}".format(output_topic))
+        return output_topic
 
     def get_devices(self):
         """
@@ -890,6 +1154,33 @@ class VolttronCentralPlatform(Agent):
 
         :return:
         """
+
+        md_configstore = os.path.join(
+            os.environ['VOLTTRON_HOME'],
+            "configuration_store/platform.driver.store"
+        )
+
+        if not os.path.exists(md_configstore):
+            _log.debug("No master driver currently on this platform.")
+            return {}
+
+        statinfo = os.stat(md_configstore)
+
+        if self._master_driver_stat_time is None or \
+                        self._master_driver_stat_time != statinfo.st_mtime:
+            self._master_driver_stat_time = statinfo.st_mtime
+
+        # else no change in the md file and we have the same stat time.
+        else:
+            keys = list(self._devices.keys())
+
+            for k in keys:
+                new_key = self.get_renamed_topic(k)
+                if new_key != k:
+                    self._devices[new_key] = self._devices[k]
+                    del self._devices[k]
+
+            return self._devices
 
         _log.debug('Getting devices')
         config_list = self.vip.rpc.call(CONFIGURATION_STORE,
@@ -903,8 +1194,6 @@ class VolttronCentralPlatform(Agent):
             # Skip as we are only looking to do devices in this call.
             if not cfg_name.startswith('devices/'):
                 continue
-
-            _log.debug('Reading config store for device {}'.format(cfg_name))
 
             device_config = self.vip.rpc.call('config.store', 'manage_get',
                                               'platform.driver',
@@ -1014,7 +1303,8 @@ class VolttronCentralPlatform(Agent):
                 _log.debug("Calling method {} on agent {}"
                            .format(agent_method, agent_uuid))
                 _log.debug("Params is: {}".format(params))
-                if agent_method in ('start_bacnet_scan', 'publish_bacnet_props'):
+                if agent_method in (
+                'start_bacnet_scan', 'publish_bacnet_props'):
                     identity = params.pop("proxy_identity")
                     if agent_method == 'start_bacnet_scan':
                         result = self.start_bacnet_scan(identity, **params)
@@ -1023,14 +1313,18 @@ class VolttronCentralPlatform(Agent):
                 else:
                     # find the identity of the agent so we can call it by name.
                     identity = self.vip.rpc.call(CONTROL,
-                        'agent_vip_identity', agent_uuid).get(timeout=5)
+                                                 'agent_vip_identity',
+                                                 agent_uuid).get(timeout=5)
                     if params:
                         if isinstance(params, list):
-                            result = self.vip.rpc.call(identity, agent_method, *params).get(timeout=30)
+                            result = self.vip.rpc.call(identity, agent_method,
+                                                       *params).get(timeout=30)
                         else:
-                            result = self.vip.rpc.call(identity, agent_method, **params).get(timeout=30)
+                            result = self.vip.rpc.call(identity, agent_method,
+                                                       **params).get(timeout=30)
                     else:
-                        result = self.vip.rpc.call(identity, agent_method).get(timeout=30)
+                        result = self.vip.rpc.call(identity, agent_method).get(
+                            timeout=30)
                 # find the identity of the agent so we can call it by name.
                 identity = self.vip.rpc.call(CONTROL, 'agent_vip_identity',
                                              agent_uuid).get(timeout=5)
@@ -1076,7 +1370,7 @@ class VolttronCentralPlatform(Agent):
                         base64.decodestring(
                             fileargs['file'].split(base64_sep)[1]))
 
-            uuid = self.vip.rpc.call(CONTROL,  'install_agent_local',
+            uuid = self.vip.rpc.call(CONTROL, 'install_agent_local',
                                      path, vip_identity=vip_identity
                                      ).get(timeout=30)
             result = dict(uuid=uuid)
@@ -1088,12 +1382,34 @@ class VolttronCentralPlatform(Agent):
         _log.debug('Results from install_agent are: {}'.format(result))
         return result
 
+    def _publish_device_health(self):
+        _log.debug("SHOULD BE PUBLISHING DEVICE HEALTH HERE!")
+        # if self._device_status_event is not None:
+        #     self._device_status_event.cancel()
+        #
+        # try:
+        #     self._vc_connection.publish_to_vc(
+        #         "platforms/{}/device_update".format(self.get_instance_uuid()),
+        #         message=self._device_publishes)
+        # finally:
+        #     # The stats publisher publishes both to the local bus and the vc
+        #     # bus the platform specific topics.
+        #     next_update_time = self._next_update_time(
+        #         seconds=self._device_status_interval)
+        #
+        #     self._device_status_event = self.core.schedule(
+        #         next_update_time, self._publish_device_health)
+
+
+
     def _publish_stats(self):
         """
         Publish the platform statistics to the bus.
         """
+        if self._stat_publish_event is not None:
+            self._stat_publish_event.cancel()
 
-        topic = LOGGER(subtopic="platform/status/cpu")
+        topic = LOGGER(subtopic=self._publish_topic + "/status/cpu")
 
         points = {}
 
@@ -1108,22 +1424,30 @@ class VolttronCentralPlatform(Agent):
 
         except Exception as e:
             _log.warn("Failed to publish to topic {}".format(topic.format()))
+        finally:
+            # The stats publisher publishes both to the local bus and the vc
+            # bus the platform specific topics.
+            next_update_time = self._next_update_time(
+                seconds=self._stats_publish_interval)
+
+            self._stats_publish_event = self.core.schedule(
+                next_update_time, self._publish_stats)
 
     @Core.receiver('onstop')
     def onstop(self, sender, **kwargs):
-        if self.volttron_central_connection is not None:
+        if self._vc_connection is not None:
             _log.debug("Shutting down agent.")
 
-            self.volttron_central_connection.publish_to_vc(
+            self._vc_connection.publish_to_vc(
                 "platforms/{}/stopping".format(
                     self.get_instance_uuid()))
             gevent.sleep(1)
             try:
-                self.volttron_central_connection.core.stop(timeput=5)
+                self._vc_connection.core.stop(timeput=5)
             except:
-                _log.error("killing vc_connection connection")
+                _log.error("killing _vc_connection connection")
             finally:
-                self.volttron_central_connection = None
+                self._vc_connection = None
 
 
 def main(argv=sys.argv):
@@ -1132,7 +1456,7 @@ def main(argv=sys.argv):
     :return:
     """
     # utils.vip_main(platform_agent)
-    utils.vip_main(VolttronCentralPlatform, identity=VOLTTRON_CENTRAL_PLATFORM,
+    utils.vip_main(vcp_init, identity=VOLTTRON_CENTRAL_PLATFORM,
                    version=__version__)
 
 

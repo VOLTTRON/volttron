@@ -1,0 +1,6 @@
+Point Name,Volttron Point Name,Units,Units Details,Writable,Starting Value,Type,Notes
+Heartbeat,Heartbeat,On/Off,On/Off,TRUE,0,boolean,Point for heartbeat toggle
+temperature,temperature,Fahrenheit,-100 to 300,FALSE,50,float,CO2 Reading 0.00-2000.0 ppm
+HPWH_Phy0_PowerState,PowerState,1/0,1/0,TRUE,0,int,Power on off status
+ERWH_Phy0_ValveState,ValveState,1/0,1/0,TRUE,0,int,power on off status
+count,count,none,none,TRUE,0,int,none

@@ -1,0 +1,10 @@
+{
+    "smtp-address": "smtp.example.com",
+    "from-address": "no-reply@example.com",
+    "to-addresses": [
+        "admin1@example.com"
+    ],
+
+    # Only send a certain alert-key message every 120 minutes.
+    "allow-frequency-minutes": 120
+}

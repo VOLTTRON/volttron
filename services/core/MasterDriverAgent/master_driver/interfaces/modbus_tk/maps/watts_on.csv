@@ -1,0 +1,11 @@
+Volttron Point Name,Register Name
+Active Power Total,active_power_total
+Reactive Power Total,reactive_power_total
+Apparent Power Total,apparent_power_total
+Voltage Average,voltage_average
+Current Average,current_average
+Voltage AB,voltage_ab
+Current A,current_a
+Little Endian Mode,little_endian_mode
+Serial Baud Rate,serial_baud_rate
+Serial Commit,serial_commit

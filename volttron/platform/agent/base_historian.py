@@ -1,57 +1,38 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2017, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
@@ -242,6 +223,10 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from threading import Thread
 
+import gevent
+from gevent import get_hub
+from functools import wraps
+
 import pytz
 import re
 from dateutil.parser import parse
@@ -251,15 +236,23 @@ from volttron.platform.agent.utils import process_timestamp, \
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
-
-
+from volttron.platform.vip.agent.subsystems.query import Query
 
 try:
     import ujson
+    from zmq.utils.jsonapi import dumps as _dumps, loads as _loads
+
     def dumps(data):
-        return ujson.dumps(data, double_precision=15)
+        try:
+            return ujson.dumps(data, double_precision=15)
+        except:
+            return _dumps(data)
+
     def loads(data_string):
-        return ujson.loads(data_string, precise_float=True)
+        try:
+            return ujson.loads(data_string, precise_float=True)
+        except:
+            return _loads(data_string)
 except ImportError:
     from zmq.utils.jsonapi import dumps, loads
 
@@ -292,14 +285,17 @@ def add_timing_data_to_header(headers, agent_id, phase):
     if len(values) < 2:
         return 0.0
 
-    #Assume 2 phases and proper format.
+    # Assume 2 phases and proper format.
     time1 = datetime.strptime(values[0][11:26], "%H:%M:%S.%f")
     time2 = datetime.strptime(values[1][11:26], "%H:%M:%S.%f")
 
     return abs((time1 - time2).total_seconds())
 
+
 class BaseHistorianAgent(Agent):
-    """This is the base agent for historian Agents.
+    """
+    This is the base agent for historian Agents.
+
     It automatically subscribes to all device publish topics.
 
     Event processing occurs in its own thread as to not block the main
@@ -328,35 +324,236 @@ class BaseHistorianAgent(Agent):
     def __init__(self,
                  retry_period=300.0,
                  submit_size_limit=1000,
-                 max_time_publishing=30,
+                 max_time_publishing=30.0,
                  backup_storage_limit_gb=None,
-                 topic_replace_list=None,
+                 topic_replace_list=[],
                  gather_timing_data=False,
+                 readonly=False,
+                 process_loop_in_greenlet=False,
+                 capture_device_data=True,
+                 capture_log_data=True,
+                 capture_analysis_data=True,
+                 capture_record_data=True,
+                 message_publish_count=10000,
+                 history_limit_days=None,
+                 storage_limit_gb=None,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
         # This should resemble a dictionary that has key's from and to which
         # will be replaced within the topics before it's stored in the
         # cache database
+        self._process_loop_in_greenlet = process_loop_in_greenlet
         self._topic_replace_list = topic_replace_list
 
         _log.info('Topic string replace list: {}'
                   .format(self._topic_replace_list))
 
-        self._gather_timing_data = gather_timing_data
+        self.gather_timing_data = bool(gather_timing_data)
 
         self.volttron_table_defs = 'volttron_table_definitions'
         self._backup_storage_limit_gb = backup_storage_limit_gb
-        self._started = False
+        self._retry_period = float(retry_period)
+        self._submit_size_limit = int(submit_size_limit)
+        self._max_time_publishing = float(max_time_publishing)
+        self._history_limit_days = history_limit_days
+        self._storage_limit_gb = storage_limit_gb
+        self._successful_published = set()
+        # Remove the need to reset subscriptions to eliminate possible data
+        # loss at config change.
+        self._current_subscriptions = set()
+        self._topic_replace_map = {}
+        self._event_queue = gevent.queue.Queue() if self._process_loop_in_greenlet else Queue()
+        self._readonly = bool(readonly)
+        self._stop_process_loop = False
+        self._process_thread = None
+        self._message_publish_count = int(message_publish_count)
+
+        self.no_insert = False
+        self.no_query = False
+        self.instance_name = None
+
+        self._default_config = {
+                                "retry_period":self._retry_period,
+                                "submit_size_limit": self._submit_size_limit,
+                                "max_time_publishing": self._max_time_publishing,
+                                "backup_storage_limit_gb": self._backup_storage_limit_gb,
+                                "topic_replace_list": self._topic_replace_list,
+                                "gather_timing_data": self.gather_timing_data,
+                                "readonly": self._readonly,
+                                "capture_device_data": capture_device_data,
+                                "capture_log_data": capture_log_data,
+                                "capture_analysis_data": capture_analysis_data,
+                                "capture_record_data": capture_record_data,          
+                                "message_publish_count": self._message_publish_count,
+                                "storage_limit_gb": storage_limit_gb,
+                                "history_limit_days": history_limit_days
+                               }
+
+        self.vip.config.set_default("config", self._default_config)
+        self.vip.config.subscribe(self._configure, actions=["NEW", "UPDATE"], pattern="config")
+
+    def update_default_config(self, config):
+        """
+        May be called by historians to add to the default configuration for its
+        own use.
+        """
+        self._default_config.update(config)
+        self.vip.config.set_default("config", self._default_config)
+
+    def start_process_thread(self):
+        if self._process_loop_in_greenlet:
+            self._process_thread = self.core.spawn(self._process_loop)
+            self._process_thread.start()
+            _log.debug("Process greenlet started.")
+        else:
+            self._process_thread = Thread(target=self._process_loop)
+            self._process_thread.daemon = True  # Don't wait on thread to exit.
+            self._process_thread.start()
+            _log.debug("Process thread started.")
+
+    def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
+        """
+        Called in the process thread after data is published.
+        This can be overridden in historian implementations
+        to apply the storage_limit_gb and history_limit_days
+        settings to the storage medium.
+
+        :param history_limit_timestamp: remove all data older than this timestamp
+        :param storage_limit_gb: remove oldest data until database is smaller than this value.
+        """
+        pass
+
+    def stop_process_thread(self):
+        _log.debug("Stopping the process loop.")
+        if self._process_thread is None:
+            return
+
+        # Tell the loop it needs to die.
+        self._stop_process_loop = True
+        # Wake the loop.
+        self._event_queue.put(None)
+
+        # 9 seconds as configuration timeout is 10 seconds.
+        self._process_thread.join(9.0)
+        # Greenlets have slightly different API than threads in this case.
+        if self._process_loop_in_greenlet:
+            if not self._process_thread.ready():
+                _log.error("Failed to stop process greenlet during reconfiguration!")
+        elif self._process_thread.is_alive():
+            _log.error("Failed to stop process thread during reconfiguration!")
+
+        self._process_thread = None
+        _log.debug("Process loop stopped.")
+
+    def _configure(self, config_name, action, contents):
+        self.vip.heartbeat.start()
+        _log.info("Configuring historian.")
+        config = self._default_config.copy()
+        config.update(contents)
+
+        try:
+            topic_replace_list = list(config.get("topic_replace_list", []))
+            gather_timing_data = bool(config.get("gather_timing_data", False))
+            backup_storage_limit_gb = config.get("backup_storage_limit_gb")
+            if backup_storage_limit_gb:
+                backup_storage_limit_gb = float(backup_storage_limit_gb)
+            retry_period = float(config.get("retry_period", 300.0))
+
+            storage_limit_gb = config.get("storage_limit_gb")
+            if storage_limit_gb:
+                storage_limit_gb = float(storage_limit_gb)
+
+            history_limit_days = config.get("history_limit_days")
+            if history_limit_days:
+                history_limit_days = float(history_limit_days)
+
+            submit_size_limit = int(config.get("submit_size_limit", 1000))
+            max_time_publishing = float(config.get("max_time_publishing", 30.0))
+
+            readonly = bool(config.get("readonly", False))
+            message_publish_count = int(config.get("message_publish_count", 10000))
+        except ValueError as e:
+            _log.error("Failed to load base historian settings. Settings not applied!")
+            return
+
+        query = Query(self.core)
+        self.instance_name = query.query(b'instance-name').get()
+
+        # Reset replace map.
+        self._topic_replace_map = {}
+
+        self._topic_replace_list = topic_replace_list
+
+        _log.info('Topic string replace list: {}'
+                  .format(self._topic_replace_list))
+
+        self.gather_timing_data = gather_timing_data
+        self._backup_storage_limit_gb = backup_storage_limit_gb
         self._retry_period = retry_period
         self._submit_size_limit = submit_size_limit
         self._max_time_publishing = timedelta(seconds=max_time_publishing)
-        self._successful_published = set()
-        self._topic_replace_map = {}
-        self._event_queue = Queue()
-        self._process_thread = Thread(target=self._process_loop)
-        self._process_thread.daemon = True  # Don't wait on thread to exit.
-        self._process_thread.start()
+        self._history_limit_days = timedelta(days=history_limit_days) if history_limit_days else None
+        self._storage_limit_gb = storage_limit_gb
+
+        self._readonly = readonly
+        self._message_publish_count = message_publish_count
+
+        self._update_subscriptions(bool(config.get("capture_device_data", True)),
+                                   bool(config.get("capture_log_data", True)),
+                                   bool(config.get("capture_analysis_data", True)),
+                                   bool(config.get("capture_record_data", True)))
+
+        self.stop_process_thread()
+
+        try:
+            self.configure(config)
+        except Exception as e:
+            _log.error("Failed to load historian settings.")
+
+        self.start_process_thread()
+
+    def _update_subscriptions(self, capture_device_data,
+                                    capture_log_data,
+                                    capture_analysis_data,
+                                    capture_record_data):
+        subscriptions = [
+            (capture_device_data, topics.DRIVER_TOPIC_BASE, self._capture_device_data),
+            (capture_log_data, topics.LOGGER_BASE, self._capture_log_data),
+            (capture_analysis_data, topics.ANALYSIS_TOPIC_BASE, self._capture_analysis_data),
+            (capture_record_data, topics.RECORD_BASE, self._capture_record_data)
+        ]
+
+        for should_sub, prefix, cb in subscriptions:
+            if should_sub and not self._readonly:
+                if prefix not in self._current_subscriptions:
+                    _log.debug("subscribing to {}".format(prefix))
+                    try:
+                        self.vip.pubsub.subscribe(peer='pubsub',
+                                                  prefix=prefix,
+                                                  callback=cb).get(timeout=5.0)
+                        self._current_subscriptions.add(prefix)
+                    except (gevent.Timeout, Exception) as e:
+                        _log.error("Failed to subscribe to {}: {}".format(prefix, repr(e)))
+            else:
+                if prefix in self._current_subscriptions:
+                    _log.debug("unsubscribing from {}".format(prefix))
+                    try:
+                        self.vip.pubsub.unsubscribe(peer='pubsub',
+                                                    prefix=prefix,
+                                                    callback=cb).get(timeout=5.0)
+                        self._current_subscriptions.remove(prefix)
+                    except (gevent.Timeout, Exception) as e:
+                        _log.error("Failed to unsubscribe from {}: {}".format(prefix, repr(e)))
+
+    def configure(self, configuration):
+        """Optional, may be implemented by a concrete implementation to add support for the configuration store.
+        Values should be stored in this function only.
+
+        The process thread is stopped before this is called if it is running. It is started afterwards.
+
+        `historian_setup` is called after this is called. """
+        pass
 
     @RPC.export
     def insert(self, records):
@@ -365,11 +562,20 @@ class BaseHistorianAgent(Agent):
         :param records: List of items to be added to the local event queue
         :type records: list of dictionaries
         """
+
+        # This is for Forward Historians which do not support data mover inserts.
+        if self.no_insert:
+            raise RuntimeError("Insert not supported by this historian.")
+
+        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        _log.debug("insert called by {} with {} records".format(rpc_peer, len(records)))
+
         for r in records:
             topic = r['topic']
             headers = r['headers']
             message = r['message']
 
+            capture_func = None
             if topic.startswith(topics.DRIVER_TOPIC_BASE):
                 capture_func = self._capture_device_data
             elif topic.startswith(topics.LOGGER_BASE):
@@ -379,38 +585,13 @@ class BaseHistorianAgent(Agent):
             elif topic.startswith(topics.RECORD_BASE):
                 capture_func = self._capture_record_data
 
-            capture_func(peer=None, sender=None, bus=None,
-                         topic=topic, headers=headers, message=message)
+            if capture_func:
+                capture_func(peer=None, sender=None, bus=None,
+                             topic=topic, headers=headers, message=message)
+            else:
+                _log.error("Unrecognized topic in insert call: {}".format(topic))
 
-    def _create_subscriptions(self):
 
-        subscriptions = [
-            (topics.DRIVER_TOPIC_BASE, self._capture_device_data),
-            (topics.LOGGER_BASE, self._capture_log_data),
-            #(topics.ACTUATOR, self._capture_actuator_data),
-            (topics.ANALYSIS_TOPIC_BASE, self._capture_analysis_data),
-            (topics.RECORD_BASE, self._capture_record_data)
-        ]
-
-        for prefix, cb in subscriptions:
-            _log.debug("subscribing to {}".format(prefix))
-            self.vip.pubsub.subscribe(peer='pubsub',
-                                      prefix=prefix,
-                                      callback=cb)
-
-    @Core.receiver("onstart")
-    def starting_base(self, sender, **kwargs):
-        """
-        Subscribes to the platform message bus on the actuator, record,
-        datalogger, and device topics to capture data.
-        """
-        _log.debug("Starting base historian")
-
-        self._create_subscriptions()
-
-        self._started = True
-
-        self.vip.heartbeat.start()
 
     @Core.receiver("onstop")
     def stopping(self, sender, **kwargs):
@@ -418,21 +599,23 @@ class BaseHistorianAgent(Agent):
         Release subscription to the message bus because we are no longer able
         to respond to messages now.
         """
-        try:
-            # unsubscribes to all topics that we are subscribed to.
-            self.vip.pubsub.unsubscribe(peer='pubsub', prefix=None,
-                                        callback=None)
-        except KeyError:
-            # means that the agent didn't start up properly so the pubsub
-            # subscriptions never got finished.
-            pass
+        if not self._readonly:
+            try:
+                # stop the process loop thread/greenlet before exiting
+                self.stop_process_thread()
+                # unsubscribes to all topics that we are subscribed to.
+                self.vip.pubsub.unsubscribe(peer='pubsub', prefix=None,
+                                            callback=None)
+            except KeyError:
+                # means that the agent didn't start up properly so the pubsub
+                # subscriptions never got finished.
+                pass
 
-    def parse_table_def(self, config):
+    def parse_table_def(self, tables_def):
         default_table_def = {"table_prefix": "",
                              "data_table": "data",
                              "topics_table": "topics",
                              "meta_table": "meta"}
-        tables_def = config.get('tables_def', None)
         if not tables_def:
             tables_def = default_table_def
         table_names = dict(tables_def)
@@ -448,35 +631,46 @@ class BaseHistorianAgent(Agent):
             "aggregate_" + tables_def["meta_table"]
         return tables_def, table_names
 
-    def _get_topic(self, input_topic):
+    def get_renamed_topic(self, input_topic):
+        """
+        replace topic name based on configured topic replace list, is any
+        :param input_topic: 
+        :return: 
+        """
         output_topic = input_topic
+        input_topic_lower = input_topic.lower()
         # Only if we have some topics to replace.
         if self._topic_replace_list:
             # if we have already cached the topic then return it.
-            if input_topic in self._topic_replace_map.keys():
-                output_topic = self._topic_replace_map[input_topic]
+            if input_topic_lower in self._topic_replace_map.keys():
+                output_topic = self._topic_replace_map[input_topic_lower]
             else:
-                self._topic_replace_map[input_topic] = input_topic
+                self._topic_replace_map[input_topic_lower] = input_topic
                 temptopics = {}
                 for x in self._topic_replace_list:
-                    if x['from'] in input_topic:
+                    if x['from'].lower() in input_topic_lower:
                         # this allows multiple things to be replaced from
                         # from a given topic.
-                        new_topic = temptopics.get(input_topic, input_topic)
-                        temptopics[input_topic] = new_topic.replace(
-                            x['from'], x['to'])
+                        new_topic = temptopics.get(input_topic_lower,
+                                                   input_topic)
+                        # temptopics[input_topic] = new_topic.replace(
+                        #     x['from'], x['to'])
+
+                        temptopics[input_topic_lower] = re.compile(
+                            re.escape(x['from']), re.IGNORECASE).sub(x['to'],
+                            new_topic)
 
                 for k, v in temptopics.items():
                     self._topic_replace_map[k] = v
-                output_topic = self._topic_replace_map[input_topic]
-
+                output_topic = self._topic_replace_map[input_topic_lower]
+            _log.debug("Output topic after replacements {}".format(output_topic))
         return output_topic
 
     def _capture_record_data(self, peer, sender, bus, topic, headers,
                              message):
-        _log.debug('Capture record data {}'.format(topic))
+        # _log.debug('Capture record data {}'.format(topic))
         # Anon the topic if necessary.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
         timestamp_string = headers.get(headers_mod.DATE, None)
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
@@ -485,7 +679,7 @@ class BaseHistorianAgent(Agent):
         if sender == 'pubsub.compat':
             message = compat.unpack_legacy_message(headers, message)
 
-        if self._gather_timing_data:
+        if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
         self._event_queue.put(
@@ -499,7 +693,7 @@ class BaseHistorianAgent(Agent):
         """Capture log data and submit it to be published by a historian."""
 
         # Anon the topic if necessary.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
         try:
             # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
@@ -517,7 +711,7 @@ class BaseHistorianAgent(Agent):
                 topic=topic))
             return
 
-        if self._gather_timing_data:
+        if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
         for point, item in data.iteritems():
@@ -562,7 +756,7 @@ class BaseHistorianAgent(Agent):
             return
 
         # Anon the topic if necessary.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
 
         # Because of the above if we know that all is in the topic so
         # we strip it off to get the base device
@@ -578,7 +772,7 @@ class BaseHistorianAgent(Agent):
         """
 
         # Anon the topic.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
 
         if topic.endswith('/'):
             topic = topic[:-1]
@@ -595,7 +789,7 @@ class BaseHistorianAgent(Agent):
     def _capture_data(self, peer, sender, bus, topic, headers, message,
                       device):
         # Anon the topic if necessary.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
         timestamp_string = headers.get(headers_mod.DATE, None)
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
@@ -626,17 +820,18 @@ class BaseHistorianAgent(Agent):
 
         meta = {}
         if not isinstance(message, dict):
-            meta = message[1]
+            if len(message) == 2:
+                meta = message[1]
 
         if topic.startswith('analysis'):
             source = 'analysis'
         else:
             source = 'scrape'
-        _log.debug(
-            "Queuing {topic} from {source} for publish".format(topic=topic,
-                                                               source=source))
+        # _log.debug(
+        #     "Queuing {topic} from {source} for publish".format(topic=topic,
+        #                                                        source=source))
 
-        if self._gather_timing_data:
+        if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
         for key, value in values.iteritems():
@@ -651,7 +846,7 @@ class BaseHistorianAgent(Agent):
         """Capture actuation data and submit it to be published by a historian.
         """
         # Anon the topic if necessary.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
         timestamp_string = headers.get('time')
         if timestamp_string is None:
             _log.error(
@@ -680,11 +875,11 @@ class BaseHistorianAgent(Agent):
             return
 
         source = 'actuator'
-        _log.debug(
-            "Queuing {topic} from {source} for publish".format(topic=topic,
-                                                               source=source))
+        # _log.debug(
+        #     "Queuing {topic} from {source} for publish".format(topic=topic,
+        #                                                        source=source))
 
-        if self._gather_timing_data:
+        if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
         self._event_queue.put({'source': source,
@@ -696,18 +891,26 @@ class BaseHistorianAgent(Agent):
     def _process_loop(self):
         """
         The process loop is called off of the main thread and will not exit
-        unless the main agent is shutdown.
+        unless the main agent is shutdown or the Agent is reconfigured.
         """
 
         _log.debug("Starting process loop.")
-
-        backupdb = BackupDatabase(self, self._backup_storage_limit_gb)
+        current_published_count = 0
+        next_report_count = current_published_count + self._message_publish_count
 
         # Sets up the concrete historian
+        # call this method even in case of readonly mode in case historian
+        # is setting up connections that are shared for both query and write
+        # operations
         self.historian_setup()
+
+        if self._readonly:
+            _log.info("Historian setup in readonly mode.")
+            return
 
         # Record the names of data, topics, meta tables in a metadata table
         self.record_table_definitions(self.volttron_table_defs)
+        backupdb = BackupDatabase(self, self._backup_storage_limit_gb)
 
         # now that everything is setup we need to make sure that the topics
         # are synchronized between
@@ -721,7 +924,7 @@ class BaseHistorianAgent(Agent):
 
         while True:
             try:
-                _log.debug("Reading from/waiting for queue.")
+                #_log.debug("Reading from/waiting for queue.")
                 new_to_publish = [
                     self._event_queue.get(wait_for_input, self._retry_period)]
             except Empty:
@@ -729,7 +932,7 @@ class BaseHistorianAgent(Agent):
                 new_to_publish = []
 
             if new_to_publish:
-                _log.debug("Checking for queue build up.")
+                #_log.debug("Checking for queue build up.")
                 while True:
                     try:
                         new_to_publish.append(self._event_queue.get_nowait())
@@ -737,22 +940,38 @@ class BaseHistorianAgent(Agent):
                         break
 
 
-            backupdb.backup_new_data(new_to_publish)
+            # We wake the thread after a configuration change by passing a None to the queue.
+            # Backup anything new before checking for a stop.
+            backupdb.backup_new_data((x for x in new_to_publish if x is not None))
+
+            # Check for a stop for reconfiguration.
+            if self._stop_process_loop:
+                break
 
             wait_for_input = True
             start_time = datetime.utcnow()
+            _log.debug("Beginning publish loop.")
 
             while True:
                 to_publish_list = backupdb.get_outstanding_to_publish(
                     self._submit_size_limit)
-                if not to_publish_list or not self._started:
+
+                # Check for a stop for reconfiguration.
+                if not to_publish_list or self._stop_process_loop:
                     break
+
+                history_limit_timestamp = None
+                if self._history_limit_days is not None:
+                    last_element = to_publish_list[-1]
+                    last_time_stamp = last_element["timestamp"]
+                    history_limit_timestamp = last_time_stamp - self._history_limit_days
 
                 try:
                     self.publish_to_historian(to_publish_list)
-                except Exception as exp:
+                    self.manage_db_size(history_limit_timestamp, self._storage_limit_gb)
+                except (Exception, gevent.Timeout):
                     _log.exception(
-                        "An unhandled exception occured while publishing.")
+                        "An unhandled exception occurred while publishing.")
 
                 # if the successful queue is empty then we need not remove
                 # them from the database.
@@ -761,13 +980,32 @@ class BaseHistorianAgent(Agent):
 
                 backupdb.remove_successfully_published(
                     self._successful_published, self._submit_size_limit)
+                current_published_count += len(self._successful_published)
+                if self._message_publish_count > 0:
+                    if current_published_count >= next_report_count:
+                        _log.info("Historian processed {} total records.".format(current_published_count))
+                        next_report_count = current_published_count + self._message_publish_count
                 self._successful_published = set()
                 now = datetime.utcnow()
                 if now - start_time > self._max_time_publishing:
                     wait_for_input = False
                     break
 
-        _log.debug("Finished processing")
+                # Check for a stop for reconfiguration.
+                if self._stop_process_loop:
+                    break
+
+            _log.debug("Exiting publish loop.")
+
+            # Check for a stop for reconfiguration.
+            if self._stop_process_loop:
+                break
+
+        backupdb.close()
+        self.historian_teardown()
+
+        _log.debug("Process loop stopped.")
+        self._stop_process_loop = False
 
     def report_handled(self, record):
         """
@@ -847,6 +1085,13 @@ class BaseHistorianAgent(Agent):
         connections in the publishing thread.
         """
 
+    def historian_teardown(self):
+        """
+        Optional teardown routine, run in the processing thread if the main
+        processing loop is stopped. This happened whenever a new configuration
+        arrives from the config store.
+        """
+
     @abstractmethod
     def record_table_definitions(self, meta_table_name):
         """
@@ -859,8 +1104,6 @@ class BaseHistorianAgent(Agent):
         :param meta_table_name: table name into which the table names and
         table name prefix for data, topics, and meta tables should be inserted
         """
-
-
 
 #TODO: Finish this.
 # from collections import deque
@@ -925,8 +1168,6 @@ class BaseHistorianAgent(Agent):
 #             my_deque.popleft()
 
 
-
-
 class BackupDatabase:
     """
     A creates and manages backup cache for the
@@ -936,21 +1177,22 @@ class BackupDatabase:
     use only.
     """
 
-    def __init__(self, owner, backup_storage_limit_gb):
+    def __init__(self, owner, backup_storage_limit_gb, check_same_thread=True):
         # The topic cache is only meant as a local lookup and should not be
         # accessed via the implemented historians.
         self._backup_cache = {}
         self._meta_data = defaultdict(dict)
         self._owner = weakref.ref(owner)
         self._backup_storage_limit_gb = backup_storage_limit_gb
-        self._setupdb()
+        self._connection = None
+        self._setupdb(check_same_thread)
 
     def backup_new_data(self, new_publish_list):
         """
-        :param new_publish_list: A list of records to cache to disk.
-        :type new_publish_list: list
+        :param new_publish_list: An iterable of records to cache to disk.
+        :type new_publish_list: iterable
         """
-        _log.debug("Backing up unpublished values.")
+        #_log.debug("Backing up unpublished values.")
         c = self._connection.cursor()
 
         if self._backup_storage_limit_gb is not None:
@@ -1003,9 +1245,9 @@ class BackupDatabase:
                         values(NULL, ?, ?, ?, ?, ?)''',
                         (timestamp, source, topic_id, dumps(value), dumps(headers)))
                 except sqlite3.IntegrityError:
-                    #In the case where we are upgrading an existing installed historian the
-                    #unique constraint may still exist on the outstanding database.
-                    #Ignore this case.
+                    # In the case where we are upgrading an existing installed historian the
+                    # unique constraint may still exist on the outstanding database.
+                    # Ignore this case.
                     pass
 
         self._connection.commit()
@@ -1026,7 +1268,7 @@ class BackupDatabase:
 
         """
 
-        _log.debug("Cleaning up successfully published values.")
+        #_log.debug("Cleaning up successfully published values.")
         c = self._connection.cursor()
 
         if None in successful_publishes:
@@ -1053,7 +1295,7 @@ class BackupDatabase:
         :returns: List of records for publication.
         :rtype: list
         """
-        _log.debug("Getting oldest outstanding to publish.")
+        # _log.debug("Getting oldest outstanding to publish.")
         c = self._connection.cursor()
         c.execute('select * from outstanding order by ts limit ?',
                   (size_limit,))
@@ -1077,13 +1319,18 @@ class BackupDatabase:
         c.close()
         return results
 
-    def _setupdb(self):
+    def close(self):
+        self._connection.close()
+        self._connection = None
+
+    def _setupdb(self, check_same_thread):
         """ Creates a backup database for the historian if doesn't exist."""
 
         _log.debug("Setting up backup DB.")
         self._connection = sqlite3.connect(
             'backup.sqlite',
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
+            check_same_thread=check_same_thread)
 
         c = self._connection.cursor()
 
@@ -1107,7 +1354,7 @@ class BackupDatabase:
                                          value_string TEXT NOT NULL,
                                          header_string TEXT)''')
         else:
-            #Check to see if we have a header_string column.
+            # Check to see if we have a header_string column.
             c.execute("pragma table_info(outstanding);")
             name_index = 0
             for description in c.description:
@@ -1162,6 +1409,29 @@ class BackupDatabase:
         self._connection.commit()
 
 
+# Code reimplemented from https://github.com/gilesbrown/gsqlite3
+def _using_threadpool(method):
+    @wraps(method, ['__name__', '__doc__'])
+    def apply(*args, **kwargs):
+        return get_hub().threadpool.apply(method, args, kwargs)
+    return apply
+
+
+class AsyncBackupDatabase(BackupDatabase):
+    """Wrapper around BackupDatabase to allow it to run in the main Historian gevent loop.
+    Wraps the more expensive methods in threadpool.apply calls."""
+    def __init__(self, *args, **kwargs):
+        kwargs["check_same_thread"] = False
+        super(AsyncBackupDatabase, self).__init__(*args, **kwargs)
+
+
+for method in [BackupDatabase.get_outstanding_to_publish,
+               BackupDatabase.remove_successfully_published,
+               BackupDatabase.backup_new_data,
+               BackupDatabase._setupdb]:
+    setattr(AsyncBackupDatabase, method.__name__, _using_threadpool(method))
+
+
 class BaseQueryHistorianAgent(Agent):
     """This is the base agent for historian Agents that support querying of
     their data stores.
@@ -1191,6 +1461,20 @@ class BaseQueryHistorianAgent(Agent):
         :rtype: list
         """
         return self.query_topic_list()
+
+    @RPC.export
+    def get_topics_by_pattern(self, topic_pattern):
+        """ Find the list of topics and its id for a given topic_pattern
+
+        :return: returns list of dictionary object {topic_name:id}"""
+        return self.query_topics_by_pattern(topic_pattern)
+
+    @abstractmethod
+    def query_topics_by_pattern(topic_pattern):
+        """ Find the list of topics and its id for a given topic_pattern
+
+            :return: returns list of dictionary object {topic_name:id}"""
+        pass
 
     @abstractmethod
     def query_topic_list(self):
@@ -1343,7 +1627,7 @@ class BaseQueryHistorianAgent(Agent):
         if start is not None:
             try:
                 start = parse_timestamp_string(start)
-            except TypeError:
+            except (ValueError, TypeError):
                 start = time_parser.parse(start)
             if start and start.tzinfo is None:
                 start = start.replace(tzinfo=pytz.UTC)
@@ -1351,7 +1635,7 @@ class BaseQueryHistorianAgent(Agent):
         if end is not None:
             try:
                 end = parse_timestamp_string(end)
-            except TypeError:
+            except (ValueError, TypeError):
                 end = time_parser.parse(end)
             if end and end.tzinfo is None:
                 end = end.replace(tzinfo=pytz.UTC)
@@ -1467,14 +1751,14 @@ def now(tzstr='UTC'):
         tz = local
     else:
         tz = gettz(tzstr)
-    return datetime.datetime.now(tz)
+    return datetime.now(tz)
 
 
 def strptime_tz(str, format='%x %X', tzstr='Local'):
     """Returns an aware datetime object. tzstr is a timezone string such as
        'US/Pacific' or 'Local' by default which uses the local timezone.
     """
-    dt = datetime.datetime.strptime(str, format)
+    dt = datetime.strptime(str, format)
     if tzstr == 'Local':
         tz = local
     else:
@@ -1605,14 +1889,14 @@ def p_abstime(t):
     elif type(t[1]) == type(''):
         t[0] = parse_time(t[1])
     else:
-        t[0] = datetime.datetime.utcfromtimestamp(t[1] / 1000)
+        t[0] = datetime.utcfromtimestamp(t[1] / 1000)
 
 
 def p_reltime(t):
     """reltime : NUMBER LVALUE
                | NUMBER LVALUE reltime"""
     timeunit = get_timeunit(t[2])
-    delta = datetime.timedelta(**{timeunit: t[1]})
+    delta = timedelta(**{timeunit: t[1]})
     if len(t) == 3:
         t[0] = delta
     else:

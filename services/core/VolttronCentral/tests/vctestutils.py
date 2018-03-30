@@ -1,6 +1,6 @@
 import requests
 
-from zmq.utils import jsonapi
+from volttron.platform.agent import json as jsonapi
 
 
 class APITester(object):
