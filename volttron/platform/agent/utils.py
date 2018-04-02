@@ -331,7 +331,9 @@ class SyslogFormatter(logging.Formatter):
 
 class JsonFormatter(logging.Formatter):
     def format(self, record):
+        record.message = record.getMessage()
         dct = record.__dict__.copy()
+        dct.pop('args')
         exc_info = dct.pop('exc_info', None)
         if exc_info:
             dct['exc_text'] = ''.join(traceback.format_exception(*exc_info))
