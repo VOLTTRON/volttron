@@ -60,6 +60,7 @@ import csv
 import re
 import os
 import yaml
+import struct
 
 
 class MapException(Exception):
@@ -119,17 +120,22 @@ class CSVRegister(object):
         csv_type = self._reg_dict.get('Type', 'UNDEFINED').strip()
 
         if csv_type == 'UNDEFINED':
-            raise MapException("Type required for each field: %s" % self._reg_dict)
+            raise MapException("Type required for each field: {0}".format(self._reg_dict))
 
         if csv_type.startswith('string'):
             match = re.match('string\[(\d+)\]', csv_type)
             if match:
                 length = int(match.group(1))
-                datatype = helpers.string(length)
+                return helpers.string(length)
         else:
-            datatype = data_type_map.get(csv_type.lower(), csv_type)
-
-        return datatype
+            try:
+                return data_type_map[csv_type.lower()]
+            except KeyError:
+                try:
+                    struct.Struct(csv_type)
+                    return csv_type
+                except struct.error:
+                    raise MapException("Invalid data type '{0}' for register '{1}'".format(csv_type, self._name))
 
     @property
     def _units(self):
@@ -137,7 +143,10 @@ class CSVRegister(object):
 
     @property
     def _precision(self):
-        return int(self._reg_dict.get('Precision', '0'))
+        try:
+            return int(self._reg_dict.get('Precision', '0'))
+        except ValueError:
+            raise MapException("Invalid precision for register '{0}'".format(self._name))
 
     @property
     def _transform(self):
@@ -146,15 +155,19 @@ class CSVRegister(object):
         transform_func = helpers.no_op
         csv_transform = self._reg_dict.get('Transform', None)
 
-        if csv_transform:
-            match = re.match('(\w+)\(([a-zA-z0-9.]*)\)', csv_transform)
-            func = match.group(1)
-            arg = match.group(2)
+        try:
+            if csv_transform:
+                match = re.match('(\w+)\(([a-zA-z0-9.]*)\)', csv_transform)
+                func = match.group(1)
+                arg = match.group(2)
 
-            try:
-                transform_func = transform_map[func](arg)
-            except (ValueError, TypeError) as err:
-               raise Exception(err)
+                try:
+                    transform_func = transform_map[func](arg)
+                except (ValueError, TypeError) as err:
+                   raise Exception(err)
+
+        except (AttributeError, KeyError):
+            raise MapException("Invalid transform function '{0}' for register '{1}'".format(csv_transform, self._name))
 
         return transform_func
 
@@ -168,7 +181,10 @@ class CSVRegister(object):
         """
         table = self._reg_dict.get('Table', '')
         if table:
-            return table_map[table]
+            try:
+                return table_map[table]
+            except KeyError:
+                raise Exception("Invalid modbus table '{0}' for register '{1}'".format(table, self._name))
         else:
             if self._datatype == helpers.BOOL:
                 return helpers.COIL_READ_WRITE if self._writable else helpers.COIL_READ_ONLY

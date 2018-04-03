@@ -299,7 +299,7 @@ class Interface(BasicRevert, BaseInterface):
         stopbits = config_dict.get('stopbits', 1)
         xonxoff = config_dict.get('xonxoff', 0)
         addressing = config_dict.get('addressing', helpers.OFFSET).lower()
-        endian = endian_map[config_dict.get('endian', helpers.BIG)]
+        endian = config_dict.get('endian', 'big')
         write_single_values = not helpers.str2bool(str(config_dict.get('write_multiple_registers', "True")))
 
         # Convert original modbus csv config format to the new modbus_tk registry_config_lst
