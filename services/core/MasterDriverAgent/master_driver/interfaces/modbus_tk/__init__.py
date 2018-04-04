@@ -78,10 +78,11 @@ parity_map = dict(
     space='S'
 )
 
-endian_map = dict(
-    little=helpers.LITTLE_ENDIAN,
-    big=helpers.BIG_ENDIAN
-)
+config_keys = ["name", "device_type", "device_address", "port", "slave_id", "baudrate", "bytesize", "parity",
+               "stopbits", "xonxoff", "addressing", "endian", "write_multiple_registers", "register_map"]
+
+register_map_columns = ["register name", "address", "type", "units", "writable", "default value", "transform", "table",
+                        "mixed endian", "description"]
 
 
 class ModbusInterfaceException(Exception):
@@ -255,26 +256,26 @@ class Interface(BasicRevert, BaseInterface):
         """
         new_registry_config_lst = []
         for reg_dict in old_registry_config_lst:
-            point_name = reg_dict.get('Volttron Point Name')
-            register_name = reg_dict.get('Reference Point Name', point_name).replace(" ", "_").lower()
-            address = reg_dict.get('Point Address')
-            datatype = reg_dict['Modbus Register']
+            point_name = reg_dict.get('volttron point name')
+            register_name = reg_dict.get('reference point name', point_name).replace(" ", "_").lower()
+            address = reg_dict.get('point address')
+            datatype = reg_dict['modbus register']
 
-            unit = reg_dict.get('Units')
-            writable = reg_dict.get('Writable')
-            default_value = reg_dict.get('Default Value', None)
-            description = reg_dict.get('Note', '')
-            mixed_endian = helpers.str2bool(reg_dict.get('Mixed Endian', 'False').lower())
+            unit = reg_dict.get('units')
+            writable = reg_dict.get('writable')
+            default_value = reg_dict.get('default value', None)
+            description = reg_dict.get('notes', '')
+            mixed_endian = helpers.str2bool(reg_dict.get('mixed endian', 'false').lower())
 
-            new_registry_config_lst.append({'Volttron Point Name': point_name,
-                                            'Register Name': register_name,
-                                            'Address': address,
-                                            'Type': datatype,
-                                            'Units': unit,
-                                            'Writable': writable,
-                                            'Default Value': default_value,
-                                            'Mixed Endian': mixed_endian,
-                                            'Description': description})
+            new_registry_config_lst.append({'volttron point name': point_name,
+                                            'register name': register_name,
+                                            'address': address,
+                                            'type': datatype,
+                                            'units': unit,
+                                            'writable': writable,
+                                            'default value': default_value,
+                                            'mixed endian': mixed_endian,
+                                            'description': description})
 
         return new_registry_config_lst
 
@@ -289,6 +290,15 @@ class Interface(BasicRevert, BaseInterface):
         :type config_dict: dictionary
         :type registry_config_lst: list
         """
+
+        # Convert keys to lowercase
+        config_dict = dict((k.lower(), v) for k, v in config_dict.iteritems())
+        registry_config_lst = [dict((k.lower(), v) for k, v in i.iteritems()) for i in registry_config_lst]
+
+        # Log warning if registry_config_lst is empty
+        if not registry_config_lst:
+            _log.warning("Registry config csv is empty.")
+
         name = config_dict.get('name', 'UNKOWN')
         device_address = config_dict['device_address']
         port = config_dict.get('port', None)
@@ -303,20 +313,42 @@ class Interface(BasicRevert, BaseInterface):
         write_single_values = not helpers.str2bool(str(config_dict.get('write_multiple_registers', "True")))
 
         # Convert original modbus csv config format to the new modbus_tk registry_config_lst
-        if registry_config_lst and 'Point Address' in registry_config_lst[0]:
+        if registry_config_lst and 'point address' in registry_config_lst[0]:
             registry_config_lst = self.parse_registry_config(registry_config_lst)
 
-        register_map = dict((reg['Register Name'], reg) for reg in config_dict.get('register_map', registry_config_lst))
+        # Get register map and convert everything to lowercase
+        register_map = dict((reg['register name'], reg) for reg in
+                            [dict((k.lower(), v) for k, v in i.iteritems()) for i in
+                             config_dict.get('register_map', registry_config_lst)])
+
+        # Log warning for ignored config fields
+        ignored_config_keys = [k for k in config_dict.keys() if k not in config_keys]
+        if ignored_config_keys:
+            _log.warning("%s: Ignored config fields: %s", name, ','.join(ignored_config_keys))
+
+        try:
+            # Log warning for ignored register map csv column
+            ignored_register_map_csv_columns = [c for c in register_map.values()[0].keys() if c not in register_map_columns]
+            if ignored_register_map_csv_columns:
+                _log.warning("%s: Ignored register map csv columns: %s", name, ','.join(ignored_register_map_csv_columns))
+        except IndexError:
+            # Log warning if register_map is empty
+            if not register_map:
+                _log.warning("Register map csv is empty.")
 
         # Get the list of selected register dictionary based on Register Name from registry_config_lst
         selected_registry_config_lst = list()
         for reg_dict in registry_config_lst:
+            reg_name = reg_dict.get('register name')
             try:
-                reg_name = reg_dict.get('Register Name')
                 register_map[reg_name].update(reg_dict)
                 selected_registry_config_lst.append(register_map[reg_name])
             except KeyError:
-                _log.warning("No register name matching found: {0}".format(reg_name))
+                _log.warning("No register name matching found: %s", reg_name)
+
+        # Log warning if selected_registry_config_lst is empty
+        if not selected_registry_config_lst:
+            _log.warning("The selected registry config list is empty.")
 
         # Generate the subclass of Client from the device config and register list
         modbus_client_class = Map(
@@ -350,10 +382,10 @@ class Interface(BasicRevert, BaseInterface):
         # Insert driver/interface registers
         for reg_dict in selected_registry_config_lst:
             register = ModbusTKRegister(
-                reg_dict.get('Volttron Point Name'),
-                reg_dict.get('Default Value', None),
-                reg_dict.get('Mixed Endian', False),
-                self.modbus_client.field_by_name(reg_dict.get('Register Name'))
+                reg_dict.get('volttron point name'),
+                reg_dict.get('default value', None),
+                reg_dict.get('mixed endian', False),
+                self.modbus_client.field_by_name(reg_dict.get('register name'))
             )
             self.insert_register(register)
             if not register.read_only and register.default_value:

@@ -105,7 +105,7 @@ class CSVRegister(object):
     @property
     def _name(self):
         try:
-            return self._reg_dict['Register Name']
+            return self._reg_dict['register name']
         except KeyError:
             raise MapException("Register Name does not exist")
 
@@ -117,7 +117,7 @@ class CSVRegister(object):
 
         :return: Modbus Type (using struct)
         """
-        csv_type = self._reg_dict.get('Type', 'UNDEFINED').strip()
+        csv_type = self._reg_dict.get('type', 'UNDEFINED').strip()
 
         if csv_type == 'UNDEFINED':
             raise MapException("Type required for each field: {0}".format(self._reg_dict))
@@ -139,12 +139,12 @@ class CSVRegister(object):
 
     @property
     def _units(self):
-        return self._reg_dict.get('Units', '')
+        return self._reg_dict.get('units', '')
 
     @property
     def _precision(self):
         try:
-            return int(self._reg_dict.get('Precision', '0'))
+            return int(self._reg_dict.get('precision', '0'))
         except ValueError:
             raise MapException("Invalid precision for register '{0}'".format(self._name))
 
@@ -153,7 +153,7 @@ class CSVRegister(object):
         # "scale(0.001)", "scale_int(1.0)", "mod10k(True)", or None for no_op
 
         transform_func = helpers.no_op
-        csv_transform = self._reg_dict.get('Transform', None)
+        csv_transform = self._reg_dict.get('transform', None)
 
         try:
             if csv_transform:
@@ -173,13 +173,13 @@ class CSVRegister(object):
 
     @property
     def _writable(self):
-        return helpers.str2bool(self._reg_dict.get('Writable', 'False'))
+        return helpers.str2bool(self._reg_dict.get('writable', 'False'))
 
     @property
     def _table(self):
         """ Select one of the four modbus tables.
         """
-        table = self._reg_dict.get('Table', '')
+        table = self._reg_dict.get('table', '')
         if table:
             try:
                 return table_map[table]
@@ -193,18 +193,18 @@ class CSVRegister(object):
 
     @property
     def _op_mode(self):
-        return helpers.OP_MODE_READ_WRITE if helpers.str2bool(self._reg_dict.get('Writable', 'False')) \
+        return helpers.OP_MODE_READ_WRITE if helpers.str2bool(self._reg_dict.get('writable', 'False')) \
             else helpers.OP_MODE_READ_ONLY
 
     @property
     def _address(self):
-        addr = self._reg_dict['Address'].lower()
+        addr = self._reg_dict['address'].lower()
         # Hex address supported
         return int(addr, 16) if 'x' in addr else int(addr)
 
     @property
     def _description(self):
-        return self._reg_dict.get('Description', 'UNKNOWN')
+        return self._reg_dict.get('description', 'UNKNOWN')
 
     def get_field(self):
         """Return a modbus field that can be added to a Modbus client instance.
@@ -226,15 +226,15 @@ class Map(object):
        all the Fields (Registers) defined in the CSV.
     """
 
-    def __init__(self, file='', map_dir='', addressing='offset',  name='', endian='big', description='', registry_config_lst=''):
+    def __init__(self, file='', map_dir='', addressing='offset',  name='', endian='big', description='', registry_config_lst=[]):
         self._filename = file
         self._map_dir = map_dir
 
-        if addressing not in ('offset', 'offset_plus', 'address'):
+        if addressing.lower() not in ('offset', 'offset_plus', 'address'):
             raise MapException("addressing must be one of: (offset, offset_plus, address)")
-        elif addressing == 'address':
+        elif addressing.lower() == 'address':
             self._addressing = helpers.ADDRESS_MODBUS
-        elif addressing == 'offset_plus':
+        elif addressing.lower() == 'offset_plus':
             self._addressing = helpers.ADDRESS_OFFSET_PLUS_ONE
         else:
             self._addressing = helpers.ADDRESS_OFFSET
@@ -242,7 +242,7 @@ class Map(object):
         self._endian = helpers.LITTLE_ENDIAN if endian.lower() == 'little' else helpers.BIG_ENDIAN
         self._name = name
         self._description = description
-        self._registry_config_lst = registry_config_lst
+        self._registry_config_lst = [dict((k.lower(), v) for k, v in i.iteritems()) for i in registry_config_lst]
         self._registers = dict()
 
     def _convert_csv_registers(self):
@@ -253,7 +253,7 @@ class Map(object):
                 self._filename = self._map_dir + '/' + self._filename
             with open(self._filename) as csv_file:
                 csv_reader = csv.DictReader(csv_file)
-                self._registry_config_lst = [{key: val for key, val in row.items()} for row in csv_reader]
+                self._registry_config_lst = [{key.lower(): val for key, val in row.items()} for row in csv_reader]
 
     def _load_registers(self):
         """Process the registers list, loading each register dictionary into field
@@ -263,7 +263,7 @@ class Map(object):
         if self._registry_config_lst is None:
             raise MapException('No registers defined in your csv config')
         for registry_dict in self._registry_config_lst:
-            if registry_dict['Register Name'].startswith('#'):  # ignore comment
+            if registry_dict['register name'].startswith('#'):  # ignore comment
                 continue
             csv_register = CSVRegister(self, registry_dict)
             register_field = csv_register.get_field()
@@ -312,6 +312,7 @@ class Catalog(Mapping):
 
             with open(yaml_path, 'rb') as yaml_file:
                 for map in yaml.load(yaml_file):
+                    map = dict((k.lower(), v) for k, v in map.iteritems())
                     Catalog._data[map['name']] = Map(file=map.get('file',''),
                                                      map_dir=os.path.dirname(__file__),
                                                      addressing=map.get('addressing','offset'),
