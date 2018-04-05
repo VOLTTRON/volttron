@@ -21,7 +21,7 @@ import logging
 
 import pytz
 import psycopg2
-from psycopg2 import ProgrammingError, errorcodes
+from psycopg2 import InterfaceError, ProgrammingError, errorcodes
 from psycopg2.sql import Identifier, Literal, SQL
 
 from volttron.platform.agent import utils
@@ -63,6 +63,12 @@ class RedshiftFuncts(DbDriver):
             return connection
         connect.__name__ = 'psycopg2'
         super(self.__class__, self).__init__(connect)
+
+    def rollback(self):
+        try:
+            return super(self.__class__, self).rollback()
+        except InterfaceError:
+            return False
 
     def setup_historian_tables(self):
         self.execute_stmt(SQL(
