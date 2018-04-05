@@ -68,6 +68,8 @@ from .jsonrpc import RemoteError
 from .auth import AuthEntry, AuthFile, AuthException
 from .keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.socket import Message
+from volttron.utils.prompt import prompt_response, y, n, y_or_n
+from volttron.utils.rmq_mgmt import *
 
 try:
     import volttron.restricted
@@ -1420,6 +1422,98 @@ def get_keys(opts):
     return {'publickey': publickey, 'secretkey': secretkey,
             'serverkey': serverkey}
 
+#RabbitMQ management methods
+def add_vhost(opts):
+    create_vhost(get_port(), opts.vhost)
+
+def add_user(opts):
+    create_user(get_port(), opts.user, opts.pwd)
+    permissions = dict(configure="", read="", write="")
+
+    if opts.read:
+        permissions['read'] = ".*"
+    if opts.write:
+        permissions['write'] = ".*"
+    if opts.configure:
+        permissions['configure'] = ".*"
+    set_user_permissions(get_hostname(), get_port(), permissions, opts.user, opts.pwd)
+
+def add_exchange(opts):
+    if opts.type not in ['topic', 'fanout', 'direct']:
+        print("Unknown exchange type. Valid exchange types are topic or fanout or direct")
+        return
+    durable = _ask_yes_no("Do you want exchange to be durable ")
+    auto_delete = _ask_yes_no("Do you want exchange to be auto deleted ")
+
+    # Exchanges - Create/delete/List exchanges
+    # properties = dict(durable=False, type='topic', auto_delete=True, arguments={"alternate-exchange": "aexc"})
+    # properties = dict(durable=False, type='direct', auto_delete=True)
+    properties = dict(durable=durable, type=opts.type, auto_delete=auto_delete)
+    if opts.alternate:
+        properties['alternate-exchange'] = opts.alternate
+        # create alternate exchange
+        new_props = dict(durable=durable, type='fanout', auto_delete=auto_delete)
+        create_exchange(opts.alternate, new_props)
+    create_exchange(opts.name, properties)
+
+def add_queue(opts):
+    durable = _ask_yes_no("Do you want queue to be durable ")
+    auto_delete = _ask_yes_no("Do you want queue to be auto deleted ")
+    properties = dict(durable=durable, auto_delete=auto_delete)
+    create_queue(opts.name, properties)
+
+def list_vhosts(opts):
+    vhosts = get_vhosts()
+    for item in vhosts:
+        _stdout.write(item+"\n")
+
+def list_user_properties(opts):
+    props = get_user(opts)
+    for key, value in props:
+        _stdout.write("{0}: {1} \n".format(key, value))
+
+def list_exchanges(opts):
+    exchanges = get_exchanges()
+    for exch in exchanges:
+        _stdout.write(exch+"\n")
+
+def list_exchanges_with_properties(opts):
+    exchanges = get_exchanges_with_props()
+    if exchanges:
+        for exch in exchanges:
+            _stdout.write("{} \n".format(exch))
+
+def list_queues(opts):
+    queues = get_queues()
+    if queues:
+        for q in queues:
+            _stdout.write(q+"\n")
+
+def list_queues_with_properties(opts):
+    queues = get_queues_with_props()
+    if queues:
+        for q in queues:
+            _stdout.write("{} \n".format(q))
+
+def list_connections(opts):
+    conn = get_connection()
+
+def remove_vhosts(opts):
+    for vhost in opts.vhosts:
+        delete_vhost(vhost)
+
+def remove_users(opts):
+    for user in opts.user:
+        delete_user(user)
+
+def remove_exchanges(opts):
+    for e in opts.exchanges:
+        delete_exchange(e)
+
+def remove_queues(opts):
+    for q in opts.queues:
+        delete_queue(q)
+
 
 def main(argv=sys.argv):
     # Refuse to run as root
@@ -1856,6 +1950,110 @@ def main(argv=sys.argv):
         nargs='?')
     stats.set_defaults(func=do_stats, op='status')
 
+#==============================================================================
+    # Add commands
+    rabbitmq_cmds = add_parser("rabbitmq", help="manage rabbitmq")
+    rabbitmq_subparsers = rabbitmq_cmds.add_subparsers(title='subcommands',
+                                                 metavar='',
+                                                 dest='store_commands')
+    rabbitmq_add_vhost = add_parser('add-vhost', help='add a new virtual host',
+                              subparser=rabbitmq_subparsers)
+    rabbitmq_add_vhost.add_argument('vhost', help='Virtual host')
+    rabbitmq_add_vhost.set_defaults(func=add_vhost)
+
+    rabbitmq_add_user = add_parser('add-user',
+                                   help='Add a new user. User will have admin privileges i.e,'
+                                                       'configure, read and write',
+                                   subparser=rabbitmq_subparsers)
+    rabbitmq_add_user.add_argument('user', help='user id')
+    rabbitmq_add_user.add_argument('pwd', help='password')
+    rabbitmq_add_user.set_defaults(func=add_user)
+
+    rabbitmq_add_exchange = add_parser('add-exchange',
+                                       help='add a new exchange',
+                                       subparser=rabbitmq_subparsers)
+    rabbitmq_add_exchange.add_argument('name', help='Name of the exchange')
+    rabbitmq_add_exchange.add_argument('type', help='Type of the exchange - fanout/direct/topic')
+    rabbitmq_add_exchange.add_argument('--durable', metavar='durable', help='If exchange needs to durable')
+    rabbitmq_add_exchange.add_argument('--alternate', metavar='alternate',
+                                       help='If alternate exchange needs to be created')
+    rabbitmq_add_exchange.set_defaults(func=add_exchange)
+
+    rabbitmq_add_queue = add_parser('add-queue', help='add a new queue',
+                              subparser=rabbitmq_subparsers)
+    rabbitmq_add_queue.add_argument('name', help='Name of the queue')
+    rabbitmq_add_queue.set_defaults(func=add_queue)
+#=======================================================================
+    # List commands
+    rabbitmq_list_vhosts = add_parser('list-vhosts', help='List virtual hosts',
+                              subparser=rabbitmq_subparsers)
+    rabbitmq_list_vhosts.set_defaults(func=list_vhosts)
+
+    rabbitmq_list_user_properties = add_parser('list-user-properties', help='List users',
+                              subparser=rabbitmq_subparsers)
+    rabbitmq_add_vhost.add_argument('user', help='RabbitMQ user id')
+    rabbitmq_list_user_properties.set_defaults(func=list_user_properties)
+
+    rabbitmq_list_exchanges = add_parser('list-exchanges', help='add a new user',
+                              subparser=rabbitmq_subparsers)
+    rabbitmq_list_exchanges.set_defaults(func=list_exchanges)
+
+    rabbitmq_list_exchanges_props = add_parser('list-exchanges-properties', help='list exchanges with properties',
+                                            subparser=rabbitmq_subparsers)
+    rabbitmq_list_exchanges_props.set_defaults(func=list_exchanges_with_properties)
+
+    rabbitmq_list_queues = add_parser('list-queues', help='list all queues',
+                              subparser=rabbitmq_subparsers)
+    rabbitmq_list_queues.set_defaults(func=list_queues)
+    rabbitmq_list_queues_props = add_parser('list-queue-properties', help='list queues with properties',
+                              subparser=rabbitmq_subparsers)
+    rabbitmq_list_queues_props.set_defaults(func=list_queues_with_properties)
+    # rabbitmq_list_parameters = add_parser('--list-parameters', help='add a new user',
+    #                           subparser=rabbitmq_subparsers)
+    # rabbitmq_list_parameters.set_defaults(func=list_parameters)
+    #
+    # rabbitmq_list_policies = add_parser('--list-policies', help='add a new user',
+    #                           subparser=rabbitmq_subparsers)
+    # rabbitmq_list_policies.set_defaults(func=list_policies)
+
+    rabbitmq_list_connections = add_parser('list-connections', help='list open connections',
+                              subparser=rabbitmq_subparsers)
+    rabbitmq_list_connections.set_defaults(func=list_connections)
+#==========================================================================================
+    # Remove commands
+    rabbitmq_remove_vhosts = add_parser('remove-vhosts', help='Remove virtual host/s',
+                                      subparser=rabbitmq_subparsers)
+    rabbitmq_remove_vhosts.add_argument('vhost', nargs='+', help='Virtual host')
+    rabbitmq_remove_vhosts.set_defaults(func=remove_vhosts)
+
+    rabbitmq_remove_users = add_parser('remove-users', help='Remove virtual user/s',
+                                     subparser=rabbitmq_subparsers)
+    rabbitmq_remove_users.add_argument('user', nargs='+', help='Virtual host')
+    rabbitmq_remove_users.set_defaults(func=remove_users)
+
+    rabbitmq_remove_exchanges = add_parser('remove-exchanges', help='Remove exchange/s',
+                                         subparser=rabbitmq_subparsers)
+    rabbitmq_remove_exchanges.add_argument('exchanges', nargs='+', help='Remove exchanges/s')
+    rabbitmq_remove_exchanges.set_defaults(func=remove_exchanges)
+
+    rabbitmq_remove_queues = add_parser('remove-queues', help='Remove queue/s',
+                                      subparser=rabbitmq_subparsers)
+    rabbitmq_remove_queues.add_argument('queues', nargs='+', help='Queue')
+    rabbitmq_remove_queues.set_defaults(func=remove_queues)
+
+    # rabbitmq_remove_parameters = add_parser('remove-parameters', help='Remove parameter',
+    #                                       subparser=rabbitmq_subparsers)
+    # rabbitmq_remove_parameters.add_argument('parameter', help='parameter')
+    # rabbitmq_remove_parameters.set_defaults(func=remove_parameters)
+    #
+    # rabbitmq_remove_policies = add_parser('--remove-policies', help='Remove policy',
+    #                                     subparser=rabbitmq_subparsers)
+    # rabbitmq_remove_policies.set_defaults(func=remove_policies)
+    #
+    # rabbitmq_remove_connections = add_parser('--remove-connections', help='Remove connection',
+    #                                        subparser=rabbitmq_subparsers)
+    # rabbitmq_remove_connections.set_defaults(func=remove_connections)
+#===============================================================================================
     if HAVE_RESTRICTED:
         cgroup = add_parser('create-cgroups',
                             help='setup VOLTTRON control group for restricted execution')
