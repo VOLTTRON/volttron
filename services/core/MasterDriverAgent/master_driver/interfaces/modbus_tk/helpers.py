@@ -104,6 +104,16 @@ META_REQUESTS = '_requests'
 META_REQUEST_MAP = '_request_map'
 META_PROPERTIES = '_properties'
 
+TABLE_EXCEPTION_CODE = {
+    "1": "ILLEGAL FUNCTION",
+    "2": "ILLEGAL DATA ADDRESS",
+    "3": "ILLEGAL DATA VALUE",
+    "4": "SLAVE DEVICE FAILURE",
+    "5": "COMMAND ACKNOWLEDGE",
+    "6": "SLAVE DEVICE BUSY",
+    "8": "MEMORY PARITY ERROR"
+}
+
 
 def array(type, length):
     if type in (SHORT, USHORT):
