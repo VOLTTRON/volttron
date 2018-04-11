@@ -133,6 +133,17 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
                 sys.exit(1)
             return response
 
+        def _url_available(self, url):
+            '''Open url and if response is 200 then return True else return False'''
+            _log.debug('Checking url %s', url)
+            try:
+                response = urllib2.urlopen(url)
+                if response.getcode() != 200:
+                    return False
+            except urllib2.HTTPError:
+                return False
+            return True
+
         def get_version(self):
             '''Return the latest version from virtualenv DOAP record.'''
             _log.info('Downloading virtualenv DOAP record')
@@ -149,8 +160,13 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
             '''Download the virtualenv tarball into directory.'''
             if self.version is None:
                 self.get_version()
+            default_version = "15.1.0"
             url = ('https://github.com/pypa/virtualenv/archive/'
                    '{}.tar.gz'.format(self.version))
+            if not self._url_available(url):
+                self.version = default_version
+                url = ('https://github.com/pypa/virtualenv/archive/'
+                        '{}.tar.gz'.format(self.version))
             _log.info('Downloading virtualenv %s', self.version)
             tarball = os.path.join(directory, 'virtualenv.tar.gz')
             with contextlib.closing(self._fetch(url)) as response:
