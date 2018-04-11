@@ -65,3 +65,14 @@ from an activated shell in order to install it.
 
     pip install pymongo
 
+
+3. Configuration Options
+------------------------
+The historian configuration file can specify
+
+::
+
+    "history_limit_days": <n days>
+
+which will remove entries from the data and rollup collections older than n
+days. Timestamps passed to the manage_db_size method are truncated to the day.

@@ -81,7 +81,7 @@ from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.web import DiscoveryInfo, DiscoveryError
 from .vcconnection import VCConnection
 
-__version__ = '4.6'
+__version__ = '4.7'
 
 RegistrationStates = Enum('AgentStates',
                           'NotRegistered Unregistered Registered '
@@ -111,6 +111,7 @@ def vcp_init(config_path, **kwargs):
     # instance up to volttron central
     device_status_interval = config.get('device-status-interval', 60)
     topic_replace_map = config.get('topic-replace-map', {})
+    platform_driver_ids = config.get('platform-driver-ids', ['platform.driver'])
 
     return VolttronCentralPlatform(reconnect_interval=reconnect_interval,
                                    vc_address=vc_address,
@@ -119,6 +120,7 @@ def vcp_init(config_path, **kwargs):
                                    stats_publish_interval=stats_publish_interval,
                                    topic_replace_map=topic_replace_map,
                                    device_status_interval=device_status_interval,
+                                   platform_driver_ids=platform_driver_ids,
                                    **kwargs)
 
 
@@ -126,7 +128,7 @@ class VolttronCentralPlatform(Agent):
 
     def __init__(self, reconnect_interval, vc_address,
                  vc_serverkey, instance_name, stats_publish_interval,
-                 topic_replace_map, device_status_interval, **kwargs):
+                 topic_replace_map, device_status_interval, platform_driver_ids, **kwargs):
         super(VolttronCentralPlatform, self).__init__(**kwargs)
 
         # This is scheduled after first call to the reconnect function
@@ -141,6 +143,7 @@ class VolttronCentralPlatform(Agent):
         d['stats-publish-interval'] = stats_publish_interval
         d['topic-replace-map'] = topic_replace_map
         d['device-status-interval'] = device_status_interval
+        d['platform-driver-ids'] = platform_driver_ids
 
         # default_configuration is what is specified if there isn't a "config"
         # sent in through the volttron-ctl config store command.
@@ -182,10 +185,11 @@ class VolttronCentralPlatform(Agent):
         self._local_serverkey = None
         self._stats_publish_interval = None
         self._device_status_interval = None
+        self._platform_driver_ids = None
         self._device_publishes = {}
         self._devices = {}
-        # master driver config store stat time
-        self._master_driver_stat_time = None
+        # master driver config store stat times
+        self._master_driver_stat_times = {}
 
         # instance id is the vip identity of this agent on the remote platform.
         self._instance_id = None
@@ -313,6 +317,8 @@ volttron-central-serverkey."""
         self._stats_publish_interval = config['stats-publish-interval']
 
         self._device_status_interval = config['device-status-interval']
+
+        self._platform_driver_ids = config['platform-driver-ids']
 
         # Subscribe to devices
         self._devices = self.get_devices()
@@ -1063,7 +1069,7 @@ volttron-central-serverkey."""
     def _on_device_publish(self, peer, sender, bus, topic, headers, message):
         # Update the devices store for get_devices function call
         if not topic.endswith('/all'):
-            _log.debug("Skipping publish to {}".format(topic))
+            # _log.debug("Skipping publish to {}".format(topic))
             return
 
         _log.debug("topic: {}, message: {}".format(topic, message))
@@ -1154,24 +1160,23 @@ volttron-central-serverkey."""
 
         :return:
         """
+        # If the device list is already loaded and the platform config on disk is unchanged, use the current list.
+        config_changed = False
+        found_a_platform_driver = False
+        for platform_driver_id in self._platform_driver_ids:
+            fname = os.path.join(os.environ['VOLTTRON_HOME'], "configuration_store/{}.store".format(platform_driver_id))
+            stat_time = os.stat(fname).st_mtime if os.path.exists(fname) else None
+            if self._master_driver_stat_times.get(platform_driver_id, None) != stat_time:
+                config_changed = True
+            found_a_platform_driver = found_a_platform_driver or stat_time
+            self._master_driver_stat_times[platform_driver_id] = stat_time
 
-        md_configstore = os.path.join(
-            os.environ['VOLTTRON_HOME'],
-            "configuration_store/platform.driver.store"
-        )
-
-        if not os.path.exists(md_configstore):
+        if not found_a_platform_driver:
             _log.debug("No master driver currently on this platform.")
             return {}
 
-        statinfo = os.stat(md_configstore)
-
-        if self._master_driver_stat_time is None or \
-                        self._master_driver_stat_time != statinfo.st_mtime:
-            self._master_driver_stat_time = statinfo.st_mtime
-
-        # else no change in the md file and we have the same stat time.
-        else:
+        if not config_changed:
+            # The stat times of the config files are unchanged. Return the device list that's already in memory.
             keys = list(self._devices.keys())
 
             for k in keys:
@@ -1179,44 +1184,45 @@ volttron-central-serverkey."""
                 if new_key != k:
                     self._devices[new_key] = self._devices[k]
                     del self._devices[k]
-
             return self._devices
 
         _log.debug('Getting devices')
-        config_list = self.vip.rpc.call(CONFIGURATION_STORE,
-                                        'manage_list_configs',
-                                        'platform.driver').get(timeout=5)
-
-        _log.debug('Config list is: {}'.format(config_list))
         devices = defaultdict(dict)
+        for platform_driver_id in self._platform_driver_ids:
+            config_list = self.vip.rpc.call(CONFIGURATION_STORE,
+                                            'manage_list_configs',
+                                            platform_driver_id).get(timeout=5)
+            _log.debug('Config list is: {}'.format(config_list))
 
-        for cfg_name in config_list:
-            # Skip as we are only looking to do devices in this call.
-            if not cfg_name.startswith('devices/'):
-                continue
+            for cfg_name in config_list:
+                # Skip as we are only looking to do devices in this call.
+                if not cfg_name.startswith('devices/'):
+                    continue
 
-            device_config = self.vip.rpc.call('config.store', 'manage_get',
-                                              'platform.driver',
-                                              cfg_name,
-                                              raw=False).get(timeout=5)
-            _log.debug('DEVICE CONFIG IS: {}'.format(device_config))
+                device_config = self.vip.rpc.call(CONFIGURATION_STORE,
+                                                  'manage_get',
+                                                  platform_driver_id,
+                                                  cfg_name,
+                                                  raw=False).get(timeout=5)
+                _log.debug('DEVICE CONFIG IS: {}'.format(device_config))
 
-            reg_cfg_name = device_config.get(
-                'registry_config')[len('config://'):]
-            _log.debug('Reading registry_config file {}'.format(
-                reg_cfg_name
-            ))
-            registry_config = self.vip.rpc.call('config.store',
-                                                'manage_get', 'platform.driver',
-                                                reg_cfg_name,
-                                                raw=False).get(timeout=5)
-            _log.debug('Registry Config: {}'.format(registry_config))
+                reg_cfg_name = device_config.get(
+                    'registry_config')[len('config://'):]
+                _log.debug('Reading registry_config file {}'.format(
+                    reg_cfg_name
+                ))
+                registry_config = self.vip.rpc.call(CONFIGURATION_STORE,
+                                                    'manage_get',
+                                                    platform_driver_id,
+                                                    reg_cfg_name,
+                                                    raw=False).get(timeout=5)
+                _log.debug('Registry Config: {}'.format(registry_config))
 
-            points = []
-            for pnt in registry_config:
-                points.append(pnt['Volttron Point Name'])
+                points = []
+                for pnt in registry_config:
+                    points.append(pnt['Volttron Point Name'])
 
-            devices[cfg_name]['points'] = points
+                devices[cfg_name]['points'] = points
 
         return devices
 

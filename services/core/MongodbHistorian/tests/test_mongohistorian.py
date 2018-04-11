@@ -1579,3 +1579,44 @@ def compare_rolled_up_data(data_from_db_query, expected_time, expected_value):
     assert utils.format_timestamp(data_from_db_query[0])+'+00:00' == \
            expected_time
     assert data_from_db_query[1] == expected_value
+
+@pytest.mark.historian
+@pytest.mark.mongodb
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
+def test_manage_db_size(volttron_instance, database_client):
+    clean_db(database_client)
+
+    # set config parameter to automatically delete data
+    config = dict(mongo_agent_config())
+    config["history_limit_days"] = 6
+
+    # start up the angent
+    agent_uuid = install_historian_agent(volttron_instance,
+                                         config)
+
+    assert agent_uuid is not None
+    assert volttron_instance.is_agent_running(agent_uuid)
+
+    # put some fake data in the database
+    db = database_client.get_default_database()
+    collection_names = ("data", "hourly_data", "daily_data")
+    doc = {"ts": datetime(1970, 1, 1), "message": "testdata"}
+    for collection_name in collection_names:
+        db[collection_name].insert_one(doc)
+
+    for collection_name in collection_names:
+        assert db[collection_name].find_one({"message": "testdata"}) is not None
+
+    # publish something that the database should see
+    publisher = volttron_instance.build_agent()
+    assert publisher is not None
+    publish_fake_data(publisher)
+
+    gevent.sleep(6)
+    # make sure that the database deletes old data
+    for collection_name in collection_names:
+        assert db[collection_name].find_one({"message": "testdata"}) is None
+
+    # clean up
+    volttron_instance.stop_agent(agent_uuid)
+    volttron_instance.remove_agent(agent_uuid)
