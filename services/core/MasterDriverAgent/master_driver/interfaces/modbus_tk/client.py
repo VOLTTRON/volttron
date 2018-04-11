@@ -84,6 +84,7 @@ import logging
 import modbus_tk.defines as modbus_constants
 import modbus_tk.modbus_tcp as modbus_tcp
 import modbus_tk.modbus_rtu as modbus_rtu
+from modbus_tk.exceptions import ModbusError
 
 import helpers
 
@@ -654,7 +655,10 @@ class Client (object):
                 threadsafe=False
             )
             self._data.update(request.parse_values(results))
-        except AttributeError as err:
+        except (AttributeError, ModbusError) as err:
+            if "Exception code" in err.message:
+                raise Exception("{0}: {1}".format(err.message,
+                                                  helpers.TABLE_EXCEPTION_CODE.get(err.message[-1], "UNDEFINED")))
             logger.warning("modbus read_all() failure on request: %s\tError: %s", request, err)
 
     def read_all(self):
