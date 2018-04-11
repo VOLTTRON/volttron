@@ -79,9 +79,10 @@ class ZMQProxyRouter(Agent):
         channel = connection.channel
         # Create a queue to receive messages from internal messages (for example, response for RPC request etc)
         result = channel.queue_declare(queue=self._outbound_proxy_queue,
-                                         durable=False,
-                                         exclusive=False,
-                                         callback=None)
+                                       durable=False,
+                                       exclusive=True,
+                                       auto_delete=True,
+                                       callback=None)
         channel.queue_bind(exchange=connection.exchange,
                                  queue=self._outbound_proxy_queue,
                                  routing_key=self.core.instance_name + '.proxy.router.subsystems',
@@ -92,9 +93,10 @@ class ZMQProxyRouter(Agent):
 
         # Create a queue to receive external platform pubsub/rpc subscribe/unsubscribe requests from internal agents
         channel.queue_declare(queue=self._external_pubsub_rpc_queue,
-                                         durable=False,
-                                         exclusive=False,
-                                         callback=None)
+                              durable=False,
+                              exclusive=True,
+                              auto_delete=True,
+                              callback=None)
         # Binding for external platform pubsub messages
         channel.queue_bind(exchange=connection.exchange,
                                  queue=self._external_pubsub_rpc_queue,

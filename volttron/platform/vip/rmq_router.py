@@ -77,12 +77,12 @@ _log = logging.getLogger(__name__)
 
 class RMQRouter(BaseRouter):
     """
-    Concrete RabbitMQ based VIP Router
+    Concrete VIP Router for RabbitMQ message bus.
     """
 
     def __init__(self, address, instance_name, identity='router', default_user_id=None):
         """
-            Initialize the object instance.
+        Initialize the object instance.
         :param instance_name: Name of VOLTTRON instance
         :param identity: Identity for router
         :param default_user_id: Default user id
@@ -97,39 +97,42 @@ class RMQRouter(BaseRouter):
         self.connection = RMQConnection(address, identity, self._instance_name, type='platform')
 
     def start(self):
-        '''Create RabbitMQ connection with broker
-        '''
-        #self.connection = RMQConnection(self.address, self.identity, self.instance_name, type='platform')
+        """
+        Register VIP message handler with connection object. And create connection to RabbitMQ broker.
+        :return:
+        """
         self.connection.register(self.handle_system)
         self.setup()
 
     def stop(self, linger=1):
         """
-            Close the connection.
+        Close the connection to RabbitMQ broker.
         :param linger:
         :return:
         """
-        self.connection.close_connection()
+        self.connection.disconnect()
 
     def setup(self):
         """
-        Called from start() method to setup the socket.
-
-        Implement this method to bind the socket, set identities and
-        options, etc.
+        Called from start() method to set connection properties.
         :return:
         """
-
-        flags = dict(durable=True, exclusive=False, auto_delete=True)
+        # set properties for VIP queue
+        flags = dict(durable=False, exclusive=True, auto_delete=True)
         self.connection.set_properties(flags)
-        #self.connection.connect(self.callback)
 
     def run(self):
+        """
+        RabbitMQ router loop to keep the connection running.
+        :return:
+        """
         self.start()
         try:
             # for message in self.event_queue:
             #     self.handle_system(message)
             self.connection.loop()
+        except (pika.exceptions.AMQPConnectionError, pika.exceptions.AMQPChannelError):
+            _log.debug("Unable to connect to the RabbitMQ broker")
         except KeyboardInterrupt:
             pass
         finally:
@@ -166,11 +169,11 @@ class RMQRouter(BaseRouter):
         entities are routed appropriately.
         '''
         self.handle_system(message)
-        #self.event_queue.put(message)
 
     def handle_system(self, message):
         """
-        Handles messages intended for router
+        Handles messages intended for router. Standard hello, ping, peerlist subsystems
+        are handled.
         :param props: properties associated with incoming message
         :param message: actual message
         :return:
@@ -178,11 +181,9 @@ class RMQRouter(BaseRouter):
         #[SENDER, RECIPIENT, PROTOCOL, USER_ID, MSG_ID, SUBSYSTEM, ...]
         # sender = props.app_id #source
         sender = message.peer #source
-        recipient = message.user #destination
         subsystem = message.subsystem
 
         if subsystem == b'hello':
-            _log.debug("Router received hello")
             message.args = [b'welcome', b'1.0', self._identity, sender]
         elif subsystem == b'ping':
             message.args = [b'pong']

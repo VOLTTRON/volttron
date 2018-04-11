@@ -97,7 +97,7 @@ class ZMQConnection(BaseConnection):
             callback(True)
 
     def bind(self):
-        self._logger("inside logger")
+        pass
 
     def register(self, handler):
         self._vip_handler = handler

@@ -87,9 +87,9 @@ def http_delete_request(url, user='volttron', password='volttron'):
         if response and isinstance(response, list):
             response[0].raise_for_status()
     except (ConnectionError, NewConnectionError):
-        _log.error("Connection to {} not available".format(url))
+        print("Connection to {} not available".format(url))
     except requests.exceptions.HTTPError as e:
-        _log.error("Exception when trying to make HTTP request to RabbitMQ {}".format(e))
+        print("Exception when trying to make HTTP request to RabbitMQ {}".format(e))
     return response
 
 def http_get_request(url, user, password):
@@ -103,9 +103,9 @@ def http_get_request(url, user, password):
             response = response[0].json()
 
     except (ConnectionError, NewConnectionError):
-        _log.error("Connection to {} not available".format(url))
+        print("Connection to {} not available".format(url))
     except requests.exceptions.HTTPError as e:
-        _log.error("Exception when trying to make HTTP request to RabbitMQ {}".format(e))
+        print("Exception when trying to make HTTP request to RabbitMQ {}".format(e))
     return response
 
 def http_get_rrrrequest(url, user, password):
@@ -115,9 +115,9 @@ def http_get_rrrrequest(url, user, password):
         response = requests.get(url, headers=headers, auth=(user, password))
         print response
     except (ConnectionError, NewConnectionError):
-        _log.error("Connection to {} not available".format(url))
+        print("Connection to {} not available".format(url))
     except requests.exceptions.HTTPError as e:
-        _log.error("Exception when trying to make HTTP request to RabbitMQ {}".format(e))
+        print("Exception when trying to make HTTP request to RabbitMQ {}".format(e))
     return response
 
 def create_vhost(vhost='volttron'):
@@ -137,7 +137,6 @@ def create_vhost(vhost='volttron'):
 def get_vhost(host, port, user='volttron', password='volttron', new_vhost='volttron'):
     url = 'http://{0}:{1}/api/vhosts/{2}' % ('volttron-VirtualBox', get_port(), new_vhost)
     response = http_get_request(url, user, password)
-    print response
     return response
 
 def delete_vhost(new_vhost='volttron', user='volttron', password='volttron'):
@@ -197,6 +196,7 @@ def get_topic_permissions(host, port, user='volttron', password='volttron', vhos
 
 # GET/SET parameter on a component for example, federation-upstream
 def get_parameter(component, user='volttron', password='volttron', vhost='volttron'):
+    #http: // localhost:15672 / api / parameters / localhost / volttron
     url = 'http://{0}:{1}/api/parameters/{2}/{3}'.format(get_hostname(), get_port(), component, vhost)
     response = http_get_request(url, user, password)
     return response
@@ -213,7 +213,6 @@ def delete_parameter(component, parameter_name,
     url = 'http://{0}:{1}/api/parameters/{2}/{3}/{4}'.format(get_hostname(), get_port(),
                                                              component, vhost, parameter_name)
     response = http_delete_request(url, user, password)
-    print response
     return response
 
 # Get all policies, Get/Set/Delete a specific property
@@ -351,7 +350,6 @@ def create_rabbitmq_setup():
     global config_opts
     if not config_opts:
         _load_rmq_config()
-    print config_opts
     vhost = config_opts['virtual-host']
     user= config_opts['user']
     password = config_opts['pass']
@@ -361,30 +359,31 @@ def create_rabbitmq_setup():
     host = config_opts['host']
     port = 15672
     # Create a new "volttron" vhost
-    create_vhost(port, vhost='volttron')
+    create_vhost(vhost)
     # Create a new "volttron" user within this vhost
-    create_user(port, user, password)
+    create_user(user, password)
     # Set permissions (Configure, read, write) for the user
     permissions = dict(configure=".*", read=".*", write=".*")
-    set_user_permissions(host, port, permissions)
+    set_user_permissions(permissions)
     # we may need to restart RabbitMQ app
 
     # Create a new "volttron" exchange. Set up alternate exchange to capture all unroutable messages
     properties = dict(durable=True, type='topic', arguments={"alternate-exchange": alternate_exchange})
-    create_exchange(host, port, exchange, properties=properties)
+    create_exchange(exchange, properties=properties)
 
     # Create alternate exchange to capture all unroutable messages.
     # Note: Pubsub messages with no subscribers are also captured which is unavoidable with this approach
     properties = dict(durable=True, type='fanout')
-    create_exchange(host, port, alternate_exchange, properties=properties)
+    create_exchange(alternate_exchange, properties=properties)
 
 def create_federation_setup():
     global config_opts
     if not config_opts:
         _load_rmq_config()
-    delete_parameter(config_opts['host'], 15672, 'federation-upstream', '')
+    #delete_parameter('federation-upstream', 'upstream-2')
+    #delete_parameter('federation-upstream', 'upstream-1')
     federation = config_opts['federation']
-    parametrs = get_parameter(config_opts['host'], 15672, 'federation-upstream')
+    parametrs = get_parameter('federation-upstream')
     print parametrs
     for upstream in federation:
         name = upstream['upstream_name']
@@ -394,7 +393,7 @@ def create_federation_setup():
                         component="federation-upstream",
                         name=name,
                         value={"uri":address})
-        set_parameter(config_opts['host'], 15672, 'federation-upstream', name, property,
+        set_parameter('federation-upstream', name, property,
                   config_opts['user'], config_opts['pass'], config_opts['virtual-host']
                   )
 
@@ -403,7 +402,7 @@ def create_federation_setup():
                     "definition": {"federation-upstream-set":"all"},
                     "priority":0,
                     "apply-to": "exchanges"}
-    set_policy(config_opts['host'], 15672, policy_name, policy_value,
+    set_policy(policy_name, policy_value,
               config_opts['user'], config_opts['pass'], config_opts['virtual-host'])
 
 def _load_rmq_config():
@@ -471,7 +470,7 @@ def _get_vhost_user_address():
     config_opts['port'] = str(port)
     config_opts['rmq-address'] = build_rmq_address()
     config_opts.async_sync()
-    print config_opts
+    #print config_opts
 
 
 def build_rmq_address():
@@ -520,7 +519,7 @@ def _get_upstream_servers():
             count = int(count)
             i = 0
             for i in range(0, count):
-                prompt = 'Name of the upstream server: '
+                prompt = 'Name of the upstream server {}: '.format(i+1)
                 default_name = 'upstream-' + str(i+1)
                 name = prompt_response(prompt, default=default_name)
                 prompt = 'Hostname of the upstream server: '

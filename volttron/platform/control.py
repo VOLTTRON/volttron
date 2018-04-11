@@ -1462,6 +1462,7 @@ def add_queue(opts):
     properties = dict(durable=durable, auto_delete=auto_delete)
     create_queue(opts.name, properties)
 
+
 def list_vhosts(opts):
     vhosts = get_vhosts()
     for item in vhosts:
@@ -1491,12 +1492,39 @@ def list_queues(opts):
 
 def list_queues_with_properties(opts):
     queues = get_queues_with_props()
+    name_width = max(5, max(len(q['name']) for q in queues))
+    dur_width = 7
+    excl_width = 9
+    auto_width = 11
+    fmt = '{:{}} {:{}} {:{}} {:{}}\n'
+    _stderr.write(
+        fmt.format('QUEUE', name_width, 'DURABLE', dur_width,
+                   'EXCLUSIVE', excl_width, 'AUTO-DELETE', auto_width))
     if queues:
         for q in queues:
-            _stdout.write("{} \n".format(q))
+            _stdout.write(fmt.format(q['name'], name_width,
+                                     q['durable'], dur_width,
+                                     q['exclusive'], excl_width,
+                                     q['auto_delete'], auto_width))
+    # for agent in agents:
+    #     _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+    #                              agent.vip_identity, identity_width,
+    #                              agent.tag or '', tag_width,
+    #                              field_callback(agent)))
+
+
+    # if queues:
+    #     for q in queues:
+    #         _stdout.write("{} \n".format(q))
 
 def list_connections(opts):
     conn = get_connection()
+
+def list_parameters(opts):
+    parameters = get_parameter('federation-upstream')
+    if parameters:
+        for param in parameters:
+            _stdout.write(param['name'] + "\n")
 
 def remove_vhosts(opts):
     for vhost in opts.vhosts:
@@ -2008,10 +2036,10 @@ def main(argv=sys.argv):
     rabbitmq_list_queues_props = add_parser('list-queue-properties', help='list queues with properties',
                               subparser=rabbitmq_subparsers)
     rabbitmq_list_queues_props.set_defaults(func=list_queues_with_properties)
-    # rabbitmq_list_parameters = add_parser('--list-parameters', help='add a new user',
-    #                           subparser=rabbitmq_subparsers)
-    # rabbitmq_list_parameters.set_defaults(func=list_parameters)
-    #
+    rabbitmq_list_parameters = add_parser('list-federation-parameters', help='list all federation parameters',
+                              subparser=rabbitmq_subparsers)
+    rabbitmq_list_parameters.set_defaults(func=list_parameters)
+
     # rabbitmq_list_policies = add_parser('--list-policies', help='add a new user',
     #                           subparser=rabbitmq_subparsers)
     # rabbitmq_list_policies.set_defaults(func=list_policies)

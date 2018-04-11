@@ -852,7 +852,7 @@ class RMQCore(BasicCore):
         yield
 
         # pre-start
-        flags = dict(durable=True, exclusive=False, auto_delete=True)
+        flags = dict(durable=False, exclusive=True, auto_delete=True)
         self.connection.set_properties(flags)
         # Register callback handler for VIP messages
         self.connection.register(self.vip_message_handler)

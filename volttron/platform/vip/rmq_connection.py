@@ -4,10 +4,8 @@ import logging
 import json
 from volttron.platform.vip.socket import Message
 import errno
-from volttron.platform.agent import json as jsonapi
 from gevent import monkey
 from volttron.utils.rmq_mgmt import build_rmq_address
-
 monkey.patch_socket()
 
 _log = logging.getLogger(__name__)
@@ -16,7 +14,7 @@ logging.getLogger("pika").setLevel(logging.WARNING)
 
 class BaseConnection(object):
     """
-
+    Base connection class for message bus connection.
     """
     def __init__(self, url, identity, instance_name, *args, **kwargs):
         self._url = url
@@ -39,7 +37,7 @@ class RMQConnection(BaseConnection):
         self._closing = False
         self._consumer_tag = None
         self._error_tag = None
-        self._url = 'amqp://volttron:volttron@localhost:5672/volttron'
+        self._url = build_rmq_address()
         _log.debug("AMQP address: {}".format(self._url))#'amqp://guest:guest@localhost:5672/%2F'
         self.routing_key = "{0}.{1}".format(instance_name, identity)
         #self.routing_key = identity
@@ -55,6 +53,12 @@ class RMQConnection(BaseConnection):
         #_log.debug("ROUTING KEY: {}".format(self.routing_key))
 
     def open_connection(self, type='agent'):
+        """
+        If the connection is for an agent, open a gevent adapter connection. If the connection
+        is for platform, open asynchronous connection.
+        :param type: agent/platform
+        :return:
+        """
         if type == 'agent':
             self._connection = pika.GeventConnection(pika.URLParameters(self._url),
                                      self.on_connection_open)
@@ -63,14 +67,24 @@ class RMQConnection(BaseConnection):
                                      self.on_connection_open)
 
     def on_connection_open(self, unused_connection):
+        """
+        This method is invoked by pika when connection has been opened.
+        :param unused_connection: new connection object
+        :return:
+        """
         if self._connection is None:
             self._connection = unused_connection
         # Open a channel
         self._connection.channel(self.on_channel_open)
 
-    def on_channel_open(self, new_channel):
-        """Called when our channel has opened"""
-        self.channel = new_channel
+    def on_channel_open(self, channel):
+        """
+        This method is invoked by pika when channel has been opened. Declare VIP queue to
+        handle messages
+        :param new_channel: new channel object
+        :return:
+        """
+        self.channel = channel
         # self.channel.exchange_delete(exchange=self.exchange)
         # self.channel.exchange_delete(exchange=self._alternate_exchange)
         args = dict()
@@ -97,14 +111,11 @@ class RMQConnection(BaseConnection):
         self._queue_properties['auto_delete'] = flags.get('auto_delete', True)
 
     def on_queue_declare_ok(self, method_frame):
-        """Method invoked by pika when the Queue.Declare RPC call made in
-        setup_queue has completed. In this method we will bind the queue
-        and exchange together with the routing key by issuing the Queue.Bind
-        RPC command. When this command is complete, the on_bindok method will
-        be invoked by pika.
-
-        :param pika.frame.Method method_frame: The Queue.DeclareOk frame
-
+        """
+        Callback method invoked after VIP queue has been declared. Next, we bind the
+        queue to the exchange with VIP routing key.
+        :param method_frame: The Queue.DeclareOk frame
+        :return:
         """
         self._logger.debug('Binding %s to %s with %s',
                            self.exchange, self._vip_queue, self.routing_key)
@@ -114,24 +125,43 @@ class RMQConnection(BaseConnection):
                                 routing_key=self.routing_key)
 
     def on_alternate_queue_declare_ok(self, method_frame):
+        """
+        Callback method invoked after alternate queue has been declared. Next, we bind the
+        queue to the alternate exchange to receive unroutable messages.
+        :param method_frame: The Queue.DeclareOk frame
+        :return:
+        """
         self.channel.queue_bind(self.on_alternate_queue_bind_ok,
                                 exchange=self._alternate_exchange,
                                 queue=self._alternate_queue,
                                 routing_key=self._instance_name)
 
     def on_bind_ok(self, unused_frame):
+        """
+        Callback method invoked by Pika when VIP queue bind has completed. At this point
+        we will start consuming messages by calling start_consuming.
+        :param unused_frame: The Queue.BindOk response frame
+        :return:
+        """
         self._consumer_tag = self.channel.basic_consume(self.rmq_message_handler,
                                                         queue=self._vip_queue)
         if self._connect_callback:
             self._connect_callback()
 
     def on_alternate_queue_bind_ok(self, unused_frame):
+        """
+        Callback method invoked by Pika when alternate queue bind has completed. At this point
+        we will start consuming messages by calling start_consuming.
+        :param unused_frame: The Queue.BindOk response frame
+        :return:
+        """
         self._error_tag = self.channel.basic_consume(self._handle_error,
                                                      queue=self._alternate_queue)
 
     def connect(self, callback=None):
         """
-        Start the connection process
+        Connect to RabbitMQ broker. Save the callback method to be invoked after connection
+        steps are completed.
         :param callback:
         :return:
         """
@@ -139,10 +169,24 @@ class RMQConnection(BaseConnection):
         self.open_connection(type=self._type)
 
     def register(self, handler):
+        """
+        Register VIP handler to be invoked to handle incoming messages
+        :param handler: VIP handler callback method
+        :return:
+        """
         self._vip_handler = handler
 
     def rmq_message_handler(self, channel, method, props, body):
-        # [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
+        """
+        Message handler for incoming messages. Reformats the incoming messages to VIP message
+        object and hands it over to VIP message handler.
+        :param channel: channel object
+        :param method: method frame - contains routing key
+        :param props: message properties containing VIP info such as
+                      [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS,]
+        :param body: message body
+        :return:
+        """
         #content_type = None, content_encoding = None, headers = None, delivery_mode = None, \
         #priority = None, correlation_id = None, reply_to = None, expiration = None, message_id = None, \
         #timestamp = None, type = None, user_id = None, app_id = None, cluster_id = None
@@ -152,7 +196,6 @@ class RMQConnection(BaseConnection):
         platform, peer = app_id.split(".", 1)
 
         msg = Message()
-        # If peer is "proxy router", peer becomes sender
         msg.peer = peer
         msg.user = props.headers.get('userid', b'')
         msg.platform = platform
@@ -164,13 +207,16 @@ class RMQConnection(BaseConnection):
 
     def _handle_error(self, channel, method, props, body):
         """
-         Handle Unroutable messages. Send error message back to sender
-        :param channel:
-        :param method:
-        :param props:
-        :param body:
+         Handle unroutable messages. Send error message back to sender.
+         Ignore if subsystem is pubsub.
+        :param channel: channel object
+        :param method: method frame - contains routing key
+        :param props: message properties containing VIP info such as
+                      [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS,]
+        :param body: message body
         :return:
         """
+        #Ignore if message type is 'pubsub'
         if props.type == 'pubsub':
             return
 
@@ -187,8 +233,9 @@ class RMQConnection(BaseConnection):
 
     def send_vip_object(self, message):
         """
-
-        :param message:
+        Send the VIP message over rabbitmq message bus. Reformats the VIP message object into Pika
+        message object.
+        :param message: VIP message object
         :return:
         """
         platform = getattr(message, 'platform', self._instance_name)
@@ -231,30 +278,33 @@ class RMQConnection(BaseConnection):
         try:
             self.connect()
         except (pika.exceptions.AMQPConnectionError, pika.exceptions.AMQPChannelError):
-            _log.debug("Unable to connect to the RabbitMQ broker")
-            return
+            raise
         self._connection.ioloop.start()
 
     def disconnect(self):
         """
-        Disconnection from channel
+        Disconnect from channel i.e, stop consuming from the channel
         :return:
         """
         if self.channel:
-            self.channel.basic_cancel(self.on_cancelok, self._consumer_tag)
+            self.channel.basic_cancel(self.on_cancel_ok, self._consumer_tag)
 
     def on_cancel_ok(self):
         """
-        Close the channel after we stop consuming from the channel
+        Callack method invoked by Pika when RabbitMQ acknowledges the cancellation of a consumer.
+        Next step is to close the channel.
         :return:
         """
         self.channel.close()
+        self._connection.close()
 
     def close_connection(self):
-        """This method closes the connection to RabbitMQ"""
+        """
+        This method closes the connection to RabbitMQ.
+        :return:
+        """
         if self.channel and self.channel.is_open:
             _log.debug("********************************************************************")
             _log.debug("Closing connection to RMQ: {}".format(self._identity))
             _log.debug("********************************************************************")
-
             self._connection.close()
