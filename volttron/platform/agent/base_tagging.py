@@ -107,13 +107,13 @@ class BaseTaggingService(Agent):
     the tag details
     """
 
-    def __init__(self, historian_vip_id=None, **kwargs):
+    def __init__(self, historian_vip_identity=None, **kwargs):
         super(BaseTaggingService, self).__init__(**kwargs)
         self.valid_tags = dict()
         self.tag_refs = dict()
-        self.historian_vip_id = historian_vip_id
-        if historian_vip_id is None:
-            self.historian_vip_id = PLATFORM_HISTORIAN
+        self.historian_vip_identity = historian_vip_identity
+        if historian_vip_identity is None:
+            self.historian_vip_identity = PLATFORM_HISTORIAN
         current_dir = os.path.dirname(os.path.abspath(__file__))
         self.resource_sub_dir = os.path.join(current_dir, "../../..",
                                              "volttron_data/tagging_resources")
@@ -611,9 +611,9 @@ class BaseTaggingService(Agent):
         topic_prefixes = set()
         try:
             _log.debug("Querying {} for matching topics for pattern "
-                       "{}".format(self.historian_vip_id, topic_pattern))
+                       "{}".format(self.historian_vip_identity, topic_pattern))
             topic_map = self.vip.rpc.call(
-                self.historian_vip_id,
+                self.historian_vip_identity,
                 "get_topics_by_pattern",
                 topic_pattern=topic_pattern).get(timeout=5)
             point_topics = topic_map.keys()
@@ -649,7 +649,7 @@ class BaseTaggingService(Agent):
                        "operations need plaform.historian to be running."
                        "Topics and topic patterns sent are matched against "
                        "list of valid topics queried"
-                       " from {}".format(self.historian_vip_id))
+                       " from {}".format(self.historian_vip_identity))
             raise
 
         except Exception as e:

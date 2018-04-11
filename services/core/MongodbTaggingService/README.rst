@@ -65,7 +65,7 @@ by this agent.
 
         # optional. Specify if you want tagging service to query the historian
         # with this vip identity. defaults to platform.historian
-        "historian_vip_id": "crate.historian"
+        "historian_vip_identity": "crate.historian"
     }
 
 See Also

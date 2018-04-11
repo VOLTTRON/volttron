@@ -6,5 +6,5 @@
         }
     },
     "table_prefix":"volttron", #optional
-    "historian_vip_id":"platform.historian" #optional
+    "historian_vip_identity":"platform.historian" #optional
 }
