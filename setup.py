@@ -81,7 +81,7 @@ requirements = [
     'pymodbus>=1.2,<2',
     'setuptools',
     'simplejson>=3.3,<4',
-    'wheel>=0.24,<2',
+    'wheel==0.30',
 ]
 
 install_requires = (
