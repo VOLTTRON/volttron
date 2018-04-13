@@ -53,7 +53,7 @@ from volttron.utils.docs import doc_inherit
 
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 Status)
-__version__ = "1.0"
+__version__ = "1.1"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
