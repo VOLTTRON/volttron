@@ -231,7 +231,13 @@ def update(operation, verbose=None, upgrade=False, offline=False):
         try:
             import wheel
         except ImportError:
-            pip('install', ['wheel'], verbose, offline=offline)
+            # wheel version 0.31 breaks packaging.
+            # TODO Look towards fixing the packaging so that it works with 0.31
+            pip('install', ['wheel==0.30'], verbose, offline=offline)
+    # Downgrade wheel if necessary so things don't break.
+    # TODO Fix hard coded version in this spot...should be somewhere else.
+    pip('install', ['wheel==0.30'], verbose, offline=offline)
+
     # Build option_requirements separately to pass install options
     build_option = '--build-option' if wheeling else '--install-option'
     for requirement, options in option_requirements:
