@@ -81,8 +81,8 @@ def decode_peer(peer):
 
 class BasePubSub(SubsystemBase):
     """
-    Abstract Base class for pubsub subsystem. Pubsub concrete implementations will vary depending on the
-    underlying message bus
+    Abstract Base class for pubsub subsystem. Concrete implementations of PubSub shall vary
+    depending on the underlying message bus
     """
     def __init_(self, core, rpc_subsys, peerlist_subsys, owner):
         self._instance_name = core.instance_name
@@ -90,7 +90,7 @@ class BasePubSub(SubsystemBase):
     def synchronize(self):
         raise NotImplementedError()
 
-    def subscribe(self, prefix, callback, all_platforms=False, persistent_queue=None):
+    def subscribe(self, prefix, callback, bus='', all_platforms=False, persistent_queue=None):
         raise NotImplementedError()
 
     def publish(self):
@@ -139,7 +139,7 @@ class PubSub(BasePubSub):
             self.vip_socket = self.core().connection.socket
 
             def subscribe(member):   # pylint: disable=redefined-outer-name
-                for peer, bus, prefix, all_platforms in annotations(
+                for peer, bus, prefix, all_platforms, queue in annotations(
                         member, set, 'pubsub.subscriptions'):
                     # XXX: needs updated in light of onconnected signal
                     self._add_subscription(prefix, member, bus, all_platforms)
@@ -388,7 +388,7 @@ class PubSub(BasePubSub):
 
     @dualmethod
     @spawn
-    def subscribe(self, peer, prefix, callback, bus='', all_platforms=False):
+    def subscribe(self, peer, prefix, callback, bus='', all_platforms=False, persistent_queue=None):
         """Subscribe to topic and register callback.
 
         Subscribes to topics beginning with prefix. If callback is
@@ -434,9 +434,9 @@ class PubSub(BasePubSub):
             return result
 
     @subscribe.classmethod
-    def subscribe(cls, peer, prefix, bus='', all_platforms=False):
+    def subscribe(cls, peer, prefix, bus='', all_platforms=False, persistent_queue=None):
         def decorate(method):
-            annotate(method, set, 'pubsub.subscriptions', (peer, bus, prefix, all_platforms))
+            annotate(method, set, 'pubsub.subscriptions', (peer, bus, prefix, all_platforms, persistent_queue))
             return method
         return decorate
 

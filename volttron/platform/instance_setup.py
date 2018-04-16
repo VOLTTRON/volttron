@@ -73,7 +73,6 @@ def _load_config():
         for option in options:
             config_opts[option] = parser.get('volttron', option)
 
-
 def _install_config_file():
     home = get_home()
 
