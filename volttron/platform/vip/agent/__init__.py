@@ -49,6 +49,7 @@ from .decorators import *
 from .subsystems import *
 from .... import platform
 from .... platform.agent.utils import is_valid_identity
+from volttron.platform.agent.utils import load_platform_config
 
 class Agent(object):
     class Subsystems(object):
@@ -80,7 +81,7 @@ class Agent(object):
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, enable_store=True,
                  enable_web=False, enable_channel=False,
-                 reconnect_interval=None, version='0.1', message_bus='rmq'):
+                 reconnect_interval=None, version='0.1', message_bus=None):
 
         self._version = version
 
@@ -89,7 +90,8 @@ class Agent(object):
             _log.warn(
                 'All characters in {identity} are not in the valid set.'.format(
                     identity=identity))
-
+        if not message_bus:
+            message_bus = os.environ.get('MESSAGEBUS', 'zmq')
         if message_bus == 'rmq':
             self.core = RMQCore(self, identity=identity, address=address,
                          context=context, publickey=publickey,

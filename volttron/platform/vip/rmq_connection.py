@@ -102,6 +102,7 @@ class RMQConnection(BaseConnection):
         if self._type == 'platform':
             self.channel.queue_declare(queue=self._alternate_queue,
                                        durable=False,
+                                       exclusive=True,
                                        auto_delete= True,
                                        callback=self.on_alternate_queue_declare_ok)
 
@@ -291,7 +292,7 @@ class RMQConnection(BaseConnection):
 
     def on_cancel_ok(self):
         """
-        Callack method invoked by Pika when RabbitMQ acknowledges the cancellation of a consumer.
+        Callback method invoked by Pika when RabbitMQ acknowledges the cancellation of a consumer.
         Next step is to close the channel.
         :return:
         """

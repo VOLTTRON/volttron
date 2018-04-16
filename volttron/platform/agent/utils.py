@@ -58,6 +58,7 @@ from dateutil.parser import parse
 from dateutil.tz import tzutc, tzoffset
 from tzlocal import get_localzone
 from volttron.platform.agent import json as jsonapi
+from ConfigParser import ConfigParser
 
 try:
     from ..lib.inotify.green import inotify, IN_MODIFY
@@ -149,6 +150,18 @@ def load_config(config_path):
     except StandardError as e:
         _log.error("Problem parsing agent configuration")
         raise
+
+def load_platform_config():
+    """Loads the platform config file if the path exists."""
+    config_opts = {}
+    path = os.path.join(get_home(), 'config')
+    if os.path.exists(path):
+        parser = ConfigParser()
+        parser.read(path)
+        options = parser.options('volttron')
+        for option in options:
+            config_opts[option] = parser.get('volttron', option)
+    return config_opts
 
 def update_kwargs_with_config(kwargs, config):
     """

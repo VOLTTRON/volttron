@@ -72,6 +72,7 @@ from ..zmq_connection import ZMQConnection
 from ..rmq_connection import RMQConnection
 from ..socket import Message
 from gevent.queue import Queue
+from volttron.platform.agent.utils import load_platform_config
 
 __all__ = ['BasicCore', 'Core', 'RMQCore', 'ZMQCore', 'killing']
 
@@ -807,7 +808,9 @@ class RMQCore(BasicCore):
         self.serverkey = serverkey
         self.reconnect_interval = reconnect_interval
         self._reconnect_attempt = 0
-        self.instance_name = 'volttron1'
+        config_opts = load_platform_config()
+        self.instance_name = config_opts.get('instance-name', 'volttron1')
+        _log.debug("instance:{}".format(self.instance_name))
         self._event_queue = gevent.queue.Queue
 
         _log.debug('address: %s', address)

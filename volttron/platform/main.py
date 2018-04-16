@@ -704,9 +704,7 @@ def start_volttron_process(opts):
 
     address = 'inproc://vip'
     try:
-        messagebus = 'rmq'
         stop_event = None
-
 
         auth_task = None
         protected_topics = {}
@@ -714,6 +712,10 @@ def start_volttron_process(opts):
 
         zmqrouter = None
         zmq_router_task = None
+        messagebus = os.environ.get('MESSAGEBUS', 'zmq')
+        _log.debug("********************************************************************")
+        _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(messagebus))
+        _log.debug("********************************************************************")
         if messagebus == 'zmq':
             # Start the config store before auth so we may one day have auth use it.
             config_store = ConfigStoreService(address=address, identity=CONFIGURATION_STORE)
@@ -888,7 +890,6 @@ def main(argv=sys.argv):
     volttron_home = os.path.normpath(config.expandall(
         os.environ.get('VOLTTRON_HOME', '~/.volttron')))
     os.environ['VOLTTRON_HOME'] = volttron_home
-
     # Setup option parser
     parser = config.ArgumentParser(
         prog=os.path.basename(argv[0]), add_help=False,

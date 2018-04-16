@@ -408,6 +408,8 @@ def create_federation_setup():
 def _load_rmq_config():
     """Loads the config file if the path exists."""
     global config_opts
+    if not os.path.exists(get_home()):
+        os.makedirs(get_home())
     config_file = os.path.join(get_home(), 'rabbitmq_config.json')
     config_opts = PersistentDict(filename=config_file, flag='c', format='json')
 
