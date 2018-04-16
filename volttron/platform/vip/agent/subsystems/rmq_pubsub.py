@@ -107,8 +107,10 @@ class RMQPubSub(BasePubSub):
             core.onconnected.connect(self._connected)
 
             def subscribe(member):  # pylint: disable=redefined-outer-name
-                for peer, prefix, all_platforms, queue in annotations(
+                #for peer, prefix, all_platforms, queue in annotations(
+                for peer, bus, prefix, all_platforms, queue in annotations(
                         member, set, 'pubsub.subscriptions'):
+                    self._logger.debug("peer: {0}, prefix:{1}".format(peer, prefix))
                     if prefix == '':
                         prefix = '#'
                     else:
@@ -185,7 +187,7 @@ class RMQPubSub(BasePubSub):
 
     @dualmethod
     @spawn
-    def subscribe(self, prefix, callback, bus='', all_platforms=False, persistent_queue=None):
+    def subscribe(self, peer, prefix, callback, bus='', all_platforms=False, persistent_queue=None):
         """
 
         :param prefix:
@@ -259,7 +261,7 @@ class RMQPubSub(BasePubSub):
             topic = topic.replace(".", "/")
             try:
                 msg = jsonapi.loads(body)
-                self._logger.debug("pub message {}".format(method.routing_key))
+                #self._logger.debug("pub message {}".format(method.routing_key))
                 headers = msg['headers']
                 message = msg['message']
                 bus = msg['bus']
@@ -275,8 +277,9 @@ class RMQPubSub(BasePubSub):
 
     @subscribe.classmethod
     def subscribe(cls, peer, prefix, bus='', all_platforms=False, persistent_queue=None):
+        print("subscribe classmethod {}".format(prefix))
         def decorate(method):
-            annotate(method, set, 'pubsub.subscriptions', (peer, prefix, all_platforms, persistent_queue))
+            annotate(method, set, 'pubsub.subscriptions', (peer, bus, prefix, all_platforms, persistent_queue))
             return method
         return decorate
 
