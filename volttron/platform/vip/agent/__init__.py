@@ -91,11 +91,8 @@ class Agent(object):
             _log.warn(
                 'All characters in {identity} are not in the valid set.'.format(
                     identity=identity))
-        # config_path = '/home/volttron/.volttron/config'
-        # config = utils.load_config(config_path)
-        # message_bus = config.get('messagebus', 'zmq')
-        if not message_bus:
-            message_bus = os.environ.get('MESSAGEBUS', 'zmq')
+
+        _log.debug("MESSAGE TYPE: {0}, IDENTITY: {1}".format(message_bus, identity))
         if message_bus == 'rmq':
             self.core = RMQCore(self, identity=identity, address=address,
                          context=context, publickey=publickey,

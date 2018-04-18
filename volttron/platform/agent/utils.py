@@ -300,6 +300,7 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
 
         config = os.environ.get('AGENT_CONFIG')
         identity = os.environ.get('AGENT_VIP_IDENTITY', identity)
+        message_bus = os.environ.get('MESSAGEBUS', 'zmq')
         if identity is not None:
             if not is_valid_identity(identity):
                 _log.warn('Deprecation warining')
@@ -314,7 +315,8 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         agent = agent_class(config_path=config, identity=identity,
                             address=address, agent_uuid=agent_uuid,
                             volttron_home=volttron_home,
-                            version=version, **kwargs)
+                            version=version,
+                            message_bus=message_bus, **kwargs)
         
         try:
             run = agent.run
