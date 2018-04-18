@@ -92,7 +92,7 @@ class Agent(object):
                 'All characters in {identity} are not in the valid set.'.format(
                     identity=identity))
 
-        _log.debug("MESSAGE TYPE: {0}, IDENTITY: {1}".format(message_bus, identity))
+        #_log.debug("MESSAGE TYPE: {0}, IDENITY: {1}".format(message_bus, identity))
         if message_bus == 'rmq':
             self.core = RMQCore(self, identity=identity, address=address,
                          context=context, publickey=publickey,

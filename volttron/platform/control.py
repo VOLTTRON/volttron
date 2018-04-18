@@ -1581,6 +1581,7 @@ def main(argv=sys.argv):
         sys.exit(77)
 
     volttron_home = get_home()
+
     os.environ['VOLTTRON_HOME'] = volttron_home
 
     global_args = config.ArgumentParser(description='global options',
@@ -1598,9 +1599,13 @@ def main(argv=sys.argv):
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
+    global_args.add_argument(
+        '--message-bus', default='zmq',
+        help='Type of message bus')
     global_args.set_defaults(
         vip_address=get_address(),
         timeout=30,
+        message_bus='zmq'
     )
 
     filterable = config.ArgumentParser(add_help=False)
@@ -2009,8 +2014,8 @@ def main(argv=sys.argv):
     stats.set_defaults(func=do_stats, op='status')
 
 #==============================================================================
-    messagebus = os.environ.get('MESSAGEBUS', 'zmq')
-    if messagebus == 'rmq':
+    message_bus = utils.get_messagebus()
+    if message_bus == 'rmq':
         # Add commands
         rabbitmq_cmds = add_parser("rabbitmq", help="manage rabbitmq")
         rabbitmq_subparsers = rabbitmq_cmds.add_subparsers(title='subcommands',
@@ -2119,7 +2124,7 @@ def main(argv=sys.argv):
         # rabbitmq_remove_connections = add_parser('--remove-connections', help='Remove connection',
         #                                        subparser=rabbitmq_subparsers)
         # rabbitmq_remove_connections.set_defaults(func=remove_connections)
-#===============================================================================================
+    #===============================================================================================
     if HAVE_RESTRICTED:
         cgroup = add_parser('create-cgroups',
                             help='setup VOLTTRON control group for restricted execution')

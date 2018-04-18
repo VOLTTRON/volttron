@@ -69,7 +69,7 @@ except AttributeError:
     IN_MODIFY = None
 
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
-           'is_valid_identity']
+           'is_valid_identity', 'load_platform_config', 'get_messagebus']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
@@ -162,6 +162,15 @@ def load_platform_config():
         for option in options:
             config_opts[option] = parser.get('volttron', option)
     return config_opts
+
+
+def get_messagebus():
+    """Get type of message bus - zeromq or rabbbitmq."""
+    message_bus = os.environ.get('MESSAGEBUS')
+    if not message_bus:
+        config = load_platform_config()
+        message_bus = config.get('message-bus', 'zmq')
+    return message_bus
 
 def update_kwargs_with_config(kwargs, config):
     """

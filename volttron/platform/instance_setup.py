@@ -228,12 +228,17 @@ def is_valid_port(port):
     return 0 < port < 65535
 
 
+def is_valid_bus(bus_type):
+    return bus_type in ['zmq', 'rmq']
+
+
 def do_vip():
     global config_opts
 
     parsed = urlparse.urlparse(config_opts.get('vip-address',
                                                'tcp://127.0.0.1:22916'))
     vip_address = None
+    bus_type = None
     if parsed.hostname is not None and parsed.scheme is not None:
         vip_address = parsed.scheme + '://' + parsed.hostname
         vip_port = parsed.port
@@ -264,6 +269,15 @@ def do_vip():
             else:
                 print("Port is not valid")
 
+        valid_bus = False
+        while not valid_bus:
+            prompt = 'What is type of message bus?'
+            new_bus = prompt_response(prompt, default='zmq')
+            valid_bus = is_valid_bus(new_bus)
+            if valid_bus:
+                bus_type = new_bus
+            else:
+                print("Message type is not valid. Valid entries are zmq or rmq")
         while vip_address.endswith('/'):
             vip_address = vip_address[:-1]
 
@@ -273,6 +287,7 @@ def do_vip():
         else:
             print('\nERROR: That address has already been bound to.')
     config_opts['vip-address'] = '{}:{}'.format(vip_address, vip_port)
+    config_opts['message-bus'] = bus_type
 
 
 @installs(get_services_core("VolttronCentral"), 'vc')

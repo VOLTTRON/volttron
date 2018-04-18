@@ -77,7 +77,8 @@ _log = logging.getLogger(__name__)
 
 class RMQRouter(BaseRouter):
     """
-    Concrete VIP Router for RabbitMQ message bus.
+    Concrete VIP Router for RabbitMQ message bus. It handles router specific messages
+    and unrouteable messages.
     """
 
     def __init__(self, address, instance_name, identity='router', default_user_id=None):
@@ -90,7 +91,8 @@ class RMQRouter(BaseRouter):
         self.default_user_id = default_user_id
         self._peers = set()
         self._address = address
-        self._instance_name = 'volttron1'
+        self._instance_name = instance_name
+        _log.debug("instance:{}".format(self._instance_name))
         self._identity = identity
         self.event_queue = Queue()
         _log.debug("INSTANCE: {0}".format(instance_name))
@@ -98,7 +100,7 @@ class RMQRouter(BaseRouter):
 
     def start(self):
         """
-        Register VIP message handler with connection object. And create connection to RabbitMQ broker.
+        Register VIP message handler with connection object and create connection to RabbitMQ broker.
         :return:
         """
         self.connection.register(self.handle_system)
@@ -254,7 +256,7 @@ class RMQRouter(BaseRouter):
             message.type = b'error'
             errnum = errno.EPROTONOSUPPORT
             errmsg = os.strerror(errnum).encode('ascii')#str(errnum).encode('ascii')
-            _log.debug("ROUTER proto unsupported {}".format(subsystem))
+            _log.debug("ROUTER proto unsupported {}, sender {}".format(subsystem, sender))
             message.args = [errnum, errmsg, b'', subsystem]
 
         # Send the message back to the sender

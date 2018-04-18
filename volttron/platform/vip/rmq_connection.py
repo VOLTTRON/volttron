@@ -4,9 +4,10 @@ import logging
 import json
 from volttron.platform.vip.socket import Message
 import errno
-from gevent import monkey
-from volttron.utils.rmq_mgmt import build_rmq_address
-monkey.patch_socket()
+#from gevent import monkey
+from volttron.utils.rmq_mgmt import build_rmq_address, create_user
+#monkey.patch_socket()
+import uuid
 
 _log = logging.getLogger(__name__)
 # reduce pika log level
@@ -37,6 +38,9 @@ class RMQConnection(BaseConnection):
         self._closing = False
         self._consumer_tag = None
         self._error_tag = None
+        #self._userid = agent_uuid if agent_uuid is not None else identity
+        # Create new agent user
+        #create_user(self._userid, str(uuid.uuid4()))
         self._url = build_rmq_address()
         _log.debug("AMQP address: {}".format(self._url))#'amqp://guest:guest@localhost:5672/%2F'
         self.routing_key = "{0}.{1}".format(instance_name, identity)

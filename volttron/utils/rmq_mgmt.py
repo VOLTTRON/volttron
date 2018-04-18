@@ -347,7 +347,7 @@ def list_channels_for_vhost(host, port, user='volttron', password='volttron', vh
 
 def get_bindings(exchange, user='volttron', password='volttron', vhost='volttron'):
     """
-    List of all bindings in which a given exchange is the source
+    List all bindings in which a given exchange is the source
     :param exchange: source exchange
     :param user: user id
     :param password: password
@@ -361,6 +361,15 @@ def get_bindings(exchange, user='volttron', password='volttron', vhost='volttron
 
 # We need http address and port
 def create_rabbitmq_setup():
+    """
+    Create a RabbitMQ setup for VOLTTRON
+     - Creates a new virtual host: “volttron”
+     - Creates a new admin user: “volttron”
+     - Creates a new topic exchange: “volttron” and
+      alternate exchange “undeliverable” to capture unrouteable messages
+
+    :return:
+    """
     global config_opts
     if not config_opts:
         _load_rmq_config()
@@ -391,6 +400,15 @@ def create_rabbitmq_setup():
     create_exchange(alternate_exchange, properties=properties)
 
 def create_federation_setup():
+    """
+    Creates a RabbitMQ federation of multiple VOLTTRON instances
+        - Firstly, we need to identify upstream servers (publisher nodes)
+          and downstream servers (collector nodes)
+        - On the downstream server node, we will have run this script
+        - Creates upstream server federation parameters.
+
+    :return:
+    """
     global config_opts
     if not config_opts:
         _load_rmq_config()
@@ -418,6 +436,7 @@ def create_federation_setup():
                     "apply-to": "exchanges"}
     set_policy(policy_name, policy_value,
               config_opts['user'], config_opts['pass'], config_opts['virtual-host'])
+
 
 def _load_rmq_config():
     """Loads the config file if the path exists."""
@@ -504,6 +523,7 @@ def build_rmq_address(user=None, pwd=None):
 
     return rmq_address
 
+
 def _is_valid_rmq_url():
     """
     upstream-address: "amqp://<user1>:<password1>@<host1>:<port1>/<vhost1>"
@@ -518,7 +538,7 @@ def _is_valid_rmq_url():
 
 def _get_upstream_servers():
     """
-    Build URIs for upstream servers
+    Build RabbitMQ URIs for upstream servers
     :return:
     """
     global config_opts
@@ -556,6 +576,7 @@ def _get_upstream_servers():
             print config_opts
             config_opts.sync()
     return multi_platform
+
 
 def _get_shovel_settings():
     global config_opts

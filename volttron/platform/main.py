@@ -575,8 +575,8 @@ def start_volttron_process(opts):
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
     opts.vip_local_address = config.expandall(opts.vip_local_address)
-    opts.messagebus = config.expandall(opts.messagebus)
-    os.environ['MESSAGEBUS'] = opts.messagebus
+    opts.message_bus = config.expandall(opts.message_bus)
+    os.environ['MESSAGEBUS'] = opts.message_bus
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
@@ -716,11 +716,13 @@ def start_volttron_process(opts):
         #messagebus = os.environ.get('MESSAGEBUS', 'zmq')
 
         _log.debug("********************************************************************")
-        _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.messagebus))
+        _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.message_bus))
         _log.debug("********************************************************************")
-        if opts.messagebus == 'zmq':
+        if opts.message_bus == 'zmq':
             # Start the config store before auth so we may one day have auth use it.
-            config_store = ConfigStoreService(address=address, identity=CONFIGURATION_STORE, message_bus=opts.messagebus)
+            config_store = ConfigStoreService(address=address,
+                                              identity=CONFIGURATION_STORE,
+                                              message_bus=opts.message_bus)
 
             event = gevent.event.Event()
             config_store_task = gevent.spawn(config_store.core.run, event)
@@ -730,7 +732,8 @@ def start_volttron_process(opts):
             # Ensure auth service is running before router
             auth_file = os.path.join(opts.volttron_home, 'auth.json')
             auth = AuthService(
-                auth_file, protected_topics_file, opts.setup_mode, opts.aip, address=address, identity=AUTH,
+                auth_file, protected_topics_file, opts.setup_mode,
+                opts.aip, address=address, identity=AUTH,
                 enable_store=False, message_bus='zmq')
 
             event = gevent.event.Event()
@@ -750,7 +753,9 @@ def start_volttron_process(opts):
                 sys.exit()
         else:
             # Start the config store before auth so we may one day have auth use it.
-            config_store = ConfigStoreService(address=address, identity=CONFIGURATION_STORE, message_bus=opts.messagebus)
+            config_store = ConfigStoreService(address=address,
+                                              identity=CONFIGURATION_STORE,
+                                              message_bus=opts.message_bus)
 
             # Ensure auth service is running before router
             auth_file = os.path.join(opts.volttron_home, 'auth.json')
@@ -795,7 +800,7 @@ def start_volttron_process(opts):
             zmqrouter = ZMQProxyRouter(address=address,
                                        identity='proxy_router',
                                        zmq_router=green_router,
-                                       message_bus=opts.messagebus)
+                                       message_bus=opts.message_bus)
             event = gevent.event.Event()
             router_task = gevent.spawn(zmqrouter.core.run, event)
             event.wait()
@@ -830,7 +835,7 @@ def start_volttron_process(opts):
             ControlService(opts.aip, address=address, identity='control',
                            tracker=tracker, heartbeat_autostart=True,
                            enable_store=False, enable_channel=False,
-                           message_bus=opts.messagebus),
+                           message_bus=opts.message_bus),
 
             # CompatPubSub(address=address, identity='pubsub.compat',
             #               publish_address=opts.publish_address,
@@ -842,7 +847,7 @@ def start_volttron_process(opts):
                  bind_web_address=opts.bind_web_address,
                  volttron_central_address=opts.volttron_central_address,
                  aip=opts.aip, enable_store=False,
-                 message_bus=opts.messagebus),
+                 message_bus=opts.message_bus),
 
             KeyDiscoveryAgent(address=address, serverkey=publickey,
                                identity='keydiscovery',
@@ -970,9 +975,6 @@ def main(argv=sys.argv):
         '--volttron-central-serverkey', default=None,
         help='The serverkey of volttron central.')
     agents.add_argument(
-        '--messagebus', default='zmq',
-        help='Type of message bus')
-    agents.add_argument(
         '--instance-name', default=None,
         help='The name of the instance that will be reported to '
              'VOLTTRON central.')
@@ -982,7 +984,9 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--setup-mode', action='store_true',
         help='Setup mode flag for setting up authorization of external platforms.')
-
+    agents.add_argument(
+        '--message-bus', default='zmq',
+        help='Type of message bus')
     # XXX: re-implement control options
     # on
     # control.add_argument(
@@ -1067,7 +1071,7 @@ def main(argv=sys.argv):
         msgdebug=None,
         setup_mode=False,
         # Type of underlying message bus to use - ZeroMQ or RabbitMQ
-        messagebus='zmq'
+        message_bus='zmq'
     )
 
     # Parse and expand options

@@ -111,7 +111,7 @@ class RMQPubSub(BasePubSub):
                 for peer, bus, prefix, all_platforms, queue in annotations(
                         member, set, 'pubsub.subscriptions'):
                     self._logger.debug("peer: {0}, prefix:{1}".format(peer, prefix))
-                    routing_key = self._form_routing_key(prefix, all=all_platforms)
+                    routing_key = self._form_routing_key(prefix, all_platforms=all_platforms)
                     # If not named queue, add queue name
                     if not queue:
                         queue = "pubsub.{}".format(bytes(uuid.uuid4()))
@@ -242,7 +242,7 @@ class RMQPubSub(BasePubSub):
             # Strip prefix from routing key
             topic = str(method.routing_key)
             _, _, topic = topic.split(".", 2)
-            topic = topic.replace(".", "/")
+            topic = self._get_original_topic(topic)
             try:
                 msg = jsonapi.loads(body)
                 #self._logger.debug("pub message {}".format(method.routing_key))
@@ -494,19 +494,19 @@ class RMQPubSub(BasePubSub):
         return orig_topics
 
     def _get_original_topic(self, topic):
-        orig = topic.split('.')[2:]
-        orig = orig[:-1]
-        orig = '/'.join(orig)
-        self._logger.debug("Original topic: {0}, rkey: {1}".format(orig, topic))
-        return orig
+        try:
+            original_topic = topic.split('.')[2:]
+            original_topic = original_topic[:-1]
+            original_topic = '/'.join(original_topic)
+            return original_topic
+        except IndexError as exc:
+            return topic
 
-    def _form_routing_key(self, topic, all=False):
+    def _form_routing_key(self, topic, all_platforms=False):
         routing_key = ''
-        if topic == '':
-            topic = '#'
-        else:
-            topic = topic + '.#'
-        if all:
+        topic = '#' if topic == '' else topic + '.#'
+
+        if all_platforms:
             # '__pubsub__.*.<prefix>.#'
             routing_key = "__pubsub__.*.{}".format(topic.replace("/", "."))
         else:
