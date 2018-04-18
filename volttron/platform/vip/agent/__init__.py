@@ -50,6 +50,7 @@ from .subsystems import *
 from .... import platform
 from .... platform.agent.utils import is_valid_identity
 from volttron.platform.agent.utils import load_platform_config
+from volttron.platform.agent import utils
 
 class Agent(object):
     class Subsystems(object):
@@ -90,6 +91,9 @@ class Agent(object):
             _log.warn(
                 'All characters in {identity} are not in the valid set.'.format(
                     identity=identity))
+        # config_path = '/home/volttron/.volttron/config'
+        # config = utils.load_config(config_path)
+        # message_bus = config.get('messagebus', 'zmq')
         if not message_bus:
             message_bus = os.environ.get('MESSAGEBUS', 'zmq')
         if message_bus == 'rmq':

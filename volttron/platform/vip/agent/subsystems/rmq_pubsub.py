@@ -70,8 +70,8 @@ from ..decorators import annotate, annotations, dualmethod, spawn
 from .pubsub import BasePubSub
 from collections import defaultdict
 from ..results import ResultsDictionary
-from gevent import monkey
-monkey.patch_socket()
+#from gevent import monkey
+#monkey.patch_socket()
 
 __all__ = ['RMQPubSub']
 min_compatible_version = '5.0'
@@ -111,16 +111,7 @@ class RMQPubSub(BasePubSub):
                 for peer, bus, prefix, all_platforms, queue in annotations(
                         member, set, 'pubsub.subscriptions'):
                     self._logger.debug("peer: {0}, prefix:{1}".format(peer, prefix))
-                    if prefix == '':
-                        prefix = '#'
-                    else:
-                        prefix = prefix + '.#'
-                    if all_platforms:
-                        # '__pubsub__.*.<prefix>.#'
-                        routing_key = "__pubsub__.*.{}".format(prefix.replace("/", "."))
-                    else:
-                        routing_key = "__pubsub__.{0}.{1}".format(self.core().instance_name,
-                                                                    prefix.replace("/", "."))
+                    routing_key = self._form_routing_key(prefix, all=all_platforms)
                     # If not named queue, add queue name
                     if not queue:
                         queue = "pubsub.{}".format(bytes(uuid.uuid4()))
@@ -198,16 +189,9 @@ class RMQPubSub(BasePubSub):
         :return:
         """
         result = None
-        if prefix == '': prefix = '#'
-        else: prefix = prefix + ".#"
-        routing_key = ''
         connection = self.core().connection # bytes(uuid.uuid4())
-
-        if not all_platforms:
-            routing_key = "__pubsub__.{0}.{1}".format(self.core().instance_name, prefix.replace("/", "."))
-        else:
-            # '__pubsub__.*.<prefix>.#'
-            routing_key = "__pubsub__.*.{}".format(prefix.replace("/", "."))
+        routing_key = self._form_routing_key(prefix, all=all_platforms)
+        if all_platforms:
             # Send message to proxy agent to subscribe with different types of message bus
             self._send_proxy(prefix, callback, bus, all_platforms)
 
@@ -277,14 +261,13 @@ class RMQPubSub(BasePubSub):
 
     @subscribe.classmethod
     def subscribe(cls, peer, prefix, bus='', all_platforms=False, persistent_queue=None):
-        print("subscribe classmethod {}".format(prefix))
         def decorate(method):
             annotate(method, set, 'pubsub.subscriptions', (peer, bus, prefix, all_platforms, persistent_queue))
             return method
         return decorate
 
     def list(self, peer, prefix='', bus='', subscribed=True, reverse=False, all_platforms=False):
-        """Gets list of subscriptions matching the prefix and bus for the specified peer.
+        """Gets list of subscriptions matching the prefix
         param peer: peer
         type peer: str
         param prefix: prefix of a topic
@@ -300,8 +283,18 @@ class RMQPubSub(BasePubSub):
         :rtype: list of tuples
 
         :Return Values:
-        List of tuples [(topic, bus, flag to indicate if peer is a subscriber or not)]
+        List of tuples [(bus, topic, flag to indicate if peer is a subscriber or not)]
         """
+        results = []
+        if reverse:
+            test = prefix.startswith
+        else:
+            test = lambda t: t.startswith(prefix)
+        member = True
+        for topic, subscriptions in self._my_subscriptions.iteritems():
+            if test(topic):
+                results.append((bus, topic, member))
+        return results
 
     def publish(self, peer, topic, headers=None, message=None, bus=''):
         """Publish a message to a given topic via a peer.
@@ -330,7 +323,7 @@ class RMQPubSub(BasePubSub):
         self._pubcount[self._message_number] = result.ident
         self._message_number += 1
         topicx = topic.replace("/", ".")
-        routing_key = '__pubsub__.' + self.core().instance_name + '.' + topic.replace("/", ".")
+        routing_key = self._form_routing_key(topic)
         connection = self.core().connection
         self.core().spawn_later(0.01, self.set_result, result.ident)
         if headers is None:
@@ -399,7 +392,6 @@ class RMQPubSub(BasePubSub):
         except TypeError:
             pass
 
-
     def unsubscribe(self, peer, prefix, callback, bus='', all_platforms=False):
         """Unsubscribe and remove callback(s).
 
@@ -420,13 +412,8 @@ class RMQPubSub(BasePubSub):
         success or not
         """
         routing_key = None
-        platform = 'internal'
-        if prefix:
-            if all_platforms:
-                platform = 'all'
-                routing_key = '__pubsub__.' + '*.' + prefix.replace('\/', '.') + '.#'
-            else:
-                routing_key = '__pubsub__.' + self._instance_name + '.' + prefix.replace('\/', '.') + '.#'
+        if prefix is not None:
+           routing_key = self._form_routing_key(prefix, all=all_platforms)
         topics = self._drop_subscription(routing_key, callback)
 
         if all_platforms: # Send it proxy router to send it to external 'zmq' platforms
@@ -441,35 +428,87 @@ class RMQPubSub(BasePubSub):
         return topics
 
     def _drop_subscription(self, routing_key, callback):
+        self._logger.debug("DROP subscriptions: {}".format(routing_key))
         topics = []
         remove = []
-        subscriptions = set()
+        subscriptions = dict()
+        remove_topics = []
         if routing_key is None:
             if callback is None:
                 return []
             else:
-                for key in self._my_subscriptions:
-                    subscriptions = self._my_subscriptions[key]
-                    for queue, cback in subscriptions:
-                        if callback == cback:
-                            #Delete queue
-                            self.core().connection.channel.queue_delete(queue)
-                        topics.append(key)
-                        remove.append((queue, cback))
-                    for subs in remove:
-                        subscriptions.remove(subs)
+                # Traverse through all subscriptions to find the callback
+                for prefix in self._my_subscriptions:
+                    subscriptions = self._my_subscriptions[prefix]
+                    self._logger.debug("prefix: {0}, {1}".format(prefix, subscriptions))
+                    for queue, callbacks in subscriptions.iteritems():
+                        try:
+                            callbacks.remove(callback)
+                        except KeyError:
+                            pass
+                        else:
+                            topics.append(prefix)
+                        if not callbacks:
+                            # Delete queue
+                            self.core().connection.channel.queue_delete(callback=None, queue=queue)
+                            remove.append(queue)
+                    for queue in remove:
+                        del subscriptions[queue]
+                    del remove[:]
+                    if not subscriptions:
+                        remove_topics.append(prefix)
+                for prefix in remove_topics:
+                    del self._my_subscriptions[prefix]
                 if not topics:
                     raise KeyError('no such subscription')
+                self._logger.debug("my subscriptions: {0}".format(self._my_subscriptions))
         else:
+            # Search based on routing key
             if routing_key in self._my_subscriptions:
                 topics.append(routing_key)
                 subscriptions = self._my_subscriptions[routing_key]
-                for queue, cback in subscriptions:
-                    if cback is None or callback == cback:
-                        self.core().connection.channel.queue_delete(queue)
-                    remove.append((queue,cback))
-                for subs in remove:
-                    subscriptions.remove(subs)
-                if not subscriptions:
-                    del subscriptions[routing_key]
-        return topics
+                if callback is None:
+                    for queue, callbacks in subscriptions.iteritems():
+                        self.core().connection.channel.queue_delete(callback=None, queue=queue)
+                    del self._my_subscriptions[routing_key]
+                else:
+                    self._logger.debug("topics: {0}".format(topics))
+                    for queue, callbacks in subscriptions.iteritems():
+                        try:
+                            callbacks.remove(callback)
+                        except KeyError:
+                            pass
+                        if not callbacks:
+                            # Delete queue
+                            self.core().connection.channel.queue_delete(callback=None, queue=queue)
+                            remove.append(queue)
+                    for queue in remove:
+                        del subscriptions[queue]
+                    if not subscriptions:
+                        del self._my_subscriptions[routing_key]
+            self._logger.debug("my subscriptions: {0}".format(self._my_subscriptions))
+        orig_topics = []
+        # Strip '__pubsub__.<instance_name>' from the topic string
+        for topic in topics:
+            orig_topics.append(self._get_original_topic(topic))
+        return orig_topics
+
+    def _get_original_topic(self, topic):
+        orig = topic.split('.')[2:]
+        orig = orig[:-1]
+        orig = '/'.join(orig)
+        self._logger.debug("Original topic: {0}, rkey: {1}".format(orig, topic))
+        return orig
+
+    def _form_routing_key(self, topic, all=False):
+        routing_key = ''
+        if topic == '':
+            topic = '#'
+        else:
+            topic = topic + '.#'
+        if all:
+            # '__pubsub__.*.<prefix>.#'
+            routing_key = "__pubsub__.*.{}".format(topic.replace("/", "."))
+        else:
+            routing_key = "__pubsub__.{0}.{1}".format(self.core().instance_name, topic.replace("/", "."))
+        return routing_key

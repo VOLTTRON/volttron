@@ -345,6 +345,20 @@ def list_channels_for_vhost(host, port, user='volttron', password='volttron', vh
     else:
         return response
 
+def get_bindings(exchange, user='volttron', password='volttron', vhost='volttron'):
+    """
+    List of all bindings in which a given exchange is the source
+    :param exchange: source exchange
+    :param user: user id
+    :param password: password
+    :param vhost: virtual host
+    :return: list of bindings
+    """
+    url = 'http://%s:%s/api/exchanges/%s/%s/bindings/source' % (get_hostname(), get_port(), vhost, exchange)
+    response = requests.get(url, auth=(user, password))
+    if response: return response.json()
+    else: return response
+
 # We need http address and port
 def create_rabbitmq_setup():
     global config_opts
@@ -475,12 +489,14 @@ def _get_vhost_user_address():
     #print config_opts
 
 
-def build_rmq_address():
+def build_rmq_address(user=None, pwd=None):
     global config_opts
     if not config_opts:
         _load_rmq_config()
+    user = user if user is not None else config_opts['user']
+    pwd = pwd if pwd is not None else config_opts['pass']
     try:
-        rmq_address = "amqp://{0}:{1}@{2}:{3}/{4}".format(config_opts['user'], config_opts['pass'],
+        rmq_address = "amqp://{0}:{1}@{2}:{3}/{4}".format(user, pwd,
                                                       config_opts['host'], config_opts['port'],
                                                       config_opts['virtual-host'])
     except KeyError:

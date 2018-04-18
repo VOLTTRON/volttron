@@ -1421,7 +1421,7 @@ def get_keys(opts):
     return {'publickey': publickey, 'secretkey': secretkey,
             'serverkey': serverkey}
 
-#RabbitMQ management methods
+# RabbitMQ management methods
 def add_vhost(opts):
     create_vhost(get_port(), opts.vhost)
 
@@ -1527,16 +1527,6 @@ def list_queues_with_properties(opts):
                                      q['messages'], unack_width))
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in getting queue properties")
-    # for agent in agents:
-    #     _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-    #                              agent.vip_identity, identity_width,
-    #                              agent.tag or '', tag_width,
-    #                              field_callback(agent)))
-
-
-    # if queues:
-    #     for q in queues:
-    #         _stdout.write("{} \n".format(q))
 
 def list_connections(opts):
     conn = get_connection()
@@ -1546,6 +1536,25 @@ def list_parameters(opts):
     if parameters:
         for param in parameters:
             _stdout.write(param['name'] + "\n")
+
+def list_bindings(opts):
+    bindings = get_bindings(opts.exchange)
+    try:
+        if bindings:
+            src_width = max(5, max(len(b['source']) for b in bindings))
+            exch_width = len('EXCHANGE')
+            dest_width = max(len('QUEUE'), max(len(b['destination']) for b in bindings))
+            bindkey = len('BINDING KEY')
+            rkey = max(10, max(len(b['routing_key']) for b in bindings))
+            fmt = '{:{}} {:{}} {:{}}\n'
+            _stderr.write(
+                fmt.format('EXCHANGE', exch_width, 'QUEUE', dest_width, 'BINDING KEY', bindkey))
+            for b in bindings:
+                _stdout.write(fmt.format(b['source'], src_width,
+                                         b['destination'], dest_width,
+                                         b['routing_key'], rkey))
+    except (AttributeError, KeyError) as ex:
+        _stdout.write("Error in getting bindings")
 
 def remove_vhosts(opts):
     for vhost in opts.vhosts:
@@ -2059,6 +2068,12 @@ def main(argv=sys.argv):
         rabbitmq_list_queues_props = add_parser('list-queue-properties', help='list queues with properties',
                                   subparser=rabbitmq_subparsers)
         rabbitmq_list_queues_props.set_defaults(func=list_queues_with_properties)
+
+        rabbitmq_list_bindings = add_parser('list-bindings', help='list all bindings with exchange',
+                                          subparser=rabbitmq_subparsers)
+        rabbitmq_list_bindings.add_argument('exchange', help='Source exchange')
+        rabbitmq_list_bindings.set_defaults(func=list_bindings)
+
         rabbitmq_list_parameters = add_parser('list-federation-parameters', help='list all federation parameters',
                                   subparser=rabbitmq_subparsers)
         rabbitmq_list_parameters.set_defaults(func=list_parameters)
