@@ -1599,13 +1599,10 @@ def main(argv=sys.argv):
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
-    global_args.add_argument(
-        '--message-bus', default='zmq',
-        help='Type of message bus')
+
     global_args.set_defaults(
         vip_address=get_address(),
-        timeout=30,
-        message_bus='zmq'
+        timeout=30
     )
 
     filterable = config.ArgumentParser(add_help=False)

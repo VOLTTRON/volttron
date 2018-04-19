@@ -11,8 +11,9 @@ Distributed Control System Platform.
 VOLTTRONTM is an open source platform for distributed sensing and control. The platform provides services for collecting and storing data from buildings and devices and provides an environment for developing applications which interact with that data.
 
 ## Features
-
+** NOTE: This is an experiment branch to test and collaborate on Message Bus Refactor effort.**
 * [Message Bus](https://volttron.readthedocs.io/en/latest/core_services/messagebus/index.html#messagebus-index) allows agents to subcribe to data sources and publish results and messages
+  Message bus works with both ZeroMQ and RabbitMQ messaging libraries.
 * [Driver framework](https://volttron.readthedocs.io/en/latest/core_services/drivers/index.html#volttron-driver-framework) for collecting data from and sending control actions to buildings and devices
 * [Historian framework](https://volttron.readthedocs.io/en/latest/core_services/historians/index.html#historian-index) for storing data
 * [Agent lifecycle managment](https://volttron.readthedocs.io/en/latest/core_services/control/AgentManagement.html#agentmanagement) in the platform
@@ -32,24 +33,86 @@ Install VOLTTRON by running the following commands which installs needed [prereq
 ```sh
 sudo apt-get update
 sudo apt-get install build-essential python-dev openssl libssl-dev libevent-dev git
-git clone https://github.com/VOLTTRON/volttron
+```
+For RabbitMQ based VOLTTRON, some of the RabbitMQ required software packages have to be installed.
+Install Erlang packages
+```sh
+wget https://packages.erlang-solutions.com/erlang-solutions_1.0_all.deb
+sudo dpkg -i erlang-solutions_1.0_all.deb
+sudo apt-get install erlang erlang-nox
+```
+Install RabbitMQ server package
+```sh
+sudo apt-get install rabbitmq-server
+```
+
+Check to see if RabbitMQ is installed correctly.
+```sh
+sudo rabbitmq-server start
+```
+
+Enable RabbitMQ management, federation and shovel plugins
+```sh
+sudo rabbitmq-plugins enable rabbitmq_management
+sudo rabbitmq-plugins enable rabbitmq_federation
+sudo rabbitmq-plugins enable rabbitmq_federation_management
+sudo rabbitmq-plugins enable rabbitmq_shovel
+```
+
+Download pika library from pika git repository into your home directory.
+```sh
+cd ~
+git clone https://github.com/shwethanidd/pika.git
+```
+
+Download VOLTTRON code from experimental branch
+```sh
+git clone -b rabbitmq-volttron https://github.com/VOLTTRON/volttron.git
 cd volttron
 python bootstrap.py
 ```
 
-This will build the platform and create a virtual Python environment. Activate this and then start the platform with:
+This will build the platform and create a virtual Python environment. Activate the environment :
 
 ```sh
 . env/bin/activate
-volttron -vv -l volttron.log&
 ```
 
-This enters the virtual Python environment and then starts the platform in debug (vv) mode with a log file named volttron.log.
+Install pika library inside VOLTTRON environment:
+```sh
+pip install -e ~/pika
+```
 
+Create RabbitMQ setup for VOLTTRON :
+```sh
+python volttron/utils/rmq_mgmt.py single
+```
+
+This creates a new virtual host “volttron” and a new administrative user "volttron". It then creates the main VIP
+exchange named "volttron" to route message between platform and agents and alternate exchange to capture unrouteable
+messages.
+
+We need to set the VOLTTRON instance name and message bus type in the configuration file located in $VOLTTRON_HOME/config.
+Message bus type has to be either "rmq" or "zmq".
+
+```sh
+cat $VOLTTRON_HOME/config
+
+message-bus = rmq
+vip-address = tcp://127.0.0.1:22916
+instance-name = volttron1
+```
+
+We are now ready to start VOLTTRON with RabbitMQ message bus. If we need to revert back to ZeroMQ based VOLTTRON, we
+will have to either remove "message-bus" parameter or set it to default "zmq" in $VOLTTRON\_HOME/config.
+
+```sh
+volttron -vv -l volttron.log&
+```
 Next, start an example listener to see it publish and subscribe to the message bus:
 
 ```sh
-scripts/core/make-listener
+scripts/core/upgrade-listener
 ```
 
 This script handles several different commands for installing and starting an agent after removing an old copy. This simple agent publishes a heartbeat message and listens to everything on the message bus. Look at the VOLTTRON log to see the activity:
@@ -72,11 +135,66 @@ Stop the platform:
 volttron-ctl shutdown --platform
 ```
 
-## Next Steps
-There are several [walkthroughs](https://volttron.readthedocs.io/en/latest/devguides/index.html#devguides-index) to explore additional aspects of the platform:
+## VOLTTRON RabbitMQ control and management utility
+Some of the important native RabbitMQ control and management commands are now integrated with "volttron-ctl" utility. Using
+volttron-ctl rabbitmq management utility, we can control and monitor the status of RabbitMQ message bus.
 
-* [Agent Development Walkthrough](https://volttron.readthedocs.io/en/latest/devguides/agent_development/Agent-Development.html#agent-development)
-* Demonstration of the [management UI](https://volttron.readthedocs.io/en/latest/devguides/walkthroughs/VOLTTRON-Central-Demo.html#volttron-central-demo)
+```sh
+volttron-ctl rabbitmq --help
+usage: volttron-ctl command [OPTIONS] ... rabbitmq [-h] [-c FILE] [--debug]
+                                                   [-t SECS]
+                                                   [--msgdebug MSGDEBUG]
+                                                   [--vip-address ZMQADDR]
+                                                   ...
+subcommands:
+
+    add-vhost           add a new virtual host
+    add-user            Add a new user. User will have admin privileges
+                        i.e,configure, read and write
+    add-exchange        add a new exchange
+    add-queue           add a new queue
+    list-vhosts         List virtual hosts
+    list-user-properties
+                        List users
+    list-exchanges      add a new user
+    list-exchange-properties
+                        list exchanges with properties
+    list-queues         list all queues
+    list-queue-properties
+                        list queues with properties
+    list-bindings       list all bindings with exchange
+    list-federation-parameters
+                        list all federation parameters
+    list-connections    list open connections
+    remove-vhosts       Remove virtual host/s
+    remove-users        Remove virtual user/s
+    remove-exchanges    Remove exchange/s
+    remove-queues       Remove queue/s
+```
+
+## Multi-Platform Deployment With RabbitMQ Message bus
+We can configure multi-platform VOLTTRON setup with RabbitMQ message bus using built-in "federation" feature provided by RabbitMQ. The
+first step to do so would be to identify upstream servers (publisher nodes) and downstream servers (collector nodes).
+To create a RabbitMQ federation, we have to configure upstream servers and make the VOLTTRON exchange "federated".
+
+On the downstream server (collector node),
+
+```
+python volttron/utils/rmq_mgmt.py federation
+```
+
+We need to provide the hostname (or IP address) and port of the upstream nodes when prompted.
+
+
+For bi-directional data flow, we will have to run the same script on the both the nodes.
+
+## Next Steps
+We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we
+ are working towards completing the below:
+* Adding authentication and authorization feature to RabbitMQ message bus.
+* Authenticated connection amongst multiple platform instances.
+* Creation of Each agent has to have a unique RabbitMQ user id.
+* Testing of RabbitMQ shovel for multi-platform over NAT setup
 
 ## Acquiring Third Party Agent Code
 Third party agents are available under volttron-applications repository. In order to use those agents, add volttron-applications repository under the volttron/applications directory by using following command:

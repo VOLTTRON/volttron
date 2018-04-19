@@ -29,7 +29,7 @@ class BaseConnection(object):
 
 class RMQConnection(BaseConnection):
     """
-    Maintains RabbitMQ connection
+    Maintains connection with RabbitMQ broker
     """
     def __init__(self, url, identity, instance_name, type='agent', *args, **kwargs):
         super(RMQConnection, self).__init__(url, identity, instance_name, args, kwargs)
