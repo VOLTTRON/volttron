@@ -371,8 +371,9 @@ def generate_apidoc(app):
                     os.path.abspath(script_dir + "/../../volttron"))
     print("Added to sys path***: {}".format(os.path.abspath(script_dir + "/../..")))
 
-    cmd = ["sphinx-apidoc", '-o', os.path.join(apidocs_base_dir, "volttron"),
-           script_dir + "/../../volttron", '--force']
+    cmd = ["sphinx-apidoc", '--force', '-o',
+           os.path.join(apidocs_base_dir, "volttron"),
+           script_dir + "/../../volttron"]
     cmd.extend(volttron_excludes)
     subprocess.check_call(cmd)
 
