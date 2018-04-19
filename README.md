@@ -10,10 +10,11 @@ Distributed Control System Platform.
 
 VOLTTRONTM is an open source platform for distributed sensing and control. The platform provides services for collecting and storing data from buildings and devices and provides an environment for developing applications which interact with that data.
 
+# NOTE: This is an experiment branch to test and collaborate on Message Bus Refactor effort. Message bus now works with both ZeroMQ and RabbitMQ messaging libraries.
 ## Features
-** NOTE: This is an experiment branch to test and collaborate on Message Bus Refactor effort.**
+
 * [Message Bus](https://volttron.readthedocs.io/en/latest/core_services/messagebus/index.html#messagebus-index) allows agents to subcribe to data sources and publish results and messages
-  Message bus works with both ZeroMQ and RabbitMQ messaging libraries.
+
 * [Driver framework](https://volttron.readthedocs.io/en/latest/core_services/drivers/index.html#volttron-driver-framework) for collecting data from and sending control actions to buildings and devices
 * [Historian framework](https://volttron.readthedocs.io/en/latest/core_services/historians/index.html#historian-index) for storing data
 * [Agent lifecycle managment](https://volttron.readthedocs.io/en/latest/core_services/control/AgentManagement.html#agentmanagement) in the platform
