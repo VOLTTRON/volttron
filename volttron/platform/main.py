@@ -687,6 +687,8 @@ def start_volttron_process(opts):
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise
+        except KeyboardInterrupt:
+            pass
         finally:
             _log.debug("In finally")
             stop()

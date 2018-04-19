@@ -45,13 +45,20 @@ from . import green as vip
 from volttron.platform.agent import json as jsonapi
 from .socket import Message
 from zmq import green as zmq
+from zmq import ZMQError
 
 _log = logging.getLogger(__name__)
 
 
 class ZMQProxyRouter(Agent):
     """
+    Proxy ZMQ based router agent is implemented for backward compatibility with ZeroMQ based message bus. In a single
+    instance setup, either ZeroMQ or RabbitMQ based message bus will be running. But in multi-platform setup, if some
+    instances are RabbitMQ message bus based and others are ZeroMQ message bus based, then the Proxy router agent will
+    manage the routing between local and external instances.
 
+    Please note, if all instances in multi-platform setup are RabbitMQ based, then RabbitMQ federation/shovel have to
+    be used.
     """
     def __init__(self, address, identity, zmq_router, *args, **kwargs):
         super(ZMQProxyRouter, self).__init__(identity, address, **kwargs)
@@ -77,7 +84,7 @@ class ZMQProxyRouter(Agent):
         self.core.spawn(self.vip_loop)
         connection = self.core.connection
         channel = connection.channel
-        # Create a queue to receive messages from internal messages (for example, response for RPC request etc)
+        # Create a queue to receive messages from local platform (for example, response for RPC request etc)
         result = channel.queue_declare(queue=self._outbound_proxy_queue,
                                        durable=False,
                                        exclusive=True,
@@ -91,19 +98,20 @@ class ZMQProxyRouter(Agent):
                                     queue=self._outbound_proxy_queue,
                                     no_ack=True)
 
-        # Create a queue to receive external platform pubsub/rpc subscribe/unsubscribe requests from internal agents
+        # Create a queue to receive messages from local platform.
+        # For example, external platform pubsub/RPC subscribe/unsubscribe requests from internal agents
         channel.queue_declare(queue=self._external_pubsub_rpc_queue,
                               durable=False,
                               exclusive=True,
                               auto_delete=True,
                               callback=None)
-        # Binding for external platform pubsub messages
+        # Binding for external platform pubsub message requests
         channel.queue_bind(exchange=connection.exchange,
                                  queue=self._external_pubsub_rpc_queue,
                                  routing_key=self.core.instance_name + '.proxy.router.pubsub',
                                  callback=None)
 
-        # Binding for external platform RPC messages
+        # Binding for external platform RPC message requests
         channel.queue_bind(exchange=self.core.connection.exchange,
                                  queue=self._external_pubsub_rpc_queue,
                                  routing_key=self.core.instance_name + '.proxy.router.external_rpc',
@@ -116,7 +124,7 @@ class ZMQProxyRouter(Agent):
     @Core.receiver('onstop')
     def on_stop(self, sender, **kwargs):
         """
-        Stop the zmq router
+        Stop the ZMQ router
         :param sender:
         :param kwargs:
         :return:
@@ -126,7 +134,7 @@ class ZMQProxyRouter(Agent):
 
     def zmq_outbound_handler(self, ch, method, props, body):
         """
-        Message received from internal agent is sent to an external agent in ZMQ VIP message format.
+        Message received from internal agent is sent to an external platform agent in ZMQ VIP message format.
         :param ch: channel
         :param method: contains routing key
         :param properties: message properties like VIP header information
@@ -141,130 +149,76 @@ class ZMQProxyRouter(Agent):
         args = json.loads(args[0])
         userid = props.headers.get('userid', b'')
         #_log.debug("Proxy ZMQ Router Outbound handler {0}, {1}".format(to_identity, args))
-        # Fit message into ZMQ VIP format
+        # Reformat message into ZMQ VIP format
         frames = [bytes(to_identity), bytes(from_identity), b'VIP1', bytes(userid),
                   bytes(props.message_id), bytes(props.type), json.dumps(args)]
-        self.zmq_router.socket.send_multipart(frames, copy=True)
+        try:
+            self.zmq_router.socket.send_multipart(frames, copy=True)
+        except ZMQError as ex:
+            _log.debug("ZMQ Error {}".format(ex))
         #self.zmq_router.socket.vip_send(frames, copy=False)
 
     def external_pubsub_rpc_handler(self, ch, method, props, body):
         """
-
-        :param ch:
-        :param method:
-        :param props:
-        :param body:
+        Handler for receiving external platform PubSub/RPC requests from internal agents. It then calls external
+        PubSub/RPC router handler to forward the request to external platform.
+        :param ch: channel
+        :param method: contains the routing key
+        :param props: message properties
+        :param body: message body
         :return:
         """
         _log.debug("Proxy ZMQ Router {}".format(body))
         frames = jsonapi.loads(body)
         if len(frames) > 6:
             if frames[5] == 'pubsub':
+                # Forward the message to pubsub component of the router to take action
                 self.zmq_router.pubsub.handle_subsystem(frames)
             else:
-                # Forward the message to zmq router to take action
+                # Forward the message to external RPC handler component of the router to take action
                 self.zmq_router.ext_rpc.handle_subsystem(frames)
 
     def publish_callback(self, peer, sender, bus,  topic, headers, message):
         """
-
+        Callback method registered with local message bus to receive PubSub messages
+        subscribed by external platform agents. PubSub component of router will route the message to
+        appropriate external platform subscribers.
         :return:
         """
         json_msg = jsonapi.dumps(dict(bus=bus, headers=headers, message=message))
+        # Reformat the message into ZMQ VIP message frames
         frames = [sender, b'', b'VIP', '', '', 'pubsub',
                   zmq.Frame(b'publish'), zmq.Frame(str(topic)), zmq.Frame(str(json_msg))]
 
         self.zmq_router.pubsub.handle_subsystem(frames, '')
-        # subscriptions = self._peer_subscriptions.get('bus', None)
-        # if subscriptions:
-        #     subscribers = set()
-        #     for prefix, subscription in subscriptions.iteritems():
-        #         if subscription and topic.startswith(prefix):
-        #             subscribers |= subscription
-        #     if subscribers:
-        #         for peer in subscribers:
-        #             json_msg = jsonapi.dumps(dict(bus=bus, headers=headers, message=message))
-        #             args = [zmq.Frame(b'publish'), zmq.Frame(str(topic)), zmq.Frame(str(json_msg))]
-        #
-        #             self.zmq_router.connection.send_vip_object(Message(peer=peer,
-        #                                                                subsystem='pubsub',
-        #                                                                id=None,
-        #                                                                args=args))
 
     def vip_loop(self):
         """
-
+        Infinite ZMQ based VIP loop to receive and send messages over ZMQ message bus.
         :return:
         """
         connection = self.core.connection
+        # Set up ZMQ router socket connection
         self.zmq_router.start()
-        self.zmq_router.pubsub.add_proxy_agent(self)
+        # Register proxy agent handle
+        self.zmq_router.pubsub.add_rabbitmq_agent(self)
 
         while True:
-            #_log.debug("I'vvvvvve started looping")
             frames = self.zmq_router.socket.recv_multipart(copy=False)
             sender, recipient, proto, auth_token, msg_id, subsystem = frames[:6]
             recipient = bytes(recipient)
-            subsystem = bytes(subsystem)
-            # If message needs to be handled by router
+            # Check if router is the intended recipient or it has to route the message to an agent.
+            # for f in frames:
+            #     _log.debug("Proxy router message frames: {}".format(f))
             if not recipient:
                 self.zmq_router.route(frames)
             else:
                 self._handle_other_subsystems(frames)
-            #     if subsystem == 'pubsub':
-            #         for f in frames:
-            #             _log.debug("ROUTER Receiving frames: {}".format(bytes(f)))
-            #         self._handle_pubsub_subsystem(frames, auth_token)
-            #     else:
-            #         message = Message(peer=recipient, subsystem=subsystem, id=msg_id, args=frames[6:])
-            #         self._handle_other_subsystems(message, sender)
-
-    def _handle_pubsub_subsystem(self, frames, user_id):
-        """
-
-        :param message:
-        :return:
-        """
-        sender, recipient, proto, auth_token, msg_id, subsystem, op = frames[:7]
-        op = bytes(op)
-        if subsystem == 'pubsub':
-            if op == b'subscribe':
-                self.zmq_router.pubsub.handle_subsystem(frames, user_id)
-                data = frames[7]
-                msg = jsonapi.loads(data)
-                try:
-                    prefix = msg['prefix']
-                    bus = msg['bus']
-                    peer = frames[0]
-                except KeyError as exc:
-                    _log.error("Missing key in _peer_subscribe message {}".format(exc))
-                    return False
-                self._peer_subscriptions[bus][prefix].add(peer)
-                self.vip.pubsub.subscribe(self, prefix, self.publish_callback)
-            elif op == b'publish':
-                _log.debug("publish: {0}, {1}".format(subsystem, len(frames)))
-                if len(frames) > 8:
-                    topic = frames[7].bytes
-                    data = frames[8].bytes
-                    try:
-                        msg = jsonapi.loads(data)
-                        headers = msg['headers']
-                        message = msg['message']
-                        bus = msg['bus']
-                        _log.debug("Publish locally {}".format(topic))
-                        self.vip.pubsub.publish(self, 'pubsub', topic, headers=headers, message=message)
-                    except KeyError as exc:
-                        _log.error("Missing key in _peer_publish message {}".format(exc))
-                        return 0
-                    except ValueError:
-                        _log.debug("Value error")
-            else:
-                self.zmq_router.pubsub.handle_subsystem(frames, user_id)
 
     def _handle_other_subsystems(self, frames):
         """
-
-        :param message:
+        Send the message to local agent using internal RabbitMQ message bus
+        :param frames: ZMQ message frames
         :return:
         """
         sender, recipient, proto, auth_token, msg_id, subsystem = frames[:6]
@@ -275,19 +229,16 @@ class ZMQProxyRouter(Agent):
         connection = self.core.connection
 
         app_id = "{0}.{1}".format(self.core.instance_name, bytes(sender))
-        # Change binding
+        # Change queue binding
         connection.channel.queue_bind(exchange=connection.exchange,
                            queue=self._outbound_proxy_queue,
                            routing_key=app_id,
                            callback=None)
 
-        # Special check for ZMQ agent message routing via proxy router
-        # If via is proxy, then sender = actual sending peer
-        # If peer is proxy_router => destination routing key remains same
-        # Else, destination peer becomes proxy_router
+        # Set the destination routing key to destination agent
         destination_routing_key = "{0}.{1}".format(self.core.instance_name, bytes(recipient))
 
-        # Fit VIP frames in the PIKA properties dict
+        # Fit VIP frames into the PIKA properties dictionary
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         dct = {
             'app_id': app_id,  # Routing key of SOURCE AGENT

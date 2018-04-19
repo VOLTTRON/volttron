@@ -85,7 +85,7 @@ class PubSubService(object):
         if self._ext_router is not None:
             self._ext_router.register('on_connect', self.external_platform_add)
             self._ext_router.register('on_disconnect', self.external_platform_drop)
-        self._proxy_agent = None
+        self._rabbitmq_agent = None
 
     def _add_peer_subscription(self, peer, bus, prefix, platform='internal'):
         """
@@ -113,8 +113,8 @@ class PubSubService(object):
         #To do
         temp = {}
 
-    def add_proxy_agent(self, agent):
-        self._proxy_agent = agent
+    def add_rabbitmq_agent(self, agent):
+        self._rabbitmq_agent = agent
 
     def external_platform_add(self, instance_name):
         self._logger.debug("PUBSUBSERVICE send subs external {}".format(instance_name))
@@ -135,11 +135,11 @@ class PubSubService(object):
         :param items subcription items or empty dict
         :type dict
         """
-        #self._logger.debug("SYNC before: {0}, {1}".format(peer, items))
+        self._logger.debug("SYNC before: {0}, {1}".format(peer, items))
         items = {(platform, bus, prefix) for platform, buses in items.iteritems()
                                             for bus, topics in buses.iteritems()
                                                 for prefix in topics}
-        #self._logger.debug("SYNC after: {}".format(items))
+
         remove = []
         for platform, bus_subscriptions in self._peer_subscriptions.iteritems():
             for bus, subscriptions in bus_subscriptions.iteritems():
@@ -159,8 +159,8 @@ class PubSubService(object):
 
         for platform, bus, prefix in items:
             self._add_peer_subscription(peer, bus, prefix, platform)
-
         if 'all' in self._peer_subscriptions and self._ext_router is not None:
+            self._logger.debug("Syncing ext subscriptions: {}".format(self._peer_subscriptions))
             # Send subscription message to all connected platforms
             external_platforms = self._ext_router.get_connected_platforms()
             self._send_external_subscriptions(external_platforms)
@@ -197,7 +197,7 @@ class PubSubService(object):
         if len(frames) < 8:
             return False
         else:
-            #self._logger.debug("Subscribe before: {}".format(self._peer_subscriptions))
+            self._logger.debug("Subscribe before: {}".format(self._peer_subscriptions))
             if isinstance(frames[7], str): data = bytes(frames[7])
             else: data = frames[7].bytes
 
@@ -218,9 +218,12 @@ class PubSubService(object):
                 platform = 'all'
             else:
                 platform = 'internal'
-                if self._proxy_agent:
+                if self._rabbitmq_agent:
                     # Subscribe to RMQ bus
-                    self._proxy_agent.vip.pubsub.subscribe(prefix, self.publish_callback, all_platforms=is_all)
+                    self._rabbitmq_agent.vip.pubsub.subscribe('pubsub',
+                                                           prefix,
+                                                           self.publish_callback,
+                                                           all_platforms=is_all)
 
             for prefix in prefix if isinstance(prefix, list) else [prefix]:
                 self._add_peer_subscription(peer, bus, prefix, platform)
@@ -316,7 +319,7 @@ class PubSubService(object):
             except ValueError:
                 self._logger.error("JSON decode error. Invalid character")
                 return 0
-            if self._proxy_agent:
+            if self._rabbitmq_agent:
                 self._publish_rmq_bus(frames)
             return self._distribute(frames, user_id)
 
@@ -473,13 +476,14 @@ class PubSubService(object):
         :return: Number of external subscribers
         """
         publisher, receiver, proto, user_id, msg_id, subsystem, op, topic, data = frames[0:9]
+
         success = False
         external_subscribers = set()
         for platform_id, subscriptions in self._ext_subscriptions.items():
             for prefix in subscriptions:
                 if bytes(topic).startswith(prefix):
                     external_subscribers.add(platform_id)
-        ##self._logger.debug("PUBSUBSERVICE External subscriptions {0}".format(external_subscribers))
+        self._logger.debug("PUBSUBSERVICE External subscriptions {0}, {1}".format(topic, external_subscribers))
         if external_subscribers:
             frames[:] = []
             frames[0:7] = b'', proto, user_id, msg_id, subsystem, b'external_publish', topic, data
@@ -748,6 +752,12 @@ class PubSubService(object):
                     self._ext_subscriptions[instance_name] = prefixes
                     self._logger.debug("PUBSUBSERVICE New external list from {0}: List: {1}".
                                        format(instance_name, self._ext_subscriptions))
+                    if self._rabbitmq_agent:
+                        for prefix in prefixes:
+                            self._rabbitmq_agent.vip.pubsub.subscribe('pubsub',
+                                                                   prefix,
+                                                                   self.publish_callback
+                                                                   )
             except KeyError as exc:
                 self._logger.error("Unknown external instance name: {}".format(instance_name))
                 return False
@@ -783,11 +793,13 @@ class PubSubService(object):
 
             # Make it an internal publish
             frames[6] = 'publish'
-            subscribers_count = self._distribute_internal(frames)
-            if self._proxy_agent:
+            subscribers_count = 1
+            if self._rabbitmq_agent:
                 self._publish_rmq_bus(frames)
+            else:
+                subscribers_count = self._distribute_internal(frames)
             # There are no subscribers, send error message back to source platform
-            if subscribers_count == 0:
+            if not subscribers_count:
                 try:
                     errmsg = 'NO SUBSCRIBERS'
                     frames = [publisher, b'', proto, user_id, msg_id,
@@ -815,21 +827,29 @@ class PubSubService(object):
 
     def publish_callback(self, peer, sender, bus,  topic, headers, message):
         """
-
-        :param peer:
-        :param sender:
-        :param bus:
-        :param topic:
-        :param headers:
-        :param message:
+        Callback method to receive PubSub messages from internal RabbitMQ message bus and send it
+        to external platform subscribers over ZMQ message bus.
+        :param peer: pubsub
+        :param sender: publisher
+        :param bus: bus
+        :param topic: publisher topic
+        :param headers: message header
+        :param message: message body
         :return:
         """
+        #self._logger.debug("PubSubService message: {}".format(message))
         json_msg = jsonapi.dumps(dict(sender=peer, bus=bus, headers=headers, message=message))
         frames = [sender, b'', b'VIP1', '', '', b'pubsub', b'publish', topic, json_msg]
         # Send it through ZMQ bus
         self._distribute(frames, '')
+        self._logger.debug("Publish callback {}".format(topic))
 
     def _publish_rmq_bus(self, frames):
+        """
+        Publish the message on RabbitMQ message bus.
+        :param frames: ZMQ message frames
+        :return:
+        """
         publisher = bytes(frames[0])
         topic = bytes(frames[7])
         data = bytes(frames[8])
@@ -838,12 +858,10 @@ class PubSubService(object):
             bus = msg['bus']
         except KeyError as exc:
             self._logger.error("Missing key in _peer_publish message {}".format(exc))
-            return 0
         except ValueError:
             self._logger.error("JSON decode error. Invalid character")
-            return 0
-        if self._proxy_agent:
-            self._proxy_agent.vip.pubsub.publish('pubsub', topic, msg['headers'], msg['message'], bus=bus)
+        if self._rabbitmq_agent:
+            self._rabbitmq_agent.vip.pubsub.publish('pubsub', topic, msg['headers'], msg['message'], bus=bus)
 
 class ProtectedPubSubTopics(object):
     '''Simple class to contain protected pubsub topics'''

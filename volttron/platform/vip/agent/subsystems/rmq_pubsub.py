@@ -156,6 +156,10 @@ class RMQPubSub(BasePubSub):
                                               queue=queue,
                                               routing_key=prefix,
                                               callback=None)
+                #
+                if prefix.startswith('__pubsub__.*.'):
+                    original_prefix = self._get_original_topic(prefix)
+                    self._send_proxy(original_prefix)
                 for cb in callback:
                     self._add_callback(connection, queue, cb)
         return True
@@ -190,10 +194,10 @@ class RMQPubSub(BasePubSub):
         """
         result = None
         connection = self.core().connection # bytes(uuid.uuid4())
-        routing_key = self._form_routing_key(prefix, all=all_platforms)
+        routing_key = self._form_routing_key(prefix, all_platforms=all_platforms)
         if all_platforms:
-            # Send message to proxy agent to subscribe with different types of message bus
-            self._send_proxy(prefix, callback, bus, all_platforms)
+            # Send message to proxy agent in order to subscribe with zmq message bus
+            self._send_proxy(prefix)
 
         queue = ''
         durable = False
@@ -203,7 +207,7 @@ class RMQPubSub(BasePubSub):
             durable = True
             auto_delete = False
         else:
-            queue = "pubsub.{0}.{1}".format(self.core().identity, bytes(uuid.uuid4()))
+            queue = "pubsub.{0}.{1}".format(self.core().identity, str(uuid.uuid4()))
         # Store subscriptions for later use
         self._add_subscription(routing_key, callback, queue)
 
@@ -225,14 +229,15 @@ class RMQPubSub(BasePubSub):
                                .format(self.core().identity))
         return result
 
-    def _send_proxy(self, prefix, callback, bus, all_platforms):
+    def _send_proxy(self, prefix, bus=''):
         connection = self.core().connection
         rkey = self.core().instance_name + '.proxy.router.pubsub'
         sub_msg = jsonapi.dumps(
-            dict(prefix=prefix, bus=bus, all_platforms=all_platforms)
+            dict(prefix=prefix, bus=bus, all_platforms=True)
         )
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         frames = [self.core().identity, b'', b'VIP1', b'', b'', b'pubsub', b'subscribe', sub_msg]
+        self._logger.debug("Send to proxy: {}".format(prefix))
         connection.channel.basic_publish(exchange=connection.exchange,
                                          routing_key=rkey,
                                          body=jsonapi.dumps(frames, ensure_ascii=False))
@@ -240,9 +245,7 @@ class RMQPubSub(BasePubSub):
     def _add_callback(self, connection, queue, callback):
         def rmq_callback(ch, method, properties, body):
             # Strip prefix from routing key
-            topic = str(method.routing_key)
-            _, _, topic = topic.split(".", 2)
-            topic = self._get_original_topic(topic)
+            topic = self._get_original_topic(str(method.routing_key))
             try:
                 msg = jsonapi.loads(body)
                 #self._logger.debug("pub message {}".format(method.routing_key))
@@ -413,7 +416,7 @@ class RMQPubSub(BasePubSub):
         """
         routing_key = None
         if prefix is not None:
-           routing_key = self._form_routing_key(prefix, all=all_platforms)
+           routing_key = self._form_routing_key(prefix, all_platforms=all_platforms)
         topics = self._drop_subscription(routing_key, callback)
 
         if all_platforms: # Send it proxy router to send it to external 'zmq' platforms
