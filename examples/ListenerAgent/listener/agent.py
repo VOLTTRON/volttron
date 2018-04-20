@@ -103,8 +103,8 @@ class ListenerAgent(Agent):
         if sender == 'pubsub.compat':
             message = compat.unpack_legacy_message(headers, message)
         self._logfn(
-            "Peer: %r, Sender: %r:, Bus: %r, Topic: %r, Headers: %r, "
-            "Message: \n%s", peer, sender, bus, topic, headers,  pformat(message))
+            "Peer: {0}, Sender: {1}:, Bus: {2}, Topic: {3}, Headers: {4}, "
+            "Message: \n{5}".format(peer, sender, bus, topic, headers, message))
 
 
 def main(argv=sys.argv):

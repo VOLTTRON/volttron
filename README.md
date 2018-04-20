@@ -63,7 +63,7 @@ sudo rabbitmq-plugins enable rabbitmq_shovel
 Download pika library from pika git repository into your home directory.
 ```sh
 cd ~
-git clone https://github.com/shwethanidd/pika.git
+git clone -b gevent_connection_adapter https://github.com/shwethanidd/pika.git
 ```
 
 Download VOLTTRON code from experimental branch
@@ -184,10 +184,7 @@ On the downstream server (collector node),
 python volttron/utils/rmq_mgmt.py federation
 ```
 
-We need to provide the hostname (or IP address) and port of the upstream nodes when prompted.
-
-
-For bi-directional data flow, we will have to run the same script on the both the nodes.
+We need to provide the hostname (or IP address) and port of the upstream nodes when prompted. For bi-directional data flow, we will have to run the same script on both the nodes.
 
 ## Next Steps
 We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we
