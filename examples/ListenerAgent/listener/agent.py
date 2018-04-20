@@ -89,7 +89,6 @@ class ListenerAgent(Agent):
         # Demonstrate accessing a value from the config file
         _log.info(self.config.get('message', DEFAULT_MESSAGE))
         self._agent_id = self.config.get('agentid')
-        #self.vip.pubsub.subscribe(prefix="devices", callback=self.on_match)
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
@@ -97,21 +96,16 @@ class ListenerAgent(Agent):
         if self._heartbeat_period != 0:
             self.vip.heartbeat.start_with_period(self._heartbeat_period)
             self.vip.health.set_status(STATUS_GOOD, self._message)
-        self.vip.pubsub.subscribe(prefix='', callback=self.on_match)
 
-    #@PubSub.subscribe('pubsub', '')
+    @PubSub.subscribe('pubsub', '')
     def on_match(self, peer, sender, bus,  topic, headers, message):
         """Use match_all to receive all messages and print them out."""
         if sender == 'pubsub.compat':
             message = compat.unpack_legacy_message(headers, message)
-        _log.info("Peer: {0}, Sender: {1}:, Bus: {2}, Topic: {3}, Headers: {4}, "
-                  "Message: {5}".format(peer, sender, bus, topic, headers, message))
-        # self._logfn(
-        #     "Peer: %r, Sender: %r:, Bus: %r, Topic: %r, Headers: %r, "
-        #     "Message: \n%s", peer, sender, bus, topic, headers,  pformat(message))
+        self._logfn(
+            "Peer: %r, Sender: %r:, Bus: %r, Topic: %r, Headers: %r, "
+            "Message: \n%s", peer, sender, bus, topic, headers,  pformat(message))
 
-    def rmq_callback(self, ch, method, properties, body):
-        print(" [x] %r:%r" % (method.routing_key, body))
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''

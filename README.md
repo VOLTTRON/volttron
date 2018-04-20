@@ -93,12 +93,12 @@ This creates a new virtual host “volttron” and a new administrative user "vo
 exchange named "volttron" to route message between platform and agents and alternate exchange to capture unrouteable
 messages.
 
-We need to set the VOLTTRON instance name and message bus type in the configuration file located in $VOLTTRON_HOME/config.
+We need to set the VOLTTRON instance name and type of message bus in the configuration file located in $VOLTTRON_HOME/config.
 Message bus type has to be either "rmq" or "zmq".
 
+Edit your VOLTTRON config file to match the file below:
 ```sh
-cat $VOLTTRON_HOME/config
-
+[volttron]
 message-bus = rmq
 vip-address = tcp://127.0.0.1:22916
 instance-name = volttron1
