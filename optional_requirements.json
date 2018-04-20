@@ -1,11 +1,11 @@
 {
     "--pandas": {
         "help": "Installs numpy and pandas for applications",
-        "packages": ["numpy>1.8,<2", "pandas"]
+        "packages": ["numpy>1.13,<2", "pandas"]
     },
     "--testing": {
         "help": "Installs testing infrastructure dependencies",
-        "packages": ["pytest>3", "pytest-timeout", "mock", "websocket-client",
+        "packages": ["pytest==3.1.1", "pytest-timeout", "mock", "websocket-client",
 			"pytest-catchlog"]
     },
     "--crate": {
@@ -26,6 +26,7 @@
     },
     "--documentation": {
         "help": "Installs requirements for building the documentation",
-        "packages": ["sphinx", "mock", "psutil","pymongo","mysql-connector-python-rf"]
+        "packages": ["sphinx==1.7.2", "mock", "psutil","pymongo",
+            "mysql-connector-python-rf"]
     }
 }
