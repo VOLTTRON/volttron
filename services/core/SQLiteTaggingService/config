@@ -5,5 +5,6 @@
             "database": "~/.volttron/data/volttron.tags.sqlite"
         }
     },
-    "table_prefix": "volttron"
+    "table_prefix":"volttron", #optional
+    "historian_vip_identity":"platform.historian" #optional
 }
