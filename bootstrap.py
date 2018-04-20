@@ -73,12 +73,13 @@ from __future__ import print_function
 
 import argparse
 import errno
+import json
 import logging
-import os
 import subprocess
 import sys
-import json
 
+import os
+from distutils.version import LooseVersion
 
 _log = logging.getLogger(__name__)
 
@@ -101,7 +102,6 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
     '''
     # Imports used only for bootstrapping the environment
     import contextlib
-    import re
     import shutil
     import tarfile
     import tempfile
@@ -145,27 +145,29 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
             return True
 
         def get_version(self):
-            '''Return the latest version from virtualenv DOAP record.'''
-            _log.info('Downloading virtualenv DOAP record')
-            doap_url = ('https://pypi.python.org/pypi'
-                        '?:action=doap&name=virtualenv')
-            with contextlib.closing(self._fetch(doap_url)) as response:
-                doap_xml = response.read()
-            self.version = re.search(
-                r'<revision>([^<]*)</revision>', doap_xml).group(1)
-            return self.version
+            """Return the latest version from virtualenv DOAP record."""
+            _log.info('Downloading virtualenv package information')
+            default_version = "15.1.0"
+            url = 'https://pypi.python.org/pypi/virtualenv/json'
+            with contextlib.closing(self._fetch(url)) as response:
+                result = json.load(response)
+                releases_dict = result.get("releases", {})
+                releases = sorted(
+                    [LooseVersion(x) for x in releases_dict.keys()])
+            if releases:
+                _log.info('latest release of virtualenv={}'.format(releases[-1]))
+                return str(releases[-1])
+            else:
+                _log.info("Returning default version of virtualenv "
+                          "({})".format(default_version))
+                return default_version
 
         def download(self, directory):
             '''Download the virtualenv tarball into directory.'''
             if self.version is None:
-                self.get_version()
-            default_version = "15.1.0"
-            url = ('https://github.com/pypa/virtualenv/archive/'
-                   '{}.tar.gz'.format(self.version))
-            if not self._url_available(url):
-                self.version = default_version
-                url = ('https://github.com/pypa/virtualenv/archive/'
-                        '{}.tar.gz'.format(self.version))
+                self.version = self.get_version()
+            url = ('http://pypi.python.org/packages/source/v/virtualenv/'
+                   'virtualenv-{}.tar.gz'.format(self.version))
             _log.info('Downloading virtualenv %s', self.version)
             tarball = os.path.join(directory, 'virtualenv.tar.gz')
             with contextlib.closing(self._fetch(url)) as response:
