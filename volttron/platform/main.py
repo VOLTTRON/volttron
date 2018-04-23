@@ -707,6 +707,7 @@ def start_volttron_process(opts):
 
     address = 'inproc://vip'
     try:
+
         stop_event = None
 
         auth_task = None
@@ -836,13 +837,14 @@ def start_volttron_process(opts):
         services = [
             ControlService(opts.aip, address=address, identity='control',
                            tracker=tracker, heartbeat_autostart=True,
-                           enable_store=False, enable_channel=False,
+                           enable_store=False, enable_channel=True,
                            message_bus=opts.message_bus),
 
-            # CompatPubSub(address=address, identity='pubsub.compat',
-            #               publish_address=opts.publish_address,
-            #               subscribe_address=opts.subscribe_address),
-            #
+            CompatPubSub(address=address, identity='pubsub.compat',
+                          publish_address=opts.publish_address,
+                          subscribe_address=opts.subscribe_address,
+                          message_bus='zmq'),
+
             MasterWebService(
                  serverkey=publickey, identity=MASTER_WEB,
                  address=address,
@@ -858,9 +860,10 @@ def start_volttron_process(opts):
                                bind_web_address=opts.bind_web_address,
                                message_bus='zmq'),
 
-            # PubSubWrapper(address=address,
-            #               identity='pubsub', heartbeat_autostart=True,
-            #               enable_store=False)
+            PubSubWrapper(address=address,
+                          identity='pubsub', heartbeat_autostart=True,
+                          enable_store=False,
+                          message_bus='zmq')
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)

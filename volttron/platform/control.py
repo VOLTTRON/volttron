@@ -511,7 +511,6 @@ def install_agent(opts, publickey=None, secretkey=None, callback=None):
     filename = opts.wheel
     tag = opts.tag
     vip_identity = opts.vip_identity
-
     if opts.vip_address.startswith('ipc://'):
         _log.info("Installing wheel locally without channel subsystem")
         filename = config.expandall(filename)
@@ -1376,7 +1375,7 @@ class ControlConnection(object):
                                  secretkey=secretkey, serverkey=serverkey,
                                  enable_store=False,
                                  identity=CONTROL_CONNECTION,
-                                 enable_channel=False)
+                                 enable_channel=True)
         self._greenlet = None
 
     @property
