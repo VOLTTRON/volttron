@@ -65,7 +65,6 @@ class Hello(SubsystemBase):
 
     def __init__(self, core):
         self.core = weakref.ref(core)
-        self.connection = self.core().connection
         self._results = ResultsDictionary()
         core.register('hello', self._handle_hello, self._handle_error)
 
@@ -87,8 +86,9 @@ class Hello(SubsystemBase):
         _log.info('Requesting hello from peer ({})'.format(peer))
         socket = self.core().socket
         result = next(self._results)
+        connection = self.core().connection
         try:
-            self.connection.send_vip_object(Message(peer=peer,
+            connection.send_vip_object(Message(peer=peer,
                                                     subsystem=b'hello',
                                                     args=[b'hello'],
                                                     id=result.ident))

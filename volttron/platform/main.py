@@ -837,7 +837,7 @@ def start_volttron_process(opts):
         services = [
             ControlService(opts.aip, address=address, identity='control',
                            tracker=tracker, heartbeat_autostart=True,
-                           enable_store=False, enable_channel=True,
+                           enable_store=False, enable_channel=False,
                            message_bus=opts.message_bus),
 
             CompatPubSub(address=address, identity='pubsub.compat',

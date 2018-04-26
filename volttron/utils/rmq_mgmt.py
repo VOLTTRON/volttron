@@ -72,7 +72,10 @@ _log = logging.getLogger(__name__)
 
 config_opts = {}
 
-def http_put_request(url, body=None, user='volttron', password='volttron'):
+def http_put_request(url, body=None, user=None, password=None):
+    user = user if user else get_user()
+    password = password if password else get_password()
+
     try:
         headers = {"Content-Type": "application/json"}
         if body:
@@ -90,7 +93,9 @@ def http_put_request(url, body=None, user='volttron', password='volttron'):
         response = None
     return response
 
-def http_delete_request(url, user='volttron', password='volttron'):
+def http_delete_request(url, user=None, password=None):
+    user = user if user else get_user()
+    password = password if password else get_password()
     response = None
     try:
         headers = {"Content-Type": "application/json"}
@@ -104,12 +109,15 @@ def http_delete_request(url, user='volttron', password='volttron'):
         print("Exception when trying to make HTTP request to RabbitMQ {}".format(e))
     return response
 
-def http_get_request(url, user, password):
+def http_get_request(url, user=None, password=None):
+    user = user if user else get_user()
+    password = password if password else get_password()
     response = None
     try:
         headers = {"Content-Type": "application/json"}
         req = grequests.get(url, headers=headers, auth=(user, password))
         response = grequests.map([req])
+
         if response and isinstance(response, list):
             response[0].raise_for_status()
             response = response[0].json()
@@ -132,6 +140,39 @@ def http_get_rrrrequest(url, user, password):
         print("Exception when trying to make HTTP request to RabbitMQ {}".format(e))
     return response
 
+
+def _load_rmq_config():
+    """Loads the config file if the path exists."""
+    global config_opts
+    if not os.path.exists(get_home()):
+        os.makedirs(get_home())
+    config_file = os.path.join(get_home(), 'rabbitmq_config.json')
+    config_opts = PersistentDict(filename=config_file, flag='c', format='json')
+
+def get_hostname():
+    if not config_opts:
+        _load_rmq_config()
+    _log.debug("rmq config: {}".format(config_opts))
+    return config_opts['host']
+
+def get_port():
+    return 15672
+
+def get_vhost():
+    if not config_opts:
+        _load_rmq_config()
+    return config_opts['virtual-host']
+
+def get_user():
+    if not config_opts:
+        _load_rmq_config()
+    return config_opts['user']
+
+def get_password():
+    if not config_opts:
+        _load_rmq_config()
+    return config_opts['pass']
+
 def create_vhost(vhost='volttron'):
     """
     Create a new virtual host
@@ -140,14 +181,16 @@ def create_vhost(vhost='volttron'):
     """
     print "Creating new VIRTUAL HOST: {}".format(vhost)
     url = 'http://localhost:{0}/api/vhosts/{1}'.format(get_port(), vhost)
-    response = http_put_request(url, {}, user='guest', password='guest')
+    response = http_put_request(url, body={}, user='guest', password='guest')
 
-def get_vhost(user='volttron', password='volttron', new_vhost='volttron'):
-    url = 'http://{0}:{1}/api/vhosts/{2}' % (get_hostname(), get_port(), new_vhost)
+def get_virtualhost(new_vhost, user=None, password=None):
+    user = user if user else get_user()
+    password = password if password else get_password()
+    url = 'http://{0}:{1}/api/vhosts/{2}'.format(get_hostname(), get_port(), new_vhost)
     response = http_get_request(url, user, password)
     return response
 
-def delete_vhost(vhost, user='volttron', password='volttron'):
+def delete_vhost(vhost, user=None, password=None):
     """
     Delete a virtual host
     :param vhost: virtual host
@@ -155,11 +198,15 @@ def delete_vhost(vhost, user='volttron', password='volttron'):
     :param password: password
     :return:
     """
-    url = 'http://{0}:{1}/api/vhosts/{2}' % (get_hostname(), get_port(), vhost)
+    user = user if user else get_user()
+    password = password if password else get_password()
+    url = 'http://{0}:{1}/api/vhosts/{2}'.format(get_hostname(), get_port(), vhost)
     response = http_delete_request(url, user, password)
 
-def get_vhosts(user='volttron', password='volttron'):
-    url = 'http://%s:%s/api/vhosts' % (get_hostname(), get_port())
+def get_virtualhosts(user=None, password=None):
+    user = user if user else get_user()
+    password = password if password else get_password()
+    url = 'http://{0}:{1}/api/vhosts'.format(get_hostname(), get_port())
     response = http_get_request(url, user, password)
     vhosts = []
     if response:
@@ -167,7 +214,7 @@ def get_vhosts(user='volttron', password='volttron'):
     return vhosts
 
 #USER - CREATE, GET, DELETE user, SET/GET Permissions
-def create_user(user='volttron', password='volttron'):
+def create_user(user=None, password=None):
     """
     Create a new RabbitMQ user
     :param user: username
@@ -179,7 +226,7 @@ def create_user(user='volttron', password='volttron'):
     url = 'http://localhost:{0}/api/users/{1}'.format(get_port(), user)
     response = http_put_request(url, body, 'guest', 'guest')
 
-def get_user(user):
+def get_user_props(user):
     """
     Get properties of the user
     :param user: username
@@ -187,8 +234,7 @@ def get_user(user):
     """
     url = 'http://{0}:{1}/api/users/{2}'.format(get_hostname(), get_port(), user)
     response = http_get_request(url)
-    if response: return response.json()
-    else: return response
+    return response
 
 def delete_user(user):
     """
@@ -199,7 +245,7 @@ def delete_user(user):
     url = 'http://{0}:{1}/api/users/{2}'.format(get_hostname(), get_port(), user)
     response = http_delete_request(url)
 
-def get_user_permissions(user='volttron', password='volttron', vhost='volttron'):
+def get_user_permissions(user, password, vhost=None):
     """
     Get permissions (configure, read, write) for the user
     :param user: user
@@ -207,14 +253,14 @@ def get_user_permissions(user='volttron', password='volttron', vhost='volttron')
     :param vhost: virtual host
     :return:
     """
+    vhost = vhost if vhost else get_vhost()
     url = 'http://{0}:{1}/api/permissions/{2}/{3}'.format(get_hostname(), get_port(), vhost, user)
-    response = http_get_request(url, user, password)
-    if response: return response.json()
-    else: return response
+    response = http_get_request(url, )
+    return response
 
 
 # {"configure":".*","write":".*","read":".*"}
-def set_user_permissions(permissions, user='volttron', password='volttron', vhost='volttron'):
+def set_user_permissions(permissions, user, password, vhost=None):
     """
     Set permissions for the user
     :param permissions: dict containing configure, read and write settings
@@ -223,12 +269,13 @@ def set_user_permissions(permissions, user='volttron', password='volttron', vhos
     :param vhost: virtual host
     :return:
     """
+    vhost = vhost if vhost else get_vhost()
     print "Create READ, WRITE and CONFIGURE permissions for the user: {}".format(user)
     url = 'http://{0}:{1}/api/permissions/{2}/{3}'.format(get_hostname(), get_port(), vhost, user)
-    response = http_put_request(url, permissions, user, password)
+    response = http_put_request(url, body=permissions, user=user, password=password)
 
 # SET permissions on topic
-def set_topic_permissions(permissions, user='volttron', password='volttron', vhost='volttron'):
+def set_topic_permissions(permissions, user, password, vhost=None):
     """
     Set read, write permissions for a topic
     :param permissions: dict containing exchange name and read/write permissions
@@ -237,10 +284,11 @@ def set_topic_permissions(permissions, user='volttron', password='volttron', vho
     :param vhost:
     :return:
     """
+    vhost = vhost if vhost else get_vhost()
     url = 'http://{0}:{1}/api/topic-permissions/{2}/{3}'.format(get_hostname(), get_port(), vhost, user)
-    response = http_put_request(url, permissions, user, password)
+    response = http_put_request(url, body=permissions, user=user, password=password)
 
-def get_topic_permissions(user='volttron', password='volttron', vhost='volttron'):
+def get_topic_permissions(user, password, vhost=None):
     """
     Get permissions for all topics
     :param user:
@@ -248,14 +296,14 @@ def get_topic_permissions(user='volttron', password='volttron', vhost='volttron'
     :param vhost:
     :return:
     """
+    vhost = vhost if vhost else get_vhost()
     url = 'http://{0}:{1}/api/topic-permissions/{2}/{3}'.format(get_hostname(), get_port(), vhost, user)
     response = http_get_request(url, user, password)
-    if response: return response.json()
-    else: return response
+    return response.json() if response else response
 
 
 # GET/SET parameter on a component for example, federation-upstream
-def get_parameter(component, user='volttron', password='volttron', vhost='volttron'):
+def get_parameter(component, user=None, password=None, vhost=None):
     """
     Get component parameters, namely federation-upstream
     :param component: component name
@@ -264,12 +312,15 @@ def get_parameter(component, user='volttron', password='volttron', vhost='volttr
     :param vhost: virtual host
     :return:
     """
+    user = user if user else get_user()
+    password = password if password else get_password()
+    vhost = vhost if vhost else get_vhost()
     url = 'http://{0}:{1}/api/parameters/{2}/{3}'.format(get_hostname(), get_port(), component, vhost)
     response = http_get_request(url, user, password)
     return response
 
 def set_parameter(component, parameter_name, parameter_properties,
-                  user='volttron', password='volttron', vhost='volttron'):
+                  user=None, password=None, vhost=None):
     """
     Set parameter on a component
     :param component: component name (for example, federation-upstream)
@@ -282,12 +333,18 @@ def set_parameter(component, parameter_name, parameter_properties,
     """
     #print "SET PARAMETER. NAME: {0}, properties: {1}, component: {2}".
     # format(parameter_name, parameter_properties, component)
-    url = 'http://{0}:{1}/api/parameters/{2}/{3}/{4}'.format(get_hostname(), get_port(),
-                                                             component, vhost, parameter_name)
-    response = http_put_request(url, parameter_properties, user, password)
+    user = user if user else get_user()
+    password = password if password else get_password()
+    vhost = vhost if vhost else get_vhost()
+    url = 'http://{0}:{1}/api/parameters/{2}/{3}/{4}'.format(get_hostname(),
+                                                             get_port(),
+                                                             component,
+                                                             vhost,
+                                                             parameter_name)
+    response = http_put_request(url, body=parameter_properties, user=user, password=password)
 
 def delete_parameter(component, parameter_name,
-                     user='volttron', password='volttron', vhost='volttron'):
+                     user=None, password=None, vhost=None):
     """
     Delete a component parameter
     :param component: component name
@@ -297,13 +354,19 @@ def delete_parameter(component, parameter_name,
     :param vhost: virtual host
     :return:
     """
-    url = 'http://{0}:{1}/api/parameters/{2}/{3}/{4}'.format(get_hostname(), get_port(),
-                                                             component, vhost, parameter_name)
+    user = user if user else get_user()
+    password = password if password else get_password()
+    vhost = vhost if vhost else get_vhost()
+    url = 'http://{0}:{1}/api/parameters/{2}/{3}/{4}'.format(get_hostname(),
+                                                             get_port(),
+                                                             component,
+                                                             vhost,
+                                                             parameter_name)
     response = http_delete_request(url, user, password)
     return response
 
 # Get all policies, Get/Set/Delete a specific property
-def get_policies(user='volttron', password='volttron', vhost='volttron'):
+def get_policies(user=None, password=None, vhost=None):
     """
     Get all policies
     :param user: username
@@ -311,12 +374,17 @@ def get_policies(user='volttron', password='volttron', vhost='volttron'):
     :param vhost: virtual host
     :return:
     """
-    url = 'http://{0}:{1}/api/policies/{2}'.format(get_hostname(), get_port(), vhost)
+    user = user if user else get_user()
+    password = password if password else get_password()
+    vhost = vhost if vhost else get_vhost()
+    url = 'http://{0}:{1}/api/policies/{2}'.format(get_hostname(),
+                                                   get_port(),
+                                                   vhost)
     response = requests.get(url, auth=(user, password))
-    if response: return response.json()
-    else: return response
+    return response.json() if response else response
 
-def get_policy(name, user='volttron', password='volttron', vhost='volttron'):
+
+def get_policy(name, user=None, password=None, vhost=None):
     """
     Get a specific policy
     :param name: policy name
@@ -325,13 +393,19 @@ def get_policy(name, user='volttron', password='volttron', vhost='volttron'):
     :param vhost: virtual host
     :return:
     """
-    url = 'http://{0}:{1}/api/policies/{2}/{3}'.format(get_hostname(), get_port(), vhost, name)
+    user = user if user else get_user()
+    password = password if password else get_password()
+    vhost = vhost if vhost else get_vhost()
+    url = 'http://{0}:{1}/api/policies/{2}/{3}'.format(get_hostname(),
+                                                       get_port(),
+                                                       vhost,
+                                                       name)
     response = http_get_request(url, user, password)
     if response: return response.json()
     else: return response
 
 # value = {"pattern":"^amq.", "definition": {"federation-upstream-set":"all"}, "priority":0, "apply-to": "all"}
-def set_policy(name, value, user='volttron', password='volttron', vhost='volttron'):
+def set_policy(name, value, user=None, password=None, vhost=None):
     """
     Set a policy. For example a federation policy
     :param name: policy name
@@ -341,17 +415,23 @@ def set_policy(name, value, user='volttron', password='volttron', vhost='volttro
     :param vhost:
     :return:
     """
+    user = user if user else get_user()
+    password = password if password else get_password()
+    vhost = vhost if vhost else get_vhost()
     url = 'http://{0}:{1}/api/policies/{2}/{3}'.format(get_hostname(), get_port(), vhost, name)
-    response = http_put_request(url, value, user, password)
+    response = http_put_request(url, body=value, user=user, password=password)
 
-def delete_policy(user='volttron', password='volttron', vhost='volttron'):
+def delete_policy(user=None, password=None, vhost=None):
+    user = user if user else get_user()
+    password = password if password else get_password()
+    vhost = vhost if vhost else get_vhost()
     url = 'http://{0}:{1}/api/policies/{2}/{3}'.format(get_hostname(), get_port(), vhost)
     response = http_delete_request(url, user, password)
 
 # Exchanges - Create/delete/List exchanges
 #properties = dict(durable=False, type='topic', auto_delete=True, arguments={"alternate-exchange": "aexc"})
 # properties = dict(durable=False, type='direct', auto_delete=True)
-def create_exchange(exchange, properties, vhost='volttron'):
+def create_exchange(exchange, properties, user=None, password=None, vhost=None):
     """
     Create a new exchange
     :param exchange: exchange name
@@ -359,21 +439,27 @@ def create_exchange(exchange, properties, vhost='volttron'):
     :param vhost: virtual host
     :return:
     """
+    user = user if user else get_user()
+    password = password if password else get_password()
+    vhost = vhost if vhost else get_vhost()
     print "Create new exchange: {}".format(exchange)
     url = 'http://%s:%s/api/exchanges/%s/%s' % (get_hostname(), get_port(), vhost, exchange)
-    response= http_put_request(url, properties)
+    response=http_put_request(url, body=properties, user=user, password=password)
 
-def delete_exchange(exchange, vhost='volttron'):
+def delete_exchange(exchange, user=None, password=None, vhost=None):
     """
     Delete a exchange
     :param exchange: exchange name
     :param vhost: virtual host
     :return:
     """
+    user = user if user else get_user()
+    password = password if password else get_password()
+    vhost = vhost if vhost else get_vhost()
     url = 'http://%s:%s/api/exchanges/%s/%s' % (get_hostname(), get_port(), vhost, exchange)
     response = http_delete_request(url)
 
-def get_exchanges(user='volttron', password='volttron', vhost='volttron'):
+def get_exchanges(user=None, password=None, vhost=None):
     """
     List all exchanges
     :param user:
@@ -381,6 +467,9 @@ def get_exchanges(user='volttron', password='volttron', vhost='volttron'):
     :param vhost:
     :return:
     """
+    user = user if user else get_user()
+    password = password if password else get_password()
+    vhost = vhost if vhost else get_vhost()
     url = 'http://%s:%s/api/exchanges/%s' % (get_hostname(), get_port(), vhost)
     response = http_get_request(url, user, password)
     exchanges = []
@@ -389,7 +478,7 @@ def get_exchanges(user='volttron', password='volttron', vhost='volttron'):
         exchanges = [e['name'] for e in response]
     return exchanges
 
-def get_exchanges_with_props(user='volttron', password='volttron', vhost='volttron'):
+def get_exchanges_with_props(user=None, password=None, vhost=None):
     """
     List all exchanges with properties
     :param user:
@@ -397,12 +486,15 @@ def get_exchanges_with_props(user='volttron', password='volttron', vhost='volttr
     :param vhost:
     :return:
     """
+    user = user if user else get_user()
+    password = password if password else get_password()
+    vhost = vhost if vhost else get_vhost()
     url = 'http://%s:%s/api/exchanges/%s' % (get_hostname(), get_port(), vhost)
     return http_get_request(url, user, password)
 
 # Queues - Create/delete/List queues
 #properties = dict(durable=False, auto_delete=True)
-def create_queue(queue, properties, vhost='volttron'):
+def create_queue(queue, properties, user=None, password=None, vhost=None):
     """
     Create a new queue
     :param queue: queue
@@ -410,21 +502,27 @@ def create_queue(queue, properties, vhost='volttron'):
     :param vhost:
     :return:
     """
+    user = user if user else get_user()
+    password = password if password else get_password()
+    vhost = vhost if vhost else get_vhost()
     url = 'http://{0}:{1}/api/queues/{2}/{3}'.format(get_hostname(), get_port(), vhost, queue)
-    response = http_put_request(url, properties)
+    response = http_put_request(url, body=properties, user=user, password=password)
 
 
-def delete_queue(queue, vhost='volttron'):
+def delete_queue(queue, user=None, password=None, vhost=None):
     """
     Delete a queue
     :param queue: queue
     :param vhost: virtual host
     :return:
     """
+    user = user if user else get_user()
+    password = password if password else get_password()
+    vhost = vhost if vhost else get_vhost()
     url = 'http://{0}:{1}/api/queues/{2}/{3}'.format(get_hostname(), get_port(), vhost, queue)
-    response = http_delete_request(url)
+    response = http_delete_request(url, user, password)
 
-def get_queues(user='volttron', password='volttron', vhost='volttron'):
+def get_queues(user=None, password=None, vhost=None):
     """
     Get list of queues
     :param user: username
@@ -432,6 +530,9 @@ def get_queues(user='volttron', password='volttron', vhost='volttron'):
     :param vhost: virtual host
     :return:
     """
+    user = user if user else get_user()
+    password = password if password else get_password()
+    vhost = vhost if vhost else get_vhost()
     url = 'http://%s:%s/api/queues/%s' % (get_hostname(), get_port(), vhost)
     response = http_get_request(url, user, password)
     queues = []
@@ -439,7 +540,7 @@ def get_queues(user='volttron', password='volttron', vhost='volttron'):
         queues = [q['name'] for q in response]
     return queues
 
-def get_queues_with_props(user='volttron', password='volttron', vhost='volttron'):
+def get_queues_with_props(user=None, password=None, vhost=None):
     """
     Get properties of all queues
     :param user: username
@@ -447,11 +548,14 @@ def get_queues_with_props(user='volttron', password='volttron', vhost='volttron'
     :param vhost: virtual host
     :return:
     """
+    user = user if user else get_user()
+    password = password if password else get_password()
+    vhost = vhost if vhost else get_vhost()
     url = 'http://%s:%s/api/queues/%s' % (get_hostname(), get_port(), vhost)
     return http_get_request(url, user, password)
 
 # List all open connections
-def get_connections(user='volttron', password='volttron', vhost='volttron'):
+def get_connections(user=None, password=None, vhost=None):
     """
     Get all connections
     :param user: username
@@ -459,12 +563,14 @@ def get_connections(user='volttron', password='volttron', vhost='volttron'):
     :param vhost: virtual host
     :return:
     """
+    user = user if user else get_user()
+    password = password if password else get_password()
+    vhost = vhost if vhost else get_vhost()
     url = 'http://{0}:{1}/api/vhosts/{2}/connections'.format(get_hostname(), get_port(), vhost)
     response = http_get_request(url, user, password)
-    if response: return response.json()
-    else: return response
+    return response
 
-def get_connection(name, user='volttron', password='volttron', vhost='volttron'):
+def get_connection(name, user=None, password=None):
     """
     Get status of a connection
     :param name: connection name
@@ -473,12 +579,14 @@ def get_connection(name, user='volttron', password='volttron', vhost='volttron')
     :param vhost: virtual host
     :return:
     """
+    user = user if user else get_user()
+    password = password if password else get_password()
+
     url = 'http://{0}:{1}/api/connections/{2}'.format(get_hostname(), get_port(), name)
     response = http_get_request(url, user, password)
-    if response: return response.json()
-    else: return response
+    return response.json() if response else response
 
-def delete_connection(name, user='volttron', password='volttron', vhost='volttron'):
+def delete_connection(name, user=None, password=None):
     """
     Delete open connection
     :param host:
@@ -489,16 +597,20 @@ def delete_connection(name, user='volttron', password='volttron', vhost='volttro
     :param vhost:
     :return:
     """
+    user = user if user else get_user()
+    password = password if password else get_password()
     url = 'http://{0}:{1}/api/connections/{2}'.format(get_hostname(), get_port(), name)
     response = http_delete_request(url, user, password)
 
 
 # List all open channels for a given channel
-def list_channels_for_connection(connection, user='volttron', password='volttron'):
+def list_channels_for_connection(connection, user=None, password=None):
+    user = user if user else get_user()
+    password = password if password else get_password()
     url = 'http://{0}:{1}/api/connections/{2}/channels'.format(get_hostname(), get_port(), connection)
     return http_get_request(url, user, password)
 
-def list_channels_for_vhost(host, port, user='volttron', password='volttron', vhost='volttron'):
+def list_channels_for_vhost(host, port, user=None, password=None, vhost=None):
     """
     List all open channels for a given vhost
     :param host:
@@ -508,14 +620,13 @@ def list_channels_for_vhost(host, port, user='volttron', password='volttron', vh
     :param vhost:
     :return:
     """
+    user = user if user else get_user()
+    password = password if password else get_password()
     url = 'http://{0}:{1}/api/vhosts/{2}/channels'.format(host, port, vhost)
     response = http_get_request(url, user, password)
-    if response:
-        return response.json()
-    else:
-        return response
+    return response.json() if response else response
 
-def get_bindings(exchange, user='volttron', password='volttron', vhost='volttron'):
+def get_bindings(exchange):
     """
     List all bindings in which a given exchange is the source
     :param exchange: source exchange
@@ -524,10 +635,11 @@ def get_bindings(exchange, user='volttron', password='volttron', vhost='volttron
     :param vhost: virtual host
     :return: list of bindings
     """
-    url = 'http://%s:%s/api/exchanges/%s/%s/bindings/source' % (get_hostname(), get_port(), vhost, exchange)
-    response = requests.get(url, auth=(user, password))
-    if response: return response.json()
-    else: return response
+    url = 'http://%s:%s/api/exchanges/%s/%s/bindings/source' % (get_hostname(), get_port(), get_vhost(), exchange)
+    response = http_get_request(url)
+    # if isinstance(response, list):
+    #     response = response[0]
+    return response
 
 # We need http address and port
 def create_rabbitmq_setup():
@@ -546,28 +658,26 @@ def create_rabbitmq_setup():
     vhost = config_opts['virtual-host']
     user= config_opts['user']
     password = config_opts['pass']
-    exchange = 'volttron'
-    alternate_exchange = 'undeliverable'
 
-    host = config_opts['host']
-    port = 15672
     # Create a new "volttron" vhost
     create_vhost(vhost)
     # Create a new "volttron" user within this vhost
     create_user(user, password)
     # Set permissions (Configure, read, write) for the user
     permissions = dict(configure=".*", read=".*", write=".*")
-    set_user_permissions(permissions)
+    set_user_permissions(permissions, user, password, vhost)
     # we may need to restart RabbitMQ app
 
+    exchange = 'volttron'
+    alternate_exchange = 'undeliverable'
     # Create a new "volttron" exchange. Set up alternate exchange to capture all unroutable messages
     properties = dict(durable=True, type='topic', arguments={"alternate-exchange": alternate_exchange})
-    create_exchange(exchange, properties=properties)
+    create_exchange(exchange, properties=properties, vhost=vhost)
 
     # Create alternate exchange to capture all unroutable messages.
     # Note: Pubsub messages with no subscribers are also captured which is unavoidable with this approach
     properties = dict(durable=True, type='fanout')
-    create_exchange(alternate_exchange, properties=properties)
+    create_exchange(alternate_exchange, properties=properties, vhost=vhost)
 
 def create_federation_setup():
     """
@@ -607,15 +717,6 @@ def create_federation_setup():
     set_policy(policy_name, policy_value,
               config_opts['user'], config_opts['pass'], config_opts['virtual-host'])
 
-
-def _load_rmq_config():
-    """Loads the config file if the path exists."""
-    global config_opts
-    if not os.path.exists(get_home()):
-        os.makedirs(get_home())
-    config_file = os.path.join(get_home(), 'rabbitmq_config.json')
-    config_opts = PersistentDict(filename=config_file, flag='c', format='json')
-
 def is_valid_port(port):
     try:
         port = int(port)
@@ -625,55 +726,45 @@ def is_valid_port(port):
     return port == 5672 or port == 5671
 
 
-def get_hostname():
-    if not config_opts:
-        _load_rmq_config()
-    _log.debug("rmq config: {}".format(config_opts))
-    return config_opts['host']
-
-def get_port():
-    return 15672
-
 def _get_vhost_user_address():
     global config_opts
     _load_rmq_config()
     # Get vhost
-    vhost = config_opts.get('virtual-host', None)
-    if not vhost:
-        prompt = 'What is the name of the virtual host under which Rabbitmq VOLTTRON will be running?'
-        vhost = prompt_response(prompt, default='volttron')
-        config_opts['virtual-host'] = vhost
-        config_opts.async_sync()
+    vhost = config_opts.get('virtual-host', 'volttron')
+    prompt = 'What is the name of the virtual host under which Rabbitmq VOLTTRON will be running?'
+    new_vhost = prompt_response(prompt, default=vhost)
+    config_opts['virtual-host'] = new_vhost
+    config_opts.async_sync()
     # Get username
-    user = config_opts.get('user', None)
-    pwd = config_opts.get('pass', None)
-    if not user:
-        prompt = 'What is the username for RabbitMQ VOLTTRON instance?'
-        user = prompt_response(prompt, default='volttron')
-        config_opts['user'] = user
-        config_opts.async_sync()
-    if not pwd:
-        prompt = 'What is password?'
-        pwd = prompt_response(prompt, default='volttron')
-        config_opts['pass'] = pwd
-        config_opts.async_sync()
+    user = config_opts.get('user', 'volttron')
+    pwd = config_opts.get('pass', 'volttron')
+
+    prompt = 'What is the username for RabbitMQ VOLTTRON instance?'
+    new_user = prompt_response(prompt, default=user)
+    config_opts['user'] = new_user
+    config_opts.async_sync()
+
+    prompt = 'What is password?'
+    new_pwd = prompt_response(prompt, default=pwd)
+    config_opts['pass'] = new_pwd
+    config_opts.async_sync()
 
     # Check if host and port is already available
-    host = config_opts.get('host', None)
-    port = config_opts.get('port', None)
+    host = config_opts.get('host', 'localhost')
+    port = config_opts.get('port', 5672)
 
     prompt = 'What is the hostname of system?'
-    host = prompt_response(prompt, default='localhost')
+    new_host = prompt_response(prompt, default=host)
     prompt = 'What is the instance port for the RabbitMQ address?'
     valid_port = False
     while not valid_port:
-        port = prompt_response(prompt, default=5672)
+        port = prompt_response(prompt, default=port)
         valid_port = is_valid_port(port)
         if not valid_port:
             print("Port is not valid")
-    config_opts['host'] = host
+    config_opts['host'] = new_host
     config_opts['port'] = str(port)
-    config_opts['rmq-address'] = build_rmq_address()
+    config_opts['rmq-address'] = build_rmq_address(user, pwd)
     config_opts.async_sync()
     #print config_opts
 
@@ -682,12 +773,14 @@ def build_rmq_address(user=None, pwd=None):
     global config_opts
     if not config_opts:
         _load_rmq_config()
-    user = user if user is not None else config_opts['user']
-    pwd = pwd if pwd is not None else config_opts['pass']
+    user = user if user else get_user()
+    pwd = pwd if pwd else get_password()
     try:
-        rmq_address = "amqp://{0}:{1}@{2}:{3}/{4}".format(user, pwd,
-                                                      config_opts['host'], config_opts['port'],
-                                                      config_opts['virtual-host'])
+        rmq_address = "amqp://{0}:{1}@{2}:{3}/{4}".format(user,
+                                                          pwd,
+                                                          config_opts['host'],
+                                                          config_opts['port'],
+                                                          config_opts['virtual-host'])
     except KeyError:
         print "Missing entries in rabbitmq config"
 
@@ -704,6 +797,7 @@ def _is_valid_rmq_url():
     #
     :return:
     """
+    pass
 
 
 def _get_upstream_servers():

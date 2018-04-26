@@ -135,7 +135,7 @@ class PubSubService(object):
         :param items subcription items or empty dict
         :type dict
         """
-        self._logger.debug("SYNC before: {0}, {1}".format(peer, items))
+        #self._logger.debug("SYNC before: {0}, {1}".format(peer, items))
         items = {(platform, bus, prefix) for platform, buses in items.iteritems()
                                             for bus, topics in buses.iteritems()
                                                 for prefix in topics}
@@ -160,7 +160,7 @@ class PubSubService(object):
         for platform, bus, prefix in items:
             self._add_peer_subscription(peer, bus, prefix, platform)
         if 'all' in self._peer_subscriptions and self._ext_router is not None:
-            self._logger.debug("Syncing ext subscriptions: {}".format(self._peer_subscriptions))
+            #self._logger.debug("Syncing ext subscriptions: {}".format(self._peer_subscriptions))
             # Send subscription message to all connected platforms
             external_platforms = self._ext_router.get_connected_platforms()
             self._send_external_subscriptions(external_platforms)
@@ -483,7 +483,7 @@ class PubSubService(object):
             for prefix in subscriptions:
                 if bytes(topic).startswith(prefix):
                     external_subscribers.add(platform_id)
-        self._logger.debug("PUBSUBSERVICE External subscriptions {0}, {1}".format(topic, external_subscribers))
+        #self._logger.debug("PUBSUBSERVICE External subscriptions {0}, {1}".format(topic, external_subscribers))
         if external_subscribers:
             frames[:] = []
             frames[0:7] = b'', proto, user_id, msg_id, subsystem, b'external_publish', topic, data

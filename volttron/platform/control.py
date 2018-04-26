@@ -1375,7 +1375,7 @@ class ControlConnection(object):
                                  secretkey=secretkey, serverkey=serverkey,
                                  enable_store=False,
                                  identity=CONTROL_CONNECTION,
-                                 enable_channel=True)
+                                 enable_channel=False)
         self._greenlet = None
 
     @property
@@ -1422,19 +1422,22 @@ def get_keys(opts):
 
 # RabbitMQ management methods
 def add_vhost(opts):
-    create_vhost(get_port(), opts.vhost)
+    create_vhost(opts.vhost)
 
 def add_user(opts):
-    create_user(get_port(), opts.user, opts.pwd)
+    create_user(opts.user, opts.pwd)
     permissions = dict(configure="", read="", write="")
+    read = _ask_yes_no("Do you want to set READ permission ")
+    write = _ask_yes_no("Do you want to set WRITE permission ")
+    configure = _ask_yes_no("Do you want to set CONFIGURE permission ")
 
-    if opts.read:
+    if read:
         permissions['read'] = ".*"
-    if opts.write:
+    if write:
         permissions['write'] = ".*"
-    if opts.configure:
+    if configure:
         permissions['configure'] = ".*"
-    set_user_permissions(get_hostname(), get_port(), permissions, opts.user, opts.pwd)
+    set_user_permissions(permissions, opts.user, opts.pwd)
 
 def add_exchange(opts):
     if opts.type not in ['topic', 'fanout', 'direct']:
@@ -1442,16 +1445,15 @@ def add_exchange(opts):
         return
     durable = _ask_yes_no("Do you want exchange to be durable ")
     auto_delete = _ask_yes_no("Do you want exchange to be auto deleted ")
+    alternate = _ask_yes_no("Do you want alternate exchange ")
 
-    # Exchanges - Create/delete/List exchanges
-    # properties = dict(durable=False, type='topic', auto_delete=True, arguments={"alternate-exchange": "aexc"})
-    # properties = dict(durable=False, type='direct', auto_delete=True)
     properties = dict(durable=durable, type=opts.type, auto_delete=auto_delete)
-    if opts.alternate:
-        properties['alternate-exchange'] = opts.alternate
+    if alternate:
+        alternate_exch = opts.name + 'alternate'
+        properties['alternate-exchange'] = alternate_exch
         # create alternate exchange
         new_props = dict(durable=durable, type='fanout', auto_delete=auto_delete)
-        create_exchange(opts.alternate, new_props)
+        create_exchange(alternate_exch, new_props)
     create_exchange(opts.name, properties)
 
 def add_queue(opts):
@@ -1462,13 +1464,13 @@ def add_queue(opts):
 
 
 def list_vhosts(opts):
-    vhosts = get_vhosts()
+    vhosts = get_virtualhosts()
     for item in vhosts:
         _stdout.write(item+"\n")
 
 def list_user_properties(opts):
-    props = get_user(opts)
-    for key, value in props:
+    props = get_user_props(opts.user)
+    for key, value in props.iteritems():
         _stdout.write("{0}: {1} \n".format(key, value))
 
 def list_exchanges(opts):
@@ -1538,6 +1540,7 @@ def list_parameters(opts):
 
 def list_bindings(opts):
     bindings = get_bindings(opts.exchange)
+
     try:
         if bindings:
             src_width = max(5, max(len(b['source']) for b in bindings))
@@ -1556,7 +1559,7 @@ def list_bindings(opts):
         _stdout.write("Error in getting bindings")
 
 def remove_vhosts(opts):
-    for vhost in opts.vhosts:
+    for vhost in opts.vhost:
         delete_vhost(vhost)
 
 def remove_users(opts):
@@ -2035,9 +2038,6 @@ def main(argv=sys.argv):
                                            subparser=rabbitmq_subparsers)
         rabbitmq_add_exchange.add_argument('name', help='Name of the exchange')
         rabbitmq_add_exchange.add_argument('type', help='Type of the exchange - fanout/direct/topic')
-        rabbitmq_add_exchange.add_argument('--durable', metavar='durable', help='If exchange needs to durable')
-        rabbitmq_add_exchange.add_argument('--alternate', metavar='alternate',
-                                           help='If alternate exchange needs to be created')
         rabbitmq_add_exchange.set_defaults(func=add_exchange)
 
         rabbitmq_add_queue = add_parser('add-queue', help='add a new queue',
@@ -2052,7 +2052,7 @@ def main(argv=sys.argv):
 
         rabbitmq_list_user_properties = add_parser('list-user-properties', help='List users',
                                   subparser=rabbitmq_subparsers)
-        rabbitmq_add_vhost.add_argument('user', help='RabbitMQ user id')
+        rabbitmq_list_user_properties.add_argument('user', help='RabbitMQ user id')
         rabbitmq_list_user_properties.set_defaults(func=list_user_properties)
 
         rabbitmq_list_exchanges = add_parser('list-exchanges', help='add a new user',
@@ -2082,10 +2082,6 @@ def main(argv=sys.argv):
         # rabbitmq_list_policies = add_parser('--list-policies', help='add a new user',
         #                           subparser=rabbitmq_subparsers)
         # rabbitmq_list_policies.set_defaults(func=list_policies)
-
-        rabbitmq_list_connections = add_parser('list-connections', help='list open connections',
-                                  subparser=rabbitmq_subparsers)
-        rabbitmq_list_connections.set_defaults(func=list_connections)
     #==========================================================================================
         # Remove commands
         rabbitmq_remove_vhosts = add_parser('remove-vhosts', help='Remove virtual host/s',

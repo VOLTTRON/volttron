@@ -55,7 +55,6 @@ _log = logging.getLogger(__name__)
 class Ping(SubsystemBase):
     def __init__(self, core):
         self.core = weakref.ref(core)
-        self.connection = self.core().connection
         self._results = ResultsDictionary()
         core.register('ping', self._handle_ping, self._handle_error)
 
@@ -64,16 +63,18 @@ class Ping(SubsystemBase):
         result = next(self._results)
         args = list(args)
         args.insert(0, b'ping')
-        self.connection.send_vip_object(Message(peer=peer,
-                                                subsystem=b'ping',
-                                                args=args,
-                                                id=result.ident))
+        connection = self.core().connection
+        connection.send_vip_object(Message(peer=peer,
+                                           subsystem=b'ping',
+                                           args=args,
+                                           id=result.ident))
         #socket.send_vip(peer, b'ping', args, result.ident)
         return result
 
     __call__ = ping
 
     def _handle_ping(self, message):
+        connection = self.core().connection
         try:
             op = bytes(message.args[0])
         except IndexError:
@@ -82,7 +83,7 @@ class Ping(SubsystemBase):
         if op == b'ping':
             message.user = b''
             message.args[0] = b'pong'
-            self.core().socket.send_vip_object(message, copy=False)
+            connection.send_vip_object(message, copy=False)
         elif op == b'pong':
             try:
                 result = self._results.pop(bytes(message.id))
