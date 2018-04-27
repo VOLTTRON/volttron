@@ -1,5 +1,6 @@
 
 
+
 ![image](docs/source/images/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
 
 Distributed Control System Platform.
@@ -31,7 +32,9 @@ http://ryanstutorials.net/linuxtutorial/
 
 ## Installation
 
- ###1. Install needed [prerequisites](https://volttron.readthedocs.io/en/latest/setup/VOLTTRON-Prerequisites.html#volttron-prerequisites).
+ **1. Install needed [prerequisites]**
+
+(https://volttron.readthedocs.io/en/latest/setup/VOLTTRON-Prerequisites.html#volttron-prerequisites).
 
  On Debian-based systems, these can all be installed with the following command:
     ```sh
@@ -40,11 +43,13 @@ http://ryanstutorials.net/linuxtutorial/
     ```
  On Redhat or CENTOS systems, these can all be installed with the following command:
     ```sh
-	sudo yum update
+   sudo yum update
     sudo yum install make automake gcc gcc-c++ kernel-devel python-devel openssl openssl-devel libevent-devel git
     ```
 
- ###2. Install RabbitMQ
+
+**2. Install RabbitMQ**
+
 
  For RabbitMQ based VOLTTRON, some of the RabbitMQ required software packages have to be installed.
 
@@ -101,8 +106,7 @@ cd ~
 git clone -b gevent_connection_adapter https://github.com/shwethanidd/pika.git
 ```
 
-###3. Download VOLTTRON code from experimental branch
-
+**3. Download VOLTTRON code from experimental branch**
 ```sh
 git clone -b rabbitmq-volttron https://github.com/VOLTTRON/volttron.git
 cd volttron
@@ -115,12 +119,12 @@ This will build the platform and create a virtual Python environment. Activate t
 . env/bin/activate
 ```
 
-###4. Install pika library inside VOLTTRON environment:
+**4. Install pika library inside VOLTTRON environment:**
 ```sh
 pip install -e ~/pika
 ```
 
-###5. Create RabbitMQ setup for VOLTTRON :
+**5. Create RabbitMQ setup for VOLTTRON :**
 ```sh
 python volttron/utils/rmq_mgmt.py single
 ```
@@ -140,7 +144,9 @@ vip-address = tcp://127.0.0.1:22916
 instance-name = volttron1
 ```
 
-## Test
+
+**6. Test**
+
 
 We are now ready to start VOLTTRON with RabbitMQ message bus. If we need to revert back to ZeroMQ based VOLTTRON, we
 will have to either remove "message-bus" parameter or set it to default "zmq" in $VOLTTRON\_HOME/config.
@@ -223,6 +229,21 @@ python volttron/utils/rmq_mgmt.py federation
 ```
 
 We need to provide the hostname (or IP address) and port of the upstream nodes when prompted. For bi-directional data flow, we will have to run the same script on both the nodes.
+
+## Next Steps
+We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we
+ are working towards completing the below:
+* Adding authentication and authorization feature to RabbitMQ message bus.
+* Authenticated connection amongst multiple platform instances.
+* Creation of Each agent has to have a unique RabbitMQ user id.
+* Testing of RabbitMQ shovel for multi-platform over NAT setup
+
+## Acquiring Third Party Agent Code
+Third party agents are available under volttron-applications repository. In order to use those agents, add volttron-applications repository under the volttron/applications directory by using following command:
+
+```sh
+git subtree add –prefix applications https://github.com/VOLTTRON/volttron-applications.git develop –squash
+```
 
 ## Next Steps
 We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we
