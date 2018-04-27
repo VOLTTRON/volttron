@@ -70,6 +70,9 @@ http://ryanstutorials.net/linuxtutorial/
 
   Easiest way to install Erlang for use with Rabbitmq is to use [Zero dependency
   Erlang RPM](https://github.com/rabbitmq/erlang-rpm). This included only the components required for RabbitMQ.
+  Copy the contents of the repo file provided in
+  /etc/yum.repos.d/rabbitmq-erlang.repo and then run yum install erlang. You
+  would need to do both these as root user.
 
   You can also download and install Erlang from [Erlang Solutions](https://www.erlang-solutions.com/resources/download.html). Please include OTP/components - ssl, public_key, asn1, and crypto. Also lock version of Erlang using the [yum-plugin-versionlock](https://access.redhat.com/solutions/98873)
 
@@ -88,10 +91,14 @@ wget https://dl.bintray.com/rabbitmq/all/rabbitmq-server/3.7.4/rabbitmq-server-3
 sudo yum install rabbitmq-server-3.7.4-1.el7.noarch.rpm
 ```
 
-Check to see if RabbitMQ is installed correctly.
+
+Start rabbitmq-server
 ```sh
-sudo rabbitmq-server start
+sudo rabbitmq-server start &
 ```
+Note: If you are running in a virtual machine, please make sure that your hostname is
+correctly configured in /etc/hosts. See (https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho)
+
 
 **c. Enable RabbitMQ management, federation and shovel plugins**
 ```sh
@@ -101,7 +108,9 @@ sudo rabbitmq-plugins enable rabbitmq_federation_management
 sudo rabbitmq-plugins enable rabbitmq_shovel
 ```
 
-**d. Download pika library from pika git repository into your home directory.**
+**d. Download the version of pika library from below specified git repository
+into
+your home directory.**
 ```sh
 cd ~
 git clone -b gevent_connection_adapter https://github.com/shwethanidd/pika.git
