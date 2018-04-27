@@ -1534,9 +1534,18 @@ def list_connections(opts):
 
 def list_parameters(opts):
     parameters = get_parameter('federation-upstream')
-    if parameters:
-        for param in parameters:
-            _stdout.write(param['name'] + "\n")
+    try:
+        if parameters:
+            name_width = max(5, max(len(p['name']) for p in parameters))
+            uri_width = max(3, max(len(p['value']['uri']) for p in parameters))
+            fmt = '{:{}} {:{}}\n'
+            _stderr.write(
+                fmt.format('NAME', name_width, 'URI', uri_width))
+            for param in parameters:
+                _stdout.write(fmt.format(param['name'], name_width,
+                                         param['value']['uri'], uri_width))
+    except (AttributeError, KeyError) as ex:
+        _stdout.write("Error in federation parameters")
 
 def list_bindings(opts):
     bindings = get_bindings(opts.exchange)
@@ -1548,7 +1557,7 @@ def list_bindings(opts):
             dest_width = max(len('QUEUE'), max(len(b['destination']) for b in bindings))
             bindkey = len('BINDING KEY')
             rkey = max(10, max(len(b['routing_key']) for b in bindings))
-            fmt = '{:{}} {:{}} {:{}}\n'
+            fmt = '{:{}}  {:{}}  {:{}}\n'
             _stderr.write(
                 fmt.format('EXCHANGE', exch_width, 'QUEUE', dest_width, 'BINDING KEY', bindkey))
             for b in bindings:
@@ -1557,6 +1566,21 @@ def list_bindings(opts):
                                          b['routing_key'], rkey))
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in getting bindings")
+
+def list_policies(opts):
+    policies = get_policies()
+    try:
+        if policies:
+            name_width = max(5, max(len(p['name']) for p in policies))
+            apply_width = max(8, max(len(p['apply-to']) for p in policies))
+            fmt = '{:{}} {:{}}\n'
+            _stderr.write(
+                fmt.format('NAME', name_width, 'APPLY-TO', apply_width))
+            for policy in policies:
+                _stdout.write(fmt.format(policy['name'], name_width,
+                                         policy['apply-to'], apply_width))
+    except (AttributeError, KeyError) as ex:
+        _stdout.write("Error in getting policies")
 
 def remove_vhosts(opts):
     for vhost in opts.vhost:
@@ -1574,6 +1598,13 @@ def remove_queues(opts):
     for q in opts.queues:
         delete_queue(q)
 
+def remove_parameters(opts):
+    for param in opts.parameters:
+        delete_parameter('federation-upstream', param)
+
+def remove_policies(opts):
+    for policy in opts.policies:
+        delete_policy(policy)
 
 def main(argv=sys.argv):
     # Refuse to run as root
@@ -2079,9 +2110,9 @@ def main(argv=sys.argv):
                                   subparser=rabbitmq_subparsers)
         rabbitmq_list_parameters.set_defaults(func=list_parameters)
 
-        # rabbitmq_list_policies = add_parser('--list-policies', help='add a new user',
-        #                           subparser=rabbitmq_subparsers)
-        # rabbitmq_list_policies.set_defaults(func=list_policies)
+        rabbitmq_list_policies = add_parser('list-policies', help='list all policies',
+                                  subparser=rabbitmq_subparsers)
+        rabbitmq_list_policies.set_defaults(func=list_policies)
     #==========================================================================================
         # Remove commands
         rabbitmq_remove_vhosts = add_parser('remove-vhosts', help='Remove virtual host/s',
@@ -2104,18 +2135,15 @@ def main(argv=sys.argv):
         rabbitmq_remove_queues.add_argument('queues', nargs='+', help='Queue')
         rabbitmq_remove_queues.set_defaults(func=remove_queues)
 
-        # rabbitmq_remove_parameters = add_parser('remove-parameters', help='Remove parameter',
-        #                                       subparser=rabbitmq_subparsers)
-        # rabbitmq_remove_parameters.add_argument('parameter', help='parameter')
-        # rabbitmq_remove_parameters.set_defaults(func=remove_parameters)
-        #
-        # rabbitmq_remove_policies = add_parser('--remove-policies', help='Remove policy',
-        #                                     subparser=rabbitmq_subparsers)
-        # rabbitmq_remove_policies.set_defaults(func=remove_policies)
-        #
-        # rabbitmq_remove_connections = add_parser('--remove-connections', help='Remove connection',
-        #                                        subparser=rabbitmq_subparsers)
-        # rabbitmq_remove_connections.set_defaults(func=remove_connections)
+        rabbitmq_remove_parameters = add_parser('remove-parameters', help='Remove parameter',
+                                              subparser=rabbitmq_subparsers)
+        rabbitmq_remove_parameters.add_argument('parameters', nargs='+', help='parameter name/s')
+        rabbitmq_remove_parameters.set_defaults(func=remove_parameters)
+
+        rabbitmq_remove_policies = add_parser('remove-policies', help='Remove policy',
+                                            subparser=rabbitmq_subparsers)
+        rabbitmq_remove_policies.add_argument('policies', nargs='+', help='policy name/s')
+        rabbitmq_remove_policies.set_defaults(func=remove_policies)
     #===============================================================================================
     if HAVE_RESTRICTED:
         cgroup = add_parser('create-cgroups',
