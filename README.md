@@ -1,3 +1,5 @@
+
+
 ![image](docs/source/images/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
 
 Distributed Control System Platform.
@@ -29,22 +31,55 @@ http://ryanstutorials.net/linuxtutorial/
 
 ## Installation
 
-Install VOLTTRON by running the following commands which installs needed [prerequisites](https://volttron.readthedocs.io/en/latest/setup/VOLTTRON-Prerequisites.html#volttron-prerequisites), clones the source code, then builds the virtual environment for using the platform.
+ ###1. Install needed [prerequisites](https://volttron.readthedocs.io/en/latest/setup/VOLTTRON-Prerequisites.html#volttron-prerequisites).
 
-```sh
-sudo apt-get update
-sudo apt-get install build-essential python-dev openssl libssl-dev libevent-dev git
-```
-For RabbitMQ based VOLTTRON, some of the RabbitMQ required software packages have to be installed.
-Install Erlang packages
-```sh
-wget https://packages.erlang-solutions.com/erlang-solutions_1.0_all.deb
-sudo dpkg -i erlang-solutions_1.0_all.deb
-sudo apt-get install erlang erlang-nox
-```
-Install RabbitMQ server package
+ On Debian-based systems, these can all be installed with the following command:
+    ```sh
+    sudo apt-get update
+    sudo apt-get install build-essential python-dev openssl libssl-dev libevent-dev git
+    ```
+ On Redhat or CENTOS systems, these can all be installed with the following command:
+    ```sh
+	sudo yum update
+    sudo yum install make automake gcc gcc-c++ kernel-devel python-devel openssl openssl-devel libevent-devel git
+    ```
+
+ ###2. Install RabbitMQ
+
+ For RabbitMQ based VOLTTRON, some of the RabbitMQ required software packages have to be installed.
+
+ **a. Install Erlang packages.**
+
+  Please refer to [rabbitmq website](https://www.rabbitmq.com/which-erlang.html) to find the right version of Erlang to be installed for the version of RabbitMQ you intend to install
+
+  On Debian based systems:
+
+  ```sh
+  wget https://packages.erlang-solutions.com/erlang-solutions_1.0_all.deb
+  sudo dpkg -i erlang-solutions_1.0_all.deb
+  sudo apt-get install erlang erlang-nox
+  ```
+
+  On Redhat based systems:
+
+  Easiest way to install Erlang for use with Rabbitmq is to use [Zero dependency
+  Erlang RPM](https://github.com/rabbitmq/erlang-rpm). This included only the components required for RabbitMQ.
+
+  You can also download and install Erlang from [Erlang Solutions](https://www.erlang-solutions.com/resources/download.html). Please include OTP/components - ssl, public_key, asn1, and crypto. Also lock version of Erlang using the [yum-plugin-versionlock](https://access.redhat.com/solutions/98873)
+
+  **b. Install RabbitMQ server package**
+
+On Debian based systems:
 ```sh
 sudo apt-get install rabbitmq-server
+```
+On Redhat based systems:
+
+Download the appropriate rpm from [rabbitmq site](https://www.rabbitmq.com/install-rpm.html) and install using  "yum install <name>.rpm" command
+```sh
+# following commands are for CentOS 7
+wget https://dl.bintray.com/rabbitmq/all/rabbitmq-server/3.7.4/rabbitmq-server-3.7.4-1.el7.noarch.rpm
+sudo yum install rabbitmq-server-3.7.4-1.el7.noarch.rpm
 ```
 
 Check to see if RabbitMQ is installed correctly.
@@ -52,7 +87,7 @@ Check to see if RabbitMQ is installed correctly.
 sudo rabbitmq-server start
 ```
 
-Enable RabbitMQ management, federation and shovel plugins
+**c. Enable RabbitMQ management, federation and shovel plugins**
 ```sh
 sudo rabbitmq-plugins enable rabbitmq_management
 sudo rabbitmq-plugins enable rabbitmq_federation
@@ -60,13 +95,14 @@ sudo rabbitmq-plugins enable rabbitmq_federation_management
 sudo rabbitmq-plugins enable rabbitmq_shovel
 ```
 
-Download pika library from pika git repository into your home directory.
+**d. Download pika library from pika git repository into your home directory.**
 ```sh
 cd ~
 git clone -b gevent_connection_adapter https://github.com/shwethanidd/pika.git
 ```
 
-Download VOLTTRON code from experimental branch
+###3. Download VOLTTRON code from experimental branch
+
 ```sh
 git clone -b rabbitmq-volttron https://github.com/VOLTTRON/volttron.git
 cd volttron
@@ -79,12 +115,12 @@ This will build the platform and create a virtual Python environment. Activate t
 . env/bin/activate
 ```
 
-Install pika library inside VOLTTRON environment:
+###4. Install pika library inside VOLTTRON environment:
 ```sh
 pip install -e ~/pika
 ```
 
-Create RabbitMQ setup for VOLTTRON :
+###5. Create RabbitMQ setup for VOLTTRON :
 ```sh
 python volttron/utils/rmq_mgmt.py single
 ```
@@ -103,6 +139,8 @@ message-bus = rmq
 vip-address = tcp://127.0.0.1:22916
 instance-name = volttron1
 ```
+
+## Test
 
 We are now ready to start VOLTTRON with RabbitMQ message bus. If we need to revert back to ZeroMQ based VOLTTRON, we
 will have to either remove "message-bus" parameter or set it to default "zmq" in $VOLTTRON\_HOME/config.
