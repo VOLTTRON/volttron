@@ -889,8 +889,12 @@ def create_shovel_setup():
         _load_rmq_config()
         return
     platform_config = load_platform_config()
-    instance_name = platform_config['instance-name'].strip('"')
-    print(instance_name)
+    try:
+        instance_name = platform_config['instance-name'].strip('"')
+        print(instance_name)
+    except KeyError as exc:
+        print("Unknown instance name. Please set instance-name in VOLTTRON_HOME/config")
+        return
     shovels = config_opts.get('shovels', [])
     src_uri = build_rmq_address()
     for shovel in shovels:

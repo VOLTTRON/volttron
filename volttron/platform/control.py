@@ -1532,7 +1532,7 @@ def list_queues_with_properties(opts):
 def list_connections(opts):
     conn = get_connection()
 
-def list_parameters(opts):
+def list_fed_parameters(opts):
     parameters = get_parameter('federation-upstream')
     try:
         if parameters:
@@ -1546,6 +1546,28 @@ def list_parameters(opts):
                                          param['value']['uri'], uri_width))
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in federation parameters")
+
+def list_shovel_parameters(opts):
+    parameters = get_parameter('shovel')
+    try:
+        if parameters:
+            name_width = max(5, max(len(p['name']) for p in parameters))
+            src_uri_width = max(len('SOURCE ADDRESS'), max(len(p['value']['src-uri']) for p in parameters))
+            dest_uri_width = max(len('DESTINATION ADDRESS'), max(len(p['value']['dest-uri']) for p in parameters))
+            binding_key = max(len('BINDING KEY'), max(len(p['value']['src-exchange-key']) for p in parameters))
+            fmt = '{:{}}  {:{}}  {:{}}  {:{}}\n'
+            _stderr.write(
+                fmt.format('NAME', name_width,
+                           'SOURCE ADDRESS', src_uri_width,
+                           'DESTINATION ADDRESS', dest_uri_width,
+                           'BINDING KEY', binding_key))
+            for param in parameters:
+                _stdout.write(fmt.format(param['name'], name_width,
+                                         param['value']['src-uri'], src_uri_width,
+                                         param['value']['dest-uri'], dest_uri_width,
+                                         param['value']['src-exchange-key'], binding_key))
+    except (AttributeError, KeyError) as ex:
+        _stdout.write("Error in getting shovel parameters")
 
 def list_bindings(opts):
     bindings = get_bindings(opts.exchange)
@@ -1598,9 +1620,13 @@ def remove_queues(opts):
     for q in opts.queues:
         delete_queue(q)
 
-def remove_parameters(opts):
+def remove_fed_parameters(opts):
     for param in opts.parameters:
         delete_parameter('federation-upstream', param)
+
+def remove_shovel_parameters(opts):
+    for param in opts.parameters:
+        delete_parameter('shovel', param)
 
 def remove_policies(opts):
     for policy in opts.policies:
@@ -2106,9 +2132,13 @@ def main(argv=sys.argv):
         rabbitmq_list_bindings.add_argument('exchange', help='Source exchange')
         rabbitmq_list_bindings.set_defaults(func=list_bindings)
 
-        rabbitmq_list_parameters = add_parser('list-federation-parameters', help='list all federation parameters',
+        rabbitmq_list_fed_parameters = add_parser('list-federation-parameters', help='list all federation parameters',
                                   subparser=rabbitmq_subparsers)
-        rabbitmq_list_parameters.set_defaults(func=list_parameters)
+        rabbitmq_list_fed_parameters.set_defaults(func=list_fed_parameters)
+
+        rabbitmq_list_shovel_parameters = add_parser('list-shovel-parameters', help='list all shovel parameters',
+                                  subparser=rabbitmq_subparsers)
+        rabbitmq_list_shovel_parameters.set_defaults(func=list_shovel_parameters)
 
         rabbitmq_list_policies = add_parser('list-policies', help='list all policies',
                                   subparser=rabbitmq_subparsers)
@@ -2135,10 +2165,17 @@ def main(argv=sys.argv):
         rabbitmq_remove_queues.add_argument('queues', nargs='+', help='Queue')
         rabbitmq_remove_queues.set_defaults(func=remove_queues)
 
-        rabbitmq_remove_parameters = add_parser('remove-parameters', help='Remove parameter',
-                                              subparser=rabbitmq_subparsers)
-        rabbitmq_remove_parameters.add_argument('parameters', nargs='+', help='parameter name/s')
-        rabbitmq_remove_parameters.set_defaults(func=remove_parameters)
+        rabbitmq_remove_fed_parameters = add_parser('remove-federation-parameters',
+                                                    help='Remove federation parameter',
+                                                    subparser=rabbitmq_subparsers)
+        rabbitmq_remove_fed_parameters.add_argument('parameters', nargs='+', help='parameter name/s')
+        rabbitmq_remove_fed_parameters.set_defaults(func=remove_fed_parameters)
+
+        rabbitmq_remove_shovel_parameters = add_parser('remove-shovel-parameters',
+                                                       help='Remove shovel parameter',
+                                                       subparser=rabbitmq_subparsers)
+        rabbitmq_remove_shovel_parameters.add_argument('parameters', nargs='+', help='parameter name/s')
+        rabbitmq_remove_shovel_parameters.set_defaults(func=remove_shovel_parameters)
 
         rabbitmq_remove_policies = add_parser('remove-policies', help='Remove policy',
                                             subparser=rabbitmq_subparsers)
