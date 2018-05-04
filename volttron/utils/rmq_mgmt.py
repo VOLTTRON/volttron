@@ -55,20 +55,23 @@
 """
 
 import argparse
+import logging
 import os
+from ConfigParser import ConfigParser
+
 import grequests
 import requests
-import logging
-from volttron.platform.agent import json as jsonapi
-
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
-from volttron.platform import get_home
-from volttron.utils.prompt import prompt_response, y, n, y_or_n
-from volttron.platform.instance_setup import is_valid_port, is_valid_url
-from volttron.utils.persistance import PersistentDict
-from volttron.platform.agent.utils import load_platform_config
 
+from volttron.platform import get_home
+from volttron.platform.agent import json as jsonapi
+from volttron.platform.agent.utils import load_platform_config, \
+    store_message_bus_config
+from volttron.platform.instance_setup import is_valid_port
+from volttron.utils.persistance import PersistentDict
+from volttron.utils.prompt import prompt_response, y, n, y_or_n
+from volttron.platform.packaging import create_ca
 _log = logging.getLogger(__name__)
 
 config_opts = {}
@@ -921,6 +924,21 @@ def create_shovel_setup():
 
 
 def wizard(type):
+    print('\nYour VOLTTRON_HOME currently set to: {}'.format(get_home()))
+    prompt = '\nIs this the volttron instance you are attempting to ' \
+             'configure rabbitmq for? '
+    if not prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
+        print(
+            '\nPlease execute with VOLTRON_HOME=/your/path python '
+            'volttron/utils/rmq_mgmt.py to  '
+            'modify VOLTTRON_HOME.\n')
+        return
+
+    store_message_bus_config()
+    print('\nChecking for CA certificate\n')
+    # create ca cert in default dir if it doesn't exists
+    create_ca(override=False)
+
     if type == 'single':
         # # Get vhost from the user
         _get_vhost_user_address()

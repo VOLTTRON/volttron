@@ -172,6 +172,27 @@ def get_messagebus():
         message_bus = config.get('message-bus', 'zmq')
     return message_bus
 
+
+def store_message_bus_config(message_bus='rmq'):
+    # If there is no config file or home directory yet, create volttron_home
+    # and config file
+    v_home= get_home()
+    config_path = os.path.join(v_home, "config")
+    if os.path.exists(config_path):
+        config = ConfigParser()
+        config.read(config_path)
+        config.set('volttron', 'message-bus', message_bus)
+        with open(config_path, 'w') as configfile:
+            config.write(configfile)
+    else:
+        if not os.path.exists(v_home):
+            os.makedirs(v_home, 0o755)
+        with open(os.path.join(v_home, "config"), 'w') as f:
+            _log.info("rmq config is at {}".format(f.name))
+            f.write("[volttron]\n")
+            f.write("message-bus="+message_bus)
+
+
 def update_kwargs_with_config(kwargs, config):
     """
     Loads the user defined configurations into kwargs.

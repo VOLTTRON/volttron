@@ -66,6 +66,8 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
+from volttron.platform import get_home
+
 _log = logging.getLogger(__name__)
 
 ROOT_CA_NAME = 'volttron-ca'
@@ -80,8 +82,7 @@ DEFAULT_TIMOUT = 60 * 60 * 24 * 360 * 10
 
 PROMPT_PASSPHRASE = False
 
-DEFAULT_CERT = '/'.join(
-    (os.environ.get('VOLTTRON_HOME', '~/.volttron'), 'certificates'))
+DEFAULT_CERT = os.path.join(get_home(), 'certificates')
 
 
 class CertError(Exception):
@@ -264,10 +265,17 @@ class Certs(object):
         _log.debug("certs.cert_dir: {}".format(self.cert_dir))
         _log.debug("certs.private_dir: {}".format(self.private_dir))
 
+        # If user provided explicit directory then it should exist
         if not os.path.exists(self.cert_dir):
-            raise ValueError('Invalid cert_dir {}'.format(self.cert_dir))
+            if certificate_dir == DEFAULT_CERT:
+                os.makedirs(self.cert_dir, 0o755)
+            else:
+                raise ValueError('Invalid cert_dir {}'.format(self.cert_dir))
         if not os.path.exists(self.private_dir):
-            raise ValueError('Invalid private_dir {}'.format(self.private_dir))
+            if certificate_dir == DEFAULT_CERT:
+                os.makedirs(self.private_dir, 0o755)
+            else:
+                raise ValueError('Invalid private_dir {}'.format(self.private_dir))
 
     def ca_cert(self):
         """
@@ -368,7 +376,7 @@ class Certs(object):
         """
         with open(self._cert_file(name), "wb") as f:
             f.write(cert.public_bytes(serialization.Encoding.PEM))
-
+        os.chmod(self._cert_file(name), 0o644)
         encryption = serialization.NoEncryption()
         if PROMPT_PASSPHRASE:
             encryption = serialization.BestAvailableEncryption(
@@ -384,6 +392,7 @@ class Certs(object):
                 format=serialization.PrivateFormat.TraditionalOpenSSL,
                 encryption_algorithm=encryption
             ))
+        os.chmod(self._private_key_file(name), 0o600)
 
     def verify_cert(self, cert_name):
         """

@@ -53,20 +53,19 @@ from wheel.install import WheelFile
 from .packages import *
 from . import config
 from .agent import utils
-from volttron.platform import get_volttron_data
+from volttron.platform import get_volttron_data, get_home
 from volttron.utils.prompt import prompt_response
-
+from volttron.platform import certs
 try:
-     from volttron.restricted import (auth, certs)
+     from volttron.restricted import auth
 except ImportError:
      auth = None
-     certs = None
 
 
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
-DEFAULT_CERTS_DIR = '~/.volttron/certificates'
+DEFAULT_CERTS_DIR = os.path.join(get_home(), 'certificates')
 
 AGENT_TEMPLATE_PATH_TEMPLATE = "agent_templates/{name}/{file}"
 AGENT_TEMPLATE_PATH = "agent_templates/"
@@ -442,17 +441,20 @@ def _cert_type_from_kwargs(**kwargs):
     return None
 
 
-def _create_ca(certs_dir=DEFAULT_CERTS_DIR):
+def create_ca(certs_dir=DEFAULT_CERTS_DIR, override=True):
     """Creates a root ca cert using the Certs class"""
     crts = certs.Certs(certs_dir)
     if crts.ca_exists():
-        msg = '''Creating a new root ca will overwrite the current ca and
-invalidate any signed certs.
+        if override:
+            msg = '''Creating a new root ca will overwrite the current ca and
+    invalidate any signed certs.
+    
+    Are you sure you want to do this? type 'yes' to continue: '''
 
-Are you sure you want to do this? type 'yes' to continue: '''
-
-        continue_yes = raw_input(msg)
-        if continue_yes.upper() != 'YES':
+            continue_yes = raw_input(msg)
+            if continue_yes.upper() != 'YES':
+                return
+        else:
             return
 
     data = _create_cert_ui(certs.DEFAULT_ROOT_CA_CN)
@@ -464,7 +466,7 @@ def _create_cert(name=None, certs_dir= DEFAULT_CERTS_DIR,**kwargs):
 
     crts = certs.Certs(certs_dir)
     if not crts.ca_exists():
-        sys.stderr.write('Root CA ot must be created before certificates\n')
+        sys.stderr.write('Root CA must be created before certificates\n')
         sys.exit(0)
 
     cert_type = _cert_type_from_kwargs(**kwargs)
@@ -698,7 +700,7 @@ def main(argv=sys.argv):
             if auth is not None:
                 try:
                     if opts.subparser_name == 'create_ca':
-                        _create_ca()
+                        create_ca()
                     elif opts.subparser_name == 'verify':
                         if not os.path.exists(opts.package):
                             print('Invalid package name {}'.format(opts.package))
