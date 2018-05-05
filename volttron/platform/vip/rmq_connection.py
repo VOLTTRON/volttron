@@ -122,8 +122,9 @@ class RMQConnection(BaseConnection):
         :param method_frame: The Queue.DeclareOk frame
         :return:
         """
-        self._logger.debug('Binding %s to %s with %s',
-                           self.exchange, self._vip_queue, self.routing_key)
+        self._logger.debug('Binding {0} to {1} with {2}'.format(self.exchange,
+                                                                self._vip_queue,
+                                                                self.routing_key))
         self.channel.queue_bind(self.on_bind_ok,
                                 exchange=self.exchange,
                                 queue=self._vip_queue,
@@ -291,8 +292,11 @@ class RMQConnection(BaseConnection):
         Disconnect from channel i.e, stop consuming from the channel
         :return:
         """
-        if self.channel:
-            self.channel.basic_cancel(self.on_cancel_ok, self._consumer_tag)
+        try:
+            if self.channel:
+                self.channel.basic_cancel(self.on_cancel_ok, self._consumer_tag)
+        except pika.exceptions.ConnectionClosed:
+            _log.error("Pika Error occured. Exiting")
 
     def on_cancel_ok(self):
         """

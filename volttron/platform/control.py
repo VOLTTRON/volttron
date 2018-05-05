@@ -1622,11 +1622,11 @@ def remove_queues(opts):
 
 def remove_fed_parameters(opts):
     for param in opts.parameters:
-        delete_parameter('federation-upstream', param)
+        delete_multiplatform_parameter('federation-upstream', param)
 
 def remove_shovel_parameters(opts):
     for param in opts.parameters:
-        delete_parameter('shovel', param)
+        delete_multiplatform_parameter('shovel', param)
 
 def remove_policies(opts):
     for policy in opts.policies:

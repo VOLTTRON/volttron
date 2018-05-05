@@ -145,8 +145,12 @@ class ZMQProxyRouter(Agent):
         routing_key = str(method.routing_key)
         platform, to_identity = routing_key.split(".", 1)
         platform, from_identity = props.app_id.split(".", 1)
-        args = json.loads(body)
-        args = json.loads(args[0])
+        try:
+            args = json.loads(body)
+            args = json.loads(args[0])
+        except TypeError as e:
+            _log.error("Invalid json format {}".format(e))
+            return
         userid = props.headers.get('userid', b'')
         #_log.debug("Proxy ZMQ Router Outbound handler {0}, {1}".format(to_identity, args))
         # Reformat message into ZMQ VIP format

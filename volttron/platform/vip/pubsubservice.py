@@ -197,7 +197,7 @@ class PubSubService(object):
         if len(frames) < 8:
             return False
         else:
-            self._logger.debug("Subscribe before: {}".format(self._peer_subscriptions))
+            #self._logger.debug("Subscribe before: {}".format(self._peer_subscriptions))
             if isinstance(frames[7], str): data = bytes(frames[7])
             else: data = frames[7].bytes
 
