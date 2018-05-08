@@ -64,7 +64,7 @@ except ImportError:
     import json as jsonapi
 
 from . import messaging
-from .agent.utils import is_valid_identity
+from .agent.utils import is_valid_identity, get_messagebus
 from .messaging import topics
 from .packages import UnpackedPackage
 from .vip.agent import Agent
@@ -623,7 +623,6 @@ class AIPplatform(object):
                 raise ValueError('no agent launch class specified in package')
         config = os.path.join(pkg.distinfo, 'config')
         tag = self.agent_tag(agent_uuid)
-
         environ = os.environ.copy()
         environ['PYTHONPATH'] = ':'.join([agent_path] + sys.path)
         environ['PATH'] = (os.path.abspath(os.path.dirname(sys.executable)) +
@@ -652,6 +651,10 @@ class AIPplatform(object):
             agent_vip_identity = fp.read()
 
         environ['AGENT_VIP_IDENTITY'] = agent_vip_identity
+
+        #If using Rabbit check if cert files exist. If not create certs
+        msg_bus = get_messagebus()
+        certs.create_ca_signed_cert(agent_vip_identity)
 
         module, _, func = module.partition(':')
         if func:

@@ -53,7 +53,7 @@
 # under Contract DE-AC05-76RL01830
 
 # }}}
-
+import copy
 import datetime
 import logging
 from socket import gethostname
@@ -82,7 +82,7 @@ DEFAULT_TIMOUT = 60 * 60 * 24 * 360 * 10
 
 PROMPT_PASSPHRASE = False
 
-DEFAULT_CERT = os.path.join(get_home(), 'certificates')
+DEFAULT_CERTS_DIR = os.path.join(get_home(), 'certificates')
 
 
 class CertError(Exception):
@@ -255,7 +255,7 @@ class Certs(object):
         """
         return '/'.join((self.private_dir, name + '.pem'))
 
-    def __init__(self, certificate_dir=DEFAULT_CERT):
+    def __init__(self, certificate_dir=DEFAULT_CERTS_DIR):
         """Creates a Certs instance"""
         self.cert_dir = os.path.join(os.path.expanduser(certificate_dir),
                                      'certs')
@@ -267,12 +267,12 @@ class Certs(object):
 
         # If user provided explicit directory then it should exist
         if not os.path.exists(self.cert_dir):
-            if certificate_dir == DEFAULT_CERT:
+            if certificate_dir == DEFAULT_CERTS_DIR:
                 os.makedirs(self.cert_dir, 0o755)
             else:
                 raise ValueError('Invalid cert_dir {}'.format(self.cert_dir))
         if not os.path.exists(self.private_dir):
-            if certificate_dir == DEFAULT_CERT:
+            if certificate_dir == DEFAULT_CERTS_DIR:
                 os.makedirs(self.private_dir, 0o755)
             else:
                 raise ValueError('Invalid private_dir {}'.format(self.private_dir))
@@ -341,7 +341,18 @@ class Certs(object):
             key_size=2048,
             backend=default_backend()
         )
-        subject = _create_subject(**kwargs)
+        if kwargs:
+            subject = _create_subject(**kwargs)
+        else:
+            temp_list = ca_cert.subject.rdns
+            new_attrs = [[]]
+            # for i in temp_list:
+            #     if i.oid == NameOID.COMMON_NAME:
+            #         new_attrs.append(RelativeDistinguishedName(
+            #             [x509.NameAttribute(NameOID.COMMON_NAME,
+            #                                 i.)]))
+
+            subject = _create_subject()
         cert_builder = x509.CertificateBuilder().subject_name(
             subject
         ).issuer_name(

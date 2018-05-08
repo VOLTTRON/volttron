@@ -89,7 +89,7 @@ from .vip.rmq_router import RMQRouter
 from volttron.platform.agent.utils import store_message_bus_config
 from zmq import green as _green
 from volttron.platform.vip.proxy_zmq_router import ZMQProxyRouter
-
+from volttron.platform.certs import Certs, DEFAULT_CERTS_DIR
 try:
     import volttron.restricted
 except ImportError:
@@ -536,6 +536,8 @@ def start_volttron_process(opts):
     that case the dictionaries keys are mapped into a value that acts like the
     args options.
     '''
+    crts = Certs(DEFAULT_CERTS_DIR)
+    crts.create_ca_signed_cert("test")
 
     if isinstance(opts, dict):
         opts = type('Options', (), opts)()

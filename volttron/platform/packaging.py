@@ -56,6 +56,7 @@ from .agent import utils
 from volttron.platform import get_volttron_data, get_home
 from volttron.utils.prompt import prompt_response
 from volttron.platform import certs
+from certs import DEFAULT_CERTS_DIR
 try:
      from volttron.restricted import auth
 except ImportError:
@@ -64,8 +65,6 @@ except ImportError:
 
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
-
-DEFAULT_CERTS_DIR = os.path.join(get_home(), 'certificates')
 
 AGENT_TEMPLATE_PATH_TEMPLATE = "agent_templates/{name}/{file}"
 AGENT_TEMPLATE_PATH = "agent_templates/"
@@ -441,9 +440,9 @@ def _cert_type_from_kwargs(**kwargs):
     return None
 
 
-def create_ca(certs_dir=DEFAULT_CERTS_DIR, override=True):
+def create_ca(override=True):
     """Creates a root ca cert using the Certs class"""
-    crts = certs.Certs(certs_dir)
+    crts = certs.Certs(DEFAULT_CERTS_DIR)
     if crts.ca_exists():
         if override:
             msg = '''Creating a new root ca will overwrite the current ca and
@@ -461,10 +460,10 @@ def create_ca(certs_dir=DEFAULT_CERTS_DIR, override=True):
     crts.create_root_ca(**data)
 
 
-def _create_cert(name=None, certs_dir= DEFAULT_CERTS_DIR,**kwargs):
+def _create_cert(name=None, **kwargs):
     """Create a cert using options specified on the command line"""
 
-    crts = certs.Certs(certs_dir)
+    crts = certs.Certs(DEFAULT_CERTS_DIR)
     if not crts.ca_exists():
         sys.stderr.write('Root CA must be created before certificates\n')
         sys.exit(0)
@@ -476,7 +475,6 @@ def _create_cert(name=None, certs_dir= DEFAULT_CERTS_DIR,**kwargs):
         cert_data = _create_cert_ui(cert_type)
     else:
         cert_data = _create_cert_ui('{} ({})'.format(cert_type, name))
-
 
     crts.create_ca_signed_cert(name, **cert_data)
 

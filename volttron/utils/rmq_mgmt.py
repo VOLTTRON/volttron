@@ -73,6 +73,7 @@ from volttron.utils.persistance import PersistentDict
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.platform.packaging import create_ca
 _log = logging.getLogger(__name__)
+from volttron.platform.certs import DEFAULT_CERTS_DIR
 
 config_opts = {}
 
