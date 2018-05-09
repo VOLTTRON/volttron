@@ -1220,6 +1220,7 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
             filtered |= match
         agents = list(filtered)
     if not agents:
+        _stderr.write('No installed Agents found\n')
         return
     agents.sort()
     if not opts.min_uuid_len:
