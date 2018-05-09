@@ -6,13 +6,21 @@ For further information about this agent and DNP3 communications, please see the
 DNP3 specification, located in VOLTTRON readthedocs 
 under http://volttron.readthedocs.io/en/develop/specifications/dnp3_agent.html.
 
+**pydnp3 Library Installation**
+
 pydnp3 must be installed in order to run DNP3Agent in VOLTTRON. As of right now, pydnp3 must be installed from
-source. pydnp3 can be installed from a command-line shell as follows - please note that you must be in a
-"volttron" virtual environment for the following commands:
+source using gcc 5 or higher. A pydnp3 installation on ubuntu requires at least 8GB base memory. pydnp3 can be
+installed from a command-line shell as follows - please note that you must be in a "volttron" virtual environment
+for the following commands:
 
     (volttron) $ git clone --recursive http://github.com/Kisensum/pydnp3
     (volttron) $ cd pydnp3
     (volttron) $ python setup.py install
+
+pydnp3 implements Python bindings for a C++ library (opendnp3), and its installation currently 
+requires the CMake library. Please see the pydnp3 README.md file for further details on installing pydnp3.
+
+**Agent Installation**
 
 DNP3Agent can be installed from a command-line shell as follows:
 
@@ -20,3 +28,6 @@ DNP3Agent can be installed from a command-line shell as follows:
     (volttron) $ export DNP3_ROOT=$VOLTTRON_ROOT/services/core/DNP3Agent
     (volttron) $ cd $VOLTTRON_ROOT
     (volttron) $ python scripts/install-agent.py -s $DNP3_ROOT -i dnp3agent -c $DNP3_ROOT/dnp3agent.config -t dnp3agent -f
+
+Before running install-agent.py, edit $DNP3_ROOT/dnp3agent.config and adjust point_definitions_path
+so that it has the correct path to the opendnp3_data.config point configuration file. 
