@@ -73,7 +73,6 @@ from volttron.utils.persistance import PersistentDict
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.platform.packaging import create_ca
 _log = logging.getLogger(__name__)
-from volttron.platform.certs import DEFAULT_CERTS_DIR
 
 config_opts = {}
 
@@ -925,6 +924,8 @@ def create_shovel_setup():
 
 
 def wizard(type):
+
+    # First things first. Confirm VOLTTRON_HOME
     print('\nYour VOLTTRON_HOME currently set to: {}'.format(get_home()))
     prompt = '\nIs this the volttron instance you are attempting to ' \
              'configure rabbitmq for? '
@@ -935,7 +936,16 @@ def wizard(type):
             'modify VOLTTRON_HOME.\n')
         return
 
-    store_message_bus_config()
+    # Next get instance name
+    platform_config = load_platform_config()
+    try:
+        instance_name = platform_config['instance-name'].strip('"')
+        print(instance_name)
+    except KeyError as exc:
+        instance_name = prompt_response("Name of this volttron instance:",
+                                    default="volttron1")
+
+    store_message_bus_config(instance_name=instance_name)
     print('\nChecking for CA certificate\n')
     # create ca cert in default dir if it doesn't exists
     create_ca(override=False)

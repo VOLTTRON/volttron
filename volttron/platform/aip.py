@@ -57,6 +57,8 @@ from gevent.subprocess import PIPE
 from wheel.tool import unpack
 import zmq
 
+from volttron.platform import certs
+
 # Can't use zmq.utils.jsonapi because it is missing the load() method.
 try:
     import simplejson as jsonapi
@@ -73,7 +75,7 @@ from .auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
 
 try:
     from volttron.restricted import auth
-    from volttron.restricted import certs
+    #from volttron.restricted import certs
     from volttron.restricted.resmon import ResourceError
 except ImportError:
     auth = None
@@ -654,8 +656,12 @@ class AIPplatform(object):
 
         #If using Rabbit check if cert files exist. If not create certs
         msg_bus = get_messagebus()
-        certs.create_ca_signed_cert(agent_vip_identity)
+        if msg_bus == 'rmq':
+            crts = certs.Certs()
+            if not crts.cert_exists(agent_vip_identity):
+                crts.create_ca_signed_cert(agent_vip_identity)
 
+        _log.info("Created agent cert")
         module, _, func = module.partition(':')
         if func:
             code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module, func)

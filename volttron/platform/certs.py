@@ -65,7 +65,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
-
+from cryptography.x509.name import RelativeDistinguishedName
 from volttron.platform import get_home
 
 _log = logging.getLogger(__name__)
@@ -345,14 +345,16 @@ class Certs(object):
             subject = _create_subject(**kwargs)
         else:
             temp_list = ca_cert.subject.rdns
-            new_attrs = [[]]
-            # for i in temp_list:
-            #     if i.oid == NameOID.COMMON_NAME:
-            #         new_attrs.append(RelativeDistinguishedName(
-            #             [x509.NameAttribute(NameOID.COMMON_NAME,
-            #                                 i.)]))
-
-            subject = _create_subject()
+            new_attrs = []
+            for i in temp_list:
+                print(i)
+                if i.get_attributes_for_oid(NameOID.COMMON_NAME):
+                    new_attrs.append(RelativeDistinguishedName(
+                        [x509.NameAttribute(NameOID.COMMON_NAME,
+                                            name.decode('utf-8'))]))
+                else:
+                    new_attrs.append(i)
+            subject = x509.Name(new_attrs)
         cert_builder = x509.CertificateBuilder().subject_name(
             subject
         ).issuer_name(

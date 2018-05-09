@@ -536,9 +536,6 @@ def start_volttron_process(opts):
     that case the dictionaries keys are mapped into a value that acts like the
     args options.
     '''
-    crts = Certs(DEFAULT_CERTS_DIR)
-    crts.create_ca_signed_cert("test")
-
     if isinstance(opts, dict):
         opts = type('Options', (), opts)()
         # vip_address is meant to be a list so make it so.
@@ -580,10 +577,10 @@ def start_volttron_process(opts):
     opts.vip_local_address = config.expandall(opts.vip_local_address)
     opts.message_bus = config.expandall(opts.message_bus)
     os.environ['MESSAGEBUS'] = opts.message_bus
-    store_message_bus_config(opts.message_bus)
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
+    store_message_bus_config(opts.message_bus, opts.instance_name)
     import urlparse
 
     if opts.bind_web_address:

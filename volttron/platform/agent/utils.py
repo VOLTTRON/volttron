@@ -173,15 +173,18 @@ def get_messagebus():
     return message_bus
 
 
-def store_message_bus_config(message_bus='rmq'):
+def store_message_bus_config(message_bus='rmq', instance_name='volttron1'):
     # If there is no config file or home directory yet, create volttron_home
     # and config file
+    if not instance_name:
+        instance_name = "volttron1"
     v_home= get_home()
     config_path = os.path.join(v_home, "config")
     if os.path.exists(config_path):
         config = ConfigParser()
         config.read(config_path)
         config.set('volttron', 'message-bus', message_bus)
+        config.set('volttron','instance-name', instance_name)
         with open(config_path, 'w') as configfile:
             config.write(configfile)
     else:
@@ -190,7 +193,8 @@ def store_message_bus_config(message_bus='rmq'):
         with open(os.path.join(v_home, "config"), 'w') as f:
             _log.info("rmq config is at {}".format(f.name))
             f.write("[volttron]\n")
-            f.write("message-bus="+message_bus)
+            f.write("message-bus={}\n".format(message_bus))
+            f.write("instance-name="+instance_name)
 
 
 def update_kwargs_with_config(kwargs, config):
