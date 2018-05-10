@@ -321,16 +321,18 @@ class PlatformWrapper:
         # Automatically add agent's credentials to auth.json file
         if publickey:
             self.logit('Adding publickey to auth.json')
-            gevent.spawn(self._append_allow_curve_key, publickey)
-            gevent.sleep(0.1)
+            self._append_allow_curve_key(publickey)
+            # gevent.spawn(self._append_allow_curve_key, publickey)
+            # gevent.sleep(0.1)
 
         if should_spawn:
             self.logit('platformwrapper.build_agent spawning')
             event = gevent.event.Event()
             gevent.spawn(agent.core.run, event)  # .join(0)
             event.wait(timeout=2)
-
-            hello = agent.vip.hello().get(timeout=.5)
+            gevent.sleep(0.5)
+            #hello = agent.vip.hello().get(timeout=.5)
+            hello = agent.vip.hello().get(timeout=0.5)
             self.logit('Got hello response {}'.format(hello))
         agent.publickey = publickey
         return agent
@@ -471,6 +473,7 @@ class PlatformWrapper:
         if instance_name:
             parser.set('volttron', 'instance-name',
                        instance_name)
+
         if self.mode == UNRESTRICTED:
             with open(pconfig, 'wb') as cfg:
                 parser.write(cfg)
@@ -800,7 +803,7 @@ class PlatformWrapper:
 
     def list_agents(self):
         agent = self.build_agent()
-        print('PEER LIST: {}'.format(agent.vip.peerlist().get(timeout=10)))
+        #print('PEER LIST: {}'.format(agent.vip.peerlist().get(timeout=10)))
         agent_list = agent.vip.rpc('control', 'list_agents').get(timeout=10)
         agent.core.stop(timeout=3)
         return agent_list
@@ -955,7 +958,7 @@ class PlatformWrapper:
             pid = self.agent_pid(agnt['uuid'])
             if pid is not None and int(pid) > 0:
                 running_pids.append(int(pid))
-
+        gevent.sleep(0.05)
         # First try and nicely shutdown the platform, which should clean all
         # of the agents up automatically.
         cmd = ['volttron-ctl']

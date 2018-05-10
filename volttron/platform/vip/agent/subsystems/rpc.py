@@ -406,7 +406,7 @@ class RPC(SubsystemBase):
 
         return result
 
-    #__call__ = call
+    __call__ = call
 
     def notify(self, peer, method, *args, **kwargs):
         platform = kwargs.pop('external_platform', '')
