@@ -24,4 +24,4 @@ ws4py==0.3.5
 zope.interface==4.3.2
 modbus-tk==0.5.8
 PyYAML==3.12
-
+-e git+https://github.com/shwethanidd/pika.git@gevent_connection_adapter#egg=pika
