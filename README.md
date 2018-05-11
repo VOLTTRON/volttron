@@ -60,12 +60,6 @@ sudo rabbitmq-plugins enable rabbitmq_federation_management
 sudo rabbitmq-plugins enable rabbitmq_shovel
 ```
 
-Download pika library from pika git repository into your home directory.
-```sh
-cd ~
-git clone -b gevent_connection_adapter https://github.com/shwethanidd/pika.git
-```
-
 Download VOLTTRON code from experimental branch
 ```sh
 git clone -b rabbitmq-volttron https://github.com/VOLTTRON/volttron.git
@@ -166,17 +160,25 @@ subcommands:
     list-bindings       list all bindings with exchange
     list-federation-parameters
                         list all federation parameters
-    list-connections    list open connections
+    list-shovel-parameters
+                        list all shovel parameters
+    list-policies       list all policies
     remove-vhosts       Remove virtual host/s
     remove-users        Remove virtual user/s
     remove-exchanges    Remove exchange/s
     remove-queues       Remove queue/s
+    remove-federation-parameters
+                        Remove federation parameter
+    remove-shovel-parameters
+                        Remove shovel parameter
+    remove-policies     Remove policy
+
 ```
 
 ## Multi-Platform Deployment With RabbitMQ Message bus
 We can configure multi-platform VOLTTRON setup with RabbitMQ message bus using built-in "federation" feature provided by RabbitMQ. The
 first step to do so would be to identify upstream servers (publisher nodes) and downstream servers (collector nodes).
-To create a RabbitMQ federation, we have to configure upstream servers and make the VOLTTRON exchange "federated".
+To create a RabbitMQ federation, we have to configure upstream servers on the downstream server and make the VOLTTRON exchange "federated".
 
 On the downstream server (collector node),
 
@@ -184,14 +186,12 @@ On the downstream server (collector node),
 python volttron/utils/rmq_mgmt.py federation
 ```
 
-We need to provide the hostname (or IP address) and port of the upstream nodes when prompted. For bi-directional data flow, we will have to run the same script on both the nodes.
+Please provide the hostname (or IP address) and port of the upstream nodes when prompted. For bi-directional data flow, we will have to run the same script on both the nodes.
 
 ## Next Steps
-We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we
- are working towards completing the below:
+We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we are working towards completing the below:
 * Adding authentication and authorization feature to RabbitMQ message bus.
 * Authenticated connection amongst multiple platform instances.
-* Creation of Each agent has to have a unique RabbitMQ user id.
 * Testing of RabbitMQ shovel for multi-platform over NAT setup
 
 ## Acquiring Third Party Agent Code
