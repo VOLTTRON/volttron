@@ -73,11 +73,6 @@ This will build the platform and create a virtual Python environment. Activate t
 . env/bin/activate
 ```
 
-Install pika library inside VOLTTRON environment:
-```sh
-pip install -e ~/pika
-```
-
 Create RabbitMQ setup for VOLTTRON :
 ```sh
 python volttron/utils/rmq_mgmt.py single
