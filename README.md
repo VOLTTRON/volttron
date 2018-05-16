@@ -94,7 +94,7 @@ sudo yum install rabbitmq-server-3.7.4-1.el7.noarch.rpm
 
 Start rabbitmq-server
 ```sh
-sudo rabbitmq-server start &
+sudo service rabbitmq-server start
 ```
 Note: If you are running in a virtual machine, please make sure that your hostname is
 correctly configured in /etc/hosts. See (https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho)
@@ -120,10 +120,11 @@ git clone -b gevent_connection_adapter https://github.com/shwethanidd/pika.git
 ```sh
 git clone -b rabbitmq-volttron https://github.com/VOLTTRON/volttron.git
 cd volttron
-python bootstrap.py
+python bootstrap.py --rabbitmq
 ```
 
-This will build the platform and create a virtual Python environment. Activate the environment :
+This will build the platform and create a virtual Python environment. It will
+also install the dependencies for rabbimq.  Activate the environment :
 
 ```sh
 . env/bin/activate
@@ -139,23 +140,44 @@ pip install -e ~/pika
 python volttron/utils/rmq_mgmt.py single
 ```
 
-This creates a new virtual host “volttron” and a new administrative user "volttron". It then creates the main VIP
-exchange named "volttron" to route message between platform and agents and alternate exchange to capture unrouteable
+This creates a new virtual host “volttron” and creates a new self signed CA
+certificate, a server certificate and a volttron user and corresponding client
+certificate. These certificates get created under the sub directory
+certificates in your volttron home. Rabbitmq user should have read access to
+files under $VOLTTRON_HOME/certificates/certs and
+$VOLTTRON_HOME/certificates/private folder.
+It then creates the main VIP exchange named "volttron" to route message between
+platform and agents and alternate exchange to capture unrouteable
 messages.
 
-We need to set the VOLTTRON instance name and type of message bus in the configuration file located in $VOLTTRON_HOME/config.
-Message bus type has to be either "rmq" or "zmq".
+**6. Update RabbitMQ configuration file and restart RabbitMQ server**
 
-Edit your VOLTTRON config file to match the file below:
+Create/Update RabbitMQ configuration file. By default it is called rabbitmq.conf
+The location of this file is distribution specific. Please see
+(https://www.rabbitmq.com/configure.html#config-location). Add the following
+content to rabbitmq.conf (Replace $VOLTTRON_HOME with actual path)
+
+```
+listeners.ssl.default = 5671
+ssl_options.cacertfile = $VOLTTRON_HOME/certificates/certs/volttron-ca.crt
+ssl_options.certfile = $VOLTTRON_HOME/certificates/certs/volttron-server.crt
+ssl_options.keyfile = $VOLTTRON_HOME/certificates/private/volttron-server.pem
+ssl_options.verify = verify_peer
+ssl_options.fail_if_no_peer_cert = true
+auth_mechanisms.1 = EXTERNAL
+ssl_cert_login_from = common_name
+ssl_options.versions.1 = tlsv1.2
+ssl_options.versions.2 = tlsv1.1
+ssl_options.versions.3 = tlsv1
+```
+restart rabbitmq-server
+
 ```sh
-[volttron]
-message-bus = rmq
-vip-address = tcp://127.0.0.1:22916
-instance-name = volttron1
+sudo service rabbitmq-server stop
+sudo service rabbitmq-server start
 ```
 
-
-**6. Test**
+**7. Test**
 
 
 We are now ready to start VOLTTRON with RabbitMQ message bus. If we need to revert back to ZeroMQ based VOLTTRON, we
