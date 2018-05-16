@@ -1,13 +1,15 @@
-import os
-import pika
-import logging
-import json
-from volttron.platform.vip.socket import Message
 import errno
-#from gevent import monkey
-from volttron.utils.rmq_mgmt import build_rmq_address, create_user
+import json
+import logging
+import os
+
+import pika
+
+from volttron.platform.vip.socket import Message
+# from gevent import monkey
+from volttron.utils.rmq_mgmt import build_rmq_address, build_connection_param
+
 #monkey.patch_socket()
-import uuid
 
 _log = logging.getLogger(__name__)
 # reduce pika log level
@@ -42,6 +44,7 @@ class RMQConnection(BaseConnection):
         # Create new agent user
         #create_user(self._userid, str(uuid.uuid4()))
         self._url = build_rmq_address()
+        self._connection_param = build_connection_param()
         _log.debug("AMQP address: {}".format(self._url))#'amqp://guest:guest@localhost:5672/%2F'
         self.routing_key = "{0}.{1}".format(instance_name, identity)
         #self.routing_key = identity
@@ -58,16 +61,17 @@ class RMQConnection(BaseConnection):
 
     def open_connection(self, type='agent'):
         """
-        If the connection is for an agent, open a gevent adapter connection. If the connection
+        If the connection is for an agent, open a gevent adapter connection.
+        If the connection
         is for platform, open asynchronous connection.
         :param type: agent/platform
         :return:
         """
         if type == 'agent':
-            self._connection = pika.GeventConnection(pika.URLParameters(self._url),
-                                     self.on_connection_open)
+            self._connection = pika.GeventConnection(self._connection_param,
+                                                     self.on_connection_open)
         else:
-            self._connection = pika.SelectConnection(pika.URLParameters(self._url),
+            self._connection = pika.SelectConnection(self._connection_param,
                                      self.on_connection_open)
 
     def on_connection_open(self, unused_connection):

@@ -64,14 +64,14 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509.oid import NameOID
+from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
 from cryptography.x509.name import RelativeDistinguishedName
 from volttron.platform import get_home
 
 _log = logging.getLogger(__name__)
 
 ROOT_CA_NAME = 'volttron-ca'
-DEFAULT_ROOT_CA_CN = '{} volttron-ca'.format(gethostname())
+DEFAULT_ROOT_CA_CN = '{} {}'.format(gethostname(), ROOT_CA_NAME)
 KEY_SIZE = 1024
 ENC_STANDARD = 65537
 SHA_HASH = 'sha256'
@@ -160,6 +160,15 @@ def _mk_cacert(**kwargs):
             _create_fingerprint(key.public_key())),
         critical=False
     )
+    cert_builder = cert_builder.add_extension(
+        x509.KeyUsage(digital_signature=False, key_encipherment=False,
+                      content_commitment=False,
+                      data_encipherment=False, key_agreement=False,
+                      key_cert_sign=True,
+                      crl_sign=True,
+                      encipher_only=False, decipher_only=False
+                      ),
+        critical=True)
     # NOTE: M2Crypto code sets SubjectKeyIdentifier extension on
     # with cert.fingerprint() as the value. However can't do the exact same
     # thing in cryptography package as cert object is created only after I
@@ -314,7 +323,7 @@ class Certs(object):
         """
         return os.path.exists(self._cert_file(ROOT_CA_NAME))
 
-    def create_ca_signed_cert(self, name, **kwargs):
+    def create_ca_signed_cert(self, name, server=False, **kwargs):
         """
         Create a new certificate and sign it with the volttron instance's
         CA certificate. Save the created certificate and the private key of
@@ -347,7 +356,6 @@ class Certs(object):
             temp_list = ca_cert.subject.rdns
             new_attrs = []
             for i in temp_list:
-                print(i)
                 if i.get_attributes_for_oid(NameOID.COMMON_NAME):
                     new_attrs.append(RelativeDistinguishedName(
                         [x509.NameAttribute(NameOID.COMMON_NAME,
@@ -367,6 +375,31 @@ class Certs(object):
             # Our certificate will be valid for 365 days
             datetime.datetime.utcnow() + datetime.timedelta(days=365)
         ).serial_number(2)
+
+        cert_builder = cert_builder.add_extension(
+            x509.KeyUsage(digital_signature=True, key_encipherment=True,
+                          content_commitment=False,
+                          data_encipherment=False, key_agreement=False,
+                          key_cert_sign=False,
+                          crl_sign=False,
+                          encipher_only=False, decipher_only=False
+                          ),
+            critical=True)
+
+        if server:
+            # if server cert specify that the certificate can be used as an SSL
+            # server certificate
+            cert_builder = cert_builder.add_extension(
+                x509.ExtendedKeyUsage((ExtendedKeyUsageOID.SERVER_AUTH,)),
+                critical=False
+            )
+        else:
+            # specify that the certificate can be used as an SSL
+            # client certificate to enable TLS Web Client Authentication
+            cert_builder = cert_builder.add_extension(
+                x509.ExtendedKeyUsage((ExtendedKeyUsageOID.CLIENT_AUTH,)),
+                critical=False
+            )
         # 1. version is hardcoded to 2 in Cert builder object. same as what is
         # set by old certs.py
 
@@ -418,7 +451,7 @@ class Certs(object):
         cert = self.cert(cert_name)
         return cert.verify(cacert.get_pubkey())
 
-    def create_root_ca(self, name=ROOT_CA_NAME, **kwargs):
+    def create_root_ca(self, **kwargs):
         """
         Create a CA certificate with the given args and save it with the given
         name
@@ -437,4 +470,4 @@ class Certs(object):
             kwargs['CN'] = DEFAULT_ROOT_CA_CN
 
         cert, pk = _mk_cacert(**kwargs)
-        self._save_cert(name, cert, pk)
+        self._save_cert(ROOT_CA_NAME, cert, pk)

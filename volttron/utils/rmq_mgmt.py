@@ -57,9 +57,13 @@
 import argparse
 import logging
 import os
+import random
+import ssl
+import string
 from ConfigParser import ConfigParser
 
 import grequests
+import pika
 import requests
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
@@ -72,9 +76,12 @@ from volttron.platform.instance_setup import is_valid_port
 from volttron.utils.persistance import PersistentDict
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.platform.packaging import create_ca
+from volttron.platform import certs
+
 _log = logging.getLogger(__name__)
 
 config_opts = {}
+default_pass = "default_passwd"
 
 def http_put_request(url, body=None, user=None, password=None):
     user = user if user else get_user()
@@ -83,7 +90,8 @@ def http_put_request(url, body=None, user=None, password=None):
     try:
         headers = {"Content-Type": "application/json"}
         if body:
-            req = grequests.put(url, data=jsonapi.dumps(body), headers=headers, auth=(user, password))
+            req = grequests.put(url, data=jsonapi.dumps(body), headers=headers,
+                                auth=(user, password))
         else:
             req = grequests.put(url, headers=headers, auth=(user, password))
         response = grequests.map([req])
@@ -93,7 +101,8 @@ def http_put_request(url, body=None, user=None, password=None):
         print ("Connection to {} not available".format(url))
         response = None
     except requests.exceptions.HTTPError as e:
-        print("Exception when trying to make HTTP request to RabbitMQ {}".format(e))
+        print("Exception when trying to make HTTP request "
+              "to RabbitMQ {}".format(e))
         response = None
     return response
 
@@ -110,7 +119,8 @@ def http_delete_request(url, user=None, password=None):
     except (ConnectionError, NewConnectionError):
         print("Connection to {} not available".format(url))
     except requests.exceptions.HTTPError as e:
-        print("Exception when trying to make HTTP request to RabbitMQ {}".format(e))
+        print("Exception when trying to make HTTP request to"
+              " RabbitMQ {}".format(e))
     return response
 
 def http_get_request(url, user=None, password=None):
@@ -129,7 +139,8 @@ def http_get_request(url, user=None, password=None):
     except (ConnectionError, NewConnectionError):
         print("Connection to {} not available".format(url))
     except requests.exceptions.HTTPError as e:
-        print("Exception when trying to make HTTP request to RabbitMQ {}".format(e))
+        print("Exception when trying to make HTTP request to "
+              "RabbitMQ {}".format(e))
     return response
 
 def http_get_rrrrequest(url, user, password):
@@ -141,7 +152,8 @@ def http_get_rrrrequest(url, user, password):
     except (ConnectionError, NewConnectionError):
         print("Connection to {} not available".format(url))
     except requests.exceptions.HTTPError as e:
-        print("Exception when trying to make HTTP request to RabbitMQ {}".format(e))
+        print("Exception when trying to make HTTP "
+              "request to RabbitMQ {}".format(e))
     return response
 
 
@@ -190,7 +202,8 @@ def create_vhost(vhost='volttron'):
 def get_virtualhost(new_vhost, user=None, password=None):
     user = user if user else get_user()
     password = password if password else get_password()
-    url = 'http://{0}:{1}/api/vhosts/{2}'.format(get_hostname(), get_port(), new_vhost)
+    url = 'http://{0}:{1}/api/vhosts/{2}'.format(get_hostname(), get_port(),
+                                                 new_vhost)
     response = http_get_request(url, user, password)
     return response
 
@@ -204,7 +217,8 @@ def delete_vhost(vhost, user=None, password=None):
     """
     user = user if user else get_user()
     password = password if password else get_password()
-    url = 'http://{0}:{1}/api/vhosts/{2}'.format(get_hostname(), get_port(), vhost)
+    url = 'http://{0}:{1}/api/vhosts/{2}'.format(get_hostname(), get_port(),
+                                                 vhost)
     response = http_delete_request(url, user, password)
 
 def get_virtualhosts(user=None, password=None):
@@ -218,7 +232,7 @@ def get_virtualhosts(user=None, password=None):
     return vhosts
 
 #USER - CREATE, GET, DELETE user, SET/GET Permissions
-def create_user(user=None, password=None):
+def create_user(user=None, password=default_pass):
     """
     Create a new RabbitMQ user
     :param user: username
@@ -236,7 +250,8 @@ def get_user_props(user):
     :param user: username
     :return:
     """
-    url = 'http://{0}:{1}/api/users/{2}'.format(get_hostname(), get_port(), user)
+    url = 'http://{0}:{1}/api/users/{2}'.format(get_hostname(), get_port(),
+                                                user)
     response = http_get_request(url)
     return response
 
@@ -246,7 +261,8 @@ def delete_user(user):
     :param user: user
     :return:
     """
-    url = 'http://{0}:{1}/api/users/{2}'.format(get_hostname(), get_port(), user)
+    url = 'http://{0}:{1}/api/users/{2}'.format(get_hostname(), get_port(),
+                                                user)
     response = http_delete_request(url)
 
 def get_user_permissions(user, password, vhost=None):
@@ -258,13 +274,16 @@ def get_user_permissions(user, password, vhost=None):
     :return:
     """
     vhost = vhost if vhost else get_vhost()
-    url = 'http://{0}:{1}/api/permissions/{2}/{3}'.format(get_hostname(), get_port(), vhost, user)
+    url = 'http://{0}:{1}/api/permissions/{2}/{3}'.format(get_hostname(),
+                                                          get_port(),
+                                                          vhost,
+                                                          user)
     response = http_get_request(url, )
     return response
 
 
 # {"configure":".*","write":".*","read":".*"}
-def set_user_permissions(permissions, user, password, vhost=None):
+def set_user_permissions(permissions, user, password=default_pass, vhost=None):
     """
     Set permissions for the user
     :param permissions: dict containing configure, read and write settings
@@ -274,9 +293,15 @@ def set_user_permissions(permissions, user, password, vhost=None):
     :return:
     """
     vhost = vhost if vhost else get_vhost()
-    print "Create READ, WRITE and CONFIGURE permissions for the user: {}".format(user)
-    url = 'http://{0}:{1}/api/permissions/{2}/{3}'.format(get_hostname(), get_port(), vhost, user)
-    response = http_put_request(url, body=permissions, user=user, password=password)
+    print "Create READ, WRITE and CONFIGURE permissions for the user: " \
+          "{}".format(user)
+    url = 'http://{0}:{1}/api/permissions/{2}/{3}'.format(get_hostname(),
+                                                          get_port(),
+                                                          vhost,
+                                                          user)
+    response = http_put_request(url, body=permissions, user=user,
+                                password=password)
+
 
 # SET permissions on topic
 def set_topic_permissions(permissions, user, password, vhost=None):
@@ -650,7 +675,6 @@ def create_rabbitmq_setup():
     """
     Create a RabbitMQ setup for VOLTTRON
      - Creates a new virtual host: “volttron”
-     - Creates a new admin user: “volttron”
      - Creates a new topic exchange: “volttron” and
       alternate exchange “undeliverable” to capture unrouteable messages
 
@@ -665,8 +689,6 @@ def create_rabbitmq_setup():
 
     # Create a new "volttron" vhost
     create_vhost(vhost)
-    # Create a new "volttron" user within this vhost
-    create_user(user, password)
     # Set permissions (Configure, read, write) for the user
     permissions = dict(configure=".*", read=".*", write=".*")
     set_user_permissions(permissions, user, password, vhost)
@@ -728,7 +750,6 @@ def is_valid_port(port):
 
     return port == 5672 or port == 5671
 
-
 def _get_vhost_user_address():
     global config_opts
     _load_rmq_config()
@@ -740,50 +761,73 @@ def _get_vhost_user_address():
     config_opts.async_sync()
     # Get username
     user = config_opts.get('user', 'volttron')
-    pwd = config_opts.get('pass', 'volttron')
 
     prompt = 'What is the username for RabbitMQ VOLTTRON instance?'
     new_user = prompt_response(prompt, default=user)
     config_opts['user'] = new_user
     config_opts.async_sync()
 
-    prompt = 'What is password?'
-    new_pwd = prompt_response(prompt, default=pwd)
-    config_opts['pass'] = new_pwd
+    config_opts['pass'] = ""
     config_opts.async_sync()
 
     # Check if host and port is already available
     host = config_opts.get('host', 'localhost')
-    port = config_opts.get('port', 5672)
+    port = config_opts.get('port', 5671)
 
     prompt = 'What is the hostname of system?'
     new_host = prompt_response(prompt, default=host)
-    prompt = 'What is the instance port for the RabbitMQ address?'
-    valid_port = False
-    while not valid_port:
-        port = prompt_response(prompt, default=port)
-        valid_port = is_valid_port(port)
-        if not valid_port:
-            print("Port is not valid")
+    # TODO - How to configure port other than 5671 for ssl - validate should
+    # check if port is not 5672.
+    # prompt = 'What is the instance port for the RabbitMQ address?'
+    # valid_port = False
+    # while not valid_port:
+    #     port = prompt_response(prompt, default=port)
+    #     valid_port = is_valid_port(port)
+    #     if not valid_port:
+    #         print("Port is not valid")
     config_opts['host'] = new_host
     config_opts['port'] = str(port)
-    config_opts['rmq-address'] = build_rmq_address(new_user, new_pwd)
+    config_opts['rmq-address'] = build_rmq_address()
     config_opts.async_sync()
     #print config_opts
 
-
-def build_rmq_address(user=None, pwd=None):
+def build_connection_param():
     global config_opts
     if not config_opts:
         _load_rmq_config()
-    user = user if user else get_user()
-    pwd = pwd if pwd else get_password()
+
+    # ssl_options = {"ca_certs": "/home/velo/.volttron_r/certificates/certs"
+    #                            "/volttron-ca.crt",
+    #                "ssl_version": ssl.PROTOCOL_TLSv1}
+    ssl_options = dict(
+                        ssl_version=ssl.PROTOCOL_TLSv1_2,
+                        ca_certs=os.path.join(certs.DEFAULT_CERTS_DIR,
+                                              "certs",
+                                              certs.ROOT_CA_NAME+".crt"),
+                        keyfile=os.path.join(certs.DEFAULT_CERTS_DIR,
+                                             "private",
+                                             config_opts['user']+".pem"),
+                        certfile=os.path.join(certs.DEFAULT_CERTS_DIR,
+                                              "certs",
+                                              config_opts['user']+".crt"),
+                        cert_reqs=ssl.CERT_REQUIRED)
+    conn_params = pika.ConnectionParameters(
+        host=config_opts['host'],
+        port=int(config_opts['port']),
+        virtual_host=config_opts['virtual-host'],
+        ssl=True,
+        ssl_options=ssl_options,
+        credentials=pika.credentials.ExternalCredentials())
+    return conn_params
+
+def build_rmq_address():
+    global config_opts
+    if not config_opts:
+        _load_rmq_config()
     try:
-        rmq_address = "amqp://{0}:{1}@{2}:{3}/{4}".format(user,
-                                                          pwd,
-                                                          config_opts['host'],
-                                                          config_opts['port'],
-                                                          config_opts['virtual-host'])
+        rmq_address = "amqp://{0}:{1}/{2}".format(config_opts['host'],
+                                                  config_opts['port'],
+                                                  config_opts['virtual-host'])
     except KeyError:
         print "Missing entries in rabbitmq config"
 
@@ -940,21 +984,20 @@ def wizard(type):
     platform_config = load_platform_config()
     try:
         instance_name = platform_config['instance-name'].strip('"')
-        print(instance_name)
+        print("Configuring volttron instance:{}".format(instance_name))
     except KeyError as exc:
         instance_name = prompt_response("Name of this volttron instance:",
                                     default="volttron1")
-
+    # Store config this is checked at startup
     store_message_bus_config(instance_name=instance_name)
-    print('\nChecking for CA certificate\n')
-    # create ca cert in default dir if it doesn't exists
-    create_ca(override=False)
+
 
     if type == 'single':
         # # Get vhost from the user
         _get_vhost_user_address()
+        create_certs()
         # Create local RabbitMQ setup
-        create_rabbitmq_setup()
+        #create_rabbitmq_setup()
     elif type == 'federation':
         # Create a federation setup
         federation_needed = _get_upstream_servers()
@@ -966,6 +1009,27 @@ def wizard(type):
             create_shovel_setup()
     else:
         print "Unknown option. Exiting...."
+
+
+def create_certs():
+    global config_opts
+    print('\nChecking for CA certificate\n')
+    # create ca cert in default dir if it doesn't exists
+    create_ca(override=False)
+    crts = certs.Certs()
+
+    server = "volttron-server"
+    crts.create_ca_signed_cert(server, server=True)
+    create_user(server)
+    permissions = dict(configure=".*", read=".*", write=".*")
+    set_user_permissions(permissions, server)
+
+    platform_user_name = config_opts['user']
+    crts.create_ca_signed_cert(platform_user_name)
+    create_user(platform_user_name)
+    permissions = dict(configure=".*", read=".*", write=".*")
+    set_user_permissions(permissions, platform_user_name)
+
 
 
 if __name__ == "__main__":
