@@ -64,7 +64,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
+from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID, ExtensionOID
 from cryptography.x509.name import RelativeDistinguishedName
 from volttron.platform import get_home
 
@@ -155,11 +155,12 @@ def _mk_cacert(**kwargs):
         # set CA to true
         x509.BasicConstraints(ca=True, path_length=0),
         critical=True
-    ).serial_number(1).add_extension(
-        x509.SubjectKeyIdentifier(
-            _create_fingerprint(key.public_key())),
-        critical=False
-    )
+    ).serial_number(1)
+    #     .add_extension(
+    #     x509.SubjectKeyIdentifier(
+    #         _create_fingerprint(key.public_key())),
+    #     critical=False
+    # )
     cert_builder = cert_builder.add_extension(
         x509.KeyUsage(digital_signature=False, key_encipherment=False,
                       content_commitment=False,
@@ -375,6 +376,12 @@ class Certs(object):
             # Our certificate will be valid for 365 days
             datetime.datetime.utcnow() + datetime.timedelta(days=365)
         ).serial_number(2)
+        #     .add_extension(
+        #     x509.AuthorityKeyIdentifier(
+        #         issuer.get_attributes_for_oid(
+        #             ExtensionOID.SUBJECT_KEY_IDENTIFIER)),
+        #     critical=False
+        # )
 
         cert_builder = cert_builder.add_extension(
             x509.KeyUsage(digital_signature=True, key_encipherment=True,
