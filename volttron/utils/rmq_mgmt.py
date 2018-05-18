@@ -185,9 +185,7 @@ def get_user():
     return config_opts['user']
 
 def get_password():
-    if not config_opts:
-        _load_rmq_config()
-    return config_opts['pass']
+    return default_pass
 
 def create_vhost(vhost='volttron'):
     """
@@ -684,15 +682,9 @@ def create_rabbitmq_setup():
     if not config_opts:
         _load_rmq_config()
     vhost = config_opts['virtual-host']
-    user= config_opts['user']
-    password = config_opts['pass']
 
     # Create a new "volttron" vhost
     create_vhost(vhost)
-    # Set permissions (Configure, read, write) for the user
-    permissions = dict(configure=".*", read=".*", write=".*")
-    set_user_permissions(permissions, user, password, vhost)
-    # we may need to restart RabbitMQ app
 
     exchange = 'volttron'
     alternate_exchange = 'undeliverable'
@@ -750,7 +742,7 @@ def is_valid_port(port):
 
     return port == 5672 or port == 5671
 
-def _get_vhost_user_address():
+def _get_vhost_user_address(instance_name):
     global config_opts
     _load_rmq_config()
     # Get vhost
@@ -760,15 +752,14 @@ def _get_vhost_user_address():
     config_opts['virtual-host'] = new_vhost
     config_opts.async_sync()
     # Get username
-    user = config_opts.get('user', 'volttron')
 
-    prompt = 'What is the username for RabbitMQ VOLTTRON instance?'
-    new_user = prompt_response(prompt, default=user)
-    config_opts['user'] = new_user
+    # prompt = 'What is the username for RabbitMQ VOLTTRON instance?'
+    # new_user = prompt_response(prompt, default=user)
+    config_opts['user'] = instance_name
     config_opts.async_sync()
-
-    config_opts['pass'] = ""
-    config_opts.async_sync()
+    #
+    # config_opts['pass'] = ""
+    # config_opts.async_sync()
 
     # Check if host and port is already available
     host = config_opts.get('host', 'localhost')
@@ -935,10 +926,9 @@ def create_shovel_setup():
     if not config_opts:
         _load_rmq_config()
         return
-    platform_config = load_platform_config()
     try:
+        platform_config = load_platform_config()
         instance_name = platform_config['instance-name'].strip('"')
-        print(instance_name)
     except KeyError as exc:
         print("Unknown instance name. Please set instance-name in VOLTTRON_HOME/config")
         return
@@ -994,10 +984,10 @@ def wizard(type):
 
     if type == 'single':
         # # Get vhost from the user
-        _get_vhost_user_address()
-        create_certs()
+        _get_vhost_user_address(instance_name)
         # Create local RabbitMQ setup
-        #create_rabbitmq_setup()
+        create_certs(instance_name)
+        create_rabbitmq_setup()
     elif type == 'federation':
         # Create a federation setup
         federation_needed = _get_upstream_servers()
@@ -1011,7 +1001,7 @@ def wizard(type):
         print "Unknown option. Exiting...."
 
 
-def create_certs():
+def create_certs(instance_name):
     global config_opts
     print('\nChecking for CA certificate\n')
     # create ca cert in default dir if it doesn't exists
@@ -1024,13 +1014,10 @@ def create_certs():
     permissions = dict(configure=".*", read=".*", write=".*")
     set_user_permissions(permissions, server)
 
-    platform_user_name = config_opts['user']
-    crts.create_ca_signed_cert(platform_user_name)
-    create_user(platform_user_name)
+    crts.create_ca_signed_cert(instance_name, server=False)
+    create_user(instance_name)
     permissions = dict(configure=".*", read=".*", write=".*")
-    set_user_permissions(permissions, platform_user_name)
-
-
+    set_user_permissions(permissions, instance_name)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)

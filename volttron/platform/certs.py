@@ -155,12 +155,11 @@ def _mk_cacert(**kwargs):
         # set CA to true
         x509.BasicConstraints(ca=True, path_length=0),
         critical=True
-    ).serial_number(1)
-    #     .add_extension(
-    #     x509.SubjectKeyIdentifier(
-    #         _create_fingerprint(key.public_key())),
-    #     critical=False
-    # )
+    ).serial_number(1).add_extension(
+        x509.SubjectKeyIdentifier(
+            _create_fingerprint(key.public_key())),
+        critical=False
+    )
     cert_builder = cert_builder.add_extension(
         x509.KeyUsage(digital_signature=False, key_encipherment=False,
                       content_commitment=False,
@@ -345,6 +344,8 @@ class Certs(object):
         ca_cert = self.cert(ROOT_CA_NAME)
 
         issuer = ca_cert.subject
+        ski = ca_cert.extensions.get_extension_for_class(
+            x509.SubjectKeyIdentifier)
 
         key = rsa.generate_private_key(
             public_exponent=65537,
@@ -375,13 +376,10 @@ class Certs(object):
         ).not_valid_after(
             # Our certificate will be valid for 365 days
             datetime.datetime.utcnow() + datetime.timedelta(days=365)
-        ).serial_number(2)
-        #     .add_extension(
-        #     x509.AuthorityKeyIdentifier(
-        #         issuer.get_attributes_for_oid(
-        #             ExtensionOID.SUBJECT_KEY_IDENTIFIER)),
-        #     critical=False
-        # )
+        ).serial_number(2).add_extension(
+            x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(ski),
+            critical=False
+        )
 
         cert_builder = cert_builder.add_extension(
             x509.KeyUsage(digital_signature=True, key_encipherment=True,
