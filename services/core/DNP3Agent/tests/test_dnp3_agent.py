@@ -37,7 +37,12 @@ from multiprocessing import Manager, Process
 import pytest
 import time
 
-from pydnp3 import asiodnp3, asiopal, opendnp3, openpal
+try:
+    from pydnp3 import asiodnp3, asiopal, opendnp3, openpal
+except ImportError as exc:
+    # The pydnp3 library must be loaded for these tests to pass.
+    # They're currently marked skip, though, so this import needs to work only if the tests are re-enabled later.
+    pass
 
 from volttron.platform import get_services_core
 
