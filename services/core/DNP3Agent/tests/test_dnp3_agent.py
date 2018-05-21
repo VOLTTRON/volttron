@@ -125,6 +125,8 @@ def run_master():
     time.sleep(1000)
 
 
+# Skip these tests for now -- they rely on an installed pydnp3 library that's not available to Travis.
+@pytest.mark.skip()
 class TestDNP3Agent:
     """Regression tests for the DNP3 Agent."""
 
