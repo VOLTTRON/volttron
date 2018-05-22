@@ -39,6 +39,7 @@ import time
 
 try:
     from pydnp3 import asiodnp3, asiopal, opendnp3, openpal
+    FILTERS = opendnp3.levels.NORMAL | opendnp3.levels.ALL_COMMS
 except ImportError as exc:
     # The pydnp3 library must be loaded for these tests to pass.
     # They're currently marked skip, though, so this import needs to work only if the tests are re-enabled later.
@@ -46,7 +47,7 @@ except ImportError as exc:
 
 from volttron.platform import get_services_core
 
-FILTERS = opendnp3.levels.NORMAL | opendnp3.levels.ALL_COMMS
+
 HOST = "127.0.0.1"
 LOCAL = "0.0.0.0"
 PORT = 20000
