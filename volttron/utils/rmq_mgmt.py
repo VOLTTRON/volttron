@@ -866,13 +866,15 @@ def _get_upstream_servers():
             prompt = 'Hostname of the upstream server: '
             host = prompt_response(prompt, default='localhost')
             prompt = 'Port of the upstream server: '
-            port = prompt_response(prompt, default=5672)
+            port = prompt_response(prompt, default=5671)
             prompt = 'Virtual host of the upstream server: '
             vhost = prompt_response(prompt, default='volttron')
-            prompt = 'Username of the upstream server: '
-            user = prompt_response(prompt, default='volttron')
-            prompt = 'Password of the upstream server: '
-            pwd = prompt_response(prompt, default='volttron')
+            # prompt = 'Username of the upstream server: '
+            # user = prompt_response(prompt, default='volttron')
+            # prompt = 'Password of the upstream server: '
+            # pwd = prompt_response(prompt, default='volttron')
+            prompt = 'Instance name of upstream server: '
+            inst = prompt_response(prompt)
             address = "amqp://{0}:{1}@{2}:{3}/{4}".format(user, pwd, host, port, vhost)
             federation.append(dict(upstream_name=name, upstream_address=address))
         config_opts['federation'] = federation
@@ -908,10 +910,12 @@ def _get_shovel_settings():
             port = prompt_response(prompt, default=5672)
             prompt = 'Virtual host of the destination server: '
             vhost = prompt_response(prompt, default='volttron')
-            prompt = 'Username of the destination server: '
-            user = prompt_response(prompt, default='volttron')
-            prompt = 'Password of the destination server: '
-            pwd = prompt_response(prompt, default='volttron')
+            # prompt = 'Username of the destination server: '
+            # user = prompt_response(prompt, default='volttron')
+            # prompt = 'Password of the destination server: '
+            # pwd = prompt_response(prompt, default='volttron')
+            prompt = 'Instance name of upstream server: '
+            inst = prompt_response(prompt)
             address = "amqp://{0}:{1}@{2}:{3}/{4}".format(user, pwd, host, port, vhost)
             prompt = 'List of pubsub topics to publish to remote instance (comma seperated)'
             topics = prompt_response(prompt, default="")
@@ -1007,14 +1011,16 @@ def create_certs(instance_name):
     # create ca cert in default dir if it doesn't exists
     create_ca(override=False)
     crts = certs.Certs()
-
+    instance_ca = instance_name+'-ca'
+    crts.create_ca_signed_cert(instance_ca, type='CA')
     server = "volttron-server"
-    crts.create_ca_signed_cert(server, server=True)
+    crts.create_ca_signed_cert(server, type='server', ca_name=instance_ca)
     create_user(server)
     permissions = dict(configure=".*", read=".*", write=".*")
     set_user_permissions(permissions, server)
 
-    crts.create_ca_signed_cert(instance_name, server=False)
+    crts.create_ca_signed_cert(instance_name, type='client',
+                               ca_name=instance_ca)
     create_user(instance_name)
     permissions = dict(configure=".*", read=".*", write=".*")
     set_user_permissions(permissions, instance_name)

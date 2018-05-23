@@ -153,7 +153,7 @@ def _mk_cacert(**kwargs):
         datetime.datetime.utcnow() + datetime.timedelta(days=DEFAULT_DAYS)
     ).add_extension(
         # set CA to true
-        x509.BasicConstraints(ca=True, path_length=0),
+        x509.BasicConstraints(ca=True, path_length=1),
         critical=True
     ).serial_number(1).add_extension(
         x509.SubjectKeyIdentifier(
@@ -323,7 +323,8 @@ class Certs(object):
         """
         return os.path.exists(self._cert_file(ROOT_CA_NAME))
 
-    def create_ca_signed_cert(self, name, server=False, **kwargs):
+    def create_ca_signed_cert(self, name, type='client',
+                              ca_name=ROOT_CA_NAME, **kwargs):
         """
         Create a new certificate and sign it with the volttron instance's
         CA certificate. Save the created certificate and the private key of
@@ -341,7 +342,7 @@ class Certs(object):
              CN - Common Name
         :return: True if certificate creation was successful
         """
-        ca_cert = self.cert(ROOT_CA_NAME)
+        ca_cert = self.cert(ca_name)
 
         issuer = ca_cert.subject
         ski = ca_cert.extensions.get_extension_for_class(
@@ -391,18 +392,28 @@ class Certs(object):
                           ),
             critical=True)
 
-        if server:
+        if type == 'server':
             # if server cert specify that the certificate can be used as an SSL
             # server certificate
             cert_builder = cert_builder.add_extension(
                 x509.ExtendedKeyUsage((ExtendedKeyUsageOID.SERVER_AUTH,)),
                 critical=False
             )
-        else:
+        elif type == 'client':
             # specify that the certificate can be used as an SSL
             # client certificate to enable TLS Web Client Authentication
             cert_builder = cert_builder.add_extension(
                 x509.ExtendedKeyUsage((ExtendedKeyUsageOID.CLIENT_AUTH,)),
+                critical=False
+            )
+        elif type == 'CA':
+            # create a intermediate CA
+            cert_builder = cert_builder.add_extension(
+                x509.BasicConstraints(ca=True, path_length=0),
+                critical=True
+            ).add_extension(
+                x509.SubjectKeyIdentifier(
+                    _create_fingerprint(key.public_key())),
                 critical=False
             )
         # 1. version is hardcoded to 2 in Cert builder object. same as what is
