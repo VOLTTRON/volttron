@@ -366,6 +366,7 @@ class Certs(object):
                 else:
                     new_attrs.append(i)
             subject = x509.Name(new_attrs)
+
         cert_builder = x509.CertificateBuilder().subject_name(
             subject
         ).issuer_name(
@@ -381,16 +382,27 @@ class Certs(object):
             x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(ski),
             critical=False
         )
-
-        cert_builder = cert_builder.add_extension(
-            x509.KeyUsage(digital_signature=True, key_encipherment=True,
-                          content_commitment=False,
-                          data_encipherment=False, key_agreement=False,
-                          key_cert_sign=False,
-                          crl_sign=False,
-                          encipher_only=False, decipher_only=False
-                          ),
-            critical=True)
+        if type == 'CA':
+            # create a intermediate CA
+            cert_builder = cert_builder.add_extension(
+                x509.BasicConstraints(ca=True, path_length=0),
+                critical=True
+            ).add_extension(
+                x509.SubjectKeyIdentifier(
+                    _create_fingerprint(key.public_key())),
+                critical=False
+            )
+        else:
+            # if type is server or client.
+            cert_builder = cert_builder.add_extension(
+                x509.KeyUsage(digital_signature=True, key_encipherment=True,
+                              content_commitment=False,
+                              data_encipherment=False, key_agreement=False,
+                              key_cert_sign=False,
+                              crl_sign=False,
+                              encipher_only=False, decipher_only=False
+                              ),
+                critical=True)
 
         if type == 'server':
             # if server cert specify that the certificate can be used as an SSL
@@ -406,23 +418,14 @@ class Certs(object):
                 x509.ExtendedKeyUsage((ExtendedKeyUsageOID.CLIENT_AUTH,)),
                 critical=False
             )
-        elif type == 'CA':
-            # create a intermediate CA
-            cert_builder = cert_builder.add_extension(
-                x509.BasicConstraints(ca=True, path_length=0),
-                critical=True
-            ).add_extension(
-                x509.SubjectKeyIdentifier(
-                    _create_fingerprint(key.public_key())),
-                critical=False
-            )
+
         # 1. version is hardcoded to 2 in Cert builder object. same as what is
         # set by old certs.py
 
         # 2. No way to set comment. Using M2Crypto it was set using
         # cert.add_ext(X509.new_extension('nsComment', 'SSL sever'))
 
-        ca_key = _load_key(self._private_key_file(ROOT_CA_NAME))
+        ca_key = _load_key(self._private_key_file(ca_name))
         cert = cert_builder.sign(ca_key, hashes.SHA256(), default_backend())
         self._save_cert(name, cert, key)
         return True
