@@ -395,7 +395,7 @@ class PlatformWrapper:
                          volttron_central_serverkey=None,
                          msgdebug=False,
                          setupmode=False,
-                         instance_name='volttronxx'):
+                         instance_name=None):
 
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
@@ -426,7 +426,8 @@ class PlatformWrapper:
         if message_bus == 'rmq':
             self.logit("Setting up volttron test environemnt {}".format(self.volttron_home))
             create_rmq_volttrontest_setup(self.volttron_home)
-
+            if not instance_name:
+                self.instance_name = instance_name = 'volttron_test'
         if debug_mode:
             self.skip_cleanup = True
             enable_logging = True
