@@ -62,7 +62,7 @@ import os
 import pika
 import logging
 from .rmq_connection import RMQConnection
-from .socket import Message
+from .socket import Message, Address
 from ..main import __version__
 from volttron.platform.agent import json as jsonapi
 from .zmq_router import BaseRouter
@@ -81,7 +81,11 @@ class RMQRouter(BaseRouter):
     and unrouteable messages.
     """
 
-    def __init__(self, address, instance_name, identity='router', default_user_id=None):
+    def __init__(self, address, local_address, instance_name, addresses=(), identity='router', default_user_id=None,
+                 volttron_central_address=None,
+                 volttron_central_serverkey=None,
+                 bind_web_address=None
+                 ):
         """
         Initialize the object instance.
         :param instance_name: Name of VOLTTRON instance
@@ -90,7 +94,11 @@ class RMQRouter(BaseRouter):
         """
         self.default_user_id = default_user_id
         self._peers = set()
+        self.addresses = [Address(addr) for addr in set(addresses)]
         self._address = address
+        self._volttron_central_address = volttron_central_address
+        self._volttron_central_serverkey = volttron_central_serverkey
+        self._bind_web_address = bind_web_address
         self._instance_name = instance_name
         _log.debug("instance:{}".format(self._instance_name))
         self._identity = identity
@@ -130,17 +138,18 @@ class RMQRouter(BaseRouter):
         """
         self.start()
         try:
-            # for message in self.event_queue:
-            #     self.handle_system(message)
             self.connection.loop()
-        except (pika.exceptions.AMQPConnectionError, pika.exceptions.AMQPChannelError):
-            _log.debug("Unable to connect to the RabbitMQ broker")
         except KeyboardInterrupt:
             pass
+        except (pika.exceptions.AMQPConnectionError, pika.exceptions.AMQPChannelError) as exc:
+            _log.error("RabbitMQ Connection Error. {}".format(exc))
         finally:
             self.stop()
 
-    def callback(self):
+    def connection_open_callback(self):
+        _log.debug("Received connection callback")
+
+    def connection_close_callback(self):
         _log.debug("Received connection callback")
 
     def issue(self, topic, frames, extra=None):
@@ -149,9 +158,8 @@ class RMQRouter(BaseRouter):
     def _add_peer(self, peer):
         if peer in self._peers:
             return
-        self._distribute(b'peerlist', b'add', peer)
+        #self._distribute(b'peerlist', b'add', peer)
         self._peers.add(peer)
-        self._add_pubsub_peers(peer)
 
     def _drop_peer(self, peer):
         try:
@@ -159,7 +167,6 @@ class RMQRouter(BaseRouter):
         except KeyError:
             return
         #self._distribute(b'peerlist', b'drop', peer)
-        #self._drop_pubsub_peers(peer)
 
     def route(self, message):
         '''Route one message and return.
@@ -184,12 +191,13 @@ class RMQRouter(BaseRouter):
         # sender = props.app_id #source
         sender = message.peer #source
         subsystem = message.subsystem
-
+        self._add_peer(sender)
         if subsystem == b'hello':
             message.args = [b'welcome', b'1.0', self._identity, sender]
         elif subsystem == b'ping':
             message.args = [b'pong']
         elif subsystem == b'peerlist':
+
             try:
                 op = message.args[0]
             except IndexError:
@@ -197,7 +205,8 @@ class RMQRouter(BaseRouter):
             except ValueError:
                 op = None
             if op == b'list':
-                message.args.append(b'listing')
+                del message.args[:]
+                message.args = [b'listing']
                 message.args.extend(self._peers)
             else:
                 error = (b'unknown' if op else b'missing') + b' operation'

@@ -30,6 +30,7 @@ from volttron.platform.vip.agent.connection import Connection
 from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttron.platform.agent import json as jsonapi
+from volttron.utils.rmq_mgmt import create_rmq_volttrontest_setup
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -203,6 +204,7 @@ class PlatformWrapper:
         self.started_agent_pids = []
         self.local_vip_address = None
         self.vip_address = None
+        self.message_bus = os.environ.get('MESSAGE_BUS', 'zmq')
         self.logit('Creating platform wrapper')
 
         # This was used when we are testing the SMAP historian.
@@ -267,6 +269,8 @@ class PlatformWrapper:
 
         conn = Connection(address=address, peer=peer, publickey=publickey,
                           secretkey=secretkey, serverkey=serverkey,
+                          instance_name=self.instance_name,
+                          message_bus=self.message_bus,
                           volttron_home=self.volttron_home)
 
         return conn
@@ -310,11 +314,14 @@ class PlatformWrapper:
         if publickey and not serverkey:
             self.logit('using instance serverkey: {}'.format(self.publickey))
             serverkey = self.publickey
-
+        message_bus = os.environ.get('MESSAGE_BUS', 'zmq')
+        self.logit("BUILD agent VOLTTRON HOME: {}".format(self.volttron_home))
         agent = agent_class(address=address, identity=identity,
                             publickey=publickey, secretkey=secretkey,
                             serverkey=serverkey,
+                            instance_name=self.instance_name,
                             volttron_home=self.volttron_home,
+                            message_bus = message_bus,
                             **kwargs)
         self.logit('platformwrapper.build_agent.address: {}'.format(address))
 
@@ -388,7 +395,7 @@ class PlatformWrapper:
                          volttron_central_serverkey=None,
                          msgdebug=False,
                          setupmode=False,
-                         instance_name=''):
+                         instance_name='volttronxx'):
 
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
@@ -399,7 +406,7 @@ class PlatformWrapper:
         self.mode = mode
         self.volttron_central_address=volttron_central_address
         self.volttron_central_serverkey=volttron_central_serverkey
-
+        self.instance_name = instance_name
         self.bind_web_address = bind_web_address
         if self.bind_web_address:
             self.discovery_address = "{}/discovery/".format(
@@ -415,6 +422,11 @@ class PlatformWrapper:
         if not debug_mode:
             debug_mode = self.env.get('DEBUG', False)
         self.skip_cleanup = self.env.get('SKIP_CLEANUP', False)
+        message_bus = self.env.get('MESSAGE_BUS', 'zmq')
+        if message_bus == 'rmq':
+            self.logit("Setting up volttron test environemnt {}".format(self.volttron_home))
+            create_rmq_volttrontest_setup(self.volttron_home)
+
         if debug_mode:
             self.skip_cleanup = True
             enable_logging = True
@@ -473,7 +485,11 @@ class PlatformWrapper:
         if instance_name:
             parser.set('volttron', 'instance-name',
                        instance_name)
-
+        if message_bus:
+            parser.set('volttron', 'message-bus',
+                       message_bus)
+        self.logit(
+            "Platform will run on message bus type {} ".format(message_bus))
         if self.mode == UNRESTRICTED:
             with open(pconfig, 'wb') as cfg:
                 parser.write(cfg)
@@ -524,6 +540,7 @@ class PlatformWrapper:
             times += 1
             try:
                 has_control = agent.vip.peerlist().get(timeout=.2)
+                self.logit("Has control? {}".format(has_control))
             except gevent.Timeout:
                 pass
 

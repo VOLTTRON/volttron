@@ -253,7 +253,7 @@ class RMQPubSub(BasePubSub):
                 message = msg['message']
                 bus = msg['bus']
                 sender = msg['sender']
-                callback('pubsub', sender, bus, topic, headers, message)
+                self.core().spawn(callback, 'pubsub', sender, bus, topic, headers, message)
             except KeyError as esc:
                 self._logger.error("Missing keys in pubsub message {}".format(esc))
 

@@ -142,12 +142,14 @@ def http_get_rrrrequest(url, user, password):
     return response
 
 
-def _load_rmq_config():
+def _load_rmq_config(volttron_home=None):
     """Loads the config file if the path exists."""
     global config_opts
-    if not os.path.exists(get_home()):
-        os.makedirs(get_home())
-    config_file = os.path.join(get_home(), 'rabbitmq_config.json')
+    if not volttron_home:
+        volttron_home = get_home()
+    if not os.path.exists(volttron_home):
+        os.makedirs(volttron_home)
+    config_file = os.path.join(volttron_home, 'rabbitmq_config.json')
     config_opts = PersistentDict(filename=config_file, flag='c', format='json')
 
 def get_hostname():
@@ -976,6 +978,20 @@ def create_shovel_setup():
                       config_opts['pass'],
                       config_opts['virtual-host'])
 
+
+def create_rmq_volttrontest_setup(volttron_home):
+    global config_opts
+    _load_rmq_config(volttron_home)
+    print(config_opts)
+    # Set vhost, username, password, hostname and port
+    config_opts['virtual-host'] = 'volttron_test'
+    config_opts['user'] = 'volttron_test'
+    config_opts['pass'] = 'volttron_test'
+    config_opts['host'] = 'localhost'
+    config_opts['port'] = str(5672)
+    config_opts['rmq-address'] = build_rmq_address('volttron_test', 'volttron_test')
+    config_opts.async_sync()
+    create_rabbitmq_setup()
 
 def wizard(type):
     if type == 'single':

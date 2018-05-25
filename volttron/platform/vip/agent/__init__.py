@@ -82,7 +82,9 @@ class Agent(object):
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, enable_store=True,
                  enable_web=False, enable_channel=False,
-                 reconnect_interval=None, version='0.1', message_bus=None):
+                 reconnect_interval=None, version='0.1',
+                 instance_name=None, message_bus=None,
+                 volttron_central_address=None,volttron_central_instance_name=None):
 
         self._version = version
 
@@ -94,16 +96,22 @@ class Agent(object):
 
         #_log.debug("MESSAGE TYPE: {0}, IDENITY: {1}".format(message_bus, identity))
         if message_bus == 'rmq':
+            _log.debug("Creating RMQ Core {}".format(identity))
             self.core = RMQCore(self, identity=identity, address=address,
                          context=context, publickey=publickey,
                          secretkey=secretkey, serverkey=serverkey,
+                         instance_name=instance_name,
                          volttron_home=volttron_home, agent_uuid=agent_uuid,
                          reconnect_interval=reconnect_interval,
-                         version=version)
+                         version=version,
+                         volttron_central_address=volttron_central_address,
+                         volttron_central_instance_name=volttron_central_instance_name)
         else:
+            _log.debug("Creating ZMQ Core {}".format(identity))
             self.core = ZMQCore(self, identity=identity, address=address,
                                 context=context, publickey=publickey,
                                 secretkey=secretkey, serverkey=serverkey,
+                                instance_name=instance_name,
                                 volttron_home=volttron_home, agent_uuid=agent_uuid,
                                 reconnect_interval=reconnect_interval,
                                 version=version)

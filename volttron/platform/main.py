@@ -273,7 +273,7 @@ class Router(BaseRouter):
         if self._volttron_central_address:
             parsed = urlparse(self._volttron_central_address)
 
-            assert parsed.scheme in ('http', 'https', 'tcp'), \
+            assert parsed.scheme in ('http', 'https', 'tcp', 'amqp'), \
                 "volttron central address must begin with http(s) or tcp found"
             if parsed.scheme == 'tcp':
                 assert volttron_central_serverkey, \
@@ -590,7 +590,7 @@ def start_volttron_process(opts):
         opts.bind_web_address = config.expandall(opts.bind_web_address)
     if opts.volttron_central_address:
         parsed = urlparse.urlparse(opts.volttron_central_address)
-        if parsed.scheme not in ('http', 'https', 'tcp'):
+        if parsed.scheme not in ('http', 'https', 'tcp', 'amqp'):
             raise StandardError(
                 'volttron-central-address must begin with tcp, http or https.')
         opts.volttron_central_address = config.expandall(
@@ -696,7 +696,11 @@ def start_volttron_process(opts):
     # RMQ router
     def rmq_router(stop):
         try:
-            RMQRouter(opts.vip_address, opts.instance_name).run()
+            RMQRouter(opts.vip_address, opts.vip_local_address, opts.instance_name, opts.vip_address,
+                      volttron_central_address=opts.volttron_central_address,
+                      volttron_central_serverkey=opts.volttron_central_serverkey,
+                      bind_web_address=opts.bind_web_address
+                      ).run()
         except Exception:
             _log.exception('Unhandled exception in rmq router loop')
         except KeyboardInterrupt:
@@ -716,7 +720,6 @@ def start_volttron_process(opts):
 
         zmqrouter = None
         zmq_router_task = None
-        #messagebus = os.environ.get('MESSAGEBUS', 'zmq')
 
         _log.debug("********************************************************************")
         _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.message_bus))
