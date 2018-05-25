@@ -983,7 +983,7 @@ def wizard(type):
         instance_name = prompt_response("Name of this volttron instance:",
                                     default="volttron1")
     # Store config this is checked at startup
-    store_message_bus_config(instance_name=instance_name)
+    store_message_bus_config(message_bus='rmq', instance_name=instance_name)
 
 
     if type == 'single':

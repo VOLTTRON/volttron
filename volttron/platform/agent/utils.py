@@ -173,11 +173,17 @@ def get_messagebus():
     return message_bus
 
 
-def store_message_bus_config(message_bus='rmq', instance_name='volttron1'):
+def store_message_bus_config(message_bus, instance_name):
     # If there is no config file or home directory yet, create volttron_home
     # and config file
     if not instance_name:
-        instance_name = "volttron1"
+        raise ValueError("Instance name should be a valid string and should "
+                         "be unique within a network of volttron instances "
+                         "that communicate with each other. start volttron "
+                         "process with '--instance-name <your instance>' if "
+                         "you are running this instance for the first time. "
+                         "Or add instance-name = <instance name> in "
+                         "vhome/config")
     v_home= get_home()
     config_path = os.path.join(v_home, "config")
     if os.path.exists(config_path):
