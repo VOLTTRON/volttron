@@ -782,7 +782,7 @@ def _get_vhost_user_address(instance_name):
     config_opts.async_sync()
     #print config_opts
 
-def build_connection_param():
+def build_connection_param(instance_name):
     global config_opts
     if not config_opts:
         _load_rmq_config()
@@ -794,7 +794,7 @@ def build_connection_param():
                         ssl_version=ssl.PROTOCOL_TLSv1_2,
                         ca_certs=os.path.join(certs.DEFAULT_CERTS_DIR,
                                               "certs",
-                                              certs.ROOT_CA_NAME+".crt"),
+                                              instance_name+"-ca.crt"),
                         keyfile=os.path.join(certs.DEFAULT_CERTS_DIR,
                                              "private",
                                              config_opts['user']+".pem"),
@@ -1003,7 +1003,6 @@ def wizard(type):
             create_shovel_setup()
     else:
         print "Unknown option. Exiting...."
-
 
 def create_certs(instance_name):
     global config_opts

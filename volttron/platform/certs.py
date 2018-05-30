@@ -67,6 +67,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID, ExtensionOID
 from cryptography.x509.name import RelativeDistinguishedName
 from volttron.platform import get_home
+from volttron.platform.agent.utils import load_platform_config
 
 _log = logging.getLogger(__name__)
 
@@ -324,7 +325,7 @@ class Certs(object):
         return os.path.exists(self._cert_file(ROOT_CA_NAME))
 
     def create_ca_signed_cert(self, name, type='client',
-                              ca_name=ROOT_CA_NAME, **kwargs):
+                              ca_name=None, **kwargs):
         """
         Create a new certificate and sign it with the volttron instance's
         CA certificate. Save the created certificate and the private key of
@@ -342,6 +343,14 @@ class Certs(object):
              CN - Common Name
         :return: True if certificate creation was successful
         """
+        if not ca_name:
+            if type == 'CA':
+                ca_name = ROOT_CA_NAME
+            else:
+                platform_config = load_platform_config()
+                instance_name = platform_config['instance-name'].strip('"')
+                ca_name = instance_name + "-ca"
+
         ca_cert = self.cert(ca_name)
 
         issuer = ca_cert.subject
