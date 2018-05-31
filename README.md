@@ -5,7 +5,7 @@ Distributed Control System Platform.
 |Branch|Status|
 |:---:|---|
 |Master Branch| ![image](https://travis-ci.org/VOLTTRON/volttron.svg?branch=master)|
-|Releases 4.1| ![image](https://travis-ci.org/VOLTTRON/volttron.svg?branch=releases/4.1)|
+|Releases 5.0| ![image](https://travis-ci.org/VOLTTRON/volttron.svg?branch=releases/5.0)|
 |develop| ![image](https://travis-ci.org/VOLTTRON/volttron.svg?branch=develop)|
 
 VOLTTRONTM is an open source platform for distributed sensing and control. The platform provides services for collecting and storing data from buildings and devices and provides an environment for developing applications which interact with that data.
