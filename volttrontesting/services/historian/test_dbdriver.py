@@ -68,7 +68,7 @@ if HAVE_POSTGRESQL:
     try:
         with open('redshift.params') as file:
             redshift_params = ast.literal_eval(file.read(4096))
-    except OSError:
+    except (IOError, OSError):
         pass
 
 def random_uniform(a, b):
