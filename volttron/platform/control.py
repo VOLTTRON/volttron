@@ -334,6 +334,7 @@ class ControlService(BaseAgent):
 
         peer = bytes(self.vip.rpc.context.vip_message.peer)
         channel = self.vip.channel(peer, channel_name)
+
         try:
             tmpdir = tempfile.mkdtemp()
             path = os.path.join(tmpdir, os.path.basename(filename))
@@ -1376,7 +1377,7 @@ class ControlConnection(object):
                                  secretkey=secretkey, serverkey=serverkey,
                                  enable_store=False,
                                  identity=CONTROL_CONNECTION,
-                                 enable_channel=False)
+                                 enable_channel=True)
         self._greenlet = None
 
     @property
