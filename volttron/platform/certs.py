@@ -57,6 +57,7 @@ import copy
 import datetime
 import logging
 from socket import gethostname
+from shutil import copyfile
 
 import os
 from cryptography import x509
@@ -244,7 +245,7 @@ class Certs(object):
 
     """
 
-    def _cert_file(self, name):
+    def cert_file(self, name):
         """
         Returns path to the certificate with passed name. .crt extension is
         added to the passed name be
@@ -255,7 +256,7 @@ class Certs(object):
         """"""
         return '/'.join((self.cert_dir, name + '.crt'))
 
-    def _private_key_file(self, name):
+    def private_key_file(self, name):
         """
         return path to the private key of the passed name. Name passed should
         not contain any file extension as .pem is prefixed
@@ -304,10 +305,10 @@ class Certs(object):
         :return: The certificate object by the given name
         :rtype: :class: `x509._Certificate`
         """
-        if not os.path.exists(self._cert_file(name)):
+        if not os.path.exists(self.cert_file(name)):
             raise CertError("invalid certificate path {}".format(
-                self._cert_file(name)))
-        return _load_cert(self._cert_file(name))
+                self.cert_file(name)))
+        return _load_cert(self.cert_file(name))
 
     def cert_exists(self, cert_name):
         """
@@ -315,14 +316,32 @@ class Certs(object):
         :param cert_name: name of the cert to look up
         :return: True if cert exists, False otherwise
         """
-        return os.path.exists(self._cert_file(cert_name))
+        return os.path.exists(self.cert_file(cert_name))
 
     def ca_exists(self):
         """
         Returns true if the ca cert has been created already
         :return: True if CA cert exists, False otherwise
         """
-        return os.path.exists(self._cert_file(ROOT_CA_NAME))
+        return os.path.exists(self.cert_file(ROOT_CA_NAME))
+
+    def create_instance_ca(self, name):
+        self.create_ca_signed_cert(name, type='CA')
+        with open(self.cert_file(name), 'a') as destination:
+            with open(self.cert_file(ROOT_CA_NAME), 'rb') as source:
+                destination.write(os.linesep)
+                s = source.read()
+                destination.write(s)
+
+    def save_cert(self, file_path):
+        cert_file = self.cert_file(os.path.basename(file_path))
+        if file_path != cert_file:
+            copyfile(file_path, cert_file)
+
+    def save_key(self, file_path):
+        key_file = self.private_key_file(os.path.basename(file_path))
+        if file_path != key_file:
+            copyfile(file_path, key_file)
 
     def create_ca_signed_cert(self, name, type='client',
                               ca_name=None, **kwargs):
@@ -434,7 +453,7 @@ class Certs(object):
         # 2. No way to set comment. Using M2Crypto it was set using
         # cert.add_ext(X509.new_extension('nsComment', 'SSL sever'))
 
-        ca_key = _load_key(self._private_key_file(ca_name))
+        ca_key = _load_key(self.private_key_file(ca_name))
         cert = cert_builder.sign(ca_key, hashes.SHA256(), default_backend())
         self._save_cert(name, cert, key)
         return True
@@ -448,9 +467,9 @@ class Certs(object):
         :param pk:  :class: `
         :return:
         """
-        with open(self._cert_file(name), "wb") as f:
+        with open(self.cert_file(name), "wb") as f:
             f.write(cert.public_bytes(serialization.Encoding.PEM))
-        os.chmod(self._cert_file(name), 0o644)
+        os.chmod(self.cert_file(name), 0o644)
         encryption = serialization.NoEncryption()
         if PROMPT_PASSPHRASE:
             encryption = serialization.BestAvailableEncryption(
@@ -460,13 +479,13 @@ class Certs(object):
             )
 
         # Write our key to disk for safe keeping
-        with open(self._private_key_file(name), "wb") as f:
+        with open(self.private_key_file(name), "wb") as f:
             f.write(pk.private_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.TraditionalOpenSSL,
                 encryption_algorithm=encryption
             ))
-        os.chmod(self._private_key_file(name), 0o600)
+        os.chmod(self.private_key_file(name), 0o600)
 
     def verify_cert(self, cert_name):
         """

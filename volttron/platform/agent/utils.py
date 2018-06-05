@@ -54,6 +54,7 @@ import re
 import stat
 import time
 from volttron.platform import get_home, get_address
+from volttron.utils.prompt import prompt_response
 from dateutil.parser import parse
 from dateutil.tz import tzutc, tzoffset
 from tzlocal import get_localzone
@@ -163,6 +164,22 @@ def load_platform_config():
             config_opts[option] = parser.get('volttron', option)
     return config_opts
 
+
+def get_platform_instance_name(prompt=False):
+    # Next get instance name
+    platform_config = load_platform_config()
+    try:
+        instance_name = platform_config['instance-name'].strip('"')
+        print("Configuring volttron instance:{}".format(instance_name))
+    except KeyError as exc:
+        if prompt:
+            instance_name = prompt_response("Name of this volttron instance:",
+                                        default="volttron1")
+        else:
+            raise KeyError("No instance-name is configured in "
+                           "$VOLTTRON_HOME/config. Please set instance-name in "
+                           "$VOLTTRON_HOME/config")
+    return instance_name
 
 def get_messagebus():
     """Get type of message bus - zeromq or rabbbitmq."""
