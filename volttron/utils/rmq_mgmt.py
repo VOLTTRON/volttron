@@ -1156,7 +1156,8 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
 
     print("\n\n Please do the following to complete setup"
           "\n  1. Provide read access to rabbitmq "
-          "user to the private keys in VOLTTRON_HOME/certificates/private"
+          "user to the certificates and private key files in "
+          "VOLTTRON_HOME/certificates/"
           "\n  2. Move the rabbitmq.conf file"
           "in VOLTTRON_HOME directory into your rabbitmq configuration "
           "directory (/etc/rabbitmq in RPM/Debian systems) "

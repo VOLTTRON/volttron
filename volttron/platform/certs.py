@@ -334,14 +334,24 @@ class Certs(object):
                 destination.write(s)
 
     def save_cert(self, file_path):
-        cert_file = self.cert_file(os.path.basename(file_path))
+        cert_file = self.cert_file(os.path.splitext(os.path.basename(
+            file_path))[0])
+        directory = os.path.dirname(cert_file)
+        if not os.path.exists(directory):
+            os.makedirs(directory, mode=0750)
         if file_path != cert_file:
             copyfile(file_path, cert_file)
+        os.chmod(cert_file,0644)
 
     def save_key(self, file_path):
-        key_file = self.private_key_file(os.path.basename(file_path))
+        key_file = self.private_key_file(os.path.splitext(os.path.basename(
+            file_path))[0])
+        directory = os.path.dirname(key_file)
+        if not os.path.exists(directory):
+            os.makedirs(directory, mode=0750)
         if file_path != key_file:
             copyfile(file_path, key_file)
+            os.chmod(key_file, 0600)
 
     def create_ca_signed_cert(self, name, type='client',
                               ca_name=None, **kwargs):
