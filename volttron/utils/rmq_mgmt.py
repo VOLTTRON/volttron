@@ -85,15 +85,21 @@ volttron_rmq_config = os.path.join(get_home(), 'rabbitmq_config.json')
 
 def http_put_request(url, body=None, user=None, password=None):
     password = password if password else get_password()
-
+    user = user if user else get_user()
     try:
         headers = {"Content-Type": "application/json"}
         if body:
-            # TODO check if auth param needs to be removed if user is None
-            req = grequests.put(url, data=jsonapi.dumps(body), headers=headers,
-                                auth=(user, password))
+            if user == "guest":
+                req = grequests.put(url, data=jsonapi.dumps(body), headers=headers,
+                                    auth=(user, password))
+            else:
+                req = grequests.put(url, data=jsonapi.dumps(body),
+                                    headers=headers)
         else:
-            req = grequests.put(url, headers=headers, auth=(user, password))
+            if user == "guest":
+                req = grequests.put(url, headers=headers, auth=(user, password))
+            else:
+                req = grequests.put(url, headers=headers)
         response = grequests.map([req])
         #print response
         response[0].raise_for_status()
@@ -129,7 +135,7 @@ def http_get_request(url, user=None, password=None):
     response = None
     try:
         headers = {"Content-Type": "application/json"}
-        req = grequests.get(url, headers=headers, auth=(user, ""))
+        req = grequests.get(url, headers=headers)
         #req = grequests.get(url, headers=headers)
         response = grequests.map([req])
 
@@ -395,7 +401,7 @@ def get_parameter(component, user=None, password=None, vhost=None):
                             component=component,
                             vhost=vhost,
                             params=ssl_params)
-    response = http_get_request(url, user, password)
+    response = http_get_request(url)
     return response
 
 def set_parameter(component, parameter_name, parameter_properties,
@@ -415,11 +421,13 @@ def set_parameter(component, parameter_name, parameter_properties,
     # user = user if user else get_user()
     # password = password if password else get_password()
     vhost = vhost if vhost else get_vhost()
-    url = 'https://{0}:{1}/api/parameters/{2}/{3}/{4}'.format(get_hostname(),
-                                                              get_port(),
-                                                              component,
-                                                              vhost,
-                                                              parameter_name)
+    url = 'https://{host}:{port}/api/parameters/{component}/{vhost}/{param}' \
+          '?{ssl_params}'.format(host=get_hostname(),
+                        port=get_port(),
+                        component=component,
+                        vhost=vhost,
+                        param=parameter_name,
+                        ssl_params=get_ssl_url_params())
     response = http_put_request(url, body=parameter_properties)
 
 def delete_parameter(component, parameter_name,
@@ -784,7 +792,7 @@ def create_federation_setup():
         _load_rmq_config()
 
     federation = config_opts['federation']
-    parametrs = get_parameter('federation-upstream')
+    # parametrs = get_parameter('federation-upstream')
 
     for upstream in federation:
         name = upstream['upstream_name']
@@ -1075,7 +1083,7 @@ def create_shovel_setup():
 
 
 def wizard(type):
-
+    # TODO check if rabbitmq-server is running
     # First things first. Confirm VOLTTRON_HOME
     print('\nYour VOLTTRON_HOME currently set to: {}'.format(get_home()))
     prompt = '\nIs this the volttron instance you are attempting to ' \
@@ -1128,6 +1136,7 @@ ssl_options.certfile = {server_cert}
 ssl_options.keyfile = {server_key}
 ssl_options.verify = verify_peer
 ssl_options.fail_if_no_peer_cert = true
+ssl_options.depth = 1
 auth_mechanisms.1 = EXTERNAL
 ssl_cert_login_from = common_name
 ssl_options.versions.1 = tlsv1.2
