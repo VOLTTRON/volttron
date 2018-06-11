@@ -117,13 +117,14 @@ def get_authentication_args(ssl):
     :return: dictionary containing auth/cert args need to pass to
     request/grequest methods
     '''
-    global local_user, local_password, admin_user, admin_password, instance_name
+    global local_user, local_password, admin_user, admin_password, \
+        instance_name,config_opts
 
     if ssl:
         instance_ca, server_cert, client_cert = get_cert_names(instance_name)
-        admin_user = config_opts.get("user")
+        admin_user = get_user()
         if admin_password is None:
-            prompt = 'What is the password for user({}):'
+            prompt = 'What is the password for user({}):'.format(admin_user)
             admin_password = prompt_response(prompt)
         return {'auth': (admin_user, admin_password), 'verify': crts.cert_file(
             instance_ca),
@@ -814,7 +815,9 @@ def build_rmq_address(ssl=True):
             # Address format to connect to server-name, with SSL and EXTERNAL
             # authentication
             # amqps://server-name?cacertfile=/path/to/cacert.pem&certfile=/path/to/cert.pem&keyfile=/path/to/key.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external
-            rmq_address = "amqps://{host}:{port}/{vhost}?{ssl_params}".format(
+            rmq_address = "amqps://{user}@{host}:{port}/{vhost}?{" \
+                          "ssl_params}".format(
+                user=config_opts['user'],
                 host=config_opts['host'],
                 port=config_opts['amqp_port'],
                 vhost=config_opts['virtual-host'],
@@ -870,8 +873,8 @@ def _get_upstream_servers():
         vhost = prompt_response(prompt, default='volttron')
         prompt = 'Instance name of upstream server: '
         instance = prompt_response(prompt)
-        address = "amqps://{host}:{port}/{vhost}?" \
-                  "{ssl_params}".format(instance=instance,
+        address = "amqps://{user}@{host}:{port}/{vhost}?" \
+                  "{ssl_params}".format(user=instance,
             host=host, port=port, vhost=vhost, ssl_params=ssl_params)
         federation[name] = address
     config_opts['federation'] = federation
@@ -991,11 +994,13 @@ def wizard(type):
         setup_for_ssl_auth(instance_name)
 
     elif type == 'federation':
+        _load_rmq_config()
         # Create a federation setup
         federation_needed = _get_upstream_servers()
         if federation_needed:
             create_federation_setup()
     elif type == 'shovel':
+        _load_rmq_config()
         shovel_needed = _get_shovel_settings()
         if shovel_needed:
             create_shovel_setup()
