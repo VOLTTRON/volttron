@@ -138,7 +138,7 @@ def http_put_request(url_suffix, body=None, ssl=True):
     if body:
         return call_grequest('put', url_suffix, ssl, data=jsonapi.dumps(body))
     else:
-        return call_grequest('put', url_suffix)
+        return call_grequest('put', url_suffix, ssl)
 
 def http_delete_request(url, ssl=True):
     return call_grequest('delete',url, ssl)
@@ -661,7 +661,7 @@ def init_rabbitmq_setup():
     vhost = config_opts['virtual-host']
 
     # Create a new "volttron" vhost
-    create_vhost(vhost)
+    create_vhost(vhost, ssl=False)
 
     exchange = 'volttron'
     alternate_exchange = 'undeliverable'
@@ -669,13 +669,14 @@ def init_rabbitmq_setup():
     # all unroutable messages
     properties = dict(durable=True, type='topic',
                       arguments={"alternate-exchange": alternate_exchange})
-    create_exchange(exchange, properties=properties, vhost=vhost)
+    create_exchange(exchange, properties=properties, vhost=vhost, ssl=False)
 
     # Create alternate exchange to capture all unroutable messages.
     # Note: Pubsub messages with no subscribers are also captured which is
     # unavoidable with this approach
     properties = dict(durable=True, type='fanout')
-    create_exchange(alternate_exchange, properties=properties, vhost=vhost)
+    create_exchange(alternate_exchange, properties=properties, vhost=vhost,
+                    ssl=False)
 
 def create_federation_setup():
     """
@@ -743,12 +744,6 @@ def set_initial_rabbit_config(instance_name):
         new_pass = prompt_response(prompt, default="guest")
         config_opts['user'] = "guest"
         config_opts['pass'] = new_pass
-
-        # Check if host and port is already available
-        host = config_opts.get('host', 'localhost')
-        prompt = 'What is the hostname of system?'
-        new_host = prompt_response(prompt, default=host)
-        config_opts['host'] = new_host
 
         # TODO - How to configure port other than 5671 for ssl - validate should
         # check if port is not 5672.
@@ -1014,6 +1009,12 @@ def setup_for_ssl_auth(instance_name):
     instance_ca_name, server_cert_name, client_cert_name = get_cert_names(
         instance_name)
 
+    host = config_opts.get('host', 'localhost')
+    prompt = 'What is the fully qualified domain name of the system?'
+    new_host = prompt_response(prompt, default=getfqdn())
+    config_opts['host'] = new_host
+
+    # prompt for host before creating certs as it is needed for server cert
     create_certs(client_cert_name, instance_ca_name, server_cert_name)
 
     # if all was well, create the rabbitmq.conf file for user to copy
@@ -1042,15 +1043,14 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
     with open(os.path.join(get_home(), "rabbitmq.conf"), 'w') as rconf:
         rconf.write(new_conf)
 
+
+
     prompt = 'What is the admin user name:'
     user = prompt_response(prompt, default=instance_name)
 
     # updated rabbitmq_config.json
     config_opts['user'] = user
     config_opts['pass'] = ""
-    # TODO: Do we prompt and confirm from user. as hostname might not be set
-    # correctly or might have multiple..
-    config_opts['host'] = getfqdn()
     config_opts['amqp_port'] = '5671'
     config_opts['port'] = '15671'
     config_opts['rmq-address'] = build_rmq_address(ssl=True)
@@ -1064,13 +1064,14 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
           "\n  2. Move the rabbitmq.conf file"
           "in VOLTTRON_HOME directory into your rabbitmq configuration "
           "directory (/etc/rabbitmq in RPM/Debian systems) "
-          "\n  3. Optional: Generated configuration uses default "
-          "rabbitmq ssl ports. Modify both rabbitmq.conf and "
+          "\n  3. For custom ssl ports: Generated configuration uses "
+          "default rabbitmq ssl ports. Modify both rabbitmq.conf and "
           "VOLTTRON_HOME/rabbitmq_config.json if using different ports. "
           "\n  4. Restart rabbitmq-server. ")
 
 
 def create_certs(client_cert_name, instance_ca_name, server_cert_name):
+    global config_opts
     create_instance_ca = False
     # create ca cert in default dir if needed
     if crts.ca_exists():
@@ -1118,7 +1119,8 @@ def create_certs(client_cert_name, instance_ca_name, server_cert_name):
             found = verify_and_save_instance_ca(instance_ca_path,
                                                 instance_ca_key)
     crts.create_ca_signed_cert(server_cert_name, type='server',
-                               ca_name=instance_ca_name)
+                               ca_name=instance_ca_name,
+                               fqdn=config_opts.get('host'))
     # permissions = dict(configure=".*", read=".*", write=".*")
     # set_user_permissions(permissions, server_cert_name)
     crts.create_ca_signed_cert(client_cert_name, type='client',

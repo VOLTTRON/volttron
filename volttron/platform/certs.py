@@ -391,6 +391,7 @@ class Certs(object):
             key_size=2048,
             backend=default_backend()
         )
+        fqdn = kwargs.pop('fqdn', None)
         if kwargs:
             subject = _create_subject(**kwargs)
         else:
@@ -400,10 +401,16 @@ class Certs(object):
                 if i.get_attributes_for_oid(NameOID.COMMON_NAME):
                     if type == 'server':
                         # TODO: Also add SubjectAltName
-                        new_attrs.append(RelativeDistinguishedName(
-                            [x509.NameAttribute(
-                                NameOID.COMMON_NAME,
-                                getfqdn().decode('utf-8'))]))
+                        if fqdn:
+                            new_attrs.append(RelativeDistinguishedName(
+                                [x509.NameAttribute(
+                                    NameOID.COMMON_NAME,
+                                    fqdn.decode('utf-8'))]))
+                        else:
+                            new_attrs.append(RelativeDistinguishedName(
+                                [x509.NameAttribute(
+                                    NameOID.COMMON_NAME,
+                                    getfqdn().decode('utf-8'))]))
                     else:
                         new_attrs.append(RelativeDistinguishedName(
                             [x509.NameAttribute(NameOID.COMMON_NAME,
