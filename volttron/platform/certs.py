@@ -56,7 +56,7 @@
 import copy
 import datetime
 import logging
-from socket import gethostname
+from socket import gethostname, getfqdn
 from shutil import copyfile
 
 import os
@@ -398,9 +398,16 @@ class Certs(object):
             new_attrs = []
             for i in temp_list:
                 if i.get_attributes_for_oid(NameOID.COMMON_NAME):
-                    new_attrs.append(RelativeDistinguishedName(
-                        [x509.NameAttribute(NameOID.COMMON_NAME,
-                                            name.decode('utf-8'))]))
+                    if type == 'server':
+                        # TODO: Also add SubjectAltName
+                        new_attrs.append(RelativeDistinguishedName(
+                            [x509.NameAttribute(
+                                NameOID.COMMON_NAME,
+                                getfqdn().decode('utf-8'))]))
+                    else:
+                        new_attrs.append(RelativeDistinguishedName(
+                            [x509.NameAttribute(NameOID.COMMON_NAME,
+                                                name.decode('utf-8'))]))
                 else:
                     new_attrs.append(i)
             subject = x509.Name(new_attrs)

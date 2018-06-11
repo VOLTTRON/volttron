@@ -170,7 +170,6 @@ def get_platform_instance_name(prompt=False):
     platform_config = load_platform_config()
     try:
         instance_name = platform_config['instance-name'].strip('"')
-        print("Configuring volttron instance:{}".format(instance_name))
     except KeyError as exc:
         if prompt:
             instance_name = prompt_response("Name of this volttron instance:",

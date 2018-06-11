@@ -58,7 +58,7 @@ import argparse
 import logging
 import os
 import ssl
-from shutil import copyfile
+from socket import getfqdn
 
 import grequests
 import pika
@@ -81,28 +81,26 @@ _log = logging.getLogger(__name__)
 config_opts = {}
 default_pass = "default_passwd"
 crts = certs.Certs()
+instance_name = None
+local_user ="guest"
+local_password="guest"
+admin_user= None # User to prompt for if we go the docker route
+admin_password= None
+
 volttron_rmq_config = os.path.join(get_home(), 'rabbitmq_config.json')
 
-def http_put_request(url, body=None, user=None, password=None):
-    password = password if password else get_password()
-    user = user if user else get_user()
+def call_grequest(method_name, url_suffix, ssl=True, **kwargs):
+    global crts, instance_name
+    url = get_url_prefix(ssl) + url_suffix
+    kwargs["headers"] = {"Content-Type": "application/json"}
+    auth_args = get_authentication_args(ssl)
+    kwargs.update(auth_args)
     try:
-        headers = {"Content-Type": "application/json"}
-        if body:
-            if user == "guest":
-                req = grequests.put(url, data=jsonapi.dumps(body), headers=headers,
-                                    auth=(user, password))
-            else:
-                req = grequests.put(url, data=jsonapi.dumps(body),
-                                    headers=headers)
-        else:
-            if user == "guest":
-                req = grequests.put(url, headers=headers, auth=(user, password))
-            else:
-                req = grequests.put(url, headers=headers)
-        response = grequests.map([req])
-        #print response
-        response[0].raise_for_status()
+        fn = getattr(grequests, method_name)
+        request = fn(url, **kwargs)
+        response = grequests.map([request])
+        if response and isinstance(response, list):
+            response[0].raise_for_status()
     except (ConnectionError, NewConnectionError):
         print ("Connection to {} not available".format(url))
         response = None
@@ -112,57 +110,44 @@ def http_put_request(url, body=None, user=None, password=None):
         response = None
     return response
 
-def http_delete_request(url, user=None, password=None):
-    user = user if user else get_user()
-    password = password if password else get_password()
-    response = None
-    try:
-        headers = {"Content-Type": "application/json"}
-        req = grequests.delete(url, headers=headers, auth=(user, password))
-        response = grequests.map([req])
-        if response and isinstance(response, list):
-            response[0].raise_for_status()
-    except (ConnectionError, NewConnectionError):
-        print("Connection to {} not available".format(url))
-    except requests.exceptions.HTTPError as e:
-        print("Exception when trying to make HTTP request to"
-              " RabbitMQ {}".format(e))
+def get_authentication_args(ssl):
+    '''
+    Return authentication kwargs for request/greqeust
+    :param ssl: if True returns cert and verify parameters in addition to auth
+    :return: dictionary containing auth/cert args need to pass to
+    request/grequest methods
+    '''
+    global local_user, local_password, admin_user, admin_password, instance_name
+
+    if ssl:
+        instance_ca, server_cert, client_cert = get_cert_names(instance_name)
+        admin_user = config_opts.get("user")
+        if admin_password is None:
+            prompt = 'What is the password for user({}):'
+            admin_password = prompt_response(prompt)
+        return {'auth': (admin_user, admin_password), 'verify': crts.cert_file(
+            instance_ca),
+                'cert': (crts.cert_file(client_cert),
+                         crts.private_key_file(client_cert))}
+    else:
+        password = local_user
+        user = local_password
+        return {'auth': (user, password)}
+
+def http_put_request(url_suffix, body=None, ssl=True):
+    if body:
+        return call_grequest('put', url_suffix, ssl, data=jsonapi.dumps(body))
+    else:
+        return call_grequest('put', url_suffix)
+
+def http_delete_request(url, ssl=True):
+    return call_grequest('delete',url, ssl)
+
+def http_get_request(url, ssl=True):
+    response = call_grequest('get', url, ssl)
+    if response and isinstance(response, list):
+        response = response[0].json()
     return response
-
-def http_get_request(url, user=None, password=None):
-    user = user if user else get_user()
-    password = password if password else get_password()
-    response = None
-    try:
-        headers = {"Content-Type": "application/json"}
-        req = grequests.get(url, headers=headers)
-        #req = grequests.get(url, headers=headers)
-        response = grequests.map([req])
-
-        if response and isinstance(response, list):
-            response[0].raise_for_status()
-            response = response[0].json()
-
-    except (ConnectionError, NewConnectionError):
-        print("Connection to {} not available".format(url))
-    except requests.exceptions.HTTPError as e:
-        print("Exception when trying to make HTTP request to "
-              "RabbitMQ {}".format(e))
-    return response
-
-def http_get_rrrrequest(url, user, password):
-    response = None
-    try:
-        headers = {"Content-Type": "application/json"}
-        response = requests.get(url, headers=headers, auth=(user, password))
-        print response
-    except (ConnectionError, NewConnectionError):
-        print("Connection to {} not available".format(url))
-    except requests.exceptions.HTTPError as e:
-        print("Exception when trying to make HTTP "
-              "request to RabbitMQ {}".format(e))
-    return response
-
 
 def _load_rmq_config():
     """Loads the config file if the path exists."""
@@ -217,28 +202,16 @@ def create_vhost(vhost='volttron', ssl=True):
     :return:
     """
     print "Creating new VIRTUAL HOST: {}".format(vhost)
-    if ssl:
-        ssl_params = get_ssl_url_params()
-        url = 'https://{host}:{port}/api/vhosts/{vhost}?{ssl_params}'.format(
-            host=get_hostname(), port=get_port(), vhost=vhost,
-            ssl_params=ssl_params)
-        response = http_put_request(url, body={})
-    else:
-        url = 'http://localhost:{port}/api/vhosts/{vhost}'.format(
-            port=get_port(), vhost=vhost)
-        response = http_put_request(url, body={}, user=get_user(),
-                                    password=get_password())
+    url = '/api/vhosts/{vhost}'.format(vhost=vhost)
+    response = http_put_request(url, body={}, ssl=ssl)
 
 
-def get_virtualhost(new_vhost, user=None, password=None):
-    user = user if user else get_user()
-    password = password if password else get_password()
-    url = 'https://{0}:{1}/api/vhosts/{2}'.format(get_hostname(), get_port(),
-                                                  new_vhost)
-    response = http_get_request(url, user, password)
+def get_virtualhost(new_vhost, ssl=True):
+    url = '/api/vhosts/{vhost}'.format(vhost=new_vhost)
+    response = http_get_request(url, ssl)
     return response
 
-def delete_vhost(vhost, user=None, password=None):
+def delete_vhost(vhost, ssl=True):
     """
     Delete a virtual host
     :param vhost: virtual host
@@ -246,17 +219,12 @@ def delete_vhost(vhost, user=None, password=None):
     :param password: password
     :return:
     """
-    user = user if user else get_user()
-    password = password if password else get_password()
-    url = 'https://{0}:{1}/api/vhosts/{2}'.format(get_hostname(), get_port(),
-                                                  vhost)
-    response = http_delete_request(url, user, password)
+    url = '/api/vhosts/{2}'.format(vhost=vhost)
+    response = http_delete_request(url, ssl)
 
-def get_virtualhosts(user=None, password=None):
-    user = user if user else get_user()
-    password = password if password else get_password()
-    url = 'https://{0}:{1}/api/vhosts'.format(get_hostname(), get_port())
-    response = http_get_request(url, user, password)
+def get_virtualhosts(ssl=True):
+    url = '/api/vhosts'
+    response = http_get_request(url, ssl)
     vhosts = []
     if response:
         vhosts = [v['name'] for v in response]
@@ -275,40 +243,39 @@ def create_user(user, password=default_pass, tags="administrator", ssl=True):
     """
     print "Creating new USER: {}".format(user)
     body = dict(password=password, tags=tags)
+    url = '/api/users/{user}'.format(user=user)
+    response = http_put_request(url, body, ssl)
+
+
+def get_url_prefix(ssl):
     if ssl:
-        prefix = get_ssl_url_params()
-        url = 'https://{host}:{port}/api/users/{user}?{ssl_params}'.format(
-            host=get_hostname(), port=get_port(), user=user,
-            ssl_params=prefix)
-        response = http_put_request(url, body)
+        prefix = 'https://{host}:{port}'.format(host=get_hostname(),
+                                                port=get_port())
     else:
-        url = 'http://localhost:{0}/api/users/{1}'.format(get_port(), user)
-        response = http_put_request(url, body, get_user(), get_password())
+        prefix = 'http://localhost:{port}'.format(port=get_port())
+    return prefix
 
 
-def get_user_props(user):
+def get_user_props(user, ssl=True):
     """
     Get properties of the user
     :param user: username
     :return:
     """
-    url = 'https://{host}:{port}/api/users/{user}?{prefix}'.format(
-        host=get_hostname(), port=get_port(), user=user,
-        prefix=get_ssl_url_params())
-    response = http_get_request(url)
+    url = '/api/users/{user}'.format(user=user)
+    response = http_get_request(url, ssl)
     return response
 
-def delete_user(user):
+def delete_user(user, ssl=True):
     """
     Delete specific user
     :param user: user
     :return:
     """
-    url = 'https://{0}:{1}/api/users/{2}'.format(get_hostname(), get_port(),
-                                                 user)
-    response = http_delete_request(url)
+    url = '/api/users/{user}'.format(user=user)
+    response = http_delete_request(url, ssl)
 
-def get_user_permissions(user, password, vhost=None):
+def get_user_permissions(user, vhost=None, ssl=True):
     """
     Get permissions (configure, read, write) for the user
     :param user: user
@@ -317,17 +284,14 @@ def get_user_permissions(user, password, vhost=None):
     :return:
     """
     vhost = vhost if vhost else get_vhost()
-    url = 'https://{0}:{1}/api/permissions/{2}/{3}'.format(get_hostname(),
-                                                           get_port(),
-                                                           vhost,
-                                                           user)
-    response = http_get_request(url, )
+    url = '/api/permissions/{vhost}/{user}'.format(vhost=vhost,
+                                                   user=user)
+    response = http_get_request(url, ssl)
     return response
 
 
 # {"configure":".*","write":".*","read":".*"}
-def set_user_permissions(permissions, user, password=default_pass,
-                         vhost=None, ssl=True):
+def set_user_permissions(permissions, user, vhost=None, ssl=True):
     """
     Set permissions for the user
     :param permissions: dict containing configure, read and write settings
@@ -339,22 +303,13 @@ def set_user_permissions(permissions, user, password=default_pass,
     vhost = vhost if vhost else get_vhost()
     print "Create READ, WRITE and CONFIGURE permissions for the user: " \
           "{}".format(user)
-    if ssl:
-        ssl_params = get_ssl_url_params()
-        url = 'https://{host}:{port}/api/permissions/{vhost}/{user}' \
-              '?{ssl_params}'.format(
-            host=get_hostname(), port=get_port(), vhost=vhost, user=user,
-            ssl_params=ssl_params)
-        response = http_put_request(url, body=permissions)
-    else:
-        url = 'http://localhost:{port}/api/permissions/{vhost}/{user}'.format(
-        port=get_port(), vhost=vhost, user=user)
-        response = http_put_request(url, body=permissions, user=get_user(),
-                                password=get_password())
+    url = '/api/permissions/{vhost}/{user}'.format(vhost=vhost, user=user)
+    response = http_put_request(url, body=permissions, ssl=ssl)
+
 
 
 # SET permissions on topic
-def set_topic_permissions(permissions, user, password, vhost=None):
+def set_topic_permissions(permissions, user, vhost=None, ssl=True):
     """
     Set read, write permissions for a topic
     :param permissions: dict containing exchange name and read/write permissions
@@ -364,10 +319,11 @@ def set_topic_permissions(permissions, user, password, vhost=None):
     :return:
     """
     vhost = vhost if vhost else get_vhost()
-    url = 'https://{0}:{1}/api/topic-permissions/{2}/{3}'.format(get_hostname(), get_port(), vhost, user)
-    response = http_put_request(url, body=permissions, user=user, password=password)
+    url = '/api/topic-permissions/{vhost}/{user}'.format(vhost=vhost,
+                                                         user=user)
+    response = http_put_request(url, body=permissions, ssl=ssl)
 
-def get_topic_permissions(user, password, vhost=None):
+def get_topic_permissions(user, vhost=None, ssl=True):
     """
     Get permissions for all topics
     :param user:
@@ -376,13 +332,13 @@ def get_topic_permissions(user, password, vhost=None):
     :return:
     """
     vhost = vhost if vhost else get_vhost()
-    url = 'https://{0}:{1}/api/topic-permissions/{2}/{3}'.format(get_hostname(), get_port(), vhost, user)
-    response = http_get_request(url, user, password)
+    url = '/api/topic-permissions/{vhost}/{user}'.format(vhost=vhost, user=user)
+    response = http_get_request(url, ssl)
     return response.json() if response else response
 
 
 # GET/SET parameter on a component for example, federation-upstream
-def get_parameter(component, user=None, password=None, vhost=None):
+def get_parameter(component, vhost=None, ssl=True):
     """
     Get component parameters, namely federation-upstream
     :param component: component name
@@ -391,21 +347,14 @@ def get_parameter(component, user=None, password=None, vhost=None):
     :param vhost: virtual host
     :return:
     """
-    user = user if user else get_user()
-    password = password if password else get_password()
     vhost = vhost if vhost else get_vhost()
-    ssl_params = get_ssl_url_params()
-    url = 'https://{host}:{port}/api/parameters/{component}/{vhost}?' \
-          '{params}'.format(host=get_hostname(),
-                            port=get_port(),
-                            component=component,
-                            vhost=vhost,
-                            params=ssl_params)
-    response = http_get_request(url)
+    url = '/api/parameters/{component}/{vhost}'.format(component=component,
+                                                       vhost=vhost)
+    response = http_get_request(url, ssl)
     return response
 
 def set_parameter(component, parameter_name, parameter_properties,
-                  user=None, password=None, vhost=None):
+                  vhost=None, ssl=True):
     """
     Set parameter on a component
     :param component: component name (for example, federation-upstream)
@@ -421,17 +370,12 @@ def set_parameter(component, parameter_name, parameter_properties,
     # user = user if user else get_user()
     # password = password if password else get_password()
     vhost = vhost if vhost else get_vhost()
-    url = 'https://{host}:{port}/api/parameters/{component}/{vhost}/{param}' \
-          '?{ssl_params}'.format(host=get_hostname(),
-                        port=get_port(),
-                        component=component,
-                        vhost=vhost,
-                        param=parameter_name,
-                        ssl_params=get_ssl_url_params())
-    response = http_put_request(url, body=parameter_properties)
+    url = '/api/parameters/{component}/{vhost}/{param}'.format(
+        component=component, vhost=vhost, param=parameter_name)
+    response = http_put_request(url, body=parameter_properties, ssl=ssl)
 
-def delete_parameter(component, parameter_name,
-                     user=None, password=None, vhost=None):
+
+def delete_parameter(component, parameter_name, vhost=None, ssl=True):
     """
     Delete a component parameter
     :param component: component name
@@ -441,19 +385,14 @@ def delete_parameter(component, parameter_name,
     :param vhost: virtual host
     :return:
     """
-    user = user if user else get_user()
-    password = password if password else get_password()
     vhost = vhost if vhost else get_vhost()
-    url = 'https://{0}:{1}/api/parameters/{2}/{3}/{4}'.format(get_hostname(),
-                                                              get_port(),
-                                                              component,
-                                                              vhost,
-                                                              parameter_name)
-    response = http_delete_request(url, user, password)
+    url = '/api/parameters/{component}/{vhost}/{parameter}'.format(
+        component=component, vhost=vhost, parameter=parameter_name)
+    response = http_delete_request(url, ssl)
     return response
 
 # Get all policies, Get/Set/Delete a specific property
-def get_policies(user=None, password=None, vhost=None):
+def get_policies(vhost=None, ssl=True):
     """
     Get all policies
     :param user: username
@@ -461,17 +400,18 @@ def get_policies(user=None, password=None, vhost=None):
     :param vhost: virtual host
     :return:
     """
-    user = user if user else get_user()
-    password = password if password else get_password()
+    # TODO: check -  this is the only request call.. others ar grequest calls
     vhost = vhost if vhost else get_vhost()
-    url = 'https://{0}:{1}/api/policies/{2}'.format(get_hostname(),
-                                                    get_port(),
-                                                    vhost)
-    response = requests.get(url, auth=(user, password))
+    prefix = get_url_prefix(ssl)
+    user, password = get_authentication_args(ssl)
+    url = '{prefix}/api/policies/{vhost}'.format(prefix=prefix,
+                                                 vhost=vhost)
+    kwargs = get_authentication_args(ssl)
+    response = requests.get(url, **kwargs)
     return response.json() if response else response
 
 
-def get_policy(name, user=None, password=None, vhost=None):
+def get_policy(name, vhost=None, ssl=True):
     """
     Get a specific policy
     :param name: policy name
@@ -480,19 +420,16 @@ def get_policy(name, user=None, password=None, vhost=None):
     :param vhost: virtual host
     :return:
     """
-    user = user if user else get_user()
-    password = password if password else get_password()
     vhost = vhost if vhost else get_vhost()
-    url = 'https://{0}:{1}/api/policies/{2}/{3}'.format(get_hostname(),
-                                                        get_port(),
-                                                        vhost,
-                                                        name)
-    response = http_get_request(url, user, password)
-    if response: return response.json()
-    else: return response
+    url = '/api/policies/{vhost}/{name}'.format(vhost=vhost, name=name)
+    response = http_get_request(url, ssl)
+    if response:
+        return response.json()
+    else:
+        return response
 
 # value = {"pattern":"^amq.", "definition": {"federation-upstream-set":"all"}, "priority":0, "apply-to": "all"}
-def set_policy(name, value, user=None, password=None, vhost=None):
+def set_policy(name, value, vhost=None, ssl=True):
     """
     Set a policy. For example a federation policy
     :param name: policy name
@@ -505,21 +442,18 @@ def set_policy(name, value, user=None, password=None, vhost=None):
     # user = user if user else get_user()
     # password = password if password else get_password()
     vhost = vhost if vhost else get_vhost()
-    url = 'https://{0}:{1}/api/policies/{2}/{3}'.format(get_hostname(), get_port(), vhost, name)
-    response = http_put_request(url, body=value)
+    url = '/api/policies/{vhost}/{name}'.format(vhost=vhost, name=name)
+    response = http_put_request(url, body=value, ssl=ssl)
 
-def delete_policy(name, user=None, password=None, vhost=None):
-    user = user if user else get_user()
-    password = password if password else get_password()
+def delete_policy(name, vhost=None, ssl=True):
     vhost = vhost if vhost else get_vhost()
-    url = 'https://{0}:{1}/api/policies/{2}/{3}'.format(get_hostname(), get_port(), vhost, name)
-    response = http_delete_request(url, user, password)
+    url = '/api/policies/{vhost}/{name}'.format(vhost=vhost, name=name)
+    response = http_delete_request(url, ssl)
 
 # Exchanges - Create/delete/List exchanges
 #properties = dict(durable=False, type='topic', auto_delete=True, arguments={"alternate-exchange": "aexc"})
 # properties = dict(durable=False, type='direct', auto_delete=True)
-def create_exchange(exchange, properties, user=None, password=None,
-                    vhost=None, ssl=True):
+def create_exchange(exchange, properties, vhost=None, ssl=True):
     """
     Create a new exchange
     :param exchange: exchange name
@@ -530,39 +464,24 @@ def create_exchange(exchange, properties, user=None, password=None,
     """
     vhost = vhost if vhost else get_vhost()
     print "Create new exchange: {}".format(exchange)
-
-    if ssl:
-        prefix = get_ssl_url_params()
-        url = 'https://{host}:{port}/api/exchanges/{vhost}/' \
-              '{exchange}?{ssl_params}'.format(host=get_hostname(),
-                                               port=get_port(),
-                                               vhost=vhost,
-                                               exchange=exchange,
-                                               ssl_params=prefix)
-        response=http_put_request(url, body=properties)
-    else:
-        url = 'http://localhost:{port}/api/exchanges/{vhost}/' \
-              '{exchange}'.format(port=get_port(),
-                                  vhost=vhost,
-                                  exchange=exchange)
-        response = http_put_request(url, body=properties, user=get_user(),
-                                    password=get_password())
+    url = '/api/exchanges/{vhost}/{exchange}'.format(vhost=vhost,
+                                                     exchange=exchange)
+    response = http_put_request(url, body=properties, ssl=ssl)
 
 
-def delete_exchange(exchange, user=None, password=None, vhost=None):
+def delete_exchange(exchange, vhost=None, ssl=True):
     """
     Delete a exchange
     :param exchange: exchange name
     :param vhost: virtual host
     :return:
     """
-    user = user if user else get_user()
-    password = password if password else get_password()
     vhost = vhost if vhost else get_vhost()
-    url = 'https://%s:%s/api/exchanges/%s/%s' % (get_hostname(), get_port(), vhost, exchange)
-    response = http_delete_request(url)
+    url = '/api/exchanges/{vhost}/{exchange}'.format(vhost=vhost,
+                                                     exchange=exchange)
+    response = http_delete_request(url, ssl)
 
-def get_exchanges(user=None, password=None, vhost=None):
+def get_exchanges(vhost=None, ssl=True):
     """
     List all exchanges
     :param user:
@@ -570,18 +489,16 @@ def get_exchanges(user=None, password=None, vhost=None):
     :param vhost:
     :return:
     """
-    user = user if user else get_user()
-    password = password if password else get_password()
     vhost = vhost if vhost else get_vhost()
-    url = 'https://%s:%s/api/exchanges/%s' % (get_hostname(), get_port(), vhost)
-    response = http_get_request(url, user, password)
+    url = '/api/exchanges/{vhost}'.format(vhost=vhost)
+    response = http_get_request(url, ssl)
     exchanges = []
 
     if response:
         exchanges = [e['name'] for e in response]
     return exchanges
 
-def get_exchanges_with_props(user=None, password=None, vhost=None):
+def get_exchanges_with_props(vhost=None, ssl=True):
     """
     List all exchanges with properties
     :param user:
@@ -589,15 +506,13 @@ def get_exchanges_with_props(user=None, password=None, vhost=None):
     :param vhost:
     :return:
     """
-    user = user if user else get_user()
-    password = password if password else get_password()
     vhost = vhost if vhost else get_vhost()
-    url = 'https://%s:%s/api/exchanges/%s' % (get_hostname(), get_port(), vhost)
-    return http_get_request(url, user, password)
+    url = '/api/exchanges/{vhost}'.format(vhost=vhost)
+    return http_get_request(url, ssl)
 
 # Queues - Create/delete/List queues
 #properties = dict(durable=False, auto_delete=True)
-def create_queue(queue, properties, user=None, password=None, vhost=None):
+def create_queue(queue, properties, vhost=None, ssl=True):
     """
     Create a new queue
     :param queue: queue
@@ -605,14 +520,12 @@ def create_queue(queue, properties, user=None, password=None, vhost=None):
     :param vhost:
     :return:
     """
-    user = user if user else get_user()
-    password = password if password else get_password()
     vhost = vhost if vhost else get_vhost()
-    url = 'https://{0}:{1}/api/queues/{2}/{3}'.format(get_hostname(), get_port(), vhost, queue)
-    response = http_put_request(url, body=properties, user=user, password=password)
+    url = '/api/queues/{vhost}/{queue}'.format(vhost=vhost, queue=queue)
+    response = http_put_request(url, body=properties, ssl=ssl)
 
 
-def delete_queue(queue, user=None, password=None, vhost=None):
+def delete_queue(queue, user=None, password=None, vhost=None, ssl=True):
     """
     Delete a queue
     :param queue: queue
@@ -622,10 +535,10 @@ def delete_queue(queue, user=None, password=None, vhost=None):
     user = user if user else get_user()
     password = password if password else get_password()
     vhost = vhost if vhost else get_vhost()
-    url = 'https://{0}:{1}/api/queues/{2}/{3}'.format(get_hostname(), get_port(), vhost, queue)
-    response = http_delete_request(url, user, password)
+    url = '/api/queues/{vhost}/{queue}'.format(vhost=vhost, queue=queue)
+    response = http_delete_request(url, ssl)
 
-def get_queues(user=None, password=None, vhost=None):
+def get_queues(user=None, password=None, vhost=None, ssl=True):
     """
     Get list of queues
     :param user: username
@@ -636,14 +549,14 @@ def get_queues(user=None, password=None, vhost=None):
     user = user if user else get_user()
     password = password if password else get_password()
     vhost = vhost if vhost else get_vhost()
-    url = 'https://%s:%s/api/queues/%s' % (get_hostname(), get_port(), vhost)
-    response = http_get_request(url, user, password)
+    url = '/api/queues/{vhost}'.format(vhost=vhost)
+    response = http_get_request(url, ssl)
     queues = []
     if response:
         queues = [q['name'] for q in response]
     return queues
 
-def get_queues_with_props(user=None, password=None, vhost=None):
+def get_queues_with_props(vhost=None, ssl=True):
     """
     Get properties of all queues
     :param user: username
@@ -651,14 +564,12 @@ def get_queues_with_props(user=None, password=None, vhost=None):
     :param vhost: virtual host
     :return:
     """
-    user = user if user else get_user()
-    password = password if password else get_password()
     vhost = vhost if vhost else get_vhost()
-    url = 'https://%s:%s/api/queues/%s' % (get_hostname(), get_port(), vhost)
-    return http_get_request(url, user, password)
+    url = '/api/queues/{vhost}'.format(vhost=vhost)
+    return http_get_request(url, ssl)
 
 # List all open connections
-def get_connections(user=None, password=None, vhost=None):
+def get_connections(vhost=None, ssl=True):
     """
     Get all connections
     :param user: username
@@ -666,14 +577,12 @@ def get_connections(user=None, password=None, vhost=None):
     :param vhost: virtual host
     :return:
     """
-    user = user if user else get_user()
-    password = password if password else get_password()
     vhost = vhost if vhost else get_vhost()
-    url = 'https://{0}:{1}/api/vhosts/{2}/connections'.format(get_hostname(), get_port(), vhost)
-    response = http_get_request(url, user, password)
+    url = '/api/vhosts/{vhost}/connections'.format(vhost=vhost)
+    response = http_get_request(url, ssl)
     return response
 
-def get_connection(name, user=None, password=None):
+def get_connection(name, ssl=True):
     """
     Get status of a connection
     :param name: connection name
@@ -682,14 +591,11 @@ def get_connection(name, user=None, password=None):
     :param vhost: virtual host
     :return:
     """
-    user = user if user else get_user()
-    password = password if password else get_password()
-
-    url = 'https://{0}:{1}/api/connections/{2}'.format(get_hostname(), get_port(), name)
-    response = http_get_request(url, user, password)
+    url = '/api/connections/{name}'.format(name=name)
+    response = http_get_request(url, ssl)
     return response.json() if response else response
 
-def delete_connection(name, user=None, password=None):
+def delete_connection(name, ssl=True):
     """
     Delete open connection
     :param host:
@@ -700,20 +606,16 @@ def delete_connection(name, user=None, password=None):
     :param vhost:
     :return:
     """
-    user = user if user else get_user()
-    password = password if password else get_password()
-    url = 'https://{0}:{1}/api/connections/{2}'.format(get_hostname(), get_port(), name)
-    response = http_delete_request(url, user, password)
+    url = '/api/connections/{name}'.format(name=name)
+    response = http_delete_request(url, ssl)
 
 
 # List all open channels for a given channel
-def list_channels_for_connection(connection, user=None, password=None):
-    user = user if user else get_user()
-    password = password if password else get_password()
-    url = 'https://{0}:{1}/api/connections/{2}/channels'.format(get_hostname(), get_port(), connection)
-    return http_get_request(url, user, password)
+def list_channels_for_connection(connection, ssl=True):
+    url = '/api/connections/{conn}/channels'.format(conn=connection)
+    return http_get_request(url, ssl)
 
-def list_channels_for_vhost(host, port, user=None, password=None, vhost=None):
+def list_channels_for_vhost(vhost=None, ssl=True):
     """
     List all open channels for a given vhost
     :param host:
@@ -723,10 +625,8 @@ def list_channels_for_vhost(host, port, user=None, password=None, vhost=None):
     :param vhost:
     :return:
     """
-    user = user if user else get_user()
-    password = password if password else get_password()
-    url = 'https://{0}:{1}/api/vhosts/{2}/channels'.format(host, port, vhost)
-    response = http_get_request(url, user, password)
+    url = '/api/vhosts/{vhost}/channels'.format(vhost=vhost)
+    response = http_get_request(url, ssl)
     return response.json() if response else response
 
 def get_bindings(exchange):
@@ -738,7 +638,8 @@ def get_bindings(exchange):
     :param vhost: virtual host
     :return: list of bindings
     """
-    url = 'https://%s:%s/api/exchanges/%s/%s/bindings/source' % (get_hostname(), get_port(), get_vhost(), exchange)
+    url = '/api/exchanges/{binding}/{exchange}/bindings/source'.format(
+        vhost=get_vhost(), exchange=exchange)
     response = http_get_request(url)
     # if isinstance(response, list):
     #     response = response[0]
@@ -760,7 +661,7 @@ def init_rabbitmq_setup():
     vhost = config_opts['virtual-host']
 
     # Create a new "volttron" vhost
-    create_vhost(vhost, ssl=False)
+    create_vhost(vhost)
 
     exchange = 'volttron'
     alternate_exchange = 'undeliverable'
@@ -768,14 +669,13 @@ def init_rabbitmq_setup():
     # all unroutable messages
     properties = dict(durable=True, type='topic',
                       arguments={"alternate-exchange": alternate_exchange})
-    create_exchange(exchange, properties=properties, vhost=vhost, ssl=False)
+    create_exchange(exchange, properties=properties, vhost=vhost)
 
     # Create alternate exchange to capture all unroutable messages.
     # Note: Pubsub messages with no subscribers are also captured which is
     # unavoidable with this approach
     properties = dict(durable=True, type='fanout')
-    create_exchange(alternate_exchange, properties=properties, vhost=vhost,
-                    ssl=False)
+    create_exchange(alternate_exchange, properties=properties, vhost=vhost)
 
 def create_federation_setup():
     """
@@ -792,12 +692,9 @@ def create_federation_setup():
         _load_rmq_config()
 
     federation = config_opts['federation']
-    # parametrs = get_parameter('federation-upstream')
 
-    for upstream in federation:
-        name = upstream['upstream_name']
+    for name, address in federation.iteritems():
 
-        address = upstream['upstream_address']
         property = dict(vhost='volttron',
                         component="federation-upstream",
                         name=name,
@@ -922,13 +819,11 @@ def build_rmq_address(ssl=True):
             # Address format to connect to server-name, with SSL and EXTERNAL
             # authentication
             # amqps://server-name?cacertfile=/path/to/cacert.pem&certfile=/path/to/cert.pem&keyfile=/path/to/key.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external
-
-            prefix = get_ssl_url_params()
             rmq_address = "amqps://{host}:{port}/{vhost}?{ssl_params}".format(
                 host=config_opts['host'],
                 port=config_opts['amqp_port'],
                 vhost=config_opts['virtual-host'],
-                ssl_params=prefix)
+                ssl_params=get_ssl_url_params())
         else:
             rmq_address = "amqp://{0}:{1}@{2}:{3}/{4}".format(
                 user, pwd, config_opts['host'], config_opts['amqp_port'],
@@ -961,9 +856,9 @@ def _get_upstream_servers():
     global config_opts
     if not config_opts:
         _load_rmq_config()
-    federation = config_opts.get('federation', [])
+    federation = config_opts.get('federation', dict())
     multi_platform = True
-    url_prefix = get_ssl_url_params()
+    ssl_params = get_ssl_url_params()
     prompt = 'How many upstream servers do you want to configure?'
     count = prompt_response(prompt, default=1)
     count = int(count)
@@ -981,9 +876,9 @@ def _get_upstream_servers():
         prompt = 'Instance name of upstream server: '
         instance = prompt_response(prompt)
         address = "amqps://{host}:{port}/{vhost}?" \
-                  "{prefix}".format(instance=instance,
-            host=host, port=port, vhost=vhost, prefix=url_prefix)
-        federation.append(dict(upstream_name=name, upstream_address=address))
+                  "{ssl_params}".format(instance=instance,
+            host=host, port=port, vhost=vhost, ssl_params=ssl_params)
+        federation[name] = address
     config_opts['federation'] = federation
     print config_opts
     config_opts.sync()
@@ -996,67 +891,59 @@ def _get_shovel_settings():
         _load_rmq_config()
     shovels = []
     shovels = config_opts.get('shovels', [])
-    multi_platform = True
-    prompt = prompt_response('\nDo you want a multi-platform shovel setup? ',
-                                         valid_answers=y_or_n,
-                                         default='N')
-    if prompt in n:
-        multi_platform = False
-    if multi_platform:
-        url_prefix = get_ssl_url_params()
-        prompt = 'How many shovels do you want to configure?'
-        count = prompt_response(prompt, default=1)
-        count = int(count)
-        i = 0
-        for i in range(0, count):
-            prompt = 'Name of the shovel: '
-            default_name = 'shovel-' + str(count)
-            name = prompt_response(prompt, default=default_name)
-            prompt = 'Hostname of the destination instance: '
-            host = prompt_response(prompt, default='localhost')
-            prompt = 'Port of the upstream server: '
-            port = prompt_response(prompt, default=5671)
-            prompt = 'Virtual host of the destination server: '
-            vhost = prompt_response(prompt, default='volttron')
-            # prompt = 'Username of the destination server: '
-            # user = prompt_response(prompt, default='volttron')
-            # prompt = 'Password of the destination server: '
-            # pwd = prompt_response(prompt, default='volttron')
-            prompt = 'Instance name of upstream server: '
-            inst = prompt_response(prompt)
-            address = "amqps://{host}:{port}/{vhost}?{prefix}".format(
-                host=host, port=port, vhost=vhost, prefix=url_prefix)
-            prompt = 'List of pubsub topics to publish to remote instance (comma seperated)'
-            topics = prompt_response(prompt, default="")
-            topics = topics.split(",")
-            shovels.append(dict(shovel_name=name, remote_address=address, topics=topics))
-        config_opts['shovels'] = shovels
-        config_opts.sync()
-    return multi_platform
-
+    ssl_params = get_ssl_url_params()
+    prompt = 'How many shovels do you want to configure?'
+    count = prompt_response(prompt, default=1)
+    count = int(count)
+    i = 0
+    for i in range(0, count):
+        prompt = 'Name of the shovel: '
+        default_name = 'shovel-' + str(count)
+        name = prompt_response(prompt, default=default_name)
+        prompt = 'Hostname of the destination instance: '
+        host = prompt_response(prompt, default='localhost')
+        prompt = 'Port of the upstream server: '
+        port = prompt_response(prompt, default=5671)
+        prompt = 'Virtual host of the destination server: '
+        vhost = prompt_response(prompt, default='volttron')
+        # prompt = 'Username of the destination server: '
+        # user = prompt_response(prompt, default='volttron')
+        # prompt = 'Password of the destination server: '
+        # pwd = prompt_response(prompt, default='volttron')
+        # TODO- Currently using instancename user for all shovel connection to a
+        # single volttron instance. Change based on authorization
+        prompt = 'Instance name of upstream server: '
+        inst = prompt_response(prompt)
+        address = "amqps://{host}:{port}/{vhost}?{params}".format(
+            host=host, port=port, vhost=vhost,
+            params=ssl_params)
+        prompt = 'List of pubsub topics to publish to remote instance (comma seperated)'
+        topics = prompt_response(prompt, default="")
+        topics = topics.split(",")
+        shovels.append(dict(shovel_name=name, remote_address=address, topics=topics))
+    config_opts['shovels'] = shovels
+    config_opts.sync()
 
 def get_ssl_url_params():
-    global crts
+    global crts, instance_name
     platform_config = load_platform_config()
-    instance_name = get_platform_instance_name()
     instance_ca, server_cert, client_cert = get_cert_names(instance_name)
     ca_file = crts.cert_file(instance_ca)
     cert_file = crts.cert_file(client_cert)
     key_file = crts.private_key_file(client_cert)
     return "cacertfile={ca}&certfile={cert}&keyfile={key}" \
            "&verify=verify_peer&fail_if_no_peer_cert=true" \
-           "&auth_mechanism=external".format(ca=ca_file,
-                                             cert=cert_file,
-                                             key=key_file)
+           "&auth_mechanism=external&depth=1".format(ca=ca_file,
+                                                     cert=cert_file,
+                                                     key=key_file)
 
 
 def create_shovel_setup():
+    global instance_name
     if not config_opts:
         _load_rmq_config()
         return
     platform_config = load_platform_config()
-    instance_name = get_platform_instance_name()
-
     shovels = config_opts.get('shovels', [])
     src_uri = build_rmq_address(ssl=True)
     for shovel in shovels:
@@ -1083,6 +970,7 @@ def create_shovel_setup():
 
 
 def wizard(type):
+    global instance_name
     # TODO check if rabbitmq-server is running
     # First things first. Confirm VOLTTRON_HOME
     print('\nYour VOLTTRON_HOME currently set to: {}'.format(get_home()))
@@ -1154,9 +1042,15 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
     with open(os.path.join(get_home(), "rabbitmq.conf"), 'w') as rconf:
         rconf.write(new_conf)
 
+    prompt = 'What is the admin user name:'
+    user = prompt_response(prompt, default=instance_name)
+
     # updated rabbitmq_config.json
-    config_opts['user'] = instance_name
+    config_opts['user'] = user
     config_opts['pass'] = ""
+    # TODO: Do we prompt and confirm from user. as hostname might not be set
+    # correctly or might have multiple..
+    config_opts['host'] = getfqdn()
     config_opts['amqp_port'] = '5671'
     config_opts['port'] = '15671'
     config_opts['rmq-address'] = build_rmq_address(ssl=True)
