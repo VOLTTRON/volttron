@@ -815,13 +815,12 @@ def build_rmq_address(ssl=True):
             # Address format to connect to server-name, with SSL and EXTERNAL
             # authentication
             # amqps://server-name?cacertfile=/path/to/cacert.pem&certfile=/path/to/cert.pem&keyfile=/path/to/key.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external
-            rmq_address = "amqps://{user}@{host}:{port}/{vhost}?{" \
-                          "ssl_params}".format(
-                user=config_opts['user'],
-                host=config_opts['host'],
-                port=config_opts['amqp_port'],
-                vhost=config_opts['virtual-host'],
-                ssl_params=get_ssl_url_params())
+            rmq_address = "amqps://{host}:{port}/{vhost}?" \
+                          "{ssl_params}&server_name_indication={host}".format(
+                            host=config_opts['host'],
+                            port=config_opts['amqp_port'],
+                            vhost=config_opts['virtual-host'],
+                            ssl_params=get_ssl_url_params())
         else:
             rmq_address = "amqp://{0}:{1}@{2}:{3}/{4}".format(
                 user, pwd, config_opts['host'], config_opts['amqp_port'],
@@ -873,12 +872,11 @@ def _get_upstream_servers():
         vhost = prompt_response(prompt, default='volttron')
         prompt = 'Instance name of upstream server: '
         instance = prompt_response(prompt)
-        address = "amqps://{user}@{host}:{port}/{vhost}?" \
-                  "{ssl_params}".format(user=instance,
-            host=host, port=port, vhost=vhost, ssl_params=ssl_params)
+        address = "amqps://{host}:{port}/{vhost}?" \
+                  "{ssl_params}&server_name_indication={host}".format(
+                    host=host, port=port, vhost=vhost, ssl_params=ssl_params)
         federation[name] = address
     config_opts['federation'] = federation
-    print config_opts
     config_opts.sync()
     return multi_platform
 
@@ -912,9 +910,10 @@ def _get_shovel_settings():
         # single volttron instance. Change based on authorization
         prompt = 'Instance name of upstream server: '
         inst = prompt_response(prompt)
-        address = "amqps://{host}:{port}/{vhost}?{params}".format(
-            host=host, port=port, vhost=vhost,
-            params=ssl_params)
+        address = "amqps://{host}:{port}/{vhost}?{params}" \
+                  "&server_name_indication={host}".format(
+                    host=host, port=port, vhost=vhost,
+                    params=ssl_params)
         prompt = 'List of pubsub topics to publish to remote instance (comma seperated)'
         topics = prompt_response(prompt, default="")
         topics = topics.split(",")
