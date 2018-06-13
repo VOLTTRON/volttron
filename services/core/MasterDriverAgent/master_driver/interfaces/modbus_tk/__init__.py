@@ -60,6 +60,7 @@ from master_driver.interfaces.modbus_tk.maps import Map
 
 import logging
 import struct
+import re
 
 monkey.patch_socket()
 
@@ -101,7 +102,7 @@ class ModbusTKRegister(BaseRegister):
     :type default_value: parse str to the register type
     :type field: Field
     """
-    def __init__(self, point_name, default_value, mixed_endian, field, description=''):
+    def __init__(self, point_name, default_value, mixed_endian, field, scaling_register, description=''):
         datatype = 'bit' if field.type == helpers.BOOL else 'byte'
 
         super(ModbusTKRegister, self).__init__(
@@ -112,6 +113,7 @@ class ModbusTKRegister(BaseRegister):
         self.type = field.type
         self.default_value = self.get_default_value(field.type, default_value)
         self.mixed_endian = mixed_endian
+        self.scaling_register = scaling_register
 
         if self.mixed_endian and field.transform is not helpers.no_op:
             raise ModbusInterfaceException("Mixed Endian register does not support transform.")
@@ -198,6 +200,9 @@ class ModbusTKRegister(BaseRegister):
         if self.mixed_endian:
             get_value = self.mixed_endian_convert(self.type, get_value)
 
+        if self.scaling_register and get_value != 0:
+            get_value /= self.scaling_register.get_state(modbus_client)
+
         return get_value
 
     def set_state(self, modbus_client, value):
@@ -210,6 +215,9 @@ class ModbusTKRegister(BaseRegister):
         :type modbus_client: Client
         :type value: same type as register type
         """
+        if self.scaling_register:
+            value *= self.scaling_register.get_state(modbus_client)
+
         if self.mixed_endian:
             value = self.mixed_endian_convert(self.type, value)
 
@@ -381,15 +389,28 @@ class Interface(BasicRevert, BaseInterface):
 
         # Insert driver/interface registers
         for reg_dict in selected_registry_config_lst:
+
+            scaling_reg = reg_dict.get('scaling_register', '')
+            if not scaling_reg:
+                if reg_dict.get('transform', '').startswith('scale_reg'):
+                    scaling_reg = re.match('(\w+)\(([a-zA-z0-9.]*)\)', reg_dict['transform']).group(2)
+
             register = ModbusTKRegister(
                 reg_dict.get('volttron point name'),
                 reg_dict.get('default value', None),
                 reg_dict.get('mixed endian', False),
-                self.modbus_client.field_by_name(reg_dict.get('register name'))
+                self.modbus_client.field_by_name(reg_dict.get('register name')),
+                scaling_reg
             )
             self.insert_register(register)
             if not register.read_only and register.default_value:
                 self.set_default(register.point_name, register.default_value)
+
+        for reg_point_name in self.get_register_names():
+            reg = self.get_register_by_name(reg_point_name)
+            if reg.scaling_register:
+                reg.scaling_register = self.get_register_by_name(reg.scaling_register)
+
 
     def get_point(self, point_name):
         """
@@ -418,12 +439,16 @@ class Interface(BasicRevert, BaseInterface):
     def _scrape_all(self):
         """Get a dictionary mapping point name to values of all defined registers
         """
-        # return dict((self.name_map[field.name], value) for field, value, timestamp in self.modbus_client.dump_all())
         value_map = dict((self.name_map[field.name], value) for field, value, timestamp in self.modbus_client.dump_all())
 
         for point_name in value_map.keys():
             register = self.get_register_by_name(point_name)
             if register.mixed_endian:
                 value_map[point_name] = register.mixed_endian_convert(register.type, value_map[point_name])
+
+        for point_name in value_map.keys():
+            register = self.get_register_by_name(point_name)
+            if register.scaling_register and value_map[point_name] != 0:
+                value_map[point_name] /= value_map[self.name_map[register.scaling_register.name]]
 
         return value_map

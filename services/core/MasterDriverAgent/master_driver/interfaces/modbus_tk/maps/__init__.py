@@ -150,21 +150,22 @@ class CSVRegister(object):
 
     @property
     def _transform(self):
-        # "scale(0.001)", "scale_int(1.0)", "mod10k(True)", or None for no_op
+        # "scale(0.001)", "scale_int(1.0)", "mod10k(True)", "scale_reg(reg_name)", or None for no_op
 
         transform_func = helpers.no_op
         csv_transform = self._reg_dict.get('transform', None)
 
         try:
-            if csv_transform:
+            if csv_transform and not self._reg_dict.get('scaling_register', ''):
                 match = re.match('(\w+)\(([a-zA-z0-9.]*)\)', csv_transform)
                 func = match.group(1)
                 arg = match.group(2)
 
-                try:
-                    transform_func = transform_map[func](arg)
-                except (ValueError, TypeError) as err:
-                   raise Exception(err)
+                if func != 'scale_reg':
+                    try:
+                        transform_func = transform_map[func](arg)
+                    except (ValueError, TypeError) as err:
+                       raise Exception(err)
 
         except (AttributeError, KeyError):
             raise MapException("Invalid transform function '{0}' for register '{1}'".format(csv_transform, self._name))
@@ -179,7 +180,7 @@ class CSVRegister(object):
     def _table(self):
         """ Select one of the four modbus tables.
         """
-        table = self._reg_dict.get('table', '')
+        table = self._reg_dict.get('table', '').lower()
         if table:
             try:
                 return table_map[table]

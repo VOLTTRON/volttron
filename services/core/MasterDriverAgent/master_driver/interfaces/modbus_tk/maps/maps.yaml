@@ -30,3 +30,8 @@
   write_multiple_registers: false
   file: write_single_registers_map.csv
   name: write_single_registers
+- addressing: offset
+  description: example of scaling register
+  endian: big
+  file: scale_reg_map.csv
+  name: scale_reg
