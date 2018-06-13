@@ -168,7 +168,7 @@ def get_amqp_port():
     if not config_opts:
         _load_rmq_config()
     _log.debug("rmq config: {}".format(config_opts))
-    return config_opts['amqp_port']
+    return config_opts['amqp-port']
 
 
 def get_port():
@@ -735,7 +735,7 @@ def set_initial_rabbit_config(instance_name):
         config_opts['user'] = "guest"
         config_opts['pass'] = "guest"
         config_opts['host'] = 'localhost'
-        config_opts['amqp_port'] = '5672'
+        config_opts['amqp-port'] = '5672'
         config_opts['port'] = '15672'
         config_opts['rmq-address'] = build_rmq_address(ssl=False)
         config_opts.sync()
@@ -748,7 +748,7 @@ def set_initial_rabbit_config(instance_name):
 
         # TODO - How to configure port other than 5671 for ssl - validate should
         # check if port is not 5672.
-        port = config_opts.get('amqp_port', 5672)
+        port = config_opts.get('amqp-port', 5672)
         prompt = 'What is the instance port for the RabbitMQ address?'
         valid_port = False
         while not valid_port:
@@ -756,7 +756,7 @@ def set_initial_rabbit_config(instance_name):
             valid_port = is_valid_port(port)
             if not valid_port:
                 print("Port is not valid")
-        config_opts['amqp_port'] = str(port)
+        config_opts['amqp-port'] = str(port)
 
         port = config_opts.get('port', 15672)
         prompt = 'What is the instance port for the RabbitMQ management plugin?'
@@ -795,7 +795,7 @@ def build_connection_param(instance_name):
                         cert_reqs=ssl.CERT_REQUIRED)
     conn_params = pika.ConnectionParameters(
         host=config_opts['host'],
-        port=int(config_opts['port']),
+        port=int(config_opts['amqp-port']),
         virtual_host=config_opts['virtual-host'],
         ssl=True,
         ssl_options=ssl_options,
@@ -818,12 +818,12 @@ def build_rmq_address(ssl=True):
             rmq_address = "amqps://{host}:{port}/{vhost}?" \
                           "{ssl_params}&server_name_indication={host}".format(
                             host=config_opts['host'],
-                            port=config_opts['amqp_port'],
+                            port=config_opts['amqp-port'],
                             vhost=config_opts['virtual-host'],
                             ssl_params=get_ssl_url_params())
         else:
             rmq_address = "amqp://{0}:{1}@{2}:{3}/{4}".format(
-                user, pwd, config_opts['host'], config_opts['amqp_port'],
+                user, pwd, config_opts['host'], config_opts['amqp-port'],
                 config_opts[ 'virtual-host'])
     except KeyError:
         print "Missing entries in rabbitmq config"
@@ -1055,7 +1055,7 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
     # updated rabbitmq_config.json
     config_opts['user'] = user
     config_opts['pass'] = ""
-    config_opts['amqp_port'] = '5671'
+    config_opts['amqp-port'] = '5671'
     config_opts['port'] = '15671'
     config_opts['rmq-address'] = build_rmq_address(ssl=True)
     config_opts.sync()
