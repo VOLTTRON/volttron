@@ -1,5 +1,4 @@
-
-
+  
 
 ![image](docs/source/images/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
 
@@ -106,6 +105,7 @@ sudo rabbitmq-plugins enable rabbitmq_management
 sudo rabbitmq-plugins enable rabbitmq_federation
 sudo rabbitmq-plugins enable rabbitmq_federation_management
 sudo rabbitmq-plugins enable rabbitmq_shovel
+sudo rabbitmq-plugins enable rabbitmq_auth_mechanism_ssl
 ```
 
 **d. Download the version of pika library from below specified git repository
@@ -140,42 +140,116 @@ pip install -e ~/pika
 python volttron/utils/rmq_mgmt.py single
 ```
 
-This creates a new virtual host “volttron” and creates a new self signed CA
-certificate, a server certificate and a volttron user and corresponding client
-certificate. These certificates get created under the sub directory
-certificates in your volttron home. Rabbitmq user should have read access to
-files under $VOLTTRON_HOME/certificates/certs and
-$VOLTTRON_HOME/certificates/private folder.
-It then creates the main VIP exchange named "volttron" to route message between
-platform and agents and alternate exchange to capture unrouteable
-messages.
+This creates a new virtual host “volttron” and creates ssl certificates needed for this volttron instance. These certificates get created under the sub directory certificates in your volttron home. It then creates the main VIP exchange named "volttron" to route message between platform and agents and alternate exchange to capture unrouteable messages.
 
-**6. Update RabbitMQ configuration file and restart RabbitMQ server**
+This script prompt for multiple information from the user regarding the volttron instance for which we are configuring rabbitmq. For each volttron instance there a single instance-ca certificate is created. All volttron instances that need to work together in a federation/shovel setup needs to have a instance-ca certificate signed by the same root CA.  A single volttron instance can create a self signed root ca. Instance-ca for all volttron instances should be generated in this volttron instance and should be scp-ed into the other instance. 
 
-Create/Update RabbitMQ configuration file. By default it is called rabbitmq.conf
-The location of this file is distribution specific. Please see
-(https://www.rabbitmq.com/configure.html#config-location). Add the following
-content to rabbitmq.conf (Replace $VOLTTRON_HOME with actual path)
+Following is the example inputs for rmq_mgmt.py single command for volttron instance that has root CA. 
+```sh
+python volttron/utils/rmq_mgmt.py single
+Your VOLTTRON_HOME currently set to: /home/velo/new_volttron
+Is this the volttron instance you are attempting to configure rabbitmq for? [Y]:
 
+What is the name of the virtual host under which Rabbitmq VOLTTRON will be running? [volttron]:
+
+Use default rabbitmq configuration [Y]:
+
+Creating new VIRTUAL HOST: volttron
+
+Create new exchange: volttron
+
+Create new exchange: undeliverable
+
+Checking for CA certificate
+
+What is the fully qualified domain name of the system? [vbox2.pnl.gov]:
+
+Do you want to create a self-signed root CA certificate that can sign all volttron instance CA in your setup: [N]: y
+
+Please enter the following for certificate creation:
+
+C - Country(US):
+
+ST - State(Washington):
+
+L - Location(Richland):
+
+O - Organization(PNNL):
+
+OU - Organization Unit(Volttron Team):
+
+CN - Common Name(vbox2 volttron-ca):
+
+Created CA cert
+
+Creating new USER: volttron1
+
+Create READ, WRITE and CONFIGURE permissions for the user: volttron1
+
+What is the admin user name: [volttron1]:
+
+Please do the following to complete setup
+
+1. Provide read access to rabbitmq user to VOLTTRON_HOME/certificates/private/*
+
+2. Move the rabbitmq.conf filein VOLTTRON_HOME directory into your rabbitmq configuration directory (/etc/rabbitmq in RPM/Debian systems)
+
+3. For custom ssl ports: Generated configuration uses default rabbitmq ssl ports. Modify both rabbitmq.conf and VOLTTRON_HOME/rabbitmq_config.json if using different ports.
+
+4. Restart rabbitmq-server. 
+	sudo service rabbitmq-server stop
+	sudo service rabbitmq-server start
 ```
-listeners.ssl.default = 5671
-ssl_options.cacertfile = $VOLTTRON_HOME/certificates/certs/volttron-ca.crt
-ssl_options.certfile = $VOLTTRON_HOME/certificates/certs/volttron-server.crt
-ssl_options.keyfile = $VOLTTRON_HOME/certificates/private/volttron-server.pem
-ssl_options.verify = verify_peer
-ssl_options.fail_if_no_peer_cert = true
-auth_mechanisms.1 = EXTERNAL
-ssl_cert_login_from = common_name
-ssl_options.versions.1 = tlsv1.2
-ssl_options.versions.2 = tlsv1.1
-ssl_options.versions.3 = tlsv1
-```
-restart rabbitmq-server
+
+Example inputs for 'python rmq_mgmt.py single' command for a volttron instance that does not contain the root CA cert
 
 ```sh
-sudo service rabbitmq-server stop
-sudo service rabbitmq-server start
+python volttron/utils/rmq_mgmt.py single
+Your VOLTTRON_HOME currently set to: /home/velo/volttron_test
+
+Is this the volttron instance you are attempting to configure rabbitmq for? [Y]:
+
+Name of this volttron instance: [volttron1]:
+
+What is the name of the virtual host under which Rabbitmq VOLTTRON will be running? [volttron]:
+
+Use default rabbitmq configuration [Y]:
+
+Creating new VIRTUAL HOST: volttron
+
+Create new exchange: volttron
+
+Create new exchange: undeliverable
+
+Checking for CA certificate
+
+What is the fully qualified domain name of the system? [localhost.localdomain]: osboxes.pnl.gov
+
+Do you want to create a self-signed root CA certificate that can sign all volttron instance CA in your setup: [N]: N
+
+Enter path to intermediate CA certificate of this volttron instance: /home/velo/volttron1-ca.crt
+
+Enter path to private key file for this instance CA: /home/velo/volttron1-ca.pem
+
+Creating new USER: volttron1
+
+Create READ, WRITE and CONFIGURE permissions for the user: volttron1
+
+What is the admin user name: [volttron1]:
+Please do the following to complete setup
+
+1. Provide read access to rabbitmq user to VOLTTRON_HOME/certificates/private/*
+
+2. Move the rabbitmq.conf filein VOLTTRON_HOME directory into your rabbitmq configuration directory (/etc/rabbitmq in RPM/Debian systems)
+
+3. For custom ssl ports: Generated configuration uses default rabbitmq ssl ports. Modify both rabbitmq.conf and VOLTTRON_HOME/rabbitmq_config.json if using different ports.
+
+4. Restart rabbitmq-server. 
+	sudo service rabbitmq-server stop
+	sudo service rabbitmq-server start
 ```
+**6. Update RabbitMQ configuration file and restart RabbitMQ server**
+Follow the instructions provided as output of 'python rmq_mgmt.py single' command to create the rabbitmq.conf, change permissions for ssl private key files and restart rabbitmq-server
 
 **7. Test**
 
