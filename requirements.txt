@@ -7,7 +7,6 @@ monotonic==1.2
 pbr==1.10.0
 ply==3.9
 psutil==4.3.1
-py==1.4.31
 pymodbus==1.2.0
 pyserial==3.1.1
 python-dateutil==2.5.3
