@@ -328,13 +328,15 @@ We can configure multi-platform VOLTTRON setup with RabbitMQ message bus using b
 first step to do so would be to identify upstream servers (publisher nodes) and downstream servers (collector nodes).
 To create a RabbitMQ federation, we have to configure upstream servers and make the VOLTTRON exchange "federated".
 
-On the downstream server (collector node),
+1. On the downstream server (collector node),
 
 ```
 python volttron/utils/rmq_mgmt.py federation
 ```
 
 We need to provide the hostname (or IP address) and port of the upstream nodes when prompted. The hostname provided should match the hostname in the ssl certificate of the upstream server. For bi-directional data flow, we will have to run the same script on both the nodes.
+
+2. Create a user in the upstream server with username=<downstream volttron instance name> and provide it access to the virtualhost of the upstream rabbitmq server. 
 
 ## Next Steps
 We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we
