@@ -124,8 +124,14 @@ def get_authentication_args(ssl):
         instance_ca, server_cert, client_cert = get_cert_names(instance_name)
         admin_user = get_user()
         if admin_password is None:
-            prompt = 'What is the password for user({}):'.format(admin_user)
-            admin_password = prompt_response(prompt)
+            #prompt = 'What is the password for user({}):'.format(admin_user)
+            # TODO: figure out how to manage admin user and password. rabbitmq
+            # federation plugin doesn't handle external_auth plugin !!
+            # One possible workaround is to use plain username/password auth
+            # with guest user with localhost. We still have to persist guest
+            # password but at least guest user can only access rmq using
+            # localhost
+            admin_password = default_pass
         return {'auth': (admin_user, admin_password), 'verify': crts.cert_file(
             instance_ca),
                 'cert': (crts.cert_file(client_cert),
