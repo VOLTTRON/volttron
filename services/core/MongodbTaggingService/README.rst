@@ -59,9 +59,13 @@ by this agent.
                 "passwd": "password for this db"
             }
         },
-        # optional if collections created for tagging should have names
+        # optional. Specify if collections created for tagging should have names
         # starting with a specific prefix <given prefix>_<collection_name>
-        "table_prefix":"volttron"
+        "table_prefix":"volttron",
+
+        # optional. Specify if you want tagging service to query the historian
+        # with this vip identity. defaults to platform.historian
+        "historian_vip_identity": "crate.historian"
     }
 
 See Also
