@@ -39,16 +39,13 @@
 
 from __future__ import absolute_import
 
+from datetime import datetime
 import logging
+import re
 import weakref
+import warnings
 
 from .base import SubsystemBase
-from volttron.platform.agent import json
-from ..errors import VIPError
-from ..results import ResultsDictionary
-from zmq import ZMQError
-from zmq.green import ENOTSOCK
-
 import gevent
 
 __all__ = ['FNCS']
@@ -70,47 +67,26 @@ class FNCS(SubsystemBase):
 
     """
 
-    def __init__(self, owner, core, rpc):
+    def __init__(self, owner, core, pubsub):
         self.core = weakref.ref(core)
-        self._greenlets = []
+        self.pubsub = weakref.ref(pubsub)
+
         self._federate_name = self.core().identity
         self._broker = "tcp://localhost:5570"
         self._time_delta = "1s"
         self._poll_timeout = 60
         self._registered_fncs_topics = {}
         self._registered_fncs_topic_callbacks = {}
-        self._current_timestep = 0
+        self._current_step = 0
+        self._current_simulation_time = None
+        self._simulation_start_time = None
+        self._simulation_delta = None
+        self._simulation_length = None
+        self._simulation_complete = False
+        self._work_callback = None
 
-        def onsetup(sender, **kwargs):
-            rpc.export(self.is_fncs_installed, 'fncs.fncs_installed')
-            rpc.export(self.fncs_version, "fncs.fncs_version")
-            rpc.export(self.initialize, "fncs.initialize")
-            rpc.export(self.next_timestep, "fncs.next_timestep")
-            rpc.export(self.publish, "fncs.publish")
-            rpc.export(self.publish_anon, "fncs.publish_anon")
-            rpc.export(self.get_current_timestep, "fncs.get_current_timestep")
-            rpc.export(self.reset, "fncs.reset")
-            # rpc.export(self.get_status, 'health.get_status')
-            # rpc.export(self.send_alert, 'health.send_alert')
-        core.onsetup.connect(onsetup, self)
-        #self._results = ResultsDictionary()
-        #core.register('hello', self._handle_hello, self._handle_error)
-
-    def is_fncs_installed(self):
-        """ Allows caller to determine if the fncs module is available.
-        """
-        return HAS_FNCS
-
-    def __raise_if_not_installed(self):
-        if not self.is_fncs_installed():
-            raise RuntimeError("Missing fncs python library.")
-
-    def fncs_version(self):
-        self.__raise_if_not_installed()
-        return fncs.get_version()
-
-    def initialize(self, topic_maping, federate_name=None, broker_location="tcp://localhost:5570",
-                   time_delta="1s", poll_timeout=60):
+    def initialize(self, sim_start_time, sim_length, topic_maping, work_callback, federate_name=None,
+                   broker_location="tcp://localhost:5570", time_delta="1s", poll_timeout=60):
         """ Configure the agent to act as a federated connection to FNCS
 
         federate_name - MUST be unique to the broker.  If None, then will be the
@@ -133,12 +109,35 @@ class FNCS(SubsystemBase):
         if not topic_maping:
             raise ValueError("Must supply a topic mapping with topics to map onto.")
 
+        if not sim_start_time:
+            raise ValueError("sim_start_time must be specified.")
+
+        if not sim_length:
+            raise ValueError("sim_length must be specified.")
+
+        if not time_delta:
+            raise ValueError("time_delta must be specified.")
+
+        if not federate_name:
+            raise ValueError("federate_name must be specified.")
+
+        if not broker_location:
+            raise ValueError("broker_location must be specified.")
+
+        if not work_callback:
+            raise ValueError("work_callback must be specified.")
+
+        if not isinstance(sim_start_time, datetime):
+            raise ValueError("sim_start_time must be a datetime object.")
+
+        self._broker = broker_location
+        self._time_delta = time_delta
+        self._current_simulation_time = self._simulation_start_time = sim_start_time
+        self._simulation_delta = self.parse_time(time_delta)
+        self._simulation_length = self.parse_time(sim_length)
         if federate_name:
             self._federate_name = federate_name
-        if broker_location:
-            self._broker = broker_location
-        if time_delta:
-            self._time_delta = time_delta
+        self._work_callback = work_callback
 
         for k, v in topic_maping.items():
             if not v.get('fncs_topic'):
@@ -178,59 +177,52 @@ broker = {0[broker]}
         if not fncs.is_initialized():
             raise RuntimeError("Intialization error for fncs.")
 
-    # def register_topic_map(self, topic_map):
-    #     """ Registers a topic map with fncs
-    #
-    #     :param topic_map:
-    #     :return:
-    #     """
-    #     if fncs.is_initialized:
-    #         raise RuntimeError("Invalid state, fncs has alreayd been initialized")
-    #
-    #     for k, v in topic_map.items():
-    #         if not v.get('fncs_topic'):
-    #             raise ValueError("Invalid fncs_topic specified.")
-    #
-    #         entry = dict(topic=v.get('fncs_topic'))
-    #         if 'volttron_topic' in v.keys():
-    #             entry['volttron_topic'] = v['volttron_topic']
-    #
-    #         self._registered_fncs_topics[k] = entry
-
-
-
-    # def register_topic(self, key, fncs_topic, volttron_topic, default=None, data_type=None):
-    #     """ register a fncs topic to called when a message comes in.
-    #
-    #     :param topic:
-    #     :param callback:
-    #     :param aslist:
-    #     :param default:
-    #     :param data_type:
-    #     :return:
-    #     """
-    #     self._registered_fncs_topics[key] = dict(topic=topic,
-    #                                              is_list=str(aslist).lower(),
-    #                                              default=default,
-    #                                              type=data_type)
-    #     self._registered_fncs_topic_callbacks[key] = callback
-    #     _log.debug("registered fncs key: {} topic: {}".format(key, topic))
-
-    def get_current_timestep(self):
+    @property
+    def current_simulation_step(self):
         self.__raise_if_not_installed()
-        return self._current_timestep
+        return self._current_step
+
+    @property
+    def current_simulation_time(self):
+        self.__raise_if_not_installed()
+        return self._current_simulation_time
 
     def next_timestep(self):
         self.__raise_if_not_installed()
         # TODO: Change from using 5 to using time_delta.
-        granted_time = fncs.time_request(self._current_timestep + 5)
-        self._current_timestep = granted_time
+        granted_time = fncs.time_request(self._current_step + self._simulation_delta)
+        self._current_step = granted_time
+        # self._current_simulation_time = self._current_simulation_time + self._simulation_delta
         _log.debug("Granted time is: {}".format(granted_time))
+
+    def parse_time(self, time_string):
+
+        parssed_time = re.findall(r'(\d+)(\s?)(\D+)', time_string)
+        if len(parssed_time) > 0:
+            inTime = int(parssed_time[0][0])
+            inUnit = parssed_time[0][2]
+            if 's' in inUnit[0] or 'S' in inUnit[0]:
+                timeMultiplier = 1
+            elif 'm' in inUnit[0] or 'M' in inUnit[0]:
+                timeMultiplier = 60
+            elif 'h' in inUnit[0] or 'H' in inUnit[0]:
+                timeMultiplier = 3600
+            elif 'd' in inUnit[0] or 'D' in inUnit[0]:
+                timeMultiplier = 86400
+            else:
+                warnings.warn("Unknown time unit supplied. Defaulting to seconds.")
+                timeMultiplier = 1
+        else:
+            raise RuntimeError(
+                "Unable to parse run time argument. Please provide run time in the following format: #s, #m, #h, #d, or #y.")
+        return inTime * timeMultiplier
 
     def publish(self, topic, message):
         self.__raise_if_not_installed()
         payload = dict(topic=topic, message=message)
-        fncs.publish(topic, message) #.agentPublish(json.dumps(payload))
+        new_topic = '/'.join([self._federate_name, topic])
+        _log.debug("Publishing to: {}".format(new_topic))
+        fncs.publish("a", str(message))
 
     def publish_anon(self, topic, message):
         self.__raise_if_not_installed()
@@ -243,17 +235,41 @@ broker = {0[broker]}
 
     def _fncs_loop(self):
         _log.info("Starting fncs loop")
-        while fncs.is_initialized():
+        while self._current_step < self._simulation_length:
             subKeys = fncs.get_events()
-
-            if subKeys:
-                _log.debug("Subkeys are: %s", subKeys)
-            else:
-                if fncs.get_value("a"):
-                    _log.debug(fncs.get_value("a"))
+            # Block until the work is done here.
+            self._work_callback()
+            _log.debug("Wooot woot")
+            if len(subKeys) > 0:
+                for x in subKeys:
+                    _log.debug("Publish to volttron: {}".format(self._registered_fncs_topics[x]['volttron_topic']))
+                    _log.debug("{} is {}".format(x, fncs.get_value(x)))
+            # if subKeys:
+            #     _log.debug("Subkeys are: %s", subKeys)
+            # else:
+            #     if fncs.get_value("a"):
+            #         for x in fncs.get_value('a'):
+            #             _log.debug(fncs.get_value("a"))
 
             # This allows other event loops to run
             gevent.sleep(0.000000001)
 
+        self._simulation_complete = True
+        fncs.finalize()
+
+    @property
+    def fncs_installed(self):
+        """ Allows caller to determine if the fncs module is available.
+        """
+        return HAS_FNCS
+
+    def __raise_if_not_installed(self):
+        if not self.fncs_installed:
+            raise RuntimeError("Missing fncs python library.")
+
+    @property
+    def fncs_version(self):
+        self.__raise_if_not_installed()
+        return fncs.get_version()
 
 

@@ -4,8 +4,10 @@ Agent documentation goes here.
 
 __docformat__ = 'reStructuredText'
 
+from datetime import datetime
 import gevent
 import logging
+import random
 import sys
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent, Core, RPC
@@ -40,8 +42,9 @@ def fncs_example(config_path, **kwargs):
     federate = config.get("federate_name")
     broker_location = config.get("broker_location", "tcp://localhost:5570")
     time_delta = config.get("time_delta", "1s")
+    sim_length = config.get("sim_length", "60s")
     return FncsExample(topic_mapping=topic_mapping, federate_name=federate, broker_location=broker_location,
-                       time_delta=time_delta, **kwargs)
+                       time_delta=time_delta, sim_length=sim_length, **kwargs)
 
 
 class FncsExample(Agent):
@@ -50,7 +53,7 @@ class FncsExample(Agent):
     """
 
     def __init__(self, topic_mapping, federate_name=None, broker_location="tcp://localhost:5570",
-                 time_delta="1s", **kwargs):
+                 time_delta="1s", simulation_start_time=None, sim_length="10s", **kwargs):
         super(FncsExample, self).__init__(enable_fncs=True, enable_store=False, **kwargs)
         _log.debug("vip_identity: " + self.core.identity)
 
@@ -63,6 +66,11 @@ class FncsExample(Agent):
         self._broker_location = broker_location
         self._time_delta = time_delta
         self._topic_mapping = topic_mapping
+        self._sim_start_time = simulation_start_time
+        if self._sim_start_time is None:
+            self._sim_start_time = datetime.now()
+
+        self._sim_length = sim_length
 
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
@@ -70,26 +78,30 @@ class FncsExample(Agent):
 
         """
         # Exit if fncs isn't installed in the current environment.
-        if not self.vip.fncs.is_fncs_installed():
+        if not self.vip.fncs.fncs_installed:
             _log.error("fncs module is unavailable please add it to the python environment.")
             self.core.stop()
             return
 
         try:
-            self.vip.fncs.initialize(self._topic_mapping, self._federate_name, time_delta=self._time_delta)
+            self.vip.fncs.initialize(topic_maping=self._topic_mapping, federate_name=self._federate_name,
+                                     time_delta=self._time_delta, sim_start_time=self._sim_start_time,
+                                     sim_length=self._sim_length, work_callback=self.do_work)
         except ValueError as ex:
             _log.error(ex.message)
             self.core.stop()
             return
-        else:
-            self.do_work()
 
     def do_work(self):
-        while True:
-            _log.debug("Publishing")
-            self.vip.fncs.publish_anon("device/abc", "def")
-            self.vip.fncs.next_timestep()
-            gevent.sleep(1)
+
+        _log.debug("Publishing")
+        value = str(random.randint(0, 10))
+        _log.debug("Value is: {}".format(value))
+        if self.vip.fncs.current_simulation_step % 2 == 0:
+            self.vip.fncs.publish("bar/abc", value)
+        else:
+            self.vip.fncs.publish_anon("devices/def", value)
+        self.vip.fncs.next_timestep()
 
     @Core.receiver("onstop")
     def onstop(self, sender, **kwargs):
