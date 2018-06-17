@@ -57,7 +57,7 @@ http://ryanstutorials.net/linuxtutorial/
 
   Please refer to [rabbitmq website](https://www.rabbitmq.com/which-erlang.html) to find the right version of Erlang to be installed for the version of RabbitMQ you intend to install
 
-  On Debian based systems:
+  **On Debian based systems:**
 
   ```sh
   wget https://packages.erlang-solutions.com/erlang-solutions_1.0_all.deb
@@ -65,14 +65,29 @@ http://ryanstutorials.net/linuxtutorial/
   sudo apt-get install erlang erlang-nox
   ```
 
-  On Redhat based systems:
+  **On Redhat based systems:**
 
   Easiest way to install Erlang for use with Rabbitmq is to use [Zero dependency
   Erlang RPM](https://github.com/rabbitmq/erlang-rpm). This included only the components required for RabbitMQ.
-  Copy the contents of the repo file provided in
-  /etc/yum.repos.d/rabbitmq-erlang.repo and then run yum install erlang. You
-  would need to do both these as root user.
-
+  Copy the contents of the repo file provided into /etc/yum.repos.d/rabbitmq-erlang.repo and then run yum install erlang. You would need to do both these as root user. below is a example rabbitmq-erlang.repo file for centos 7 and erlang 20.7
+  
+  ```sh
+# In /etc/yum.repos.d/rabbitmq-erlang.repo
+[rabbitmq-erlang]
+name=rabbitmq-erlang
+baseurl=https://dl.bintray.com/rabbitmq/rpm/erlang/20/el/7
+gpgcheck=1
+gpgkey=https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc
+repo_gpgcheck=0
+enabled=1
+  ```
+ Once you save the repo file, run the following commands
+ ```sh
+ sudo yum install erlang
+ ```
+  
+  
+ Alternatively,
   You can also download and install Erlang from [Erlang Solutions](https://www.erlang-solutions.com/resources/download.html). Please include OTP/components - ssl, public_key, asn1, and crypto. Also lock version of Erlang using the [yum-plugin-versionlock](https://access.redhat.com/solutions/98873)
 
   **b. Install RabbitMQ server package**
@@ -85,7 +100,7 @@ On Redhat based systems:
 
 Download the appropriate rpm from [rabbitmq site](https://www.rabbitmq.com/install-rpm.html) and install using  "yum install <name>.rpm" command
 ```sh
-# following commands are for CentOS 7
+# following commands are for CentOS 7 and rabbitmq-server 3.7.4
 wget https://dl.bintray.com/rabbitmq/all/rabbitmq-server/3.7.4/rabbitmq-server-3.7.4-1.el7.noarch.rpm
 sudo yum install rabbitmq-server-3.7.4-1.el7.noarch.rpm
 ```
