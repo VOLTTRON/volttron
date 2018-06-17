@@ -82,23 +82,40 @@ class FNCS(SubsystemBase):
         self._simulation_start_time = None
         self._simulation_delta = None
         self._simulation_length = None
+        self._simulation_started = False
         self._simulation_complete = False
         self._work_callback = None
+        self._current_values = {}
+        self._stop_agent_when_sim_complete = False
 
     def initialize(self, sim_start_time, sim_length, topic_maping, work_callback, federate_name=None,
-                   broker_location="tcp://localhost:5570", time_delta="1s", poll_timeout=60):
+                   broker_location="tcp://localhost:5570", time_delta="1s", stop_agent_when_sim_complete=False):
         """ Configure the agent to act as a federated connection to FNCS
+
+        sim_start_time - Wall clock time for the simulation start time (This is not used at present time other
+                         than to be available)
+
+        sim_length - Time for the simulation to run.  Should be formatted as <number><unit> i.e. 60s.
+
+        topic_mapping - Maps fncs topics onto volttron topics.
 
         federate_name - MUST be unique to the broker.  If None, then will be the
                         identity of the current agent process.
 
-        broker - tcp location of the fncs broker
+        broker - tcp location of the fncs broker (defaults to tcp://localhost:5570)
 
         time_delta - Minimum timestep supported for the federate.
 
+        stop_agent_when_sim_complete - Should we stop the agent when the simulation is completed.
+
+        :param sim_start_time:
+        :param sim_length:
+        :param topic_maping:
+        :param work_callback:
         :param federate_name:
         :param broker_location:
-        :param kwargs:
+        :param time_delta:
+        :param poll_timeout:
         :return:
         """
         self.__raise_if_not_installed()
@@ -150,6 +167,9 @@ class FNCS(SubsystemBase):
             self._registered_fncs_topics[k] = entry
 
         self.__register_federate()
+        self._simulation_started = False
+        self._simulation_complete = False
+        self._stop_agent_when_sim_complete = stop_agent_when_sim_complete
 
     def __register_federate(self):
         self.__raise_if_not_installed()
@@ -161,7 +181,8 @@ broker = {0[broker]}
         if self._registered_fncs_topics:
             cfg += "values"
             for k, v in self._registered_fncs_topics.items():
-                cfg += "\n\t{}\n\t\ttopic = {}\n".format(k, v['fncs_topic'])
+                federate_topic = "/".join([self._federate_name, v['fncs_topic']])
+                cfg += "\n\t{}\n\t\ttopic = {}\n".format(k, federate_topic)
                 if v.get("default"):
                     cfg += "\t\tdefault = {}\n".format(v.get('default'))
                 if v.get("data_type"):
@@ -171,31 +192,50 @@ broker = {0[broker]}
         _log.debug(cfg)
         cfg = cfg.replace("\t", "    ")
         fncs.initialize(cfg)
-        _log.debug(fncs.is_initialized())
-        gevent.spawn(self._fncs_loop)
-        gevent.sleep(0.0001)
         if not fncs.is_initialized():
             raise RuntimeError("Intialization error for fncs.")
 
+    def start_simulation(self):
+        """ Begin the main fncs loop
+
+        :return:
+        """
+        self.__raise_if_not_installed()
+        if not fncs.is_initialized():
+            raise ValueError("intialized must be called before starting simulation")
+        gevent.spawn(self._fncs_loop)
+        # Allow the spawned greenlet to run.
+        gevent.sleep(0.1)
+
     @property
     def current_simulation_step(self):
+        """ returns the current fncs timestep.
+
+        :return:
+        """
         self.__raise_if_not_installed()
         return self._current_step
 
-    @property
-    def current_simulation_time(self):
-        self.__raise_if_not_installed()
-        return self._current_simulation_time
-
     def next_timestep(self):
+        """ Advances the fncs timestep to the next time delta.
+
+        :return:
+        """
         self.__raise_if_not_installed()
-        # TODO: Change from using 5 to using time_delta.
         granted_time = fncs.time_request(self._current_step + self._simulation_delta)
+        self._raise_if_error("fncs.time_request")
         self._current_step = granted_time
-        # self._current_simulation_time = self._current_simulation_time + self._simulation_delta
         _log.debug("Granted time is: {}".format(granted_time))
 
+    def getvalues(self):
+        return self._current_values
+
     def parse_time(self, time_string):
+        """ Parses a <number><unit> i.e. 60s to a fncs timestep number.
+
+        :param time_string:
+        :return:
+        """
 
         parssed_time = re.findall(r'(\d+)(\s?)(\D+)', time_string)
         if len(parssed_time) > 0:
@@ -218,16 +258,29 @@ broker = {0[broker]}
         return inTime * timeMultiplier
 
     def publish(self, topic, message):
+        """ publish a topic to the fncs bus.
+
+        The publish will only be sent if there is a federate subscribed to the topic that is being published.
+
+        :param topic:
+        :param message:
+        :return:
+        """
         self.__raise_if_not_installed()
-        payload = dict(topic=topic, message=message)
-        new_topic = '/'.join([self._federate_name, topic])
-        _log.debug("Publishing to: {}".format(new_topic))
-        fncs.publish("a", str(message))
+        _log.debug("Publishing to: {}".format(topic))
+        fncs.publish(topic, str(message))
+        self._raise_if_error("publishing topic: {} message: {}".format(topic, message))
 
     def publish_anon(self, topic, message):
+        """ publish an anonymous topic to the fncs bus.
+
+        :param topic:
+        :param message:
+        :return:
+        """
         self.__raise_if_not_installed()
-        payload = dict(topic=topic, message=message)
         fncs.publish_anon(topic, message)
+        self._raise_if_error("publishing anon topic: {} message: {}".format(topic, message))
 
     def reset(self):
         self.__raise_if_not_installed()
@@ -235,27 +288,43 @@ broker = {0[broker]}
 
     def _fncs_loop(self):
         _log.info("Starting fncs loop")
+        self._simulation_started = True
         while self._current_step < self._simulation_length:
-            subKeys = fncs.get_events()
             # Block until the work is done here.
+            subKeys = fncs.get_events()
+            self._raise_if_error("After get_events")
+            self._current_values.clear()
+
+            for x in subKeys:
+                fncs_topic = self._registered_fncs_topics[x].get('fncs_topic')
+                self._current_values[fncs_topic] = fncs.get_value(x)
+                if not fncs.is_initialized():
+                    fncs.die()
+                    raise RuntimeError("FNCS unexpected error after get_values")
+
             self._work_callback()
-            _log.debug("Wooot woot")
+
+            subKeys = fncs.get_events()
+
             if len(subKeys) > 0:
                 for x in subKeys:
-                    _log.debug("Publish to volttron: {}".format(self._registered_fncs_topics[x]['volttron_topic']))
-                    _log.debug("{} is {}".format(x, fncs.get_value(x)))
-            # if subKeys:
-            #     _log.debug("Subkeys are: %s", subKeys)
-            # else:
-            #     if fncs.get_value("a"):
-            #         for x in fncs.get_value('a'):
-            #             _log.debug(fncs.get_value("a"))
+                    subkeyvalue = fncs.get_value(x)
+                    volttron_topic = self._registered_fncs_topics[x].get('volttron_topic')
+                    if volttron_topic:
+                        self.pubsub().publish('pubsub', topic=volttron_topic, message=subkeyvalue)
 
             # This allows other event loops to run
             gevent.sleep(0.000000001)
 
         self._simulation_complete = True
         fncs.finalize()
+        if self._stop_agent_when_sim_complete:
+            self.core().stop()
+
+    def _raise_if_error(self, location):
+        if not fncs.is_initialized():
+            fncs.die()
+            raise RuntimeError("FNCS unexpected error: {}".format(location))
 
     @property
     def fncs_installed(self):
@@ -271,5 +340,23 @@ broker = {0[broker]}
     def fncs_version(self):
         self.__raise_if_not_installed()
         return fncs.get_version()
+
+    @property
+    def simulation_running(self):
+        return self._simulation_started and not self._simulation_complete
+
+    @property
+    def simulation_started(self):
+        return self._simulation_started
+
+    @property
+    def simulation_complete(self):
+        return self._simulation_complete
+
+    @property
+    def current_values(self):
+        return self._current_values.copy()
+
+
 
 
