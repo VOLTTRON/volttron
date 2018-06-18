@@ -136,7 +136,7 @@ def str2bool(str_val):
     state = str_val.strip().lower()
     if state in ('t', 'y', 'true', 'yes', '1'):
         return True
-    elif state in ('f', 'n', 'false', 'no', '0'):
+    elif state in ('f', 'n', 'false', 'no', '0', ''):
         return False
     else:
         raise ValueError
@@ -210,6 +210,24 @@ def scale_int(multiplier):
         return int(value / float(multiplier))
 
     func.inverse = inverse_func
+    return func
+
+
+def scale_reg(reg_name):
+    """
+        Scales modbus register values by scaling register value.
+
+    :param reg_name: scaling register name
+    :return: Returns a function used by the modbus client.
+    """
+    def func(value, scaling_register_value):
+        return value / scaling_register_value
+
+    def inverse_func(value, scaling_register_value):
+        return value * scaling_register_value
+
+    func.inverse = inverse_func
+    func.register_args = [reg_name,]
     return func
 
 
