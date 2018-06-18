@@ -49,6 +49,7 @@ import pytest
 import pytz
 import shutil
 
+from volttron.platform.dbutils import basedb
 from volttron.platform.dbutils.sqlitefuncts import SqlLiteFuncts
 
 try:
@@ -275,6 +276,10 @@ class TestPostgreSql(Suite):
         params = {'dbname': 'historian_test'}
         with self._transact(params, truncate_tables, drop_tables):
             yield PostgreSqlFuncts, params
+
+    def test_closing_interfaceerror(self):
+        with basedb.closing(FauxConnection(psycopg2.InterfaceError)):
+            pass
 
 
 @pytest.mark.skipif(not redshift_params, reason=(
