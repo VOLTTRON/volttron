@@ -59,14 +59,16 @@ import gevent.event
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform import get_home, get_address
 
-from .agent import utils
-from .agent.known_identities import CONTROL_CONNECTION, CONFIGURATION_STORE
-from .vip.agent import Agent as BaseAgent, Core, RPC
-from . import aip as aipmod
-from . import config
-from .jsonrpc import RemoteError
-from .auth import AuthEntry, AuthFile, AuthException
-from .keystore import KeyStore, KnownHostsStore
+
+from volttron.platform.agent import utils
+from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
+    CONFIGURATION_STORE
+from volttron.platform.vip.agent import Agent as BaseAgent, Core, RPC
+from volttron.platform import aip as aipmod
+from volttron.platform import config
+from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.auth import AuthEntry, AuthFile, AuthException
+from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.socket import Message
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.utils.rmq_mgmt import *

@@ -86,9 +86,10 @@ from .vip.keydiscovery import KeyDiscoveryAgent
 from .vip.pubsubwrapper import PubSubWrapper
 from ..utils.persistance import load_create_store
 from .vip.rmq_router import RMQRouter
+from volttron.platform.agent.utils import store_message_bus_config
 from zmq import green as _green
 from volttron.platform.vip.proxy_zmq_router import ZMQProxyRouter
-
+from volttron.platform.certs import Certs, DEFAULT_CERTS_DIR
 try:
     import volttron.restricted
 except ImportError:
@@ -535,7 +536,6 @@ def start_volttron_process(opts):
     that case the dictionaries keys are mapped into a value that acts like the
     args options.
     '''
-
     if isinstance(opts, dict):
         opts = type('Options', (), opts)()
         # vip_address is meant to be a list so make it so.
@@ -580,6 +580,7 @@ def start_volttron_process(opts):
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
+    store_message_bus_config(opts.message_bus, opts.instance_name)
     import urlparse
 
     if opts.bind_web_address:
@@ -945,6 +946,9 @@ def main(argv=sys.argv):
     parser.add_argument(
         '--verboseness', type=int, metavar='LEVEL', default=logging.WARNING,
         help='set logger verboseness')
+    parser.add_argument(
+        '--message-bus', action='store', default='zmq', dest='message_bus',
+        help='set message to be used. valid values are zmq and rmq')
     # parser.add_argument(
     #    '--volttron-home', env_var='VOLTTRON_HOME', metavar='PATH',
     #    help='VOLTTRON configuration directory')
@@ -991,10 +995,9 @@ def main(argv=sys.argv):
         help='Route all messages to an agent while debugging.')
     agents.add_argument(
         '--setup-mode', action='store_true',
-        help='Setup mode flag for setting up authorization of external platforms.')
-    agents.add_argument(
-        '--message-bus', default='zmq',
-        help='Type of message bus')
+        help='Setup mode flag for setting up authorization of external '
+             'platforms.')
+
     # XXX: re-implement control options
     # on
     # control.add_argument(
@@ -1086,7 +1089,8 @@ def main(argv=sys.argv):
     args = argv[1:]
     conf = os.path.join(volttron_home, 'config')
     if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
-        args = ['--config', conf] + args
+        ## command line args get preference over same args in config file
+        args = args + ['--config', conf]
     logging.getLogger().setLevel(logging.NOTSET)
     opts = parser.parse_args(args)
     start_volttron_process(opts)

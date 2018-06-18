@@ -149,6 +149,7 @@ class ZMQProxyRouter(Agent):
             args = json.loads(body)
             args = json.loads(args[0])
         except TypeError as e:
+            # TODO: to be fixed
             _log.error("Invalid json format {}".format(e))
             return
         userid = props.headers.get('userid', b'')

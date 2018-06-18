@@ -1,14 +1,19 @@
-import os
-import pika
-import logging
-import json
-from volttron.platform.vip.socket import Message
 import errno
-#from gevent import monkey
-from volttron.utils.rmq_mgmt import build_rmq_address, create_user
+import json
+import logging
+import os
+
+import pika
+
+from volttron.platform.vip.socket import Message
+# from gevent import monkey
+from volttron.utils.rmq_mgmt import build_rmq_address, build_connection_param
+
 #monkey.patch_socket()
+
 import uuid
 import time
+
 
 _log = logging.getLogger(__name__)
 # reduce pika log level
@@ -39,15 +44,15 @@ class RMQConnection(BaseConnection):
         self._closing = False
         self._consumer_tag = None
         self._error_tag = None
-        #self._userid = agent_uuid if agent_uuid is not None else identity
-        # Create new agent user
-        #create_user(self._userid, str(uuid.uuid4()))
         self._logger = logging.getLogger(__name__)
         self._logger.debug("AGENT address: {}".format(url))
         if vc_url:
             self._url = url
         else:
             self._url = build_rmq_address()
+
+        self._connection_param = build_connection_param(instance_name)
+
         _log.debug("AMQP address: {}".format(self._url))#'amqp://guest:guest@localhost:5672/%2F'
         self.routing_key = "{0}.{1}".format(instance_name, identity)
         #self.routing_key = identity
@@ -65,26 +70,25 @@ class RMQConnection(BaseConnection):
 
     def open_connection(self, type=None):
         """
-        If the connection is for an agent, open a gevent adapter connection. If the connection
+        If the connection is for an agent, open a gevent adapter connection.
+        If the connection
         is for platform, open asynchronous connection.
         :param type: agent/platform
         :return:
         """
-        if self._type == 'agent':
-            self._connection = pika.GeventConnection(pika.URLParameters(self._url),
+        if type == 'agent':
+            self._connection = pika.GeventConnection(self._connection_param,
                                                      on_open_callback=self.on_connection_open,
-                                                     on_open_error_callback=self.on_open_error
+                                                     on_open_error_callback=self.on_open_error,
                                                      #on_close_callback=self.on_connection_closed,
                                                      )
         else:
-            self._connection = pika.SelectConnection(
-                                    pika.URLParameters(self._url),
-                                    on_open_callback=self.on_connection_open,
-                                    on_close_callback=self.on_connection_closed,
-                                    on_open_error_callback=self.on_open_error,
-                                    stop_ioloop_on_close=False
-                                    )
-        self._type = type
+            self._connection = pika.SelectConnection(self._connection_param,
+                                                     on_open_callback=self.on_connection_open,
+                                                     on_close_callback=self.on_connection_closed,
+                                                     on_open_error_callback=self.on_open_error,
+                                                     stop_ioloop_on_close=False
+                                                     )
 
     def on_connection_open(self, unused_connection):
         """

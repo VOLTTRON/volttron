@@ -39,8 +39,6 @@
 
 """Component for the instantiation and packaging of agents."""
 
-
-import contextlib
 import errno
 import logging
 import os
@@ -51,11 +49,11 @@ import uuid
 
 import gevent
 import gevent.event
-from gevent.fileobject import FileObject
 from gevent import subprocess
 from gevent.subprocess import PIPE
 from wheel.tool import unpack
-import zmq
+
+from volttron.platform import certs
 
 # Can't use zmq.utils.jsonapi because it is missing the load() method.
 try:
@@ -63,17 +61,15 @@ try:
 except ImportError:
     import json as jsonapi
 
-from . import messaging
-from .agent.utils import is_valid_identity
-from .messaging import topics
+from .agent.utils import is_valid_identity, get_messagebus
 from .packages import UnpackedPackage
 from .vip.agent import Agent
 from .keystore import KeyStore
 from .auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
-
+from volttron.utils.rmq_mgmt import create_user as create_rmq_user, \
+    set_user_permissions as set_rmq_user_permissions
 try:
     from volttron.restricted import auth
-    from volttron.restricted import certs
     from volttron.restricted.resmon import ResourceError
 except ImportError:
     auth = None
@@ -623,7 +619,6 @@ class AIPplatform(object):
                 raise ValueError('no agent launch class specified in package')
         config = os.path.join(pkg.distinfo, 'config')
         tag = self.agent_tag(agent_uuid)
-
         environ = os.environ.copy()
         environ['PYTHONPATH'] = ':'.join([agent_path] + sys.path)
         environ['PATH'] = (os.path.abspath(os.path.dirname(sys.executable)) +
@@ -653,6 +648,19 @@ class AIPplatform(object):
 
         environ['AGENT_VIP_IDENTITY'] = agent_vip_identity
 
+        # If using Rabbit check if cert files exist. If not create certs and
+        # create rabbitmq user with default password. password is not used for
+        # auth only cert created is used
+        msg_bus = get_messagebus()
+        if msg_bus == 'rmq':
+            crts = certs.Certs()
+            if not crts.cert_exists(agent_vip_identity):
+                crts.create_ca_signed_cert(agent_vip_identity)
+                create_rmq_user(agent_vip_identity)
+                permissions = dict(configure=".*", read=".*", write=".*")
+                set_rmq_user_permissions(permissions, agent_vip_identity)
+
+        _log.info("Created agent cert")
         module, _, func = module.partition(':')
         if func:
             code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module, func)

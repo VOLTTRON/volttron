@@ -54,6 +54,7 @@ import re
 import stat
 import time
 from volttron.platform import get_home, get_address
+from volttron.utils.prompt import prompt_response
 from dateutil.parser import parse
 from dateutil.tz import tzutc, tzoffset
 from tzlocal import get_localzone
@@ -164,6 +165,21 @@ def load_platform_config():
     return config_opts
 
 
+def get_platform_instance_name(prompt=False):
+    # Next get instance name
+    platform_config = load_platform_config()
+    try:
+        instance_name = platform_config['instance-name'].strip('"')
+    except KeyError as exc:
+        if prompt:
+            instance_name = prompt_response("Name of this volttron instance:",
+                                        default="volttron1")
+        else:
+            raise KeyError("No instance-name is configured in "
+                           "$VOLTTRON_HOME/config. Please set instance-name in "
+                           "$VOLTTRON_HOME/config")
+    return instance_name
+
 def get_messagebus():
     """Get type of message bus - zeromq or rabbbitmq."""
     message_bus = os.environ.get('MESSAGEBUS')
@@ -171,6 +187,37 @@ def get_messagebus():
         config = load_platform_config()
         message_bus = config.get('message-bus', 'zmq')
     return message_bus
+
+
+def store_message_bus_config(message_bus, instance_name):
+    # If there is no config file or home directory yet, create volttron_home
+    # and config file
+    if not instance_name:
+        raise ValueError("Instance name should be a valid string and should "
+                         "be unique within a network of volttron instances "
+                         "that communicate with each other. start volttron "
+                         "process with '--instance-name <your instance>' if "
+                         "you are running this instance for the first time. "
+                         "Or add instance-name = <instance name> in "
+                         "vhome/config")
+    v_home= get_home()
+    config_path = os.path.join(v_home, "config")
+    if os.path.exists(config_path):
+        config = ConfigParser()
+        config.read(config_path)
+        config.set('volttron', 'message-bus', message_bus)
+        config.set('volttron','instance-name', instance_name)
+        with open(config_path, 'w') as configfile:
+            config.write(configfile)
+    else:
+        if not os.path.exists(v_home):
+            os.makedirs(v_home, 0o755)
+        with open(os.path.join(v_home, "config"), 'w') as f:
+            _log.info("rmq config is at {}".format(f.name))
+            f.write("[volttron]\n")
+            f.write("message-bus={}\n".format(message_bus))
+            f.write("instance-name="+instance_name)
+
 
 def update_kwargs_with_config(kwargs, config):
     """
