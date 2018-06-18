@@ -320,7 +320,7 @@ class PubSubService(object):
                 self._logger.error("JSON decode error. Invalid character")
                 return 0
             if self._rabbitmq_agent:
-                self._publish_rmq_bus(frames)
+                self._publish_on_rmq_bus(frames)
             return self._distribute(frames, user_id)
 
     def _peer_list(self, frames):
@@ -795,7 +795,7 @@ class PubSubService(object):
             frames[6] = 'publish'
             subscribers_count = 1
             if self._rabbitmq_agent:
-                self._publish_rmq_bus(frames)
+                self._publish_on_rmq_bus(frames)
             else:
                 subscribers_count = self._distribute_internal(frames)
             # There are no subscribers, send error message back to source platform
@@ -844,7 +844,7 @@ class PubSubService(object):
         self._distribute(frames, '')
         self._logger.debug("Publish callback {}".format(topic))
 
-    def _publish_rmq_bus(self, frames):
+    def _publish_on_rmq_bus(self, frames):
         """
         Publish the message on RabbitMQ message bus.
         :param frames: ZMQ message frames
@@ -889,6 +889,9 @@ class ProtectedPubSubTopics(object):
             if regex.match(topic):
                 return capabilities
         return None
+
+    def get_topic_caps(self):
+        return self._dict.copy()
 
     def _isprefix(self, topic):
         for prefix in self._dict:

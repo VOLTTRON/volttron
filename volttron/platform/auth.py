@@ -57,6 +57,8 @@ from .agent.utils import strip_comments, create_file_if_missing, watch_file
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
 from volttron.platform.vip.agent.errors import VIPError
+from volttron.utils.rmq_mgmt import set_topic_permissions_for_user, get_topic_permissions_for_user
+from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
 
 _log = logging.getLogger(__name__)
 
@@ -102,7 +104,7 @@ class AuthService(Agent):
         self._is_connected = False
         self._protected_topics_file = protected_topics_file
         self._protected_topics_file_path = os.path.abspath(protected_topics_file)
-        self._protected_topics = {}
+        self._protected_topics_for_rmq = ProtectedPubSubTopics()
         self._setup_mode = setup_mode
         self._auth_failures = []
 
@@ -140,10 +142,13 @@ class AuthService(Agent):
                 # Use gevent FileObject to avoid blocking the thread
                 data = FileObject(fil, close=False).read()
                 self._protected_topics = jsonapi.loads(data) if data else {}
-                self._send_protected_update_to_pubsub(self._protected_topics)
+                if self.core.messagebus == 'rmq':
+                    self._load_protected_topics_for_rmq()
+                    self._update_rmq_topic_permissions()
+                else:
+                    self._send_protected_update_to_pubsub(self._protected_topics)
         except Exception:
             _log.exception('error loading %s', self._protected_topics_file)
-
 
     def _send_update(self):
         user_to_caps = self.get_user_to_capabilities()
@@ -151,11 +156,14 @@ class AuthService(Agent):
         _log.debug("AUTH new capabilities update: {}".format(user_to_caps))
         for peer in peers:
             self.vip.rpc.call(peer, 'auth.update', user_to_caps)
-        self._send_auth_update_to_pubsub()
+        if self.core.messagebus == 'rmq':
+            self._update_rmq_topic_permissions()
+        else:
+            self._send_auth_update_to_pubsub()
 
     def _send_auth_update_to_pubsub(self):
         user_to_caps = self.get_user_to_capabilities()
-        #Send auth update message to router
+        # Send auth update message to router
         json_msg = jsonapi.dumps(
             dict(capabilities=user_to_caps)
         )
@@ -194,7 +202,10 @@ class AuthService(Agent):
         blocked = {}
         wait_list = []
         timeout = None
-        self._send_auth_update_to_pubsub()
+        if self.core.messagebus == 'rmq':
+            self._update_rmq_topic_permissions()
+        else:
+            self._send_protected_update_to_pubsub(self._protected_topics)
         while True:
             events = sock.poll(timeout)
             now = time()
@@ -212,6 +223,7 @@ class AuthService(Agent):
                     continue
                 response = zap[:4]
                 user = self.authenticate(domain, address, kind, credentials)
+                _log.debug("AUTH: authenticated user id: {0}, {1}".format(user, userid))
                 if user:
                     _log.info(
                         'authentication success: domain=%r, address=%r, '
@@ -409,6 +421,49 @@ class AuthService(Agent):
         }
         self._auth_failures.append(dict(fields))
         return
+
+    def _load_protected_topics_for_rmq(self):
+        try:
+            write_protect = self._protected_topics['write-protect']
+        except KeyError:
+            write_protect = []
+
+        topics = ProtectedPubSubTopics()
+        try:
+            for entry in write_protect:
+                topics.add(entry['topic'], entry['capabilities'])
+        except KeyError:
+            _log.exception('invalid format for protected topics ')
+        else:
+            self._protected_topics_for_rmq = topics
+
+    def _update_rmq_topic_permissions(self):
+        user_to_caps = self.get_user_to_capabilities() # agent to caps
+        topic_to_caps = self._protected_topics_for_rmq.get_topic_caps() # topic to caps
+        current_permissions = get_topic_permissions_for_user('volttron')
+        _log.debug("AUTH: USER TOPIC CAPS {0} {1}".format(user_to_caps, topic_to_caps))
+        user_to_caps = {} # To remove!!!!
+        for user, caps_for_user in user_to_caps.iteritems():
+            current_permissions = get_topic_permissions_for_user()
+            write_regex = read_regex = config_regex = ".*"
+            if current_permissions:
+                write_regex = current_permissions['write']
+                read_regex = current_permissions['read']
+            for topic, caps_for_topic in topic_to_caps.iteritems():
+                common_caps = list(set(caps_for_user).intersection(caps_for_topic))
+                _log.debug("COMMON {}".format(common_caps))
+                if not common_caps:
+                    if not write_regex.find(topic):
+                        write_regex = self._form_regex(write_regex)
+                        #^!(8768|9875|2353).*$
+                    new_permission = {"exchange": "volttron", "write": topic, "read": read_regex}
+                    #set_topic_permissions_for_user(user, new_permission)
+
+    def _form_regex(self, write_regex, topic):
+        s = write_regex.split('(')[1].split(')')[0]
+        s = "^!({0}|{1})$".format(s, topic)
+        return s
+
 
 class String(unicode):
     def __new__(cls, value):

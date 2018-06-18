@@ -6,9 +6,9 @@ import os
 import pika
 
 from volttron.platform.vip.socket import Message
-# from gevent import monkey
-from volttron.utils.rmq_mgmt import build_rmq_address, build_connection_param
-
+import errno
+#from gevent import monkey
+from volttron.utils.rmq_mgmt import build_rmq_address, create_user, build_connection_param
 #monkey.patch_socket()
 
 import uuid
@@ -76,13 +76,14 @@ class RMQConnection(BaseConnection):
         :param type: agent/platform
         :return:
         """
+        self._type = type
         if type == 'agent':
             self._connection = pika.GeventConnection(self._connection_param,
                                                      on_open_callback=self.on_connection_open,
                                                      on_open_error_callback=self.on_open_error,
                                                      #on_close_callback=self.on_connection_closed,
                                                      )
-        else:
+        else: #router
             self._connection = pika.SelectConnection(self._connection_param,
                                                      on_open_callback=self.on_connection_open,
                                                      on_close_callback=self.on_connection_closed,

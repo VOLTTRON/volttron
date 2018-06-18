@@ -53,9 +53,10 @@ _log = logging.getLogger(__name__)
 class ZMQProxyRouter(Agent):
     """
     Proxy ZMQ based router agent is implemented for backward compatibility with ZeroMQ based message bus. In a single
-    instance setup, either ZeroMQ or RabbitMQ based message bus will be running. But in multi-platform setup, if some
-    instances are RabbitMQ message bus based and others are ZeroMQ message bus based, then the Proxy router agent will
-    manage the routing between local and external instances.
+    instance setup, either ZeroMQ or RabbitMQ based message bus will be running and all the agents will be using
+    the same message bus. But in multi-platform setup, some instances maybe running with RabbitMQ message bus and
+    others with ZeroMQ message bus. The Proxy router agent is implemented to manage the routing between local and
+    external instances in such cases.
 
     Please note, if all instances in multi-platform setup are RabbitMQ based, then RabbitMQ federation/shovel have to
     be used.
@@ -91,12 +92,12 @@ class ZMQProxyRouter(Agent):
                                        auto_delete=True,
                                        callback=None)
         channel.queue_bind(exchange=connection.exchange,
-                                 queue=self._outbound_proxy_queue,
-                                 routing_key=self.core.instance_name + '.proxy.router.subsystems',
-                                 callback=None)
+                            queue=self._outbound_proxy_queue,
+                            routing_key=self.core.instance_name + '.proxy.router.subsystems',
+                            callback=None)
         channel.basic_consume(self.zmq_outbound_handler,
-                                    queue=self._outbound_proxy_queue,
-                                    no_ack=True)
+                                queue=self._outbound_proxy_queue,
+                                no_ack=True)
 
         # Create a queue to receive messages from local platform.
         # For example, external platform pubsub/RPC subscribe/unsubscribe requests from internal agents
@@ -107,9 +108,9 @@ class ZMQProxyRouter(Agent):
                               callback=None)
         # Binding for external platform pubsub message requests
         channel.queue_bind(exchange=connection.exchange,
-                                 queue=self._external_pubsub_rpc_queue,
-                                 routing_key=self.core.instance_name + '.proxy.router.pubsub',
-                                 callback=None)
+                            queue=self._external_pubsub_rpc_queue,
+                            routing_key=self.core.instance_name + '.proxy.router.pubsub',
+                            callback=None)
 
         # Binding for external platform RPC message requests
         channel.queue_bind(exchange=self.core.connection.exchange,
@@ -134,7 +135,7 @@ class ZMQProxyRouter(Agent):
 
     def zmq_outbound_handler(self, ch, method, props, body):
         """
-        Message received from internal agent is sent to an external platform agent in ZMQ VIP message format.
+        Message received from internal agent to send to remote agent in ZMQ VIP message format.
         :param ch: channel
         :param method: contains routing key
         :param properties: message properties like VIP header information
@@ -209,16 +210,19 @@ class ZMQProxyRouter(Agent):
         self.zmq_router.pubsub.add_rabbitmq_agent(self)
 
         while True:
-            frames = self.zmq_router.socket.recv_multipart(copy=False)
-            sender, recipient, proto, auth_token, msg_id, subsystem = frames[:6]
-            recipient = bytes(recipient)
-            # Check if router is the intended recipient or it has to route the message to an agent.
-            # for f in frames:
-            #     _log.debug("Proxy router message frames: {}".format(f))
-            if not recipient:
-                self.zmq_router.route(frames)
-            else:
-                self._handle_other_subsystems(frames)
+            try:
+                frames = self.zmq_router.socket.recv_multipart(copy=False)
+                sender, recipient, proto, auth_token, msg_id, subsystem = frames[:6]
+                recipient = bytes(recipient)
+                # Check if router is the intended recipient or it has to route the message to an agent.
+                # for f in frames:
+                #     _log.debug("Proxy router message frames: {}".format(f))
+                if not recipient:
+                    self.zmq_router.route(frames)
+                else:
+                    self._handle_other_subsystems(frames)
+            except ZMQError as e:
+                _log.error("Error while receiving message: {}".format(e))
 
     def _handle_other_subsystems(self, frames):
         """

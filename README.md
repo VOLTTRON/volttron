@@ -123,14 +123,6 @@ sudo rabbitmq-plugins enable rabbitmq_shovel
 sudo rabbitmq-plugins enable rabbitmq_auth_mechanism_ssl
 ```
 
-**d. Download the version of pika library from below specified git repository
-into
-your home directory.**
-```sh
-cd ~
-git clone -b gevent_connection_adapter https://github.com/shwethanidd/pika.git
-```
-
 **3. Download VOLTTRON code from experimental branch**
 ```sh
 git clone -b rabbitmq-volttron https://github.com/VOLTTRON/volttron.git
@@ -145,12 +137,7 @@ also install the dependencies for rabbimq.  Activate the environment :
 . env/bin/activate
 ```
 
-**4. Install pika library inside VOLTTRON environment:**
-```sh
-pip install -e ~/pika
-```
-
-**5. Create RabbitMQ setup for VOLTTRON :**
+**4. Create RabbitMQ setup for VOLTTRON :**
 ```sh
 python volttron/utils/rmq_mgmt.py single
 ```
@@ -331,17 +318,25 @@ subcommands:
     list-bindings       list all bindings with exchange
     list-federation-parameters
                         list all federation parameters
-    list-connections    list open connections
+    list-shovel-parameters
+                        list all shovel parameters
+    list-policies       list all policies
     remove-vhosts       Remove virtual host/s
     remove-users        Remove virtual user/s
     remove-exchanges    Remove exchange/s
     remove-queues       Remove queue/s
+    remove-federation-parameters
+                        Remove federation parameter
+    remove-shovel-parameters
+                        Remove shovel parameter
+    remove-policies     Remove policy
+
 ```
 
 ## Multi-Platform Deployment With RabbitMQ Message bus
 We can configure multi-platform VOLTTRON setup with RabbitMQ message bus using built-in "federation" feature provided by RabbitMQ. The
 first step to do so would be to identify upstream servers (publisher nodes) and downstream servers (collector nodes).
-To create a RabbitMQ federation, we have to configure upstream servers and make the VOLTTRON exchange "federated".
+To create a RabbitMQ federation, we have to configure upstream servers on the downstream server and make the VOLTTRON exchange "federated".
 
 1. On the downstream server (collector node),
 
@@ -349,7 +344,7 @@ To create a RabbitMQ federation, we have to configure upstream servers and make 
 python volttron/utils/rmq_mgmt.py federation
 ```
 
-We need to provide the hostname (or IP address) and port of the upstream nodes when prompted. The hostname provided should match the hostname in the ssl certificate of the upstream server. For bi-directional data flow, we will have to run the same script on both the nodes.
+Please provide the hostname (or IP address) and port of the upstream nodes when prompted. The hostname provided should match the hostname in the ssl certificate of the upstream server. For bi-directional data flow, we will have to run the same script on both the nodes.
 
 2. Create a user in the upstream server with username=<downstream volttron instance name> and provide it access to the virtualhost of the upstream rabbitmq server.
 ```sh
@@ -377,8 +372,6 @@ We request you to explore and contribute towards development of VOLTTRON message
  are working towards completing the below:
 * Adding authentication and authorization feature to RabbitMQ message bus.
 * Authenticated connection amongst multiple platform instances.
-* Creation of Each agent has to have a unique RabbitMQ user id.
-* Testing of RabbitMQ shovel for multi-platform over NAT setup
 
 ## Acquiring Third Party Agent Code
 Third party agents are available under volttron-applications repository. In order to use those agents, add volttron-applications repository under the volttron/applications directory by using following command:

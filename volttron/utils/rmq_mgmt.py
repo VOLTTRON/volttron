@@ -226,7 +226,7 @@ def delete_vhost(vhost, ssl=True):
     :param password: password
     :return:
     """
-    url = '/api/vhosts/{2}'.format(vhost=vhost)
+    url = '/api/vhosts/{vhost}'.format(vhost=vhost)
     response = http_delete_request(url, ssl)
 
 def get_virtualhosts(ssl=True):
@@ -314,9 +314,7 @@ def set_user_permissions(permissions, user, vhost=None, ssl=True):
     response = http_put_request(url, body=permissions, ssl=ssl)
 
 
-
-# SET permissions on topic
-def set_topic_permissions(permissions, user, vhost=None, ssl=True):
+def set_topic_permissions_for_user(permissions, user, password=None, vhost=None):
     """
     Set read, write permissions for a topic
     :param permissions: dict containing exchange name and read/write permissions
@@ -330,7 +328,7 @@ def set_topic_permissions(permissions, user, vhost=None, ssl=True):
                                                          user=user)
     response = http_put_request(url, body=permissions, ssl=ssl)
 
-def get_topic_permissions(user, vhost=None, ssl=True):
+def get_topic_permissions_for_user(user, password=None, vhost=None):
     """
     Get permissions for all topics
     :param user:
@@ -645,7 +643,7 @@ def get_bindings(exchange):
     :param vhost: virtual host
     :return: list of bindings
     """
-    url = '/api/exchanges/{binding}/{exchange}/bindings/source'.format(
+    url = '/api/exchanges/{vhost}/{exchange}/bindings/source'.format(
         vhost=get_vhost(), exchange=exchange)
     response = http_get_request(url)
     # if isinstance(response, list):
@@ -788,7 +786,7 @@ def build_connection_param(instance_name):
     #                            "/volttron-ca.crt",
     #                "ssl_version": ssl.PROTOCOL_TLSv1}
     ssl_options = dict(
-                        ssl_version=ssl.PROTOCOL_TLSv1_2,
+                        ssl_version=ssl.PROTOCOL_TLSv1,
                         ca_certs=os.path.join(certs.DEFAULT_CERTS_DIR,
                                               "certs",
                                               instance_name+"-ca.crt"),

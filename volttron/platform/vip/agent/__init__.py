@@ -65,8 +65,9 @@ class Agent(object):
                 self.pubsub = RMQPubSub(core, self.rpc, self.peerlist, owner)
             else:
                 self.pubsub = PubSub(core, self.rpc, self.peerlist, owner)
-            if enable_channel:
-                self.channel = Channel(core)
+                # Available only for ZMQ agents
+                if enable_channel:
+                    self.channel = Channel(core)
             self.health = Health(owner, core, self.rpc)
             self.heartbeat = Heartbeat(owner, core, self.rpc, self.pubsub,
                                        heartbeat_autostart, heartbeat_period)

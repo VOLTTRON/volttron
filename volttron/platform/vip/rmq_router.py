@@ -256,6 +256,8 @@ class RMQRouter(BaseRouter):
                     value = self._bind_web_address
                 elif name == b'platform-version':
                     value = __version__
+                elif name == b'message-bus':
+                    value = os.environ.get('MESSAGEBUS', 'zmq')
                 else:
                     value = None
             message.args = [b'', jsonapi.dumps(value)]
