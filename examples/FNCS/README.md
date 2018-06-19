@@ -15,6 +15,14 @@ https://archive.org/download/zeromq_czmq_3.0.2/czmq-3.0.2.tar.gz.
 Follow the fncs installation from https://github.com/FNCS/fncs substituding the above urls for 
 zmq and czmq respectively.
 
+Also, fncs must be installed into the python environment.  This can be done by the following steps:
+
+1. Activate a volttron environment shell
+1. cd to the <FNCS SRC>/python directory
+1. Run python setup.py sdist
+1. Run pip install dist/fncs-2.0.1.tar.gz
+
+
 ## Running the agent.
 
 Make sure to export the variable LD_LIBRARY_PATH to the fncs_installation/lib folder before
