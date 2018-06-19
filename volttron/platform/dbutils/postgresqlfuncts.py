@@ -180,12 +180,12 @@ class PostgreSqlFuncts(DbDriver):
         return values
 
     def insert_topic(self, topic):
-        with self.connection.cursor() as cursor:
+        with self.cursor() as cursor:
             cursor.execute(self.insert_topic_query(), {'topic': topic})
             return cursor.next()[0]
 
     def insert_agg_topic(self, topic, agg_type, agg_time_period):
-        with self.connection.cursor() as cursor:
+        with self.cursor() as cursor:
             cursor.execute(self.insert_agg_topic_stmt(),
                            (topic, agg_type, agg_time_period))
             return cursor.next()[0]

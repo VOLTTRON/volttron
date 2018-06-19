@@ -247,6 +247,13 @@ class AggregationSuite(Suite):
         assert len(set(driver.query_topics_by_pattern('this/is/some/.*/topic').keys()) & topics) == 1
         assert len(set(driver.query_topics_by_pattern('.*').keys()) & topics) == 3
 
+    def test_curser_for_closed_connection(self, driver):
+        cursor = driver.cursor()
+        assert cursor is not None
+        cursor.connection.close()
+        cursor = driver.cursor()
+        assert cursor is not None
+
 
 @pytest.mark.skipif(not HAVE_POSTGRESQL, reason='missing psycopg2 package')
 class TestPostgreSql(Suite):
