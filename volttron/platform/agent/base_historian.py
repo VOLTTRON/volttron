@@ -919,8 +919,7 @@ class BaseHistorianAgent(Agent):
         # publishing is currently happening (and how long it's taking)
         # we may or may not want to wait on the event queue for more input
         # before proceeding with the rest of the loop.
-        wait_for_input = not bool(
-            backupdb.get_outstanding_to_publish(self._submit_size_limit))
+        wait_for_input = not bool(backupdb.get_outstanding_to_publish(1))
 
         while True:
             try:
