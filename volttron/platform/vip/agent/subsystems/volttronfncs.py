@@ -183,8 +183,7 @@ broker = {0[broker]}
         if self._registered_fncs_topics:
             cfg += "values"
             for k, v in self._registered_fncs_topics.items():
-                federate_topic = "/".join([self._federate_name, v['fncs_topic']])
-                cfg += "\n\t{}\n\t\ttopic = {}\n".format(k, federate_topic)
+                cfg += "\n\t{}\n\t\ttopic = {}\n".format(k, v['fncs_topic'])
                 if v.get("default"):
                     cfg += "\t\tdefault = {}\n".format(v.get('default'))
                 if v.get("data_type"):
