@@ -116,7 +116,7 @@ class FncsExample(Agent):
         This method is called when the Agent is about to shutdown, but before it disconnects from
         the message bus.
         """
-        self.vip.fncs.reset()
+        pass
 
 
 def main():
