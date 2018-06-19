@@ -104,7 +104,7 @@ class RedshiftFuncts(DbDriver):
                           'VALUES (%(key)s, %(name)s)').format(meta_table)
         tables_names = tables_def.copy()
         tables_names[''] = tables_names.pop('table_prefix', '')
-        with self.connection.cursor() as cursor:
+        with self.cursor() as cursor:
             for key, name in tables_def.items():
                 params = {'key': key, 'name': name}
                 cursor.execute(update_stmt, params)
@@ -185,12 +185,12 @@ class RedshiftFuncts(DbDriver):
         return values
 
     def insert_topic(self, topic):
-        with self.connection.cursor() as cursor:
+        with self.cursor() as cursor:
             cursor.execute(self.insert_topic_query(), {'topic': topic})
             return cursor.next()[0]
 
     def insert_agg_topic(self, topic, agg_type, agg_time_period):
-        with self.connection.cursor() as cursor:
+        with self.cursor() as cursor:
             cursor.execute(self.insert_agg_topic_stmt(),
                            {'topic': topic,
                             'type': agg_type,
