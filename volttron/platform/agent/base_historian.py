@@ -955,8 +955,15 @@ class BaseHistorianAgent(Agent):
                 to_publish_list = backupdb.get_outstanding_to_publish(
                     self._submit_size_limit)
 
+                #Check to see if we are caughtup.
+                if not to_publish_list:
+                    if self._message_publish_count > 0:
+                        _log.info("Historian processed {} total records.".format(current_published_count))
+                        next_report_count = current_published_count + self._message_publish_count
+                    break
+
                 # Check for a stop for reconfiguration.
-                if not to_publish_list or self._stop_process_loop:
+                if self._stop_process_loop:
                     break
 
                 history_limit_timestamp = None
@@ -979,11 +986,17 @@ class BaseHistorianAgent(Agent):
 
                 backupdb.remove_successfully_published(
                     self._successful_published, self._submit_size_limit)
-                current_published_count += len(self._successful_published)
+
+                if None in self._successful_published:
+                    current_published_count += len(to_publish_list)
+                else:
+                    current_published_count += len(self._successful_published)
+
                 if self._message_publish_count > 0:
                     if current_published_count >= next_report_count:
                         _log.info("Historian processed {} total records.".format(current_published_count))
                         next_report_count = current_published_count + self._message_publish_count
+
                 self._successful_published = set()
                 now = datetime.utcnow()
                 if now - start_time > self._max_time_publishing:
@@ -995,6 +1008,7 @@ class BaseHistorianAgent(Agent):
                     break
 
             _log.debug("Exiting publish loop.")
+
 
             # Check for a stop for reconfiguration.
             if self._stop_process_loop:
