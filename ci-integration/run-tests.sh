@@ -30,7 +30,7 @@ which python
 #directories that need split into individual files
 filedirs="volttrontesting/platform"
 #directories that can be called as normal (recursive)
-testdirs="services/core/VolttronCentral/tests services/core/VolttronCentralPlatform/tests docs examples scripts volttron volttrontesting/gevent volttrontesting/multiplatform volttrontesting/subsystems volttrontesting/testutils volttrontesting/zmq"
+testdirs="services/core/VolttronCentral/tests services/core/VolttronCentralPlatform/tests examples volttron volttrontesting/gevent volttrontesting/multiplatform volttrontesting/subsystems volttrontesting/testutils volttrontesting/zmq"
 #directories that must have their subdirectories split
 splitdirs="services/core/*"
 

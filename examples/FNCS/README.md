@@ -4,16 +4,13 @@ This is an example agent using the fncs subsystem built into volttron.
 
 ## FNCS Versions
 
-In order for volttron to work with the 5.0 version of volttron the ZMQ for fncs must be 
-version 4.1.5.  This can be downloaded from 
+FNCS must use the same version of ZMQ that volttron does in order for the two applications to be compatible.  The version of ZMQ used in volttron is 4.1.5.  This can be downloaded from 
 https://archive.org/download/zeromq_4.1.5/zeromq-4.1.5.tar.gz.  The most current version
-of czmq that can be used with this version of zmq is version 3.0.2.  You can download this from
+of CZMQ that can be used with this version of ZMQ is version 3.0.2.  You can download this from
 https://archive.org/download/zeromq_czmq_3.0.2/czmq-3.0.2.tar.gz.
 
-## FNCS Installation
-
 Follow the fncs installation from https://github.com/FNCS/fncs substituding the above urls for 
-zmq and czmq respectively.
+ZMQ and CZMQ respectively.
 
 Also, fncs must be installed into the python environment.  This can be done by the following steps:
 
