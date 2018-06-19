@@ -151,14 +151,13 @@ class RedshiftFuncts(DbDriver):
             table_name = agg_type + '_' + agg_period
         else:
             table_name = self.data_table
-        query = [
-            SQL('SELECT topic_id, '
-                '''to_char(ts, 'YYYY-MM-DD"T"HH24:MI:SS.USOF:00'), '''
-                'value_string'),
-            SQL('FROM {}').format(Identifier(table_name)),
-            SQL('WHERE topic_id in ({})').format(
-                SQL(', ').join(Literal(tid) for tid in topic_ids)),
-        ]
+        topic_id = Literal(0)
+        query = [SQL(
+            '''SELECT to_char(ts, 'YYYY-MM-DD"T"HH24:MI:SS.USOF:00'), '''
+            'value_string\n'
+            'FROM {}\n'
+            'WHERE topic_id = {}'
+        ).format(Identifier(table_name), topic_id)]
         if start and start.tzinfo != pytz.UTC:
             start = start.astimezone(pytz.UTC)
         if end and end.tzinfo != pytz.UTC:
@@ -178,16 +177,11 @@ class RedshiftFuncts(DbDriver):
                 Literal(None if not skip or skip < 0 else skip)))
         query = SQL('\n').join(query)
         values = {}
-        with self.select(query, fetch_all=False) as cursor:
-            current_id = None
-            for topic_id, ts, value in cursor:
-                if topic_id != current_id:
-                    current_id, name = topic_id, id_name_map[topic_id]
-                    try:
-                        rows = values[name]
-                    except KeyError:
-                        values[name] = rows = []
-                rows.append((ts, jsonapi.loads(value)))
+        for topic_id._wrapped in topic_ids:
+            name = id_name_map[topic_id.wrapped]
+            with self.select(query, fetch_all=False) as cursor:
+                values[name] = [(ts, jsonapi.loads(value))
+                                for ts, value in cursor]
         return values
 
     def insert_topic(self, topic):
