@@ -9,6 +9,6 @@
             "passwd": "historian"
         }
     },
-    #optional prefix to be used for all collections
-    "table_prefix":"volttron"
+    "table_prefix":"volttron", #optional
+    "historian_vip_identity":"platform.historian" #optional
 }

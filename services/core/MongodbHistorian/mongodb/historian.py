@@ -929,7 +929,7 @@ class MongodbHistorian(BaseHistorian):
 
     @doc_inherit
     def query_topics_by_pattern(self, topics_pattern):
-        _log.debug("In query topics by pattern")
+        _log.debug("In query topics by pattern: {}".format(topics_pattern))
         db = self._client.get_default_database()
         topics_pattern = topics_pattern.replace('/', '\/')
         pattern = {'topic_name': {'$regex': topics_pattern, '$options': 'i'}}
