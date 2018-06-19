@@ -398,10 +398,9 @@ def run_apidoc(docs_dir, agent_dirs, exclude_list):
         sys.path.insert(0, agent_dir)
         print "Added to syspath {}".format(agent_dir)
         name = os.path.basename(agent_dir)
-        cmd = ["sphinx-apidoc", '--force', '-M', '-d 4', '-o',
-             os.path.join(docs_dir, name),
-             agent_dir, os.path.join(agent_dir, "setup.py"),
-             ]
+        cmd = ["sphinx-apidoc", '--force', '-o',
+            os.path.join(apidocs_base_dir, "volttron"),
+            script_dir + "/../../volttron"]
         cmd.extend(exclude_list)
         subprocess.check_call(cmd)
 

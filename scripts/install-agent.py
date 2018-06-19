@@ -8,6 +8,7 @@ import tempfile
 from time import sleep
 import sys
 
+import yaml
 
 logging.basicConfig(level=logging.WARN)
 log = logging.getLogger(os.path.basename(__file__))
@@ -117,14 +118,14 @@ def install_agent(opts, package, config):
     else:
         cfg = tempfile.NamedTemporaryFile()
         with open(cfg.name, 'w') as fout:
-            fout.write(jsonapi.dumps(config))
+            fout.write(yaml.dump(config))  #jsonapi.dumps(config))
         config_file = cfg.name
 
     try:
         with open(config_file) as fp:
-            data = json.load(fp)
+            data = yaml.safe_load(fp.read())  # json.load(fp)
     except:
-        log.error("Invalid json config file.")
+        log.error("Invalid json/yaml config file.")
         sys.exit(-10)
 
     # Configure the whl file before installing.
@@ -221,6 +222,7 @@ def install_agent(opts, package, config):
                 keyline += "%s" % keys[k]
                 valueline += "%s" % output_dict[keys[k]]
         sys.stdout.write("%s\n%s\n" % (keyline, valueline))
+
 
 if __name__ == '__main__':
 
@@ -340,13 +342,11 @@ if __name__ == '__main__':
 
         with open(tmpconfigfile.name, 'w') as fout:
             for line in opts.config:
-                line = line.partition('#')[0]
-                if line.rstrip():
-                    fout.write(line.rstrip())
+                fout.write(line)
         config_file = tmpconfigfile.name
         try:
             with open(tmpconfigfile.name) as f:
-                opts.config = jsonapi.loads(f.read())
+                opts.config = yaml.safe_load(f.read())
         finally:
             tmpconfigfile.close()
 
