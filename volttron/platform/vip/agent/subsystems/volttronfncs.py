@@ -59,6 +59,8 @@ try:
     HAS_FNCS = True
 except ImportError:
     HAS_FNCS = False
+except OSError:
+    HAS_FNCS = False
 
 
 # noinspection PyMethodMayBeStatic
