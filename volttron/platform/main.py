@@ -778,7 +778,7 @@ def start_volttron_process(opts):
             event.wait()
             del event
 
-            # Ensure auth service is running before zmq router
+            # Ensure auth service is running before router
             auth_file = os.path.join(opts.volttron_home, 'auth.json')
             auth = AuthService(
                 auth_file, protected_topics_file, opts.setup_mode, opts.aip, address=address, identity=AUTH,
@@ -793,21 +793,21 @@ def start_volttron_process(opts):
 
             # Start router in separate thread to remain responsive
             green_router = GreenRouter(opts.vip_local_address, opts.vip_address,
-                   secretkey=secretkey, publickey=publickey,
-                   default_user_id=b'vip.service', monitor=opts.monitor,
-                   tracker=tracker,
-                   volttron_central_address=opts.volttron_central_address,
-                   volttron_central_serverkey=opts.volttron_central_serverkey,
-                   instance_name=opts.instance_name,
-                   bind_web_address=opts.bind_web_address,
-                   protected_topics=protected_topics,
-                   external_address_file=external_address_file,
-                   msgdebug=opts.msgdebug)
+                                       secretkey=secretkey, publickey=publickey,
+                                       default_user_id=b'vip.service', monitor=opts.monitor,
+                                       tracker=tracker,
+                                       volttron_central_address=opts.volttron_central_address,
+                                       volttron_central_serverkey=opts.volttron_central_serverkey,
+                                       instance_name=opts.instance_name,
+                                       bind_web_address=opts.bind_web_address,
+                                       protected_topics=protected_topics,
+                                       external_address_file=external_address_file,
+                                       msgdebug=opts.msgdebug)
 
             proxy_router = ZMQProxyRouter(address=address,
-                                       identity='proxy_router',
-                                       zmq_router=green_router,
-                                       message_bus=opts.message_bus)
+                                          identity='proxy_router',
+                                          zmq_router=green_router,
+                                          message_bus=opts.message_bus)
             event = gevent.event.Event()
             proxy_router_task = gevent.spawn(proxy_router.core.run, event)
             event.wait()
@@ -845,20 +845,20 @@ def start_volttron_process(opts):
                            message_bus=opts.message_bus),
 
             MasterWebService(
-                 serverkey=publickey, identity=MASTER_WEB,
-                 address=address,
-                 bind_web_address=opts.bind_web_address,
-                 volttron_central_address=opts.volttron_central_address,
-                 aip=opts.aip, enable_store=False,
-                 message_bus=opts.message_bus,
-                 volttron_central_rmq_address=opts.volttron_central_rmq_address),
+                serverkey=publickey, identity=MASTER_WEB,
+                address=address,
+                bind_web_address=opts.bind_web_address,
+                volttron_central_address=opts.volttron_central_address,
+                aip=opts.aip, enable_store=False,
+                message_bus=opts.message_bus,
+                volttron_central_rmq_address=opts.volttron_central_rmq_address),
 
             KeyDiscoveryAgent(address=address, serverkey=publickey,
-                               identity='keydiscovery',
-                               external_address_config=external_address_file,
-                               setup_mode=opts.setup_mode,
-                               bind_web_address=opts.bind_web_address,
-                               message_bus='zmq'),
+                              identity='keydiscovery',
+                              external_address_config=external_address_file,
+                              setup_mode=opts.setup_mode,
+                              bind_web_address=opts.bind_web_address,
+                              message_bus='zmq'),
             # For Backward compatibility with VOLTTRON versions <= 4.1
             PubSubWrapper(address=address,
                           identity='pubsub', heartbeat_autostart=True,
@@ -895,7 +895,6 @@ def start_volttron_process(opts):
     finally:
         _log.debug("AIP finally")
         opts.aip.finish()
-
 
 def main(argv=sys.argv):
     # Refuse to run as root

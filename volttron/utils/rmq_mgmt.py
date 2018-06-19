@@ -249,6 +249,7 @@ def create_user(user, password=default_pass, tags="administrator", ssl=True):
     :return:
     """
     print "Creating new USER: {}".format(user)
+    #body = dict(password=password, tags=tags)
     body = dict(password=password, tags=tags)
     url = '/api/users/{user}'.format(user=user)
     response = http_put_request(url, body, ssl)
@@ -723,6 +724,37 @@ def is_valid_port(port):
         return False
 
     return port == 5672 or port == 5671
+
+def delete_multiplatform_parameter(component, parameter_name, user=None, password=None, vhost=None):
+    """
+    Delete a component parameter
+    :param component: component name
+    :param parameter_name: parameter
+    :param user: username
+    :param password: password
+    :param vhost: virtual host
+    :return:
+    """
+    global config_opts
+    if not config_opts:
+        _load_rmq_config()
+    delete_parameter(component, parameter_name, user, password, vhost)
+
+    if component == 'federation-upstream':
+        component = 'federation'
+    # Delete entry in config
+    try:
+        params = config_opts[component] # component can be shovels or federation
+        del_list = [x for x in params if parameter_name == x['name']]
+        for elem in del_list:
+            params.remove(elem)
+        config_opts[component] = params
+        if not params:
+            del config_opts[component]
+        config_opts.async_sync()
+    except KeyError as ex:
+        print("Parameter not found: {}".format(ex))
+        return
 
 def set_initial_rabbit_config(instance_name):
     global config_opts

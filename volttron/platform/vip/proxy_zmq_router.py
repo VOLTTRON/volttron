@@ -45,7 +45,7 @@ from . import green as vip
 from volttron.platform.agent import json as jsonapi
 from .socket import Message
 from zmq import green as zmq
-from zmq import ZMQError
+from zmq.green import ZMQError, EAGAIN, ENOTSOCK, EADDRINUSE
 
 _log = logging.getLogger(__name__)
 
@@ -67,10 +67,6 @@ class ZMQProxyRouter(Agent):
         self._routing_key = self.core.instance_name + '.' + 'proxy'
         self._outbound_proxy_queue = 'proxy_outbound'
         self._external_pubsub_rpc_queue = 'proxy_inbound'
-        #
-        # def subscriptions():
-        #     return defaultdict(set)
-        # self._peer_subscriptions = defaultdict(subscriptions)
 
     @Core.receiver('onstart')
     def startup(self, sender, **kwargs):
@@ -221,8 +217,10 @@ class ZMQProxyRouter(Agent):
                     self.zmq_router.route(frames)
                 else:
                     self._handle_other_subsystems(frames)
-            except ZMQError as e:
+            except ZMQError as exc:
                 _log.error("Error while receiving message: {}".format(e))
+                if exc.errno == ENOTSOCK:
+                    break
 
     def _handle_other_subsystems(self, frames):
         """

@@ -1573,6 +1573,7 @@ def list_shovel_parameters(opts):
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in getting shovel parameters")
 
+
 def list_bindings(opts):
     bindings = get_bindings(opts.exchange)
 
@@ -1593,6 +1594,7 @@ def list_bindings(opts):
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in getting bindings")
 
+
 def list_policies(opts):
     policies = get_policies()
     try:
@@ -1608,13 +1610,16 @@ def list_policies(opts):
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in getting policies")
 
+
 def remove_vhosts(opts):
     for vhost in opts.vhost:
         delete_vhost(vhost)
 
+
 def remove_users(opts):
     for user in opts.user:
         delete_user(user)
+
 
 def remove_exchanges(opts):
     for e in opts.exchanges:
@@ -1623,6 +1628,7 @@ def remove_exchanges(opts):
 def remove_queues(opts):
     for q in opts.queues:
         delete_queue(q)
+
 
 def remove_fed_parameters(opts):
     for param in opts.parameters:
