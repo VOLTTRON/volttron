@@ -231,6 +231,27 @@ def scale_reg(reg_name):
     return func
 
 
+def scale_reg_pow_10(reg_name):
+    """
+        Same as scale, but multiplier is 10 power the scaling register value
+        For example: -1 -> 10^-1 = scale(0.1)
+                      0 -> 10^0  = scale(0)
+                      1 -> 10^1  = scale(10)
+
+    :param reg_name: scaling register name
+    :return: Returns a function used by the modbus client.
+    """
+    def func(value, scaling_register_value):
+        return value * pow(10, scaling_register_value)
+
+    def inverse_func(value, scaling_register_value):
+        return value / pow(10, scaling_register_value)
+
+    func.inverse = inverse_func
+    func.register_args = [reg_name,]
+    return func
+
+
 def no_op(value):
     return value
 

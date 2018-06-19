@@ -83,7 +83,8 @@ transform_map = dict(
     scale=helpers.scale,
     scale_int=helpers.scale_int,
     mod10k=helpers.mod10k,
-    scale_reg=helpers.scale_reg
+    scale_reg=helpers.scale_reg,
+    scale_reg_pow_10=helpers.scale_reg_pow_10
 )
 
 table_map = dict(

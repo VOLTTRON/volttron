@@ -40,3 +40,8 @@
   endian: big
   file: scale_reg_map.csv
   name: scale_reg
+- addressing: offset
+  description: example of scale_reg_pow_10
+  endian: big
+  file: scale_reg_pow_10_map.csv
+  name: scale_reg_pow_10
