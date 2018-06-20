@@ -145,12 +145,7 @@ also install the dependencies for rabbimq.  Activate the environment :
 . env/bin/activate
 ```
 
-**4. Install pika library inside VOLTTRON environment:**
-```sh
-pip install -e ~/pika
-```
-
-**5. Create RabbitMQ setup for VOLTTRON :**
+**4. Create RabbitMQ setup for VOLTTRON :**
 ```sh
 python volttron/utils/rmq_mgmt.py single
 ```
@@ -263,10 +258,10 @@ Please do the following to complete setup
 	sudo service rabbitmq-server stop
 	sudo service rabbitmq-server start
 ```
-**6. Update RabbitMQ configuration file and restart RabbitMQ server**
+**5. Update RabbitMQ configuration file and restart RabbitMQ server**
 Follow the instructions provided as output of 'python rmq_mgmt.py single' command to create the rabbitmq.conf, change permissions for ssl private key files and restart rabbitmq-server
 
-**7. Test**
+**6. Test**
 
 
 We are now ready to start VOLTTRON with RabbitMQ message bus. If we need to revert back to ZeroMQ based VOLTTRON, we
