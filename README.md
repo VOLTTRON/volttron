@@ -93,9 +93,7 @@ enabled=1
   **b. Install RabbitMQ server package**
 
 On Debian based systems:
-```sh
-sudo apt-get install rabbitmq-server
-```
+Download and install latest from rabbitmq website
 On Redhat based systems:
 
 Download the appropriate rpm from [rabbitmq site](https://www.rabbitmq.com/install-rpm.html) and install using  "yum install <name>.rpm" command
@@ -104,14 +102,18 @@ Download the appropriate rpm from [rabbitmq site](https://www.rabbitmq.com/insta
 wget https://dl.bintray.com/rabbitmq/all/rabbitmq-server/3.7.4/rabbitmq-server-3.7.4-1.el7.noarch.rpm
 sudo yum install rabbitmq-server-3.7.4-1.el7.noarch.rpm
 ```
+**b. Start rabbitmq server**
+Make sure that your hostname is correctly configured in /etc/hosts. See (https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho)
 
+Hostname should be resolvable to a valid ip. Rabbitmq checks for this during inital boot. Without this (for example, when running on a VM in NAT mode) rabbitmq  start would fail with the error "unable to connect to empd (port 4369) on <hostname>. 
 
+Note: rabbitmq startup error would show up in syslog (/var/log/messages) file and not in rabbitmq logs (/var/log/rabbitmq/rabbitmq@hostname.log)
+	
 Start rabbitmq-server
 ```sh
 sudo service rabbitmq-server start
 ```
-Note: If you are running in a virtual machine, please make sure that your hostname is
-correctly configured in /etc/hosts. See (https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho)
+
 
 
 **c. Enable RabbitMQ management, federation and shovel plugins**
