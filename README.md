@@ -58,11 +58,11 @@ http://ryanstutorials.net/linuxtutorial/
   Please refer to [rabbitmq website](https://www.rabbitmq.com/which-erlang.html) to find the right version of Erlang to be installed for the version of RabbitMQ you intend to install
 
   **On Debian based systems:**
-
+ Grab the right package for your OS version from https://packages.erlang-solutions.com/erlang/#tabs-debian.  Example install commands for Ubuntu artful 64 bit is given below
+ 
   ```sh
-  wget https://packages.erlang-solutions.com/erlang-solutions_1.0_all.deb
-  sudo dpkg -i erlang-solutions_1.0_all.deb
-  sudo apt-get install erlang erlang-nox
+  wget http://packages.erlang-solutions.com/site/esl/esl-erlang/FLAVOUR_1_general/esl-erlang_21.0-1~ubuntu~artful_amd64.deb
+  sudo dpkg -i esl-erlang_21.0-1~ubuntu~artful_amd64.deb
   ```
 
   **On Redhat based systems:**
@@ -93,7 +93,13 @@ enabled=1
   **b. Install RabbitMQ server package**
 
 On Debian based systems:
-Download and install latest from rabbitmq website
+
+```sh
+ sudo apt-get install init-system-helpers socat adduser logrotate
+ wget https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.7.6/rabbitmq-server_3.7.6-1_all.deb
+ dpkg -i rabbitmq-server_3.7.6-1_all.deb
+ ```
+
 On Redhat based systems:
 
 Download the appropriate rpm from [rabbitmq site](https://www.rabbitmq.com/install-rpm.html) and install using  "yum install <name>.rpm" command
@@ -103,6 +109,7 @@ wget https://dl.bintray.com/rabbitmq/all/rabbitmq-server/3.7.4/rabbitmq-server-3
 sudo yum install rabbitmq-server-3.7.4-1.el7.noarch.rpm
 ```
 **b. Start rabbitmq server**
+	
 Make sure that your hostname is correctly configured in /etc/hosts. See (https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho)
 
 Hostname should be resolvable to a valid ip. Rabbitmq checks for this during inital boot. Without this (for example, when running on a VM in NAT mode) rabbitmq  start would fail with the error "unable to connect to empd (port 4369) on <hostname>. 
@@ -113,7 +120,6 @@ Start rabbitmq-server
 ```sh
 sudo service rabbitmq-server start
 ```
-
 
 
 **c. Enable RabbitMQ management, federation and shovel plugins**
