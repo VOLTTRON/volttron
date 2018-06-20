@@ -427,7 +427,7 @@ class Core(BasicCore):
                  publickey=None, secretkey=None, serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, reconnect_interval=None,
-                 version='0.1'):
+                 version='0.1', enable_fncs=False):
 
         self.volttron_home = volttron_home
 
@@ -458,6 +458,7 @@ class Core(BasicCore):
         self.subsystems = {'error': self.handle_error}
         self.__connected = False
         self._version = version
+        self._fncs_enabled=enable_fncs
 
     def version(self):
         return self._version

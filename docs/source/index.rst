@@ -147,7 +147,7 @@ Contents:
    core_services/index
    specifications/index
    volttron_applications/index
-   API Documentation <apidocs>
+   VOLTTRON Platform API <volttron_api/modules>
 
 
 Indices and tables
