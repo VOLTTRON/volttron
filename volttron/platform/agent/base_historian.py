@@ -238,6 +238,14 @@ from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
 from volttron.platform.vip.agent.subsystems.query import Query
 
+from volttron.platform.async import AsyncCall
+
+from volttron.platform.messaging.health import (STATUS_BAD,
+                                                STATUS_UNKNOWN,
+                                                STATUS_GOOD,
+                                                STATUS_STARTING,
+                                                Status)
+
 try:
     import ujson
     from zmq.utils.jsonapi import dumps as _dumps, loads as _loads
@@ -345,6 +353,8 @@ class BaseHistorianAgent(Agent):
         # cache database
         self._process_loop_in_greenlet = process_loop_in_greenlet
         self._topic_replace_list = topic_replace_list
+
+        self._async_call = AsyncCall()
 
         _log.info('Topic string replace list: {}'
                   .format(self._topic_replace_list))
@@ -888,6 +898,20 @@ class BaseHistorianAgent(Agent):
                                'meta': {},
                                'headers': headers})
 
+    def _update_status_callback(self, status, context):
+        self.vip.health.set_status(status, context)
+
+    def _update_status(self, status, context):
+        self._async_call.send(None, self._update_status_callback, status, context)
+
+    def _send_alert_callback(self, status, context):
+        status = Status()
+        status.update_status(status, context)
+        self.vip.health.send_alert(status, context)
+
+    def _send_alert(self, status, context):
+        self._async_call.send(None, self._send_alert_callback, status, context)
+
     def _process_loop(self):
         """
         The process loop is called off of the main thread and will not exit
@@ -920,8 +944,12 @@ class BaseHistorianAgent(Agent):
         # we may or may not want to wait on the event queue for more input
         # before proceeding with the rest of the loop.
         wait_for_input = not bool(backupdb.get_outstanding_to_publish(1))
+        previous_wait_for_input = True
 
         while True:
+            if not wait_for_input:
+                self._update_status(STATUS_BAD, "Historian backlogged.")
+
             try:
                 #_log.debug("Reading from/waiting for queue.")
                 new_to_publish = [
@@ -947,6 +975,7 @@ class BaseHistorianAgent(Agent):
             if self._stop_process_loop:
                 break
 
+            previous_wait_for_input = wait_for_input
             wait_for_input = True
             start_time = datetime.utcnow()
             _log.debug("Beginning publish loop.")
@@ -980,9 +1009,14 @@ class BaseHistorianAgent(Agent):
                         "An unhandled exception occurred while publishing.")
 
                 # if the successful queue is empty then we need not remove
-                # them from the database.
+                # them from the database and we are probably having connection problems.
+                # Update the status and send alert accordingly.
                 if not self._successful_published:
+                    self._update_status(STATUS_BAD, "Historian not publishing.")
+                    self._send_alert(STATUS_BAD, "Historian not publishing.")
                     break
+                elif previous_wait_for_input:
+                    self._update_status(STATUS_GOOD, "")
 
                 backupdb.remove_successfully_published(
                     self._successful_published, self._submit_size_limit)
