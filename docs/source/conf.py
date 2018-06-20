@@ -227,7 +227,7 @@ def generate_apidoc(app):
     volttron_src = os.path.abspath('../volttron')
 
     if os.environ.get("READTHEDOCS"):
-        volttron_src = os.path.abspath('../../volttron')
+        volttron_src = os.path.abspath('../volttron')
 
     # Exclusions must be full paths to directories
     exlusions = [
