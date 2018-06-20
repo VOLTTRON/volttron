@@ -1,17 +1,20 @@
 import os
 import shutil
-import sqlite3
 import json
 
-import gevent
 
 from volttron.platform import get_services_core
-from volttron.platform.agent import json as jsonapi
 
-from volttrontesting.utils.platformwrapper import PlatformWrapper
-from volttron.platform.vip.agent import Agent
 from volttron.platform.agent.base_historian import BaseHistorian
 import pytest
+
+from volttron.platform.agent import utils
+from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.messaging.health import *
+from time import sleep
+import datetime
+import random
+import gevent
 
 class Historian(BaseHistorian):
     def publish_to_historian(self,_):
@@ -73,3 +76,95 @@ def test_base_historian(volttron_instance):
             break
 
     assert foundtopic
+
+
+class BasicHistorian(BaseHistorian):
+    '''This historian forwards data to another platform.
+    '''
+
+    def __init__(self, **kwargs):
+        super(BasicHistorian, self).__init__(**kwargs)
+        self.publish_fail = False
+        self.publish_sleep = 0
+
+
+    def publish_to_historian(self, to_publish_list):
+
+        sleep(self.publish_sleep)
+
+        if not self.publish_fail:
+            self.report_all_handled()
+
+    def query_historian(self, topic, start=None, end=None, agg_type=None,
+          agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
+        """Not implemented
+        """
+        raise NotImplemented("query_historian not implimented for null historian")
+
+@pytest.fixture(scope="module")
+def client_agent(request, volttron_instance):
+    agent = volttron_instance.build_agent()
+    yield agent
+    agent.core.stop()
+
+@pytest.fixture(scope="module")
+def historian(request, volttron_instance):
+    identity = 'platform.historian'
+    agent = volttron_instance.build_agent(agent_class=BasicHistorian,
+                                          identity=identity,
+                                          submit_size_limit=2)
+    yield agent
+    agent.core.stop()
+
+
+@pytest.mark.dev
+def test_health_stuff(request, historian, client_agent):
+    """
+    Test basic use of health subsystem in the base historian.
+    """
+
+    DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+
+    print("\n** test_basic_function for {}**".format(
+        request.keywords.node.name))
+
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings.  Randome readings are going to be
+    # within the tolerance here.
+    format_spec = "{0:.13f}"
+    oat_reading = random.uniform(30, 100)
+    mixed_reading = oat_reading + random.uniform(-5, 5)
+    damper_reading = random.uniform(0, 100)
+
+    float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+    percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
+
+    # Create a message for all points.
+    all_message = [{'OutsideAirTemperature': oat_reading,
+                    'MixedAirTemperature': mixed_reading,
+                    'DamperSignal': damper_reading},
+                   {'OutsideAirTemperature': float_meta,
+                    'MixedAirTemperature': float_meta,
+                    'DamperSignal': percent_meta
+                    }]
+
+    # Create timestamp
+    now = utils.format_timestamp( datetime.utcnow() )
+
+    # now = '2015-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+    }
+    print("Published time in header: " + now)
+
+    for _ in range(10):
+        client_agent.vip.pubsub.publish('pubsub',
+                                         DEVICES_ALL_TOPIC,
+                                         headers=headers,
+                                         message=all_message).get(timeout=10)
+
+    gevent.sleep(1)
+
+    status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+
+    assert status["status"] == STATUS_GOOD
