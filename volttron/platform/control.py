@@ -65,8 +65,10 @@ from .vip.agent import Agent as BaseAgent, Core, RPC
 from . import aip as aipmod
 from . import config
 from .jsonrpc import RemoteError
+from .vip.agent.errors import VIPError
 from .auth import AuthEntry, AuthFile, AuthException
 from .keystore import KeyStore, KnownHostsStore
+import pprint
 
 try:
     import volttron.restricted
@@ -657,16 +659,37 @@ def status_agents(opts):
     agents = agents.values()
 
     def get_status(agent):
-        try:
-            pid, stat = status[agent.uuid]
-        except KeyError:
-            pid = stat = None
+        # try:
+        #     pid, stat = status[agent.uuid]
+        # except KeyError:
+        #     pid = stat = None
+        #
+        # if stat is not None:
+        #     return str(stat)
+        # if pid:
+        #     return 'running [{}]'.format(pid)
+        # return ''
 
-        if stat is not None:
-            return str(stat)
-        if pid:
-            return 'running [{}]'.format(pid)
-        return ''
+        try:
+            return opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4)['status']
+        except VIPError:
+            # print("Agent {} is not running on the Volttron platform.".format(agent.uuid))
+            return 'not running'
+
+    _show_filtered_agents(opts, 'STATUS', get_status, agents)
+
+
+def agent_health(opts):
+    agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}.values()
+
+    # TODO prettyprint
+    def get_status(agent):
+        try:
+            return json.dumps(
+                opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4),
+                indent=4)
+        except VIPError as error:
+            print("Agent {} is not running on the Volttron platform.".format(agent.uuid))
 
     _show_filtered_agents(opts, 'STATUS', get_status, agents)
 
@@ -1545,6 +1568,11 @@ def main(argv=sys.argv):
     status.add_argument('-n', dest='min_uuid_len', type=int, metavar='N',
                         help='show at least N characters of UUID (0 to show all)')
     status.set_defaults(func=status_agents, min_uuid_len=1)
+
+    health = add_parser('health', parents=[filterable],
+                        help='show agent health as JSON')
+    health.add_argument('pattern', help='UUID or name of agent')
+    health.set_defaults(func=agent_health, min_uuid_len=1)
 
     clear = add_parser('clear', help='clear status of defunct agents')
     clear.add_argument('-a', '--all', dest='clear_all', action='store_true',

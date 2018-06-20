@@ -132,6 +132,6 @@ class Heartbeat(SubsystemBase):
     def publish(self):
         topic = 'heartbeat/' + self.core().identity
         headers = {DATE: format_timestamp(get_aware_utc_now())}
-        message = self.owner.vip.health.get_status()
+        message = self.owner.vip.health.get_status_value()
 
         self.pubsub().publish('pubsub', topic, headers, message)
