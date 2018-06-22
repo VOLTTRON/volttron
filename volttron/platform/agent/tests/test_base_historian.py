@@ -167,7 +167,7 @@ alert_publishes = []
 def message_handler(peer, sender, bus,  topic, headers, message):
     alert_publishes.append(Status.from_json(message))
 
-@pytest.mark.dev
+@pytest.mark.historian
 def test_health_stuff(request, historian, client_agent):
     """
     Test basic use of health subsystem in the base historian.
@@ -255,7 +255,7 @@ def test_health_stuff(request, historian, client_agent):
 
     historian.publish_sleep = 0.75
 
-    for _ in range(10):
+    for _ in range(100):
         client_agent.vip.pubsub.publish('pubsub',
                                         DEVICES_ALL_TOPIC,
                                         headers=headers,
@@ -266,11 +266,11 @@ def test_health_stuff(request, historian, client_agent):
     status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
     assert status["status"] == STATUS_BAD
-    assert status["context"] == "Historian backlogged. ~28 records to be published."
+    assert status["context"].startswith("Historian backlogged.")
 
     historian.publish_sleep = 0
 
-    gevent.sleep(1.0)
+    gevent.sleep(2.0)
 
     status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
