@@ -1,3 +1,0 @@
-applications/ornl/ModbusXMLSchema
-volttron/lint
-services/core/DNP3Agent/dnp3/mesa
