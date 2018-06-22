@@ -659,39 +659,37 @@ def status_agents(opts):
     agents = agents.values()
 
     def get_status(agent):
-        # try:
-        #     pid, stat = status[agent.uuid]
-        # except KeyError:
-        #     pid = stat = None
-        #
-        # if stat is not None:
-        #     return str(stat)
-        # if pid:
-        #     return 'running [{}]'.format(pid)
-        # return ''
-
         try:
-            return opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4)['status']
-        except VIPError:
-            # print("Agent {} is not running on the Volttron platform.".format(agent.uuid))
-            return 'not running'
+            pid, stat = status[agent.uuid]
+        except KeyError:
+            pid = stat = None
 
-    _show_filtered_agents(opts, 'STATUS', get_status, agents)
+        if stat is not None:
+            return str(stat)
+        if pid:
+            return 'running [{}]'.format(pid)
+        return ''
+
+    def get_health(agent):
+        try:
+            return opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4)[
+                'status']
+        except VIPError:
+            return ''
+
+
+    _show_filtered_agents_status(opts, get_status, get_health, agents)
 
 
 def agent_health(opts):
-    agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}.values()
-
-    # TODO prettyprint
-    def get_status(agent):
-        try:
-            return json.dumps(
-                opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4),
-                indent=4)
-        except VIPError as error:
-            print("Agent {} is not running on the Volttron platform.".format(agent.uuid))
-
-    _show_filtered_agents(opts, 'STATUS', get_status, agents)
+    agent = _list_agents(opts.aip)[0]
+    try:
+        _stderr.write(json.dumps(
+            opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4),
+            indent=4) + '\n'
+        )
+    except VIPError:
+        print("Agent {} is not running on the Volttron platform.".format(agent.uuid))
 
 
 def clear_status(opts):
@@ -1206,7 +1204,65 @@ def remove_group(opts):
     _stdout.write('removed group "{}"\n'.format(opts.group))
 
 
+def get_filtered_agents(opts, agents=None):
+
+    if opts.pattern:
+        filtered = set()
+        for pattern, match in filter_agents(agents, opts.pattern, opts):
+            if not match:
+                _stderr.write(
+                    '{}: error: agent not found: {}\n'.format(opts.command,
+                                                              pattern))
+            filtered |= match
+        agents = list(filtered)
+    return agents
+
 def _show_filtered_agents(opts, field_name, field_callback, agents=None):
+    """Provides generic way to filter and display agent information.
+    The agents will be filtered by the provided opts.pattern and the
+    following fields will be displayed:
+      * UUID (or part of the UUID)
+      * agent name
+      * VIP identiy
+      * tag
+      * field_name
+    @param:Namespace:opts:
+        Options from argparse
+    @param:string:field_name:
+        Name of field to display about agents
+    @param:function:field_callback:
+        Function that takes an Agent as an argument and returns data
+        to display
+    @param:list:agents:
+        List of agents to filter and display
+    """
+    if not agents:
+        agents = _list_agents(opts.aip)
+
+    get_filtered_agents(opts, agents)
+
+    if not agents:
+        _stderr.write('No installed Agents found\n')
+        return
+    agents.sort()
+    if not opts.min_uuid_len:
+        n = 36
+    else:
+        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
+    name_width = max(5, max(len(agent.name) for agent in agents))
+    tag_width = max(3, max(len(agent.tag or '') for agent in agents))
+    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
+    fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
+    _stderr.write(
+        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+            'TAG', tag_width, field_name))
+    for agent in agents:
+        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                 agent.vip_identity, identity_width,
+                                 agent.tag or '', tag_width,
+                                 field_callback(agent)))
+
+def _show_filtered_agents_status(opts, status_callback, health_callback, agents=None):
     """Provides generic way to filter and display agent information.
 
     The agents will be filtered by the provided opts.pattern and the
@@ -1229,15 +1285,9 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     """
     if not agents:
         agents = _list_agents(opts.aip)
-    if opts.pattern:
-        filtered = set()
-        for pattern, match in filter_agents(agents, opts.pattern, opts):
-            if not match:
-                _stderr.write(
-                    '{}: error: agent not found: {}\n'.format(opts.command,
-                                                              pattern))
-            filtered |= match
-        agents = list(filtered)
+
+    get_filtered_agents(opts, agents)
+
     if not agents:
         _stderr.write('No installed Agents found\n')
         return
@@ -1249,15 +1299,16 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     name_width = max(5, max(len(agent.name) for agent in agents))
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
     identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
+    fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
     _stderr.write(
         fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-            'TAG', tag_width, field_name))
+            'TAG', tag_width, 'STATUS', 'HEALTH'))
+    fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
     for agent in agents:
         _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
                                  agent.vip_identity, identity_width,
                                  agent.tag or '', tag_width,
-                                 field_callback(agent)))
+                                 status_callback(agent), health_callback(agent)))
 
 
 def get_agent_publickey(opts):
