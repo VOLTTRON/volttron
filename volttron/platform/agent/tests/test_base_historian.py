@@ -162,12 +162,17 @@ def historian(request, volttron_instance):
     yield agent
     agent.core.stop()
 
+alert_publishes = []
+
+def message_handler(peer, sender, bus,  topic, headers, message):
+    alert_publishes.append(Status.from_json(message))
 
 @pytest.mark.dev
 def test_health_stuff(request, historian, client_agent):
     """
     Test basic use of health subsystem in the base historian.
     """
+    global alert_publish
 
     DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
 
@@ -216,6 +221,7 @@ def test_health_stuff(request, historian, client_agent):
     assert status["status"] == STATUS_GOOD
 
     # Test publish failure
+    client_agent.vip.pubsub.subscribe("pubsub", "alerts/BasicHistorian", message_handler)
 
     historian.publish_fail = True
 
@@ -230,8 +236,12 @@ def test_health_stuff(request, historian, client_agent):
 
     status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
+    alert_publish = alert_publishes[0]
+
     assert status["status"] == STATUS_BAD
     assert status["context"] == "Historian not publishing."
+
+    assert alert_publish.status == STATUS_BAD
 
     historian.publish_fail = False
 
