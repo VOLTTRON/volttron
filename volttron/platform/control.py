@@ -68,7 +68,6 @@ from .jsonrpc import RemoteError
 from .vip.agent.errors import VIPError
 from .auth import AuthEntry, AuthFile, AuthException
 from .keystore import KeyStore, KnownHostsStore
-import pprint
 
 try:
     import volttron.restricted
