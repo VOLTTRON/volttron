@@ -1,4 +1,41 @@
-import os
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+#
+# Copyright 2017, Battelle Memorial Institute.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
+# }}}
+
 import shutil
 import json
 
@@ -6,13 +43,15 @@ import json
 from volttron.platform import get_services_core
 
 from volttron.platform.agent.base_historian import BaseHistorian
+# I should not have to import this...
+from volttrontesting.fixtures.volttron_platform_fixtures import *
 import pytest
 
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging.health import *
 from time import sleep
-import datetime
+from datetime import datetime
 import random
 import gevent
 
@@ -79,21 +118,26 @@ def test_base_historian(volttron_instance):
 
 
 class BasicHistorian(BaseHistorian):
-    '''This historian forwards data to another platform.
     '''
-
+    This historian forwards data to another platform.
+    '''
     def __init__(self, **kwargs):
         super(BasicHistorian, self).__init__(**kwargs)
         self.publish_fail = False
         self.publish_sleep = 0
+        self.seen = []
 
 
     def publish_to_historian(self, to_publish_list):
+        self.seen.extend(to_publish_list)
 
         sleep(self.publish_sleep)
 
         if not self.publish_fail:
             self.report_all_handled()
+
+    def reset(self):
+        self.seen = []
 
     def query_historian(self, topic, start=None, end=None, agg_type=None,
           agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
@@ -112,7 +156,9 @@ def historian(request, volttron_instance):
     identity = 'platform.historian'
     agent = volttron_instance.build_agent(agent_class=BasicHistorian,
                                           identity=identity,
-                                          submit_size_limit=2)
+                                          submit_size_limit=2,
+                                          max_time_publishing=0.5,
+                                          retry_period=1.0)
     yield agent
     agent.core.stop()
 
@@ -163,7 +209,58 @@ def test_health_stuff(request, historian, client_agent):
                                          headers=headers,
                                          message=all_message).get(timeout=10)
 
-    gevent.sleep(1)
+    gevent.sleep(0.2)
+
+    status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+
+    assert status["status"] == STATUS_GOOD
+
+    # Test publish failure
+
+    historian.publish_fail = True
+
+    for _ in range(10):
+        client_agent.vip.pubsub.publish('pubsub',
+                                         DEVICES_ALL_TOPIC,
+                                         headers=headers,
+                                         message=all_message).get(timeout=10)
+
+
+    gevent.sleep(0.2)
+
+    status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+
+    assert status["status"] == STATUS_BAD
+    assert status["context"] == "Historian not publishing."
+
+    historian.publish_fail = False
+
+    gevent.sleep(1.0)
+
+    status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+
+    assert status["status"] == STATUS_GOOD
+
+    #Test publish slow or backlogged
+
+    historian.publish_sleep = 0.75
+
+    for _ in range(10):
+        client_agent.vip.pubsub.publish('pubsub',
+                                        DEVICES_ALL_TOPIC,
+                                        headers=headers,
+                                        message=all_message).get(timeout=10)
+
+    gevent.sleep(1.0)
+
+    status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+
+    assert status["status"] == STATUS_BAD
+    assert status["context"] == "Historian backlogged. ~28 records to be published."
+
+    historian.publish_sleep = 0
+
+    gevent.sleep(1.0)
 
     status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
