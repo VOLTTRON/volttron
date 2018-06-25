@@ -43,8 +43,6 @@ import json
 from volttron.platform import get_services_core
 
 from volttron.platform.agent.base_historian import BaseHistorian
-# I should not have to import this...
-from volttrontesting.fixtures.volttron_platform_fixtures import *
 import pytest
 
 from volttron.platform.agent import utils
@@ -167,7 +165,7 @@ alert_publishes = []
 def message_handler(peer, sender, bus,  topic, headers, message):
     alert_publishes.append(Status.from_json(message))
 
-@pytest.mark.historian
+@pytest.mark.dev
 def test_health_stuff(request, historian, client_agent):
     """
     Test basic use of health subsystem in the base historian.
