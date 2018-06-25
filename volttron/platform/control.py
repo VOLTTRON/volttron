@@ -681,7 +681,9 @@ def status_agents(opts):
 
 
 def agent_health(opts):
-    agent = _list_agents(opts.aip)[0]
+    agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}.values()
+    agents = get_filtered_agents(opts, agents)
+    agent = agents.pop()
     try:
         _stderr.write(json.dumps(
             opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4),
@@ -1238,7 +1240,7 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     if not agents:
         agents = _list_agents(opts.aip)
 
-    get_filtered_agents(opts, agents)
+    agents = get_filtered_agents(opts, agents)
 
     if not agents:
         _stderr.write('No installed Agents found\n')
@@ -1285,7 +1287,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
     if not agents:
         agents = _list_agents(opts.aip)
 
-    get_filtered_agents(opts, agents)
+    agents = get_filtered_agents(opts, agents)
 
     if not agents:
         _stderr.write('No installed Agents found\n')
@@ -1621,7 +1623,7 @@ def main(argv=sys.argv):
 
     health = add_parser('health', parents=[filterable],
                         help='show agent health as JSON')
-    health.add_argument('pattern', help='UUID or name of agent')
+    health.add_argument('pattern', nargs=1, help='UUID or name of agent')
     health.set_defaults(func=agent_health, min_uuid_len=1)
 
     clear = add_parser('clear', help='clear status of defunct agents')
