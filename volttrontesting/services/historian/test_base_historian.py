@@ -165,7 +165,7 @@ alert_publishes = []
 def message_handler(peer, sender, bus,  topic, headers, message):
     alert_publishes.append(Status.from_json(message))
 
-@pytest.mark.dev
+@pytest.mark.historian
 def test_health_stuff(request, historian, client_agent):
     """
     Test basic use of health subsystem in the base historian.
