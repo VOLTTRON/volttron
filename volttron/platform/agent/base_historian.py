@@ -238,6 +238,14 @@ from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
 from volttron.platform.vip.agent.subsystems.query import Query
 
+from volttron.platform.async import AsyncCall
+
+from volttron.platform.messaging.health import (STATUS_BAD,
+                                                STATUS_UNKNOWN,
+                                                STATUS_GOOD,
+                                                STATUS_STARTING,
+                                                Status)
+
 try:
     import ujson
     from zmq.utils.jsonapi import dumps as _dumps, loads as _loads
@@ -345,6 +353,8 @@ class BaseHistorianAgent(Agent):
         # cache database
         self._process_loop_in_greenlet = process_loop_in_greenlet
         self._topic_replace_list = topic_replace_list
+
+        self._async_call = AsyncCall()
 
         _log.info('Topic string replace list: {}'
                   .format(self._topic_replace_list))
@@ -888,6 +898,21 @@ class BaseHistorianAgent(Agent):
                                'meta': {},
                                'headers': headers})
 
+    def _update_status_callback(self, status, context):
+        self.vip.health.set_status(status, context)
+
+    def _update_status(self, status, context):
+        self._async_call.send(None, self._update_status_callback, status, context)
+
+    def _send_alert_callback(self, status, context, key):
+        self.vip.health.set_status(status, context)
+        alert_status = Status()
+        alert_status.update_status(status, context)
+        self.vip.health.send_alert(key, alert_status)
+
+    def _send_alert(self, status, context, key):
+        self._async_call.send(None, self._send_alert_callback, status, context, key)
+
     def _process_loop(self):
         """
         The process loop is called off of the main thread and will not exit
@@ -919,10 +944,12 @@ class BaseHistorianAgent(Agent):
         # publishing is currently happening (and how long it's taking)
         # we may or may not want to wait on the event queue for more input
         # before proceeding with the rest of the loop.
-        wait_for_input = not bool(
-            backupdb.get_outstanding_to_publish(self._submit_size_limit))
+        wait_for_input = not bool(backupdb.get_outstanding_to_publish(1))
 
         while True:
+            if not wait_for_input:
+                self._update_status(STATUS_BAD, "Historian backlogged. ~{} records to be published.".format(backupdb.get_backlog_count()))
+
             try:
                 #_log.debug("Reading from/waiting for queue.")
                 new_to_publish = [
@@ -956,8 +983,16 @@ class BaseHistorianAgent(Agent):
                 to_publish_list = backupdb.get_outstanding_to_publish(
                     self._submit_size_limit)
 
+                #Check to see if we are caughtup.
+                if not to_publish_list:
+                    if self._message_publish_count > 0:
+                        _log.info("Historian processed {} total records.".format(current_published_count))
+                        next_report_count = current_published_count + self._message_publish_count
+                    self._update_status(STATUS_GOOD, None)
+                    break
+
                 # Check for a stop for reconfiguration.
-                if not to_publish_list or self._stop_process_loop:
+                if self._stop_process_loop:
                     break
 
                 history_limit_timestamp = None
@@ -974,17 +1009,25 @@ class BaseHistorianAgent(Agent):
                         "An unhandled exception occurred while publishing.")
 
                 # if the successful queue is empty then we need not remove
-                # them from the database.
+                # them from the database and we are probably having connection problems.
+                # Update the status and send alert accordingly.
                 if not self._successful_published:
+                    self._send_alert(STATUS_BAD, "Historian not publishing.", "historian_not_publishing")
                     break
 
                 backupdb.remove_successfully_published(
                     self._successful_published, self._submit_size_limit)
-                current_published_count += len(self._successful_published)
+
+                if None in self._successful_published:
+                    current_published_count += len(to_publish_list)
+                else:
+                    current_published_count += len(self._successful_published)
+
                 if self._message_publish_count > 0:
                     if current_published_count >= next_report_count:
                         _log.info("Historian processed {} total records.".format(current_published_count))
                         next_report_count = current_published_count + self._message_publish_count
+
                 self._successful_published = set()
                 now = datetime.utcnow()
                 if now - start_time > self._max_time_publishing:
@@ -996,6 +1039,7 @@ class BaseHistorianAgent(Agent):
                     break
 
             _log.debug("Exiting publish loop.")
+
 
             # Check for a stop for reconfiguration.
             if self._stop_process_loop:
@@ -1181,6 +1225,8 @@ class BackupDatabase:
         # The topic cache is only meant as a local lookup and should not be
         # accessed via the implemented historians.
         self._backup_cache = {}
+        # Count of records in cache.
+        self._record_count = 0
         self._meta_data = defaultdict(dict)
         self._owner = weakref.ref(owner)
         self._backup_storage_limit_gb = backup_storage_limit_gb
@@ -1208,6 +1254,7 @@ class BackupDatabase:
                     WHERE ROWID IN
                     (SELECT ROWID FROM outstanding
                     ORDER BY ROWID ASC LIMIT 100)''')
+                self._record_count -= c.rowcount
 
         for item in new_publish_list:
             source = item['source']
@@ -1244,6 +1291,7 @@ class BackupDatabase:
                         '''INSERT INTO outstanding
                         values(NULL, ?, ?, ?, ?, ?)''',
                         (timestamp, source, topic_id, dumps(value), dumps(headers)))
+                    self._record_count += 1
                 except sqlite3.IntegrityError:
                     # In the case where we are upgrading an existing installed historian the
                     # unique constraint may still exist on the outstanding database.
@@ -1276,6 +1324,7 @@ class BackupDatabase:
                         WHERE ROWID IN
                         (SELECT ROWID FROM outstanding
                           ORDER BY ts LIMIT ?)''', (submit_size,))
+            self._record_count -= c.rowcount
         else:
             temp = list(successful_publishes)
             temp.sort()
@@ -1283,6 +1332,7 @@ class BackupDatabase:
                             WHERE id = ?''',
                           ((_id,) for _id in
                            successful_publishes))
+            self._record_count -= len(temp)
 
         self._connection.commit()
 
@@ -1317,7 +1367,20 @@ class BackupDatabase:
                             'meta': meta})
 
         c.close()
+
+        # If we were backlogged at startup and our initial estimate was
+        # off this will correct it.
+        if len(results) < size_limit:
+            self._record_count = len(results)
+
         return results
+
+    def get_backlog_count(self):
+        """
+        Retrieve the current number of records in the cashe.
+        """
+        return self._record_count
+
 
     def close(self):
         self._connection.close()
@@ -1353,6 +1416,7 @@ class BackupDatabase:
                                          topic_id INTEGER NOT NULL,
                                          value_string TEXT NOT NULL,
                                          header_string TEXT)''')
+            self._record_count = 0
         else:
             # Check to see if we have a header_string column.
             c.execute("pragma table_info(outstanding);")
@@ -1371,6 +1435,25 @@ class BackupDatabase:
             if not found_header_column:
                 _log.info("Updating cache database to support storing header data.")
                 c.execute("ALTER TABLE outstanding ADD COLUMN header_string text;")
+
+            # Initialize record_count at startup.
+            # This is a (probably correct) estimate of the total records cached.
+            # We do not use count() as it can be very slow if the cache is quite large.
+            _log.info("Counting existing rows.")
+            self._connection.execute('''select
+                                        max(id)
+                                        from outstanding''')
+            max_id = c.fetchone()
+
+            self._connection.execute('''select
+                                        min(id)
+                                        from outstanding''')
+            min_id = c.fetchone()
+
+            if max_id is not None and min_id is not None:
+                self._record_count = max_id[0] - min_id[0] + 1
+            else:
+                self._record_count = 0
 
         c.execute('''CREATE INDEX IF NOT EXISTS outstanding_ts_index
                                            ON outstanding (ts)''')
