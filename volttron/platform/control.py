@@ -683,6 +683,9 @@ def status_agents(opts):
 def agent_health(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}.values()
     agents = get_filtered_agents(opts, agents)
+    if not agents:
+        _stderr.write('No installed Agents found\n')
+        return
     agent = agents.pop()
     try:
         _stderr.write(json.dumps(
