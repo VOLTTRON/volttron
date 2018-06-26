@@ -39,7 +39,8 @@
 import logging
 import os
 import weakref
-#from volttron.platform.agent import utils
+
+from volttron.platform.agent import utils
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.headers import DATE
 from volttron.platform.messaging.health import *
