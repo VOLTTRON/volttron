@@ -266,7 +266,6 @@ class BaseRouter(object):
             issue(UNROUTABLE, frames, 'bad VIP signature')
             return
         user_id = self.lookup_user_id(sender, recipient, auth_token)
-        _log.debug("ROUTER: user id: {}".format(user_id))
         if user_id is None:
             user_id = b''
 

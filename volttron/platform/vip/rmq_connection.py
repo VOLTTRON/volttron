@@ -232,7 +232,7 @@ class RMQConnection(BaseConnection):
         object and hands it over to VIP message handler.
         :param channel: channel object
         :param method: method frame - contains routing key
-        :param props: message properties containing VIP info such as
+        :param props: message properties containing VIP details such as
                       [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS,]
         :param body: message body
         :return:

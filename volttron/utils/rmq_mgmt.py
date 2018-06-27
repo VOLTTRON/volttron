@@ -264,6 +264,14 @@ def create_user(user, password=default_pass, tags="administrator", ssl=True):
     response = http_put_request(url, body, ssl)
 
 
+def get_users():
+    url = '/api/users/'
+    response = http_get_request(url, ssl)
+    users = []
+    if response:
+        users = [u['name'] for u in response]
+    return users
+
 def get_url_prefix(ssl):
     if ssl:
         prefix = 'https://{host}:{port}'.format(host=get_hostname(),
@@ -898,6 +906,26 @@ def build_rmq_address(ssl=True):
         raise
 
     return rmq_address
+
+
+def create_user_certs(identity, instance_name, user_permissions):
+    crts = certs.Certs()
+    # If no certs for this agent, create a new one
+    if not crts.cert_exists(identity):
+        crts.create_ca_signed_cert(identity)
+    # If user does not exist, create a new one
+    if identity not in get_users():
+        create_user(identity)
+    permissions = get_user_permissions(identity)
+    # Add user permissions if missing
+    if not permissions:
+        permissions = dict(configure=user_permissions['configure'],
+                           read=user_permissions['read'],
+                           write=user_permissions['write'])
+        _log.debug("permissions: {}".format(permissions))
+        set_user_permissions(permissions, identity)
+    param = build_connection_param(identity, instance_name)
+    return param
 
 
 def _is_valid_rmq_url():

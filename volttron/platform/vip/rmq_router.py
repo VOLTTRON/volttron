@@ -75,7 +75,7 @@ from volttron.utils.rmq_mgmt import create_user as create_rmq_user, \
     build_connection_param as build_rmq_connection_param, \
     get_user_permissions as get_rmq_user_permissions, \
     get_topic_permissions_for_user as get_topic_permissions_for_rmq_user, \
-    set_topic_permissions_for_user as set_topic_permissions_for_rmq_user
+    create_user_certs
 
 __all__ = ['RMQRouter']
 
@@ -115,24 +115,14 @@ class RMQRouter(BaseRouter):
         self.connection = RMQConnection(param, identity, self._instance_name, type='platform')
 
     def _build_connection_parameters(self):
-        param = None
-        # Find certs
-        crts = certs.Certs()
-        # If certs for this agent does not exist, create a new one
+
         if self._identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
-            if not crts.cert_exists(self._identity):
-                crts.create_ca_signed_cert(self._identity)
-                create_rmq_user(self._identity)
-
-                # Rabbit user for the agent should have access to lmited resources (exchange, queues)
-                # config_access = "{identity}|{identity}.unroutable|pubsub.{identity}.*".format(identity=self._identity)
-                # read_access = "volttron|undeliverable|{identity}|{identity}.unroutable|pubsub.{identity}.*".format(identity=self._identity)
-                # write_access = "volttron|undeliverable|{identity}|{identity}.unroutable|pubsub.{identity}.*".format(identity=self._identity)
-                permissions = dict(configure=".*", read=".*", write=".*")
-
-                set_rmq_user_permissions(permissions, self._identity)
+            permissions = dict(configure=".*", read=".*", write=".*")
+            # Check if RabbitMQ user and certs exists for Router, if not create a new one.
+            # Add permissions if necessary
+            create_user_certs(self._identity, self._instance_name, permissions)
             param = build_rmq_connection_param(self._identity, self._instance_name)
             _log.debug("connection param: {}".format(param.ssl_options))
         return param
