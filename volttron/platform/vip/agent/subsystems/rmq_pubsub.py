@@ -114,7 +114,7 @@ class RMQPubSub(BasePubSub):
                     routing_key = self._form_routing_key(prefix, all_platforms=all_platforms)
                     # If not named queue, add queue name
                     if not queue:
-                        queue = "pubsub.{}".format(bytes(uuid.uuid4()))
+                        queue = "{identity}.pubsub.{uid}".format(identity=self.core().identity, uid=bytes(uuid.uuid4()))
                     self._add_subscription(routing_key, member, queue)
                     # _log.debug("SYNC: all_platforms {}".format(self._my_subscriptions['internal'][bus][prefix]))
 
@@ -207,7 +207,7 @@ class RMQPubSub(BasePubSub):
             durable = True
             auto_delete = False
         else:
-            queue = "pubsub.{0}.{1}".format(self.core().identity, str(uuid.uuid4()))
+            queue = "{0}.pubsub.{1}".format(self.core().identity, str(uuid.uuid4()))
         # Store subscriptions for later use
         self._add_subscription(routing_key, callback, queue)
 

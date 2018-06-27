@@ -657,7 +657,14 @@ class AIPplatform(object):
             if not crts.cert_exists(agent_vip_identity):
                 crts.create_ca_signed_cert(agent_vip_identity)
                 create_rmq_user(agent_vip_identity)
-                permissions = dict(configure=".*", read=".*", write=".*")
+                # Rabbit user for the agent should have access to limited resources (exchange, queues)
+                config_access = "{identity}|pubsub.{identity}.*".format(identity=agent_vip_identity)
+                read_access = "volttron|undeliverable|{identity}|pubsub.{identity}.*".format(identity=agent_vip_identity)
+                write_access = "volttron|undeliverable|{identity}|pubsub.{identity}.*".format(identity=agent_vip_identity)
+                #permissions = dict(configure=".*", read=".*", write=".*")
+
+                permissions = dict(configure=config_access, read=read_access, write=write_access)
+                _log.debug("permissions: {}".format(permissions))
                 set_rmq_user_permissions(permissions, agent_vip_identity)
 
         _log.info("Created agent cert")

@@ -46,6 +46,8 @@ from volttron.platform.agent import json as jsonapi
 from .socket import Message
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN, ENOTSOCK, EADDRINUSE
+from volttron.utils.rmq_mgmt import set_user_permissions as set_rmq_user_permissions, \
+    get_user_permissions as get_rmq_user_permissions
 
 _log = logging.getLogger(__name__)
 
@@ -65,8 +67,8 @@ class ZMQProxyRouter(Agent):
         super(ZMQProxyRouter, self).__init__(identity, address, **kwargs)
         self.zmq_router = zmq_router
         self._routing_key = self.core.instance_name + '.' + 'proxy'
-        self._outbound_proxy_queue = 'proxy_outbound'
-        self._external_pubsub_rpc_queue = 'proxy_inbound'
+        self._outbound_queue = "{identity}.zmq.outbound".format(identity=identity) #'proxy_outbound'
+        self._external_pubsub_rpc_queue = "{identity}.zmq.inbound".format(identity=identity) #'proxy_inbound'
 
     @Core.receiver('onstart')
     def startup(self, sender, **kwargs):
@@ -81,18 +83,28 @@ class ZMQProxyRouter(Agent):
         self.core.spawn(self.vip_loop)
         connection = self.core.connection
         channel = connection.channel
+
+        # permission = get_rmq_user_permissions(self.core.identity)
+        # _log.debug("Proxy router PREV permissions:{}".format(permission))
+        # if permission and isinstance(permission, dict):
+        #     permission['configure'] = self._add_permission(permission.get('configure', ""))
+        #     permission['read'] = self._add_permission(permission.get('read', ""))
+        #     permission['write'] = self._add_permission(permission.get('write', ""))
+        #     _log.debug("Proxy router NEW permissions: {}".format(permission))
+        #     set_rmq_user_permissions(permission, self.core.identity)
+
         # Create a queue to receive messages from local platform (for example, response for RPC request etc)
-        result = channel.queue_declare(queue=self._outbound_proxy_queue,
+        result = channel.queue_declare(queue=self._outbound_queue,
                                        durable=False,
                                        exclusive=True,
                                        auto_delete=True,
                                        callback=None)
         channel.queue_bind(exchange=connection.exchange,
-                            queue=self._outbound_proxy_queue,
+                            queue=self._outbound_queue,
                             routing_key=self.core.instance_name + '.proxy.router.subsystems',
                             callback=None)
         channel.basic_consume(self.zmq_outbound_handler,
-                                queue=self._outbound_proxy_queue,
+                                queue=self._outbound_queue,
                                 no_ack=True)
 
         # Create a queue to receive messages from local platform.
@@ -128,6 +140,14 @@ class ZMQProxyRouter(Agent):
         """
         _log.debug("Stopping ZMQ Router")
         self.zmq_router.stop()
+
+    def _add_permission(self, prev):
+        new_permission = self._outbound_queue + '|' + self._external_pubsub_rpc_queue
+        if prev:
+            prev += '|' + new_permission
+        else:
+            prev += new_permission
+        return prev
 
     def zmq_outbound_handler(self, ch, method, props, body):
         """
@@ -218,7 +238,7 @@ class ZMQProxyRouter(Agent):
                 else:
                     self._handle_other_subsystems(frames)
             except ZMQError as exc:
-                _log.error("Error while receiving message: {}".format(e))
+                _log.error("Error while receiving message: {}".format(exc))
                 if exc.errno == ENOTSOCK:
                     break
 
@@ -238,7 +258,7 @@ class ZMQProxyRouter(Agent):
         app_id = "{0}.{1}".format(self.core.instance_name, bytes(sender))
         # Change queue binding
         connection.channel.queue_bind(exchange=connection.exchange,
-                           queue=self._outbound_proxy_queue,
+                           queue=self._outbound_queue,
                            routing_key=app_id,
                            callback=None)
 

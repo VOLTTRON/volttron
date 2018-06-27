@@ -19,6 +19,7 @@ _log = logging.getLogger(__name__)
 # reduce pika log level
 logging.getLogger("pika").setLevel(logging.WARNING)
 
+
 class BaseConnection(object):
     """
     Base connection class for message bus connection.
@@ -48,20 +49,18 @@ class RMQConnection(BaseConnection):
         self._logger.debug("AGENT address: {}".format(url))
         if vc_url:
             self._url = url
-        else:
-            self._url = build_rmq_address()
+        # else:
+        #     self._url = build_rmq_address()
 
-        self._connection_param = build_connection_param(instance_name)
+        self._connection_param = url #build_connection_param(instance_name)
 
-        _log.debug("AMQP address: {}".format(self._url))#'amqp://guest:guest@localhost:5672/%2F'
         self.routing_key = "{0}.{1}".format(instance_name, identity)
         #self.routing_key = identity
-        self._vip_queue = "__{0}__.{1}".format(instance_name, identity)#identity
 
         self.exchange = 'volttron'
         self._vip_queue = identity
         self._alternate_exchange = 'undeliverable'
-        self._alternate_queue = 'alternate_queue'
+        self._alternate_queue = "{identity}.unroutable".format(identity=identity)
         self._connect_callback = None
         self._connect_error_callback = None
         self._type = type
@@ -83,7 +82,7 @@ class RMQConnection(BaseConnection):
                                                      on_open_error_callback=self.on_open_error,
                                                      #on_close_callback=self.on_connection_closed,
                                                      )
-        else: #router
+        else: # platform
             self._connection = pika.SelectConnection(self._connection_param,
                                                      on_open_callback=self.on_connection_open,
                                                      on_close_callback=self.on_connection_closed,
@@ -139,15 +138,9 @@ class RMQConnection(BaseConnection):
         :return:
         """
         self.channel = channel
-        # self.channel.exchange_delete(exchange=self.exchange)
-        # self.channel.exchange_delete(exchange=self._alternate_exchange)
         args = dict()
         args['alternate-exchange'] = self._alternate_exchange
-        # self.channel.exchange_declare(exchange=self.exchange,
-        #                                 exchange_type="topic"
-        #                                 ,arguments=args)
-        # self.channel.exchange_declare(exchange=self._alternate_exchange,
-        #                                 exchange_type="fanout")
+
         self.channel.queue_declare(queue=self._vip_queue,
                                     durable=self._queue_properties['durable'],
                                     exclusive=self._queue_properties['exclusive'],
@@ -244,17 +237,14 @@ class RMQConnection(BaseConnection):
         :param body: message body
         :return:
         """
-        #content_type = None, content_encoding = None, headers = None, delivery_mode = None, \
-        #priority = None, correlation_id = None, reply_to = None, expiration = None, message_id = None, \
-        #timestamp = None, type = None, user_id = None, app_id = None, cluster_id = None
-        #_log.debug("*************{}*****************************".format(self._identity))
-        #_log.debug("Channel {0}, Props {1}, body {2}".format(channel, props, body))
+        # _log.debug("*************rmq_message_handler {}*****************************".format(self._identity))
+        # _log.debug("Channel {0}, Props {1}, body {2}".format(channel, props, body))
         app_id = str(props.app_id)
         platform, peer = app_id.split(".", 1)
 
         msg = Message()
         msg.peer = peer
-        msg.user = props.headers.get('userid', b'')
+        msg.user = props.headers.get('user', b'')
         msg.platform = platform
         msg.id = props.message_id
         msg.subsystem = props.type
@@ -290,14 +280,12 @@ class RMQConnection(BaseConnection):
 
     def send_vip_object(self, message):
         """
-        Send the VIP message over rabbitmq message bus. Reformats the VIP message object into Pika
-        message object.
+        Send the VIP message over RabbitMQ message bus. Reformat the VIP message object into Pika
+        message object and publish it using Pika library
         :param message: VIP message object
         :return:
         """
         platform = getattr(message, 'platform', self._instance_name)
-        sender = getattr(message, 'sender', self._identity)
-
         if message.peer == b'':
             message.peer = 'router'
         if platform == b'':
@@ -308,12 +296,12 @@ class RMQConnection(BaseConnection):
         # Fit VIP frames in the PIKA properties dict
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         dct = {
+            'user_id': self._identity,
             'app_id': self.routing_key,  # Routing key of SENDER
             'headers': dict(
-                            #sender=sender, # SENDER
                             recipient=destination_routing_key,  # RECEIVER
                             proto=b'VIP',  # PROTO
-                            userid=getattr(message, 'user', b''),  # USER_ID
+                            user=getattr(message, 'user', self._identity),  # USER_ID
                             ),
             'message_id': getattr(message, 'id', b''),  # MSG_ID
             'type': message.subsystem,  # SUBSYS

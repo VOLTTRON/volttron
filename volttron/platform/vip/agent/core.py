@@ -73,6 +73,10 @@ from ..rmq_connection import RMQConnection
 from ..socket import Message
 from gevent.queue import Queue
 from volttron.platform.agent.utils import load_platform_config
+from volttron.platform import certs
+from volttron.utils.rmq_mgmt import create_user as create_rmq_user, \
+    set_user_permissions as set_rmq_user_permissions, \
+    build_connection_param as build_rmq_connection_param
 
 __all__ = ['BasicCore', 'Core', 'RMQCore', 'ZMQCore', 'killing']
 
@@ -856,9 +860,35 @@ class RMQCore(BasicCore):
             error = VIPError.from_errno(*args)
             self.onviperror.send(self, error=error, message=message)
 
+    def _build_connection_parameters(self):
+        param = None
+        # Find certs
+        crts = certs.Certs()
+        # If certs for this agent does not exist, create a new one
+        if self.identity is None:
+            raise ValueError("Agent's VIP identity is not set")
+        else:
+            if not crts.cert_exists(self.identity):
+                crts.create_ca_signed_cert(self.identity)
+                create_rmq_user(self.identity)
+                common_access = "{identity}|{identity}.pubsub.*|{identity}.zmq.*".format(identity=self.identity)
+                # Rabbit user for the agent should have access to limited resources (exchange, queues)
+                config_access = common_access
+                read_access = "volttron|{}".format(common_access)
+                write_access = "volttron|{}".format(common_access)
+                #permissions = dict(configure=".*", read=".*", write=".*")
+
+                permissions = dict(configure=config_access, read=read_access, write=write_access)
+                _log.debug("permissions: {}".format(permissions))
+                set_rmq_user_permissions(permissions, self.identity)
+            param = build_rmq_connection_param(self.identity, self.instance_name)
+            _log.debug("connection param: {0}".format(param.ssl_options))
+        return param
+
     def loop(self, running_event):
+        param = self._build_connection_parameters()
         # pre-setup
-        self.connection = RMQConnection(self.address, self.identity, self.instance_name,
+        self.connection = RMQConnection(param, self.identity, self.instance_name,
                                         vc_url=self.volttron_central_address)
         yield
 

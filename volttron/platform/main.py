@@ -782,7 +782,7 @@ def start_volttron_process(opts):
             auth_file = os.path.join(opts.volttron_home, 'auth.json')
             auth = AuthService(
                 auth_file, protected_topics_file, opts.setup_mode, opts.aip, address=address, identity=AUTH,
-                enable_store=False, message_bus='zmq')
+                enable_store=False, message_bus='rmq')
 
             event = gevent.event.Event()
             auth_task = gevent.spawn(auth.core.run, event)
@@ -853,12 +853,12 @@ def start_volttron_process(opts):
                 message_bus=opts.message_bus,
                 volttron_central_rmq_address=opts.volttron_central_rmq_address),
 
-            KeyDiscoveryAgent(address=address, serverkey=publickey,
-                              identity='keydiscovery',
-                              external_address_config=external_address_file,
-                              setup_mode=opts.setup_mode,
-                              bind_web_address=opts.bind_web_address,
-                              message_bus='zmq'),
+            # KeyDiscoveryAgent(address=address, serverkey=publickey,
+            #                   identity='keydiscovery',
+            #                   external_address_config=external_address_file,
+            #                   setup_mode=opts.setup_mode,
+            #                   bind_web_address=opts.bind_web_address,
+            #                   message_bus='zmq'),
             # For Backward compatibility with VOLTTRON versions <= 4.1
             PubSubWrapper(address=address,
                           identity='pubsub', heartbeat_autostart=True,

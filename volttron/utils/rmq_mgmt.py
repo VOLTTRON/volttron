@@ -89,6 +89,7 @@ admin_password= None
 
 volttron_rmq_config = os.path.join(get_home(), 'rabbitmq_config.json')
 
+
 def call_grequest(method_name, url_suffix, ssl=True, **kwargs):
     global crts, instance_name
     url = get_url_prefix(ssl) + url_suffix
@@ -109,6 +110,7 @@ def call_grequest(method_name, url_suffix, ssl=True, **kwargs):
               "to RabbitMQ {}".format(e))
         response = None
     return response
+
 
 def get_authentication_args(ssl):
     '''
@@ -141,20 +143,24 @@ def get_authentication_args(ssl):
         user = local_password
         return {'auth': (user, password)}
 
+
 def http_put_request(url_suffix, body=None, ssl=True):
     if body:
         return call_grequest('put', url_suffix, ssl, data=jsonapi.dumps(body))
     else:
         return call_grequest('put', url_suffix, ssl)
 
+
 def http_delete_request(url, ssl=True):
     return call_grequest('delete',url, ssl)
+
 
 def http_get_request(url, ssl=True):
     response = call_grequest('get', url, ssl)
     if response and isinstance(response, list):
         response = response[0].json()
     return response
+
 
 def _load_rmq_config():
     """Loads the config file if the path exists."""
@@ -167,20 +173,21 @@ def _load_rmq_config():
 def get_hostname():
     if not config_opts:
         _load_rmq_config()
-    _log.debug("rmq config: {}".format(config_opts))
+    #_log.debug("rmq config: {}".format(config_opts))
     return config_opts['host']
+
 
 def get_amqp_port():
     if not config_opts:
         _load_rmq_config()
-    _log.debug("rmq config: {}".format(config_opts))
+    #_log.debug("rmq config: {}".format(config_opts))
     return config_opts['amqp-port']
 
 
 def get_port():
     if not config_opts:
         _load_rmq_config()
-    _log.debug("rmq config: {}".format(config_opts))
+    #_log.debug("rmq config: {}".format(config_opts))
     return config_opts['port']
 
 
@@ -218,6 +225,7 @@ def get_virtualhost(new_vhost, ssl=True):
     response = http_get_request(url, ssl)
     return response
 
+
 def delete_vhost(vhost, ssl=True):
     """
     Delete a virtual host
@@ -228,6 +236,7 @@ def delete_vhost(vhost, ssl=True):
     """
     url = '/api/vhosts/{vhost}'.format(vhost=vhost)
     response = http_delete_request(url, ssl)
+
 
 def get_virtualhosts(ssl=True):
     url = '/api/vhosts'
@@ -274,6 +283,7 @@ def get_user_props(user, ssl=True):
     response = http_get_request(url, ssl)
     return response
 
+
 def delete_user(user, ssl=True):
     """
     Delete specific user
@@ -282,6 +292,7 @@ def delete_user(user, ssl=True):
     """
     url = '/api/users/{user}'.format(user=user)
     response = http_delete_request(url, ssl)
+
 
 def get_user_permissions(user, vhost=None, ssl=True):
     """
@@ -319,6 +330,7 @@ def set_topic_permissions_for_user(permissions, user, password=None, vhost=None)
     """
     Set read, write permissions for a topic
     :param permissions: dict containing exchange name and read/write permissions
+    {"exchange":"volttron", read: ".*", write: "^__pubsub__"}
     :param user:
     :param password:
     :param vhost:
@@ -328,6 +340,7 @@ def set_topic_permissions_for_user(permissions, user, password=None, vhost=None)
     url = '/api/topic-permissions/{vhost}/{user}'.format(vhost=vhost,
                                                          user=user)
     response = http_put_request(url, body=permissions, ssl=ssl)
+
 
 def get_topic_permissions_for_user(user, password=None, vhost=None):
     """
@@ -340,7 +353,7 @@ def get_topic_permissions_for_user(user, password=None, vhost=None):
     vhost = vhost if vhost else get_vhost()
     url = '/api/topic-permissions/{vhost}/{user}'.format(vhost=vhost, user=user)
     response = http_get_request(url, ssl)
-    return response.json() if response else response
+    return response
 
 
 # GET/SET parameter on a component for example, federation-upstream
@@ -358,6 +371,7 @@ def get_parameter(component, vhost=None, ssl=True):
                                                        vhost=vhost)
     response = http_get_request(url, ssl)
     return response
+
 
 def set_parameter(component, parameter_name, parameter_properties,
                   vhost=None, ssl=True):
@@ -397,6 +411,7 @@ def delete_parameter(component, parameter_name, vhost=None, ssl=True):
     response = http_delete_request(url, ssl)
     return response
 
+
 # Get all policies, Get/Set/Delete a specific property
 def get_policies(vhost=None, ssl=True):
     """
@@ -429,10 +444,8 @@ def get_policy(name, vhost=None, ssl=True):
     vhost = vhost if vhost else get_vhost()
     url = '/api/policies/{vhost}/{name}'.format(vhost=vhost, name=name)
     response = http_get_request(url, ssl)
-    if response:
-        return response.json()
-    else:
-        return response
+    return response.json() if response else response
+
 
 # value = {"pattern":"^amq.", "definition": {"federation-upstream-set":"all"}, "priority":0, "apply-to": "all"}
 def set_policy(name, value, vhost=None, ssl=True):
@@ -455,6 +468,7 @@ def delete_policy(name, vhost=None, ssl=True):
     vhost = vhost if vhost else get_vhost()
     url = '/api/policies/{vhost}/{name}'.format(vhost=vhost, name=name)
     response = http_delete_request(url, ssl)
+
 
 # Exchanges - Create/delete/List exchanges
 #properties = dict(durable=False, type='topic', auto_delete=True, arguments={"alternate-exchange": "aexc"})
@@ -487,6 +501,7 @@ def delete_exchange(exchange, vhost=None, ssl=True):
                                                      exchange=exchange)
     response = http_delete_request(url, ssl)
 
+
 def get_exchanges(vhost=None, ssl=True):
     """
     List all exchanges
@@ -504,6 +519,7 @@ def get_exchanges(vhost=None, ssl=True):
         exchanges = [e['name'] for e in response]
     return exchanges
 
+
 def get_exchanges_with_props(vhost=None, ssl=True):
     """
     List all exchanges with properties
@@ -515,6 +531,7 @@ def get_exchanges_with_props(vhost=None, ssl=True):
     vhost = vhost if vhost else get_vhost()
     url = '/api/exchanges/{vhost}'.format(vhost=vhost)
     return http_get_request(url, ssl)
+
 
 # Queues - Create/delete/List queues
 #properties = dict(durable=False, auto_delete=True)
@@ -544,6 +561,7 @@ def delete_queue(queue, user=None, password=None, vhost=None, ssl=True):
     url = '/api/queues/{vhost}/{queue}'.format(vhost=vhost, queue=queue)
     response = http_delete_request(url, ssl)
 
+
 def get_queues(user=None, password=None, vhost=None, ssl=True):
     """
     Get list of queues
@@ -562,6 +580,7 @@ def get_queues(user=None, password=None, vhost=None, ssl=True):
         queues = [q['name'] for q in response]
     return queues
 
+
 def get_queues_with_props(vhost=None, ssl=True):
     """
     Get properties of all queues
@@ -573,6 +592,7 @@ def get_queues_with_props(vhost=None, ssl=True):
     vhost = vhost if vhost else get_vhost()
     url = '/api/queues/{vhost}'.format(vhost=vhost)
     return http_get_request(url, ssl)
+
 
 # List all open connections
 def get_connections(vhost=None, ssl=True):
@@ -588,6 +608,7 @@ def get_connections(vhost=None, ssl=True):
     response = http_get_request(url, ssl)
     return response
 
+
 def get_connection(name, ssl=True):
     """
     Get status of a connection
@@ -600,6 +621,7 @@ def get_connection(name, ssl=True):
     url = '/api/connections/{name}'.format(name=name)
     response = http_get_request(url, ssl)
     return response.json() if response else response
+
 
 def delete_connection(name, ssl=True):
     """
@@ -621,6 +643,7 @@ def list_channels_for_connection(connection, ssl=True):
     url = '/api/connections/{conn}/channels'.format(conn=connection)
     return http_get_request(url, ssl)
 
+
 def list_channels_for_vhost(vhost=None, ssl=True):
     """
     List all open channels for a given vhost
@@ -634,6 +657,7 @@ def list_channels_for_vhost(vhost=None, ssl=True):
     url = '/api/vhosts/{vhost}/channels'.format(vhost=vhost)
     response = http_get_request(url, ssl)
     return response.json() if response else response
+
 
 def get_bindings(exchange):
     """
@@ -650,6 +674,7 @@ def get_bindings(exchange):
     # if isinstance(response, list):
     #     response = response[0]
     return response
+
 
 # We need http address and port
 def init_rabbitmq_setup():
@@ -684,6 +709,7 @@ def init_rabbitmq_setup():
     create_exchange(alternate_exchange, properties=properties, vhost=vhost,
                     ssl=False)
 
+
 def create_federation_setup():
     """
     Creates a RabbitMQ federation of multiple VOLTTRON instances
@@ -717,6 +743,7 @@ def create_federation_setup():
     set_policy(policy_name, policy_value,
                config_opts['virtual-host'])
 
+
 def is_valid_port(port):
     try:
         port = int(port)
@@ -724,6 +751,7 @@ def is_valid_port(port):
         return False
 
     return port == 5672 or port == 5671
+
 
 def delete_multiplatform_parameter(component, parameter_name, user=None, password=None, vhost=None):
     """
@@ -755,6 +783,7 @@ def delete_multiplatform_parameter(component, parameter_name, user=None, passwor
     except KeyError as ex:
         print("Parameter not found: {}".format(ex))
         return
+
 
 def set_initial_rabbit_config(instance_name):
     global config_opts
@@ -809,7 +838,7 @@ def set_initial_rabbit_config(instance_name):
         #print config_opts
 
 
-def build_connection_param(instance_name):
+def build_connection_param(identity, instance_name):
     global config_opts
     if not config_opts:
         _load_rmq_config()
@@ -824,10 +853,12 @@ def build_connection_param(instance_name):
                                               instance_name+"-ca.crt"),
                         keyfile=os.path.join(certs.DEFAULT_CERTS_DIR,
                                              "private",
-                                             config_opts['user']+".pem"),
+                                             identity+".pem"),
+                                             #config_opts['user']+".pem"),
                         certfile=os.path.join(certs.DEFAULT_CERTS_DIR,
                                               "certs",
-                                              config_opts['user']+".crt"),
+                                              identity+".crt"),
+                                              #config_opts['user']+".crt"),
                         cert_reqs=ssl.CERT_REQUIRED)
     conn_params = pika.ConnectionParameters(
         host=config_opts['host'],
@@ -837,6 +868,7 @@ def build_connection_param(instance_name):
         ssl_options=ssl_options,
         credentials=pika.credentials.ExternalCredentials())
     return conn_params
+
 
 def build_rmq_address(ssl=True):
     global config_opts
@@ -956,6 +988,7 @@ def _get_shovel_settings():
         shovels.append(dict(shovel_name=name, remote_address=address, topics=topics))
     config_opts['shovels'] = shovels
     config_opts.sync()
+
 
 def get_ssl_url_params():
     global crts, instance_name
