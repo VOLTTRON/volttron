@@ -581,7 +581,8 @@ def start_volttron_process(opts):
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
-    store_message_bus_config(opts.message_bus, opts.instance_name)
+    if opts.message_bus == 'rmq':
+        store_message_bus_config(opts.message_bus, opts.instance_name)
     import urlparse
 
     if opts.bind_web_address:

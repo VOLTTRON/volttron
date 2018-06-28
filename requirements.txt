@@ -7,7 +7,7 @@ monotonic==1.2
 pbr==1.10.0
 ply==3.9
 psutil==4.3.1
-py==1.4.31
+py==1.5.4
 pymodbus==1.2.0
 pyserial==3.1.1
 python-dateutil==2.5.3
@@ -24,4 +24,5 @@ ws4py==0.3.5
 zope.interface==4.3.2
 modbus-tk==0.5.8
 PyYAML==3.12
--e git+https://github.com/shwethanidd/pika.git@gevent_connection_adapter#egg=pika
+cryptography==2.2.2
+git+git://github.com/shwethanidd/pika.git@gevent_connection_adapter#egg=pika
