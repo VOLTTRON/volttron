@@ -75,6 +75,7 @@ from volttron.platform.packaging import create_ca
 from volttron.utils.persistance import PersistentDict
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.platform.certs import ROOT_CA_NAME
+from requests.packages.urllib3 import disable_warnings
 
 _log = logging.getLogger(__name__)
 
@@ -86,7 +87,7 @@ local_user ="guest"
 local_password="guest"
 admin_user= None # User to prompt for if we go the docker route
 admin_password= None
-
+disable_warnings()
 volttron_rmq_config = os.path.join(get_home(), 'rabbitmq_config.json')
 
 
@@ -908,7 +909,7 @@ def build_rmq_address(ssl=True):
     return rmq_address
 
 
-def create_user_certs(identity, instance_name, user_permissions):
+def create_user_certs(identity, user_permissions):
     crts = certs.Certs()
     # If no certs for this agent, create a new one
     if not crts.cert_exists(identity):
@@ -924,9 +925,6 @@ def create_user_certs(identity, instance_name, user_permissions):
                            write=user_permissions['write'])
         _log.debug("permissions: {}".format(permissions))
         set_user_permissions(permissions, identity)
-    param = build_connection_param(identity, instance_name)
-    return param
-
 
 def _is_valid_rmq_url():
     """

@@ -66,8 +66,8 @@ from .packages import UnpackedPackage
 from .vip.agent import Agent
 from .keystore import KeyStore
 from .auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
-from volttron.utils.rmq_mgmt import create_user as create_rmq_user, \
-    set_user_permissions as set_rmq_user_permissions
+from volttron.utils.rmq_mgmt import create_user_certs, \
+    delete_user as delete_rmq_user
 try:
     from volttron.restricted import auth
     from volttron.restricted.resmon import ResourceError
@@ -415,10 +415,16 @@ class AIPplatform(object):
         if agent_uuid not in os.listdir(self.install_dir):
             raise ValueError('invalid agent')
         self.stop_agent(agent_uuid)
+        msg_bus = get_messagebus()
+        if msg_bus == 'rmq':
+            # Delete RabbitMQ user for the agent
+            identity = self.agent_identity(agent_uuid)
+            delete_rmq_user(identity)
         self.agents.pop(agent_uuid, None)
         if remove_auth:
             self._unauthorize_agent_keys(agent_uuid)
         shutil.rmtree(os.path.join(self.install_dir, agent_uuid))
+
 
     def agent_name(self, agent_uuid):
         agent_path = os.path.join(self.install_dir, agent_uuid)
@@ -653,19 +659,11 @@ class AIPplatform(object):
         # auth only cert created is used
         msg_bus = get_messagebus()
         if msg_bus == 'rmq':
-            crts = certs.Certs()
-            if not crts.cert_exists(agent_vip_identity):
-                crts.create_ca_signed_cert(agent_vip_identity)
-                create_rmq_user(agent_vip_identity)
-                # Rabbit user for the agent should have access to limited resources (exchange, queues)
-                config_access = "{identity}|pubsub.{identity}.*".format(identity=agent_vip_identity)
-                read_access = "volttron|undeliverable|{identity}|pubsub.{identity}.*".format(identity=agent_vip_identity)
-                write_access = "volttron|undeliverable|{identity}|pubsub.{identity}.*".format(identity=agent_vip_identity)
-                #permissions = dict(configure=".*", read=".*", write=".*")
-
-                permissions = dict(configure=config_access, read=read_access, write=write_access)
-                _log.debug("permissions: {}".format(permissions))
-                set_rmq_user_permissions(permissions, agent_vip_identity)
+            config_access = "{identity}|{identity}.pubsub.*|{identity}.zmq.*".format(identity=agent_vip_identity)
+            read_access = "volttron|{}".format(config_access)
+            write_access = "volttron|{}".format(config_access)
+            permissions = dict(configure=config_access, read=read_access, write=write_access)
+            create_user_certs(agent_vip_identity, permissions)
 
         _log.info("Created agent cert")
         module, _, func = module.partition(':')

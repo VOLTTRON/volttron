@@ -870,13 +870,11 @@ class RMQCore(BasicCore):
             config_access = "{identity}|{identity}.pubsub.*|{identity}.zmq.*".format(identity=self.identity)
             read_access = "volttron|{}".format(config_access)
             write_access = "volttron|{}".format(config_access)
-            # permissions = dict(configure=".*", read=".*", write=".*")
-
             permissions = dict(configure=config_access, read=read_access, write=write_access)
-            create_user_certs(self.identity, self.instance_name, permissions)
+            create_user_certs(self.identity, permissions)
 
             param = build_rmq_connection_param(self.identity, self.instance_name)
-            _log.debug("connection param: {0}".format(param.ssl_options))
+
         return param
 
     def loop(self, running_event):

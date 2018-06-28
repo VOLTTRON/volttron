@@ -163,8 +163,10 @@ class AuthService(Agent):
         user_to_caps = self.get_user_to_capabilities()
         peers = self.vip.peerlist().get(timeout=5)
         _log.debug("AUTH new capabilities update: {}".format(user_to_caps))
+
         for peer in peers:
-            self.vip.rpc.call(peer, 'auth.update', user_to_caps)
+            if peer not in [self.core.identity]:
+                self.vip.rpc.call(peer, 'auth.update', user_to_caps)
         if self.core.messagebus == 'rmq':
             self._check_rmq_topic_permissions()
         else:

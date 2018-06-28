@@ -223,7 +223,14 @@ class ControlService(BaseAgent):
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
+
+        identity = self.agent_vip_identity(uuid)
+        frames = [bytes(identity)]
+
+        # Send message to router that agent is shutting down
+        self.core.connection.send_vip_object(Message(peer=b'', subsystem='agentstop', args=frames))
         self._aip.remove_agent(uuid, remove_auth=remove_auth)
+
 
     @RPC.export
     def prioritize_agent(self, uuid, priority='50'):
@@ -1375,10 +1382,12 @@ class ControlConnection(object):
                  publickey=None, secretkey=None, serverkey=None):
         self.address = address
         self.peer = peer
+        message_bus = utils.get_messagebus()
         self._server = BaseAgent(address=self.address, publickey=publickey,
                                  secretkey=secretkey, serverkey=serverkey,
                                  enable_store=False,
                                  identity=CONTROL_CONNECTION,
+                                 message_bus=message_bus,
                                  enable_channel=True)
         self._greenlet = None
 

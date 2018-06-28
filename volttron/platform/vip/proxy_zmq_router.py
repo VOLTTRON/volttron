@@ -272,7 +272,7 @@ class ZMQProxyRouter(Agent):
             'headers': dict(sender=bytes(sender),  # SENDER
                             recipient=destination_routing_key,  # RECEIVER
                             proto=b'VIP',  # PROTO
-                            userid=bytes(auth_token),  # USER_ID
+                            user=bytes(auth_token),  # USER_ID
                             ),
             'message_id': bytes(msg_id),  # MSG_ID
             'type': bytes(subsystem),  # SUBSYS

@@ -7,12 +7,7 @@ import pika
 
 from volttron.platform.vip.socket import Message
 import errno
-#from gevent import monkey
-from volttron.utils.rmq_mgmt import build_rmq_address, create_user, build_connection_param
-#monkey.patch_socket()
 
-import uuid
-import time
 
 
 _log = logging.getLogger(__name__)
@@ -46,7 +41,6 @@ class RMQConnection(BaseConnection):
         self._consumer_tag = None
         self._error_tag = None
         self._logger = logging.getLogger(__name__)
-        self._logger.debug("AGENT address: {}".format(url))
         if vc_url:
             self._url = url
         # else:
@@ -55,7 +49,6 @@ class RMQConnection(BaseConnection):
         self._connection_param = url #build_connection_param(instance_name)
 
         self.routing_key = "{0}.{1}".format(instance_name, identity)
-        #self.routing_key = identity
 
         self.exchange = 'volttron'
         self._vip_queue = identity
@@ -263,20 +256,26 @@ class RMQConnection(BaseConnection):
         :param body: message body
         :return:
         """
-        #Ignore if message type is 'pubsub'
+        # Ignore if message type is 'pubsub'
         if props.type == 'pubsub':
             return
 
-        sender = props.app_id
-        subsystem = props.type
-        props.type = b'error'
+        sender = getattr(props, 'app_id')
+        subsystem = getattr(props, 'type')
+        setattr(props, 'app_id', self.routing_key)
+        setattr(props, 'type', b'error')
+        setattr(props, 'user_id', self._identity)
         errnum = errno.EHOSTUNREACH
-        errmsg = os.strerror(errnum).encode('ascii')  # str(errnum).encode('ascii')
+        errmsg = os.strerror(errnum).encode('ascii')
         recipient = props.headers.get('recipient', '')
-        platform, identity = recipient.split(".", 1)
         message = [errnum, errmsg, recipient, subsystem]
-        #_log.debug("Error Message is: {0}, {1}, {2}".format(method.routing_key, props.app_id, body))
-        self.channel.basic_publish(self.exchange, sender, json.dumps(message, ensure_ascii=False), props)
+        _log.debug("Host Unreachable Error Message is: {0}, {1}, {2}".format(method.routing_key,
+                                                            sender,
+                                                            props))
+        self.channel.basic_publish(self.exchange,
+                                   sender,
+                                   json.dumps(message, ensure_ascii=False),
+                                   props)
 
     def send_vip_object(self, message):
         """
@@ -309,7 +308,7 @@ class RMQConnection(BaseConnection):
         }
         properties = pika.BasicProperties(**dct)
         msg = getattr(message, 'args', None)  # ARGS
-        #_log.debug("PUBLISHING TO CHANNEL {0}, {1}, {2}".format(destination_routing_key, msg, properties))
+        _log.debug("PUBLISHING TO CHANNEL {0}, {1}, {2}, {3}".format(destination_routing_key, msg, properties, self.routing_key))
         self.channel.basic_publish(self.exchange,
                                     destination_routing_key,
                                     json.dumps(msg, ensure_ascii=False),

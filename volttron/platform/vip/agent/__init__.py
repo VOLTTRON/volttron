@@ -49,8 +49,7 @@ from .decorators import *
 from .subsystems import *
 from .... import platform
 from .... platform.agent.utils import is_valid_identity
-from volttron.platform.agent.utils import load_platform_config
-from volttron.platform.agent import utils
+
 
 class Agent(object):
     class Subsystems(object):

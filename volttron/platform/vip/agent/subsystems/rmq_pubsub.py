@@ -341,10 +341,11 @@ class RMQPubSub(BasePubSub):
 
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         dct = {
+            'user_id': self.core().identity,
             'app_id': connection.routing_key,  # SENDER
             'headers': dict(recipient=b'',  # RECEIVER
                             proto=b'VIP',  # PROTO
-                            userid=b'',    # USER_ID
+                            user=self.core().identity,    # USER_ID
                             ),
             'message_id': result.ident,  # MSG_ID
             'type': 'pubsub',  # SUBSYS
