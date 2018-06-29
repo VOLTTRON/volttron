@@ -60,7 +60,7 @@ class ZMQProxyRouter(Agent):
     others with ZeroMQ message bus. The Proxy router agent is implemented to manage the routing between local and
     external instances in such cases.
 
-    Please note, if all instances in multi-platform setup are RabbitMQ based, then RabbitMQ federation/shovel have to
+    Please note, if all instances in multi-platform setup are RabbitMQ based, then RabbitMQ federation/shovel need to
     be used.
     """
     def __init__(self, address, identity, zmq_router, *args, **kwargs):
@@ -126,9 +126,8 @@ class ZMQProxyRouter(Agent):
                                  routing_key=self.core.instance_name + '.proxy.router.external_rpc',
                                  callback=None)
         channel.basic_consume(self.external_pubsub_rpc_handler,
-                                    queue=self._external_pubsub_rpc_queue,
-                                    no_ack=True)
-
+                              queue=self._external_pubsub_rpc_queue,
+                              no_ack=True)
 
     @Core.receiver('onstop')
     def on_stop(self, sender, **kwargs):
@@ -169,7 +168,7 @@ class ZMQProxyRouter(Agent):
             # TODO: to be fixed
             _log.error("Invalid json format {}".format(e))
             return
-        userid = props.headers.get('userid', b'')
+        userid = props.headers.get('user', b'')
         #_log.debug("Proxy ZMQ Router Outbound handler {0}, {1}".format(to_identity, args))
         # Reformat message into ZMQ VIP format
         frames = [bytes(to_identity), bytes(from_identity), b'VIP1', bytes(userid),
@@ -178,7 +177,6 @@ class ZMQProxyRouter(Agent):
             self.zmq_router.socket.send_multipart(frames, copy=True)
         except ZMQError as ex:
             _log.debug("ZMQ Error {}".format(ex))
-        #self.zmq_router.socket.vip_send(frames, copy=False)
 
     def external_pubsub_rpc_handler(self, ch, method, props, body):
         """
@@ -216,7 +214,7 @@ class ZMQProxyRouter(Agent):
 
     def vip_loop(self):
         """
-        Infinite ZMQ based VIP loop to receive and send messages over ZMQ message bus.
+        Infinite VIP loop to receive and send messages over ZMQ message bus.
         :return:
         """
         connection = self.core.connection
@@ -230,32 +228,30 @@ class ZMQProxyRouter(Agent):
                 frames = self.zmq_router.socket.recv_multipart(copy=False)
                 sender, recipient, proto, auth_token, msg_id, subsystem = frames[:6]
                 recipient = bytes(recipient)
-                # Check if router is the intended recipient or it has to route the message to an agent.
-                # for f in frames:
-                #     _log.debug("Proxy router message frames: {}".format(f))
                 if not recipient:
+                    # Handle router specific messages
                     self.zmq_router.route(frames)
                 else:
-                    self._handle_other_subsystems(frames)
+                    # Route to RabbitMQ agent
+                    self._route_to_agent(frames)
             except ZMQError as exc:
-                _log.error("Error while receiving message: {}".format(exc))
+                #_log.error("Error while receiving message: {}".format(exc))
                 if exc.errno == ENOTSOCK:
                     break
 
-    def _handle_other_subsystems(self, frames):
+    def _route_to_agent(self, frames):
         """
         Send the message to local agent using internal RabbitMQ message bus
         :param frames: ZMQ message frames
         :return:
         """
         sender, recipient, proto, auth_token, msg_id, subsystem = frames[:6]
-        args = frames[6:]
-        args = [bytes(arg) for arg in args]
+        args = [bytes(arg) for arg in frames[6:]]
         # for f in frames:
         #     _log.debug("Frames:; {}".format(bytes(f)))
         connection = self.core.connection
 
-        app_id = "{0}.{1}".format(self.core.instance_name, bytes(sender))
+        app_id = "{instance}.{identity}".format(instance=self.core.instance_name, identity=bytes(sender))
         # Change queue binding
         connection.channel.queue_bind(exchange=connection.exchange,
                            queue=self._outbound_queue,
@@ -268,6 +264,7 @@ class ZMQProxyRouter(Agent):
         # Fit VIP frames into the PIKA properties dictionary
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         dct = {
+            'user_id': self.core.identity,
             'app_id': app_id,  # Routing key of SOURCE AGENT
             'headers': dict(sender=bytes(sender),  # SENDER
                             recipient=destination_routing_key,  # RECEIVER

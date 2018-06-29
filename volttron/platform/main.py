@@ -854,12 +854,12 @@ def start_volttron_process(opts):
                 message_bus=opts.message_bus,
                 volttron_central_rmq_address=opts.volttron_central_rmq_address),
 
-            # KeyDiscoveryAgent(address=address, serverkey=publickey,
-            #                   identity='keydiscovery',
-            #                   external_address_config=external_address_file,
-            #                   setup_mode=opts.setup_mode,
-            #                   bind_web_address=opts.bind_web_address,
-            #                   message_bus='zmq'),
+            KeyDiscoveryAgent(address=address, serverkey=publickey,
+                              identity='keydiscovery',
+                              external_address_config=external_address_file,
+                              setup_mode=opts.setup_mode,
+                              bind_web_address=opts.bind_web_address,
+                              message_bus='zmq'),
             # For Backward compatibility with VOLTTRON versions <= 4.1
             PubSubWrapper(address=address,
                           identity='pubsub', heartbeat_autostart=True,

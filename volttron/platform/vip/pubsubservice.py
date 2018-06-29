@@ -228,6 +228,7 @@ class PubSubService(object):
             for prefix in prefix if isinstance(prefix, list) else [prefix]:
                 self._add_peer_subscription(peer, bus, prefix, platform)
 
+            #self._logger.debug("Subscribe after: {}".format(self._peer_subscriptions))
             if is_all and self._ext_router is not None:
                 # Send subscription message to all connected platforms
                 external_platforms = self._ext_router.get_connected_platforms()
@@ -780,7 +781,7 @@ class PubSubService(object):
             # Check if peer is authorized to publish the topic
             errmsg = self._check_if_protected_topic(bytes(user_id), bytes(topic))
 
-            #peer is not authorized to publish to the topic, send error message to the peer
+            # peer is not authorized to publish to the topic, send error message to the peer
             if errmsg is not None:
                 try:
                     frames = [publisher, b'', proto, user_id, msg_id,
@@ -818,7 +819,6 @@ class PubSubService(object):
         :param frames:
         :return:
         """
-        self._logger.debug("handle error")
         if len(frames) > 7:
             error_type = frames[7].bytes
             if error_type == INVALID_REQUEST:
