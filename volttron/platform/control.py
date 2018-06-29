@@ -59,14 +59,16 @@ import gevent.event
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform import get_home, get_address
 
-from .agent import utils
-from .agent.known_identities import CONTROL_CONNECTION, CONFIGURATION_STORE
-from .vip.agent import Agent as BaseAgent, Core, RPC
-from . import aip as aipmod
-from . import config
-from .jsonrpc import RemoteError
-from .auth import AuthEntry, AuthFile, AuthException
-from .keystore import KeyStore, KnownHostsStore
+
+from volttron.platform.agent import utils
+from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
+    CONFIGURATION_STORE
+from volttron.platform.vip.agent import Agent as BaseAgent, Core, RPC
+from volttron.platform import aip as aipmod
+from volttron.platform import config
+from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.auth import AuthEntry, AuthFile, AuthException
+from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.socket import Message
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.utils.rmq_mgmt import *
@@ -221,7 +223,14 @@ class ControlService(BaseAgent):
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
+
+        identity = self.agent_vip_identity(uuid)
+        frames = [bytes(identity)]
+
+        # Send message to router that agent is shutting down
+        self.core.connection.send_vip_object(Message(peer=b'', subsystem='agentstop', args=frames))
         self._aip.remove_agent(uuid, remove_auth=remove_auth)
+
 
     @RPC.export
     def prioritize_agent(self, uuid, priority='50'):
@@ -334,6 +343,7 @@ class ControlService(BaseAgent):
 
         peer = bytes(self.vip.rpc.context.vip_message.peer)
         channel = self.vip.channel(peer, channel_name)
+
         try:
             tmpdir = tempfile.mkdtemp()
             path = os.path.join(tmpdir, os.path.basename(filename))
@@ -1372,11 +1382,13 @@ class ControlConnection(object):
                  publickey=None, secretkey=None, serverkey=None):
         self.address = address
         self.peer = peer
+        message_bus = utils.get_messagebus()
         self._server = BaseAgent(address=self.address, publickey=publickey,
                                  secretkey=secretkey, serverkey=serverkey,
                                  enable_store=False,
                                  identity=CONTROL_CONNECTION,
-                                 enable_channel=False)
+                                 message_bus=message_bus,
+                                 enable_channel=True)
         self._greenlet = None
 
     @property
@@ -1467,6 +1479,11 @@ def add_queue(opts):
 def list_vhosts(opts):
     vhosts = get_virtualhosts()
     for item in vhosts:
+        _stdout.write(item+"\n")
+
+def list_users(opts):
+    users = get_users()
+    for item in users:
         _stdout.write(item+"\n")
 
 def list_user_properties(opts):
@@ -1570,6 +1587,7 @@ def list_shovel_parameters(opts):
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in getting shovel parameters")
 
+
 def list_bindings(opts):
     bindings = get_bindings(opts.exchange)
 
@@ -1590,6 +1608,7 @@ def list_bindings(opts):
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in getting bindings")
 
+
 def list_policies(opts):
     policies = get_policies()
     try:
@@ -1605,13 +1624,16 @@ def list_policies(opts):
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in getting policies")
 
+
 def remove_vhosts(opts):
     for vhost in opts.vhost:
         delete_vhost(vhost)
 
+
 def remove_users(opts):
     for user in opts.user:
         delete_user(user)
+
 
 def remove_exchanges(opts):
     for e in opts.exchanges:
@@ -1620,6 +1642,7 @@ def remove_exchanges(opts):
 def remove_queues(opts):
     for q in opts.queues:
         delete_queue(q)
+
 
 def remove_fed_parameters(opts):
     for param in opts.parameters:
@@ -2107,6 +2130,10 @@ def main(argv=sys.argv):
         rabbitmq_list_vhosts = add_parser('list-vhosts', help='List virtual hosts',
                                   subparser=rabbitmq_subparsers)
         rabbitmq_list_vhosts.set_defaults(func=list_vhosts)
+
+        rabbitmq_list_users = add_parser('list-users', help='List users',
+                                  subparser=rabbitmq_subparsers)
+        rabbitmq_list_users.set_defaults(func=list_users)
 
         rabbitmq_list_user_properties = add_parser('list-user-properties', help='List users',
                                   subparser=rabbitmq_subparsers)

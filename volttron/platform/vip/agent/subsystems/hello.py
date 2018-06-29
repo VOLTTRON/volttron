@@ -83,8 +83,7 @@ class Hello(SubsystemBase):
         :param peer: The peer to receive the response from.
         :return: [version, peer, identity]
         """
-        _log.info('Requesting hello from peer ({})'.format(peer))
-        socket = self.core().socket
+        _log.info('{0} Requesting hello from peer ({1})'.format(self.core().identity, peer))
         result = next(self._results)
         connection = self.core().connection
         try:

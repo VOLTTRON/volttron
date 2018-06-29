@@ -62,13 +62,20 @@ import os
 import pika
 import logging
 from .rmq_connection import RMQConnection
-from .socket import Message
+from .socket import Message, Address
 from ..main import __version__
 from volttron.platform.agent import json as jsonapi
 from .zmq_router import BaseRouter
 import errno
 from Queue import Queue
 from ..keystore import KeyStore
+from volttron.platform import certs
+from volttron.utils.rmq_mgmt import create_user as create_rmq_user, \
+    set_user_permissions as set_rmq_user_permissions, \
+    build_connection_param as build_rmq_connection_param, \
+    get_user_permissions as get_rmq_user_permissions, \
+    get_topic_permissions_for_user as get_topic_permissions_for_rmq_user, \
+    create_user_certs, get_users as get_rmq_users
 
 __all__ = ['RMQRouter']
 
@@ -81,7 +88,11 @@ class RMQRouter(BaseRouter):
     and unrouteable messages.
     """
 
-    def __init__(self, address, instance_name, identity='router', default_user_id=None):
+    def __init__(self, address, local_address, instance_name, addresses=(), identity='router', default_user_id=None,
+                 volttron_central_address=None,
+                 volttron_central_serverkey=None,
+                 bind_web_address=None
+                 ):
         """
         Initialize the object instance.
         :param instance_name: Name of VOLTTRON instance
@@ -90,13 +101,29 @@ class RMQRouter(BaseRouter):
         """
         self.default_user_id = default_user_id
         self._peers = set()
+        self.addresses = [Address(addr) for addr in set(addresses)]
         self._address = address
+        self._volttron_central_address = volttron_central_address
+        self._volttron_central_serverkey = volttron_central_serverkey
+        self._bind_web_address = bind_web_address
         self._instance_name = instance_name
-        _log.debug("instance:{}".format(self._instance_name))
         self._identity = identity
         self.event_queue = Queue()
-        _log.debug("INSTANCE: {0}".format(instance_name))
-        self.connection = RMQConnection(address, identity, self._instance_name, type='platform')
+        param = self._build_connection_parameters()
+        self.connection = RMQConnection(param, identity, self._instance_name, type='platform')
+
+    def _build_connection_parameters(self):
+
+        if self._identity is None:
+            raise ValueError("Agent's VIP identity is not set")
+        else:
+            permissions = dict(configure=".*", read=".*", write=".*")
+            # Check if RabbitMQ user and certs exists for Router, if not create a new one.
+            # Add permissions if necessary
+            create_user_certs(self._identity, permissions)
+            param = build_rmq_connection_param(self._identity, self._instance_name)
+            _log.debug("connection param: {}".format(param.ssl_options))
+        return param
 
     def start(self):
         """
@@ -130,36 +157,37 @@ class RMQRouter(BaseRouter):
         """
         self.start()
         try:
-            # for message in self.event_queue:
-            #     self.handle_system(message)
             self.connection.loop()
-        except (pika.exceptions.AMQPConnectionError, pika.exceptions.AMQPChannelError):
-            _log.debug("Unable to connect to the RabbitMQ broker")
         except KeyboardInterrupt:
             pass
+        except (pika.exceptions.AMQPConnectionError, pika.exceptions.AMQPChannelError) as exc:
+            _log.error("RabbitMQ Connection Error. {}".format(exc))
         finally:
             self.stop()
 
-    def callback(self):
+    def connection_open_callback(self):
+        _log.debug("Received connection callback")
+
+    def connection_close_callback(self):
         _log.debug("Received connection callback")
 
     def issue(self, topic, frames, extra=None):
         pass
 
     def _add_peer(self, peer):
+        if peer == self._identity:
+            return
         if peer in self._peers:
             return
         self._distribute(b'peerlist', b'add', peer)
         self._peers.add(peer)
-        self._add_pubsub_peers(peer)
 
     def _drop_peer(self, peer):
         try:
             self._peers.remove(peer)
         except KeyError:
             return
-        #self._distribute(b'peerlist', b'drop', peer)
-        #self._drop_pubsub_peers(peer)
+        self._distribute(b'peerlist', b'drop', peer)
 
     def route(self, message):
         '''Route one message and return.
@@ -180,12 +208,14 @@ class RMQRouter(BaseRouter):
         :param message: actual message
         :return:
         """
-        #[SENDER, RECIPIENT, PROTOCOL, USER_ID, MSG_ID, SUBSYSTEM, ...]
-        # sender = props.app_id #source
+        # [SENDER, RECIPIENT, PROTOCOL, USER_ID, MSG_ID, SUBSYSTEM, ...]
+
         sender = message.peer #source
         subsystem = message.subsystem
-
+        self._add_peer(sender)
         if subsystem == b'hello':
+            self.authenticate(sender)
+            # send welcome message back
             message.args = [b'welcome', b'1.0', self._identity, sender]
         elif subsystem == b'ping':
             message.args = [b'pong']
@@ -197,13 +227,12 @@ class RMQRouter(BaseRouter):
             except ValueError:
                 op = None
             if op == b'list':
-                message.args.append(b'listing')
+                del message.args[:]
+                message.args = [b'listing']
                 message.args.extend(self._peers)
             else:
                 error = (b'unknown' if op else b'missing') + b' operation'
                 message.args.extend([b'error', error])
-        elif subsystem == b'error':
-            return
         elif subsystem == b'quit':
             if sender == b'control':
                 self.stop()
@@ -211,8 +240,8 @@ class RMQRouter(BaseRouter):
         elif subsystem == b'agentstop':
             try:
                 drop = message.args[0]
+                _log.debug("ROUTER received agent stop message. Dropping peer: {}".format(message.args))
                 self._drop_peer(drop)
-                _log.debug("ROUTER received agent stop message. dropping peer: {}".format(drop))
             except IndexError:
                 pass
             except ValueError:
@@ -247,10 +276,21 @@ class RMQRouter(BaseRouter):
                     value = self._bind_web_address
                 elif name == b'platform-version':
                     value = __version__
+                elif name == b'message-bus':
+                    value = os.environ.get('MESSAGEBUS', 'zmq')
                 else:
                     value = None
             message.args = [b'', jsonapi.dumps(value)]
             message.args.append(b'')
+        elif subsystem == b'error':
+            try:
+                errnum = message.args[0]
+                if errnum == errno.EHOSTUNREACH:
+                    recipient = message.args[2]
+                    self._drop_peer(recipient)
+                return
+            except IndexError:
+                _log.error("ROUTER unable to parse error message {}".format(message.args))
         else:
             # Router does not know of the subsystem
             message.type = b'error'
@@ -261,4 +301,95 @@ class RMQRouter(BaseRouter):
 
         # Send the message back to the sender
         self.connection.send_vip_object(message)
+
+    def _distribute(self, *parts):
+        message = Message(peer=None, subsystem=parts[0], args=parts[1:])
+        for peer in self._peers:
+            message.peer = peer
+            self.connection.send_vip_object(message)
+
+    def _make_user_access_tokens(self, identity):
+        tokens = dict()
+        tokens["configure"] = tokens["read"] = tokens["write"] = [identity,
+                                                                  identity + ".pubsub.*",
+                                                                  identity + ".zmq.*"]
+        tokens["read"].append("volttron")
+        tokens["write"].append("volttron")
+
+        return tokens
+
+    def _check_user_access_token(self, actual, allowed):
+        pending = actual[:]
+        for tk in actual:
+            if tk in allowed:
+                pending.remove(tk)
+        return pending
+
+    def _make_topic_permission_tokens(self, identity):
+        """
+        Make tokens for read and write permission on topic (routing key) for an agent
+        :param identity:
+        :return:
+        """
+        tokens = dict()
+        # Exclusive read access ( topic consumption ) to it's VIP routing key and any pubsub routing key
+        tokens["read"] = ["{0}.{1}".format(self._instance_name, identity),
+                          "__pubsub__.*"]
+        # Write access to any VIP routing key and application specific topics within this instance
+        tokens["write"] = ["{0}.*".format(self._instance_name),
+                           "__pubsub__.{0}.*".format(self._instance_name)]
+        if identity == "proxy_router":
+            tokens["read"] = ".*"
+            tokens["write"] = ".*"
+        return tokens
+
+    def _check_token(self, actual, allowed):
+        pending = actual[:]
+        for tk in actual:
+            if tk in allowed:
+                pending.remove(tk)
+        return pending
+
+    def authenticate(self, identity):
+        """
+        Check the permissions set for the agent
+        1. Check the permissions for user
+            - to access the "volttron" exchange
+            - to access it's VIP queue and pubsub queues
+        2. Check/Set the topic permissions for the user
+
+        :param user: Agent identity
+        :return:
+        """
+        user_error_msg = self._check_user_permissions(identity)
+        return user_error_msg
+
+    def _check_user_permissions(self, identity):
+        msg = None
+        user_permission = get_rmq_user_permissions(identity)
+        # Check user access permissions for the agent
+        allowed_tokens = self._make_user_access_tokens(identity)
+        #_log.debug("Identity: {0}, User permissions: {1}".format(identity, user_permission))
+        if user_permission:
+            config_perms = user_permission.get("configure", "").split("|")
+            read_perms = user_permission.get("read", "").split("|")
+            write_perms = user_permission.get("write", "").split("|")
+            config_chk = self._check_token(config_perms, allowed_tokens["configure"])
+            read_chk = self._check_token(read_perms, allowed_tokens["read"])
+            write_chk = self._check_token(write_perms, allowed_tokens["write"])
+            if config_chk or read_chk or write_chk:
+                msg = "Agent has invalid user permissions to "
+                if config_chk: msg += "CONFIGURE: {} , ".format(config_chk)
+                if read_chk: msg += "READ: {} ".format(read_chk)
+                if write_chk: msg += "WRITE: {}".format(write_chk)
+        else:
+            # Setting default user access control
+            common_access = "{identity}|{identity}.pubsub.*|{identity}.zmq.*".format(identity=self.identity)
+            # Rabbit user for the agent should have access to limited resources (exchange, queues)
+            config_access = common_access
+            read_access = "volttron|{}".format(common_access)
+            write_access = "volttron|{}".format(common_access)
+            permissions = dict(configure=config_access, read=read_access, write=write_access)
+            set_rmq_user_permissions(permissions, self.identity)
+        return msg
 

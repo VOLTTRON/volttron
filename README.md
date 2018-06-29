@@ -1,3 +1,5 @@
+  
+
 ![image](docs/source/images/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
 
 Distributed Control System Platform.
@@ -29,69 +31,242 @@ http://ryanstutorials.net/linuxtutorial/
 
 ## Installation
 
-Install VOLTTRON by running the following commands which installs needed [prerequisites](https://volttron.readthedocs.io/en/latest/setup/VOLTTRON-Prerequisites.html#volttron-prerequisites), clones the source code, then builds the virtual environment for using the platform.
+ **1. Install needed [prerequisites]**
+
+(https://volttron.readthedocs.io/en/latest/setup/VOLTTRON-Prerequisites.html#volttron-prerequisites).
+
+ On Debian-based systems, these can all be installed with the following command:
+
+ ```sh
+    sudo apt-get update
+    sudo apt-get install build-essential python-dev openssl libssl-dev libevent-dev git
+ ```
+ On Redhat or CENTOS systems, these can all be installed with the following command:
+ ```sh
+   sudo yum update
+    sudo yum install make automake gcc gcc-c++ kernel-devel python-devel openssl openssl-devel libevent-devel git
+ ```
+
+
+**2. Install RabbitMQ**
+
+
+ For RabbitMQ based VOLTTRON, some of the RabbitMQ required software packages have to be installed.
+
+ **a. Install Erlang packages.**
+
+  Please refer to [rabbitmq website](https://www.rabbitmq.com/which-erlang.html) to find the right version of Erlang to be installed for the version of RabbitMQ you intend to install
+
+  **On Debian based systems:**
+ Grab the right package for your OS version from https://packages.erlang-solutions.com/erlang/#tabs-debian.  Example install commands for Ubuntu artful 64 bit is given below
+ 
+  ```sh
+  wget http://packages.erlang-solutions.com/site/esl/esl-erlang/FLAVOUR_1_general/esl-erlang_21.0-1~ubuntu~artful_amd64.deb
+  sudo dpkg -i esl-erlang_21.0-1~ubuntu~artful_amd64.deb
+  ```
+
+  **On Redhat based systems:**
+
+  Easiest way to install Erlang for use with Rabbitmq is to use [Zero dependency
+  Erlang RPM](https://github.com/rabbitmq/erlang-rpm). This included only the components required for RabbitMQ.
+  Copy the contents of the repo file provided into /etc/yum.repos.d/rabbitmq-erlang.repo and then run yum install erlang. You would need to do both these as root user. below is a example rabbitmq-erlang.repo file for centos 7 and erlang 20.7
+  
+  ```sh
+# In /etc/yum.repos.d/rabbitmq-erlang.repo
+[rabbitmq-erlang]
+name=rabbitmq-erlang
+baseurl=https://dl.bintray.com/rabbitmq/rpm/erlang/20/el/7
+gpgcheck=1
+gpgkey=https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc
+repo_gpgcheck=0
+enabled=1
+  ```
+ Once you save the repo file, run the following commands
+ ```sh
+ sudo yum install erlang
+ ```
+  
+  
+ Alternatively,
+  You can also download and install Erlang from [Erlang Solutions](https://www.erlang-solutions.com/resources/download.html). Please include OTP/components - ssl, public_key, asn1, and crypto. Also lock version of Erlang using the [yum-plugin-versionlock](https://access.redhat.com/solutions/98873)
+
+  **b. Install RabbitMQ server package**
+
+On Debian based systems:
 
 ```sh
-sudo apt-get update
-sudo apt-get install build-essential python-dev openssl libssl-dev libevent-dev git
-```
-For RabbitMQ based VOLTTRON, some of the RabbitMQ required software packages have to be installed.
-Install Erlang packages
+ sudo apt-get install init-system-helpers socat adduser logrotate
+ wget https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.7.6/rabbitmq-server_3.7.6-1_all.deb
+ dpkg -i rabbitmq-server_3.7.6-1_all.deb
+ ```
+
+On Redhat based systems:
+
+Download the appropriate rpm from [rabbitmq site](https://www.rabbitmq.com/install-rpm.html) and install using  "yum install <name>.rpm" command
 ```sh
-wget https://packages.erlang-solutions.com/erlang-solutions_1.0_all.deb
-sudo dpkg -i erlang-solutions_1.0_all.deb
-sudo apt-get install erlang erlang-nox
+# following commands are for CentOS 7 and rabbitmq-server 3.7.4
+wget https://dl.bintray.com/rabbitmq/all/rabbitmq-server/3.7.4/rabbitmq-server-3.7.4-1.el7.noarch.rpm
+sudo yum install rabbitmq-server-3.7.4-1.el7.noarch.rpm
 ```
-Install RabbitMQ server package
+**b. Start rabbitmq server**
+	
+Make sure that your hostname is correctly configured in /etc/hosts. See (https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho)
+
+Hostname should be resolvable to a valid ip. Rabbitmq checks for this during inital boot. Without this (for example, when running on a VM in NAT mode) rabbitmq  start would fail with the error "unable to connect to empd (port 4369) on <hostname>. 
+
+Note: rabbitmq startup error would show up in syslog (/var/log/messages) file and not in rabbitmq logs (/var/log/rabbitmq/rabbitmq@hostname.log)
+	
+Start rabbitmq-server
 ```sh
-sudo apt-get install rabbitmq-server
+sudo service rabbitmq-server start
 ```
 
-Check to see if RabbitMQ is installed correctly.
-```sh
-sudo rabbitmq-server start
-```
 
-Enable RabbitMQ management, federation and shovel plugins
+**c. Enable RabbitMQ management, federation and shovel plugins**
 ```sh
 sudo rabbitmq-plugins enable rabbitmq_management
 sudo rabbitmq-plugins enable rabbitmq_federation
 sudo rabbitmq-plugins enable rabbitmq_federation_management
 sudo rabbitmq-plugins enable rabbitmq_shovel
+sudo rabbitmq-plugins enable rabbitmq_auth_mechanism_ssl
 ```
 
-Download VOLTTRON code from experimental branch
+**3. Download VOLTTRON code from experimental branch**
 ```sh
 git clone -b rabbitmq-volttron https://github.com/VOLTTRON/volttron.git
 cd volttron
-python bootstrap.py
+python bootstrap.py --rabbitmq
 ```
 
-This will build the platform and create a virtual Python environment. Activate the environment :
+This will build the platform and create a virtual Python environment. It will
+also install the dependencies for rabbimq.  Activate the environment :
 
 ```sh
 . env/bin/activate
 ```
 
-Create RabbitMQ setup for VOLTTRON :
+**4. Create RabbitMQ setup for VOLTTRON :**
 ```sh
 python volttron/utils/rmq_mgmt.py single
 ```
 
-This creates a new virtual host “volttron” and a new administrative user "volttron". It then creates the main VIP
-exchange named "volttron" to route message between platform and agents and alternate exchange to capture unrouteable
-messages.
+This creates a new virtual host “volttron” and creates ssl certificates needed for this volttron instance. These certificates get created under the sub directory certificates in your volttron home. It then creates the main VIP exchange named "volttron" to route message between platform and agents and alternate exchange to capture unrouteable messages.
 
-We need to set the VOLTTRON instance name and type of message bus in the configuration file located in $VOLTTRON_HOME/config.
-Message bus type has to be either "rmq" or "zmq".
+This script prompt for multiple information from the user regarding the volttron instance for which we are configuring rabbitmq. For each volttron instance there a single instance-ca certificate is created. All volttron instances that need to work together in a federation/shovel setup needs to have a instance-ca certificate signed by the same root CA.  A single volttron instance can create a self signed root ca. Instance-ca for all volttron instances should be generated in this volttron instance and should be scp-ed into the other instance.
 
-Edit your VOLTTRON config file to match the file below:
+Following is the example inputs for rmq_mgmt.py single command for volttron instance that has root CA.
 ```sh
-[volttron]
-message-bus = rmq
-vip-address = tcp://127.0.0.1:22916
-instance-name = volttron1
+python volttron/utils/rmq_mgmt.py single
+Your VOLTTRON_HOME currently set to: /home/velo/new_volttron
+Is this the volttron instance you are attempting to configure rabbitmq for? [Y]:
+
+What is the name of the virtual host under which Rabbitmq VOLTTRON will be running? [volttron]:
+
+Use default rabbitmq configuration [Y]:
+
+Creating new VIRTUAL HOST: volttron
+
+Create new exchange: volttron
+
+Create new exchange: undeliverable
+
+Checking for CA certificate
+
+What is the fully qualified domain name of the system? [vbox2.pnl.gov]:
+
+Do you want to create a self-signed root CA certificate that can sign all volttron instance CA in your setup: [N]: y
+
+Please enter the following for certificate creation:
+
+C - Country(US):
+
+ST - State(Washington):
+
+L - Location(Richland):
+
+O - Organization(PNNL):
+
+OU - Organization Unit(Volttron Team):
+
+CN - Common Name(vbox2 volttron-ca):
+
+Created CA cert
+
+Creating new USER: volttron1
+
+Create READ, WRITE and CONFIGURE permissions for the user: volttron1
+
+What is the admin user name: [volttron1]:
+
+Please do the following to complete setup
+
+1. Provide read access to rabbitmq user to VOLTTRON_HOME/certificates/private/*
+
+```sh
+chmod a+r ~/.volttron/certificates/private/*
 ```
+
+2. Move the rabbitmq.conf filein VOLTTRON_HOME directory into your rabbitmq configuration directory (/etc/rabbitmq in RPM/Debian systems)
+
+3. For custom ssl ports: Generated configuration uses default rabbitmq ssl ports. Modify both rabbitmq.conf and VOLTTRON_HOME/rabbitmq_config.json if using different ports.
+
+4. Restart rabbitmq-server.
+	sudo service rabbitmq-server stop
+	sudo service rabbitmq-server start
+```
+
+Example inputs for 'python rmq_mgmt.py single' command for a volttron instance that does not contain the root CA cert
+
+```sh
+python volttron/utils/rmq_mgmt.py single
+Your VOLTTRON_HOME currently set to: /home/velo/volttron_test
+
+Is this the volttron instance you are attempting to configure rabbitmq for? [Y]:
+
+Name of this volttron instance: [volttron1]:
+
+What is the name of the virtual host under which Rabbitmq VOLTTRON will be running? [volttron]:
+
+Use default rabbitmq configuration [Y]:
+
+Creating new VIRTUAL HOST: volttron
+
+Create new exchange: volttron
+
+Create new exchange: undeliverable
+
+Checking for CA certificate
+
+What is the fully qualified domain name of the system? [localhost.localdomain]: osboxes.pnl.gov
+
+Do you want to create a self-signed root CA certificate that can sign all volttron instance CA in your setup: [N]: N
+
+Enter path to intermediate CA certificate of this volttron instance: /home/velo/volttron1-ca.crt
+
+Enter path to private key file for this instance CA: /home/velo/volttron1-ca.pem
+
+Creating new USER: volttron1
+
+Create READ, WRITE and CONFIGURE permissions for the user: volttron1
+
+What is the admin user name: [volttron1]:
+Please do the following to complete setup
+
+1. Provide read access to rabbitmq user to VOLTTRON_HOME/certificates/private/*
+
+2. Move the rabbitmq.conf filein VOLTTRON_HOME directory into your rabbitmq configuration directory (/etc/rabbitmq in RPM/Debian systems)
+
+3. For custom ssl ports: Generated configuration uses default rabbitmq ssl ports. Modify both rabbitmq.conf and VOLTTRON_HOME/rabbitmq_config.json if using different ports.
+
+4. Restart rabbitmq-server.
+	sudo service rabbitmq-server stop
+	sudo service rabbitmq-server start
+```
+**5. Update RabbitMQ configuration file and restart RabbitMQ server**
+Follow the instructions provided as output of 'python rmq_mgmt.py single' command to create the rabbitmq.conf, change permissions for ssl private key files and restart rabbitmq-server
+
+**6. Test**
+
 
 We are now ready to start VOLTTRON with RabbitMQ message bus. If we need to revert back to ZeroMQ based VOLTTRON, we
 will have to either remove "message-bus" parameter or set it to default "zmq" in $VOLTTRON\_HOME/config.
@@ -175,19 +350,40 @@ We can configure multi-platform VOLTTRON setup with RabbitMQ message bus using b
 first step to do so would be to identify upstream servers (publisher nodes) and downstream servers (collector nodes).
 To create a RabbitMQ federation, we have to configure upstream servers on the downstream server and make the VOLTTRON exchange "federated".
 
-On the downstream server (collector node),
+1. On the downstream server (collector node),
 
 ```
 python volttron/utils/rmq_mgmt.py federation
 ```
 
-Please provide the hostname (or IP address) and port of the upstream nodes when prompted. For bi-directional data flow, we will have to run the same script on both the nodes.
+Please provide the hostname (or IP address) and port of the upstream nodes when prompted. The hostname provided should match the hostname in the ssl certificate of the upstream server. For bi-directional data flow, we will have to run the same script on both the nodes.
+
+2. Create a user in the upstream server with username=<downstream volttron instance name> and provide it access to the virtualhost of the upstream rabbitmq server.
+```sh
+sudo rabbitmqctl add_user <username> <password>
+sudo rabbitmqctl set_permissions -p volttron <username> ".*" ".*" ".*"
+```
 
 ## Next Steps
-We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we are working towards completing the below:
+We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we
+ are working towards completing the below:
 * Adding authentication and authorization feature to RabbitMQ message bus.
 * Authenticated connection amongst multiple platform instances.
+* Creation of Each agent has to have a unique RabbitMQ user id.
 * Testing of RabbitMQ shovel for multi-platform over NAT setup
+
+## Acquiring Third Party Agent Code
+Third party agents are available under volttron-applications repository. In order to use those agents, add volttron-applications repository under the volttron/applications directory by using following command:
+
+```sh
+git subtree add –prefix applications https://github.com/VOLTTRON/volttron-applications.git develop –squash
+```
+
+## Next Steps
+We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we
+ are working towards completing the below:
+* Adding authentication and authorization feature to RabbitMQ message bus.
+* Authenticated connection amongst multiple platform instances.
 
 ## Acquiring Third Party Agent Code
 Third party agents are available under volttron-applications repository. In order to use those agents, add volttron-applications repository under the volttron/applications directory by using following command:

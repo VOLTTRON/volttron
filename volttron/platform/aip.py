@@ -39,8 +39,6 @@
 
 """Component for the instantiation and packaging of agents."""
 
-
-import contextlib
 import errno
 import logging
 import os
@@ -51,11 +49,11 @@ import uuid
 
 import gevent
 import gevent.event
-from gevent.fileobject import FileObject
 from gevent import subprocess
 from gevent.subprocess import PIPE
 from wheel.tool import unpack
-import zmq
+
+from volttron.platform import certs
 
 # Can't use zmq.utils.jsonapi because it is missing the load() method.
 try:
@@ -63,17 +61,15 @@ try:
 except ImportError:
     import json as jsonapi
 
-from . import messaging
-from .agent.utils import is_valid_identity
-from .messaging import topics
+from .agent.utils import is_valid_identity, get_messagebus
 from .packages import UnpackedPackage
 from .vip.agent import Agent
 from .keystore import KeyStore
 from .auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
-
+from volttron.utils.rmq_mgmt import create_user_certs, \
+    delete_user as delete_rmq_user
 try:
     from volttron.restricted import auth
-    from volttron.restricted import certs
     from volttron.restricted.resmon import ResourceError
 except ImportError:
     auth = None
@@ -419,10 +415,16 @@ class AIPplatform(object):
         if agent_uuid not in os.listdir(self.install_dir):
             raise ValueError('invalid agent')
         self.stop_agent(agent_uuid)
+        msg_bus = get_messagebus()
+        if msg_bus == 'rmq':
+            # Delete RabbitMQ user for the agent
+            identity = self.agent_identity(agent_uuid)
+            delete_rmq_user(identity)
         self.agents.pop(agent_uuid, None)
         if remove_auth:
             self._unauthorize_agent_keys(agent_uuid)
         shutil.rmtree(os.path.join(self.install_dir, agent_uuid))
+
 
     def agent_name(self, agent_uuid):
         agent_path = os.path.join(self.install_dir, agent_uuid)
@@ -623,7 +625,6 @@ class AIPplatform(object):
                 raise ValueError('no agent launch class specified in package')
         config = os.path.join(pkg.distinfo, 'config')
         tag = self.agent_tag(agent_uuid)
-
         environ = os.environ.copy()
         environ['PYTHONPATH'] = ':'.join([agent_path] + sys.path)
         environ['PATH'] = (os.path.abspath(os.path.dirname(sys.executable)) +
@@ -653,6 +654,18 @@ class AIPplatform(object):
 
         environ['AGENT_VIP_IDENTITY'] = agent_vip_identity
 
+        # If using Rabbit check if cert files exist. If not create certs and
+        # create rabbitmq user with default password. password is not used for
+        # auth only cert created is used
+        msg_bus = get_messagebus()
+        if msg_bus == 'rmq':
+            config_access = "{identity}|{identity}.pubsub.*|{identity}.zmq.*".format(identity=agent_vip_identity)
+            read_access = "volttron|{}".format(config_access)
+            write_access = "volttron|{}".format(config_access)
+            permissions = dict(configure=config_access, read=read_access, write=write_access)
+            create_user_certs(agent_vip_identity, permissions)
+
+        _log.info("Created agent cert")
         module, _, func = module.partition(':')
         if func:
             code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module, func)

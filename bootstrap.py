@@ -124,7 +124,7 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
 
         def _fetch(self, url):
             '''Open url and return the response object (or bail).'''
-            _log.debug('Fetching %s', url)
+            _log.info('Fetching %s', url)
             response = urllib2.urlopen(url)
             if response.getcode() != 200:
                 _log.error('Server response is %s %s',
@@ -234,8 +234,7 @@ def update(operation, verbose=None, upgrade=False, offline=False):
             import wheel
         except ImportError:
             # wheel version 0.31 breaks packaging.
-            # TODO Look towards fixing the packaging so that it works with 0.31
-            pip('install', ['wheel==0.30'], verbose, offline=offline)
+            pass
     # Downgrade wheel if necessary so things don't break.
     # TODO Fix hard coded version in this spot...should be somewhere else.
     pip('install', ['wheel==0.30'], verbose, offline=offline)

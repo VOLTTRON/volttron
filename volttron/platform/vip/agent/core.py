@@ -73,6 +73,9 @@ from ..rmq_connection import RMQConnection
 from ..socket import Message
 from gevent.queue import Queue
 from volttron.platform.agent.utils import load_platform_config
+from volttron.platform import certs
+from volttron.utils.rmq_mgmt import create_user_certs, \
+    build_connection_param as build_rmq_connection_param
 
 __all__ = ['BasicCore', 'Core', 'RMQCore', 'ZMQCore', 'killing']
 
@@ -433,7 +436,7 @@ class ZMQCore(BasicCore):
                  publickey=None, secretkey=None, serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, reconnect_interval=None,
-                 version='0.1', messagebus='zmq'):
+                 version='0.1', instance_name=None, messagebus='zmq'):
 
         self.volttron_home = volttron_home
 
@@ -789,7 +792,9 @@ class RMQCore(BasicCore):
                  publickey=None, secretkey=None, serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, reconnect_interval=None,
-                 version='0.1', instance_name=None, messagebus='rmq'):
+                 version='0.1', instance_name=None, messagebus='rmq',
+                 volttron_central_address=None,
+                 volttron_central_instance_name=None):
 
         self.volttron_home = volttron_home
 
@@ -808,8 +813,13 @@ class RMQCore(BasicCore):
         self.serverkey = serverkey
         self.reconnect_interval = reconnect_interval
         self._reconnect_attempt = 0
-        config_opts = load_platform_config()
-        self.instance_name = config_opts.get('instance-name', 'volttron1')
+        self.instance_name = instance_name
+        self.volttron_central_address = volttron_central_address
+        if not self.instance_name:
+            config_opts = load_platform_config()
+            self.instance_name = config_opts.get('instance-name', 'volttron1')
+        if volttron_central_instance_name:
+            self.instance_name = volttron_central_instance_name
         _log.debug("instance:{}".format(self.instance_name))
         self._event_queue = gevent.queue.Queue
 
@@ -849,9 +859,29 @@ class RMQCore(BasicCore):
             error = VIPError.from_errno(*args)
             self.onviperror.send(self, error=error, message=message)
 
+    def _build_connection_parameters(self):
+        param = None
+
+        if self.identity is None:
+            raise ValueError("Agent's VIP identity is not set")
+        else:
+            # Check if RabbitMQ user and certs exists for this agent, if not create a new one.
+            # Add access control/permissions if necessary
+            config_access = "{identity}|{identity}.pubsub.*|{identity}.zmq.*".format(identity=self.identity)
+            read_access = "volttron|{}".format(config_access)
+            write_access = "volttron|{}".format(config_access)
+            permissions = dict(configure=config_access, read=read_access, write=write_access)
+            create_user_certs(self.identity, permissions)
+
+            param = build_rmq_connection_param(self.identity, self.instance_name)
+
+        return param
+
     def loop(self, running_event):
+        param = self._build_connection_parameters()
         # pre-setup
-        self.connection = RMQConnection(self.address, self.identity, self.instance_name)
+        self.connection = RMQConnection(param, self.identity, self.instance_name,
+                                        vc_url=self.volttron_central_address)
         yield
 
         # pre-start
@@ -880,7 +910,7 @@ class RMQCore(BasicCore):
             self.stop(timeout=5.0)
 
         def hello():
-            #Send hello message to VIP router to confirm connection with platform
+            # Send hello message to VIP router to confirm connection with platform
             state.ident = ident = b'connect.hello.%d' % state.count
             state.count += 1
             self.spawn(connection_failed_check)
@@ -899,8 +929,13 @@ class RMQCore(BasicCore):
             if running_event is not None:
                 running_event.set()
 
-        # Connect to RMQ broker. Also a callback to get notified when connection is confirmed
-        self.connection.connect(hello)
+        def connection_error():
+            self.__connected = False
+            self.stop()
+            self.ondisconnected.send(self)
+
+        # Connect to RMQ broker. Register a callback to get notified when connection is confirmed
+        self.connection.connect(hello, connection_error)
 
         self.onconnected.connect(hello_response)
         self.ondisconnected.connect(self.connection.close_connection)

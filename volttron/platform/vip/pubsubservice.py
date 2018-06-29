@@ -228,6 +228,7 @@ class PubSubService(object):
             for prefix in prefix if isinstance(prefix, list) else [prefix]:
                 self._add_peer_subscription(peer, bus, prefix, platform)
 
+            #self._logger.debug("Subscribe after: {}".format(self._peer_subscriptions))
             if is_all and self._ext_router is not None:
                 # Send subscription message to all connected platforms
                 external_platforms = self._ext_router.get_connected_platforms()
@@ -320,7 +321,7 @@ class PubSubService(object):
                 self._logger.error("JSON decode error. Invalid character")
                 return 0
             if self._rabbitmq_agent:
-                self._publish_rmq_bus(frames)
+                self._publish_on_rmq_bus(frames)
             return self._distribute(frames, user_id)
 
     def _peer_list(self, frames):
@@ -780,7 +781,7 @@ class PubSubService(object):
             # Check if peer is authorized to publish the topic
             errmsg = self._check_if_protected_topic(bytes(user_id), bytes(topic))
 
-            #peer is not authorized to publish to the topic, send error message to the peer
+            # peer is not authorized to publish to the topic, send error message to the peer
             if errmsg is not None:
                 try:
                     frames = [publisher, b'', proto, user_id, msg_id,
@@ -795,7 +796,7 @@ class PubSubService(object):
             frames[6] = 'publish'
             subscribers_count = 1
             if self._rabbitmq_agent:
-                self._publish_rmq_bus(frames)
+                self._publish_on_rmq_bus(frames)
             else:
                 subscribers_count = self._distribute_internal(frames)
             # There are no subscribers, send error message back to source platform
@@ -818,7 +819,6 @@ class PubSubService(object):
         :param frames:
         :return:
         """
-        self._logger.debug("handle error")
         if len(frames) > 7:
             error_type = frames[7].bytes
             if error_type == INVALID_REQUEST:
@@ -844,7 +844,7 @@ class PubSubService(object):
         self._distribute(frames, '')
         self._logger.debug("Publish callback {}".format(topic))
 
-    def _publish_rmq_bus(self, frames):
+    def _publish_on_rmq_bus(self, frames):
         """
         Publish the message on RabbitMQ message bus.
         :param frames: ZMQ message frames
@@ -889,6 +889,9 @@ class ProtectedPubSubTopics(object):
             if regex.match(topic):
                 return capabilities
         return None
+
+    def get_topic_caps(self):
+        return self._dict.copy()
 
     def _isprefix(self, topic):
         for prefix in self._dict:
