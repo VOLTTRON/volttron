@@ -71,7 +71,7 @@ from volttron.platform.agent.utils import (get_aware_utc_now,
                                            format_timestamp)
 from volttron.platform.messaging import headers as headers_mod, topics
 
-__version__ = '1.0.0'
+__version__ = '2.0'
 
 HEADER_NAME_DATE = headers_mod.DATE
 HEADER_NAME_CONTENT_TYPE = headers_mod.CONTENT_TYPE
@@ -131,7 +131,7 @@ class Weather2Agent(Agent):
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
-        _log.debug('Weather2Agent: Subscribing to ' + self.request_topic_prefix)
+        _log.debug('WeatherAgent: Subscribing to ' + self.request_topic_prefix)
         self.vip.pubsub.subscribe(peer='pubsub',
                                   prefix=self.request_topic_prefix,
                                   callback=self.on_request)
