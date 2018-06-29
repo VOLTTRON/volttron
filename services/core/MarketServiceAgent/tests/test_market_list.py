@@ -61,7 +61,11 @@ Pytest test cases for testing market service agent.
 
 import pytest
 
-from market_service.market_list import MarketList
+try:
+    from market_service.market_list import MarketList
+except ImportError:
+    pytest.skip("Market service requirements not installed.", allow_module_level=True)
+
 from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
 from market_service.market_participant import MarketParticipant
 
