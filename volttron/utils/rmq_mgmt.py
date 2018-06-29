@@ -75,7 +75,10 @@ from volttron.platform.packaging import create_ca
 from volttron.utils.persistance import PersistentDict
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.platform.certs import ROOT_CA_NAME
-from requests.packages.urllib3 import disable_warnings
+from requests.packages.urllib3 import disable_warnings, exceptions
+
+
+disable_warnings(exceptions.SecurityWarning)
 
 _log = logging.getLogger(__name__)
 
@@ -87,7 +90,7 @@ local_user ="guest"
 local_password="guest"
 admin_user= None # User to prompt for if we go the docker route
 admin_password= None
-disable_warnings()
+
 volttron_rmq_config = os.path.join(get_home(), 'rabbitmq_config.json')
 
 

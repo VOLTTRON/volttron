@@ -13,7 +13,7 @@ pyserial==3.1.1
 python-dateutil==2.5.3
 pytz==2016.6.1
 pyzmq==15.4.0
-requests==2.11.1
+requests[security]==2.11.1
 grequests==0.3.0
 simplejson==3.8.2
 six==1.10.0
@@ -25,4 +25,5 @@ zope.interface==4.3.2
 modbus-tk==0.5.8
 PyYAML==3.12
 cryptography==2.2.2
+service-identity==17.0.0
 git+git://github.com/shwethanidd/pika.git@gevent_connection_adapter#egg=pika

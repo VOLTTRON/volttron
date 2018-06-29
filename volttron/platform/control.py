@@ -1481,6 +1481,11 @@ def list_vhosts(opts):
     for item in vhosts:
         _stdout.write(item+"\n")
 
+def list_users(opts):
+    users = get_users()
+    for item in users:
+        _stdout.write(item+"\n")
+
 def list_user_properties(opts):
     props = get_user_props(opts.user)
     for key, value in props.iteritems():
@@ -2125,6 +2130,10 @@ def main(argv=sys.argv):
         rabbitmq_list_vhosts = add_parser('list-vhosts', help='List virtual hosts',
                                   subparser=rabbitmq_subparsers)
         rabbitmq_list_vhosts.set_defaults(func=list_vhosts)
+
+        rabbitmq_list_users = add_parser('list-users', help='List users',
+                                  subparser=rabbitmq_subparsers)
+        rabbitmq_list_users.set_defaults(func=list_users)
 
         rabbitmq_list_user_properties = add_parser('list-user-properties', help='List users',
                                   subparser=rabbitmq_subparsers)

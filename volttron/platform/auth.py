@@ -459,15 +459,16 @@ class AuthService(Agent):
         Update the permissions for the agent/user based on the latest configuration
         :return:
         """
+        return
         # Get agent to capabilities mapping
         user_to_caps = self.get_user_to_capabilities()
         # Get topics to capabilities mapping
         topic_to_caps = self._protected_topics_for_rmq.get_topic_caps()  # topic to caps
 
         peers = self.vip.peerlist().get(timeout=5)
-        _log.debug("USER TO CAPS: {0}, TOPICS TO CAPS: {1}, {2}".format(user_to_caps,
-                                                                        topic_to_caps,
-                                                                        self._user_to_permissions))
+        # _log.debug("USER TO CAPS: {0}, TOPICS TO CAPS: {1}, {2}".format(user_to_caps,
+        #                                                                 topic_to_caps,
+        #                                                                 self._user_to_permissions))
         if not user_to_caps or not topic_to_caps:
             # clear all old permission rules
             for peer in peers:
@@ -520,7 +521,7 @@ class AuthService(Agent):
             write_tokens.append("__pubsub__.{instance}.".format(instance=self.core.instance_name) +
                                 "^(!({not_allow})).*$".format(not_allow=not_allowed_string))
         current = get_topic_permissions_for_user(identity)
-        _log.debug("CURRENT for identity: {0}, {1}".format(identity, current))
+        #_log.debug("CURRENT for identity: {0}, {1}".format(identity, current))
         if current and isinstance(current, list):
             current = current[0]
             dift = False
@@ -532,7 +533,7 @@ class AuthService(Agent):
             if re.search(current["write"], write_allowed_str):
                 dift = True
                 current["write"] = write_allowed_str
-            _log.debug("NEW {0}, DIFF: {1} ".format(current, dift))
+            #_log.debug("NEW {0}, DIFF: {1} ".format(current, dift))
             # if dift:
             #     set_topic_permissions_for_user(current, identity)
         else:
@@ -540,7 +541,7 @@ class AuthService(Agent):
             current["exchange"] = "volttron"
             current["read"] = "|".join(read_tokens)
             current["write"] = "|".join(write_tokens)
-            _log.debug("NEW {0}, New string ".format(current))
+            # _log.debug("NEW {0}, New string ".format(current))
             #set_topic_permissions_for_user(current, identity)
 
     def _check_token(self, actual, allowed):

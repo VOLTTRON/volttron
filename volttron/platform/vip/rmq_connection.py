@@ -75,7 +75,7 @@ class RMQConnection(BaseConnection):
                                                      on_open_error_callback=self.on_open_error,
                                                      #on_close_callback=self.on_connection_closed,
                                                      )
-        else: # platform
+        else:  # platform
             self._connection = pika.SelectConnection(self._connection_param,
                                                      on_open_callback=self.on_connection_open,
                                                      on_close_callback=self.on_connection_closed,
@@ -308,7 +308,10 @@ class RMQConnection(BaseConnection):
         }
         properties = pika.BasicProperties(**dct)
         msg = getattr(message, 'args', None)  # ARGS
-        _log.debug("PUBLISHING TO CHANNEL {0}, {1}, {2}, {3}".format(destination_routing_key, msg, properties, self.routing_key))
+        # _log.debug("PUBLISHING TO CHANNEL {0}, {1}, {2}, {3}".format(destination_routing_key,
+        #                                                              msg,
+        #                                                              properties,
+        #                                                              self.routing_key))
         self.channel.basic_publish(self.exchange,
                                     destination_routing_key,
                                     json.dumps(msg, ensure_ascii=False),

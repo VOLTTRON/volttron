@@ -402,15 +402,28 @@ class Certs(object):
                     if type == 'server':
                         # TODO: Also add SubjectAltName
                         if fqdn:
-                            new_attrs.append(RelativeDistinguishedName(
-                                [x509.NameAttribute(
-                                    NameOID.COMMON_NAME,
-                                    fqdn.decode('utf-8'))]))
+                            hostname = fqdn.decode('utf-8')
                         else:
-                            new_attrs.append(RelativeDistinguishedName(
-                                [x509.NameAttribute(
-                                    NameOID.COMMON_NAME,
-                                    getfqdn().decode('utf-8'))]))
+                            hostname = getfqdn().decode('utf-8')
+                        new_attrs.append(RelativeDistinguishedName(
+                            [x509.NameAttribute(
+                                NameOID.COMMON_NAME,
+                                hostname)]))
+                        new_attrs.append(RelativeDistinguishedName(
+                            [x509.NameAttribute(
+                                ExtensionOID.SUBJECT_ALTERNATIVE_NAME,
+                                hostname)]))
+
+                        # if fqdn:
+                        #     new_attrs.append(RelativeDistinguishedName(
+                        #         [x509.NameAttribute(
+                        #             NameOID.COMMON_NAME,
+                        #             fqdn.decode('utf-8'))]))
+                        # else:
+                        #     new_attrs.append(RelativeDistinguishedName(
+                        #         [x509.NameAttribute(
+                        #             NameOID.COMMON_NAME,
+                        #             getfqdn().decode('utf-8'))]))
                     else:
                         new_attrs.append(RelativeDistinguishedName(
                             [x509.NameAttribute(NameOID.COMMON_NAME,
