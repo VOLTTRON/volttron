@@ -12,7 +12,7 @@ Distributed Control System Platform.
 
 VOLTTRONTM is an open source platform for distributed sensing and control. The platform provides services for collecting and storing data from buildings and devices and provides an environment for developing applications which interact with that data.
 
-# NOTE: This is an experiment branch to test and collaborate on Message Bus Refactor effort. Message bus now works with both ZeroMQ and RabbitMQ messaging libraries.
+# NOTE: This is an experiment branch to test and collaborate on Message Bus Refactor effort. VOLTTRON message bus now works with both ZeroMQ and RabbitMQ messaging libraries.
 ## Features
 
 * [Message Bus](https://volttron.readthedocs.io/en/latest/core_services/messagebus/index.html#messagebus-index) allows agents to subcribe to data sources and publish results and messages
@@ -51,18 +51,20 @@ http://ryanstutorials.net/linuxtutorial/
 **2. Install RabbitMQ**
 
 
- For RabbitMQ based VOLTTRON, some of the RabbitMQ required software packages have to be installed.
+ For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
 
  **a. Install Erlang packages.**
 
-  Please refer to [rabbitmq website](https://www.rabbitmq.com/which-erlang.html) to find the right version of Erlang to be installed for the version of RabbitMQ you intend to install
+  Please refer to [rabbitmq website](https://www.rabbitmq.com/which-erlang.html) to find the right version of Erlang to be installed for the version of RabbitMQ you intend to install. Also please note, RabbitMQ does not support Erlang versions older than 19.3 and newer than 20.3.x (including 21.0)
 
   **On Debian based systems:**
- Grab the right package for your OS version from https://packages.erlang-solutions.com/erlang/#tabs-debian.  Example install commands for Ubuntu artful 64 bit is given below
+
+  Grab the right package for your OS version from https://packages.erlang-solutions.com/erlang/#tabs-debian.
+  Example install commands for Ubuntu artful 64 bit is given below
  
   ```sh
-  wget http://packages.erlang-solutions.com/site/esl/esl-erlang/FLAVOUR_1_general/esl-erlang_21.0-1~ubuntu~artful_amd64.deb
-  sudo dpkg -i esl-erlang_21.0-1~ubuntu~artful_amd64.deb
+  wget http://packages.erlang-solutions.com/site/esl/esl-erlang/FLAVOUR_1_general/esl-erlang_20.3-1~ubuntu~xenial_amd64.deb
+  sudo dpkg -i esl-erlang_20.3-1~ubuntu~artful_amd64.deb
   ```
 
   **On Redhat based systems:**
@@ -122,7 +124,7 @@ sudo service rabbitmq-server start
 ```
 
 
-**c. Enable RabbitMQ management, federation and shovel plugins**
+**c. Enable RabbitMQ management, federation, shovel and auth_mechanism_ssl plugins**
 ```sh
 sudo rabbitmq-plugins enable rabbitmq_management
 sudo rabbitmq-plugins enable rabbitmq_federation
@@ -135,7 +137,7 @@ sudo rabbitmq-plugins enable rabbitmq_auth_mechanism_ssl
 ```sh
 git clone -b rabbitmq-volttron https://github.com/VOLTTRON/volttron.git
 cd volttron
-python bootstrap.py --rabbitmq
+python bootstrap.py
 ```
 
 This will build the platform and create a virtual Python environment. It will
@@ -150,11 +152,11 @@ also install the dependencies for rabbimq.  Activate the environment :
 python volttron/utils/rmq_mgmt.py single
 ```
 
-This creates a new virtual host “volttron” and creates ssl certificates needed for this volttron instance. These certificates get created under the sub directory certificates in your volttron home. It then creates the main VIP exchange named "volttron" to route message between platform and agents and alternate exchange to capture unrouteable messages.
+This creates a new virtual host “volttron” and creates ssl certificates needed for this VOLTTRON instance. These certificates get created under the sub directory "certificates" in your VOLTTRON home (typically in ~/.volttron). It then creates the main VIP exchange named "volttron" to route message between platform and agents and alternate exchange to capture unrouteable messages.
 
-This script prompt for multiple information from the user regarding the volttron instance for which we are configuring rabbitmq. For each volttron instance there a single instance-ca certificate is created. All volttron instances that need to work together in a federation/shovel setup needs to have a instance-ca certificate signed by the same root CA.  A single volttron instance can create a self signed root ca. Instance-ca for all volttron instances should be generated in this volttron instance and should be scp-ed into the other instance.
+This script prompt for multiple information from the user regarding the VOLTTRON instance for which we are configuring rabbitmq. For each VOLTTRON instance there a single instance-ca certificate is created. All VOLTTRON instances that need to work together in a federation/shovel setup needs to have a instance-ca certificate signed by the same root CA.  A single VOLTTRON instance can create a self signed root ca. Instance-ca for all VOLTTRON instances should be generated in this VOLTTRON instance and should be scp-ed into the other instance.
 
-Following is the example inputs for rmq_mgmt.py single command for volttron instance that has root CA.
+Following is the example inputs for rmq_mgmt.py single command for VOLTTRON instance that has root CA.
 ```sh
 python volttron/utils/rmq_mgmt.py single
 Your VOLTTRON_HOME currently set to: /home/velo/new_volttron
