@@ -191,11 +191,11 @@ DRIVER_CONFIG_UPDATE = _(_CONFIG_VALUE.replace('{category}', 'driver'))
 WEATHER_BASE = 'weather'
 WEATHER_REQUEST = 'weather/request'
 
-NEW_WEATHER_BASE = 'weather2'
-NEW_WEATHER_REQUEST = 'weather2/request'
-NEW_WEATHER_POLL = 'weather2/polling'
-NEW_WEATHER_RESPONSE = 'weather2/response'
-NEW_WEATHER_ERROR = 'weather2/error'
+WEATHER2_BASE = 'weather2'
+WEATHER2_REQUEST = 'weather2/request'
+WEATHER2_POLL = 'weather2/polling'
+WEATHER2_RESPONSE = 'weather2/response'
+WEATHER2_ERROR = 'weather2/error'
 
 BACNET_INFO_BASE = _('bacnet/{indication}')
 BACNET_I_AM = _(BACNET_INFO_BASE.replace('{indication}', 'i_am'))

@@ -55,21 +55,21 @@
 # under Contract DE-AC05-76RL01830
 
 # }}}
-import os
 import sys
 import logging
 import json
-import time
-import urllib2
+
 import pytz
 from dateutil import parser
 from datetime import datetime, timedelta
+import grequests
 
-from volttron.platform.vip.agent import Agent, Core, PubSub, RPC, compat
+from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (get_aware_utc_now,
                                            format_timestamp)
-from volttron.platform.messaging import headers as headers_mod, topics
+from volttron.platform.messaging import headers as headers_mod
+
 
 __version__ = '2.0'
 
@@ -127,6 +127,8 @@ class Weather2Agent(Agent):
                                    'hourly', 'hourly10days']
         self.request_topic_prefix = 'weather2/request'
         self.response_topic_prefix = 'weather2/response'
+        self.poll_topic_prefix = 'weather2/polling'
+        self.error_topic_prefix = 'weather2/error'
         self.wu_service = Wunderground(self.wu_api_key)
 
     @Core.receiver('onstart')
@@ -150,13 +152,13 @@ class Weather2Agent(Agent):
         # Analyze request topic
         try:
             topic_parts = topic.split('/')
+            _log.debug("topic_parts {}".format(topic_parts))
             if len(topic_parts) < 6:
                 err = "Invalid request format. Request is missing required " \
                       "information. Allowed formats are:\n" \
-                      "weather2/request/{feature}/{region}/{city}/all\n" \
-                      "weather2/request/{feature}/{region}/{city}/{point}\n" \
-                      "weather2/request/{feature}/ZIP/{zipcode}/all\n" \
-                      "weather2/request/{feature}/ZIP/{zipcode}/{point}\n"
+                      "{base}/<feature>/<region>/<city>/all\n" \
+                      "{base}/<feature>/ZIP/<zipcode>/all\n" .format(
+                       base=self.request_topic_prefix)
                 raise ValueError(err)
             topic_parts = [x.lower() for x in topic_parts]
             _log.debug("topic parts: {}".format(topic_parts))
@@ -356,11 +358,14 @@ class Weather2Agent(Agent):
                 kwargs = {}
                 if zip is not None:
                     kwargs['zip'] = zip
-                    topic = 'weather2/polling/current/ZIP/{zip}/all'.format(zip=zip)
+                    topic = '{base}/current/ZIP/{zip}/all'.format(
+                        base=self.poll_topic_prefix,
+                        zip=zip)
                 else:
                     kwargs['region'] = region
                     kwargs['city'] = city
-                    topic = 'weather2/polling/current/{region}/{city}/all'.format(
+                    topic = '{base}/current/{region}/{city}/all'.format(
+                        base=self.poll_topic_prefix,
                         region=region,
                         city=city
                     )
@@ -379,7 +384,7 @@ class Weather2Agent(Agent):
                                             message=publish_items,
                                             headers=headers)
             except Exception as e:
-                error_topic = topics.NEW_WEATHER_ERROR
+                error_topic = self.error_topic_prefix
                 if request_topic:
                     error_topic = request_topic.replace("polling", "error")
                 self.publish_error(error_topic, e)
@@ -398,8 +403,9 @@ class Weather2Agent(Agent):
             if start is None:
                 raise ValueError("Missing start date. "
                                  "history requests should be of the format: "
-                                 "weather2/request/history/{region}/"
-                                 "{city}/all/start/end")
+                                 "{}/history/<region>/"
+                                 "<city>/all/start/end".format(
+                                  self.request_topic_prefix))
             try:
                 start_time = parser.parse(start)
                 if end is not None:
@@ -407,8 +413,9 @@ class Weather2Agent(Agent):
             except:
                 raise ValueError("Invalid start/end date. "
                                  "history requests should be of the format: "
-                                 "weather2/request/history/{region}/"
-                                 "{city}/all/start/end")
+                                 "{}/history/<region>/"
+                                 "<city>/all/start/end".format(
+                                  self.request_topic_prefix))
 
 
         if point == 'all':
@@ -466,6 +473,7 @@ class Wunderground:
         return self.query(**kwargs)
 
     def query(self, **kwargs):
+        _log.debug("In query: kwargs{}".format(kwargs))
         query_resp = None
         feature = kwargs['feature']
 
@@ -481,13 +489,13 @@ class Wunderground:
                                        feature=feature,
                                        query=query)
             try:
-                f = urllib2.urlopen(url)
-                query_resp = f.read()
-                f.close()
-            except:
-                # Log exception
-                query_resp = None
-
+                request = [grequests.get(url)]
+                response = grequests.map(request)
+                if response and isinstance(response, list):
+                    query_resp = response[0].text
+            except Exception as e:
+                _log.error("Error when quering url {}: {}".format(url, e))
+                raise
         return query_resp
 
 

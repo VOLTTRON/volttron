@@ -68,7 +68,8 @@ by this agent.
     "location": [
         {"zip": "22212", #zip has higher priority than city/region
         "city": "Incheon", #no need if zip is defined
-        "region": "KO", #state or country. no need if zip is defined}
+        "region": "KO", #state or country. no need if zip is defined
+        }
     ],
 
     # This section is used to make weather agent periodically publish
