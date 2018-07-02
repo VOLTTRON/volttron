@@ -321,6 +321,7 @@ subcommands:
     add-exchange        add a new exchange
     add-queue           add a new queue
     list-vhosts         List virtual hosts
+    list-users          List users
     list-user-properties
                         List users
     list-exchanges      add a new user
@@ -382,10 +383,12 @@ git subtree add –prefix applications https://github.com/VOLTTRON/volttron-appl
 ```
 
 ## Next Steps
-We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we
- are working towards completing the below:
-* Adding authentication and authorization feature to RabbitMQ message bus.
-* Authenticated connection amongst multiple platform instances.
+We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we are working towards completing the following:
+* Integrating Volttron Central, forwarder, data mover and other agents which connect to remote instances to use RabbitMQ message bus with SSL.
+* Streamlining the installation steps.
+* Test scripts for RabbitMQ message bus.
+* Scalability tests for large scale VOLTTRON deployment.
+
 
 ## Acquiring Third Party Agent Code
 Third party agents are available under volttron-applications repository. In order to use those agents, add volttron-applications repository under the volttron/applications directory by using following command:

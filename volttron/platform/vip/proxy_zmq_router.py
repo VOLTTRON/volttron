@@ -137,7 +137,9 @@ class ZMQProxyRouter(Agent):
         :param kwargs:
         :return:
         """
+        _log.debug("********************************************************************")
         _log.debug("Stopping ZMQ Router")
+        _log.debug("********************************************************************")
         self.zmq_router.stop()
 
     def _add_permission(self, prev):
