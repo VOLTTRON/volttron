@@ -65,7 +65,13 @@ actuator_uuid = None
 REQUEST_CANCEL_SCHEDULE = 'request_cancel_schedule'
 REQUEST_NEW_SCHEDULE = 'request_new_schedule'
 publish_agent_v2 = None
-API_KEY="fd679ad6ccf74c75"
+API_KEY=os.environ.get('WU_KEY')
+
+pytestmark = pytest.mark.skipif(not API_KEY, reason="No API key found. "
+                                                    "Weather Undergroup API "
+                                                    "key need to be set in "
+                                                    "the environment variable "
+                                                    "WU_KEY")
 
 @pytest.fixture(scope="module")
 def publish_agent(request, volttron_instance):
