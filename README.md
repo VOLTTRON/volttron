@@ -366,22 +366,7 @@ Please provide the hostname (or IP address) and port of the upstream nodes when 
 sudo rabbitmqctl add_user <username> <password>
 sudo rabbitmqctl set_permissions -p volttron <username> ".*" ".*" ".*"
 ```
-
-## Next Steps
-We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we
- are working towards completing the below:
-* Adding authentication and authorization feature to RabbitMQ message bus.
-* Authenticated connection amongst multiple platform instances.
-* Creation of Each agent has to have a unique RabbitMQ user id.
-* Testing of RabbitMQ shovel for multi-platform over NAT setup
-
-## Acquiring Third Party Agent Code
-Third party agents are available under volttron-applications repository. In order to use those agents, add volttron-applications repository under the volttron/applications directory by using following command:
-
-```sh
-git subtree add –prefix applications https://github.com/VOLTTRON/volttron-applications.git develop –squash
-```
-
+	
 ## Next Steps
 We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we are working towards completing the following:
 * Integrating Volttron Central, forwarder, data mover and other agents which connect to remote instances to use RabbitMQ message bus with SSL.
@@ -389,6 +374,13 @@ We request you to explore and contribute towards development of VOLTTRON message
 * Test scripts for RabbitMQ message bus.
 * Scalability tests for large scale VOLTTRON deployment.
 
+
+## Acquiring Third Party Agent Code
+Third party agents are available under volttron-applications repository. In order to use those agents, add volttron-applications repository under the volttron/applications directory by using following command:
+
+```sh
+git subtree add –prefix applications https://github.com/VOLTTRON/volttron-applications.git develop –squash
+```
 
 ## Acquiring Third Party Agent Code
 Third party agents are available under volttron-applications repository. In order to use those agents, add volttron-applications repository under the volttron/applications directory by using following command:
