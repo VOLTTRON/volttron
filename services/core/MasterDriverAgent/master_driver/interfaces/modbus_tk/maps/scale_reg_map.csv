@@ -1,0 +1,6 @@
+Register Name,Address,Type,Units,Writable,Default Value,Transform
+I_AC_Current,1,uint16,Amp,TRUE,0,scale_reg(I_AC_CurrentSF)
+I_AC_CurrentA,2,uint16,Amp,TRUE,0,scale_reg(I_AC_CurrentSF)
+I_AC_CurrentB,3,uint16,Amp,TRUE,0,scale_reg(I_AC_CurrentSF)
+I_AC_CurrentC,4,uint16,Amp,TRUE,0,scale_reg(I_AC_CurrentSF)
+I_AC_CurrentSF,5,uint16,Amp,TRUE,0,
