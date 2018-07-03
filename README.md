@@ -204,10 +204,6 @@ Please do the following to complete setup
 
 1. Provide read access to rabbitmq user to VOLTTRON_HOME/certificates/private/*
 
-```sh
-chmod a+r ~/.volttron/certificates/private/*
-```
-
 2. Move the rabbitmq.conf filein VOLTTRON_HOME directory into your rabbitmq configuration directory (/etc/rabbitmq in RPM/Debian systems)
 
 3. For custom ssl ports: Generated configuration uses default rabbitmq ssl ports. Modify both rabbitmq.conf and VOLTTRON_HOME/rabbitmq_config.json if using different ports.
