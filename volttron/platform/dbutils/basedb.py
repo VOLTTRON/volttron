@@ -98,6 +98,17 @@ class DbDriver(object):
         self.__connect = connect
         self.__connection = None
 
+    @contextlib.contextmanager
+    def bulk_insert(self):
+        """
+        Function to meet bulk insert requirements. This function can be overridden by historian drivers to yield the
+        required method for data insertion during bulk inserts in the respective historians. In this generic case it
+        will yield the single insert method
+
+        :yields: insert method
+        """
+        yield self.insert_data
+
     def cursor(self):
         if self.__connection is not None and not getattr(self.__connection, "closed", False):
             try:

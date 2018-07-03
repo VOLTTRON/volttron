@@ -17,6 +17,7 @@
 # }}}
 
 import ast
+import contextlib
 import logging
 
 import pytz
@@ -63,6 +64,39 @@ class RedshiftFuncts(DbDriver):
             return connection
         connect.__name__ = 'psycopg2'
         super(self.__class__, self).__init__(connect)
+
+    @contextlib.contextmanager
+    def bulk_insert(self):
+        """
+        This function implements the bulk insert requirements for Redshift historian by overriding the
+        DbDriver::bulk_insert() in basedb.py and yields nescessary data insertion method needed for bulk inserts
+
+        :yields: insert method
+        """
+        records = []
+
+        def insert_data(ts, topic_id, value):
+            """
+            Inserts data records to the list
+
+            :param ts: time stamp
+            :type string
+            :param topic_id: topic ID
+            :type string
+            :param value: the value string to be inserted
+            :type string
+            :return: Returns True after insert
+            :rtype: bool
+            """
+            records.append((ts, topic_id, value))
+            return True
+
+        yield insert_data
+
+        query = SQL('INSERT INTO data VALUES ') + \
+                SQL(', ').join(SQL('({}, {}, {})').format(Literal(ts), Literal(topic_id), Literal(value_string))
+                               for ts, topic_id, value_string in records)
+        self.execute_stmt(query)
 
     def rollback(self):
         try:
