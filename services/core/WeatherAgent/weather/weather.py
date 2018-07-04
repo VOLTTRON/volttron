@@ -227,7 +227,6 @@ class Weather2Agent(Agent):
             # history request returned fine
             return True
         parsed_json = json.loads(wu_resp)
-        _log.debug("Check for error parsed json {}".format(parsed_json))
         if 'response' in parsed_json and 'error' in parsed_json['response']:
             raise WeatherUndergroundError("{}:{}".format(
                 parsed_json['response']['error'].get('type'),

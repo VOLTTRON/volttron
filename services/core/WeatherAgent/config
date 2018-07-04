@@ -1,13 +1,12 @@
 {
-    "operation_mode": 2, #1 request only , 2 poll and requests
+    #1: request only, 2: polling & request. for polling specify poll_time also
+    "operation_mode": 2,
 
     "wu_api_key": "<api_key>",
 
-    "location": [
-        {"zip": "22212", #zip has higher priority than city/region
-        "city": "Incheon", #no need if zip is defined
-        "region": "KO" #state or country. no need if zip is defined
-        }
+    "locations": [
+        {"zip": "22212"},
+        {"zip": "99353"}
     ],
     "poll_time": 20 #seconds
 
