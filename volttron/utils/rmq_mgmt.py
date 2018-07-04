@@ -113,6 +113,10 @@ def call_grequest(method_name, url_suffix, ssl=True, **kwargs):
         print("Exception when trying to make HTTP request "
               "to RabbitMQ {}".format(e))
         response = None
+    except AttributeError as e:
+        print("Exception when trying to make HTTP request "
+              "to RabbitMQ {}".format(e))
+        response = None
     return response
 
 
@@ -222,7 +226,7 @@ def create_vhost(vhost='volttron', ssl=True):
     print "Creating new VIRTUAL HOST: {}".format(vhost)
     url = '/api/vhosts/{vhost}'.format(vhost=vhost)
     response = http_put_request(url, body={}, ssl=ssl)
-
+    return response
 
 def get_virtualhost(new_vhost, ssl=True):
     url = '/api/vhosts/{vhost}'.format(vhost=new_vhost)
@@ -702,10 +706,11 @@ def init_rabbitmq_setup():
     if not config_opts:
         _load_rmq_config()
     vhost = config_opts['virtual-host']
-
     # Create a new "volttron" vhost
-    create_vhost(vhost, ssl=False)
-
+    response = create_vhost(vhost, ssl=False)
+    if not response:
+        print("Remove /etc/rabbitmq/rabbitmq.conf, restart rabbitmq-server and try again")
+        return response
     exchange = 'volttron'
     alternate_exchange = 'undeliverable'
     # Create a new "volttron" exchange. Set up alternate exchange to capture
@@ -720,6 +725,7 @@ def init_rabbitmq_setup():
     properties = dict(durable=True, type='fanout')
     create_exchange(alternate_exchange, properties=properties, vhost=vhost,
                     ssl=False)
+    return True
 
 
 def create_federation_setup():
@@ -764,6 +770,14 @@ def is_valid_port(port):
 
     return port == 5672 or port == 5671
 
+
+def is_valid_mgmt_port(port):
+    try:
+        port = int(port)
+    except ValueError:
+        return False
+
+    return port == 15672 or port == 15671
 
 def delete_multiplatform_parameter(component, parameter_name, user=None, password=None, vhost=None):
     """
@@ -820,9 +834,11 @@ def set_initial_rabbit_config(instance_name):
         config_opts['user'] = "guest"
         prompt = 'What is the password for RabbitMQ default guest user?'
         new_pass = prompt_response(prompt, default="guest")
-        config_opts['user'] = "guest"
-        config_opts['pass'] = new_pass
+        config_opts['pass'] = "guest"
 
+        prompt = 'What is the hostname of system?'
+        new_host = prompt_response(prompt, default='locahost')
+        config_opts['host'] = new_host
         # TODO - How to configure port other than 5671 for ssl - validate should
         # check if port is not 5672.
         port = config_opts.get('amqp-port', 5672)
@@ -840,7 +856,7 @@ def set_initial_rabbit_config(instance_name):
         valid_port = False
         while not valid_port:
             port = prompt_response(prompt, default=port)
-            valid_port = is_valid_port(port)
+            valid_port = is_valid_mgmt_port(port)
             if not valid_port:
                 print("Port is not valid")
         config_opts['port'] = str(port)
@@ -905,8 +921,8 @@ def build_rmq_address(ssl=True):
             rmq_address = "amqp://{0}:{1}@{2}:{3}/{4}".format(
                 user, pwd, config_opts['host'], config_opts['amqp-port'],
                 config_opts[ 'virtual-host'])
-    except KeyError:
-        print "Missing entries in rabbitmq config"
+    except KeyError as e:
+        print("Missing entries in rabbitmq config {}".format(e))
         raise
 
     return rmq_address
@@ -1087,9 +1103,9 @@ def wizard(type):
         # # Get vhost from the user
         set_initial_rabbit_config(instance_name)
         # Create local RabbitMQ setup
-        init_rabbitmq_setup()
-        setup_for_ssl_auth(instance_name)
-
+        response = init_rabbitmq_setup()
+        if response:
+            setup_for_ssl_auth(instance_name)
     elif type == 'federation':
         _load_rmq_config()
         # Create a federation setup
