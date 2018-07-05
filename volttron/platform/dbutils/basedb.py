@@ -282,9 +282,9 @@ class DbDriver(object):
         self.__connect()
         cursor = self.__connection.cursor()
         cursor.execute(self.insert_topic_query(), (topic,))
-        row = [cursor.lastrowid]
+        topic_id = cursor.lastrowid
         cursor.close()
-        return row
+        return topic_id
 
     def update_topic(self, topic, topic_id):
         """
@@ -329,9 +329,9 @@ class DbDriver(object):
         cursor = self.__connection.cursor()
         cursor.execute(self.insert_agg_topic_stmt(),
                        (topic, agg_type, agg_time_period))
-        row = [cursor.lastrowid]
+        topic_id = cursor.lastrowid
         cursor.close()
-        return row
+        return topic_id
 
     def update_agg_topic(self, agg_id, agg_topic_name):
         """
