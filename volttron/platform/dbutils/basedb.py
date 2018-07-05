@@ -353,11 +353,10 @@ class DbDriver(object):
 
         :return: True if successful, False otherwise
         """
-        successful = False
         if self.__connection is not None:
             try:
                 self.__connection.commit()
-                successful = True
+                return True
             except sqlite3.OperationalError as e:
                 if "database is locked" in e.message:
                     _log.error("EXCEPTION: SQLITE3 Database is locked. This "
@@ -372,11 +371,8 @@ class DbDriver(object):
                                "\"timeout\"]  "
                                "Default value is 10. Timeout units is seconds")
                 raise
-
-        else:
-            _log.warning('connection was null during commit phase.')
-
-        return successful
+        _log.warning('connection was null during commit phase.')
+        return False
 
     def rollback(self):
         """
@@ -384,14 +380,11 @@ class DbDriver(object):
 
         :return: True if successful, False otherwise
         """
-        successful = False
         if self.__connection is not None:
             self.__connection.rollback()
-            successful = True
-        else:
-            _log.warning('connection was null during rollback phase.')
-
-        return successful
+            return True
+        _log.warning('connection was null during rollback phase.')
+        return False
 
     def close(self):
         """
