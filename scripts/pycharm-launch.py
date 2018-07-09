@@ -10,11 +10,11 @@ agent's base directory then it will add it.
 Example:
 
     # From the root of volttron git repository
-    python scripts/pycharm-launch.py services/core/VolttronCentral/volttroncentral/weather.py
+    python scripts/pycharm-launch.py services/core/VolttronCentral/volttroncentral/agent.py
 
 In order to execute from pycharms, set VOLTTRON_HOME and/or AGENT_CONFIG.  In
 the script input box select scripts/pycharm-launcy.py.  In the script parameters
-input box put services/core/VolttronCentral/volttroncentral/weather.py.
+input box put services/core/VolttronCentral/volttroncentral/agent.py.
 """
 import argparse
 import string
