@@ -149,7 +149,7 @@ def load_config(config_path):
     try:
         with open(config_path) as f:
             return yaml.safe_load(f.read())
-    except StandardError as e:
+    except yaml.scanner.ScannerError as e:
         try:
             with open(config_path) as f:
                 return parse_json_config(f.read())
