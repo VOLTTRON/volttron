@@ -1,10 +1,18 @@
 {
   # VOLTTRON config files are JSON with support for python style comments.
-  "setting1": 2, #Integers
-  "setting2": "some/random/topic2", #strings
-  "setting3": true, #Booleans: remember that in JSON true and false are not capitalized.
-  "setting4": false,
-  "setting5": 5.1, #Floating point numbers.
-  "setting6": [1,2,3,4], # Lists
-  "setting7": {"setting7a": "a", "setting7b": "b"} #Objects
+  "retry_period": 300.0,
+  submit_size_limit=1000,
+  max_time_publishing=30.0,
+  backup_storage_limit_gb=None,
+  topic_replace_list=[],
+  gather_timing_data=False,
+  readonly=False,
+  process_loop_in_greenlet=False,
+  capture_device_data=True,
+  capture_log_data=True,
+  capture_analysis_data=True,
+  capture_record_data=True,
+  message_publish_count=10000,
+  history_limit_days=None,
+  storage_limit_gb=None
 }

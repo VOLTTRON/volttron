@@ -54,6 +54,8 @@ class __class_name__(BaseHistorian):
         super(__class_name__, self).__init__(**kwargs)
 
         self.db_connection = None
+        self.db_address = None
+        self.db_port = None
 
         # The base historian handles the interaction with the
         # configuration store.
