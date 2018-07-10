@@ -1090,7 +1090,6 @@ class BaseHistorianAgent(Agent):
 
             [
                 {
-                    '_id': 1,
                     'timestamp': timestamp1.replace(tzinfo=pytz.UTC),
                     'source': 'scrape',
                     'topic': "pnnl/isb1/hvac1/thermostat",
@@ -1098,7 +1097,6 @@ class BaseHistorianAgent(Agent):
                     'meta': {"units": "F", "tz": "UTC", "type": "float"}
                 },
                 {
-                    '_id': 2,
                     'timestamp': timestamp2.replace(tzinfo=pytz.UTC),
                     'source': 'scrape',
                     'topic': "pnnl/isb1/hvac1/temperature",
@@ -1117,7 +1115,7 @@ class BaseHistorianAgent(Agent):
         treats meta data.
 
         Once one or more records are published either
-        :py:meth:`BaseHistorianAgent.report_handled` or
+        :py:meth:`BaseHistorianAgent.report_all_handled` or
         :py:meth:`BaseHistorianAgent.report_handled` must be called to
         report records as being published.
         """
