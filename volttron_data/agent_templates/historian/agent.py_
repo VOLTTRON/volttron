@@ -6,8 +6,9 @@ __docformat__ = 'reStructuredText'
 
 import logging
 import sys
+import foo_db
 from volttron.platform.agent import utils
-from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.agent.base_historian import BaseHistorian
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
@@ -61,14 +62,13 @@ class __class_name__(BaseHistorian):
         self.update_default_config(config)
 
     def configure(self, configuration):
-        """
-        The base historian will call this whenever the
-        Historian is reconfigured in the main process thread.
+        # The base historian will call this whenever the
+        # Historian is reconfigured in the main process thread.
 
-        If the Historian is already running historian_teardown
-        will be called before this is called and
-        historian_setup will be called afterwards.
-        """
+        # If the Historian is already running historian_teardown
+        # will be called before this is called and
+        # historian_setup will be called afterwards.
+
         connection_parameters = configuration["connection_parameters"]
 
         if not isinstance(connection_parameters, dict):
@@ -79,65 +79,93 @@ class __class_name__(BaseHistorian):
         self.db_port = connection_parameters.get("port")
 
     def publish_to_historian(self, to_publish_list):
+        # Called automatically by the BaseHistorian class when data is available to be
+        # published.
+
+        # This is run in a separate thread from the main agent thread. This means that
+        # this function may block for a short period of time without fear of
+        # blocking the main agent gevent loop.
+
+        # Historians may not interact with the VOLTTRON platform directly from
+        # this function unless kwargs["process_loop_in_greenlet"] is set to
+        # True in __init__ which will cause this function to be run in the
+        # main Agent thread.
+
+        # to_publish_list is a list of dictionaries of the form:
+        # {'timestamp': <datetime object>,
+        #  'source': <"scrape", "record", "log", or "analysis">, # "scrape" is device data
+        #  'topic': <str>,
+        #  'value': <value>, # may be any value that can be serialized with json.
+        #  'headers': <headers dictionary>,
+        #  'meta': <meta data dictionary>}
+
+        # Ideally a historian should try to batch up the values in to_publish_list
+        # in a way that is appropriate for the storage mechanism and publish
+        # everything in one shot.
+
+        # Once data is published the published values must be reported to the
+        # BaseHistorian class by either calling self.report_handled or
+        # self.report_all_handled.
+
+        # If a historian can not publish everything in a single batch then
+        # self.report_handled must be called individually on every item in
+        # to_publish_list that was published.
+
+        # If everything is published in a single batch then self.report_all_handled
+        # must be called.
+
         _log.debug("publish_to_historian number of items: {}"
                    .format(len(to_publish_list)))
-        current_time = self.timestamp()
-        last_time = self._last_timeout
-        _log.debug('Last timeout: {} current time: {}'.format(last_time,
-                                                              current_time))
-        if self._last_timeout:
-            # if we failed we need to wait 60 seconds before we go on.
-            if self.timestamp() < self._last_timeout + 60:
-                _log.debug('Not allowing send < 60 seconds from failure')
-                return
-        if not self._target_platform:
+
+        # Here it may be appropriate to check to see if our connection is still
+        # active and restoring it as needed.
+        alive = False
+        if self.db_connection is not None:
+            alive = self.db_connection.is_alive()
+
+        if not alive:
             self.historian_setup()
-        if not self._target_platform:
-            _log.debug('Could not connect to target')
+
+        # If our connection is down leave without attempting to publish.
+        # Publish failure will automatically trigger the BaseHistorian to
+        # set the health of the agent accordingly.
+        if self.db_connection is None:
             return
 
-        to_send = []
-        for x in to_publish_list:
-            topic = x['topic']
-            headers = x['value']['headers']
-            message = x['value']['message']
-
-            if self.gather_timing_data:
-                add_timing_data_to_header(
-                    headers,
-                    self.core.agent_uuid or self.core.identity,
-                    "forwarded")
-
-            to_send.append({'topic': topic,
-                            'headers': headers,
-                            'message': message})
-        with gevent.Timeout(30):
+        # Example separate item publish
+        for item in to_publish_list:
             try:
-                _log.debug("Sending to destination historian.")
-                self._target_platform.vip.rpc.call(
-                    self.destination_historian_identity, 'insert',
-                    to_send).get(timeout=10)
-                self.report_all_handled()
-            except gevent.Timeout:
-                self._last_timeout = self.timestamp()
-                self._target_platform.core.stop()
-                self._target_platform = None
-                _log.error("Timeout when attempting to publish to target.")
-                self.vip.health.set_status(
-                    STATUS_BAD, "Timeout occurred")
+                # The details of how to publish data will be data store specific.
+                self.db_connection.publish(item["topic"], item["source"], item["value"])
+                self.report_handled(item)
+            except StandardError as e:
+                _log.error("Failed to publish {}: {}".format(item, repr(e))
+
+        #Example batch publish
+        batch = [(item["topic"], item["source"], item["value"]) for item in to_publish_list]
+
+        try:
+            # The details of how to publish batch data will be data store specific.
+            self.db_connection.batch_publish(batch)
+            self.report_all_handled()
+        except StandardError:
+                _log.error("Failed to publish {}".format(repr(e))
 
     def historian_setup(self):
-        """
-        Setup any connection needed for this historian.
-        This is called from the same thread as publish_to_historian.
+        # Setup any connection needed for this historian.
+        # If a connection does not need to be maintained this function may be deleted.
 
-        It is called after configure is called at startup
-        and every time the Historian is reconfigured.
+        # This is called from the same thread as publish_to_historian.
 
-        If the connection is lost it is up to the Historian to
-        recreate it if needed, often by calling this function to
-        restore connectivity.
-        """
+        # It is called after configure is called at startup
+        # and every time the Historian is reconfigured.
+
+        # If the connection is lost it is up to the Historian to
+        # recreate it if needed, often by calling this function to
+        # restore connectivity.
+
+        # This is a convenience to allow us to call this any time we like to
+        # restore a connection.
         self.historian_teardown()
         try:
             self.db_connection = foo_db.connect(self.db_address, self.db_port)
@@ -146,7 +174,9 @@ class __class_name__(BaseHistorian):
 
 
     def historian_teardown(self):
-        # Kill the connection if it is up.
+        # Kill the connection if needed.
+        # If a connection does not need to be maintained this function may be deleted.
+        # This is called to shut down the connection before reconfiguration.
         if self.db_connection is not None:
             self.db_connection.close()
             self.db_connection = None
