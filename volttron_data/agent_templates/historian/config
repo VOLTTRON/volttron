@@ -3,7 +3,7 @@
   "connection_parameters": {
                             "address": "localhost",
                             "port": 1337
-                            }
+                            },
   # Following parameters are passed to the base historian and are common to all
   # historians. Unchanged, these values are the defaults.
   "retry_period": 300.0,

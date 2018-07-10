@@ -141,7 +141,7 @@ class __class_name__(BaseHistorian):
                 self.db_connection.publish(item["topic"], item["source"], item["value"], item["meta"])
                 self.report_handled(item)
             except StandardError as e:
-                _log.error("Failed to publish {}: {}".format(item, repr(e))
+                _log.error("Failed to publish {}: {}".format(item, repr(e)))
 
         #Example batch publish
         batch = [(item["topic"], item["source"], item["value"], item["meta"]) for item in to_publish_list]
@@ -151,7 +151,7 @@ class __class_name__(BaseHistorian):
             self.db_connection.batch_publish(batch)
             self.report_all_handled()
         except StandardError:
-                _log.error("Failed to publish {}".format(repr(e))
+                _log.error("Failed to publish {}".format(repr(e)))
 
     def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
         """
