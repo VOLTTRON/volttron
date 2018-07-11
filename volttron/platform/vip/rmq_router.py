@@ -64,18 +64,11 @@ import logging
 from .rmq_connection import RMQConnection
 from .socket import Message, Address
 from ..main import __version__
-from volttron.platform.agent import json as jsonapi
 from .zmq_router import BaseRouter
 import errno
 from Queue import Queue
 from ..keystore import KeyStore
-from volttron.platform import certs
-from volttron.utils.rmq_mgmt import create_user as create_rmq_user, \
-    set_user_permissions as set_rmq_user_permissions, \
-    build_connection_param as build_rmq_connection_param, \
-    get_user_permissions as get_rmq_user_permissions, \
-    get_topic_permissions_for_user as get_topic_permissions_for_rmq_user, \
-    create_user_certs, get_users as get_rmq_users
+from volttron.utils.rmq_mgmt import *
 
 __all__ = ['RMQRouter']
 
@@ -88,7 +81,8 @@ class RMQRouter(BaseRouter):
     and unrouteable messages.
     """
 
-    def __init__(self, address, local_address, instance_name, addresses=(), identity='router', default_user_id=None,
+    def __init__(self, address, local_address, instance_name,
+                 addresses=(), identity='router', default_user_id=None,
                  volttron_central_address=None,
                  volttron_central_serverkey=None,
                  bind_web_address=None
@@ -120,9 +114,13 @@ class RMQRouter(BaseRouter):
             permissions = dict(configure=".*", read=".*", write=".*")
             # Check if RabbitMQ user and certs exists for Router, if not create a new one.
             # Add permissions if necessary
-            create_user_certs(self._identity, permissions)
-            param = build_rmq_connection_param(self._identity, self._instance_name)
-            _log.debug("connection param: {}".format(param.ssl_options))
+            is_ssl = is_ssl_connection()
+            if is_ssl:
+                create_user_certs(self._identity)
+            create_user_with_permissions(self._identity, permissions, is_ssl=is_ssl)
+            param = build_connection_param(self._identity, self._instance_name, is_ssl)
+            if is_ssl:
+                _log.debug("connection param: {}".format(param.ssl_options))
         return param
 
     def start(self):
@@ -366,7 +364,7 @@ class RMQRouter(BaseRouter):
 
     def _check_user_permissions(self, identity):
         msg = None
-        user_permission = get_rmq_user_permissions(identity)
+        user_permission = get_user_permissions(identity)
         # Check user access permissions for the agent
         allowed_tokens = self._make_user_access_tokens(identity)
         #_log.debug("Identity: {0}, User permissions: {1}".format(identity, user_permission))
@@ -384,12 +382,12 @@ class RMQRouter(BaseRouter):
                 if write_chk: msg += "WRITE: {}".format(write_chk)
         else:
             # Setting default user access control
-            common_access = "{identity}|{identity}.pubsub.*|{identity}.zmq.*".format(identity=self.identity)
+            common_access = "{identity}|{identity}.pubsub.*|{identity}.zmq.*".format(identity=identity)
             # Rabbit user for the agent should have access to limited resources (exchange, queues)
             config_access = common_access
             read_access = "volttron|{}".format(common_access)
             write_access = "volttron|{}".format(common_access)
             permissions = dict(configure=config_access, read=read_access, write=write_access)
-            set_rmq_user_permissions(permissions, self.identity)
+            set_user_permissions(permissions, identity)
         return msg
 
