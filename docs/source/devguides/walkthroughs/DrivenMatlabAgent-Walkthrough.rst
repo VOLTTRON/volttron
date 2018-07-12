@@ -79,7 +79,6 @@ Installation:
    source directory.
 
    .. Note::
-
       Best practise is to clone in the parent directory of volttron
       source. For example, /users/user1/volttron and
       /users/user1/volttron-applications).
@@ -102,6 +101,7 @@ To test the interaction between matlab driven agent and matlab code you would
    by the device will be scraped by master driver agent and published to message
    bus. DrivenMatlabAgent subscribes to device topics and sends the data to
    matalab code.
+
    To test the interaction between the masterdriver and matlab agent install
    master driver agent, a fake device, and a listener agent using command
 
