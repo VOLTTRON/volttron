@@ -1,5 +1,0 @@
-{
-    "agentid": "Thermostat",
-    "message": "hello from thermostat ",
-    "url_address" : "http://10.10.47.12/tstat"
-}
