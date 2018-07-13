@@ -42,7 +42,11 @@ import json
 
 from volttron.platform import get_services_core
 
-from volttron.platform.agent.base_historian import BaseHistorian
+from volttron.platform.agent.base_historian import (BaseHistorian,
+                                                    STATUS_KEY_BACKLOGGED,
+                                                    STATUS_KEY_CACHE_COUNT,
+                                                    STATUS_KEY_PUBLISHING,
+                                                    STATUS_KEY_CACHE_FULL)
 import pytest
 
 from volttron.platform.agent import utils
@@ -129,7 +133,8 @@ class BasicHistorian(BaseHistorian):
     def publish_to_historian(self, to_publish_list):
         self.seen.extend(to_publish_list)
 
-        sleep(self.publish_sleep)
+        if self.publish_sleep:
+            sleep(self.publish_sleep)
 
         if not self.publish_fail:
             self.report_all_handled()
@@ -156,7 +161,8 @@ def historian(request, volttron_instance):
                                           identity=identity,
                                           submit_size_limit=2,
                                           max_time_publishing=0.5,
-                                          retry_period=1.0)
+                                          retry_period=1.0,
+                                          backup_storage_limit_gb=0.0001)  # 100K
     yield agent
     agent.core.stop()
 
@@ -170,7 +176,7 @@ def test_health_stuff(request, historian, client_agent):
     """
     Test basic use of health subsystem in the base historian.
     """
-    global alert_publish
+    global alert_publishes
 
     DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
 
@@ -212,11 +218,15 @@ def test_health_stuff(request, historian, client_agent):
                                          headers=headers,
                                          message=all_message).get(timeout=10)
 
-    gevent.sleep(0.2)
+    gevent.sleep(2.0)
 
     status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
     assert status["status"] == STATUS_GOOD
+    assert status["context"][STATUS_KEY_PUBLISHING]
+    assert not status["context"][STATUS_KEY_BACKLOGGED]
+    assert not status["context"][STATUS_KEY_CACHE_FULL]
+    assert not bool(status["context"][STATUS_KEY_CACHE_COUNT])
 
     # Test publish failure
     client_agent.vip.pubsub.subscribe("pubsub", "alerts/BasicHistorian", message_handler)
@@ -236,8 +246,10 @@ def test_health_stuff(request, historian, client_agent):
 
     alert_publish = alert_publishes[0]
 
+    alert_publishes = []
+
     assert status["status"] == STATUS_BAD
-    assert status["context"] == "Historian not publishing."
+    assert not status["context"][STATUS_KEY_PUBLISHING]
 
     assert alert_publish.status == STATUS_BAD
 
@@ -248,23 +260,33 @@ def test_health_stuff(request, historian, client_agent):
     status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
     assert status["status"] == STATUS_GOOD
+    assert status["context"][STATUS_KEY_PUBLISHING]
+    assert not status["context"][STATUS_KEY_BACKLOGGED]
+    assert not status["context"][STATUS_KEY_CACHE_FULL]
+    assert not bool(status["context"][STATUS_KEY_CACHE_COUNT])
 
     #Test publish slow or backlogged
 
     historian.publish_sleep = 0.75
 
-    for _ in range(100):
+    for _ in range(1000):
         client_agent.vip.pubsub.publish('pubsub',
                                         DEVICES_ALL_TOPIC,
                                         headers=headers,
                                         message=all_message).get(timeout=10)
 
-    gevent.sleep(1.0)
+    gevent.sleep(2.0)
 
     status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
     assert status["status"] == STATUS_BAD
-    assert status["context"].startswith("Historian backlogged.")
+    assert status["context"][STATUS_KEY_BACKLOGGED]
+    assert status["context"][STATUS_KEY_CACHE_COUNT] > 0
+    alert_publish = alert_publishes[-1]
+    assert alert_publish.status == STATUS_BAD
+    context = alert_publish.context
+    assert context[STATUS_KEY_CACHE_FULL]
+    assert status["context"][STATUS_KEY_CACHE_FULL]
 
     historian.publish_sleep = 0
 
@@ -273,3 +295,7 @@ def test_health_stuff(request, historian, client_agent):
     status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
     assert status["status"] == STATUS_GOOD
+    assert status["context"][STATUS_KEY_PUBLISHING]
+    assert not status["context"][STATUS_KEY_BACKLOGGED]
+    assert not status["context"][STATUS_KEY_CACHE_FULL]
+    assert not bool(status["context"][STATUS_KEY_CACHE_COUNT])
