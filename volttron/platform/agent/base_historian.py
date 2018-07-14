@@ -485,7 +485,8 @@ class BaseHistorianAgent(Agent):
             if backup_storage_limit_gb is not None:
                 backup_storage_limit_gb = float(backup_storage_limit_gb)
 
-                backup_storage_report = config.get("backup_storage_report", 0.9)
+            backup_storage_report = config.get("backup_storage_report", 0.9)
+
             if backup_storage_report:
                 backup_storage_report = float(backup_storage_report)
                 backup_storage_report = min(1.0, backup_storage_report)
