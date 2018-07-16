@@ -178,6 +178,13 @@ class ForwardHistorian(BaseHistorian):
             except (gevent.Timeout, Exception) as e:
                 _log.error("Failed to unsubscribe from {}: {}".format(prefix, repr(e)))
 
+    # Stop the BaseHistorian from setting the health status
+    def _update_status(self, status, context):
+        pass
+
+    def _send_alert(self, status, context, key):
+        pass
+
     # Redirect the normal capture functions to capture_data.
     def _capture_device_data(self, peer, sender, bus, topic, headers, message):
         self.capture_data(peer, sender, bus, topic, headers, message)
