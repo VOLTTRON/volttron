@@ -204,10 +204,6 @@ Please do the following to complete setup
 
 1. Provide read access to rabbitmq user to VOLTTRON_HOME/certificates/private/*
 
-```sh
-chmod a+r ~/.volttron/certificates/private/*
-```
-
 2. Move the rabbitmq.conf filein VOLTTRON_HOME directory into your rabbitmq configuration directory (/etc/rabbitmq in RPM/Debian systems)
 
 3. For custom ssl ports: Generated configuration uses default rabbitmq ssl ports. Modify both rabbitmq.conf and VOLTTRON_HOME/rabbitmq_config.json if using different ports.
@@ -366,7 +362,7 @@ Please provide the hostname (or IP address) and port of the upstream nodes when 
 sudo rabbitmqctl add_user <username> <password>
 sudo rabbitmqctl set_permissions -p volttron <username> ".*" ".*" ".*"
 ```
-
+	
 ## Next Steps
 We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we are working towards completing the following:
 * Integrating Volttron Central, forwarder, data mover and other agents which connect to remote instances to use RabbitMQ message bus with SSL.
@@ -380,9 +376,6 @@ Third party agents are available under volttron-applications repository. In orde
 ```sh
 git subtree add –prefix applications https://github.com/VOLTTRON/volttron-applications.git develop –squash
 ```
-
-
-
 
 ## Acquiring Third Party Agent Code
 Third party agents are available under volttron-applications repository. In order to use those agents, add volttron-applications repository under the volttron/applications directory by using following command:
