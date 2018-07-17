@@ -880,9 +880,9 @@ class RMQCore(BasicCore):
             is_ssl = is_ssl_connection()
             if is_ssl:
                 create_user_certs(self.identity)
-            create_rmq_user_with_permissions(self.identity, permissions, is_ssl=is_ssl)
+            create_rmq_user_with_permissions(self.identity, permissions, ssl_auth=is_ssl)
 
-            param = build_rmq_connection_param(self.identity, self.instance_name, ssl=is_ssl)
+            param = build_rmq_connection_param(self.identity, self.instance_name, ssl_auth=is_ssl)
 
         return param
 
