@@ -462,6 +462,8 @@ class ZMQCore(BasicCore):
         self.messagebus = messagebus
         self._set_keys()
 
+        _log.debug("AGENT RUNNING on ZMQ Core {}".format(self.identity))
+
         _log.debug('address: %s', address)
         _log.debug('identity: %s', identity)
         _log.debug('agent_uuid: %s', agent_uuid)
@@ -824,8 +826,10 @@ class RMQCore(BasicCore):
         _log.debug("instance:{}".format(self.instance_name))
         self._event_queue = gevent.queue.Queue
 
+        _log.debug("AGENT RUNNING on RMQ Core {}".format(self.identity))
+
         _log.debug('address: %s', address)
-        _log.debug('identity: %s', identity)
+        _log.debug('identity: %s', self.identity)
         _log.debug('agent_uuid: %s', agent_uuid)
         _log.debug('serverkey: %s', serverkey)
 
@@ -960,7 +964,7 @@ class RMQCore(BasicCore):
                     subsystem = bytes(message.subsystem)
                     # _log.debug("Received new message {0}, {1}, {2}, {3}".format(subsystem,
                     #                                                              message.id,
-                    #                                                              len(message.args),
+                    #                                                              state.ident,
                     #                                                              message.args[0]))
                     if subsystem == b'hello':
                         if (subsystem == b'hello' and

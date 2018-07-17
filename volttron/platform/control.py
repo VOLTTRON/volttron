@@ -88,6 +88,11 @@ _stderr = sys.stderr
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
+message_bus = utils.get_messagebus()
+rmq_auth = False
+if message_bus == 'rmq':
+    rmq_auth = is_ssl_connection()
+
 CHUNK_SIZE = 4096
 
 class ControlService(BaseAgent):
@@ -2094,7 +2099,7 @@ def main(argv=sys.argv):
     stats.set_defaults(func=do_stats, op='status')
 
 #==============================================================================
-    message_bus = utils.get_messagebus()
+    global message_bus
     if message_bus == 'rmq':
         # Add commands
         rabbitmq_cmds = add_parser("rabbitmq", help="manage rabbitmq")

@@ -90,7 +90,7 @@ local_password="guest"
 admin_user= None # User to prompt for if we go the docker route
 admin_password= None
 
-volttron_rmq_config = os.path.join(get_home(), 'rabbitmq_config.json')
+#volttron_rmq_config = os.path.join(get_home(), 'rabbitmq_config.json')
 
 
 def call_grequest(method_name, url_suffix, ssl=True, **kwargs):
@@ -109,8 +109,8 @@ def call_grequest(method_name, url_suffix, ssl=True, **kwargs):
         print ("Connection to {} not available".format(url))
         response = None
     except requests.exceptions.HTTPError as e:
-        print("Exception when trying to make HTTP request "
-              "to RabbitMQ {}".format(e))
+        # print("Exception when trying to make HTTP request "
+        #       "to RabbitMQ {}".format(e))
         response = None
     except AttributeError as e:
         print("Exception when trying to make HTTP request "
@@ -169,11 +169,14 @@ def http_get_request(url, ssl=True):
     return response
 
 
-def _load_rmq_config():
+def _load_rmq_config(volttron_home=None):
     """Loads the config file if the path exists."""
     global config_opts, volttron_rmq_config
-    if not os.path.exists(get_home()):
-        os.makedirs(get_home())
+    if not volttron_home:
+        volttron_home = get_home()
+    if not os.path.exists(volttron_home):
+        os.makedirs(volttron_home)
+    volttron_rmq_config = os.path.join(volttron_home, 'rabbitmq_config.json')
     config_opts = PersistentDict(filename=volttron_rmq_config, flag='c',
                                  format='json')
 
@@ -280,7 +283,7 @@ def create_user(user, password=default_pass, tags="administrator", ssl=None):
     :return:
     """
     ssl = ssl if ssl else is_ssl_connection()
-    print "Creating new USER: {}, ssl {}".format(user, ssl)
+    #print "Creating new USER: {}, ssl {}".format(user, ssl)
 
     body = dict(password=password, tags=tags)
     url = '/api/users/{user}'.format(user=user)
@@ -340,6 +343,19 @@ def delete_user(user, ssl=None):
     response = http_delete_request(url, ssl)
 
 
+def delete_users_in_bulk(users, ssl=None):
+    """
+    Delete a list of users at once
+    :param users:
+    :param ssl:
+    :return:
+    """
+    ssl = ssl if ssl else is_ssl_connection()
+    url = '/api/users/bulk-delete'
+    if users and isinstance(users, list):
+        body = dict(users=users)
+        response = http_put_request(url, body=body, ssl=ssl)
+
 def get_user_permissions(user, vhost=None, ssl=None):
     """
     Get permissions (configure, read, write) for the user
@@ -370,8 +386,8 @@ def set_user_permissions(permissions, user, vhost=None, ssl=None):
     """
     ssl = ssl if ssl else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
-    print "Create READ, WRITE and CONFIGURE permissions for the user: " \
-          "{}".format(user)
+    _log.debug("Create READ, WRITE and CONFIGURE permissions for the user: " \
+          "{}".format(user))
     url = '/api/permissions/{vhost}/{user}'.format(vhost=vhost, user=user)
     response = http_put_request(url, body=permissions, ssl=ssl)
 
@@ -535,7 +551,7 @@ def create_exchange(exchange, properties, vhost=None, ssl=None):
     :return:
     """
     vhost = vhost if vhost else get_vhost()
-    print "Create new exchange: {}".format(exchange)
+    _log.debug("Create new exchange: {}".format(exchange))
     url = '/api/exchanges/{vhost}/{exchange}'.format(vhost=vhost,
                                                      exchange=exchange)
     response = http_put_request(url, body=properties, ssl=ssl)
@@ -1186,7 +1202,7 @@ def wizard(type):
     store_message_bus_config(message_bus='rmq', instance_name=instance_name)
 
     if type == 'single':
-        # # Get vhost from the user
+        # Get vhost from the user
         set_initial_rabbit_config(instance_name)
         # Create local RabbitMQ setup
         response = init_rabbitmq_setup()
@@ -1356,6 +1372,48 @@ def get_cert_names(instance_name=None):
     if not instance_name:
         instance_name = get_platform_instance_name()
     return instance_name + '-ca', instance_name+"-server", instance_name
+
+
+def create_rmq_volttron_test_setup(volttron_home, host='localhost'):
+    global config_opts
+    _load_rmq_config(volttron_home)
+    #print(config_opts)
+    is_ssl = False
+    # Set vhost, username, password, hostname and port
+    config_opts['virtual-host'] = 'volttron_test'
+    config_opts['user'] = 'test_user'
+    config_opts['pass'] = 'test_user'
+    config_opts['host'] = host
+    config_opts['amqp-port'] = str(5672)
+    config_opts['mgmt-port'] = str(15672)
+    config_opts['ssl'] = str(is_ssl)
+    config_opts['rmq-address'] = build_rmq_address(ssl=False)
+    config_opts.async_sync()
+    init_rabbitmq_setup()
+    create_user_with_permissions('test_user', dict(configure=".*", read=".*", write=".*"), is_ssl=is_ssl)
+
+
+def cleanup_rmq_volttron_test_setup(volttron_home):
+    global config_opts
+    _load_rmq_config(volttron_home)
+    try:
+        vhost = config_opts.get('virtual-host', 'volttron_test')
+        users = get_users(ssl=False)
+        users.remove('guest')
+        users_to_remove = []
+        for user in users:
+            perm = get_user_permissions(user, vhost, ssl=False)
+            print perm
+            if perm:
+                users_to_remove.append(user)
+        print("Users to remove: {}".format(users_to_remove))
+        # Delete all the users using virtual host
+        for user in users_to_remove:
+            delete_user(user)
+        # Finally delete the virtual host
+        delete_vhost(config_opts['virtual-host'])
+    except KeyError as e:
+        return
 
 
 if __name__ == "__main__":

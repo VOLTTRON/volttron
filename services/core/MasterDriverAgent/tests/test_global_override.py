@@ -133,10 +133,10 @@ def setup_config(config_store, config_name, config_string, **kwargs):
 def test_agent(request, volttron_instance1):
     test_agent = volttron_instance1.build_agent(identity=TEST_AGENT)
     def stop_agent():
-        result = test_agent.vip.rpc.call(
-            PLATFORM_DRIVER,  # Target agent
-            'clear_overrides'  # Method
-        ).get(timeout=10)
+        # result = test_agent.vip.rpc.call(
+        #     PLATFORM_DRIVER,  # Target agent
+        #     'clear_overrides'  # Method
+        # ).get(timeout=10)
         test_agent.core.stop()
     #Add a tear down method to stop test agent
     request.addfinalizer(stop_agent)
@@ -673,14 +673,10 @@ def test_indefinite_override_after_restart(config_store, test_agent, volttron_in
     gevent.sleep(0.5)
     global master_uuid
     volttron_instance1.stop_agent(master_uuid)
-    volttron_instance1.remove_agent(master_uuid)
-    gevent.sleep(1)
+    gevent.sleep(0.5)
     # Start the master driver agent which would in turn start the fake driver
     #  using the configs created above
-    master_uuid = volttron_instance1.install_agent(
-        agent_dir=get_services_core("MasterDriverAgent"),
-        config_file={},
-        start=True)
+    volttron_instance1.start_agent(master_uuid)
     gevent.sleep(1)  # wait for the agent to start and start the devices
 
     point = 'SampleWritableFloat1'

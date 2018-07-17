@@ -667,10 +667,10 @@ class AIPplatform(object):
             permissions = dict(configure=config_access, read=read_access, write=write_access)
             ssl = is_ssl_connection()
             if ssl:
+                _log.info("Created agent cert")
                 create_rmq_user_certs(agent_vip_identity)
             create_rmq_user_with_permissions(agent_vip_identity, permissions)
 
-        _log.info("Created agent cert")
         module, _, func = module.partition(':')
         if func:
             code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module, func)
