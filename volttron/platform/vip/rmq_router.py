@@ -114,12 +114,12 @@ class RMQRouter(BaseRouter):
             permissions = dict(configure=".*", read=".*", write=".*")
             # Check if RabbitMQ user and certs exists for Router, if not create a new one.
             # Add permissions if necessary
-            is_ssl = is_ssl_connection()
-            if is_ssl:
+            ssl_auth = is_ssl_connection()
+            if ssl_auth:
                 create_user_certs(self._identity)
-            create_user_with_permissions(self._identity, permissions, is_ssl=is_ssl)
-            param = build_connection_param(self._identity, self._instance_name, is_ssl)
-            if is_ssl:
+            create_user_with_permissions(self._identity, permissions, ssl_auth=ssl_auth)
+            param = build_connection_param(self._identity, self._instance_name, ssl_auth)
+            if ssl_auth:
                 _log.debug("connection param: {}".format(param.ssl_options))
         return param
 
@@ -212,6 +212,7 @@ class RMQRouter(BaseRouter):
         subsystem = message.subsystem
         self._add_peer(sender)
         if subsystem == b'hello':
+            _log.debug("RMQ Router received hello message from {}".format(message))
             self.authenticate(sender)
             # send welcome message back
             message.args = [b'welcome', b'1.0', self._identity, sender]
