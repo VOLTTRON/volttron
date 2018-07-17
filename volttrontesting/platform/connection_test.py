@@ -24,7 +24,6 @@ def setup_control_connection(request, get_volttron_instances):
     # Connect using keys
     ks = KeyStore()
     ks.generate()
-    message_bus = os.environ.get('MESSAGE_BUS', 'zmq')
 
     control_connection = build_connection(identity="foo",
                                           address=wrapper.vip_address,
@@ -33,7 +32,7 @@ def setup_control_connection(request, get_volttron_instances):
                                           publickey=ks.public,
                                           secretkey=ks.secret,
                                           instance_name=wrapper.instance_name,
-                                          message_bus=message_bus)
+                                          message_bus=wrapper.message_bus)
 
     # Sleep a couple seconds to wait for things to startup
     gevent.sleep(2)

@@ -243,9 +243,9 @@ def get_expected_sum(query_agent, topic, end_time, minutes_delta):
 
 
 @pytest.fixture(scope="module")
-def query_agent(request, volttron_instance):
-    # 1: Start a fake fake_agent to query the sqlhistorian in volttron_instance
-    fake_agent = volttron_instance.build_agent()
+def query_agent(request, volttron_instance_zmq):
+    # 1: Start a fake fake_agent to query the sqlhistorian in volttron_instance_zmq
+    fake_agent = volttron_instance_zmq.build_agent()
 
     # 2: add a tear down method to stop sqlhistorian fake_agent and the fake
     # fake_agent that published to message bus
@@ -264,7 +264,7 @@ def query_agent(request, volttron_instance):
                     sqlite_aggregator,
                     pymongo_skipif(mongo_aggregator)
                 ])
-def aggregate_agent(request, volttron_instance):
+def aggregate_agent(request, volttron_instance_zmq):
     global db_connection, table_names, connection_type
     print("** Setting up test_sqlhistorian module **")
 
@@ -273,7 +273,7 @@ def aggregate_agent(request, volttron_instance):
     connection_type = request.param['connection']['type']
     if connection_type == 'sqlite':
         request.param['connection']['params']['database'] = \
-            volttron_instance.volttron_home + "/historian.sqlite"
+            volttron_instance_zmq.volttron_home + "/historian.sqlite"
 
     # figure out db table names from config
     # Set this hear so that we can create these table after connecting to db
@@ -296,13 +296,13 @@ def aggregate_agent(request, volttron_instance):
     # 3. Install agents - sqlhistorian, sqlaggregatehistorian
     source = request.param.pop('source_historian')
     source_agg = request.param.pop('source_agg_historian')
-    historian_uuid = volttron_instance.install_agent(
+    historian_uuid = volttron_instance_zmq.install_agent(
         vip_identity='platform.historian',
         agent_dir=source,
         config_file=request.param,
         start=True)
     print("agent id: ", historian_uuid)
-    agg_agent_uuid = volttron_instance.install_agent(
+    agg_agent_uuid = volttron_instance_zmq.install_agent(
         agent_dir=source_agg,
         config_file=request.param,
         vip_identity=AGG_AGENT_VIP,
@@ -315,9 +315,9 @@ def aggregate_agent(request, volttron_instance):
         # if db_connection:
         #     db_connection.close()
         #     print("closed connection to db")
-        if volttron_instance.is_running():
-            volttron_instance.remove_agent(historian_uuid)
-            volttron_instance.remove_agent(agg_agent_uuid)
+        if volttron_instance_zmq.is_running():
+            volttron_instance_zmq.remove_agent(historian_uuid)
+            volttron_instance_zmq.remove_agent(agg_agent_uuid)
 
     request.addfinalizer(stop_agent)
     request.param['source_historian'] = source

@@ -91,14 +91,14 @@ local_password="guest"
 admin_user= None # User to prompt for if we go the docker route
 admin_password= None
 
-volttron_rmq_config = os.path.join(get_home(), 'rabbitmq_config.json')
+#volttron_rmq_config = os.path.join(get_home(), 'rabbitmq_config.json')
 
 
-def call_grequest(method_name, url_suffix, ssl=True, **kwargs):
+def call_grequest(method_name, url_suffix, ssl_auth=True, **kwargs):
     global crts, instance_name
-    url = get_url_prefix(ssl) + url_suffix
+    url = get_url_prefix(ssl_auth) + url_suffix
     kwargs["headers"] = {"Content-Type": "application/json"}
-    auth_args = get_authentication_args(ssl)
+    auth_args = get_authentication_args(ssl_auth)
     kwargs.update(auth_args)
     try:
         fn = getattr(grequests, method_name)
@@ -110,27 +110,31 @@ def call_grequest(method_name, url_suffix, ssl=True, **kwargs):
         print ("Connection to {} not available".format(url))
         response = None
     except requests.exceptions.HTTPError as e:
+        # print("Exception when trying to make HTTP request "
+        #       "to RabbitMQ {}".format(e))
+        response = None
+    except AttributeError as e:
         print("Exception when trying to make HTTP request "
               "to RabbitMQ {}".format(e))
         response = None
     return response
 
 
-def get_authentication_args(ssl):
+def get_authentication_args(ssl_auth):
     '''
     Return authentication kwargs for request/greqeust
-    :param ssl: if True returns cert and verify parameters in addition to auth
+    :param ssl_auth: if True returns cert and verify parameters in addition to auth
     :return: dictionary containing auth/cert args need to pass to
     request/grequest methods
     '''
     global local_user, local_password, admin_user, admin_password, \
         instance_name,config_opts
 
-    if ssl:
+    if ssl_auth:
         instance_ca, server_cert, client_cert = get_cert_names(instance_name)
         admin_user = get_user()
         if admin_password is None:
-            #prompt = 'What is the password for user({}):'.format(admin_user)
+            # prompt = 'What is the password for user({}):'.format(admin_user)
             # TODO: figure out how to manage admin user and password. rabbitmq
             # federation plugin doesn't handle external_auth plugin !!
             # One possible workaround is to use plain username/password auth
@@ -138,8 +142,8 @@ def get_authentication_args(ssl):
             # password but at least guest user can only access rmq using
             # localhost
             admin_password = default_pass
-        return {'auth': (admin_user, admin_password), 'verify': crts.cert_file(
-            instance_ca),
+        return {'auth': (admin_user, admin_password),
+                'verify': crts.cert_file(instance_ca),
                 'cert': (crts.cert_file(client_cert),
                          crts.private_key_file(client_cert))}
     else:
@@ -148,29 +152,32 @@ def get_authentication_args(ssl):
         return {'auth': (user, password)}
 
 
-def http_put_request(url_suffix, body=None, ssl=True):
+def http_put_request(url_suffix, body=None, ssl_auth=True):
     if body:
-        return call_grequest('put', url_suffix, ssl, data=jsonapi.dumps(body))
+        return call_grequest('put', url_suffix, ssl_auth, data=jsonapi.dumps(body))
     else:
-        return call_grequest('put', url_suffix, ssl)
+        return call_grequest('put', url_suffix, ssl_auth)
 
 
-def http_delete_request(url, ssl=True):
-    return call_grequest('delete',url, ssl)
+def http_delete_request(url, ssl_auth=True):
+    return call_grequest('delete',url, ssl_auth)
 
 
-def http_get_request(url, ssl=True):
-    response = call_grequest('get', url, ssl)
+def http_get_request(url, ssl_auth=True):
+    response = call_grequest('get', url, ssl_auth)
     if response and isinstance(response, list):
         response = response[0].json()
     return response
 
 
-def _load_rmq_config():
+def _load_rmq_config(volttron_home=None):
     """Loads the config file if the path exists."""
     global config_opts, volttron_rmq_config
-    if not os.path.exists(get_home()):
-        os.makedirs(get_home())
+    if not volttron_home:
+        volttron_home = get_home()
+    if not os.path.exists(volttron_home):
+        os.makedirs(volttron_home)
+    volttron_rmq_config = os.path.join(volttron_home, 'rabbitmq_config.json')
     config_opts = PersistentDict(filename=volttron_rmq_config, flag='c',
                                  format='json')
 
@@ -188,11 +195,11 @@ def get_amqp_port():
     return config_opts['amqp-port']
 
 
-def get_port():
+def get_mgmt_port():
     if not config_opts:
         _load_rmq_config()
     #_log.debug("rmq config: {}".format(config_opts))
-    return config_opts['port']
+    return config_opts['mgmt-port']
 
 
 def get_vhost():
@@ -213,24 +220,32 @@ def get_password():
     return config_opts['pass']
 
 
-def create_vhost(vhost='volttron', ssl=True):
+def create_vhost(vhost='volttron', ssl_auth=None):
     """
     Create a new virtual host
     :param vhost: virtual host
     :return:
     """
     print "Creating new VIRTUAL HOST: {}".format(vhost)
+    ssl_auth = ssl_auth if ssl_auth in [True, False] else is_ssl_connection()
     url = '/api/vhosts/{vhost}'.format(vhost=vhost)
-    response = http_put_request(url, body={}, ssl=ssl)
+    response = http_put_request(url, body={}, ssl_auth=ssl_auth)
+    return response
 
-
-def get_virtualhost(new_vhost, ssl=True):
+def get_virtualhost(new_vhost, ssl_auth=None):
+    """
+    Get properties for this virtual host
+    :param new_vhost:
+    :param ssl_auth: Flag indicating ssl based connection
+    :return:
+    """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     url = '/api/vhosts/{vhost}'.format(vhost=new_vhost)
-    response = http_get_request(url, ssl)
+    response = http_get_request(url, ssl_auth)
     return response
 
 
-def delete_vhost(vhost, ssl=True):
+def delete_vhost(vhost, ssl_auth=None):
     """
     Delete a virtual host
     :param vhost: virtual host
@@ -238,293 +253,338 @@ def delete_vhost(vhost, ssl=True):
     :param password: password
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     url = '/api/vhosts/{vhost}'.format(vhost=vhost)
-    response = http_delete_request(url, ssl)
+    response = http_delete_request(url, ssl_auth)
 
 
-def get_virtualhosts(ssl=True):
+def get_virtualhosts(ssl_auth=None):
+    """
+
+    :param ssl_auth:
+    :return:
+    """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     url = '/api/vhosts'
-    response = http_get_request(url, ssl)
+    response = http_get_request(url, ssl_auth)
     vhosts = []
     if response:
         vhosts = [v['name'] for v in response]
     return vhosts
 
 
-#USER - CREATE, GET, DELETE user, SET/GET Permissions
-def create_user(user, password=default_pass, tags="administrator", ssl=True):
+# USER - CREATE, GET, DELETE user, SET/GET Permissions
+def create_user(user, password=default_pass, tags="administrator", ssl_auth=None):
     """
     Create a new RabbitMQ user
-    :param user:
-    :param password:
-    :param tags:
-    :param ssl:
+    :param user: Username
+    :param password: Password
+    :param tags: "adminstrator/management"
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
-    print "Creating new USER: {}".format(user)
-    #body = dict(password=password, tags=tags)
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
+    #print "Creating new USER: {}, ssl {}".format(user, ssl)
+
     body = dict(password=password, tags=tags)
     url = '/api/users/{user}'.format(user=user)
-    response = http_put_request(url, body, ssl)
+    response = http_put_request(url, body, ssl_auth)
 
 
-def get_users():
+def get_users(ssl_auth=None):
+    """
+    Get list of all users
+    :param ssl_auth: Flag for SSL connection
+    :return:
+    """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     url = '/api/users/'
-    response = http_get_request(url, ssl)
+    response = http_get_request(url, ssl_auth)
     users = []
     if response:
         users = [u['name'] for u in response]
     return users
 
-def get_url_prefix(ssl):
-    if ssl:
+
+def get_url_prefix(ssl_auth):
+    """
+    Get URL for http or https based on flag
+    :param ssl_auth: Flag for ssl_auth connection
+    :return:
+    """
+    if ssl_auth:
         prefix = 'https://{host}:{port}'.format(host=get_hostname(),
-                                                port=get_port())
+                                                port=get_mgmt_port())
     else:
-        prefix = 'http://localhost:{port}'.format(port=get_port())
+        prefix = 'http://localhost:{port}'.format(port=get_mgmt_port())
     return prefix
 
 
-def get_user_props(user, ssl=True):
+def get_user_props(user, ssl_auth=None):
     """
     Get properties of the user
     :param user: username
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     url = '/api/users/{user}'.format(user=user)
-    response = http_get_request(url, ssl)
+    response = http_get_request(url, ssl_auth)
     return response
 
 
-def delete_user(user, ssl=True):
+def delete_user(user, ssl_auth=None):
     """
     Delete specific user
     :param user: user
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     url = '/api/users/{user}'.format(user=user)
-    response = http_delete_request(url, ssl)
+    response = http_delete_request(url, ssl_auth)
 
 
-def get_user_permissions(user, vhost=None, ssl=True):
+def delete_users_in_bulk(users, ssl_auth=None):
+    """
+    Delete a list of users at once
+    :param users:
+    :param ssl_auth:
+    :return:
+    """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
+    url = '/api/users/bulk-delete'
+    if users and isinstance(users, list):
+        body = dict(users=users)
+        response = http_put_request(url, body=body, ssl_auth=ssl)
+
+def get_user_permissions(user, vhost=None, ssl_auth=None):
     """
     Get permissions (configure, read, write) for the user
     :param user: user
     :param password: password
     :param vhost: virtual host
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
     url = '/api/permissions/{vhost}/{user}'.format(vhost=vhost,
                                                    user=user)
-    response = http_get_request(url, ssl)
+    response = http_get_request(url, ssl_auth)
     return response
 
 
 # {"configure":".*","write":".*","read":".*"}
-def set_user_permissions(permissions, user, vhost=None, ssl=True):
+def set_user_permissions(permissions, user, vhost=None, ssl_auth=None):
     """
     Set permissions for the user
     :param permissions: dict containing configure, read and write settings
     :param user: username
     :param password: password
     :param vhost: virtual host
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
-    print "Create READ, WRITE and CONFIGURE permissions for the user: " \
-          "{}".format(user)
+    _log.debug("Create READ, WRITE and CONFIGURE permissions for the user: " \
+          "{}".format(user))
     url = '/api/permissions/{vhost}/{user}'.format(vhost=vhost, user=user)
-    response = http_put_request(url, body=permissions, ssl=ssl)
+    response = http_put_request(url, body=permissions, ssl_auth=ssl_auth)
 
 
-def set_topic_permissions_for_user(permissions, user, password=None, vhost=None):
+def set_topic_permissions_for_user(permissions, user, vhost=None, ssl_auth=None):
     """
-    Set read, write permissions for a topic
+    Set read, write permissions for a topic and user
     :param permissions: dict containing exchange name and read/write permissions
     {"exchange":"volttron", read: ".*", write: "^__pubsub__"}
-    :param user:
-    :param password:
-    :param vhost:
+    :param user: username
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
     url = '/api/topic-permissions/{vhost}/{user}'.format(vhost=vhost,
                                                          user=user)
-    response = http_put_request(url, body=permissions, ssl=ssl)
+    response = http_put_request(url, body=permissions, ssl_auth=ssl_auth)
 
 
-def get_topic_permissions_for_user(user, password=None, vhost=None):
+def get_topic_permissions_for_user(user, vhost=None, ssl_auth=None):
     """
     Get permissions for all topics
-    :param user:
-    :param password:
+    :param user: user
     :param vhost:
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
     url = '/api/topic-permissions/{vhost}/{user}'.format(vhost=vhost, user=user)
-    response = http_get_request(url, ssl)
+    response = http_get_request(url, ssl_auth)
     return response
 
 
 # GET/SET parameter on a component for example, federation-upstream
-def get_parameter(component, vhost=None, ssl=True):
+def get_parameter(component, vhost=None, ssl_auth=None):
     """
     Get component parameters, namely federation-upstream
     :param component: component name
-    :param user: username
-    :param password: password
     :param vhost: virtual host
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
     url = '/api/parameters/{component}/{vhost}'.format(component=component,
                                                        vhost=vhost)
-    response = http_get_request(url, ssl)
+    response = http_get_request(url, ssl_auth)
     return response
 
 
 def set_parameter(component, parameter_name, parameter_properties,
-                  vhost=None, ssl=True):
+                  vhost=None, ssl_auth=None):
     """
     Set parameter on a component
     :param component: component name (for example, federation-upstream)
     :param parameter_name: parameter name
     :param parameter_properties: parameter properties
-    :param user: username
-    :param password: password
     :param vhost: virtual host
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
-    #print "SET PARAMETER. NAME: {0}, properties: {1}, component: {2}".
-    # format(parameter_name, parameter_properties, component)
-    # user = user if user else get_user()
-    # password = password if password else get_password()
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
     url = '/api/parameters/{component}/{vhost}/{param}'.format(
         component=component, vhost=vhost, param=parameter_name)
-    response = http_put_request(url, body=parameter_properties, ssl=ssl)
+    response = http_put_request(url, body=parameter_properties, ssl_auth=ssl_auth)
 
 
-def delete_parameter(component, parameter_name, vhost=None, ssl=True):
+def delete_parameter(component, parameter_name, vhost=None, ssl_auth=None):
     """
     Delete a component parameter
     :param component: component name
     :param parameter_name: parameter
-    :param user: username
-    :param password: password
     :param vhost: virtual host
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
     url = '/api/parameters/{component}/{vhost}/{parameter}'.format(
         component=component, vhost=vhost, parameter=parameter_name)
-    response = http_delete_request(url, ssl)
+    response = http_delete_request(url, ssl_auth)
     return response
 
 
 # Get all policies, Get/Set/Delete a specific property
-def get_policies(vhost=None, ssl=True):
+def get_policies(vhost=None, ssl_auth=None):
     """
     Get all policies
-    :param user: username
-    :param password: password
     :param vhost: virtual host
+    :param ssl_auth_auth: Flag for ssl_auth connection
     :return:
     """
     # TODO: check -  this is the only request call.. others ar grequest calls
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
-    prefix = get_url_prefix(ssl)
-    user, password = get_authentication_args(ssl)
+    prefix = get_url_prefix(ssl_auth)
+
     url = '{prefix}/api/policies/{vhost}'.format(prefix=prefix,
                                                  vhost=vhost)
-    kwargs = get_authentication_args(ssl)
+    kwargs = get_authentication_args(ssl_auth)
     response = requests.get(url, **kwargs)
     return response.json() if response else response
 
 
-def get_policy(name, vhost=None, ssl=True):
+def get_policy(name, vhost=None, ssl_auth=None):
     """
     Get a specific policy
     :param name: policy name
-    :param user: username
-    :param password: password
     :param vhost: virtual host
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
     vhost = vhost if vhost else get_vhost()
     url = '/api/policies/{vhost}/{name}'.format(vhost=vhost, name=name)
-    response = http_get_request(url, ssl)
+    response = http_get_request(url, ssl_auth)
     return response.json() if response else response
 
 
 # value = {"pattern":"^amq.", "definition": {"federation-upstream-set":"all"}, "priority":0, "apply-to": "all"}
-def set_policy(name, value, vhost=None, ssl=True):
+def set_policy(name, value, vhost=None, ssl_auth=None):
     """
     Set a policy. For example a federation policy
     :param name: policy name
     :param value: policy value
-    :param user:
-    :param password:
-    :param vhost:
+    :param vhost: virtual host
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
-    # user = user if user else get_user()
-    # password = password if password else get_password()
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
     url = '/api/policies/{vhost}/{name}'.format(vhost=vhost, name=name)
-    response = http_put_request(url, body=value, ssl=ssl)
+    response = http_put_request(url, body=value, ssl_auth=ssl_auth)
 
-def delete_policy(name, vhost=None, ssl=True):
+def delete_policy(name, vhost=None, ssl_auth=None):
+    """
+    Delete a policy
+    :param name: policy name
+    :param vhost: virtual host
+    :param ssl_auth: Flag for SSL connection
+    :return:
+    """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
     url = '/api/policies/{vhost}/{name}'.format(vhost=vhost, name=name)
-    response = http_delete_request(url, ssl)
+    response = http_delete_request(url, ssl_auth)
 
 
 # Exchanges - Create/delete/List exchanges
-#properties = dict(durable=False, type='topic', auto_delete=True, arguments={"alternate-exchange": "aexc"})
+# properties = dict(durable=False, type='topic', auto_delete=True, arguments={"alternate-exchange": "aexc"})
 # properties = dict(durable=False, type='direct', auto_delete=True)
-def create_exchange(exchange, properties, vhost=None, ssl=True):
+def create_exchange(exchange, properties, vhost=None, ssl_auth=None):
     """
     Create a new exchange
     :param exchange: exchange name
     :param properties: dict containing properties
     :param vhost: virtual host
-    :param ssl:
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
     vhost = vhost if vhost else get_vhost()
-    print "Create new exchange: {}".format(exchange)
+    _log.debug("Create new exchange: {}".format(exchange))
     url = '/api/exchanges/{vhost}/{exchange}'.format(vhost=vhost,
                                                      exchange=exchange)
-    response = http_put_request(url, body=properties, ssl=ssl)
+    response = http_put_request(url, body=properties, ssl_auth=ssl_auth)
 
 
-def delete_exchange(exchange, vhost=None, ssl=True):
+def delete_exchange(exchange, vhost=None, ssl_auth=None):
     """
     Delete a exchange
     :param exchange: exchange name
     :param vhost: virtual host
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
     url = '/api/exchanges/{vhost}/{exchange}'.format(vhost=vhost,
                                                      exchange=exchange)
-    response = http_delete_request(url, ssl)
+    response = http_delete_request(url, ssl_auth)
 
 
-def get_exchanges(vhost=None, ssl=True):
+def get_exchanges(vhost=None, ssl_auth=None):
     """
     List all exchanges
-    :param user:
-    :param password:
-    :param vhost:
+    :param vhost: virtual host
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
     url = '/api/exchanges/{vhost}'.format(vhost=vhost)
-    response = http_get_request(url, ssl)
+    response = http_get_request(url, ssl_auth)
     exchanges = []
 
     if response:
@@ -532,58 +592,58 @@ def get_exchanges(vhost=None, ssl=True):
     return exchanges
 
 
-def get_exchanges_with_props(vhost=None, ssl=True):
+def get_exchanges_with_props(vhost=None, ssl_auth=None):
     """
     List all exchanges with properties
-    :param user:
-    :param password:
-    :param vhost:
+    :param vhost: virtual host
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
     url = '/api/exchanges/{vhost}'.format(vhost=vhost)
-    return http_get_request(url, ssl)
+    return http_get_request(url, ssl_auth)
 
 
 # Queues - Create/delete/List queues
-#properties = dict(durable=False, auto_delete=True)
-def create_queue(queue, properties, vhost=None, ssl=True):
+# properties = dict(durable=False, auto_delete=True)
+def create_queue(queue, properties, vhost=None, ssl_auth=None):
     """
     Create a new queue
     :param queue: queue
     :param properties: dict containing properties
-    :param vhost:
+    :param vhost: virtual host
+    :param ssl_auth: Flag for SSL connection
     :return:
     """
     vhost = vhost if vhost else get_vhost()
     url = '/api/queues/{vhost}/{queue}'.format(vhost=vhost, queue=queue)
-    response = http_put_request(url, body=properties, ssl=ssl)
+    response = http_put_request(url, body=properties, ssl_auth=ssl_auth)
 
 
-def delete_queue(queue, user=None, password=None, vhost=None, ssl=True):
+def delete_queue(queue, user=None, password=None, vhost=None, ssl_auth=None):
     """
     Delete a queue
     :param queue: queue
     :param vhost: virtual host
     :return:
     """
-    user = user if user else get_user()
-    password = password if password else get_password()
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
     url = '/api/queues/{vhost}/{queue}'.format(vhost=vhost, queue=queue)
-    response = http_delete_request(url, ssl)
+    response = http_delete_request(url, ssl_auth)
 
 
-def get_queues(user=None, password=None, vhost=None, ssl=True):
+def get_queues(user=None, password=None, vhost=None, ssl_auth=None):
     """
     Get list of queues
     :param user: username
     :param password: password
     :param vhost: virtual host
+    :param ssl: Flag for SSL connection
     :return:
     """
-    user = user if user else get_user()
-    password = password if password else get_password()
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
     url = '/api/queues/{vhost}'.format(vhost=vhost)
     response = http_get_request(url, ssl)
@@ -593,21 +653,21 @@ def get_queues(user=None, password=None, vhost=None, ssl=True):
     return queues
 
 
-def get_queues_with_props(vhost=None, ssl=True):
+def get_queues_with_props(vhost=None, ssl_auth=None):
     """
     Get properties of all queues
-    :param user: username
-    :param password: password
     :param vhost: virtual host
+    :param ssl: Flag for SSL connection
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
     url = '/api/queues/{vhost}'.format(vhost=vhost)
-    return http_get_request(url, ssl)
+    return http_get_request(url, ssl_auth)
 
 
 # List all open connections
-def get_connections(vhost=None, ssl=True):
+def get_connections(vhost=None, ssl_auth=None):
     """
     Get all connections
     :param user: username
@@ -615,76 +675,74 @@ def get_connections(vhost=None, ssl=True):
     :param vhost: virtual host
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     vhost = vhost if vhost else get_vhost()
     url = '/api/vhosts/{vhost}/connections'.format(vhost=vhost)
-    response = http_get_request(url, ssl)
+    response = http_get_request(url, ssl_auth)
     return response
 
 
-def get_connection(name, ssl=True):
+def get_connection(name, ssl_auth=None):
     """
     Get status of a connection
     :param name: connection name
-    :param user: username
-    :param password: password
-    :param vhost: virtual host
+    :param ssl: Flag for SSL connection
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     url = '/api/connections/{name}'.format(name=name)
-    response = http_get_request(url, ssl)
+    response = http_get_request(url, ssl_auth)
     return response.json() if response else response
 
 
-def delete_connection(name, ssl=True):
+def delete_connection(name, ssl_auth=None):
     """
     Delete open connection
-    :param host:
-    :param port:
-    :param name:
-    :param user:
-    :param password:
-    :param vhost:
+    :param name: connection name
+    :param ssl: Flag for SSL connection
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     url = '/api/connections/{name}'.format(name=name)
-    response = http_delete_request(url, ssl)
+    response = http_delete_request(url, ssl_auth)
 
 
-# List all open channels for a given channel
-def list_channels_for_connection(connection, ssl=True):
+def list_channels_for_connection(connection, ssl_auth=None):
+    """
+    List all open channels for a given channel
+    :param connection: connnection name
+    :param ssl: Flag for SSL connection
+    :return:
+    """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     url = '/api/connections/{conn}/channels'.format(conn=connection)
-    return http_get_request(url, ssl)
+    return http_get_request(url, ssl_auth)
 
 
-def list_channels_for_vhost(vhost=None, ssl=True):
+def list_channels_for_vhost(vhost=None, ssl_auth=None):
     """
     List all open channels for a given vhost
-    :param host:
-    :param port:
-    :param user:
-    :param password:
-    :param vhost:
+    :param vhost: virtual host
+    :param ssl: Flag for SSL connection
     :return:
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     url = '/api/vhosts/{vhost}/channels'.format(vhost=vhost)
-    response = http_get_request(url, ssl)
+    response = http_get_request(url, ssl_auth)
     return response.json() if response else response
 
 
-def get_bindings(exchange):
+def get_bindings(exchange, ssl_auth=None):
     """
     List all bindings in which a given exchange is the source
     :param exchange: source exchange
-    :param user: user id
-    :param password: password
-    :param vhost: virtual host
+    :param ssl: Flag for SSL connection
     :return: list of bindings
     """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     url = '/api/exchanges/{vhost}/{exchange}/bindings/source'.format(
         vhost=get_vhost(), exchange=exchange)
-    response = http_get_request(url)
-    # if isinstance(response, list):
-    #     response = response[0]
+    response = http_get_request(url, ssl_auth)
     return response
 
 
@@ -702,24 +760,26 @@ def init_rabbitmq_setup():
     if not config_opts:
         _load_rmq_config()
     vhost = config_opts['virtual-host']
-
     # Create a new "volttron" vhost
-    create_vhost(vhost, ssl=False)
-
+    response = create_vhost(vhost, ssl_auth=False)
+    if not response:
+        print("Remove /etc/rabbitmq/rabbitmq.conf, restart rabbitmq-server and try again")
+        return response
     exchange = 'volttron'
     alternate_exchange = 'undeliverable'
     # Create a new "volttron" exchange. Set up alternate exchange to capture
     # all unroutable messages
     properties = dict(durable=True, type='topic',
                       arguments={"alternate-exchange": alternate_exchange})
-    create_exchange(exchange, properties=properties, vhost=vhost, ssl=False)
+    create_exchange(exchange, properties=properties, vhost=vhost, ssl_auth=False)
 
     # Create alternate exchange to capture all unroutable messages.
     # Note: Pubsub messages with no subscribers are also captured which is
     # unavoidable with this approach
     properties = dict(durable=True, type='fanout')
     create_exchange(alternate_exchange, properties=properties, vhost=vhost,
-                    ssl=False)
+                    ssl_auth=False)
+    return True
 
 
 def create_federation_setup():
@@ -756,13 +816,30 @@ def create_federation_setup():
                config_opts['virtual-host'])
 
 
-def is_valid_port(port):
+def is_valid_amqp_port(port):
     try:
         port = int(port)
     except ValueError:
         return False
 
     return port == 5672 or port == 5671
+
+
+def is_ssl_connection():
+    global config_opts
+    if not config_opts:
+        _load_rmq_config()
+    auth = config_opts.get('ssl', 'true')
+    return auth in ('true', 'True', 'TRUE')
+
+
+def is_valid_mgmt_port(port):
+    try:
+        port = int(port)
+    except ValueError:
+        return False
+
+    return port == 15672 or port == 15671
 
 
 def delete_multiplatform_parameter(component, parameter_name, user=None, password=None, vhost=None):
@@ -805,6 +882,13 @@ def set_initial_rabbit_config(instance_name):
     prompt = 'What is the name of the virtual host under which Rabbitmq VOLTTRON will be running?'
     new_vhost = prompt_response(prompt, default=vhost)
     config_opts['virtual-host'] = new_vhost
+    prompt = prompt_response('\nDo you want SSL Authentication',
+                             valid_answers=y_or_n,
+                             default='Y')
+    if prompt in y:
+        config_opts['ssl'] = "true"
+    else:
+        config_opts['ssl'] = "false"
     prompt = prompt_response('\nUse default rabbitmq configuration ',
                              valid_answers=y_or_n,
                              default='Y')
@@ -813,16 +897,18 @@ def set_initial_rabbit_config(instance_name):
         config_opts['pass'] = "guest"
         config_opts['host'] = 'localhost'
         config_opts['amqp-port'] = '5672'
-        config_opts['port'] = '15672'
-        config_opts['rmq-address'] = build_rmq_address(ssl=False)
+        config_opts['mgmt-port'] = '15672'
+        config_opts['rmq-address'] = build_rmq_address(ssl_auth=False)
         config_opts.sync()
     else:
         config_opts['user'] = "guest"
         prompt = 'What is the password for RabbitMQ default guest user?'
         new_pass = prompt_response(prompt, default="guest")
-        config_opts['user'] = "guest"
-        config_opts['pass'] = new_pass
+        config_opts['pass'] = "guest"
 
+        prompt = 'What is the hostname of system?'
+        new_host = prompt_response(prompt, default='locahost')
+        config_opts['host'] = new_host
         # TODO - How to configure port other than 5671 for ssl - validate should
         # check if port is not 5672.
         port = config_opts.get('amqp-port', 5672)
@@ -830,63 +916,78 @@ def set_initial_rabbit_config(instance_name):
         valid_port = False
         while not valid_port:
             port = prompt_response(prompt, default=port)
-            valid_port = is_valid_port(port)
+            valid_port = is_valid_amqp_port(port)
             if not valid_port:
                 print("Port is not valid")
         config_opts['amqp-port'] = str(port)
 
-        port = config_opts.get('port', 15672)
+        port = config_opts.get('mgmt-port', 15672)
         prompt = 'What is the instance port for the RabbitMQ management plugin?'
         valid_port = False
         while not valid_port:
             port = prompt_response(prompt, default=port)
-            valid_port = is_valid_port(port)
+            valid_port = is_valid_mgmt_port(port)
             if not valid_port:
                 print("Port is not valid")
-        config_opts['port'] = str(port)
+        config_opts['mgmt-port'] = str(port)
 
-        config_opts['rmq-address'] = build_rmq_address(ssl=False)
+        config_opts['rmq-address'] = build_rmq_address(ssl_auth=False)
         config_opts.sync()
         #print config_opts
 
 
-def build_connection_param(identity, instance_name):
+def build_connection_param(identity, instance_name, ssl_auth=None):
+    """
+    Build Pika Connection parameters
+    :param identity:
+    :param instance_name:
+    :param ssl:
+    :return:
+    """
     global config_opts
     if not config_opts:
         _load_rmq_config()
 
-    # ssl_options = {"ca_certs": "/home/velo/.volttron_r/certificates/certs"
-    #                            "/volttron-ca.crt",
-    #                "ssl_version": ssl.PROTOCOL_TLSv1}
-    ssl_options = dict(
-                        ssl_version=ssl.PROTOCOL_TLSv1,
-                        ca_certs=os.path.join(certs.DEFAULT_CERTS_DIR,
-                                              "certs",
-                                              instance_name+"-ca.crt"),
-                        keyfile=os.path.join(certs.DEFAULT_CERTS_DIR,
-                                             "private",
-                                             identity+".pem"),
-                                             #config_opts['user']+".pem"),
-                        certfile=os.path.join(certs.DEFAULT_CERTS_DIR,
-                                              "certs",
-                                              identity+".crt"),
-                                              #config_opts['user']+".crt"),
-                        cert_reqs=ssl.CERT_REQUIRED)
-    conn_params = pika.ConnectionParameters(
-        host=config_opts['host'],
-        port=int(config_opts['amqp-port']),
-        virtual_host=config_opts['virtual-host'],
-        ssl=True,
-        ssl_options=ssl_options,
-        credentials=pika.credentials.ExternalCredentials())
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
+
+    try:
+        if ssl_auth:
+            ssl_options = dict(
+                                ssl_version=ssl.PROTOCOL_TLSv1,
+                                ca_certs=os.path.join(certs.DEFAULT_CERTS_DIR,
+                                                      "certs",
+                                                      instance_name+"-ca.crt"),
+                                keyfile=os.path.join(certs.DEFAULT_CERTS_DIR,
+                                                     "private",
+                                                     identity+".pem"),
+                                certfile=os.path.join(certs.DEFAULT_CERTS_DIR,
+                                                      "certs",
+                                                      identity+".crt"),
+                                cert_reqs=ssl.CERT_REQUIRED)
+            conn_params = pika.ConnectionParameters(
+                host=config_opts['host'],
+                port=int(config_opts['amqp-port']),
+                virtual_host=config_opts['virtual-host'],
+                ssl=True,
+                ssl_options=ssl_options,
+                credentials=pika.credentials.ExternalCredentials())
+        else:
+                conn_params = pika.ConnectionParameters(
+                    host=config_opts['host'],
+                    port=int(config_opts['amqp-port']),
+                    virtual_host=config_opts['virtual-host'],
+                    credentials=pika.credentials.PlainCredentials(identity, identity))
+    except KeyError:
+        return None
     return conn_params
 
 
-def build_rmq_address(ssl=True):
+def build_rmq_address(ssl_auth=None):
     global config_opts
     if not config_opts:
         _load_rmq_config()
 
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     user = get_user()
     pwd = get_password()
     rmq_address = None
@@ -902,32 +1003,50 @@ def build_rmq_address(ssl=True):
                             vhost=config_opts['virtual-host'],
                             ssl_params=get_ssl_url_params())
         else:
-            rmq_address = "amqp://{0}:{1}@{2}:{3}/{4}".format(
-                user, pwd, config_opts['host'], config_opts['amqp-port'],
-                config_opts[ 'virtual-host'])
-    except KeyError:
-        print "Missing entries in rabbitmq config"
+            rmq_address = "amqp://{user}:{pwd}@{host}:{port}/{vhost}".format(
+                user=user, pwd=pwd, host=config_opts['host'], port=config_opts['amqp-port'],
+                vhost=config_opts[ 'virtual-host'])
+    except KeyError as e:
+        print("Missing entries in rabbitmq config {}".format(e))
         raise
 
     return rmq_address
 
 
-def create_user_certs(identity, user_permissions):
+def create_user_certs(identity):
+    """
+    Create certs for agent
+    :param identity: identity of agent
+    :return:
+    """
     crts = certs.Certs()
     # If no certs for this agent, create a new one
     if not crts.cert_exists(identity):
         crts.create_ca_signed_cert(identity)
+
+
+def create_user_with_permissions(identity, permissions, ssl_auth=None):
+    """
+    Create RabbitMQ user for an agent and set permissions for it.
+    :param identity: Identity of agent
+    :param permissions: Configure+Read+Write permissions
+    :param is_ssl: Flag to indicate if SSL connection or not
+    :return:
+    """
     # If user does not exist, create a new one
-    if identity not in get_users():
-        create_user(identity)
-    permissions = get_user_permissions(identity)
+    if not ssl_auth:
+        ssl_auth = is_ssl_connection()
+    if identity not in get_users(ssl_auth):
+        create_user(identity, identity, ssl_auth=ssl_auth)
+    perms = get_user_permissions(identity, ssl_auth=ssl_auth)
     # Add user permissions if missing
-    if not permissions:
-        permissions = dict(configure=user_permissions['configure'],
-                           read=user_permissions['read'],
-                           write=user_permissions['write'])
-        _log.debug("permissions: {}".format(permissions))
-        set_user_permissions(permissions, identity)
+    if not perms:
+        perms = dict(configure=permissions['configure'],
+                           read=permissions['read'],
+                           write=permissions['write'])
+        _log.debug("permissions: {}".format(perms))
+        set_user_permissions(perms, identity, ssl_auth=ssl_auth)
+
 
 def _is_valid_rmq_url():
     """
@@ -979,6 +1098,10 @@ def _get_upstream_servers():
 
 
 def _get_shovel_settings():
+    """
+    Get Shovel settings from user
+    :return:
+    """
     global config_opts, crts
     if not config_opts:
         _load_rmq_config()
@@ -1040,7 +1163,7 @@ def create_shovel_setup():
         return
     platform_config = load_platform_config()
     shovels = config_opts.get('shovels', [])
-    src_uri = build_rmq_address(ssl=True)
+    src_uri = build_rmq_address(ssl_auth=True)
     for shovel in shovels:
         name = shovel['shovel_name']
         dest_uri = shovel['remote_address']
@@ -1082,14 +1205,14 @@ def wizard(type):
     # Store config this is checked at startup
     store_message_bus_config(message_bus='rmq', instance_name=instance_name)
 
-
     if type == 'single':
-        # # Get vhost from the user
+        # Get vhost from the user
         set_initial_rabbit_config(instance_name)
         # Create local RabbitMQ setup
-        init_rabbitmq_setup()
-        setup_for_ssl_auth(instance_name)
-
+        response = init_rabbitmq_setup()
+        ssl_auth = config_opts.get('ssl', "true")
+        if response and ssl_auth in ('true', 'True', 'TRUE'):
+            setup_for_ssl_auth(instance_name)
     elif type == 'federation':
         _load_rmq_config()
         # Create a federation setup
@@ -1154,8 +1277,8 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
     config_opts['user'] = user
     config_opts['pass'] = ""
     config_opts['amqp-port'] = '5671'
-    config_opts['port'] = '15671'
-    config_opts['rmq-address'] = build_rmq_address(ssl=True)
+    config_opts['mgmt-port'] = '15671'
+    config_opts['rmq-address'] = build_rmq_address(ssl_auth=True)
     config_opts.sync()
 
 
@@ -1220,6 +1343,9 @@ def create_certs(client_cert_name, instance_ca_name, server_cert_name):
                                               'file for this instance CA:')
             found = verify_and_save_instance_ca(instance_ca_path,
                                                 instance_ca_key)
+            # get instance cert name
+            filename = os.path.basename(instance_ca_path)
+            instance_ca_name = os.path.splitext(filename)[0]
     crts.create_ca_signed_cert(server_cert_name, type='server',
                                ca_name=instance_ca_name,
                                fqdn=config_opts.get('host'))
@@ -1227,9 +1353,9 @@ def create_certs(client_cert_name, instance_ca_name, server_cert_name):
     # set_user_permissions(permissions, server_cert_name)
     crts.create_ca_signed_cert(client_cert_name, type='client',
                                ca_name=instance_ca_name)
-    create_user(client_cert_name, ssl=False)
+    create_user(client_cert_name, ssl_auth=False)
     permissions = dict(configure=".*", read=".*", write=".*")
-    set_user_permissions(permissions, client_cert_name, ssl=False)
+    set_user_permissions(permissions, client_cert_name, ssl_auth=False)
 
 
 def verify_and_save_instance_ca(instance_ca_path, instance_ca_key):
@@ -1250,6 +1376,49 @@ def get_cert_names(instance_name=None):
     if not instance_name:
         instance_name = get_platform_instance_name()
     return instance_name + '-ca', instance_name+"-server", instance_name
+
+
+def create_rmq_volttron_test_setup(volttron_home, host='localhost'):
+    global config_opts
+    _load_rmq_config(volttron_home)
+    #print(config_opts)
+    ssl_auth = False
+    # Set vhost, username, password, hostname and port
+    config_opts['virtual-host'] = 'volttron_test'
+    config_opts['user'] = 'test_user'
+    config_opts['pass'] = 'test_user'
+    config_opts['host'] = host
+    config_opts['amqp-port'] = str(5672)
+    config_opts['mgmt-port'] = str(15672)
+    config_opts['ssl'] = str(ssl_auth)
+    config_opts['rmq-address'] = build_rmq_address(ssl_auth=False)
+    config_opts.async_sync()
+    init_rabbitmq_setup()
+    create_user_with_permissions('test_user', dict(configure=".*", read=".*", write=".*"), ssl_auth=ssl_auth)
+
+
+def cleanup_rmq_volttron_test_setup(volttron_home):
+    global config_opts
+    _load_rmq_config(volttron_home)
+    try:
+        vhost = config_opts.get('virtual-host', 'volttron_test')
+        users = get_users(ssl_auth=False)
+        users.remove('guest')
+        users_to_remove = []
+        for user in users:
+            perm = get_user_permissions(user, vhost, ssl_auth=False)
+            print perm
+            if perm:
+                users_to_remove.append(user)
+        print("Users to remove: {}".format(users_to_remove))
+        # Delete all the users using virtual host
+        for user in users_to_remove:
+            delete_user(user)
+        # Finally delete the virtual host
+        delete_vhost(config_opts['virtual-host'])
+    except KeyError as e:
+        return
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)

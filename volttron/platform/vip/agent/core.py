@@ -73,9 +73,10 @@ from ..rmq_connection import RMQConnection
 from ..socket import Message
 from gevent.queue import Queue
 from volttron.platform.agent.utils import load_platform_config
-from volttron.platform import certs
 from volttron.utils.rmq_mgmt import create_user_certs, \
-    build_connection_param as build_rmq_connection_param
+    build_connection_param as build_rmq_connection_param, \
+    is_ssl_connection, \
+    create_user_with_permissions as create_rmq_user_with_permissions
 
 __all__ = ['BasicCore', 'Core', 'RMQCore', 'ZMQCore', 'killing']
 
@@ -461,6 +462,8 @@ class ZMQCore(BasicCore):
         self.messagebus = messagebus
         self._set_keys()
 
+        _log.debug("AGENT RUNNING on ZMQ Core {}".format(self.identity))
+
         _log.debug('address: %s', address)
         _log.debug('identity: %s', identity)
         _log.debug('agent_uuid: %s', agent_uuid)
@@ -823,8 +826,10 @@ class RMQCore(BasicCore):
         _log.debug("instance:{}".format(self.instance_name))
         self._event_queue = gevent.queue.Queue
 
+        _log.debug("AGENT RUNNING on RMQ Core {}".format(self.identity))
+
         _log.debug('address: %s', address)
-        _log.debug('identity: %s', identity)
+        _log.debug('identity: %s', self.identity)
         _log.debug('agent_uuid: %s', agent_uuid)
         _log.debug('serverkey: %s', serverkey)
 
@@ -871,9 +876,13 @@ class RMQCore(BasicCore):
             read_access = "volttron|{}".format(config_access)
             write_access = "volttron|{}".format(config_access)
             permissions = dict(configure=config_access, read=read_access, write=write_access)
-            create_user_certs(self.identity, permissions)
 
-            param = build_rmq_connection_param(self.identity, self.instance_name)
+            is_ssl = is_ssl_connection()
+            if is_ssl:
+                create_user_certs(self.identity)
+            create_rmq_user_with_permissions(self.identity, permissions, ssl_auth=is_ssl)
+
+            param = build_rmq_connection_param(self.identity, self.instance_name, ssl_auth=is_ssl)
 
         return param
 
@@ -955,7 +964,7 @@ class RMQCore(BasicCore):
                     subsystem = bytes(message.subsystem)
                     # _log.debug("Received new message {0}, {1}, {2}, {3}".format(subsystem,
                     #                                                              message.id,
-                    #                                                              len(message.args),
+                    #                                                              state.ident,
                     #                                                              message.args[0]))
                     if subsystem == b'hello':
                         if (subsystem == b'hello' and

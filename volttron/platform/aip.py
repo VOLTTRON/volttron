@@ -66,8 +66,10 @@ from .packages import UnpackedPackage
 from .vip.agent import Agent
 from .keystore import KeyStore
 from .auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
-from volttron.utils.rmq_mgmt import create_user_certs, \
-    delete_user as delete_rmq_user
+from volttron.utils.rmq_mgmt import create_user_certs as create_rmq_user_certs, \
+    delete_user as delete_rmq_user, \
+    create_user_with_permissions as create_rmq_user_with_permissions, \
+    is_ssl_connection
 try:
     from volttron.restricted import auth
     from volttron.restricted.resmon import ResourceError
@@ -663,9 +665,12 @@ class AIPplatform(object):
             read_access = "volttron|{}".format(config_access)
             write_access = "volttron|{}".format(config_access)
             permissions = dict(configure=config_access, read=read_access, write=write_access)
-            create_user_certs(agent_vip_identity, permissions)
+            ssl = is_ssl_connection()
+            if ssl:
+                _log.info("Created agent cert")
+                create_rmq_user_certs(agent_vip_identity)
+            create_rmq_user_with_permissions(agent_vip_identity, permissions)
 
-        _log.info("Created agent cert")
         module, _, func = module.partition(':')
         if func:
             code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module, func)

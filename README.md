@@ -370,7 +370,6 @@ We request you to explore and contribute towards development of VOLTTRON message
 * Test scripts for RabbitMQ message bus.
 * Scalability tests for large scale VOLTTRON deployment.
 
-
 ## Acquiring Third Party Agent Code
 Third party agents are available under volttron-applications repository. In order to use those agents, add volttron-applications repository under the volttron/applications directory by using following command:
 
