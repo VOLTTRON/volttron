@@ -169,7 +169,7 @@ def volttron_instance_module_web(request):
 # Use this fixture when you want a single instance of volttron platform for
 # test
 @pytest.fixture(scope="module",
-                params=['rmq'])
+                params=['zmq', 'rmq'])
 def volttron_instance(request):
     """Fixture that returns a single instance of volttron platform for testing
 
@@ -244,3 +244,26 @@ def get_volttron_instances(request):
     request.addfinalizer(cleanup)
 
     return get_n_volttron_instances
+
+
+# Use this fixture when you want a single instance of volttron platform for zmq message bus
+# test
+@pytest.fixture(scope="module")
+def volttron_instance_zmq(request):
+    """Fixture that returns a single instance of volttron platform for testing
+
+    @param request: pytest request object
+    @return: volttron platform instance
+    """
+    wrapper = None
+    address = get_rand_vip()
+
+    wrapper = build_wrapper(address)
+
+
+    def cleanup():
+        print('Shutting down instance: {}'.format(wrapper.volttron_home))
+        wrapper.shutdown_platform()
+
+    request.addfinalizer(cleanup)
+    return wrapper
