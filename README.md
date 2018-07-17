@@ -152,10 +152,11 @@ also install the dependencies for rabbimq.  Activate the environment :
 python volttron/utils/rmq_mgmt.py single
 ```
 
+User can choose to run with or without authentication by choosing Y/N when prompted. Description below explains the steps when user chooses to run the platform with SSL based authentication.
 This creates a new virtual host “volttron” and creates ssl certificates needed for this VOLTTRON instance. These certificates get created under the sub directory "certificates" in your VOLTTRON home (typically in ~/.volttron). It then creates the main VIP exchange named "volttron" to route message between platform and agents and alternate exchange to capture unrouteable messages.
 
 This script prompt for multiple information from the user regarding the VOLTTRON instance for which we are configuring rabbitmq. For each VOLTTRON instance there a single instance-ca certificate is created. All VOLTTRON instances that need to work together in a federation/shovel setup needs to have a instance-ca certificate signed by the same root CA.  A single VOLTTRON instance can create a self signed root ca. Instance-ca for all VOLTTRON instances should be generated in this VOLTTRON instance and should be scp-ed into the other instance.
-
+ 
 Following is the example inputs for rmq_mgmt.py single command for VOLTTRON instance that has root CA.
 ```sh
 python volttron/utils/rmq_mgmt.py single
@@ -163,6 +164,8 @@ Your VOLTTRON_HOME currently set to: /home/velo/new_volttron
 Is this the volttron instance you are attempting to configure rabbitmq for? [Y]:
 
 What is the name of the virtual host under which Rabbitmq VOLTTRON will be running? [volttron]:
+
+Do you want SSL Authentication [Y]: 
 
 Use default rabbitmq configuration [Y]:
 
