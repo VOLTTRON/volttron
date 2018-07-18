@@ -118,9 +118,9 @@ task_manager = TaskManager()
 
 
 class BACnet_application(BIPSimpleApplication, RecurringTask):
-    def __init__(self, i_am_callback, *args):
+    def __init__(self, i_am_callback, request_check_interval, *args):
         BIPSimpleApplication.__init__(self, *args)
-        RecurringTask.__init__(self, 5)
+        RecurringTask.__init__(self, request_check_interval)
 
         self.i_am_callback = i_am_callback
 
@@ -372,11 +372,13 @@ def bacnet_proxy_agent(config_path, **kwargs):
     obj_name = config.get("object_name", "Volttron BACnet driver")
     ven_id = config.get("vendor_id", 15)
     max_per_request = config.get("default_max_per_request", 1000000)
+    request_check_interval = config.get("request_check_interval", 5)
 
     return BACnetProxyAgent(device_address,
                             max_apdu_len, seg_supported,
                             obj_id, obj_name, ven_id,
                             max_per_request,
+                            request_check_interval=request_check_interval,
                             heartbeat_autostart=True,
                             **kwargs)
 
@@ -388,6 +390,7 @@ class BACnetProxyAgent(Agent):
     def __init__(self, device_address,
                  max_apdu_len, seg_supported,
                  obj_id, obj_name, ven_id, max_per_request,
+                 request_check_interval=5,
                  **kwargs):
         super(BACnetProxyAgent, self).__init__(**kwargs)
 
@@ -411,14 +414,16 @@ class BACnetProxyAgent(Agent):
 
         self.setup_device(async_call, device_address,
                           max_apdu_len, seg_supported,
-                          obj_id, obj_name, ven_id)
+                          obj_id, obj_name, ven_id,
+                          request_check_interval)
 
     def setup_device(self, async_call, address,
                      max_apdu_len=1024,
                      seg_supported='segmentedBoth',
                      obj_id=599,
                      obj_name='sMap BACnet driver',
-                     ven_id=15):
+                     ven_id=15,
+                     request_check_interval=5):
 
         _log.info('seg_supported '+str(seg_supported))
         _log.info('max_apdu_len '+str(max_apdu_len))
@@ -455,10 +460,13 @@ class BACnetProxyAgent(Agent):
 
         #i_am_callback('foo', 'bar', 'baz', 'foobar', 'foobaz')
 
-        self.this_application = BACnet_application(i_am_callback, this_device,
+        self.this_application = BACnet_application(i_am_callback,
+                                                   request_check_interval,
+                                                   this_device,
                                                    address)
 
-        kwargs = {"spin":0.1,
+        # Having a recurring task makes the spin value kind of irrelevant.
+        kwargs = {"spin": 0.1,
                   "sigterm": None,
                   "sigusr1": None}
 
