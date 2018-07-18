@@ -352,6 +352,7 @@ class BaseHistorianAgent(Agent):
                  message_publish_count=10000,
                  history_limit_days=None,
                  storage_limit_gb=None,
+                 sync_timestamp=False,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -390,6 +391,7 @@ class BaseHistorianAgent(Agent):
         self.no_insert = False
         self.no_query = False
         self.instance_name = None
+        self._sync_timestamp = sync_timestamp
 
         self._current_status_context = {
             STATUS_KEY_CACHE_COUNT: 0,
@@ -828,7 +830,8 @@ class BaseHistorianAgent(Agent):
                       device):
         # Anon the topic if necessary.
         topic = self.get_renamed_topic(topic)
-        timestamp_string = headers.get(headers_mod.DATE, None)
+        timestamp_string = headers.get(headers_mod.SYNC_TIMESTAMP if self._sync_timestamp else headers_mod.TIMESTAMP,
+                                       None)
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
             timestamp, my_tz = process_timestamp(timestamp_string, topic)
