@@ -120,7 +120,7 @@ task_manager = TaskManager()
 class BACnet_application(BIPSimpleApplication, RecurringTask):
     def __init__(self, i_am_callback, *args):
         BIPSimpleApplication.__init__(self, *args)
-        RecurringTask.__init__(self, 250)
+        RecurringTask.__init__(self, 5)
 
         self.i_am_callback = i_am_callback
 
