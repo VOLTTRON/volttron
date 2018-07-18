@@ -372,7 +372,7 @@ def bacnet_proxy_agent(config_path, **kwargs):
     obj_name = config.get("object_name", "Volttron BACnet driver")
     ven_id = config.get("vendor_id", 15)
     max_per_request = config.get("default_max_per_request", 1000000)
-    request_check_interval = config.get("request_check_interval", 5)
+    request_check_interval = config.get("request_check_interval", 100)
 
     return BACnetProxyAgent(device_address,
                             max_apdu_len, seg_supported,
@@ -390,7 +390,7 @@ class BACnetProxyAgent(Agent):
     def __init__(self, device_address,
                  max_apdu_len, seg_supported,
                  obj_id, obj_name, ven_id, max_per_request,
-                 request_check_interval=5,
+                 request_check_interval=100,
                  **kwargs):
         super(BACnetProxyAgent, self).__init__(**kwargs)
 
@@ -423,7 +423,7 @@ class BACnetProxyAgent(Agent):
                      obj_id=599,
                      obj_name='sMap BACnet driver',
                      ven_id=15,
-                     request_check_interval=5):
+                     request_check_interval=100):
 
         _log.info('seg_supported '+str(seg_supported))
         _log.info('max_apdu_len '+str(max_apdu_len))
