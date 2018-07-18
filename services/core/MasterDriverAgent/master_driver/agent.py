@@ -427,7 +427,8 @@ class MasterDriverAgent(Agent):
                 _log.info("Mean total publish time: "+str(mean))
                 _log.info("Std dev publish time: "+str(stdev))
                 sys.exit(0)
-        
+
+    # TODO piggyback this for forwarding the value to the DriverAgent
     @RPC.export
     def get_point(self, path, point_name, **kwargs):
         """RPC method
@@ -767,6 +768,18 @@ class MasterDriverAgent(Agent):
             #If device is in list of overriden devices, remove it.
             if device in self._override_devices:
                 self._override_devices.remove(device)
+
+    @RPC.export
+    def forward_bacnet_cov_value(self, device_identifier, source_address, object_identifier, list_of_values):
+
+        for instance in self.instances:
+            if instance.interface.target_address == source_address:
+                driver = instance
+        if driver:
+            driver.publish_cov_value(object_identifier, list_of_values)
+        else:
+            sys.stderr('No driver agent found for device {}'.format(device_identifier))
+
 
 def main(argv=sys.argv):
     """Main method called to start the agent."""

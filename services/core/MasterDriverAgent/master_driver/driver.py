@@ -334,6 +334,7 @@ class DriverAgent(BasicAgent):
 
         parts = depth_first.split('/')
         breadth_first_parts = parts[1:]
+        breadth_first_parts = parts[1:]
         breadth_first_parts.reverse()
         breadth_first_parts = [DRIVER_TOPIC_BASE] + breadth_first_parts
         breadth_first = '/'.join(breadth_first_parts)
@@ -365,3 +366,21 @@ class DriverAgent(BasicAgent):
     def revert_all(self, **kwargs):
         self.interface.revert_all(**kwargs)
 
+    def publish_cov_value(self, point_name, point_values):
+        utcnow = utils.get_aware_utc_now()
+        utcnow_string = utils.format_timestamp(utcnow)
+        headers = {
+            headers_mod.DATE: utcnow_string,
+            headers_mod.TIMESTAMP: utcnow_string,
+        }
+        depth_first_topic, breadth_first_topic = self.get_paths_for_point(self.get_point(point_name))
+        message = [point_name, point_values]
+        if self.publish_depth_first:
+            self._publish_wrapper(depth_first_topic,
+                                  headers=headers,
+                                  message=message)
+
+        if self.publish_breadth_first:
+            self._publish_wrapper(breadth_first_topic,
+                                  headers=headers,
+                                  message=message)

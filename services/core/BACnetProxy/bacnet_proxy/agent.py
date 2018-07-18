@@ -55,6 +55,7 @@ __version__ = '0.4'
 import os.path
 import errno
 from volttron.platform.agent import json as jsonapi
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from collections import defaultdict
 
 from Queue import Queue, Empty
@@ -87,7 +88,9 @@ from bacpypes.apdu import (ReadPropertyRequest,
                            encode_max_apdu_length_accepted,
                            WhoIsRequest,
                            IAmRequest,
-                           ConfirmedRequestSequence)
+                           ConfirmedRequestSequence,
+                           SubscribeCOVRequest,
+                           ConfirmedCOVNotificationRequest)
 from bacpypes.primitivedata import (Null, Atomic, Enumerated, Integer,
                                     Unsigned, Real)
 from bacpypes.constructeddata import Array, Any, Choice
@@ -116,12 +119,31 @@ task_manager = TaskManager()
 #     def set_exception(self, exception):
 #         self.ioCall.send(None, self.ioResult.set_exception, exception)
 
+subCovContexts = {}
+# Arbitrary unique Identifier for subscription contexts
+subProcessID = 1
+
+class SubscriptionContext:
+
+    def __init__(self, address, object_id, lifetime=None):
+        global subCovContexts, subProcessID
+
+        self.address = address
+
+        self.subscriberProcessIdentifier = subProcessID
+        subProcessID += 1
+
+        # Append to contexts, TODO remove from contexts when the subscription ends?
+        subCovContexts[self.subscriberProcessIdentifier] = self
+
+        self.monitoredObjectIdentifier = object_id
+        self.lifetime = lifetime
+
 
 class BACnet_application(BIPSimpleApplication, RecurringTask):
     def __init__(self, i_am_callback, *args):
         BIPSimpleApplication.__init__(self, *args)
         RecurringTask.__init__(self, 250)
-
         self.i_am_callback = i_am_callback
 
         self.request_queue = Queue()
@@ -357,6 +379,18 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         # forward it along
         BIPSimpleApplication.indication(self, apdu)
 
+    def do_ConfirmedCOVNotifcationRequest(self, apdu):
+        if not isinstance(apdu, ConfirmedCOVNotificationRequest):
+            _log.error()
+
+        self.vip.rpc.call(PLATFORM_DRIVER, 'forward_bacnet_cov_value',
+                        apdu.initiatingDeviceIdentifier,
+                        apdu.pduSource, apdu.monitoredObjectIdentifer,
+                        apdu.listOfValues)
+
+        response = SimpleAckPDU(context=apdu)
+        self.response(response)
+
 
 write_debug_str = ("Writing: {target} {type} {instance} {property} (Priority: "
                    "{priority}, Index: {index}): {value}")
@@ -455,8 +489,7 @@ class BACnetProxyAgent(Agent):
 
         #i_am_callback('foo', 'bar', 'baz', 'foobar', 'foobaz')
 
-        self.this_application = BACnet_application(i_am_callback, this_device,
-                                                   address)
+        self.this_application = BACnet_application(i_am_callback, this_device, address)
 
         kwargs = {"spin":0.1,
                   "sigterm": None,
@@ -717,6 +750,22 @@ class BACnetProxyAgent(Agent):
                     result_dict[name] = value
 
         return result_dict
+
+    @RPC.export
+    def generate_COV_sub(self, target_address, device_id, object_type, instance_number, lifetime=None):
+        '''A lifetime of zero will function as a cancelation request'''
+        subscription = SubscriptionContext(target_address, device_id, lifetime)
+        covRequest = SubscribeCOVRequest(
+            subscriberProcessIdentifier=subscription.subscriberProcessIdentifier,
+            monitoredObjectIdentifier=(object_type, instance_number),
+            issueConfirmedNotifications=True
+        )
+        covRequest.pduDestination = Address(target_address)
+        iocb = self.iocb_class(covRequest)
+        self.this_application.submit_request(iocb)
+        # testing
+        if iocb.ioResponse:
+            sys.stdout(iocb.ioResponse);
 
 
 def main(argv=sys.argv):

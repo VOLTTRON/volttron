@@ -65,8 +65,6 @@ from volttron.platform.jsonrpc import RemoteError
 #Logging is completely configured by now.
 _log = logging.getLogger(__name__)
 
-
-
 class Register(BaseRegister):
     def __init__(self, instance_number, object_type, property_name, read_only, pointName, units,
                  description = '',
@@ -79,6 +77,8 @@ class Register(BaseRegister):
         self.priority = priority
         self.index = list_index
 
+DEFAULT_COV_LIFETIME = 60
+COV_UPDATE_BUFFER = 3
 
 class Interface(BaseInterface):
     def __init__(self, **kwargs):
@@ -96,6 +96,7 @@ class Interface(BaseInterface):
         self.max_per_request = config_dict.get("max_per_request")
         self.use_read_multiple = config_dict.get("use_read_multiple", True)
         self.timeout = float(config_dict.get("timeout", 30.0))
+        self.cov_
 
         self.ping_retry_interval = timedelta(seconds=config_dict.get("ping_retry_interval", 5.0))
         self.scheduled_ping = None
@@ -258,3 +259,25 @@ class Interface(BaseInterface):
                                 list_index = list_index)
 
             self.insert_register(register)
+
+            # COVIncrement for testing, each object has a cov detection algorithm, we likely only care about cov objects
+            # if lifetime is None, subscription will not die
+            # a new call to establish_cov_subscription with a lifetime will establish a timer for the sub
+            # setting renew to True will initiate auto renewal of the same lifetime
+            # will want logic to cancel renewals
+            if property_name == 'COVIncrement':
+                self.establish_cov_subscription(point_name, DEFAULT_COV_LIFETIME, False)
+
+    def establish_cov_subscription(self, point_name, lifetime, renew):
+        register = self.get_register_by_name(point_name)
+        try:
+            self.vip.rpc.call(self.proxy_address, 'generate_COV_sub', self.target_address, self.device_id,
+                              register.object_type, register.instance_number, lifetime=lifetime)
+        except errors.Unreachable:
+            _log.warning("Unable to reach BACnet proxy.")
+        # Schedule COV resubscribe
+        if renew & (lifetime > COV_UPDATE_BUFFER):
+            now = datetime.now()
+            next_sub_update = now + (lifetime - COV_UPDATE_BUFFER)
+            self.cov_update = self.core.schedule(next_sub_update, self.establish_cov_subscription(point_name, lifetime,
+                                                                                                  renew))
