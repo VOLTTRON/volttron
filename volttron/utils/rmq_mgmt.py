@@ -131,7 +131,8 @@ def get_authentication_args(ssl_auth):
         instance_name,config_opts
 
     if ssl_auth:
-        instance_ca, server_cert, client_cert = get_cert_names(instance_name)
+        instance_ca, server_cert, client_cert = certs.Certs.get_cert_names(
+            instance_name)
         admin_user = get_user()
         if admin_password is None:
             # prompt = 'What is the password for user({}):'.format(admin_user)
@@ -1013,18 +1014,6 @@ def build_rmq_address(ssl_auth=None):
     return rmq_address
 
 
-def create_user_certs(identity):
-    """
-    Create certs for agent
-    :param identity: identity of agent
-    :return:
-    """
-    crts = certs.Certs()
-    # If no certs for this agent, create a new one
-    if not crts.cert_exists(identity):
-        crts.create_ca_signed_cert(identity)
-
-
 def create_user_with_permissions(identity, permissions, ssl_auth=None):
     """
     Create RabbitMQ user for an agent and set permissions for it.
@@ -1144,8 +1133,8 @@ def _get_shovel_settings():
 
 def get_ssl_url_params():
     global crts, instance_name
-    platform_config = load_platform_config()
-    instance_ca, server_cert, client_cert = get_cert_names(instance_name)
+    instance_ca, server_cert, client_cert = certs.Certs.get_cert_names(
+        instance_name)
     ca_file = crts.cert_file(instance_ca)
     cert_file = crts.cert_file(client_cert)
     key_file = crts.private_key_file(client_cert)
@@ -1231,8 +1220,8 @@ def wizard(type):
 def setup_for_ssl_auth(instance_name):
     global config_opts
     print('\nChecking for CA certificate\n')
-    instance_ca_name, server_cert_name, client_cert_name = get_cert_names(
-        instance_name)
+    instance_ca_name, server_cert_name, client_cert_name = \
+        certs.Certs.get_cert_names(instance_name)
 
     host = config_opts.get('host', 'localhost')
     prompt = 'What is the fully qualified domain name of the system?'
@@ -1370,12 +1359,6 @@ def verify_and_save_instance_ca(instance_ca_path, instance_ca_key):
         crts.save_cert(instance_ca_path)
         crts.save_key(instance_ca_key)
     return found
-
-
-def get_cert_names(instance_name=None):
-    if not instance_name:
-        instance_name = get_platform_instance_name()
-    return instance_name + '-ca', instance_name+"-server", instance_name
 
 
 def create_rmq_volttron_test_setup(volttron_home, host='localhost'):

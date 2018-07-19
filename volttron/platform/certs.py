@@ -74,6 +74,7 @@ _log = logging.getLogger(__name__)
 
 ROOT_CA_NAME = 'volttron-ca'
 DEFAULT_ROOT_CA_CN = '{} {}'.format(gethostname(), ROOT_CA_NAME)
+DEFAULT_CERTS_DIR = os.path.join(get_home(), 'certificates')
 KEY_SIZE = 1024
 ENC_STANDARD = 65537
 SHA_HASH = 'sha256'
@@ -83,8 +84,6 @@ DEFAULT_DAYS = 365
 DEFAULT_TIMOUT = 60 * 60 * 24 * 360 * 10
 
 PROMPT_PASSPHRASE = False
-
-DEFAULT_CERTS_DIR = os.path.join(get_home(), 'certificates')
 
 
 class CertError(Exception):
@@ -266,8 +265,15 @@ class Certs(object):
         """
         return '/'.join((self.private_dir, name + '.pem'))
 
-    def __init__(self, certificate_dir=DEFAULT_CERTS_DIR):
+    def __init__(self, certificate_dir=None):
         """Creates a Certs instance"""
+        if not certificate_dir:
+            certificate_dir = DEFAULT_CERTS_DIR
+        # If user provided explicit directory then it should exist
+        if not os.path.exists(certificate_dir):
+            if certificate_dir != DEFAULT_CERTS_DIR:
+                raise ValueError('Invalid cert_dir {}'.format(self.cert_dir))
+
         self.cert_dir = os.path.join(os.path.expanduser(certificate_dir),
                                      'certs')
         self.private_dir = os.path.join(os.path.expanduser(certificate_dir),
@@ -276,17 +282,10 @@ class Certs(object):
         _log.debug("certs.cert_dir: {}".format(self.cert_dir))
         _log.debug("certs.private_dir: {}".format(self.private_dir))
 
-        # If user provided explicit directory then it should exist
         if not os.path.exists(self.cert_dir):
-            if certificate_dir == DEFAULT_CERTS_DIR:
-                os.makedirs(self.cert_dir, 0o755)
-            else:
-                raise ValueError('Invalid cert_dir {}'.format(self.cert_dir))
+            os.makedirs(self.cert_dir, 0o755)
         if not os.path.exists(self.private_dir):
-            if certificate_dir == DEFAULT_CERTS_DIR:
-                os.makedirs(self.private_dir, 0o755)
-            else:
-                raise ValueError('Invalid private_dir {}'.format(self.private_dir))
+            os.makedirs(self.private_dir, 0o755)
 
     def ca_cert(self):
         """
@@ -324,6 +323,16 @@ class Certs(object):
         :return: True if CA cert exists, False otherwise
         """
         return os.path.exists(self.cert_file(ROOT_CA_NAME))
+
+    @staticmethod
+    def get_cert_names(instance_name):
+        """
+        Returns the name of the instance ca certificate, instance server
+        certificate and instance client (admin user) certificate
+        :param instance_name: name of the volttron instance
+        :return:
+        """
+        return instance_name + '-ca', instance_name + "-server", instance_name
 
     def create_instance_ca(self, name):
         self.create_ca_signed_cert(name, type='CA')
@@ -373,13 +382,7 @@ class Certs(object):
         :return: True if certificate creation was successful
         """
         if not ca_name:
-            if type == 'CA':
-                ca_name = ROOT_CA_NAME
-            else:
-                platform_config = load_platform_config()
-                instance_name = platform_config['instance-name'].strip('"')
-                ca_name = instance_name + "-ca"
-
+            ca_name = ROOT_CA_NAME
         ca_cert = self.cert(ca_name)
 
         issuer = ca_cert.subject

@@ -73,10 +73,12 @@ from ..rmq_connection import RMQConnection
 from ..socket import Message
 from gevent.queue import Queue
 from volttron.platform.agent.utils import load_platform_config
-from volttron.utils.rmq_mgmt import create_user_certs, \
+from volttron.utils.rmq_mgmt import \
     build_connection_param as build_rmq_connection_param, \
     is_ssl_connection, \
     create_user_with_permissions as create_rmq_user_with_permissions
+
+from volttron.platform.agent.utils import create_vagent_cert
 
 __all__ = ['BasicCore', 'Core', 'RMQCore', 'ZMQCore', 'killing']
 
@@ -879,7 +881,7 @@ class RMQCore(BasicCore):
 
             is_ssl = is_ssl_connection()
             if is_ssl:
-                create_user_certs(self.identity)
+                create_vagent_cert(self.identity)
             create_rmq_user_with_permissions(self.identity, permissions, ssl_auth=is_ssl)
 
             param = build_rmq_connection_param(self.identity, self.instance_name, ssl_auth=is_ssl)
