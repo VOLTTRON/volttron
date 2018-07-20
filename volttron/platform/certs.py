@@ -68,7 +68,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID, ExtensionOID
 from cryptography.x509.name import RelativeDistinguishedName
 from volttron.platform import get_home
-from volttron.platform.agent.utils import load_platform_config
+
 
 _log = logging.getLogger(__name__)
 
