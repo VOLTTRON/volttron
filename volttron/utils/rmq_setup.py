@@ -164,7 +164,8 @@ def _set_initial_rabbit_config(instance_name):
         config_opts['host'] = 'localhost'
         config_opts['amqp-port'] = '5672'
         config_opts['mgmt-port'] = '15672'
-        config_opts['rmq-address'] = build_rmq_address(ssl_auth=False)
+        config_opts['rmq-address'] = build_rmq_address(ssl_auth=False,
+                                                       config=config_opts)
         config_opts.sync()
     else:
         config_opts['user'] = "guest"
@@ -197,7 +198,8 @@ def _set_initial_rabbit_config(instance_name):
                 print("Port is not valid")
         config_opts['mgmt-port'] = str(port)
 
-        config_opts['rmq-address'] = build_rmq_address(ssl_auth=False)
+        config_opts['rmq-address'] = build_rmq_address(ssl_auth=False,
+                                                       config=config_opts)
         config_opts.sync()
         #print config_opts
 
@@ -338,7 +340,8 @@ def wizard(type):
         # Get vhost from the user
         _set_initial_rabbit_config(instance_name)
         # Create local RabbitMQ setup
-        response = init_rabbitmq_setup()
+        response = init_rabbitmq_setup() #should be called after config
+        # chanes are written to disk.
         ssl_auth = config_opts.get('ssl', "true")
         if response and ssl_auth in ('true', 'True', 'TRUE'):
             _setup_for_ssl_auth(instance_name)
@@ -407,21 +410,23 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
     config_opts['pass'] = ""
     config_opts['amqp-port'] = '5671'
     config_opts['mgmt-port'] = '15671'
-    config_opts['rmq-address'] = build_rmq_address(ssl_auth=True)
+    config_opts['rmq-address'] = build_rmq_address(ssl_auth=True,
+                                                   config=config_opts)
     config_opts.sync()
 
 
     print("\n\n Please do the following to complete setup"
-          "\n  1. Provide read access to rabbitmq "
-          "user to the certificates and private key files in "
-          "VOLTTRON_HOME/certificates/"
-          "\n  2. Move the rabbitmq.conf file"
+          "\n  1. Move the rabbitmq.conf file"
           "in VOLTTRON_HOME directory into your rabbitmq configuration "
           "directory (/etc/rabbitmq in RPM/Debian systems) "
+          "\n  2. On production setup: Restrict access to private key files in "
+          "VOLTTRON_HOME/certificates/ to only rabbitmq user and admin. By "
+          "default private key files generated have read access to all."
           "\n  3. For custom ssl ports: Generated configuration uses "
           "default rabbitmq ssl ports. Modify both rabbitmq.conf and "
           "VOLTTRON_HOME/rabbitmq_config.json if using different ports. "
-          "\n  4. Restart rabbitmq-server. ")
+          "\n  4. Restart rabbitmq-server. (sudo service rabbitmq-server "
+          "restart ")
 
 
 def _create_certs(client_cert_name, instance_ca_name, server_cert_name):

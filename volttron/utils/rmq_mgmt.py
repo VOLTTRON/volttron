@@ -209,13 +209,13 @@ def get_vhost():
 def get_user():
     if not config_opts:
         _load_rmq_config()
-    return config_opts['user']
+    return config_opts.get('user')
 
 
 def get_password():
     if not config_opts:
         _load_rmq_config()
-    return config_opts['pass']
+    return config_opts.get('pass')
 
 
 def create_vhost(vhost='volttron', ssl_auth=None):
@@ -739,14 +739,14 @@ def get_bindings(exchange, ssl_auth=None):
 # We need http address and port
 def init_rabbitmq_setup():
     """
-    Create a RabbitMQ setup for VOLTTRON
+    Create a RabbitMQ setup for VOLTTRON based on the rabbitmq_config.json in
+    volttron home.
      - Creates a new virtual host: “volttron”
      - Creates a new topic exchange: “volttron” and
       alternate exchange “undeliverable” to capture unrouteable messages
 
     :return:
     """
-    global config_opts
     if not config_opts:
         _load_rmq_config()
     vhost = config_opts['virtual-host']
@@ -882,14 +882,21 @@ def build_connection_param(identity, instance_name, ssl_auth=None):
     return conn_params
 
 
-def build_rmq_address(ssl_auth=None):
+def build_rmq_address(ssl_auth=None, config=None):
     global config_opts
     if not config_opts:
         _load_rmq_config()
+    if not config:
+        config = config_opts
 
     ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
     user = get_user()
-    pwd = get_password()
+    if user is None:
+        if not ssl_auth:
+            user = local_user
+        else:
+            raise ValueError("No user configured in rabbitmq_config.json")
+
     rmq_address = None
     try:
         if ssl:
@@ -898,15 +905,16 @@ def build_rmq_address(ssl_auth=None):
             # amqps://server-name?cacertfile=/path/to/cacert.pem&certfile=/path/to/cert.pem&keyfile=/path/to/key.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external
             rmq_address = "amqps://{host}:{port}/{vhost}?" \
                           "{ssl_params}&server_name_indication={host}".format(
-                            host=config_opts['host'],
-                            port=config_opts['amqp-port'],
-                            vhost=config_opts['virtual-host'],
+                            host=config['host'],
+                            port=config['amqp-port'],
+                            vhost=config['virtual-host'],
                             ssl_params=get_ssl_url_params())
         else:
+            passwd = get_password() if get_password() else local_password
             rmq_address = "amqp://{user}:{pwd}@{host}:{port}/{vhost}".format(
-                user=user, pwd=pwd, host=config_opts['host'],
-                port=config_opts['amqp-port'],
-                vhost=config_opts['virtual-host'])
+                user=user, pwd=passwd, host=config['host'],
+                port=config['amqp-port'],
+                vhost=config['virtual-host'])
     except KeyError as e:
         print("Missing entries in rabbitmq config {}".format(e))
         raise

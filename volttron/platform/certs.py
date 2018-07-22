@@ -56,6 +56,7 @@
 import copy
 import datetime
 import logging
+import pwd
 from socket import gethostname, getfqdn
 from shutil import copyfile
 
@@ -278,9 +279,6 @@ class Certs(object):
                                      'certs')
         self.private_dir = os.path.join(os.path.expanduser(certificate_dir),
                                         'private')
-
-        _log.debug("certs.cert_dir: {}".format(self.cert_dir))
-        _log.debug("certs.private_dir: {}".format(self.private_dir))
 
         if not os.path.exists(self.cert_dir):
             os.makedirs(self.cert_dir, 0o755)
@@ -519,13 +517,14 @@ class Certs(object):
             )
 
         # Write our key to disk for safe keeping
-        with open(self.private_key_file(name), "wb") as f:
+        key_file = self.private_key_file(name)
+        with open(key_file, "wb") as f:
             f.write(pk.private_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.TraditionalOpenSSL,
                 encryption_algorithm=encryption
             ))
-        os.chmod(self.private_key_file(name), 0o600)
+        os.chmod(key_file, 0o644)
 
     def verify_cert(self, cert_name):
         """
