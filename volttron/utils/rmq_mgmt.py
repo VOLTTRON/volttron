@@ -899,7 +899,7 @@ def build_rmq_address(ssl_auth=None, config=None):
 
     rmq_address = None
     try:
-        if ssl:
+        if ssl_auth:
             # Address format to connect to server-name, with SSL and EXTERNAL
             # authentication
             # amqps://server-name?cacertfile=/path/to/cacert.pem&certfile=/path/to/cert.pem&keyfile=/path/to/key.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external
