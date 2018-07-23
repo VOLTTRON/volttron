@@ -61,6 +61,8 @@ from datetime import datetime, timedelta
 from master_driver.driver_exceptions import DriverConfigError
 from volttron.platform.vip.agent import errors
 from volttron.platform.jsonrpc import RemoteError
+# TODO
+import sys
 
 #Logging is completely configured by now.
 _log = logging.getLogger(__name__)
@@ -85,23 +87,37 @@ class Interface(BaseInterface):
         super(Interface, self).__init__(**kwargs)
         self.register_count = 10000
         self.register_count_divisor = 1
-
+        self.cov_lifetime = DEFAULT_COV_LIFETIME
+        self.cov_scrape_all = False
+        self.cov_points = []
 
     def configure(self, config_dict, registry_config_str):
+        print config_dict
         self.min_priority = config_dict.get("min_priority", 8)
         self.parse_config(registry_config_str)
         self.target_address = config_dict["device_address"]
         self.device_id = int(config_dict["device_id"])
+
+        if config_dict['cov_lifetime']:
+            self.cov_lifetime = config_dict['cov_lifetime']
+        if config_dict['cov_scrape_all']:
+            self.cov_scrape_all = config_dict['cov_scrape_all']
+
         self.proxy_address = config_dict.get("proxy_address", "platform.bacnet_proxy")
+        sys.stderr.write(self.proxy_address)
+
         self.max_per_request = config_dict.get("max_per_request")
         self.use_read_multiple = config_dict.get("use_read_multiple", True)
         self.timeout = float(config_dict.get("timeout", 30.0))
-        self.cov_
+
 
         self.ping_retry_interval = timedelta(seconds=config_dict.get("ping_retry_interval", 5.0))
         self.scheduled_ping = None
 
         self.ping_target()
+
+        # for point_name in self.cov_points:
+        #     self.establish_cov_subscription(point_name, DEFAULT_COV_LIFETIME, False)
 
     def schedule_ping(self):
         if self.scheduled_ping is None:
@@ -164,11 +180,16 @@ class Interface(BaseInterface):
         point_map = {}
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False)
+
         for register in read_registers + write_registers:
             point_map[register.point_name] = [register.object_type,
                                               register.instance_number,
                                               register.property,
                                               register.index]
+
+        if not self.cov_scrape_all:
+            for cov_point in self.cov_points:
+                point_map.pop(cov_point)
 
         while True:
             try:
@@ -222,10 +243,19 @@ class Interface(BaseInterface):
             io_type = regDef['BACnet Object Type']
             read_only = regDef['Writable'].lower() != 'true'
             point_name = regDef['Volttron Point Name']
+
+            if ('cov_flag' in regDef) and regDef['cov_flag']==True:
+                is_cov = True
+            else:
+                is_cov = False
+
             index = int(regDef['Index'])
 
             list_index = regDef.get('Array Index', '')
             list_index = list_index.strip()
+
+
+
             if not list_index:
                 list_index = None
             else:
@@ -258,26 +288,32 @@ class Interface(BaseInterface):
                                 priority = priority,
                                 list_index = list_index)
 
+            if is_cov:
+                self.cov_points.append(point_name)
+                self.establish_cov_subscription(point_name, self.cov_lifetime, True)
+
+
             self.insert_register(register)
 
-            # COVIncrement for testing, each object has a cov detection algorithm, we likely only care about cov objects
-            # if lifetime is None, subscription will not die
-            # a new call to establish_cov_subscription with a lifetime will establish a timer for the sub
-            # setting renew to True will initiate auto renewal of the same lifetime
-            # will want logic to cancel renewals
-            if property_name == 'COVIncrement':
-                self.establish_cov_subscription(point_name, DEFAULT_COV_LIFETIME, False)
+        # COVIncrement for testing, each object has a cov detection algorithm, we likely only care about cov objects
+        # if lifetime is None, subscription will not die
+        # a new call to establish_cov_subscription with a lifetime will establish a timer for the sub
+        # setting renew to True will initiate auto renewal of the same lifetime
+        # we may want logic to cancel renewals
 
     def establish_cov_subscription(self, point_name, lifetime, renew):
+        # TODO testing
+        sys.stdout.write('attempting to establish bacnet cov sub')
+
         register = self.get_register_by_name(point_name)
         try:
             self.vip.rpc.call(self.proxy_address, 'generate_COV_sub', self.target_address, self.device_id,
                               register.object_type, register.instance_number, lifetime=lifetime)
         except errors.Unreachable:
-            _log.warning("Unable to reach BACnet proxy.")
+            _log.warning("Unable to establish a subscription via the bacnet proxy.")
         # Schedule COV resubscribe
         if renew & (lifetime > COV_UPDATE_BUFFER):
             now = datetime.now()
             next_sub_update = now + (lifetime - COV_UPDATE_BUFFER)
-            self.cov_update = self.core.schedule(next_sub_update, self.establish_cov_subscription(point_name, lifetime,
-                                                                                                  renew))
+            self.cov_update = self.core.schedule(next_sub_update, self.establish_cov_subscription, point_name, lifetime,
+                                                                                                  renew)

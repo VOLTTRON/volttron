@@ -771,6 +771,8 @@ class MasterDriverAgent(Agent):
 
     @RPC.export
     def forward_bacnet_cov_value(self, device_identifier, source_address, object_identifier, list_of_values):
+        # TODO testing
+        sys.stdout.write('forwarding bacnet cov')
 
         for instance in self.instances:
             if instance.interface.target_address == source_address:

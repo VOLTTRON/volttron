@@ -99,7 +99,7 @@ from bacpypes.task import TaskManager
 from gevent.event import AsyncResult
 
 path = os.path.dirname(os.path.abspath(__file__))
-configFile = os.path.join(path, "bacnet_example_config.csv")
+configFile = os.path.join(path, "annex.csv")
 
 # Make sure the TaskManager singleton exists...
 task_manager = TaskManager()
@@ -133,7 +133,7 @@ class SubscriptionContext:
         self.subscriberProcessIdentifier = subProcessID
         subProcessID += 1
 
-        # Append to contexts, TODO remove from contexts when the subscription ends?
+        # TODO remove from contexts when the subscription ends?
         subCovContexts[self.subscriberProcessIdentifier] = self
 
         self.monitoredObjectIdentifier = object_id
@@ -383,6 +383,9 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         if not isinstance(apdu, ConfirmedCOVNotificationRequest):
             _log.error()
 
+        # TODO testing
+        sys.stdout.write('asking masterdriver to forward the cov')
+
         self.vip.rpc.call(PLATFORM_DRIVER, 'forward_bacnet_cov_value',
                         apdu.initiatingDeviceIdentifier,
                         apdu.pduSource, apdu.monitoredObjectIdentifer,
@@ -398,7 +401,6 @@ write_debug_str = ("Writing: {target} {type} {instance} {property} (Priority: "
 
 def bacnet_proxy_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
-
     device_address = config["device_address"]
     max_apdu_len = config.get("max_apdu_length", 1024)
     seg_supported = config.get("segmentation_supported", "segmentedBoth")
@@ -754,6 +756,9 @@ class BACnetProxyAgent(Agent):
     @RPC.export
     def generate_COV_sub(self, target_address, device_id, object_type, instance_number, lifetime=None):
         '''A lifetime of zero will function as a cancelation request'''
+        # TODO testing
+        sys.stdout.write('sending subcovrequest to device')
+
         subscription = SubscriptionContext(target_address, device_id, lifetime)
         covRequest = SubscribeCOVRequest(
             subscriberProcessIdentifier=subscription.subscriberProcessIdentifier,
@@ -766,6 +771,9 @@ class BACnetProxyAgent(Agent):
         # testing
         if iocb.ioResponse:
             sys.stdout(iocb.ioResponse);
+
+        # TODO read property when the subscription has been established
+        self.read_property()
 
 
 def main(argv=sys.argv):
