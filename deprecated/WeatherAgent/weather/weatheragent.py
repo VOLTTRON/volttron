@@ -59,12 +59,8 @@ import logging
 from dateutil.parser import parse
 
 from volttron.platform.agent.utils import jsonapi
-from volttron.platform.agent import utils
-from volttron.platform.agent import matching
 from volttron.platform.messaging import headers as headers_mod, topics
 
-from volttron.platform.vip.agent import Agent, Core
-from volttron.platform.async import AsyncCall
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import *
 
