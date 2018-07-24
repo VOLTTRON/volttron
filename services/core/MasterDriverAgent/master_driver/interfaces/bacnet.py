@@ -79,7 +79,7 @@ class Register(BaseRegister):
         self.priority = priority
         self.index = list_index
 
-DEFAULT_COV_LIFETIME = 60
+DEFAULT_COV_LIFETIME = 180
 COV_UPDATE_BUFFER = 3
 
 class Interface(BaseInterface):
@@ -98,13 +98,12 @@ class Interface(BaseInterface):
         self.target_address = config_dict["device_address"]
         self.device_id = int(config_dict["device_id"])
 
-        if config_dict['cov_lifetime']:
+        if 'cov_lifetime' in config_dict:
             self.cov_lifetime = config_dict['cov_lifetime']
-        if config_dict['cov_scrape_all']:
+        if 'cov_scrape_all' in config_dict:
             self.cov_scrape_all = config_dict['cov_scrape_all']
 
         self.proxy_address = config_dict.get("proxy_address", "platform.bacnet_proxy")
-        sys.stderr.write(self.proxy_address)
 
         self.max_per_request = config_dict.get("max_per_request")
         self.use_read_multiple = config_dict.get("use_read_multiple", True)
@@ -116,8 +115,8 @@ class Interface(BaseInterface):
 
         self.ping_target()
 
-        # for point_name in self.cov_points:
-        #     self.establish_cov_subscription(point_name, DEFAULT_COV_LIFETIME, False)
+        for point_name in self.cov_points:
+            self.establish_cov_subscription(point_name, DEFAULT_COV_LIFETIME, False)
 
     def schedule_ping(self):
         if self.scheduled_ping is None:
@@ -237,17 +236,19 @@ class Interface(BaseInterface):
 
         for regDef in configDict:
             #Skip lines that have no address yet.
-#             if not regDef['Point Name']:
-#                 continue
+            if not regDef['Volttron Point Name']:
+                continue
 
             io_type = regDef['BACnet Object Type']
             read_only = regDef['Writable'].lower() != 'true'
             point_name = regDef['Volttron Point Name']
 
-            if ('cov_flag' in regDef) and regDef['cov_flag']==True:
-                is_cov = True
-            else:
-                is_cov = False
+            is_cov = False
+
+            # TODO needs to be reading from the csv
+            if 'COV Flag' in regDef:
+                if regDef['COV Flag'] == "True":
+                    is_cov = True
 
             index = int(regDef['Index'])
 
@@ -288,29 +289,20 @@ class Interface(BaseInterface):
                                 priority = priority,
                                 list_index = list_index)
 
-            if is_cov:
-                self.cov_points.append(point_name)
-                self.establish_cov_subscription(point_name, self.cov_lifetime, True)
-
-
             self.insert_register(register)
 
-        # COVIncrement for testing, each object has a cov detection algorithm, we likely only care about cov objects
-        # if lifetime is None, subscription will not die
-        # a new call to establish_cov_subscription with a lifetime will establish a timer for the sub
-        # setting renew to True will initiate auto renewal of the same lifetime
-        # we may want logic to cancel renewals
+            if is_cov:
+                self.cov_points.append(point_name)
 
     def establish_cov_subscription(self, point_name, lifetime, renew):
-        # TODO testing
-        sys.stdout.write('attempting to establish bacnet cov sub')
 
         register = self.get_register_by_name(point_name)
+
         try:
             self.vip.rpc.call(self.proxy_address, 'generate_COV_sub', self.target_address, self.device_id,
                               register.object_type, register.instance_number, lifetime=lifetime)
         except errors.Unreachable:
-            _log.warning("Unable to establish a subscription via the bacnet proxy.")
+            _log.warning("Unable to establish a subscription via the bacnet proxy as it was unreachable.")
         # Schedule COV resubscribe
         if renew & (lifetime > COV_UPDATE_BUFFER):
             now = datetime.now()

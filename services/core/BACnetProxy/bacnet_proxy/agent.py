@@ -297,6 +297,12 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
             working_iocb.set(apdu)
             return
 
+        # TODO what should this be doing?
+        elif (isinstance(working_iocb.ioRequest, SubscribeCOVRequest) and
+                isinstance(apdu, SimpleAckPDU)):
+            working_iocb.set(apdu)
+            return
+
         elif (isinstance(working_iocb.ioRequest,
                          ReadPropertyMultipleRequest) and
               isinstance(apdu, ReadPropertyMultipleACK)):
@@ -386,13 +392,15 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         # TODO testing
         sys.stdout.write('asking masterdriver to forward the cov')
 
+        # response = SimpleAckPDU(context=apdu)
+        # self.response(response)
+
         self.vip.rpc.call(PLATFORM_DRIVER, 'forward_bacnet_cov_value',
                         apdu.initiatingDeviceIdentifier,
                         apdu.pduSource, apdu.monitoredObjectIdentifer,
                         apdu.listOfValues)
 
-        response = SimpleAckPDU(context=apdu)
-        self.response(response)
+
 
 
 write_debug_str = ("Writing: {target} {type} {instance} {property} (Priority: "
@@ -755,9 +763,6 @@ class BACnetProxyAgent(Agent):
 
     @RPC.export
     def generate_COV_sub(self, target_address, device_id, object_type, instance_number, lifetime=None):
-        '''A lifetime of zero will function as a cancelation request'''
-        # TODO testing
-        sys.stdout.write('sending subcovrequest to device')
 
         subscription = SubscriptionContext(target_address, device_id, lifetime)
         covRequest = SubscribeCOVRequest(
@@ -768,12 +773,9 @@ class BACnetProxyAgent(Agent):
         covRequest.pduDestination = Address(target_address)
         iocb = self.iocb_class(covRequest)
         self.this_application.submit_request(iocb)
-        # testing
-        if iocb.ioResponse:
-            sys.stdout(iocb.ioResponse);
 
         # TODO read property when the subscription has been established
-        self.read_property()
+        # self.read_property()
 
 
 def main(argv=sys.argv):
