@@ -179,10 +179,10 @@ class ForwardHistorian(BaseHistorian):
                 _log.error("Failed to unsubscribe from {}: {}".format(prefix, repr(e)))
 
     # Stop the BaseHistorian from setting the health status
-    def _update_status(self, status, context):
+    def _update_status(self, *args, **kwargs):
         pass
 
-    def _send_alert(self, status, context, key):
+    def _send_alert(self, *args, **kwargs):
         pass
 
     # Redirect the normal capture functions to capture_data.
