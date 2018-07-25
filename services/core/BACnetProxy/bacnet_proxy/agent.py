@@ -125,7 +125,7 @@ subProcessID = 1
 
 class SubscriptionContext:
 
-    def __init__(self, address, object_id, lifetime=None):
+    def __init__(self, address, point_name, object_type, instance_number, lifetime=None):
         global subCovContexts, subProcessID
 
         self.address = address
@@ -133,18 +133,18 @@ class SubscriptionContext:
         self.subscriberProcessIdentifier = subProcessID
         subProcessID += 1
 
-        # TODO remove from contexts when the subscription ends?
         subCovContexts[self.subscriberProcessIdentifier] = self
 
-        self.monitoredObjectIdentifier = object_id
+        self.point_name = point_name
+        self.monitoredObjectIdentifier = (object_type, instance_number)
         self.lifetime = lifetime
 
-
 class BACnet_application(BIPSimpleApplication, RecurringTask):
-    def __init__(self, i_am_callback, *args):
+    def __init__(self, i_am_callback, forward_cov_callback, *args):
         BIPSimpleApplication.__init__(self, *args)
         RecurringTask.__init__(self, 250)
         self.i_am_callback = i_am_callback
+        self.forward_cov_callback = forward_cov_callback
 
         self.request_queue = Queue()
 
@@ -300,6 +300,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         # TODO what should this be doing?
         elif (isinstance(working_iocb.ioRequest, SubscribeCOVRequest) and
                 isinstance(apdu, SimpleAckPDU)):
+            sys.stdout.write('simple ack from cov_subscription')
             working_iocb.set(apdu)
             return
 
@@ -385,22 +386,18 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         # forward it along
         BIPSimpleApplication.indication(self, apdu)
 
+    # Handler for ConfirmedCOVNotificationRequests, forwards the notification to the appropriate driver agent
     def do_ConfirmedCOVNotifcationRequest(self, apdu):
-        if not isinstance(apdu, ConfirmedCOVNotificationRequest):
-            _log.error()
+        if isinstance(apdu, ConfirmedCOVNotificationRequest):
+            for sub in subCovContexts.itervalues():
+                if apdu.pduSource == sub.address:
+                    point_name = sub.point_name
+            if point_name:
+                _log.debug("Calling forward_cov_callback callback.")
 
-        # TODO testing
-        sys.stdout.write('asking masterdriver to forward the cov')
-
-        # response = SimpleAckPDU(context=apdu)
-        # self.response(response)
-
-        self.vip.rpc.call(PLATFORM_DRIVER, 'forward_bacnet_cov_value',
-                        apdu.initiatingDeviceIdentifier,
-                        apdu.pduSource, apdu.monitoredObjectIdentifer,
-                        apdu.listOfValues)
-
-
+                self.forward_cov_callback(apdu.pduDestination, point_name, apdu.listOfValues)
+            else:
+                _log.debug("Device {} does not have a subscription context.".format(apdu.pduSource))
 
 
 write_debug_str = ("Writing: {target} {type} {instance} {property} (Priority: "
@@ -497,9 +494,14 @@ class BACnetProxyAgent(Agent):
             async_call.send(None, self.i_am, address, device_id, max_apdu_len,
                             seg_supported, vendor_id)
 
+        # Piggybacking the i_am_callback
+        def forward_cov_callback(pduSource, point_name, point_values):
+            async_call.send(None, self.forward_cov, pduSource, point_name, point_values)
+
+
         #i_am_callback('foo', 'bar', 'baz', 'foobar', 'foobaz')
 
-        self.this_application = BACnet_application(i_am_callback, this_device, address)
+        self.this_application = BACnet_application(i_am_callback, forward_cov_callback, this_device, address)
 
         kwargs = {"spin":0.1,
                   "sigterm": None,
@@ -529,6 +531,11 @@ class BACnetProxyAgent(Agent):
 
         self.vip.pubsub.publish('pubsub', topics.BACNET_I_AM, header,
                                 message=value)
+
+    def forward_cov(self, pduSource, point_name, point_values):
+        """Called by the BACnet application when a ConfirmedCOVNotification Request is received.
+        Publishes the COV to the pubsub through the device's driver agent"""
+        self.vip.rpc.call(PLATFORM_DRIVER, 'forward_bacnet_cov_value', pduSource, point_name, point_values)
 
     @RPC.export
     def who_is(self, low_device_id=None, high_device_id=None,
@@ -761,22 +768,19 @@ class BACnetProxyAgent(Agent):
 
         return result_dict
 
+    # Called by the BACnet interface to establish a COV subscription with a BACnet device
     @RPC.export
-    def generate_COV_sub(self, target_address, device_id, object_type, instance_number, lifetime=None):
+    def generate_COV_sub(self, target_address, point_name, object_type, instance_number, lifetime=None):
 
-        subscription = SubscriptionContext(target_address, device_id, lifetime)
-        covRequest = SubscribeCOVRequest(
+        subscription = SubscriptionContext(target_address, point_name, object_type, instance_number, lifetime)
+        cov_request = SubscribeCOVRequest(
             subscriberProcessIdentifier=subscription.subscriberProcessIdentifier,
-            monitoredObjectIdentifier=(object_type, instance_number),
+            monitoredObjectIdentifier=subscription.monitoredObjectIdentifier,
             issueConfirmedNotifications=True
         )
-        covRequest.pduDestination = Address(target_address)
-        iocb = self.iocb_class(covRequest)
+        cov_request.pduDestination = subscription.address
+        iocb = self.iocb_class(cov_request)
         self.this_application.submit_request(iocb)
-
-        # TODO read property when the subscription has been established
-        # self.read_property()
-
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''

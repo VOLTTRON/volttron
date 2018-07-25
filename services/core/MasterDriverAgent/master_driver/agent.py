@@ -770,17 +770,11 @@ class MasterDriverAgent(Agent):
                 self._override_devices.remove(device)
 
     @RPC.export
-    def forward_bacnet_cov_value(self, device_identifier, source_address, object_identifier, list_of_values):
-        # TODO testing
-        sys.stdout.write('forwarding bacnet cov')
-
-        for instance in self.instances:
-            if instance.interface.target_address == source_address:
-                driver = instance
-        if driver:
-            driver.publish_cov_value(object_identifier, list_of_values)
-        else:
-            sys.stderr('No driver agent found for device {}'.format(device_identifier))
+    def forward_bacnet_cov_value(self, source_address, point_name, point_values):
+        """Called by the BACnet Proxy to pass the COV value to the driver agent for publishing"""
+        for driver in self.instances.itervalues():
+            if driver.interface.target_address == source_address:
+                driver.publish_cov_value(point_name, point_values)
 
 
 def main(argv=sys.argv):

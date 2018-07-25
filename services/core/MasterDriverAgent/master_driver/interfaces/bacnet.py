@@ -98,6 +98,7 @@ class Interface(BaseInterface):
         self.target_address = config_dict["device_address"]
         self.device_id = int(config_dict["device_id"])
 
+        # Change of value configuration options
         if 'cov_lifetime' in config_dict:
             self.cov_lifetime = config_dict['cov_lifetime']
         if 'cov_scrape_all' in config_dict:
@@ -115,8 +116,9 @@ class Interface(BaseInterface):
 
         self.ping_target()
 
+        # list of points to establish change of value subscriptions with, generated from the registry config
         for point_name in self.cov_points:
-            self.establish_cov_subscription(point_name, DEFAULT_COV_LIFETIME, False)
+            self.establish_cov_subscription(point_name, DEFAULT_COV_LIFETIME, True)
 
     def schedule_ping(self):
         if self.scheduled_ping is None:
@@ -243,9 +245,8 @@ class Interface(BaseInterface):
             read_only = regDef['Writable'].lower() != 'true'
             point_name = regDef['Volttron Point Name']
 
+            # checks if the point is flagged for change of value
             is_cov = False
-
-            # TODO needs to be reading from the csv
             if 'COV Flag' in regDef:
                 if regDef['COV Flag'] == "True":
                     is_cov = True
@@ -254,8 +255,6 @@ class Interface(BaseInterface):
 
             list_index = regDef.get('Array Index', '')
             list_index = list_index.strip()
-
-
 
             if not list_index:
                 list_index = None
@@ -291,16 +290,22 @@ class Interface(BaseInterface):
 
             self.insert_register(register)
 
+            # populate the list of change of value points based on the flag
             if is_cov:
                 self.cov_points.append(point_name)
 
-    def establish_cov_subscription(self, point_name, lifetime, renew):
 
+    def establish_cov_subscription(self, point_name, lifetime, renew=False):
+        """Asks the BACnet proxy to establish a COV subscription for the point via RPC.
+        If lifetime is specified, the subscription will live for that period, else the
+        subscription will last indefinitely. Default period of 3 minutes. If renew is
+        True, the the core scheduler will call this method again near the expiration
+        of the subscription."""
         register = self.get_register_by_name(point_name)
-
         try:
-            self.vip.rpc.call(self.proxy_address, 'generate_COV_sub', self.target_address, self.device_id,
-                              register.object_type, register.instance_number, lifetime=lifetime)
+            self.vip.rpc.call(self.proxy_address, 'generate_COV_sub', self.target_address,
+                              point_name, register.object_type, register.instance_number,
+                              lifetime=lifetime)
         except errors.Unreachable:
             _log.warning("Unable to establish a subscription via the bacnet proxy as it was unreachable.")
         # Schedule COV resubscribe
