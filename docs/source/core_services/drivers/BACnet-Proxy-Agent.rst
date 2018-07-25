@@ -178,3 +178,28 @@ registry configuration is appropriate for both devices.
 For scraping large numbers of points from a single BACnet device, 
 there is an optional timeout parameter provided, to prevent the master driver 
 timing out while the BACnet Proxy Agent is collecting points.
+
+
+BACnet Change of Value Services
+-------------------------------------------
+
+|BACnet Change of Value Communications|
+
+There are a variety of scenarios in which a BACnet device may want to publish
+values independently of the regular scrape interval. Bacpypes provides a
+"ChangeOfValueServices" (further referred to as 'COV') module, which will
+enable a device to push values up the Volttron stack.
+
+The BACnet COV requires that the device include the ChangeOfValueServices module
+from Bacpypes. A BACnet object on the device can be instantiated with the
+'covIncrement' value set, which determines the threshold for a COV notification.
+Based on configuration options for BACnet drivers, the driver will instruct the
+BACnet Proxy to establish a COV subscription with the device. The subscription
+will last for an amount of time specified in the driver configuration, and will
+auto-renew the subscription. If the proxy loses communication with the device or
+the device driver is stopped the subscription will be removed when the lifetime
+expires. While thesubscription exists, the device will send notifications to the
+BACnet proxy, which will forward them through the Master Driver to the
+appropriate Driver Agent.
+
+.. |BACnet Change of Value Communications| image:: files/bacnet_cov.png
