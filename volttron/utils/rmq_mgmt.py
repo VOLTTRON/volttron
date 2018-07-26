@@ -796,7 +796,7 @@ def create_federation_setup():
     if not config_opts:
         _load_rmq_config()
 
-    federation = config_opts['federation']
+    federation = config_opts['federation-upstream']
 
     for name, address in federation.iteritems():
 
@@ -842,9 +842,10 @@ def is_valid_mgmt_port(port):
     return port == 15672 or port == 15671
 
 
-def delete_multiplatform_parameter(component, parameter_name, user=None, password=None, vhost=None):
+
+def delete_multiplatform_parameter(component, parameter_name, vhost=None):
     """
-    Delete a component parameter
+    Delete a component parameterge
     :param component: component name
     :param parameter_name: parameter
     :param user: username
@@ -855,10 +856,8 @@ def delete_multiplatform_parameter(component, parameter_name, user=None, passwor
     global config_opts
     if not config_opts:
         _load_rmq_config()
-    delete_parameter(component, parameter_name, user, password, vhost)
+    delete_parameter(component, parameter_name, vhost)
 
-    if component == 'federation-upstream':
-        component = 'federation'
     # Delete entry in config
     try:
         params = config_opts[component] # component can be shovels or federation
@@ -992,7 +991,7 @@ def build_rmq_address(ssl_auth=None):
     pwd = get_password()
     rmq_address = None
     try:
-        if ssl:
+        if ssl_auth:
             # Address format to connect to server-name, with SSL and EXTERNAL
             # authentication
             # amqps://server-name?cacertfile=/path/to/cacert.pem&certfile=/path/to/cert.pem&keyfile=/path/to/key.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external
@@ -1005,7 +1004,7 @@ def build_rmq_address(ssl_auth=None):
         else:
             rmq_address = "amqp://{user}:{pwd}@{host}:{port}/{vhost}".format(
                 user=user, pwd=pwd, host=config_opts['host'], port=config_opts['amqp-port'],
-                vhost=config_opts[ 'virtual-host'])
+                vhost=config_opts['virtual-host'])
     except KeyError as e:
         print("Missing entries in rabbitmq config {}".format(e))
         raise
@@ -1041,6 +1040,7 @@ def create_user_with_permissions(identity, permissions, ssl_auth=None):
     perms = get_user_permissions(identity, ssl_auth=ssl_auth)
     # Add user permissions if missing
     if not perms:
+        #perms = dict(configure='.*', read='.*', write='.*')
         perms = dict(configure=permissions['configure'],
                            read=permissions['read'],
                            write=permissions['write'])
@@ -1069,13 +1069,14 @@ def _get_upstream_servers():
     global config_opts
     if not config_opts:
         _load_rmq_config()
-    federation = config_opts.get('federation', dict())
+    federation = config_opts.get('federation-upstream', dict())
     multi_platform = True
     ssl_params = get_ssl_url_params()
     prompt = 'How many upstream servers do you want to configure?'
     count = prompt_response(prompt, default=1)
     count = int(count)
     i = 0
+    is_ssl = is_ssl_connection()
     for i in range(0, count):
         prompt = 'Name of the upstream server {}: '.format(i+1)
         default_name = 'upstream-' + str(i+1)
