@@ -381,7 +381,6 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
 
     # Handler for ConfirmedCOVNotificationRequests, forwards the notification to the appropriate driver agent
     def do_ConfirmedCOVNotifcationRequest(self, apdu):
-        sys.stdout.write("we've got a notification")
         point_name = None
         for sub in BACnet_application.sub_cov_contexts.itervalues():
             if apdu.monitoredObjectIdentifier == sub.monitoredObjectIdentifier and apdu.pduSource == sub.address:
