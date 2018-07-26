@@ -52,8 +52,6 @@
 
 
 from master_driver.interfaces import BaseInterface, BaseRegister
-from csv import DictReader
-from StringIO import StringIO
 import logging
 
 from datetime import datetime, timedelta
@@ -85,8 +83,6 @@ class Interface(BaseInterface):
         super(Interface, self).__init__(**kwargs)
         self.register_count = 10000
         self.register_count_divisor = 1
-        self.cov_lifetime = DEFAULT_COV_LIFETIME
-        self.cov_scrape_all = False
         self.cov_points = []
 
     def configure(self, config_dict, registry_config_str):
@@ -98,9 +94,9 @@ class Interface(BaseInterface):
 
         # Change of value configuration options
         if 'cov_lifetime' in config_dict:
-            self.cov_lifetime = config_dict['cov_lifetime']
+            self.cov_lifetime = config_dict.get("cov_lifetime", DEFAULT_COV_LIFETIME)
         if 'cov_scrape_all' in config_dict:
-            self.cov_scrape_all = config_dict['cov_scrape_all']
+            self.cov_scrape_all = config_dict.get("cov_scrape_all", False)
 
         self.proxy_address = config_dict.get("proxy_address", "platform.bacnet_proxy")
 
@@ -244,10 +240,7 @@ class Interface(BaseInterface):
             point_name = regDef['Volttron Point Name']
 
             # checks if the point is flagged for change of value
-            is_cov = False
-            if 'COV Flag' in regDef:
-                if regDef['COV Flag'] == "True":
-                    is_cov = True
+            is_cov = regDef.get("COV Flag", 'false').tolower() == "true"
 
             index = int(regDef['Index'])
 
@@ -307,7 +300,7 @@ class Interface(BaseInterface):
         except errors.Unreachable:
             _log.warning("Unable to establish a subscription via the bacnet proxy as it was unreachable.")
         # Schedule COV resubscribe
-        if renew & (lifetime > COV_UPDATE_BUFFER):
+        if renew and (lifetime > COV_UPDATE_BUFFER):
             now = datetime.now()
             next_sub_update = now + (lifetime - COV_UPDATE_BUFFER)
             self.core.schedule(next_sub_update, self.establish_cov_subscription, point_name, lifetime,

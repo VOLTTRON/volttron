@@ -52,9 +52,6 @@ bacnet_logger = logging.getLogger("bacpypes")
 bacnet_logger.setLevel(logging.WARNING)
 __version__ = '0.4'
 
-import os.path
-import errno
-from volttron.platform.agent import json as jsonapi
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from collections import defaultdict
 
@@ -98,9 +95,6 @@ from bacpypes.basetypes import ServicesSupported
 from bacpypes.task import TaskManager
 from gevent.event import AsyncResult
 
-path = os.path.dirname(os.path.abspath(__file__))
-configFile = os.path.join(path, "annex.csv")
-
 # Make sure the TaskManager singleton exists...
 task_manager = TaskManager()
 
@@ -119,21 +113,15 @@ task_manager = TaskManager()
 #     def set_exception(self, exception):
 #         self.ioCall.send(None, self.ioResult.set_exception, exception)
 
-subCovContexts = {}
 # Arbitrary unique Identifier for subscription contexts
-subProcessID = 1
 
 class SubscriptionContext:
 
-    def __init__(self, address, point_name, object_type, instance_number, lifetime=None):
-        global subCovContexts, subProcessID
+    def __init__(self, address, point_name, object_type, instance_number, sub_process_ID, lifetime=None):
 
         self.address = address
 
-        self.subscriberProcessIdentifier = subProcessID
-        subProcessID += 1
-
-        subCovContexts[self.subscriberProcessIdentifier] = self
+        self.subscriberProcessIdentifier = sub_process_ID
 
         self.point_name = point_name
         self.monitoredObjectIdentifier = (object_type, instance_number)
@@ -153,6 +141,9 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
 
         # keep track of requests to line up responses
         self.iocb = {}
+
+        self.sub_cov_contexts = {}
+        self.cov_sub_process_ID = 1
 
         self.install_task()
 
@@ -390,15 +381,16 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
 
     # Handler for ConfirmedCOVNotificationRequests, forwards the notification to the appropriate driver agent
     def do_ConfirmedCOVNotifcationRequest(self, apdu):
-        if isinstance(apdu, ConfirmedCOVNotificationRequest):
-            for sub in subCovContexts.itervalues():
-                if apdu.monitoredObjectIdentifier == sub.monitoredObjectIdentifier and apdu.pduSource == sub.address:
-                    point_name = sub.point_name
-                    break
-            if point_name:
-                self.forward_cov_callback(apdu.pduDestination, point_name, apdu.listOfValues)
-            else:
-                _log.debug("Device {} does not have a subscription context.".format(apdu.monitoredObjectIdentifier))
+        sys.stdout.write("we've got a notification")
+        point_name = None
+        for sub in BACnet_application.sub_cov_contexts.itervalues():
+            if apdu.monitoredObjectIdentifier == sub.monitoredObjectIdentifier and apdu.pduSource == sub.address:
+                point_name = sub.point_name
+                break
+        if point_name:
+            self.forward_cov_callback(apdu.pduDestination, point_name, apdu.listOfValues)
+        else:
+            _log.debug("Device {} does not have a subscription context.".format(apdu.monitoredObjectIdentifier))
 
 write_debug_str = ("Writing: {target} {type} {instance} {property} (Priority: "
                    "{priority}, Index: {index}): {value}")
@@ -494,7 +486,6 @@ class BACnetProxyAgent(Agent):
             async_call.send(None, self.i_am, address, device_id, max_apdu_len,
                             seg_supported, vendor_id)
 
-        # Piggybacking the i_am_callback
         def forward_cov_callback(pduSource, point_name, point_values):
             async_call.send(None, self.forward_cov, pduSource, point_name, point_values)
 
@@ -772,7 +763,10 @@ class BACnetProxyAgent(Agent):
     @RPC.export
     def generate_COV_sub(self, target_address, point_name, object_type, instance_number, lifetime=None):
 
-        subscription = SubscriptionContext(target_address, point_name, object_type, instance_number, lifetime)
+        subscription = SubscriptionContext(target_address, point_name, object_type, instance_number,
+                                           self.this_application.cov_sub_process_ID, lifetime)
+        self.this_application.sub_cov_contexts[self.this_application.cov_sub_process_ID] = subscription
+        self.this_application.cov_sub_process_ID += 1
         cov_request = SubscribeCOVRequest(
             subscriberProcessIdentifier=subscription.subscriberProcessIdentifier,
             monitoredObjectIdentifier=subscription.monitoredObjectIdentifier,
