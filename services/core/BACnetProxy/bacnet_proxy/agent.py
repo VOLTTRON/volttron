@@ -297,12 +297,14 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
             working_iocb.set(apdu)
             return
 
-        # TODO what should this be doing?
         elif (isinstance(working_iocb.ioRequest, SubscribeCOVRequest) and
                 isinstance(apdu, SimpleAckPDU)):
-            sys.stdout.write('simple ack from cov_subscription')
             working_iocb.set(apdu)
             return
+        elif (isinstance(working_iocb.ioRequest, SubscribeCOVRequest) and
+              not isinstance(apdu, SimpleAckPDU)):
+            _log.error("The SubscribeCOVRequest for {} failed to establish a subscription."
+                       .format(SubscribeCOVRequest.monitoredObjectIdentifier))
 
         elif (isinstance(working_iocb.ioRequest,
                          ReadPropertyMultipleRequest) and
@@ -390,15 +392,13 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
     def do_ConfirmedCOVNotifcationRequest(self, apdu):
         if isinstance(apdu, ConfirmedCOVNotificationRequest):
             for sub in subCovContexts.itervalues():
-                if apdu.pduSource == sub.address:
+                if apdu.monitoredObjectIdentifier == sub.monitoredObjectIdentifier and apdu.pduSource == sub.address:
                     point_name = sub.point_name
+                    break
             if point_name:
-                _log.debug("Calling forward_cov_callback callback.")
-
                 self.forward_cov_callback(apdu.pduDestination, point_name, apdu.listOfValues)
             else:
-                _log.debug("Device {} does not have a subscription context.".format(apdu.pduSource))
-
+                _log.debug("Device {} does not have a subscription context.".format(apdu.monitoredObjectIdentifier))
 
 write_debug_str = ("Writing: {target} {type} {instance} {property} (Priority: "
                    "{priority}, Index: {index}): {value}")

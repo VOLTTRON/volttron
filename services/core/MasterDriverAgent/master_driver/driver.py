@@ -48,14 +48,9 @@ from volttron.platform.messaging.topics import (DRIVER_TOPIC_BASE,
                                                 DEVICES_VALUE,
                                                 DEVICES_PATH)
 
-from volttron.platform.messaging import topics
-
 from volttron.platform.vip.agent.errors import VIPError, Again
 from driver_locks import publish_lock
 import datetime
-
-# TODO testing
-import sys
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -379,11 +374,6 @@ class DriverAgent(BasicAgent):
         }
         depth_first_topic, breadth_first_topic = self.get_paths_for_point(self.get_point(point_name))
         message = [point_name, point_values]
-
-        if depth_first_topic:
-            sys.stdout.write(depth_first_topic + '\n')
-        if breadth_first_topic:
-            sys.stdout.write(breadth_first_topic + '\n')
 
         if self.publish_depth_first:
             self._publish_wrapper(depth_first_topic,

@@ -61,8 +61,6 @@ from datetime import datetime, timedelta
 from master_driver.driver_exceptions import DriverConfigError
 from volttron.platform.vip.agent import errors
 from volttron.platform.jsonrpc import RemoteError
-# TODO
-import sys
 
 #Logging is completely configured by now.
 _log = logging.getLogger(__name__)
@@ -312,5 +310,5 @@ class Interface(BaseInterface):
         if renew & (lifetime > COV_UPDATE_BUFFER):
             now = datetime.now()
             next_sub_update = now + (lifetime - COV_UPDATE_BUFFER)
-            self.cov_update = self.core.schedule(next_sub_update, self.establish_cov_subscription, point_name, lifetime,
-                                                                                                  renew)
+            self.core.schedule(next_sub_update, self.establish_cov_subscription, point_name, lifetime,
+                               renew)
