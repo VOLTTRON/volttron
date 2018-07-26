@@ -15,8 +15,8 @@ There are nine arguments for the "driver_config" section of the device configura
     - **proxy_address** - (Optional) VIP address of the BACnet proxy. Defaults to "platform.bacnet_proxy". See :ref:`bacnet-proxy-multiple-networks` for details. Unless your BACnet network has special needs you should not change this value.
     - **ping_retry_interval** - (Optional) The driver will ping the device to establish a route at startup. If the BACnet proxy is not available the driver will retry the ping at this interval until it succeeds. Defaults to 5.
     - **use_read_multiple** - (Optional) During a scrape the driver will tell the proxy to use a ReadPropertyMultipleRequest to get data from the device. Otherwise the proxy will use multiple ReadPropertyRequest calls. If the BACnet proxy is reporting a device is rejecting requests try changing this to false for that device. Be aware that setting this to false will cause scrapes for that device to take much longer. Only change if needed. Defaults to true.
-    - **cov_lifetime** - (Optional) When a device establishes a change of value subscription for a point, this argument will be used to determine the lifetime and renewal period for the subscription, in seconds. Defaults to 180.
-    - **cov_scrape_all** - (Optional) During a scrape, this value determines whether points flagged as change of value points in the registry configuration will be included in the results. Defaults to false.
+    - **cov_lifetime** - (Optional) When a device establishes a change of value subscription for a point, this argument will be used to determine the lifetime and renewal period for the subscription, in seconds. Defaults to 180. (Added to Master Driver version 3.1.2)
+    - **cov_scrape_all** - (Optional) During a scrape, this value determines whether points flagged as change of value points in the registry configuration will be included in the results. Defaults to false. (Added to Master Driver version 3.1.2)
 
 Here is an example device configuration file:
 
@@ -69,7 +69,7 @@ The following columns are required for each row:
 The following columns are optional:
 
     - **Write Priority** - BACnet priority for writing to this point. Valid values are 1-16. Missing this column or leaving the column blank will use the default priority of 16.
-    - **COV Flag** - Either "True" or False". Determines if a BACnet Change of Value subscription should be established for this point.  Missing this column or leaving the column blank will result in no change of value subscriptions being established.
+    - **COV Flag** - Either "True" or False". Determines if a BACnet Change of Value subscription should be established for this point.  Missing this column or leaving the column blank will result in no change of value subscriptions being established. (Added to Master Driver version 3.1.2)
 
 Any additional columns will be ignored. It is common practice to include a **Point Name** or **Reference Point Name** to include the device documentation's name for the point and **Notes** and **Unit Details**" for additional information about a point.
 

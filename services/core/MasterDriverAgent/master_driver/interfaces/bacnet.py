@@ -86,11 +86,10 @@ class Interface(BaseInterface):
         self.cov_points = []
 
     def configure(self, config_dict, registry_config_str):
-        print config_dict
         self.min_priority = config_dict.get("min_priority", 8)
         self.parse_config(registry_config_str)
-        self.target_address = config_dict["device_address"]
-        self.device_id = int(config_dict["device_id"])
+        self.target_address = config_dict.get("device_address")
+        self.device_id = int(config_dict.get("device_id"))
 
         # Change of value configuration options
         if 'cov_lifetime' in config_dict:
@@ -232,17 +231,17 @@ class Interface(BaseInterface):
 
         for regDef in configDict:
             #Skip lines that have no address yet.
-            if not regDef['Volttron Point Name']:
+            if not regDef.get('Volttron Point Name'):
                 continue
 
-            io_type = regDef['BACnet Object Type']
-            read_only = regDef['Writable'].lower() != 'true'
-            point_name = regDef['Volttron Point Name']
+            io_type = regDef.get('BACnet Object Type')
+            read_only = regDef.get('Writable').lower() != 'true'
+            point_name = regDef.get('Volttron Point Name')
 
             # checks if the point is flagged for change of value
             is_cov = regDef.get("COV Flag", 'false').tolower() == "true"
 
-            index = int(regDef['Index'])
+            index = int(regDef.get('Index'))
 
             list_index = regDef.get('Array Index', '')
             list_index = list_index.strip()
@@ -266,8 +265,8 @@ class Interface(BaseInterface):
                                                            min=self.min_priority))
 
             description = regDef.get('Notes', '')
-            units = regDef['Units']
-            property_name = regDef['Property']
+            units = regDef.get('Units')
+            property_name = regDef.get('Property')
 
             register = Register(index,
                                 io_type,

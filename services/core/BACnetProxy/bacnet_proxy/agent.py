@@ -50,9 +50,8 @@ _log = logging.getLogger(__name__)
 
 bacnet_logger = logging.getLogger("bacpypes")
 bacnet_logger.setLevel(logging.WARNING)
-__version__ = '0.4'
+__version__ = '0.5'
 
-from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from collections import defaultdict
 
 from Queue import Queue, Empty
@@ -95,6 +94,8 @@ from bacpypes.basetypes import ServicesSupported
 from bacpypes.task import TaskManager
 from gevent.event import AsyncResult
 
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
+
 # Make sure the TaskManager singleton exists...
 task_manager = TaskManager()
 
@@ -113,14 +114,13 @@ task_manager = TaskManager()
 #     def set_exception(self, exception):
 #         self.ioCall.send(None, self.ioResult.set_exception, exception)
 
-# Arbitrary unique Identifier for subscription contexts
-
 class SubscriptionContext:
 
     def __init__(self, address, point_name, object_type, instance_number, sub_process_ID, lifetime=None):
 
         self.address = address
 
+        #Arbitrary value which ties COVRequests to a subscription object
         self.subscriberProcessIdentifier = sub_process_ID
 
         self.point_name = point_name
@@ -379,8 +379,9 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         # forward it along
         BIPSimpleApplication.indication(self, apdu)
 
-    # Handler for ConfirmedCOVNotificationRequests, forwards the notification to the appropriate driver agent
     def do_ConfirmedCOVNotifcationRequest(self, apdu):
+        """Handler for ConfirmedCOVNoficationRequests. These requests are sent by the detection object for the point,
+        created when the COV subscription is established (See COVDetection class in Bacpypes)."""
         point_name = None
         for sub in BACnet_application.sub_cov_contexts.itervalues():
             if apdu.monitoredObjectIdentifier == sub.monitoredObjectIdentifier and apdu.pduSource == sub.address:

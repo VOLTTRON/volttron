@@ -181,9 +181,12 @@ timing out while the BACnet Proxy Agent is collecting points.
 
 
 BACnet Change of Value Services
--------------------------------------------
+-------------------------------
 
 |BACnet Change of Value Communications|
+
+Change of Value Services added in version 0.5 of the BACnet Proxy and version
+3.1.2 of the Master Driver.
 
 There are a variety of scenarios in which a BACnet device may want to publish
 values independently of the regular scrape interval. Bacpypes provides a
@@ -198,7 +201,7 @@ BACnet Proxy to establish a COV subscription with the device. The subscription
 will last for an amount of time specified in the driver configuration, and will
 auto-renew the subscription. If the proxy loses communication with the device or
 the device driver is stopped the subscription will be removed when the lifetime
-expires. While thesubscription exists, the device will send notifications to the
+expires. While the subscription exists, the device will send notifications to the
 BACnet proxy, which will forward them through the Master Driver to the
 appropriate Driver Agent.
 
