@@ -848,20 +848,16 @@ def build_connection_param(identity, instance_name, ssl_auth=None):
         _load_rmq_config()
 
     ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
-
+    instance_ca_name, server_cert_name, admin_cert_name = \
+        certs.Certs.get_cert_names(instance_name)
+    crt = certs.Certs()
     try:
         if ssl_auth:
             ssl_options = dict(
                                 ssl_version=ssl.PROTOCOL_TLSv1,
-                                ca_certs=os.path.join(certs.DEFAULT_CERTS_DIR,
-                                                      "certs",
-                                                      instance_name+"-ca.crt"),
-                                keyfile=os.path.join(certs.DEFAULT_CERTS_DIR,
-                                                     "private",
-                                                     identity+".pem"),
-                                certfile=os.path.join(certs.DEFAULT_CERTS_DIR,
-                                                      "certs",
-                                                      identity+".crt"),
+                                ca_certs=crt.cert_file(instance_ca_name),
+                                keyfile=crt.private_key_file(identity),
+                                certfile=crt.cert_file(identity),
                                 cert_reqs=ssl.CERT_REQUIRED)
             conn_params = pika.ConnectionParameters(
                 host=config_opts['host'],

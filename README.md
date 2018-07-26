@@ -149,7 +149,7 @@ also install the dependencies for rabbimq.  Activate the environment :
 
 **4. Create RabbitMQ setup for VOLTTRON :**
 ```sh
-python volttron/utils/rmq_mgmt.py single
+python volttron/utils/rmq_setup.py single
 ```
 
 User can choose to run with or without ssl authentication by choosing Y/N when
@@ -287,7 +287,7 @@ key files generated have read access to all.
 	sudo service rabbitmq-server restart
 ```
 **5. Update RabbitMQ configuration file and restart RabbitMQ server**
-Follow the instructions provided as output of 'python rmq_mgmt.py single' command to create the rabbitmq.conf, change permissions for ssl private key files and restart rabbitmq-server
+Follow the instructions provided as output of 'python rmq_setup.py single' command to create the rabbitmq.conf, change permissions for ssl private key files and restart rabbitmq-server
 
 **6. Test**
 
@@ -420,10 +420,9 @@ upstream servers on the downstream server and make the VOLTTRON exchange
         certificate of the upstream server. For bi-directional data flow,
         we will have to run the same script on both the nodes.
 
-    b.  Create a user in the upstream server with username=<downstream volttron
-    instance name>
-        and provide it access to the virtualhost of the upstream rabbitmq
-        server.
+    b.  Create a user in the upstream server with username=downstream admin
+    user name. (i.e. <instance-name>-admin) and provide it access to the
+    virtualhost of the upstream rabbitmq server.
 
         ```sh
         sudo rabbitmqctl add_user <username> <password>

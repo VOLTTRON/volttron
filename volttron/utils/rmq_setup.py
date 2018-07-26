@@ -363,7 +363,7 @@ def wizard(type):
 def _setup_for_ssl_auth(instance_name):
     global config_opts
     print('\nChecking for CA certificate\n')
-    instance_ca_name, server_cert_name, client_cert_name = \
+    instance_ca_name, server_name, admin_client_name = \
         certs.Certs.get_cert_names(instance_name)
 
     host = config_opts.get('host', 'localhost')
@@ -372,7 +372,7 @@ def _setup_for_ssl_auth(instance_name):
     config_opts['host'] = new_host
 
     # prompt for host before creating certs as it is needed for server cert
-    _create_certs(client_cert_name, instance_ca_name, server_cert_name)
+    _create_certs(admin_client_name, instance_ca_name, server_name)
 
     # if all was well, create the rabbitmq.conf file for user to copy
     # /etc/rabbitmq and update VOLTTRON_HOME/rabbitmq_config.json
@@ -394,19 +394,14 @@ management.listener.ssl_opts.cacertfile = {instance_ca}
 management.listener.ssl_opts.certfile = {server_cert}
 management.listener.ssl_opts.keyfile = {server_key}""".format(
         instance_ca=crts.cert_file(instance_ca_name),
-        server_cert=crts.cert_file(server_cert_name),
-        server_key=crts.private_key_file(server_cert_name)
+        server_cert=crts.cert_file(server_name),
+        server_key=crts.private_key_file(server_name)
     )
     with open(os.path.join(get_home(), "rabbitmq.conf"), 'w') as rconf:
         rconf.write(new_conf)
 
-
-
-    prompt = 'What is the admin user name:'
-    user = prompt_response(prompt, default=instance_name)
-
     # updated rabbitmq_config.json
-    config_opts['user'] = user
+    config_opts['user'] = admin_client_name
     config_opts['pass'] = ""
     config_opts['amqp-port'] = '5671'
     config_opts['mgmt-port'] = '15671'
@@ -419,14 +414,20 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
           "\n  1. Move the rabbitmq.conf file"
           "in VOLTTRON_HOME directory into your rabbitmq configuration "
           "directory (/etc/rabbitmq in RPM/Debian systems) "
-          "\n  2. On production setup: Restrict access to private key files in "
-          "VOLTTRON_HOME/certificates/ to only rabbitmq user and admin. By "
-          "default private key files generated have read access to all."
-          "\n  3. For custom ssl ports: Generated configuration uses "
+          "\n  2. Optional Setps:"
+          "\n       a. On production setup: Restrict access to "
+          "private key files in VOLTTRON_HOME/certificates/private to "
+          "only rabbitmq user and admin. By default private key files "
+          "generated have read access to all."
+          "\n       b. For custom ssl ports: Generated configuration uses "
           "default rabbitmq ssl ports. Modify both rabbitmq.conf and "
           "VOLTTRON_HOME/rabbitmq_config.json if using different ports. "
-          "\n  4. Restart rabbitmq-server. (sudo service rabbitmq-server "
-          "restart ")
+          "\n       c. A new admin user was created with user name: {} and "
+          "password={}. Please change this user's password by logging into "
+          "https://{}:{}/"
+          "\n  3. Restart rabbitmq-server. (sudo service rabbitmq-server) "
+          "restart ".format(config_opts['user'], default_pass,
+                            config_opts['host'], config_opts['mgmt-port']))
 
 
 def _create_certs(client_cert_name, instance_ca_name, server_cert_name):
