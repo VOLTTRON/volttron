@@ -461,11 +461,11 @@ def create_ca(override=True):
 
 def create_instance_ca(instance_name):
     crts = certs.Certs()
-    name = instance_name + '-ca'
-    crts.create_instance_ca(name)
+    ca_name, server_name, admin_name = crts.get_cert_names(instance_name)
+    crts.create_instance_ca(ca_name)
     print("\nCreated files: \n{}\n{}".format(
-        crts.cert_file(name),
-        crts.private_key_file(name)))
+        crts.cert_file(ca_name),
+        crts.private_key_file(ca_name)))
 
 
 def _create_cert(name=None, **kwargs):
