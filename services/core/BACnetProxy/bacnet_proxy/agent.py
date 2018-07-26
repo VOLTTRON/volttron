@@ -142,6 +142,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         # keep track of requests to line up responses
         self.iocb = {}
 
+        # Tracking mechanism for matching COVNotifications to a COV subscriptionContext object
         self.sub_cov_contexts = {}
         self.cov_sub_process_ID = 1
 
