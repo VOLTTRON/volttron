@@ -425,8 +425,8 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
           "\n       c. A new admin user was created with user name: {} and "
           "password={}. Please change this user's password by logging into "
           "https://{}:{}/"
-          "\n  3. Restart rabbitmq-server. (sudo service rabbitmq-server) "
-          "restart ".format(config_opts['user'], default_pass,
+          "\n  3. Restart rabbitmq-server. (sudo service rabbitmq-server "
+          "restart)".format(config_opts['user'], default_pass,
                             config_opts['host'], config_opts['mgmt-port']))
 
 
