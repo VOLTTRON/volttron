@@ -64,10 +64,10 @@ import pytest
 try:
     from market_service.market_list import MarketList
     from market_service.market_participant import MarketParticipant
+    from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
 except ImportError:
     pytest.skip("Market service requirements not installed.", allow_module_level=True)
 
-from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
 
 
 @pytest.mark.market
