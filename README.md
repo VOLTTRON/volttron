@@ -261,9 +261,9 @@ What is the fully qualified domain name of the system? [localhost.localdomain]: 
 
 Do you want to create a self-signed root CA certificate that can sign all volttron instance CA in your setup: [N]: N
 
-Enter path to intermediate CA certificate of this volttron instance: /home/velo/volttron1-ca.crt
+Enter path to intermediate CA certificate of this volttron instance: /home/velo/volttron1-instance-ca.crt
 
-Enter path to private key file for this instance CA: /home/velo/volttron1-ca.pem
+Enter path to private key file for this instance CA: /home/velo/volttron1-instance-ca.pem
 
 Creating new USER: volttron1
 
@@ -388,8 +388,8 @@ built-in "federation" feature provided by RabbitMQ.
 (volttron)[velo@osboxes myvolttron]$ volttron-pkg create_instance_ca volttron2
 
 Created files:
-/home/velo/.volttron_r2/certificates/certs/volttron2-ca.crt
-/home/velo/.volttron_r2/certificates/private/volttron2-ca.pem
+/home/velo/.volttron_r2/certificates/certs/volttron2-instance-ca.crt
+/home/velo/.volttron_r2/certificates/private/volttron2-instance-ca.pem
 ```
 
     b. Transfer (scp/sftp/similar) the generated .crt and .pem files to the
