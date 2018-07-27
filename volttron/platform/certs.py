@@ -74,7 +74,7 @@ from volttron.platform import get_home
 
 _log = logging.getLogger(__name__)
 
-ROOT_CA_NAME = 'volttron-ca'
+ROOT_CA_NAME = 'volttron-root-ca'
 DEFAULT_ROOT_CA_CN = '{} {}'.format(gethostname(), ROOT_CA_NAME)
 DEFAULT_CERTS_DIR = os.path.join(get_home(), 'certificates')
 KEY_SIZE = 1024
@@ -359,7 +359,7 @@ class Certs(object):
         :param instance_name: name of the volttron instance
         :return:
         """
-        return instance_name + '-intermediate-ca', instance_name + "-server", \
+        return instance_name + '-instance-ca', instance_name + "-server", \
             instance_name + "-admin"
 
     def create_instance_ca(self, name):
@@ -369,6 +369,7 @@ class Certs(object):
                 destination.write(os.linesep)
                 s = source.read()
                 destination.write(s)
+        os.chmod(self.cert_file(name), 0644)
 
     def save_cert(self, file_path):
         cert_file = self.cert_file(os.path.splitext(os.path.basename(
@@ -505,13 +506,14 @@ class Certs(object):
                 critical=False
             )
         serial_file = self.ca_serial_file(ca_name)
-        serial = 1
+        # If there is no ca db, start with signing CA's serial number + 1 so
+        # that there is no clash of serial numbers in certificate chain
+        serial = ca_cert.serial_number + 1
         if os.path.exists(serial_file):
             with open(serial_file, "r") as f:
                 line = f.readline()
                 if line:
                     serial = int(line.strip())
-
         cert_builder = cert_builder.serial_number(serial)
 
         # 1. version is hardcoded to 2 in Cert builder object. same as what is

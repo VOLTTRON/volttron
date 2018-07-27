@@ -393,7 +393,8 @@ Created files:
 ```
 
     b. Transfer (scp/sftp/similar) the generated .crt and .pem files to the
-       second volttron instance
+       second volttron instance and make sure that the files have read access to
+       rabbitmq user
 
     c. Do the initial setup of Erlang, Rabbitmq, Rabbitmq plugins, and volttron
        using the steps above
