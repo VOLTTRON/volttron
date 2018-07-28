@@ -211,7 +211,7 @@ class RMQPubSub(BasePubSub):
         # Store subscriptions for later use
         self._add_subscription(routing_key, callback, queue)
 
-        self._logger.debug("PUBUB subscribing to {}".format(routing_key))
+        self._logger.debug("RMQ PUBSUB subscribing to {}".format(routing_key))
 
         try:
             connection.channel.queue_declare(callback=None,
@@ -248,7 +248,7 @@ class RMQPubSub(BasePubSub):
             topic = self._get_original_topic(str(method.routing_key))
             try:
                 msg = jsonapi.loads(body)
-                #self._logger.debug("pub message {}".format(method.routing_key))
+                #self._logger.debug("pub callback message {}".format(method.routing_key))
                 headers = msg['headers']
                 message = msg['message']
                 bus = msg['bus']
@@ -334,14 +334,14 @@ class RMQPubSub(BasePubSub):
 
         headers['min_compatible_version'] = min_compatible_version
         headers['max_compatible_version'] = max_compatible_version
-        # self._logger.debug("PUBSUB publish message To. {0}, {1}, {2}, {3} ".format(routing_key,
-        #                                                                        self.core().identity,
-        #                                                                        message,
-        #                                                                        result.ident))
+        # self._logger.debug("RMQ PUBSUB publish message To. {0}, {1}, {2}, {3} ".format(routing_key,
+        #                                                                            self.core().identity,
+        #                                                                            message,
+        #                                                                            topic))
 
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         dct = {
-            'user_id': self.core().identity,
+            #'user_id': self.core().identity,
             'app_id': connection.routing_key,  # SENDER
             'headers': dict(recipient=b'',  # RECEIVER
                             proto=b'VIP',  # PROTO
