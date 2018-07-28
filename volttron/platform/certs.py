@@ -69,6 +69,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID, ExtensionOID
 from cryptography.x509.name import RelativeDistinguishedName
+from cryptography.x509.general_name import DNSName
 from volttron.platform import get_home
 
 
@@ -442,10 +443,6 @@ class Certs(object):
                             [x509.NameAttribute(
                                 NameOID.COMMON_NAME,
                                 hostname)]))
-                        new_attrs.append(RelativeDistinguishedName(
-                            [x509.NameAttribute(
-                                ExtensionOID.SUBJECT_ALTERNATIVE_NAME,
-                                hostname)]))
                     else:
                         new_attrs.append(RelativeDistinguishedName(
                             [x509.NameAttribute(NameOID.COMMON_NAME,
@@ -497,6 +494,10 @@ class Certs(object):
             cert_builder = cert_builder.add_extension(
                 x509.ExtendedKeyUsage((ExtendedKeyUsageOID.SERVER_AUTH,)),
                 critical=False
+            )
+            cert_builder = cert_builder.add_extension(
+                x509.SubjectAlternativeName((DNSName(fqdn.decode('utf-8')),)),
+                critical=True
             )
         elif type == 'client':
             # specify that the certificate can be used as an SSL

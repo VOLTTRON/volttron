@@ -60,7 +60,7 @@ from rmq_mgmt import is_ssl_connection, get_vhost, http_put_request, \
     is_valid_mgmt_port, init_rabbitmq_setup, get_ssl_url_params, create_user, \
     set_user_permissions
 
-disable_warnings(exceptions.SecurityWarning)
+#disable_warnings(exceptions.SecurityWarning)
 
 _log = logging.getLogger(__name__)
 
@@ -119,7 +119,7 @@ def _create_federation_setup():
     if not config_opts:
         _load_rmq_config()
 
-    federation = config_opts['federation']
+    federation = config_opts['federation-upstream']
 
     for name, address in federation.iteritems():
 
@@ -209,16 +209,17 @@ def _get_upstream_servers():
     Build RabbitMQ URIs for upstream servers
     :return:
     """
-    global config_opts
+    global config_opts, instance_name
     if not config_opts:
         _load_rmq_config()
-    federation = config_opts.get('federation', dict())
+    federation = config_opts.get('federation-upstream', dict())
     multi_platform = True
     ssl_params = get_ssl_url_params()
     prompt = 'How many upstream servers do you want to configure?'
     count = prompt_response(prompt, default=1)
     count = int(count)
     i = 0
+    is_ssl = is_ssl_connection()
     for i in range(0, count):
         prompt = 'Name of the upstream server {}: '.format(i+1)
         default_name = 'upstream-' + str(i+1)
@@ -229,62 +230,97 @@ def _get_upstream_servers():
         port = prompt_response(prompt, default=5671)
         prompt = 'Virtual host of the upstream server: '
         vhost = prompt_response(prompt, default='volttron')
-        prompt = 'Instance name of upstream server: '
-        instance = prompt_response(prompt)
-        address = "amqps://{host}:{port}/{vhost}?" \
+        if is_ssl:
+            address = "amqps://{host}:{port}/{vhost}?" \
                   "{ssl_params}&server_name_indication={host}".format(
                     host=host, port=port, vhost=vhost, ssl_params=ssl_params)
+        else:
+            address = "amqp://{user}:{pwd}@{host}:{port}/{vhost}".format(
+                user=instance_name, pwd=instance_name, host=host, port=port,
+                vhost=vhost)
         federation[name] = address
-    config_opts['federation'] = federation
+    config_opts['federation-upstream'] = federation
     config_opts.sync()
     return multi_platform
 
 
 def _get_shovel_settings():
-    """
-    Get Shovel settings from user
-    :return:
-    """
-    global config_opts, crts
+    global config_opts
     if not config_opts:
         _load_rmq_config()
-    shovels = []
+
+    platform_config = load_platform_config()
+    try:
+        instance_name = platform_config['instance-name'].strip('"')
+        print(instance_name)
+    except KeyError as exc:
+        print("Unknown instance name. Please set instance-name in VOLTTRON_HOME/config")
+        return
+
     shovels = config_opts.get('shovels', [])
-    ssl_params = get_ssl_url_params()
-    prompt = 'How many shovels do you want to configure?'
-    count = prompt_response(prompt, default=1)
-    count = int(count)
-    i = 0
-    for i in range(0, count):
-        prompt = 'Name of the shovel: '
-        default_name = 'shovel-' + str(count)
-        name = prompt_response(prompt, default=default_name)
-        prompt = 'Hostname of the destination instance: '
-        host = prompt_response(prompt, default='localhost')
-        prompt = 'Port of the upstream server: '
-        port = prompt_response(prompt, default=5671)
-        prompt = 'Virtual host of the destination server: '
-        vhost = prompt_response(prompt, default='volttron')
-        # prompt = 'Username of the destination server: '
-        # user = prompt_response(prompt, default='volttron')
-        # prompt = 'Password of the destination server: '
-        # pwd = prompt_response(prompt, default='volttron')
-        # TODO- Currently using instancename user for all shovel connection to a
-        # single volttron instance. Change based on authorization
-        prompt = 'Instance name of upstream server: '
-        inst = prompt_response(prompt)
-        address = "amqps://{host}:{port}/{vhost}?{params}" \
-                  "&server_name_indication={host}".format(
-                    host=host, port=port, vhost=vhost,
-                    params=ssl_params)
-        prompt = 'List of pubsub topics to publish to remote ' \
-                 'instance (comma seperated)'
-        topics = prompt_response(prompt, default="")
-        topics = topics.split(",")
-        shovels.append(dict(shovel_name=name, remote_address=address,
-                            topics=topics))
-    config_opts['shovels'] = shovels
-    config_opts.sync()
+    multi_platform = False
+    prompt = prompt_response('\nDo you want a multi-platform shovel setup? ',
+                                         valid_answers=y_or_n,
+                                         default='N')
+    if prompt in y:
+        multi_platform = True
+        prompt = prompt_response('\nDo you want shovels for multi-platform RPC? ',
+                                 valid_answers=y_or_n,
+                                 default='N')
+        if prompt in y:
+            prompt = 'How many RPC shovels do you want to configure? You will need to create one for each remote platform'
+            count = prompt_response(prompt, default=1)
+            for i in range(0, int(count)):
+                name = 'shovel-rpc-{}'.format(i + 1)
+                print("Configuring RPC Shovel {}".format(i+1))
+                prompt = 'Hostname of the destination instance: '
+                host = prompt_response(prompt, default='localhost')
+                prompt = 'Port of the upstream server: '
+                port = prompt_response(prompt, default=5672)
+                prompt = 'Virtual host of the destination server: '
+                vhost = prompt_response(prompt, default='volttron')
+                prompt = 'Username of the destination server: '
+                user = prompt_response(prompt, default='volttron')
+                prompt = 'Password of the destination server: '
+                pwd = prompt_response(prompt, default='volttron')
+                prompt = 'Instance name of the destination server: '
+                platform = prompt_response(prompt, default='')
+                address = "amqp://{0}:{1}@{2}:{3}/{4}".format(user, pwd, host, port, vhost)
+                rpc_key = platform + '.*'
+                shovels.append(dict(name=name, remote_address=address, topics=rpc_key))
+
+        prompt = prompt_response('\nDo you want shovels for multi-platform PUBSUB? ',
+                                 valid_answers=y_or_n,
+                                 default='N')
+        if prompt in y:
+            prompt = 'How many remote instances do you want to publish topic? '
+            count = prompt_response(prompt, default=1)
+            for i in range(0, int(count)):
+                print("Configuring Remote instance {}".format(i + 1))
+                prompt = 'Hostname of the destination instance: '
+                host = prompt_response(prompt, default='localhost')
+                prompt = 'Port of the upstream server: '
+                port = prompt_response(prompt, default=5672)
+                prompt = 'Virtual host of the destination server: '
+                vhost = prompt_response(prompt, default='volttron')
+                prompt = 'Username of the destination server: '
+                user = prompt_response(prompt, default='volttron')
+                prompt = 'Password of the destination server: '
+                pwd = prompt_response(prompt, default='volttron')
+                address = "amqp://{user}:{pwd}@{host}:{port}/{vhost}".format(
+                    user=user, pwd=pwd, host=host, port=port, vhost=vhost)
+                prompt = 'List of PUBSUB topics to publish to this remote instance (comma seperated)'
+                topics = prompt_response(prompt, default="")
+                topics = topics.split(",")
+
+                for topic in topics:
+                    name = "shovel-pubsub-{0}-{1}".format(topic, i+1)
+                    pubsub_key = "__pubsub__.{0}.{1}.#".format(instance_name, topic)
+                    shovels.append(dict(name=name, remote_address=address, topics=pubsub_key))
+        config_opts['shovel'] = shovels
+        config_opts.sync()
+
+    return multi_platform
 
 
 def _create_shovel_setup():
@@ -293,29 +329,29 @@ def _create_shovel_setup():
         _load_rmq_config()
         return
     platform_config = load_platform_config()
-    shovels = config_opts.get('shovels', [])
-    src_uri = build_rmq_address(ssl_auth=True)
+    shovels = config_opts.get('shovel', [])
+    print shovels
+    src_uri = build_rmq_address(ssl_auth=False)
     for shovel in shovels:
-        name = shovel['shovel_name']
+        name = shovel['name']
         dest_uri = shovel['remote_address']
         topics = shovel['topics']
+        if not isinstance(topics, list):
+            topics = [topics]
         for topic in topics:
-            pubsub_key = "__pubsub__.{0}.{1}.#".format(instance_name, topic)
             property = dict(vhost=config_opts['virtual-host'],
                         component="shovel",
                         name=name,
-                        value={"src-uri":  src_uri,
+                        value={"src-uri": src_uri,
                                 "src-exchange":  "volttron",
-                                "src-exchange-key": pubsub_key,
+                                "src-exchange-key": topic,
                                 "dest-uri": dest_uri,
                                 "dest-exchange": "volttron"}
                             )
+            print("shovel property: {}", property)
             set_parameter("shovel",
                           name,
-                          property,
-                          config_opts['user'],
-                          config_opts['pass'],
-                          config_opts['virtual-host'])
+                          property)
 
 
 def wizard(type):
