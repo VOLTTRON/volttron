@@ -149,17 +149,31 @@ also install the dependencies for rabbimq.  Activate the environment :
 
 **4. Create RabbitMQ setup for VOLTTRON :**
 ```sh
-python volttron/utils/rmq_mgmt.py single
+python volttron/utils/rmq_setup.py single
 ```
 
-User can choose to run with or without authentication by choosing Y/N when prompted. Description below explains the steps when user chooses to run the platform with SSL based authentication.
-This creates a new virtual host “volttron” and creates ssl certificates needed for this VOLTTRON instance. These certificates get created under the sub directory "certificates" in your VOLTTRON home (typically in ~/.volttron). It then creates the main VIP exchange named "volttron" to route message between platform and agents and alternate exchange to capture unrouteable messages.
+User can choose to run with or without ssl authentication by choosing Y/N when
+prompted. Description below explains the steps when user chooses to run the
+platform with SSL based authentication. This creates a new virtual host
+“volttron” and creates ssl certificates needed for this VOLTTRON instance.
+These certificates get created under the sub directory "certificates" in
+your VOLTTRON home (typically in ~/.volttron). It then creates the main VIP
+exchange named "volttron" to route message between platform and agents and
+alternate exchange to capture unrouteable messages.
 
-This script prompt for multiple information from the user regarding the VOLTTRON instance for which we are configuring rabbitmq. For each VOLTTRON instance there a single instance-ca certificate is created. All VOLTTRON instances that need to work together in a federation/shovel setup needs to have a instance-ca certificate signed by the same root CA.  A single VOLTTRON instance can create a self signed root ca. Instance-ca for all VOLTTRON instances should be generated in this VOLTTRON instance and should be scp-ed into the other instance.
+This script prompt for multiple information from the user regarding the
+VOLTTRON instance for which we are configuring rabbitmq. For each VOLTTRON
+instance there a single instance-ca certificate is created. All VOLTTRON
+instances that need to work together in a federation/shovel setup needs to
+have a instance-ca certificate signed by the same root CA.  A single VOLTTRON
+instance can create a self signed root ca. Instance-ca for all VOLTTRON
+instances should be generated in this VOLTTRON instance and should be scp-ed
+into the other instance.
  
-Following is the example inputs for rmq_mgmt.py single command for VOLTTRON instance that has root CA.
+Following is the example inputs for rmq_setup.py single command for VOLTTRON
+instance that has root CA.
 ```sh
-python volttron/utils/rmq_mgmt.py single
+python volttron/utils/rmq_setup.py single
 Your VOLTTRON_HOME currently set to: /home/velo/new_volttron
 Is this the volttron instance you are attempting to configure rabbitmq for? [Y]:
 
@@ -205,21 +219,26 @@ What is the admin user name: [volttron1]:
 
 Please do the following to complete setup
 
-1. Provide read access to rabbitmq user to VOLTTRON_HOME/certificates/private/*
+1. Move the rabbitmq.conf filein VOLTTRON_HOME directory into your rabbitmq
+configuration directory (/etc/rabbitmq in RPM/Debian systems)
 
-2. Move the rabbitmq.conf filein VOLTTRON_HOME directory into your rabbitmq configuration directory (/etc/rabbitmq in RPM/Debian systems)
+2.On production setup: Restrict access to private key files in
+VOLTTRON_HOME/certificates/ to only rabbitmq user and admin. By default private
+key files generated have read access to all.
 
-3. For custom ssl ports: Generated configuration uses default rabbitmq ssl ports. Modify both rabbitmq.conf and VOLTTRON_HOME/rabbitmq_config.json if using different ports.
+3. For custom ssl ports: Generated configuration uses default rabbitmq ssl
+   ports. Modify both rabbitmq.conf and VOLTTRON_HOME/rabbitmq_config.json if
+   using different ports.
 
 4. Restart rabbitmq-server.
-	sudo service rabbitmq-server stop
-	sudo service rabbitmq-server start
+	sudo service rabbitmq-server restart
 ```
 
-Example inputs for 'python rmq_mgmt.py single' command for a volttron instance that does not contain the root CA cert
+Example inputs for 'python rmq_setup.py single' command for a volttron instance
+that does not contain the root CA cert
 
 ```sh
-python volttron/utils/rmq_mgmt.py single
+python volttron/utils/rmq_setup.py single
 Your VOLTTRON_HOME currently set to: /home/velo/volttron_test
 
 Is this the volttron instance you are attempting to configure rabbitmq for? [Y]:
@@ -242,9 +261,9 @@ What is the fully qualified domain name of the system? [localhost.localdomain]: 
 
 Do you want to create a self-signed root CA certificate that can sign all volttron instance CA in your setup: [N]: N
 
-Enter path to intermediate CA certificate of this volttron instance: /home/velo/volttron1-ca.crt
+Enter path to intermediate CA certificate of this volttron instance: /home/velo/volttron1-instance-ca.crt
 
-Enter path to private key file for this instance CA: /home/velo/volttron1-ca.pem
+Enter path to private key file for this instance CA: /home/velo/volttron1-instance-ca.pem
 
 Creating new USER: volttron1
 
@@ -253,18 +272,22 @@ Create READ, WRITE and CONFIGURE permissions for the user: volttron1
 What is the admin user name: [volttron1]:
 Please do the following to complete setup
 
-1. Provide read access to rabbitmq user to VOLTTRON_HOME/certificates/private/*
+1. Move the rabbitmq.conf filein VOLTTRON_HOME directory into your rabbitmq
+configuration directory (/etc/rabbitmq in RPM/Debian systems)
 
-2. Move the rabbitmq.conf filein VOLTTRON_HOME directory into your rabbitmq configuration directory (/etc/rabbitmq in RPM/Debian systems)
+2.On production setup: Restrict access to private key files in
+VOLTTRON_HOME/certificates/ to only rabbitmq user and admin. By default private
+key files generated have read access to all.
 
-3. For custom ssl ports: Generated configuration uses default rabbitmq ssl ports. Modify both rabbitmq.conf and VOLTTRON_HOME/rabbitmq_config.json if using different ports.
+3. For custom ssl ports: Generated configuration uses default rabbitmq ssl
+   ports. Modify both rabbitmq.conf and VOLTTRON_HOME/rabbitmq_config.json if
+   using different ports.
 
 4. Restart rabbitmq-server.
-	sudo service rabbitmq-server stop
-	sudo service rabbitmq-server start
+	sudo service rabbitmq-server restart
 ```
 **5. Update RabbitMQ configuration file and restart RabbitMQ server**
-Follow the instructions provided as output of 'python rmq_mgmt.py single' command to create the rabbitmq.conf, change permissions for ssl private key files and restart rabbitmq-server
+Follow the instructions provided as output of 'python rmq_setup.py single' command to create the rabbitmq.conf, change permissions for ssl private key files and restart rabbitmq-server
 
 **6. Test**
 
@@ -348,24 +371,85 @@ subcommands:
 ```
 
 ## Multi-Platform Deployment With RabbitMQ Message bus
-We can configure multi-platform VOLTTRON setup with RabbitMQ message bus using built-in "federation" feature provided by RabbitMQ. The
-first step to do so would be to identify upstream servers (publisher nodes) and downstream servers (collector nodes).
-To create a RabbitMQ federation, we have to configure upstream servers on the downstream server and make the VOLTTRON exchange "federated".
+We can configure multi-platform VOLTTRON setup with RabbitMQ message bus using
+built-in "federation" feature provided by RabbitMQ.
 
-1. On the downstream server (collector node),
+1. Generate ssl certificates for the new volttron instance.
+   In a multi platform setup that need to communicate with each other with
+   rabbitmq over ssl, each volttron instance should have a intermediate CA and
+   all intermediate CAs( for each volttron instance) should be signed by the
+   same ROOT CA.
+
+   a. To generate intermediate CA for the second volttron instance,
+      run the following command in the instance containing the ROOT CA.
+      volttron-pkg create_instance_ca <instance_name>
 
 ```
-python volttron/utils/rmq_mgmt.py federation
+(volttron)[velo@osboxes myvolttron]$ volttron-pkg create_instance_ca volttron2
+
+Created files:
+/home/velo/.volttron_r2/certificates/certs/volttron2-instance-ca.crt
+/home/velo/.volttron_r2/certificates/private/volttron2-instance-ca.pem
 ```
 
-Please provide the hostname (or IP address) and port of the upstream nodes when prompted. The hostname provided should match the hostname in the ssl certificate of the upstream server. For bi-directional data flow, we will have to run the same script on both the nodes.
+    b. Transfer (scp/sftp/similar) the generated .crt and .pem files to the
+       second volttron instance and make sure that the files have read access to
+       rabbitmq user
 
-2. Create a user in the upstream server with username=<downstream volttron instance name> and provide it access to the virtualhost of the upstream rabbitmq server.
-```sh
-sudo rabbitmqctl add_user <username> <password>
-sudo rabbitmqctl set_permissions -p volttron <username> ".*" ".*" ".*"
-```
-	
+    c. Do the initial setup of Erlang, Rabbitmq, Rabbitmq plugins, and volttron
+       using the steps above
+
+    d. Run "python volttron/utils/rmq_setup.py single" command but when prompted
+       for creation of root certificate choose N. The script will now prompt you
+       for the location of the instance CA (intermediate CA). Provide the path
+       of the files your transferred to this machine.
+
+
+2. Identify upstream servers (publisher nodes) and downstream servers
+(collector nodes). To create a RabbitMQ federation, we have to configure
+upstream servers on the downstream server and make the VOLTTRON exchange
+"federated".
+
+    a.  On the downstream server (collector node),
+
+        ```
+        python volttron/utils/rmq_setup.py federation
+        ```
+
+        Please provide the hostname (or IP address) and port of the upstream nodes when
+        prompted. The hostname provided should match the hostname in the ssl
+        certificate of the upstream server. For bi-directional data flow,
+        we will have to run the same script on both the nodes.
+
+    b.  Create a user in the upstream server with username=downstream admin
+    user name. (i.e. <instance-name>-admin) and provide it access to the
+    virtualhost of the upstream rabbitmq server.
+
+        ```sh
+        sudo rabbitmqctl add_user <username> <password>
+        sudo rabbitmqctl set_permissions -p volttron <username> ".*" ".*" ".*"
+        ```
+3. Test the federation setup.
+   a. On the downstream server run a listener agent which subscribes to messages
+   from all platforms (set @PubSub.subscribe('pubsub', '', all_platforms=True)
+   instead of @PubSub.subscribe('pubsub', '') )
+   b.Start volttron on upstream volttron
+   c. Verify listener agent in downstream volttron instance is able to receive
+   the messages.
+
+4. Open ports and https service if needed
+   On Redhat based systems ports used by rabbbitmq - 5671, 15671 for ssl, 5672
+   and 15672 otherwise - might not be open by default. In that case please
+   contact system administrator to get ports opened on the downstream server.
+   Following are commands used on centos 7.
+
+   ```
+   sudo firewall-cmd --zone=public --add-port=15671/tcp --permanent
+   sudo firewall-cmd --zone=public --add-port=5671/tcp --permanent
+   sudo firewall-cmd --zone=public --add-port=5671/tcp --permanent
+   sudo firewall-cmd --reload
+   ```
+
 ## Next Steps
 We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we are working towards completing the following:
 * Integrating Volttron Central, forwarder, data mover and other agents which connect to remote instances to use RabbitMQ message bus with SSL.
@@ -374,14 +458,9 @@ We request you to explore and contribute towards development of VOLTTRON message
 * Scalability tests for large scale VOLTTRON deployment.
 
 ## Acquiring Third Party Agent Code
-Third party agents are available under volttron-applications repository. In order to use those agents, add volttron-applications repository under the volttron/applications directory by using following command:
-
-```sh
-git subtree add –prefix applications https://github.com/VOLTTRON/volttron-applications.git develop –squash
-```
-
-## Acquiring Third Party Agent Code
-Third party agents are available under volttron-applications repository. In order to use those agents, add volttron-applications repository under the volttron/applications directory by using following command:
+Third party agents are available under volttron-applications repository. In
+order to use those agents, add volttron-applications repository in the same
+directory that contains volttron source code clone using following command:
 
 ```sh
 git subtree add –prefix applications https://github.com/VOLTTRON/volttron-applications.git develop –squash

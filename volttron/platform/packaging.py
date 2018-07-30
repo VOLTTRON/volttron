@@ -56,7 +56,7 @@ from .agent import utils
 from volttron.platform import get_volttron_data, get_home
 from volttron.utils.prompt import prompt_response
 from volttron.platform import certs
-from certs import DEFAULT_CERTS_DIR
+from volttron.platform.agent.utils import get_platform_instance_name
 try:
      from volttron.restricted import auth
 except ImportError:
@@ -442,7 +442,7 @@ def _cert_type_from_kwargs(**kwargs):
 
 def create_ca(override=True):
     """Creates a root ca cert using the Certs class"""
-    crts = certs.Certs(DEFAULT_CERTS_DIR)
+    crts = certs.Certs()
     if crts.ca_exists():
         if override:
             msg = '''Creating a new root ca will overwrite the current ca and
@@ -460,18 +460,18 @@ def create_ca(override=True):
     crts.create_root_ca(**data)
 
 def create_instance_ca(instance_name):
-    crts = certs.Certs(DEFAULT_CERTS_DIR)
-    name = instance_name + '-ca'
-    crts.create_instance_ca(name)
+    crts = certs.Certs()
+    ca_name, server_name, admin_name = crts.get_cert_names(instance_name)
+    crts.create_instance_ca(ca_name)
     print("\nCreated files: \n{}\n{}".format(
-        crts.cert_file(name),
-        crts.private_key_file(name)))
+        crts.cert_file(ca_name),
+        crts.private_key_file(ca_name)))
 
 
 def _create_cert(name=None, **kwargs):
     """Create a cert using options specified on the command line"""
 
-    crts = certs.Certs(DEFAULT_CERTS_DIR)
+    crts = certs.Certs()
     if not crts.ca_exists():
         sys.stderr.write('Root CA must be created before certificates\n')
         sys.exit(0)
@@ -484,7 +484,9 @@ def _create_cert(name=None, **kwargs):
     else:
         cert_data = _create_cert_ui('{} ({})'.format(cert_type, name))
 
-    crts.create_ca_signed_cert(name, **cert_data)
+    instance_name = get_platform_instance_name()
+    instance_ca, server, admin = certs.Certs.get_cert_names(instance_name)
+    crts.create_ca_signed_cert(name, ca_name=instance_ca,  **cert_data)
 
 
 def _create_cert_ui(cn):
@@ -606,10 +608,6 @@ def main(argv=sys.argv):
     config_parser.add_argument('config_file', metavar='CONFIG',
                                help='configuration file to add to wheel.')
 
-    cert_dir = os.path.expanduser(DEFAULT_CERTS_DIR)
-    if not os.path.exists(cert_dir):
-        os.makedirs('/'.join((cert_dir, 'certs')))
-        os.makedirs('/'.join((cert_dir, 'private')))
     create_ca_cmd = subparsers.add_parser('create_ca')
     create_instance_ca_cmd = subparsers.add_parser('create_instance_ca')
     create_instance_ca_cmd.add_argument(

@@ -56,10 +56,12 @@
 import copy
 import datetime
 import logging
+import pwd
 from socket import gethostname, getfqdn
 from shutil import copyfile
 
 import os
+import json
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -67,13 +69,15 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID, ExtensionOID
 from cryptography.x509.name import RelativeDistinguishedName
+from cryptography.x509.general_name import DNSName
 from volttron.platform import get_home
-from volttron.platform.agent.utils import load_platform_config
+
 
 _log = logging.getLogger(__name__)
 
-ROOT_CA_NAME = 'volttron-ca'
+ROOT_CA_NAME = 'volttron-root-ca'
 DEFAULT_ROOT_CA_CN = '{} {}'.format(gethostname(), ROOT_CA_NAME)
+DEFAULT_CERTS_DIR = os.path.join(get_home(), 'certificates')
 KEY_SIZE = 1024
 ENC_STANDARD = 65537
 SHA_HASH = 'sha256'
@@ -83,8 +87,6 @@ DEFAULT_DAYS = 365
 DEFAULT_TIMOUT = 60 * 60 * 24 * 360 * 10
 
 PROMPT_PASSPHRASE = False
-
-DEFAULT_CERTS_DIR = os.path.join(get_home(), 'certificates')
 
 
 class CertError(Exception):
@@ -240,6 +242,10 @@ def _load_key(key_file_path):
         return key
 
 
+def _get_cert_attribute_value(cert, attribute):
+    return cert.subject.get_attributes_for_oid(attribute)[0].value
+
+
 class Certs(object):
     """A wrapper class around certificate creation, retrieval and verification.
 
@@ -266,27 +272,47 @@ class Certs(object):
         """
         return '/'.join((self.private_dir, name + '.pem'))
 
-    def __init__(self, certificate_dir=DEFAULT_CERTS_DIR):
+    def ca_db_file(self, name):
+        """
+        return path to the ca db file of the passed name. Name passed should
+        not contain any file extension
+        :param name: name of the  file
+        :return: Full path the <name>_cadb.json file
+        :rtype: str
+        """
+        return '/'.join((self.ca_db_dir, name + '-cadb.json'))
+
+    def ca_serial_file(self, name):
+        """
+        return the file in which ca stores the next serial number to use
+        :param name: name of the ca
+        :return: Full path the <name>-serial file
+        :rtype: str
+        """
+        return '/'.join((self.ca_db_dir, name + '-serial'))
+
+    def __init__(self, certificate_dir=None):
         """Creates a Certs instance"""
+        if not certificate_dir:
+            certificate_dir = DEFAULT_CERTS_DIR
+        # If user provided explicit directory then it should exist
+        if not os.path.exists(certificate_dir):
+            if certificate_dir != DEFAULT_CERTS_DIR:
+                raise ValueError('Invalid cert_dir {}'.format(self.cert_dir))
+
         self.cert_dir = os.path.join(os.path.expanduser(certificate_dir),
                                      'certs')
         self.private_dir = os.path.join(os.path.expanduser(certificate_dir),
                                         'private')
+        self.ca_db_dir = os.path.join(os.path.expanduser(certificate_dir),
+                                      'ca_db')
 
-        _log.debug("certs.cert_dir: {}".format(self.cert_dir))
-        _log.debug("certs.private_dir: {}".format(self.private_dir))
-
-        # If user provided explicit directory then it should exist
         if not os.path.exists(self.cert_dir):
-            if certificate_dir == DEFAULT_CERTS_DIR:
-                os.makedirs(self.cert_dir, 0o755)
-            else:
-                raise ValueError('Invalid cert_dir {}'.format(self.cert_dir))
+            os.makedirs(self.cert_dir, 0o755)
         if not os.path.exists(self.private_dir):
-            if certificate_dir == DEFAULT_CERTS_DIR:
-                os.makedirs(self.private_dir, 0o755)
-            else:
-                raise ValueError('Invalid private_dir {}'.format(self.private_dir))
+            os.makedirs(self.private_dir, 0o755)
+        if not os.path.exists(self.ca_db_dir):
+            os.makedirs(self.ca_db_dir, 0o755)
 
     def ca_cert(self):
         """
@@ -325,6 +351,18 @@ class Certs(object):
         """
         return os.path.exists(self.cert_file(ROOT_CA_NAME))
 
+    @staticmethod
+    def get_cert_names(instance_name):
+        """
+        Returns the name of the instance ca certificate(
+        intermediate ca to be signed by the root ca), instance server
+        certificate and instance client (admin user) certificate
+        :param instance_name: name of the volttron instance
+        :return:
+        """
+        return instance_name + '-instance-ca', instance_name + "-server", \
+            instance_name + "-admin"
+
     def create_instance_ca(self, name):
         self.create_ca_signed_cert(name, type='CA')
         with open(self.cert_file(name), 'a') as destination:
@@ -332,6 +370,7 @@ class Certs(object):
                 destination.write(os.linesep)
                 s = source.read()
                 destination.write(s)
+        os.chmod(self.cert_file(name), 0644)
 
     def save_cert(self, file_path):
         cert_file = self.cert_file(os.path.splitext(os.path.basename(
@@ -373,13 +412,7 @@ class Certs(object):
         :return: True if certificate creation was successful
         """
         if not ca_name:
-            if type == 'CA':
-                ca_name = ROOT_CA_NAME
-            else:
-                platform_config = load_platform_config()
-                instance_name = platform_config['instance-name'].strip('"')
-                ca_name = instance_name + "-ca"
-
+            ca_name = ROOT_CA_NAME
         ca_cert = self.cert(ca_name)
 
         issuer = ca_cert.subject
@@ -405,25 +438,11 @@ class Certs(object):
                             hostname = fqdn.decode('utf-8')
                         else:
                             hostname = getfqdn().decode('utf-8')
+                            fqdn = hostname
                         new_attrs.append(RelativeDistinguishedName(
                             [x509.NameAttribute(
                                 NameOID.COMMON_NAME,
                                 hostname)]))
-                        new_attrs.append(RelativeDistinguishedName(
-                            [x509.NameAttribute(
-                                ExtensionOID.SUBJECT_ALTERNATIVE_NAME,
-                                hostname)]))
-
-                        # if fqdn:
-                        #     new_attrs.append(RelativeDistinguishedName(
-                        #         [x509.NameAttribute(
-                        #             NameOID.COMMON_NAME,
-                        #             fqdn.decode('utf-8'))]))
-                        # else:
-                        #     new_attrs.append(RelativeDistinguishedName(
-                        #         [x509.NameAttribute(
-                        #             NameOID.COMMON_NAME,
-                        #             getfqdn().decode('utf-8'))]))
                     else:
                         new_attrs.append(RelativeDistinguishedName(
                             [x509.NameAttribute(NameOID.COMMON_NAME,
@@ -443,7 +462,7 @@ class Certs(object):
         ).not_valid_after(
             # Our certificate will be valid for 365 days
             datetime.datetime.utcnow() + datetime.timedelta(days=365)
-        ).serial_number(2).add_extension(
+        ).add_extension(
             x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(ski),
             critical=False
         )
@@ -476,6 +495,10 @@ class Certs(object):
                 x509.ExtendedKeyUsage((ExtendedKeyUsageOID.SERVER_AUTH,)),
                 critical=False
             )
+            cert_builder = cert_builder.add_extension(
+                x509.SubjectAlternativeName((DNSName(fqdn.decode('utf-8')),)),
+                critical=True
+            )
         elif type == 'client':
             # specify that the certificate can be used as an SSL
             # client certificate to enable TLS Web Client Authentication
@@ -483,6 +506,16 @@ class Certs(object):
                 x509.ExtendedKeyUsage((ExtendedKeyUsageOID.CLIENT_AUTH,)),
                 critical=False
             )
+        serial_file = self.ca_serial_file(ca_name)
+        # If there is no ca db, start with signing CA's serial number + 1 so
+        # that there is no clash of serial numbers in certificate chain
+        serial = ca_cert.serial_number + 1
+        if os.path.exists(serial_file):
+            with open(serial_file, "r") as f:
+                line = f.readline()
+                if line:
+                    serial = int(line.strip())
+        cert_builder = cert_builder.serial_number(serial)
 
         # 1. version is hardcoded to 2 in Cert builder object. same as what is
         # set by old certs.py
@@ -493,6 +526,8 @@ class Certs(object):
         ca_key = _load_key(self.private_key_file(ca_name))
         cert = cert_builder.sign(ca_key, hashes.SHA256(), default_backend())
         self._save_cert(name, cert, key)
+        self.update_ca_db(cert, ca_name, serial)
+        from service_identity.cryptography import verify_certificate_hostname
         return True
 
     def _save_cert(self, name, cert, pk):
@@ -516,13 +551,46 @@ class Certs(object):
             )
 
         # Write our key to disk for safe keeping
-        with open(self.private_key_file(name), "wb") as f:
+        key_file = self.private_key_file(name)
+        with open(key_file, "wb") as f:
             f.write(pk.private_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.TraditionalOpenSSL,
                 encryption_algorithm=encryption
             ))
-        os.chmod(self.private_key_file(name), 0o600)
+        os.chmod(key_file, 0o644)
+
+    def update_ca_db(self, cert, ca_name, serial):
+        """
+        Update the CA db with details of the file that the ca signed.
+        :param cert: cert that was signed by ca_name
+        :param ca_name: name of the ca that signed the cert
+        """
+        db_file = self.ca_db_file(ca_name)
+        ca_db = {}
+        dn = "C={}/ST={}/L={}/O={}/OU={}/CN={}".format(
+            _get_cert_attribute_value(cert, NameOID.COUNTRY_NAME),
+            _get_cert_attribute_value(cert, NameOID.STATE_OR_PROVINCE_NAME),
+            _get_cert_attribute_value(cert, NameOID.LOCALITY_NAME),
+            _get_cert_attribute_value(cert, NameOID.ORGANIZATION_NAME),
+            _get_cert_attribute_value(cert, NameOID.ORGANIZATIONAL_UNIT_NAME),
+            _get_cert_attribute_value(cert, NameOID.COMMON_NAME))
+        if os.path.exists(db_file):
+            with open(db_file, "r") as f:
+                ca_db = json.load(f)
+        entries = ca_db.get(dn, {})
+        entries['status'] = "valid"
+        entries['expiry'] = cert.not_valid_after.strftime("%Y-%m-%d "
+                                                          "%H:%M:%S.%f%z")
+        entries['serial_number'] = cert.serial_number
+        ca_db[dn] = entries
+        with open(db_file, 'w+') as outfile:
+            json.dump(ca_db, outfile, indent=4)
+
+        with open(self.ca_serial_file(ca_name), "w+") as f:
+            f.write(str(serial+1))  # next available serial is current + 1
+
+
 
     def verify_cert(self, cert_name):
         """

@@ -69,6 +69,7 @@ import errno
 from Queue import Queue
 from ..keystore import KeyStore
 from volttron.utils.rmq_mgmt import *
+from volttron.platform.agent.utils import create_vagent_cert
 
 __all__ = ['RMQRouter']
 
@@ -116,7 +117,7 @@ class RMQRouter(BaseRouter):
             # Add permissions if necessary
             ssl_auth = is_ssl_connection()
             if ssl_auth:
-                create_user_certs(self._identity)
+                create_vagent_cert(self._identity)
             create_user_with_permissions(self._identity, permissions, ssl_auth=ssl_auth)
             param = build_connection_param(self._identity, self._instance_name, ssl_auth)
             if ssl_auth:
