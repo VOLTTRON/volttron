@@ -37,10 +37,13 @@
 # }}}
 
 import pytest
-from volttron.platform.agent.base_market_agent.point import Point
-from volttron.platform.agent.base_market_agent.poly_line import PolyLine
-from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
-from market_service.offer_manager import OfferManager
+try:
+    from volttron.platform.agent.base_market_agent.point import Point
+    from volttron.platform.agent.base_market_agent.poly_line import PolyLine
+    from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
+    from market_service.offer_manager import OfferManager
+except ImportError:
+    pytest.skip("Market service requirements not installed.", allow_module_level=True)
 
 @pytest.mark.market
 def test_offer_settle_no_intersection():
