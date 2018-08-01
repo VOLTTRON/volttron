@@ -186,7 +186,7 @@ BACnet Change of Value Services
 |BACnet Change of Value Communications|
 
 Change of Value Services added in version 0.5 of the BACnet Proxy and version
-3.1.2 of the Master Driver.
+3.2 of the Master Driver.
 
 There are a variety of scenarios in which a BACnet device may want to publish
 values independently of the regular scrape interval. Bacpypes provides a
@@ -204,5 +204,7 @@ the device driver is stopped the subscription will be removed when the lifetime
 expires. While the subscription exists, the device will send notifications to the
 BACnet proxy, which will forward them through the Master Driver to the
 appropriate Driver Agent.
+
+https://bacpypes.readthedocs.io/en/latest/modules/service/cov.html
 
 .. |BACnet Change of Value Communications| image:: files/bacnet_cov.png

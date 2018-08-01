@@ -55,7 +55,7 @@ from driver_locks import configure_socket_lock, configure_publish_lock
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.1.2'
+__version__ = '3.2'
 
 class OverrideError(DriverInterfaceError):
     """Error raised when the user tries to set/revert point when global override is set."""
@@ -428,7 +428,6 @@ class MasterDriverAgent(Agent):
                 _log.info("Std dev publish time: "+str(stdev))
                 sys.exit(0)
 
-    # TODO piggyback this for forwarding the value to the DriverAgent
     @RPC.export
     def get_point(self, path, point_name, **kwargs):
         """RPC method

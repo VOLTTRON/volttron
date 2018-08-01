@@ -382,7 +382,8 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
 
     def do_ConfirmedCOVNotifcationRequest(self, apdu):
         """Handler for ConfirmedCOVNoficationRequests. These requests are sent by the detection object for the point,
-        created when the COV subscription is established (See COVDetection class in Bacpypes)."""
+        created when the COV subscription is established (See COV_Detection class in Bacpypes:
+        https://bacpypes.readthedocs.io/en/latest/modules/service/cov.html)."""
         point_name = None
         for sub in BACnet_application.sub_cov_contexts.itervalues():
             if apdu.monitoredObjectIdentifier == sub.monitoredObjectIdentifier and apdu.pduSource == sub.address:
