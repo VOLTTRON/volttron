@@ -517,7 +517,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
     function popColor(colorSet) {
         var poppedColor = colorSet.splice(0, 1);
 
-        return poppedColor;
+        return poppedColor[0];
     }
 
     function initColors() {
