@@ -145,7 +145,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
             if (_chartData.hasOwnProperty(action.panelItem.name))
             {
-                console.log('ADDING CHART: ' + JSON.stringify(action.panelItem));
+                console.log('ADDING TO CHART: ' + JSON.stringify(action.panelItem));
 
                 var availableColors = ((
                         _chartData[action.panelItem.name].colors && 
