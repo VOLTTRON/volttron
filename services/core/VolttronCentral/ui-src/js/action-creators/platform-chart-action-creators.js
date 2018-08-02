@@ -39,7 +39,15 @@ var platformChartActionCreators = {
             chartKey: chartKey
         });
     },
-	refreshChart: function (series, length) {
+    initializeChart: function (series, length) {
+        const callbackAction = ACTION_TYPES.INITIALIZE_CHART;
+        this.doChartFetch(series, length, callbackAction);
+    },
+    refreshChart: function (series, length) {
+        const callbackAction = ACTION_TYPES.REFRESH_CHART;
+        this.doChartFetch(series, length, callbackAction);
+    },
+	doChartFetch: function (series, length, callbackAction) {
 
 		var authorization = authorizationStore.getAuthorization();
 
@@ -68,7 +76,7 @@ var platformChartActionCreators = {
                         	datum.uuid = item.uuid;
                         });
                         dispatcher.dispatch({
-                            type: ACTION_TYPES.REFRESH_CHART,
+                            type: callbackAction,
                             item: item
                         });
                     }

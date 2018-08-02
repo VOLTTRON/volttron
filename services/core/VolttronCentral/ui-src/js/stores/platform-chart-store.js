@@ -145,13 +145,20 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
             if (_chartData.hasOwnProperty(action.panelItem.name))
             {
+                console.log('ADDING CHART: ' + JSON.stringify(action.panelItem));
+
                 var availableColors = (
                     _chartData[action.panelItem.name].colors.length ? 
                     _chartData[action.panelItem.name].colors :
                     initColors()
                 );
 
+                console.log('AVAILABLE COLORS: ' + availableColors);
+
                 var itemWithColor = getItemWithColor(action.panelItem, availableColors);
+
+                console.log('ASSIGNED COLOR: ' + JSON.stringify(itemWithColor));
+                console.log('AVAILABLE COLORS: ' + availableColors);
 
                 insertSeries(itemWithColor);
                 chartStore.emitChange();
@@ -161,7 +168,13 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
                 if (action.panelItem.hasOwnProperty("data"))
                 {
                     var availableColors = initColors();
+
+                    console.log('INITIAL COLORS: ' + availableColors);
+
                     var itemWithColor = getItemWithColor(action.panelItem, availableColors);
+
+                    console.log('ASSIGNED COLOR: ' + JSON.stringify(itemWithColor));
+                    console.log('AVAILABLE COLORS: ' + availableColors);
 
                     var chartObj = {
                         refreshInterval: (
@@ -243,6 +256,38 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
             removeSeries(action.item.name, action.item.uuid);
             insertSeries(action.item);
+            chartStore.emitChange();
+
+            break;
+        
+        case ACTION_TYPES.INITIALIZE_CHART:
+
+            console.log('INITIALIZING CHART: ' + JSON.stringify(action.item));
+
+            removeSeries(action.item.name, action.item.uuid);
+
+            var itemWithColor = action.item;
+            
+            if (!itemWithColor.hasOwnProperty('colors'))
+            {
+                if (_chartData[action.item.name])
+                {
+                    var availableColors = (
+                        _chartData[action.item.name].colors.length ? 
+                        _chartData[action.item.name].colors :
+                        initColors()
+                    );
+                    
+                    console.log('AVAILABLE COLORS: ' + availableColors);
+
+                    itemWithColor = getItemWithColor(action.panelItem, availableColors);
+
+                    console.log('ASSIGNED COLOR: ' + JSON.stringify(itemWithColor));
+                    console.log('AVAILABLE COLORS: ' + availableColors);
+                }
+            }
+
+            insertSeries(itemWithColor);
             chartStore.emitChange();
 
             break;

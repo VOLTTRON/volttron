@@ -26,7 +26,7 @@ var PlatformChart = React.createClass({
         return state;
     },
     componentDidMount: function () {
-        this._refreshChartTimeout = setTimeout(this._refreshChart, 0);
+        this._refreshChartTimeout = setTimeout(this._initializeChart, 0);
         platformChartStore.addChangeListener(this._onStoresChange);
 
 
@@ -50,6 +50,21 @@ var PlatformChart = React.createClass({
                 clearTimeout(this._refreshChartTimeout);
                 this._refreshChartTimeout = setTimeout(this._refreshChart, refreshInterval);
             }
+        }
+    },
+    _initializeChart: function () {
+        if (this.props.hasOwnProperty("chart"))
+        {
+            this.setState({refreshing: true});
+
+            platformChartActionCreators.initializeChart(
+                this.props.chart.series,
+                this.props.chart.dataLength
+            );
+
+            if (this.state.refreshInterval) {
+                this._refreshChartTimeout = setTimeout(this._refreshChart, this.state.refreshInterval);
+            }    
         }
     },
     _refreshChart: function () {
