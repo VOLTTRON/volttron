@@ -286,7 +286,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
                     
                     console.log('AVAILABLE COLORS: ' + availableColors);
 
-                    itemWithColor = getItemWithColor(action.panelItem, availableColors);
+                    itemWithColor = getItemWithColor(action.item, availableColors);
 
                     console.log('ASSIGNED COLOR: ' + JSON.stringify(itemWithColor));
                     console.log('AVAILABLE COLORS: ' + availableColors);
