@@ -495,7 +495,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
     function getItemWithColor(item, availableColors) {
         var assignedColor = popColor(availableColors);
         var itemWithColor = item;
-        itemWithColor.colors = assignedColor;
+        itemWithColor['colors'] = assignedColor;
 
         return itemWithColor;
     }
