@@ -40,53 +40,11 @@ var platformChartActionCreators = {
         });
     },
     initializeChart: function (series, length) {
-        const callbackAction = ACTION_TYPES.INITIALIZE_CHART;
-        this.doChartFetch(series, length, callbackAction);
+        doChartFetch(series, length, ACTION_TYPES.INITIALIZE_CHART);
     },
     refreshChart: function (series, length) {
-        const callbackAction = ACTION_TYPES.REFRESH_CHART;
-        this.doChartFetch(series, length, callbackAction);
+        doChartFetch(series, length, ACTION_TYPES.REFRESH_CHART);
     },
-	doChartFetch: function (series, length, callbackAction) {
-
-		var authorization = authorizationStore.getAuthorization();
-
-		series.forEach(function (item) { 
-
-            var topic = prepTopic(item.topic);
-
-            new rpc.Exchange({
-                method: 'historian.query',
-                params: {
-                    topic: topic,
-                    count: (length > 0 ? length : 20),
-                    order: 'LAST_TO_FIRST',
-                },
-                authorization: authorization,
-            }).promise
-                .then(function (result) {
-
-                    if (result.hasOwnProperty("values"))
-                    {
-                    	item.data = result.values.reverse();
-
-                        item.data.forEach(function (datum) {
-                            datum.name = item.name;
-                            datum.parent = item.parentPath;
-                        	datum.uuid = item.uuid;
-                        });
-                        dispatcher.dispatch({
-                            type: callbackAction,
-                            item: item
-                        });
-                    }
-                })
-                .catch(rpc.Error, function (error) {
-                    handle401(error);
-                });
-		});
-
-	},
 	addToChart: function(panelItem, emitChange) {
 
         var authorization = authorizationStore.getAuthorization();
@@ -131,6 +89,46 @@ var platformChartActionCreators = {
         });
     }
 };
+
+function doChartFetch(series, length, callbackAction) {
+
+    var authorization = authorizationStore.getAuthorization();
+
+    series.forEach(function (item) { 
+
+        var topic = prepTopic(item.topic);
+
+        new rpc.Exchange({
+            method: 'historian.query',
+            params: {
+                topic: topic,
+                count: (length > 0 ? length : 20),
+                order: 'LAST_TO_FIRST',
+            },
+            authorization: authorization,
+        }).promise
+            .then(function (result) {
+
+                if (result.hasOwnProperty("values"))
+                {
+                    item.data = result.values.reverse();
+
+                    item.data.forEach(function (datum) {
+                        datum.name = item.name;
+                        datum.parent = item.parentPath;
+                        datum.uuid = item.uuid;
+                    });
+                    dispatcher.dispatch({
+                        type: callbackAction,
+                        item: item
+                    });
+                }
+            })
+            .catch(rpc.Error, function (error) {
+                handle401(error);
+            });
+    });
+}
 
 function prepTopic(itemTopic) {
     var topic = itemTopic;
