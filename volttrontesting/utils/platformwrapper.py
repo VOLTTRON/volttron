@@ -157,7 +157,7 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
 
 
 class PlatformWrapper:
-    def __init__(self, message_bus=None):
+    def __init__(self, message_bus=None, vhome=None):
         """ Initializes a new VOLTTRON instance
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory
@@ -169,7 +169,7 @@ class PlatformWrapper:
         # lower level fixture calls shutdown, this won't hang.
         self._instance_shutdown = False
 
-        self.volttron_home = tempfile.mkdtemp()
+        self.volttron_home = vhome or tempfile.mkdtemp()
         self.packaged_dir = os.path.join(self.volttron_home, "packaged")
         os.makedirs(self.packaged_dir)
 
