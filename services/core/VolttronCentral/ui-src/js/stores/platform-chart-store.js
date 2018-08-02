@@ -147,8 +147,10 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             {
                 console.log('ADDING CHART: ' + JSON.stringify(action.panelItem));
 
-                var availableColors = (
-                    _chartData[action.panelItem.name].colors.length ? 
+                var availableColors = ((
+                        _chartData[action.panelItem.name].colors && 
+                        _chartData[action.panelItem.name].colors.length
+                    ) ? 
                     _chartData[action.panelItem.name].colors :
                     initColors()
                 );
@@ -272,8 +274,12 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             {
                 if (_chartData[action.item.name])
                 {
-                    var availableColors = (
-                        _chartData[action.item.name].colors.length ? 
+                    
+
+                    var availableColors = ((
+                            _chartData[action.item.name].colors && 
+                            _chartData[action.item.name].colors.length
+                        ) ? 
                         _chartData[action.item.name].colors :
                         initColors()
                     );
