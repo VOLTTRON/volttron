@@ -1,6 +1,6 @@
 {
-    'market_period': 300,
-    'reservation_delay': 0,
-    'offer_delay': 120,
-    'verbose_logging': False
+    "market_period"    : 300,
+    "reservation_delay": 0,
+    "offer_delay"      : 120,
+    "verbose_logging"  : 0
 }

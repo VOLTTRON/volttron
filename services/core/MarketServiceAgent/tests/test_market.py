@@ -37,9 +37,12 @@
 # }}}
 
 import pytest
-from market_service.market_participant import MarketParticipant
-from market_service.market import Market, ACCEPT_RESERVATIONS
-from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
+try:
+    from market_service.market_participant import MarketParticipant
+    from market_service.market import Market, ACCEPT_RESERVATIONS
+    from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
+except ImportError:
+    pytest.skip("Market service requirements not installed.", allow_module_level=True)
 
 @pytest.mark.market
 def test_market_state_create_name():
@@ -69,7 +72,7 @@ def test_market_state_create_has_formed_true():
     market = build_test_machine(market_name, BUYER)
     participant = MarketParticipant(SELLER, 'agent_id2')
     market.make_reservation(participant)
-    assert market.has_market_formed() == True
+    assert market.has_market_formed()
 
 class Publisher(object):
     def __init__(self):
