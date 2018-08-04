@@ -65,7 +65,7 @@ from modbus_tk.modbus_tcp import TcpServer
 from modbus_tk.modbus_rtu import RtuServer
 from modbus_tk.hooks import install_hook
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 ###########################################################################################
 #   MONKEY PATCH ALERT
@@ -181,7 +181,7 @@ class Server (object):
             raise TypeError("client_class must be subclass of {0}".format(Client))
 
         for request in client_class().requests():
-            logger.info("Adding [%s], %s, %s, %s", request.name, request.table, request.address, request.count)
+            # logger.info("Adding [%s], %s, %s, %s", request.name, request.table, request.address, request.count)
             slave.add_block(request.name, request.table, request.address, request.count)
         return slave
 
@@ -219,12 +219,12 @@ class Server (object):
     @staticmethod
     def before(args):
         server, request = args
-        logger.debug("Before: {0}-{1}".format(server, request))
+        # logger.debug("Before: {0}-{1}".format(server, request))
 
     @classmethod
     def after(cls, args):
         server, response = args
-        logger.debug("After: {0}-{1}".format(server, response))
+        # logger.debug("After: {0}-{1}".format(server, response))
         cls.update(args)
 
     @staticmethod
@@ -234,17 +234,17 @@ class Server (object):
     @staticmethod
     def write_register(args):
         slave, request_pdu = args
-        logger.debug("Writing: {0}-{1}".format(slave, request_pdu))
+        # logger.debug("Writing: {0}-{1}".format(slave, request_pdu))
 
     @staticmethod
     def read_register(args):
         slave, request_pdu = args
-        logger.debug("Reading: {0}-{1}".format(slave, request_pdu))
+        # logger.debug("Reading: {0}-{1}".format(slave, request_pdu))
 
     @staticmethod
     def write_coils(args):
         slave, request_pdu = args
-        logger.debug("Writing Coils: {0}-{1}".format(slave, request_pdu))
+        # logger.debug("Writing Coils: {0}-{1}".format(slave, request_pdu))
 
 
 class ServerProcess (multiprocessing.Process):
@@ -277,7 +277,7 @@ class ServerProcess (multiprocessing.Process):
         super(ServerProcess, self).terminate()
 
     def run(self):
-        logger.debug("Starting ModbusServer: %s", __name__)
+        # logger.debug("Starting ModbusServer: %s", __name__)
         self._server.start()
 
         # Only way I know of to keep the process running/waiting on the server loop.

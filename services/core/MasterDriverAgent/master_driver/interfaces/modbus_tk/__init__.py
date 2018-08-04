@@ -60,6 +60,7 @@ from master_driver.interfaces.modbus_tk.maps import Map
 
 import logging
 import struct
+import re
 
 monkey.patch_socket()
 
@@ -101,7 +102,7 @@ class ModbusTKRegister(BaseRegister):
     :type default_value: parse str to the register type
     :type field: Field
     """
-    def __init__(self, point_name, default_value, mixed_endian, field, description=''):
+    def __init__(self, point_name, default_value, field, description=''):
         datatype = 'bit' if field.type == helpers.BOOL else 'byte'
 
         super(ModbusTKRegister, self).__init__(
@@ -111,10 +112,6 @@ class ModbusTKRegister(BaseRegister):
         self.name = field.name
         self.type = field.type
         self.default_value = self.get_default_value(field.type, default_value)
-        self.mixed_endian = mixed_endian
-
-        if self.mixed_endian and field.transform is not helpers.no_op:
-            raise ModbusInterfaceException("Mixed Endian register does not support transform.")
 
     def get_python_type(self, datatype):
         """
@@ -163,28 +160,6 @@ class ModbusTKRegister(BaseRegister):
         else:
             return None
 
-    def mixed_endian_convert(self, datatype, value):
-        """
-            Reverse order of register
-
-        :param datatype: register type
-        :param value: register value to reverse
-        """
-        try:
-            datatype = datatype[1:] if datatype.startswith((">", "<")) else datatype
-            parse_struct = struct.Struct(">{}".format(datatype))
-        except AttributeError:
-            parse_struct = struct.Struct(">{}".format(datatype[0]))
-
-        value_bytes = parse_struct.pack(value)
-        register_values = []
-        for i in xrange(0, len(value_bytes), 2):
-            register_values.extend(struct.unpack(">H", value_bytes[i:i + 2]))
-        register_values.reverse()
-        convert_bytes = ''.join([struct.pack(">H", i) for i in register_values])
-
-        return parse_struct.unpack(convert_bytes)[0]
-
     def get_state(self, modbus_client):
         """
             Read value of the register and return it
@@ -193,12 +168,7 @@ class ModbusTKRegister(BaseRegister):
 
         :type modbus_client: Client
         """
-        get_value = getattr(modbus_client, self.name)
-
-        if self.mixed_endian:
-            get_value = self.mixed_endian_convert(self.type, get_value)
-
-        return get_value
+        return getattr(modbus_client, self.name)
 
     def set_state(self, modbus_client, value):
         """
@@ -210,9 +180,6 @@ class ModbusTKRegister(BaseRegister):
         :type modbus_client: Client
         :type value: same type as register type
         """
-        if self.mixed_endian:
-            value = self.mixed_endian_convert(self.type, value)
-
         setattr(modbus_client, self.name, value)
         modbus_client.write_all()
 
@@ -265,7 +232,7 @@ class Interface(BasicRevert, BaseInterface):
             writable = reg_dict.get('writable')
             default_value = reg_dict.get('default value', None)
             description = reg_dict.get('notes', '')
-            mixed_endian = helpers.str2bool(reg_dict.get('mixed endian', 'false').lower())
+            mixed_endian = reg_dict.get('mixed endian', 'false').lower()
 
             new_registry_config_lst.append({'volttron point name': point_name,
                                             'register name': register_name,
@@ -384,12 +351,12 @@ class Interface(BasicRevert, BaseInterface):
             register = ModbusTKRegister(
                 reg_dict.get('volttron point name'),
                 reg_dict.get('default value', None),
-                reg_dict.get('mixed endian', False),
                 self.modbus_client.field_by_name(reg_dict.get('register name'))
             )
             self.insert_register(register)
             if not register.read_only and register.default_value:
                 self.set_default(register.point_name, register.default_value)
+
 
     def get_point(self, point_name):
         """
@@ -399,8 +366,7 @@ class Interface(BasicRevert, BaseInterface):
 
         :type point_name: str
         """
-        register = self.get_register_by_name(point_name)
-        return register.get_state(self.modbus_client)
+        return self.get_register_by_name(point_name).get_state(self.modbus_client)
 
     def _set_point(self, point_name, value):
         """
@@ -412,18 +378,9 @@ class Interface(BasicRevert, BaseInterface):
         :type point_name: str
         :type value: same type as register type
         """
-        register = self.get_register_by_name(point_name)
-        return register.set_state(self.modbus_client, value)
+        return self.get_register_by_name(point_name).set_state(self.modbus_client, value)
 
     def _scrape_all(self):
         """Get a dictionary mapping point name to values of all defined registers
         """
-        # return dict((self.name_map[field.name], value) for field, value, timestamp in self.modbus_client.dump_all())
-        value_map = dict((self.name_map[field.name], value) for field, value, timestamp in self.modbus_client.dump_all())
-
-        for point_name in value_map.keys():
-            register = self.get_register_by_name(point_name)
-            if register.mixed_endian:
-                value_map[point_name] = register.mixed_endian_convert(register.type, value_map[point_name])
-
-        return value_map
+        return dict((self.name_map[field.name], value) for field, value, timestamp in self.modbus_client.dump_all())

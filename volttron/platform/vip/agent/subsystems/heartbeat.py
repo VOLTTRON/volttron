@@ -41,7 +41,7 @@ import weakref
 from datetime import datetime
 
 from .base import SubsystemBase
-from volttron.platform.messaging.headers import DATE
+from volttron.platform.messaging.headers import TIMESTAMP
 from volttron.platform.agent.utils import (get_aware_utc_now,
                                            format_timestamp)
 
@@ -131,7 +131,7 @@ class Heartbeat(SubsystemBase):
 
     def publish(self):
         topic = 'heartbeat/' + self.core().identity
-        headers = {DATE: format_timestamp(get_aware_utc_now())}
-        message = self.owner.vip.health.get_status()
+        headers = {TIMESTAMP: format_timestamp(get_aware_utc_now())}
+        message = self.owner.vip.health.get_status_value()
 
         self.pubsub().publish('pubsub', topic, headers, message)

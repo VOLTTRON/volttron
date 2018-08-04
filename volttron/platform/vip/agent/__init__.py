@@ -55,7 +55,7 @@ class Agent(object):
     class Subsystems(object):
         def __init__(self, owner, core, heartbeat_autostart,
                      heartbeat_period, enable_store, enable_web,
-                     enable_channel, message_bus):
+                     enable_channel, enable_fncs, message_bus):
             self.peerlist = PeerList(core)
             self.ping = Ping(core)
             self.rpc = RPC(core, owner)
@@ -75,6 +75,8 @@ class Agent(object):
             if enable_web:
                 self.web = WebSubSystem(owner, core, self.rpc)
             self.auth = Auth(owner, core, self.rpc)
+            if enable_fncs:
+                self.fncs = FNCS(owner, core, self.pubsub)
 
     def __init__(self, identity=None, address=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,
@@ -82,7 +84,7 @@ class Agent(object):
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, enable_store=True,
                  enable_web=False, enable_channel=False,
-                 reconnect_interval=None, version='0.1',
+                 reconnect_interval=None, version='0.1', enable_fncs=False,
                  instance_name=None, message_bus=None,
                  volttron_central_address=None,volttron_central_instance_name=None):
 
@@ -114,11 +116,12 @@ class Agent(object):
                                 instance_name=instance_name,
                                 volttron_home=volttron_home, agent_uuid=agent_uuid,
                                 reconnect_interval=reconnect_interval,
-                                version=version)
+                                version=version, enable_fncs=enable_fncs)
 
         self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
                                     heartbeat_period, enable_store, enable_web,
-                                    enable_channel, message_bus)
+                                    enable_channel, enable_fncs, message_bus)
+
         self.core.setup()
         self.vip.rpc.export(self.core.version, 'agent.version')
 

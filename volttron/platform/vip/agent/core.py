@@ -439,8 +439,7 @@ class ZMQCore(BasicCore):
                  publickey=None, secretkey=None, serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, reconnect_interval=None,
-                 version='0.1', instance_name=None, messagebus='zmq'):
-
+                 version='0.1', enable_fncs=False, instance_name=None, messagebus='zmq'):
         self.volttron_home = volttron_home
 
         # These signals need to exist before calling super().__init__()
@@ -475,6 +474,7 @@ class ZMQCore(BasicCore):
         self.subsystems = {'error': self.handle_error}
         self.__connected = False
         self._version = version
+        self._fncs_enabled=enable_fncs
 
     def version(self):
         return self._version
