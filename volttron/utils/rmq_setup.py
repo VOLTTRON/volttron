@@ -54,11 +54,10 @@ from volttron.platform.packaging import create_ca
 from volttron.utils.persistance import PersistentDict
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.platform.certs import ROOT_CA_NAME
-from requests.packages.urllib3 import disable_warnings, exceptions
 from rmq_mgmt import is_ssl_connection, get_vhost, http_put_request, \
     set_policy, build_rmq_address, is_valid_amqp_port, \
     is_valid_mgmt_port, init_rabbitmq_setup, get_ssl_url_params, create_user, \
-    set_user_permissions
+    set_user_permissions, set_parameter
 
 #disable_warnings(exceptions.SecurityWarning)
 
@@ -75,6 +74,11 @@ admin_password = None
 
 
 def _load_rmq_config(volttron_home=None):
+    """
+    Load RabbitMQ config from VOLTTRON_HOME
+    :param volttron_home: VOLTTRON_HOME path
+    :return:
+    """
     """Loads the config file if the path exists."""
     global config_opts, volttron_rmq_config
     if not volttron_home:
@@ -86,32 +90,10 @@ def _load_rmq_config(volttron_home=None):
                                  format='json')
 
 
-def set_parameter(component, parameter_name, parameter_properties,
-                  vhost=None, ssl_auth=None):
-    """
-    Set parameter on a component
-    :param component: component name (for example, federation-upstream)
-    :param parameter_name: parameter name
-    :param parameter_properties: parameter properties
-    :param vhost: virtual host
-    :param ssl_auth: Flag for SSL connection
-    :return:
-    """
-    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
-    vhost = vhost if vhost else get_vhost()
-    url = '/api/parameters/{component}/{vhost}/{param}'.format(
-        component=component, vhost=vhost, param=parameter_name)
-    response = http_put_request(url, body=parameter_properties,
-                                ssl_auth=ssl_auth)
-
-
 def _create_federation_setup():
     """
-    Creates a RabbitMQ federation of multiple VOLTTRON instances
-        - Firstly, we need to identify upstream servers (publisher nodes)
-          and downstream servers (collector nodes)
-        - On the downstream server node, we will have run this script
-        - Creates upstream server federation parameters.
+    Creates a RabbitMQ federation of multiple VOLTTRON instances.
+    That means it creates upstream servers and sets "volttron" exchange to be "federated".
 
     :return:
     """
@@ -140,6 +122,11 @@ def _create_federation_setup():
 
 
 def _set_initial_rabbit_config(instance_name):
+    """
+    Build rabbitmq config for a single instance based on user input
+    :param instance_name:
+    :return:
+    """
     global config_opts
     _load_rmq_config()
     # Get vhost
@@ -198,15 +185,13 @@ def _set_initial_rabbit_config(instance_name):
                 print("Port is not valid")
         config_opts['mgmt-port'] = str(port)
 
-        config_opts['rmq-address'] = build_rmq_address(ssl_auth=False,
-                                                       config=config_opts)
         config_opts.sync()
         #print config_opts
 
 
 def _get_upstream_servers():
     """
-    Build RabbitMQ URIs for upstream servers
+    Build AMQP/S URIs for upstream servers
     :return:
     """
     global config_opts, instance_name
@@ -245,6 +230,10 @@ def _get_upstream_servers():
 
 
 def _get_shovel_settings():
+    """
+    Prompt user for shovel information
+    :return:
+    """
     global config_opts
     if not config_opts:
         _load_rmq_config()
@@ -324,6 +313,10 @@ def _get_shovel_settings():
 
 
 def _create_shovel_setup():
+    """
+    Create RabbitMQ shovel based on the information provided by user
+    :return:
+    """
     global instance_name
     if not config_opts:
         _load_rmq_config()
@@ -355,6 +348,14 @@ def _create_shovel_setup():
 
 
 def wizard(type):
+    """
+    Setup VOLTTRON instance to run with RabbitMQ message bus.
+    :param type:
+            single - Setup to run as single instance
+            federation - Setup to connect multiple VOLTTRON instances as a federation
+            shovel - Setup shovels to forward local messages to remote instances
+    :return:
+    """
     global instance_name
     # TODO check if rabbitmq-server is running
     # First things first. Confirm VOLTTRON_HOME
@@ -397,6 +398,17 @@ def wizard(type):
 
 
 def _setup_for_ssl_auth(instance_name):
+    """
+    Utility method to create
+    1. Root CA
+    2. instance CA
+    3. RabbitMQ server certificates (public and private)
+    4. RabbitMQ config with SSL setting
+    5. Admin user to connect to RabbitMQ management Web interface
+
+    :param instance_name: Instance name
+    :return:
+    """
     global config_opts
     print('\nChecking for CA certificate\n')
     instance_ca_name, server_name, admin_client_name = \
@@ -441,8 +453,6 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
     config_opts['pass'] = ""
     config_opts['amqp-port'] = '5671'
     config_opts['mgmt-port'] = '15671'
-    config_opts['rmq-address'] = build_rmq_address(ssl_auth=True,
-                                                   config=config_opts)
     config_opts.sync()
 
 
@@ -467,6 +477,13 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
 
 
 def _create_certs(client_cert_name, instance_ca_name, server_cert_name):
+    """
+    Utility method to create certificates
+    :param client_cert_name:
+    :param instance_ca_name:
+    :param server_cert_name:
+    :return:
+    """
     global config_opts
     create_instance_ca = False
     # create ca cert in default dir if needed
@@ -530,6 +547,12 @@ def _create_certs(client_cert_name, instance_ca_name, server_cert_name):
 
 
 def _verify_and_save_instance_ca(instance_ca_path, instance_ca_key):
+    """
+    Save instance CA in VOLTTRON HOME
+    :param instance_ca_path:
+    :param instance_ca_key:
+    :return:
+    """
     found = False
     if instance_ca_path and os.path.exists(instance_ca_path) and \
             instance_ca_key and os.path.exists(instance_ca_key):

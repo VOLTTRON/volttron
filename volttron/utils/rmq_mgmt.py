@@ -45,7 +45,7 @@
     5. Create/Delete queues
     6. Create/List/Delete federation upstream servers
     7. Create/List/Delete federation upstream policies
-    8. and shovel setup for multi-platform deployment.
+    8. Create shovels for multi-platform deployment.
     9. Set topic permissions for protected topics
     10. List the status of
         Open Connections
@@ -444,6 +444,25 @@ def get_parameter(component, vhost=None, ssl_auth=None):
                                                        vhost=vhost)
     response = http_get_request(url, ssl_auth)
     return response
+
+
+def set_parameter(component, parameter_name, parameter_properties,
+                  vhost=None, ssl_auth=None):
+    """
+    Set parameter on a component
+    :param component: component name (for example, federation-upstream)
+    :param parameter_name: parameter name
+    :param parameter_properties: parameter properties
+    :param vhost: virtual host
+    :param ssl_auth: Flag for SSL connection
+    :return:
+    """
+    ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
+    vhost = vhost if vhost else get_vhost()
+    url = '/api/parameters/{component}/{vhost}/{param}'.format(
+        component=component, vhost=vhost, param=parameter_name)
+    response = http_put_request(url, body=parameter_properties,
+                                ssl_auth=ssl_auth)
 
 
 def delete_parameter(component, parameter_name, vhost=None, ssl_auth=None):
