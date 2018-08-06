@@ -865,13 +865,14 @@ def build_connection_param(identity, instance_name, ssl_auth=None):
     instance_ca_name, server_cert_name, admin_cert_name = \
         certs.Certs.get_cert_names(instance_name)
     crt = certs.Certs()
+    rmq_user = instance_name + '.' + identity
     try:
         if ssl_auth:
             ssl_options = dict(
                                 ssl_version=ssl.PROTOCOL_TLSv1,
                                 ca_certs=crt.cert_file(instance_ca_name),
-                                keyfile=crt.private_key_file(identity),
-                                certfile=crt.cert_file(identity),
+                                keyfile=crt.private_key_file(rmq_user),
+                                certfile=crt.cert_file(rmq_user),
                                 cert_reqs=ssl.CERT_REQUIRED)
             conn_params = pika.ConnectionParameters(
                 host=config_opts['host'],
@@ -886,7 +887,7 @@ def build_connection_param(identity, instance_name, ssl_auth=None):
                     port=int(config_opts['amqp-port']),
                     virtual_host=config_opts['virtual-host'],
                     credentials=pika.credentials.PlainCredentials(
-                        identity, identity))
+                        rmq_user, rmq_user))
     except KeyError:
         return None
     return conn_params
@@ -932,7 +933,7 @@ def build_rmq_address(ssl_auth=None, config=None):
     return rmq_address
 
 
-def create_user_with_permissions(identity, permissions, ssl_auth=None):
+def create_user_with_permissions(user, permissions, ssl_auth=None):
     """
     Create RabbitMQ user for an agent and set permissions for it.
     :param identity: Identity of agent
@@ -943,9 +944,9 @@ def create_user_with_permissions(identity, permissions, ssl_auth=None):
     # If user does not exist, create a new one
     if not ssl_auth:
         ssl_auth = is_ssl_connection()
-    if identity not in get_users(ssl_auth):
-        create_user(identity, identity, ssl_auth=ssl_auth)
-    perms = get_user_permissions(identity, ssl_auth=ssl_auth)
+    if user not in get_users(ssl_auth):
+        create_user(user, user, ssl_auth=ssl_auth)
+    perms = get_user_permissions(user, ssl_auth=ssl_auth)
     # Add user permissions if missing
     if not perms:
         # perms = dict(configure='.*', read='.*', write='.*')
@@ -953,7 +954,7 @@ def create_user_with_permissions(identity, permissions, ssl_auth=None):
                      read=permissions['read'],
                      write=permissions['write'])
         _log.debug("permissions: {}".format(perms))
-        set_user_permissions(perms, identity, ssl_auth=ssl_auth)
+        set_user_permissions(perms, user, ssl_auth=ssl_auth)
 
 
 def _is_valid_rmq_url():
