@@ -486,7 +486,8 @@ def _create_cert(name=None, **kwargs):
 
     instance_name = get_platform_instance_name()
     instance_ca, server, admin = certs.Certs.get_cert_names(instance_name)
-    crts.create_ca_signed_cert(name, ca_name=instance_ca,  **cert_data)
+    #crts.create_ca_signed_cert(name, ca_name=instance_ca,  **cert_data)
+    crts.create_ca_signed_cert(name, **cert_data)
 
 
 def _create_cert_ui(cn):

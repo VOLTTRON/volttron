@@ -199,7 +199,8 @@ def create_vagent_cert(identity):
     instance_ca, server, admin = certs.Certs.get_cert_names(instance_name)
     # If no certs for this agent, create a new one
     if not crts.cert_exists(identity):
-        crts.create_ca_signed_cert(identity, ca_name=instance_ca)
+        #crts.create_ca_signed_cert(identity, ca_name=instance_ca)
+        crts.create_ca_signed_cert(identity)
 
 
 

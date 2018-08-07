@@ -490,7 +490,7 @@ def _setup_for_ssl_auth(instance_name):
     # if all was well, create the rabbitmq.conf file for user to copy
     # /etc/rabbitmq and update VOLTTRON_HOME/rabbitmq_config.json
     new_conf = """listeners.ssl.default = 5671
-ssl_options.cacertfile = {instance_ca}
+ssl_options.cacertfile = {ca}
 ssl_options.certfile = {server_cert}
 ssl_options.keyfile = {server_key}
 ssl_options.verify = verify_peer
@@ -503,10 +503,10 @@ ssl_options.versions.2 = tlsv1.1
 ssl_options.versions.3 = tlsv1
 management.listener.port = 15671
 management.listener.ssl = true
-management.listener.ssl_opts.cacertfile = {instance_ca}
+management.listener.ssl_opts.cacertfile = {ca}
 management.listener.ssl_opts.certfile = {server_cert}
 management.listener.ssl_opts.keyfile = {server_key}""".format(
-        instance_ca=crts.cert_file(instance_ca_name),
+        ca=crts.cert_file(ROOT_CA_NAME),
         server_cert=crts.cert_file(server_name),
         server_key=crts.private_key_file(server_name)
     )
@@ -617,13 +617,16 @@ def _create_certs(client_cert_name, instance_ca_name, server_cert_name):
             # get instance cert name
             filename = os.path.basename(instance_ca_path)
             instance_ca_name = os.path.splitext(filename)[0]
+    # crts.create_ca_signed_cert(server_cert_name, type='server',
+    #                            ca_name=instance_ca_name,
+    #                            fqdn=config_opts.get('host'))
     crts.create_ca_signed_cert(server_cert_name, type='server',
-                               ca_name=instance_ca_name,
                                fqdn=config_opts.get('host'))
     # permissions = dict(configure=".*", read=".*", write=".*")
     # set_user_permissions(permissions, server_cert_name)
-    crts.create_ca_signed_cert(client_cert_name, type='client',
-                               ca_name=instance_ca_name)
+    # crts.create_ca_signed_cert(client_cert_name, type='client',
+    #                            ca_name=instance_ca_name)
+    crts.create_ca_signed_cert(client_cert_name, type='client')
     create_user(client_cert_name, ssl_auth=False)
     permissions = dict(configure=".*", read=".*", write=".*")
     set_user_permissions(permissions, client_cert_name, ssl_auth=False)
