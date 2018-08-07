@@ -141,7 +141,9 @@ python volttron/utils/rmq_setup.py single
 ```
 This command will install rabbitmq server and run it as the current user. When
 prompted provide path to an existing rabbitmq-server directory or a writeable
-directory under which rabbitmq-server would get installed.
+directory under which rabbitmq-server would get installed.Rabbitmq will be
+installed under <provided install dir>/rabbitmq_server-3.7.7 Rest of the
+documentation refers to this directory as $RABBITMQ_HOME
 
 User can choose to run with or without ssl authentication by choosing Y/N when
 prompted. Description below explains the steps when user chooses to run the
@@ -400,8 +402,9 @@ upstream servers on the downstream server and make the VOLTTRON exchange
     virtualhost of the upstream rabbitmq server.
 
         ```sh
-        sudo rabbitmqctl add_user <username> <password>
-        sudo rabbitmqctl set_permissions -p volttron <username> ".*" ".*" ".*"
+        cd $RABBITMQ_HOME
+        ./sbin/rabbitmqctl add_user <username> <password>
+        ./sbin/rabbitmqctl set_permissions -p volttron <username> ".*" ".*" ".*"
         ```
 3. Test the federation setup.
    a. On the downstream server run a listener agent which subscribes to messages
