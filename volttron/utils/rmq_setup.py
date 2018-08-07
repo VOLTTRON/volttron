@@ -152,7 +152,8 @@ def _set_initial_rabbit_config(instance_name):
                    "should have write access to user")
 
     rmq_home = os.path.join(rmq_install_dir, rabbitmq_server)
-    if os.path.exists(rmq_home):
+    if os.path.exists(rmq_home) and \
+            os.path.exists(os.path.join(rmq_home, 'sbin/rabbitmq-server')):
         print("Given directory already contains {}. "
               "Skipping rabbitmq server install".format(rabbitmq_server))
         # if existing server attempt to stop
@@ -245,10 +246,13 @@ def prompt_port(config_opts, config_key, default_port, prompt):
     valid_port = False
     while not valid_port:
         port = prompt_response(prompt, default=port)
-        valid_port = is_valid_amqp_port(port)
+        if config_key == 'amqp-port':
+            valid_port = is_valid_amqp_port(port)
+        elif config_key == 'mgmt-port':
+            valid_port = is_valid_mgmt_port(port)
         if not valid_port:
             print("Port is not valid")
-    config_opts['amqp-port'] = str(port)
+    config_opts[config_key] = str(port)
 
 
 def _get_upstream_servers():
