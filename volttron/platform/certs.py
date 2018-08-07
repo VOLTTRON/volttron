@@ -558,7 +558,7 @@ class Certs(object):
                 format=serialization.PrivateFormat.TraditionalOpenSSL,
                 encryption_algorithm=encryption
             ))
-        os.chmod(key_file, 0o644)
+        os.chmod(key_file, 0o600)
 
     def update_ca_db(self, cert, ca_name, serial):
         """
