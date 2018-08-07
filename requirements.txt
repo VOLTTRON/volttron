@@ -26,3 +26,4 @@ PyYAML==3.12
 cryptography==2.2.2
 service-identity==17.0.0
 git+git://github.com/shwethanidd/pika.git@gevent_connection_adapter#egg=pika
+wget==3.2
