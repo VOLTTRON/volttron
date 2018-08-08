@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns3:oadrPayload xmlns="http://www.w3.org/2000/09/xmldsig#" xmlns:ns2="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:ns3="http://openadr.org/oadr-2.0b/2012/07" xmlns:ns4="http://docs.oasis-open.org/ns/energyinterop/201110/payloads" xmlns:ns5="http://www.w3.org/2005/Atom" xmlns:ns6="http://docs.oasis-open.org/ns/emix/2011/06/power" xmlns:ns7="http://docs.oasis-open.org/ns/emix/2011/06/siscale" xmlns:ns8="http://www.opengis.net/gml/3.2" xmlns:ns9="http://docs.oasis-open.org/ns/emix/2011/06" xmlns:ns10="http://www.w3.org/2009/xmldsig11#" xmlns:ns11="http://openadr.org/oadr-2.0b/2012/07/xmldsig-properties" xmlns:ns12="urn:ietf:params:xml:ns:icalendar-2.0" xmlns:ns13="urn:ietf:params:xml:ns:icalendar-2.0:stream" xmlns:ns14="urn:un:unece:uncefact:codelist:standard:5:ISO42173A:2010-04-07">
+    <ns3:oadrSignedObject>
+        <ns3:oadrDistributeEvent ns2:schemaVersion="2.0b">
+            <ns2:eiResponse>
+                <ns2:responseCode>200</ns2:responseCode>
+                <ns2:responseDescription>OK</ns2:responseDescription>
+                <ns4:requestID>b45a8d4da196f3d5f400</ns4:requestID>
+            </ns2:eiResponse>
+            <ns4:requestID>ddadddabd9dbf522a39a</ns4:requestID>
+            <ns2:vtnID>EPRI_VTN</ns2:vtnID>
+            <ns3:oadrEvent>
+                <ns2:eiEvent>
+                    <ns2:eventDescriptor>
+                        <ns2:eventID>8645429d9bab36b8be96</ns2:eventID>
+                        <ns2:modificationNumber>0</ns2:modificationNumber>
+                        <ns2:modificationReason></ns2:modificationReason>
+                        <ns2:priority>0</ns2:priority>
+                        <ns2:eiMarketContext>
+                            <ns9:marketContext>http://MarketContext1</ns9:marketContext>
+                        </ns2:eiMarketContext>
+                        <ns2:createdDateTime>2017-10-31T22:41:12.000Z</ns2:createdDateTime>
+                        <ns2:eventStatus>active</ns2:eventStatus>
+                        <ns2:testEvent>false</ns2:testEvent>
+                        <ns2:vtnComment></ns2:vtnComment>
+                    </ns2:eventDescriptor>
+                    <ns2:eiActivePeriod>
+                        <ns12:properties>
+                            <ns12:dtstart>
+<ns12:date-time>2017-10-31T22:40:00.000Z</ns12:date-time>
+                            </ns12:dtstart>
+                            <ns12:duration>
+<ns12:duration>PT60M</ns12:duration>
+                            </ns12:duration>
+                            <ns12:tolerance>
+<ns12:tolerate>
+    <ns12:startafter>PT0M</ns12:startafter>
+</ns12:tolerate>
+                            </ns12:tolerance>
+                            <ns2:x-eiNotification>
+<ns12:duration>PT0M</ns12:duration>
+                            </ns2:x-eiNotification>
+                            <ns2:x-eiRampUp>
+<ns12:duration>PT0M</ns12:duration>
+                            </ns2:x-eiRampUp>
+                            <ns2:x-eiRecovery>
+<ns12:duration>PT0M</ns12:duration>
+                            </ns2:x-eiRecovery>
+                        </ns12:properties>
+                        <ns12:components xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+                    </ns2:eiActivePeriod>
+                    <ns2:eiEventSignals>
+                        <ns2:eiEventSignal>
+                            <ns13:intervals>
+<ns2:interval>
+    <ns12:duration>
+        <ns12:duration>PT60M</ns12:duration>
+    </ns12:duration>
+    <ns12:uid>
+        <ns12:text>0</ns12:text>
+    </ns12:uid>
+    <ns2:signalPayload>
+        <ns2:payloadFloat>
+            <ns2:value>2.0</ns2:value>
+        </ns2:payloadFloat>
+    </ns2:signalPayload>
+</ns2:interval>
+                            </ns13:intervals>
+                            <ns2:signalName>simple</ns2:signalName>
+                            <ns2:signalType>delta</ns2:signalType>
+                            <ns2:signalID>9b81d23d3d95f89d2234</ns2:signalID>
+                            <ns2:currentValue>
+<ns2:payloadFloat>
+    <ns2:value>2.0</ns2:value>
+</ns2:payloadFloat>
+                            </ns2:currentValue>
+                        </ns2:eiEventSignal>
+                    </ns2:eiEventSignals>
+                    <ns2:eiTarget>
+                        <ns2:venID>919a1dfa088fe14b79f9</ns2:venID>
+                    </ns2:eiTarget>
+                </ns2:eiEvent>
+                <ns3:oadrResponseRequired>always</ns3:oadrResponseRequired>
+            </ns3:oadrEvent>
+            <ns3:oadrEvent>
+                <ns2:eiEvent>
+                    <ns2:eventDescriptor>
+                        <ns2:eventID>55b2238d1cfcd3269872</ns2:eventID>
+                        <ns2:modificationNumber>0</ns2:modificationNumber>
+                        <ns2:modificationReason></ns2:modificationReason>
+                        <ns2:priority>0</ns2:priority>
+                        <ns2:eiMarketContext>
+                            <ns9:marketContext>http://MarketContext1</ns9:marketContext>
+                        </ns2:eiMarketContext>
+                        <ns2:createdDateTime>2017-10-20T17:37:51.000Z</ns2:createdDateTime>
+                        <ns2:eventStatus>completed</ns2:eventStatus>
+                        <ns2:testEvent>false</ns2:testEvent>
+                        <ns2:vtnComment></ns2:vtnComment>
+                    </ns2:eventDescriptor>
+                    <ns2:eiActivePeriod>
+                        <ns12:properties>
+                            <ns12:dtstart>
+                                <ns12:date-time>2017-10-20T10:42:00.000Z</ns12:date-time>
+                            </ns12:dtstart>
+                            <ns12:duration>
+                                <ns12:duration>PT10M</ns12:duration>
+                            </ns12:duration>
+                            <ns12:tolerance>
+                                <ns12:tolerate>
+                                    <ns12:startafter>PT0M</ns12:startafter>
+                                </ns12:tolerate>
+                            </ns12:tolerance>
+                            <ns2:x-eiNotification>
+                                <ns12:duration>PT0M</ns12:duration>
+                            </ns2:x-eiNotification>
+                            <ns2:x-eiRampUp>
+                                <ns12:duration>PT0M</ns12:duration>
+                            </ns2:x-eiRampUp>
+                            <ns2:x-eiRecovery>
+                                <ns12:duration>PT0M</ns12:duration>
+                            </ns2:x-eiRecovery>
+                        </ns12:properties>
+                        <ns12:components xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+                    </ns2:eiActivePeriod>
+                    <ns2:eiEventSignals>
+                        <ns2:eiEventSignal>
+                            <ns13:intervals>
+                                <ns2:interval>
+                                    <ns12:duration>
+                                        <ns12:duration>PT10M</ns12:duration>
+                                    </ns12:duration>
+                                    <ns12:uid>
+                                        <ns12:text>0</ns12:text>
+                                    </ns12:uid>
+                                    <ns2:signalPayload>
+                                        <ns2:payloadFloat>
+                                            <ns2:value>3.0</ns2:value>
+                                        </ns2:payloadFloat>
+                                    </ns2:signalPayload>
+                                </ns2:interval>
+                            </ns13:intervals>
+                            <ns2:signalName>simple</ns2:signalName>
+                            <ns2:signalType>delta</ns2:signalType>
+                            <ns2:signalID>c3e40225339349a5a034</ns2:signalID>
+                            <ns2:currentValue>
+                                <ns2:payloadFloat>
+                                    <ns2:value>3.0</ns2:value>
+                                </ns2:payloadFloat>
+                            </ns2:currentValue>
+                        </ns2:eiEventSignal>
+                    </ns2:eiEventSignals>
+                    <ns2:eiTarget>
+                        <ns2:venID>919a1dfa088fe14b79f9</ns2:venID>
+                    </ns2:eiTarget>
+                </ns2:eiEvent>
+                <ns3:oadrResponseRequired>always</ns3:oadrResponseRequired>
+            </ns3:oadrEvent>
+            <ns3:oadrEvent>
+                <ns2:eiEvent>
+                    <ns2:eventDescriptor>
+                        <ns2:eventID>c7056058b7019a6bd7dd</ns2:eventID>
+                        <ns2:modificationNumber>0</ns2:modificationNumber>
+                        <ns2:modificationReason></ns2:modificationReason>
+                        <ns2:priority>0</ns2:priority>
+                        <ns2:eiMarketContext>
+                            <ns9:marketContext>http://MarketContext1</ns9:marketContext>
+                        </ns2:eiMarketContext>
+                        <ns2:createdDateTime>2017-10-20T19:04:01.000Z</ns2:createdDateTime>
+                        <ns2:eventStatus>completed</ns2:eventStatus>
+                        <ns2:testEvent>false</ns2:testEvent>
+                        <ns2:vtnComment></ns2:vtnComment>
+                    </ns2:eventDescriptor>
+                    <ns2:eiActivePeriod>
+                        <ns12:properties>
+                            <ns12:dtstart>
+                                <ns12:date-time>2017-10-20T18:34:00.000Z</ns12:date-time>
+                            </ns12:dtstart>
+                            <ns12:duration>
+                                <ns12:duration>PT30M</ns12:duration>
+                            </ns12:duration>
+                            <ns12:tolerance>
+                                <ns12:tolerate>
+                                    <ns12:startafter>PT0M</ns12:startafter>
+                                </ns12:tolerate>
+                            </ns12:tolerance>
+                            <ns2:x-eiNotification>
+                                <ns12:duration>PT0M</ns12:duration>
+                            </ns2:x-eiNotification>
+                            <ns2:x-eiRampUp>
+                                <ns12:duration>PT0M</ns12:duration>
+                            </ns2:x-eiRampUp>
+                            <ns2:x-eiRecovery>
+                                <ns12:duration>PT0M</ns12:duration>
+                            </ns2:x-eiRecovery>
+                        </ns12:properties>
+                        <ns12:components xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+                    </ns2:eiActivePeriod>
+                    <ns2:eiEventSignals>
+                        <ns2:eiEventSignal>
+                            <ns13:intervals>
+                                <ns2:interval>
+                                    <ns12:duration>
+                                        <ns12:duration>PT30M</ns12:duration>
+                                    </ns12:duration>
+                                    <ns12:uid>
+                                        <ns12:text>0</ns12:text>
+                                    </ns12:uid>
+                                    <ns2:signalPayload>
+                                        <ns2:payloadFloat>
+                                            <ns2:value>2.0</ns2:value>
+                                        </ns2:payloadFloat>
+                                    </ns2:signalPayload>
+                                </ns2:interval>
+                            </ns13:intervals>
+                            <ns2:signalName>simple</ns2:signalName>
+                            <ns2:signalType>delta</ns2:signalType>
+                            <ns2:signalID>0d579bcba4ef370c6331</ns2:signalID>
+                            <ns2:currentValue>
+                                <ns2:payloadFloat>
+                                    <ns2:value>2.0</ns2:value>
+                                </ns2:payloadFloat>
+                            </ns2:currentValue>
+                        </ns2:eiEventSignal>
+                    </ns2:eiEventSignals>
+                    <ns2:eiTarget>
+                        <ns2:venID>919a1dfa088fe14b79f9</ns2:venID>
+                    </ns2:eiTarget>
+                </ns2:eiEvent>
+                <ns3:oadrResponseRequired>always</ns3:oadrResponseRequired>
+            </ns3:oadrEvent>
+            <ns3:oadrEvent>
+                <ns2:eiEvent>
+                    <ns2:eventDescriptor>
+                        <ns2:eventID>a2c586adc9b698e4e2ef</ns2:eventID>
+                        <ns2:modificationNumber>1</ns2:modificationNumber>
+                        <ns2:modificationReason></ns2:modificationReason>
+                        <ns2:priority>0</ns2:priority>
+                        <ns2:eiMarketContext>
+                            <ns9:marketContext>http://MarketContext1</ns9:marketContext>
+                        </ns2:eiMarketContext>
+                        <ns2:createdDateTime>2017-10-30T18:23:00.000Z</ns2:createdDateTime>
+                        <ns2:eventStatus>completed</ns2:eventStatus>
+                        <ns2:testEvent>false</ns2:testEvent>
+                        <ns2:vtnComment></ns2:vtnComment>
+                    </ns2:eventDescriptor>
+                    <ns2:eiActivePeriod>
+                        <ns12:properties>
+                            <ns12:dtstart>
+<ns12:date-time>2017-10-30T17:23:00.000Z</ns12:date-time>
+                            </ns12:dtstart>
+                            <ns12:duration>
+<ns12:duration>PT60M</ns12:duration>
+                            </ns12:duration>
+                            <ns12:tolerance>
+<ns12:tolerate>
+    <ns12:startafter>PT0M</ns12:startafter>
+</ns12:tolerate>
+                            </ns12:tolerance>
+                            <ns2:x-eiNotification>
+<ns12:duration>PT0M</ns12:duration>
+                            </ns2:x-eiNotification>
+                            <ns2:x-eiRampUp>
+<ns12:duration>PT0M</ns12:duration>
+                            </ns2:x-eiRampUp>
+                            <ns2:x-eiRecovery>
+<ns12:duration>PT0M</ns12:duration>
+                            </ns2:x-eiRecovery>
+                        </ns12:properties>
+                        <ns12:components xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+                    </ns2:eiActivePeriod>
+                    <ns2:eiEventSignals>
+                        <ns2:eiEventSignal>
+                            <ns13:intervals>
+<ns2:interval>
+    <ns12:duration>
+        <ns12:duration>PT60M</ns12:duration>
+    </ns12:duration>
+    <ns12:uid>
+        <ns12:text>0</ns12:text>
+    </ns12:uid>
+    <ns2:signalPayload>
+        <ns2:payloadFloat>
+            <ns2:value>0.0</ns2:value>
+        </ns2:payloadFloat>
+    </ns2:signalPayload>
+</ns2:interval>
+                            </ns13:intervals>
+                            <ns2:signalName>SIMPLE</ns2:signalName>
+                            <ns2:signalType>level</ns2:signalType>
+                            <ns2:signalID>6e29b4a95218c7b97cd9</ns2:signalID>
+                            <ns2:currentValue>
+<ns2:payloadFloat>
+    <ns2:value>0.0</ns2:value>
+</ns2:payloadFloat>
+                            </ns2:currentValue>
+                        </ns2:eiEventSignal>
+                    </ns2:eiEventSignals>
+                    <ns2:eiTarget>
+                        <ns2:venID>919a1dfa088fe14b79f9</ns2:venID>
+                    </ns2:eiTarget>
+                </ns2:eiEvent>
+                <ns3:oadrResponseRequired>always</ns3:oadrResponseRequired>
+            </ns3:oadrEvent>
+        </ns3:oadrDistributeEvent>
+    </ns3:oadrSignedObject>
+</ns3:oadrPayload>

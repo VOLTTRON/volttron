@@ -1,0 +1,16 @@
+{
+    "name": "function_test_name",
+    "function_id": "LN DCHD",
+    "function_name": "charge_discharge_mode",
+    "DCHD.WinTms (out)": 10,
+    "DCHD.RmpTms (out)": 12,
+    "DCHD.RevtTms (out)": 13,
+    "DCHD.WTgt (out)": 14,
+    "DCHD.RmpUpRte (out)": 15,
+    "DCHD.RmpDnRte (out)": 16,
+    "DCHD.ChaRmpUpRte (out)": 17,
+    "DCHD.ChaRmpDnRte (out)": 18,
+    "DCHD.ModPrty (out)": 19,
+    "DCHD.VArAct (out)": 20,
+    "DCHD.ModEna": true
+}

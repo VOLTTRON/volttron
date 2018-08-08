@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!-- edited with XMLSpy v2011 rel. 2 sp1 (http://www.altova.com) by Paul Lipkin (private) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:power="http://docs.oasis-open.org/ns/emix/2011/06/power" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:gmlsf="http://www.opengis.net/gmlsf/2.0" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0" xmlns:scale="http://docs.oasis-open.org/ns/emix/2011/06/siscale" xmlns:emix="http://docs.oasis-open.org/ns/emix/2011/06" targetNamespace="http://docs.oasis-open.org/ns/emix/2011/06/power" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:import namespace="http://www.opengis.net/gml/3.2" schemaLocation="oadr_gml_20b.xsd"/>
+	<xs:import namespace="http://docs.oasis-open.org/ns/emix/2011/06" schemaLocation="oadr_emix_20b.xsd"/>
+	<xs:import namespace="http://docs.oasis-open.org/ns/emix/2011/06/siscale" schemaLocation="oadr_siscale_20b.xsd"/>
+	<xs:element name="endDeviceAsset" type="power:EndDeviceAssetType"/>
+	<xs:complexType name="EndDeviceAssetType">
+		<xs:annotation>
+			<xs:documentation>The EndDeviceAssets are the physical device or devices which could be meters or other types of devices that may be of interest</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="power:mrid"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!-- 9.8.1.1 Meters -->
+	<xs:element name="meterAsset" type="power:MeterAssetType"/>
+	<xs:complexType name="MeterAssetType">
+		<xs:annotation>
+			<xs:documentation>The MeterAsset is the physical device or devices that performs the role of the meter</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="power:mrid"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!-- 9.8.2 Nodes -->
+	<xs:element name="pnode" type="power:PnodeType"/>
+	<xs:complexType name="PnodeType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>A pricing node is directly associated with a connectivity node.  It is a pricing location for which market participants submit their bids, offers, buy/sell CRRs, and settle.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="power:node"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="aggregatedPnode" type="power:AggregatedPnodeType"/>
+	<xs:complexType name="AggregatedPnodeType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>An aggregated pricing node is a specialized type of pricing node used to model items such as System Zone, Default Price Zone, Custom Price Zone, Control Area, Aggregated Generation, Aggregated Participating Load, Aggregated Non-Participating Load, Trading Hub, DCA Zone</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="power:node"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="serviceLocation" type="power:ServiceLocationType"/>
+	<xs:complexType name="ServiceLocationType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>A customer ServiceLocation has one or more ServiceDeliveryPoint(s), which in turn relate to Meters. The location may be a point or a polygon, depending on the specific circumstances. For distribution, the ServiceLocation is typically the location of the utility customer's premise. </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="gml:FeatureCollection"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="serviceDeliveryPoint" type="power:ServiceDeliveryPointType"/>
+	<xs:complexType name="ServiceDeliveryPointType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>Logical point on the network where the ownership of the service changes hands. It is one of potentially many service points within a ServiceLocation, delivering service in accordance with a CustomerAgreement. Used at the place where a meter may be installed.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="power:node"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!-- 9.8.3 Transport Interface -->
+	<xs:element name="transportInterface" type="power:TransportInterfaceType"/>
+	<xs:complexType name="TransportInterfaceType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>The Transport Interface delineates the edges at either end of a transport segment.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="pointOfReceipt" type="power:NodeType"/>
+			<xs:element name="pointOfDelivery" type="power:NodeType"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!-- 9.8.9 Base Elements for Interfaces -->
+	<xs:element name="node" type="power:NodeType"/>
+	<xs:simpleType name="NodeType">
+		<xs:annotation>
+			<xs:documentation>The Node is a place where something changes (often ownership) or connects on the grid. Many nodes are associated with meters, but not all are.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string"/>
+	</xs:simpleType>
+	<!-- 9.8.9.1 Base Elements for Interfaces -->
+	<!--	The identifier for a EndDevice (meter or other), is mRID from IEC61968-->
+	<xs:element name="mrid" type="power:MridType"/>
+	<xs:simpleType name="MridType">
+		<xs:annotation>
+			<xs:documentation>The mRID identifies the physical device that may be a CustomerMeter or other types of EndDevices.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string"/>
+	</xs:simpleType>
+	<!--  9.9.1 Voltage   -->
+	<xs:element name="voltage" type="power:VoltageType" substitutionGroup="emix:itemBase"/>
+	<xs:complexType name="VoltageType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>Voltage</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent mixed="false">
+			<xs:extension base="emix:ItemBaseType">
+				<xs:sequence>
+					<xs:element name="itemDescription" type="xs:string" fixed="Voltage"/>
+					<xs:element name="itemUnits" type="xs:string" fixed="V"/>
+					<xs:element ref="scale:siScaleCode"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<!-- 9.9.2 Energy Units -->
+	<xs:element name="energyApparent" type="power:EnergyApparentType" substitutionGroup="power:energyItem"/>
+	<xs:complexType name="EnergyApparentType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>Apparent Energy, measured in volt-ampere hours (VAh)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent mixed="false">
+			<xs:restriction base="power:EnergyItemType">
+				<xs:sequence>
+					<xs:element name="itemDescription" type="xs:string" fixed="ApparentEnergy"/>
+					<xs:element name="itemUnits" type="xs:string" fixed="VAh"/>
+					<xs:element ref="scale:siScaleCode"/>
+				</xs:sequence>
+			</xs:restriction>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="energyReactive" type="power:EnergyReactiveType" substitutionGroup="power:energyItem"/>
+	<xs:complexType name="EnergyReactiveType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>Reactive Energy, volt-amperes reactive hours (VARh)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent mixed="false">
+			<xs:restriction base="power:EnergyItemType">
+				<xs:sequence>
+					<xs:element name="itemDescription" type="xs:string" fixed="ReactiveEnergy"/>
+					<xs:element name="itemUnits" type="xs:string" fixed="VARh"/>
+					<xs:element ref="scale:siScaleCode"/>
+				</xs:sequence>
+			</xs:restriction>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="energyReal" type="power:EnergyRealType" substitutionGroup="power:energyItem"/>
+	<xs:complexType name="EnergyRealType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>Real Energy, Watt Hours (Wh)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent mixed="false">
+			<xs:restriction base="power:EnergyItemType">
+				<xs:sequence>
+					<xs:element name="itemDescription" type="xs:string" fixed="RealEnergy"/>
+					<xs:element name="itemUnits" type="xs:string" fixed="Wh"/>
+					<xs:element ref="scale:siScaleCode"/>
+				</xs:sequence>
+			</xs:restriction>
+		</xs:complexContent>
+	</xs:complexType>
+	<!-- ==================================================== -->
+	<!-- 9.9.5 Base Energy Item Type -->
+	<!-- ==================================================== -->
+	<xs:element name="energyItem" type="power:EnergyItemType" substitutionGroup="emix:itemBase"/>
+	<xs:complexType name="EnergyItemType" abstract="true" mixed="false">
+		<xs:annotation>
+			<xs:documentation>Base for the measurement of Energy</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent mixed="false">
+			<xs:extension base="emix:ItemBaseType">
+				<xs:sequence>
+					<xs:element name="itemDescription" type="xs:string"/>
+					<xs:element name="itemUnits" type="xs:string"/>
+					<xs:element ref="scale:siScaleCode"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<!-- ==================================================== -->
+	<!-- 9.9.4 Power Units -->
+	<!-- ==================================================== -->
+	<!-- ==================================================== -->
+	<xs:element name="powerApparent" type="power:PowerApparentType" substitutionGroup="power:powerItem"/>
+	<xs:complexType name="PowerApparentType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>Apparent Power measured in volt-amperes (VA)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent mixed="false">
+			<xs:restriction base="power:PowerItemType">
+				<xs:sequence>
+					<xs:element name="itemDescription" type="xs:string" fixed="ApparentPower"/>
+					<xs:element name="itemUnits" type="xs:string" fixed="VA"/>
+					<xs:element ref="scale:siScaleCode"/>
+					<xs:element ref="power:powerAttributes"/>
+				</xs:sequence>
+			</xs:restriction>
+		</xs:complexContent>
+	</xs:complexType>
+	<!-- ==================================================== -->
+	<xs:element name="powerReactive" type="power:PowerReactiveType" substitutionGroup="power:powerItem"/>
+	<xs:complexType name="PowerReactiveType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>Reactive power, measured in volt-amperes reactive (VAR)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent mixed="false">
+			<xs:restriction base="power:PowerItemType">
+				<xs:sequence>
+					<xs:element name="itemDescription" type="xs:string" fixed="ReactivePower"/>
+					<xs:element name="itemUnits" type="xs:string" fixed="VAR"/>
+					<xs:element ref="scale:siScaleCode"/>
+					<xs:element ref="power:powerAttributes"/>
+				</xs:sequence>
+			</xs:restriction>
+		</xs:complexContent>
+	</xs:complexType>
+	<!-- ==================================================== -->
+	<xs:element name="powerReal" type="power:PowerRealType" substitutionGroup="power:powerItem"/>
+	<xs:complexType name="PowerRealType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>Real power measured in Watts (W) or Joules/second (J/s)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent mixed="false">
+			<xs:restriction base="power:PowerItemType">
+				<xs:sequence>
+					<xs:element name="itemDescription" type="xs:string" fixed="RealPower"/>
+					<xs:element name="itemUnits">
+						<xs:simpleType>
+							<xs:restriction base="xs:token">
+								<xs:enumeration value="W"/>
+								<xs:enumeration value="J/s"/>
+							</xs:restriction>
+						</xs:simpleType>
+					</xs:element>
+					<xs:element ref="scale:siScaleCode"/>
+					<xs:element ref="power:powerAttributes"/>
+				</xs:sequence>
+			</xs:restriction>
+		</xs:complexContent>
+	</xs:complexType>
+	<!-- ==================================================== -->
+	<!-- 9.9.5 Base Power Item Type -->
+	<!-- ==================================================== -->
+	<xs:element name="powerItem" type="power:PowerItemType" substitutionGroup="emix:itemBase"/>
+	<xs:complexType name="PowerItemType" abstract="true" mixed="false">
+		<xs:annotation>
+			<xs:documentation>Base for the measurement of Power</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent mixed="false">
+			<xs:extension base="emix:ItemBaseType">
+				<xs:sequence>
+					<xs:element name="itemDescription" type="xs:string"/>
+					<xs:element name="itemUnits" type="xs:string"/>
+					<xs:element ref="scale:siScaleCode"/>
+					<xs:element ref="power:powerAttributes"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<!-- ==================================================== -->
+	<xs:element name="powerAttributes" type="power:PowerAttributesType"/>
+	<xs:complexType name="PowerAttributesType">
+		<xs:sequence>
+			<xs:element name="hertz" type="xs:decimal"/>
+			<xs:element name="voltage" type="xs:decimal"/>
+			<xs:element name="ac" type="xs:boolean"/>
+		</xs:sequence>
+	</xs:complexType>
+</xs:schema>

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<oadr:oadrPayload xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+        <oadr:oadrSignedObject xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07">
+            <oadr:oadrDistributeEvent xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:pyld="http://docs.oasis-open.org/ns/energyinterop/201110/payloads" schemaVersion="2.0b">
+                <ei:eiResponse xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:pyld="http://docs.oasis-open.org/ns/energyinterop/201110/payloads">
+                    <ei:responseCode>200</ei:responseCode>
+                    <oadr:responseDescription>OK</oadr:responseDescription>
+                    <pyld:requestID>300</pyld:requestID>
+                </ei:eiResponse>
+                <pyld:requestID>300</pyld:requestID>
+                <ei:vtnID>vtn01</ei:vtnID>
+                <oadr:oadrEvent xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110">
+                    <ei:eiEvent xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110">
+                        <ei:eventDescriptor xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                            <ei:eventID>{event_id}</ei:eventID>
+                            <oadr:modificationNumber>0</oadr:modificationNumber>
+                            <oadr:priority>1</oadr:priority>
+                            <oadr:createdDateTime>2017-12-01T10:40:12</oadr:createdDateTime>
+                            <ei:eventStatus>far</ei:eventStatus>
+                            <oadr:testEvent/>
+                        </ei:eventDescriptor>
+                        <ei:eiActivePeriod xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                            <xcal:properties xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110">
+                                <xcal:dtstart xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                                    <oadr:date-time>{event_start_time}</oadr:date-time>
+                                </xcal:dtstart>
+                                <xcal:duration xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                                    <oadr:duration>{event_duration}</oadr:duration>
+                                </xcal:duration>
+                                <ei:x-eiNotification xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                                    <oadr:duration>PT23H57M1S</oadr:duration>
+                                </ei:x-eiNotification>
+                            </xcal:properties>
+                        </ei:eiActivePeriod>
+                        <ei:eiEventSignals xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110">
+                            <ei:eiEventSignal xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:strm="urn:ietf:params:xml:ns:icalendar-2.0:stream" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:emix="http://docs.oasis-open.org/ns/emix/2011/06">
+                                <strm:intervals xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110">
+                                    <ei:interval xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0" xmlns:strm="urn:ietf:params:xml:ns:icalendar-2.0:stream">
+                                        <xcal:dtstart xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                                            <oadr:date-time>{event_start_time}</oadr:date-time>
+                                        </xcal:dtstart>
+                                        <xcal:duration xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                                            <oadr:duration>{event_duration}</oadr:duration>
+                                        </xcal:duration>
+                                    </ei:interval>
+                                </strm:intervals>
+                                <ei:signalName>simple</ei:signalName>
+                                <ei:signalType>level</ei:signalType>
+                            </ei:eiEventSignal>
+                        </ei:eiEventSignals>
+                    </ei:eiEvent>
+                    <oadr:oadrResponseRequired>always</oadr:oadrResponseRequired>
+                </oadr:oadrEvent>
+            </oadr:oadrDistributeEvent>
+        </oadr:oadrSignedObject>
+    </oadr:oadrPayload>
