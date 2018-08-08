@@ -51,92 +51,44 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-# }}}
-import logging
 import os
 import sys
-from abc import abstractmethod
 import requests
 from volttron.platform.agent import utils
+from volttron.utils.docs import doc_inherit
 from volttron.platform.vip.agent import *
 
-_log = logging.getLogger(__name__)
-
-# TODO testing
-testing_config_path = os.path.dirname(os.path.realpath(__file__))
-testing_config_path += "/config.config"
-
-class WeatherSchema:
-    def __init__(self,
-                 schema_mapping):
-        self.base_schema = schema_mapping
-        self.alternate_schema = {}
-
-    def map_schema(self, mapping):
-        for key, value in mapping:
-            if key in self.base_schema:
-                self.base_schema[key] = value
-            else:
-                self.alternate_schema[key] = value
-
-
-class WeatherCache:
-    # TODO ask about sqlite for caching
-
-# class WeatherAgent():
-class BaseWeatherAgent(Agent):
-    """Creates weather services based on the json objects from the config,
-    uses the services to collect and publish weather data"""
-
-    # TODO set up defaults for a weather agent here
-    def __init__(self,
-                 api_key="",
-                 base_url=None,
-                 locations=[],
-                 **kwargs):
-        # TODO figure out if this is necessary
-        super(BaseWeatherAgent, self).__init__(**kwargs)
-        # TODO set protected variables
-        self._api_key = api_key
-        self._base_url = base_url
-        self._locations = locations
-        # TODO build from init parameters
-
-        self._default_config = {"api_key": self._api_key}
-        self.vip.config.set_default("config", self._default_config)
+class WeatherDotGovAgent(BaseWeatherAgent):
+    def __init__(self):
+        super(BaseWeatherAgent, None, "https://api.weather.gov/")
 
     @Core.receiver('onstart')
-    def setup(self, config):
-        try:
-            self.configure(config)
-            # TODO check this, might need to go in configure
-            self.schema = WeatherSchema()
-        except Exception as e:
-            _log.error("Failed to load weather agent settings.")
-        # TODO ?
-        # self.vip.config.subscribe(self._configure, actions=["NEW", "UPDATE"], pattern="config")
+    @doc_inherit
+    def setup(self):
 
+    @doc_inherit
+    def configure(self):
 
-    # TODO schema mapping should be contained in the config.config, no registry config necessary?
-    @abstractmethod
-    def configure(self, config):
-        """Unimplemented method stub."""
-        pass
-
-    # TODO
-    @abstractmethod
+    @doc_inherit
     def get_current_weather(self, location):
-        pass
+        response = self.generate_weather_request(self.base_url + "stations/{}/observations/current".format(location))
+        # TODO handle bad request results
+        # if the request results are yuck, do a thing
+        # TODO convert response to dict
+        # TODO convert dict response to schema
+        # TODO apply to other methods
 
-    # TODO
-    @abstractmethod
+
+    @doc_inherit
     def get_forecast(self, location):
-        pass
+        # TODO handle different forecast types (might want hourly/daily to be separate, inherited methods or
+        # have some variable which determines which call to make, probably the first one
+        response = self.generate_weather_request(self.base_url + "".format(location))
 
-    @abstractmethod
-    def get_historical_weather(self, location, start_period, end_period):
-        pass
-
-
-
-
+    def generate_weather_request(self, request):
+        try:
+            response = requests.get(request)
+            return response
+        except:
+            # TODO handle failed requests
+            # TODO logging for error

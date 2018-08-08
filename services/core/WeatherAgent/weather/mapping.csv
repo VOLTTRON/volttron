@@ -1,4 +1,4 @@
 Service,item1,item2,item3
-weather.gov,“string”,,,
-weatherbit.io,“string”,“string”,,
+weather.gov,“string”,,
+weatherbit.io,“string”,“string”,
 darksky,,,“string”
