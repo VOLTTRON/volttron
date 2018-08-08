@@ -495,7 +495,6 @@ ssl_options.certfile = {server_cert}
 ssl_options.keyfile = {server_key}
 ssl_options.verify = verify_peer
 ssl_options.fail_if_no_peer_cert = true
-ssl_options.depth = 1
 auth_mechanisms.1 = EXTERNAL
 ssl_cert_login_from = common_name
 ssl_options.versions.1 = tlsv1.2

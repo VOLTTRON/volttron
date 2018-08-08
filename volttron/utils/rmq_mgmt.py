@@ -980,7 +980,7 @@ def get_ssl_url_params():
     key_file = crts.private_key_file(client_cert)
     return "cacertfile={ca}&certfile={cert}&keyfile={key}" \
            "&verify=verify_peer&fail_if_no_peer_cert=true" \
-           "&auth_mechanism=external&depth=1".format(ca=ca_file,
+           "&auth_mechanism=external".format(ca=ca_file,
                                                      cert=cert_file,
                                                      key=key_file)
 
