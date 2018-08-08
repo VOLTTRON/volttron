@@ -82,7 +82,7 @@ sample str,None,string[12],True,17,hello world!"""
 # Register values dictionary for testing set_point and get_point
 registers_dict = {"unsigned short": 65530,
                   "unsigned int": 4294967290,
-                  "unsigned long": 18446744073709550,
+                  "unsigned long": 184467440737090,
                   "sample short": -32760,
                   "sample int": -2147483640,
                   "sample float": -12340.0,

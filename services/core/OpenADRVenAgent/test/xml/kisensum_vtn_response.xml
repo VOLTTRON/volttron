@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<oadr:oadrPayload xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+    <oadr:oadrSignedObject xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07">
+        <oadr:oadrResponse xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" schemaVersion="2.0b">
+            <ei:eiResponse xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:pyld="http://docs.oasis-open.org/ns/energyinterop/201110/payloads">
+                <ei:responseCode>200</ei:responseCode>
+                <oadr:responseDescription>No events to send</oadr:responseDescription>
+                <pyld:requestID>300</pyld:requestID>
+            </ei:eiResponse>
+            <oadr:venID>0</oadr:venID>
+        </oadr:oadrResponse>
+    </oadr:oadrSignedObject>
+</oadr:oadrPayload>
