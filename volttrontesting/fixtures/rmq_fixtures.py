@@ -118,13 +118,16 @@ def create_certs(crts):
 def rmq_fixture(request):
     """
     Writes rabbitmq.conf file for RMQ server and begins RMQ server.
+
     :param request:
     :return:
     """
 
+    #  @todo: 1. Make sure that the these two plugins are enabled: rabbitmq_auth_mechanism_ssl, rabbitmq_management
     with open(RABBIT_PLUGINS, 'w') as f:
         f.write('[rabbitmq_auth_mechanism_ssl,rabbitmq_management].')
 
+    # Probably not needed
     environ = {
         'RABBITMQ_LOG_BASE': RABBIT_LOG,
         'RABBITMQ_MNESIA_BASE': RABBIT_MNESIA,
@@ -133,12 +136,15 @@ def rmq_fixture(request):
         'RABBITMQ_CONFIG_FILE': RMQ_CONF_FILE.replace('.conf', '')
     }
 
+    # @todo:  2. Create VOLTTRON home and set instance name
     v_details = volttron_details()
 
     instance_ca_path = os.path.join(v_details['vhome'], 'certificates/certs', INSTANCE_NAME + 'instance-ca.crt')
     server_cert_path = os.path.join(v_details['vhome'], 'certificates/certs', SERVER_NAME + '.crt')
     server_key_path = os.path.join(v_details['vhome'], 'certificates/private', SERVER_NAME + '.pem')
 
+    # @todo:  3. Write RMQ config file
+    #   - This should go in VHOME, and the appropriate RMQ environment variable should be set
     rmq_conf = """loopback_users = none
 listeners.ssl.default = 5671
 ssl_options.cacertfile = {instance_ca}
@@ -167,12 +173,17 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(instance_ca=instan
     with open(RMQ_CONF_FILE, 'w') as conf:
         conf.write(rmq_conf)
 
+    # @todo:  4. Write the RMQ config for VOLTTRON to use
     rmq_volttron_config(v_details)
 
+    #  @todo: 5. Create root certificate authority (CA)
     c = root_ca(v_details)
+
+    # @todo:  6. Create instance CA, certs for RMQ server, and for volttron-admin (used for Web API calls)
     create_certs(c)
     rmq = process.RabbitMqExecutor(RMQ_SERVER_LOC, HOST, AMQP_PORT, RMQ_CTL, environ)
 
+    # @todo:  7. Start RMQ Server
     rmq.start()
 
     def cleanup_and_stop():
@@ -181,6 +192,8 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(instance_ca=instan
         shutil.rmtree(v_details['vhome'])
 
     request.addfinalizer(cleanup_and_stop)
+
+    # @todo:  8. Create relevant exchanges and queues (below)
 
 
 @pytest.fixture(scope='session')
