@@ -64,6 +64,7 @@ import requests
 from requests.packages.urllib3 import disable_warnings, exceptions
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
+from volttron.platform.certs import ROOT_CA_NAME
 
 from volttron.platform import certs
 from volttron.platform import get_home
@@ -975,14 +976,15 @@ def get_ssl_url_params():
         instance_name = get_platform_instance_name()
     instance_ca, server_cert, client_cert = certs.Certs.get_cert_names(
         instance_name)
-    ca_file = crts.cert_file(instance_ca)
+    #ca_file = crts.cert_file(instance_ca)
+    ca_file = crts.cert_file(ROOT_CA_NAME)
     cert_file = crts.cert_file(client_cert)
     key_file = crts.private_key_file(client_cert)
     return "cacertfile={ca}&certfile={cert}&keyfile={key}" \
            "&verify=verify_peer&fail_if_no_peer_cert=true" \
            "&auth_mechanism=external".format(ca=ca_file,
-                                                     cert=cert_file,
-                                                     key=key_file)
+                                             cert=cert_file,
+                                             key=key_file)
 
 
 def create_rmq_volttron_test_setup(volttron_home, host='localhost'):
