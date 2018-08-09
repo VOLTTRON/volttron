@@ -597,39 +597,39 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             },
             {
               name: 'lime',
-              color: `rgba(0,255,0),${colorVal})`,
-              lighter: `rgba(0,255,0),${lighterVal})`,
-              lightest: `rgba(0,255,0),${lightestVal})`
+              color: `rgba(0,255,0,${colorVal})`,
+              lighter: `rgba(0,255,0,${lighterVal})`,
+              lightest: `rgba(0,255,0,${lightestVal})`
             },
             {
               name: 'tan',
-              color: `rgba(210,180,140),${colorVal})`,
-              lighter: `rgba(210,180,140),${lighterVal})`,
-              lightest: `rgba(210,180,140),${lightestVal})`
+              color: `rgba(210,180,140,${colorVal})`,
+              lighter: `rgba(210,180,140,${lighterVal})`,
+              lightest: `rgba(210,180,140,${lightestVal})`
             },
             {
               name: 'gold',
-              color: `rgba(255,215,0),${colorVal})`,
-              lighter: `rgba(255,215,0),${lighterVal})`,
-              lightest: `rgba(255,215,0),${lightestVal})`
+              color: `rgba(255,215,0,${colorVal})`,
+              lighter: `rgba(255,215,0,${lighterVal})`,
+              lightest: `rgba(255,215,0,${lightestVal})`
             },
             {
               name: 'aqua',
-              color: `rgba(0,255,255),${colorVal})`,
-              lighter: `rgba(0,255,255),${lighterVal})`,
-              lightest: `rgba(0,255,255),${lightestVal})`
+              color: `rgba(0,255,255,${colorVal})`,
+              lighter: `rgba(0,255,255,${lighterVal})`,
+              lightest: `rgba(0,255,255,${lightestVal})`
             },
             {
               name: 'fuchsia',
-              color: `rgba(255,0,255),${colorVal})`,
-              lighter: `rgba(255,0,255),${lighterVal})`,
-              lightest: `rgba(255,0,255),${lightestVal})`
+              color: `rgba(255,0,255,${colorVal})`,
+              lighter: `rgba(255,0,255,${lighterVal})`,
+              lightest: `rgba(255,0,255,${lightestVal})`
             },
             {
               name: 'olive',
-              color: `rgba(128,128,0),${colorVal})`,
-              lighter: `rgba(128,128,0),${lighterVal})`,
-              lightest: `rgba(128,128,0),${lightestVal})`
+              color: `rgba(128,128,0,${colorVal})`,
+              lighter: `rgba(128,128,0,${lighterVal})`,
+              lightest: `rgba(128,128,0,${lightestVal})`
             }
         ];
     

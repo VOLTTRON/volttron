@@ -498,6 +498,27 @@ var GraphLineChart = OutsideClick(React.createClass({
                         pointHitRadius: 10
                     };
                 }, this)
+                .sort(function(a, b) {
+                    if (a.label && b.label)
+                    {
+                        if (a.label < b.label)
+                        {
+                            return -1;
+                        }
+                        else if (a.label > b.label)
+                        {
+                            return 1;
+                        }
+                        else
+                        {
+                            return 0;
+                        }
+                    }
+                    else
+                    {
+                        return 0;
+                    }
+                })
             }
 
             var convertTitle = function (tooltipItem, data) {
@@ -557,71 +578,5 @@ var GraphLineChart = OutsideClick(React.createClass({
         );
     }
 }));
-
-// function mapSeriesColor(index, a=1) {
-//     var colorSet = [
-//         {
-//           color: 'darkorange',
-//           shade: `rgba(255,140,0,${a})`
-//         },
-//         {
-//           color: 'green',
-//           shade: `rgba(0,128,0,${a})`
-//         },
-//         {
-//           color: 'teal',
-//           shade: `rgba(0,128,128,${a})`
-//         },
-//         {
-//           color: 'maroon',
-//           shade: `rgba(128,0,0,${a})`
-//         },
-//         {
-//           color: 'navy',
-//           shade: `rgba(0,0,128,${a})`
-//         },
-//         {
-//           color: 'silver',
-//           shade: `rgba(192,192,192,${a})`
-//         },
-//         {
-//           color: 'purple',
-//           shade: `rgba(128,0,128,${a})`
-//         },
-//         {
-//           color: 'red',
-//           shade: `rgba(255,0,0,${a})`
-//         },
-//         {
-//           color: 'lime',
-//           shade: `rgba(0,255,0),${a})`
-//         },
-//         {
-//           color: 'tan',
-//           shade: `rgba(210,180,140),${a})`
-//         },
-//         {
-//           color: 'gold',
-//           shade: `rgba(255,215,0),${a})`
-//         },
-//         {
-//           color: 'aqua',
-//           shade: `rgba(0,255,255),${a})`
-//         },
-//         {
-//           color: 'fuchsia',
-//           shade: `rgba(255,0,255),${a})`
-//         },
-//         {
-//           color: 'olive',
-//           shade: `rgba(128,128,0),${a})`
-//         }
-//     ];
-
-//     var colorIndex = index % colorSet.length;
-
-//     return colorSet[colorIndex].shade;
-// }
-
 
 module.exports = PlatformChart;
