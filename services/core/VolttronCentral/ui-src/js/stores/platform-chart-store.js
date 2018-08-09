@@ -145,22 +145,18 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
             if (_chartData.hasOwnProperty(action.panelItem.name))
             {
-                console.log('ADDING TO CHART: ' + JSON.stringify(action.panelItem));
-
                 var availableColors = ((
-                        _chartData[action.panelItem.name].colors && 
-                        _chartData[action.panelItem.name].colors.length
+                        _chartData[action.panelItem.name].availableColors && 
+                        _chartData[action.panelItem.name].availableColors.length
                     ) ? 
-                    _chartData[action.panelItem.name].colors :
+                    _chartData[action.panelItem.name].availableColors :
                     initColors()
                 );
 
-                console.log('AVAILABLE COLORS: ' + availableColors);
-
                 var itemWithColor = getItemWithColor(action.panelItem, availableColors);
 
-                console.log('ASSIGNED COLOR: ' + JSON.stringify(itemWithColor));
-                console.log('AVAILABLE COLORS: ' + availableColors);
+                // Update the chart's availableColors with the modified availableColors list
+                _chartData[action.panelItem.name].availableColors = availableColors;
 
                 insertSeries(itemWithColor);
                 chartStore.emitChange();
@@ -171,12 +167,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
                 {
                     var availableColors = initColors();
 
-                    console.log('INITIAL COLORS: ' + availableColors);
-
                     var itemWithColor = getItemWithColor(action.panelItem, availableColors);
-
-                    console.log('ASSIGNED COLOR: ' + JSON.stringify(itemWithColor));
-                    console.log('AVAILABLE COLORS: ' + availableColors);
 
                     var chartObj = {
                         refreshInterval: (
@@ -221,9 +212,41 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             _chartData = {};
 
             action.charts.forEach(function (chart) {
-                _chartData[chart.chartKey] = JSON.parse(JSON.stringify(chart));
+
+                var chartObj = chart;
+
+                if (chartObj.series && chartObj.series.length)
+                {
+                    // For each series, make sure it has a color. This is 
+                    // for charts that were pinned before the code update
+                    // to assign colors was deployed. Eventually, we should
+                    // be able to remove this forEach loop, because all 
+                    // pinned charts will have been saved to the database 
+                    // with colors
+                    chartObj.series.forEach(function (series) {
+                        var itemWithColor = series;
+                        
+                        if (!itemWithColor.hasOwnProperty('colors'))
+                        {
+                            var availableColors = ((
+                                    chartObj.availableColors && 
+                                    chartObj.availableColors.length
+                                ) ? 
+                                chartObj.availableColors :
+                                initColors()
+                            );
+
+                            itemWithColor = getItemWithColor(action.item, availableColors);
+
+                            // Update the chart's availableColors with the modified availableColors list
+                            chartObj.availableColors = availableColors;
+                        }
+                    });
+                }
+
+                _chartData[chart.chartKey] = JSON.parse(JSON.stringify(chartObj));
             });
-            
+
             chartStore.emitChange();
 
             break;
@@ -262,41 +285,39 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
             break;
         
-        case ACTION_TYPES.INITIALIZE_CHART:
+        // case ACTION_TYPES.INITIALIZE_CHART:
 
-            console.log('INITIALIZING CHART: ' + JSON.stringify(action.item));
+        //     console.log('INITIALIZING CHART: ' + JSON.stringify(action.item));
 
-            removeSeries(action.item.name, action.item.uuid);
+        //     removeSeries(action.item.name, action.item.uuid);
 
-            var itemWithColor = action.item;
+        //     var itemWithColor = action.item;
             
-            if (!itemWithColor.hasOwnProperty('colors'))
-            {
-                if (_chartData[action.item.name])
-                {
+        //     if (!itemWithColor.hasOwnProperty('colors'))
+        //     {
+        //         if (_chartData[action.item.name])
+        //         {
+        //             var availableColors = ((
+        //                     _chartData[action.item.name].colors && 
+        //                     _chartData[action.item.name].colors.length
+        //                 ) ? 
+        //                 _chartData[action.item.name].colors :
+        //                 initColors()
+        //             );
                     
+        //             console.log('AVAILABLE COLORS: ' + availableColors);
 
-                    var availableColors = ((
-                            _chartData[action.item.name].colors && 
-                            _chartData[action.item.name].colors.length
-                        ) ? 
-                        _chartData[action.item.name].colors :
-                        initColors()
-                    );
-                    
-                    console.log('AVAILABLE COLORS: ' + availableColors);
+        //             itemWithColor = getItemWithColor(action.item, availableColors);
 
-                    itemWithColor = getItemWithColor(action.item, availableColors);
+        //             console.log('ASSIGNED COLOR: ' + JSON.stringify(itemWithColor));
+        //             console.log('AVAILABLE COLORS: ' + availableColors);
+        //         }
+        //     }
 
-                    console.log('ASSIGNED COLOR: ' + JSON.stringify(itemWithColor));
-                    console.log('AVAILABLE COLORS: ' + availableColors);
-                }
-            }
+        //     insertSeries(itemWithColor);
+        //     chartStore.emitChange();
 
-            insertSeries(itemWithColor);
-            chartStore.emitChange();
-
-            break;
+        //     break;
 
         case ACTION_TYPES.CHANGE_CHART_REFRESH:
 

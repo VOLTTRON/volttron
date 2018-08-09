@@ -26,7 +26,7 @@ var PlatformChart = React.createClass({
         return state;
     },
     componentDidMount: function () {
-        this._refreshChartTimeout = setTimeout(this._initializeChart, 0);
+        this._refreshChartTimeout = setTimeout(this._refreshChart, 0);
         platformChartStore.addChangeListener(this._onStoresChange);
 
 
@@ -52,21 +52,21 @@ var PlatformChart = React.createClass({
             }
         }
     },
-    _initializeChart: function () {
-        if (this.props.hasOwnProperty("chart"))
-        {
-            this.setState({refreshing: true});
+    // _initializeChart: function () {
+    //     if (this.props.hasOwnProperty("chart"))
+    //     {
+    //         this.setState({refreshing: true});
 
-            platformChartActionCreators.initializeChart(
-                this.props.chart.series,
-                this.props.chart.dataLength
-            );
+    //         platformChartActionCreators.initializeChart(
+    //             this.props.chart.series,
+    //             this.props.chart.dataLength
+    //         );
 
-            if (this.state.refreshInterval) {
-                this._refreshChartTimeout = setTimeout(this._refreshChart, this.state.refreshInterval);
-            }    
-        }
-    },
+    //         if (this.state.refreshInterval) {
+    //             this._refreshChartTimeout = setTimeout(this._refreshChart, this.state.refreshInterval);
+    //         }    
+    //     }
+    // },
     _refreshChart: function () {
         if (this.props.hasOwnProperty("chart"))
         {
@@ -464,8 +464,8 @@ var GraphLineChart = OutsideClick(React.createClass({
                     if (item.hasOwnProperty('colors'))
                     {
                         mappedColor = item.colors.color;
-                        lighterColor = item.colors.lighterColor;
-                        lightestColor = item.colors.lightestColor;
+                        lighterColor = item.colors.lighter;
+                        lightestColor = item.colors.lightest;
                     }
                     else
                     {
