@@ -1,0 +1,352 @@
+"""
+Agent documentation goes here.
+"""
+
+__docformat__ = 'reStructuredText'
+
+import logging
+import sys
+import foo_db
+from volttron.platform.agent import utils
+from volttron.platform.agent.base_historian import BaseHistorian
+
+_log = logging.getLogger(__name__)
+utils.setup_logging()
+__version__ = "__version_string__"
+
+
+def historian(config_path, **kwargs):
+    """
+    Parses the Agent configuration and returns an instance of
+    the agent created using that configuration.
+
+    :param config_path: Path to a configuration file.
+
+    :type config_path: str
+    :returns: `__class_name__`
+    :rtype: `__class_name__`
+    """
+
+    if isinstance(config_path, dict):
+        config_dict = config_path
+    else:
+        config_dict = utils.load_config(config_path)
+
+    # Gather all settings from configuration into kwargs.
+    # This ensures that settings common to all historians
+    # are passed to BaseHistorian.
+    utils.update_kwargs_with_config(kwargs, config_dict)
+    return __class_name__(**kwargs)
+
+
+class __class_name__(BaseHistorian):
+    """
+    Document historian here.
+    """
+
+    def __init__(self, connection_parameters={},
+                 **kwargs):
+        # The publish_to_historian function will run in a
+        # separate thread unless you change this to True.
+        # Unless you need to interact with the VOLTTRON platform
+        # leave this unchanged.
+        kwargs["process_loop_in_greenlet"] = False
+        super(__class_name__, self).__init__(**kwargs)
+
+        self.db_connection = None
+        self.db_address = None
+        self.db_port = None
+
+        # The base historian handles the interaction with the
+        # configuration store.
+        config = {"connection_parameters": connection_parameters}
+        # Add our settings to the base historians default settings.
+        self.update_default_config(config)
+
+    def configure(self, configuration):
+        # The base historian will call this whenever the
+        # Historian is reconfigured in the main process thread.
+
+        # If the Historian is already running historian_teardown
+        # will be called before this is called and
+        # historian_setup will be called afterwards.
+
+        connection_parameters = configuration["connection_parameters"]
+
+        if not isinstance(connection_parameters, dict):
+            _log.warning("Supplied connection_parameters is not a dict, ignored")
+            connection_parameters = {}
+
+        self.db_address = connection_parameters.get("address")
+        self.db_port = connection_parameters.get("port")
+
+    def publish_to_historian(self, to_publish_list):
+        # Called automatically by the BaseHistorian class when data is available to be
+        # published.
+
+        # This is run in a separate thread from the main agent thread. This means that
+        # this function may block for a short period of time without fear of
+        # blocking the main agent gevent loop.
+
+        # Historians may not interact with the VOLTTRON platform directly from
+        # this function unless kwargs["process_loop_in_greenlet"] is set to
+        # True in __init__ which will cause this function to be run in the
+        # main Agent thread.
+
+        # to_publish_list is a list of dictionaries of the form:
+        # {'timestamp': <datetime object>,
+        #  'source': <"scrape", "record", "log", or "analysis">, # "scrape" is device data
+        #  'topic': <str>,
+        #  'value': <value>, # may be any value that can be serialized with json.
+        #  'headers': <headers dictionary>,
+        #  'meta': <meta data dictionary>}
+
+        # Ideally a historian should try to batch up the values in to_publish_list
+        # in a way that is appropriate for the storage mechanism and publish
+        # everything in one shot.
+
+        # Once data is published the published values must be reported to the
+        # BaseHistorian class by either calling self.report_handled or
+        # self.report_all_handled.
+
+        # If a historian can not publish everything in a single batch then
+        # self.report_handled must be called individually on every item in
+        # to_publish_list that was published.
+
+        # If everything is published in a single batch then self.report_all_handled
+        # must be called.
+
+        _log.debug("publish_to_historian number of items: {}"
+                   .format(len(to_publish_list)))
+
+        # Here it may be appropriate to check to see if our connection is still
+        # active and restoring it as needed.
+        alive = False
+        if self.db_connection is not None:
+            alive = self.db_connection.is_alive()
+
+        if not alive:
+            self.historian_setup()
+
+        # If our connection is down leave without attempting to publish.
+        # Publish failure will automatically trigger the BaseHistorian to
+        # set the health of the agent accordingly.
+        if self.db_connection is None:
+            return
+
+        # Example separate item publish
+        for item in to_publish_list:
+            try:
+                # The details of how to publish data will be data store specific.
+                self.db_connection.publish(item["topic"], item["source"], item["value"], item["meta"])
+                self.report_handled(item)
+            except StandardError as e:
+                _log.error("Failed to publish {}: {}".format(item, repr(e)))
+
+        #Example batch publish
+        batch = [(item["topic"], item["source"], item["value"], item["meta"]) for item in to_publish_list]
+
+        try:
+            # The details of how to publish batch data will be data store specific.
+            self.db_connection.batch_publish(batch)
+            self.report_all_handled()
+        except StandardError:
+                _log.error("Failed to publish {}".format(repr(e)))
+
+    def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
+        """
+        Called in the process thread after data is published.
+        Implement this to apply the storage_limit_gb and history_limit_days
+        settings to the storage medium.
+
+        Typically only support for history_limit_timestamp will be implemented.
+        The documentation should note which of the two settings (if any) are supported.
+
+        :param history_limit_timestamp: remove all data older than this timestamp
+        :param storage_limit_gb: remove oldest data until database is smaller than this value.
+        """
+        # The details of how to delete old data will be data store specific.
+        self.db_connection.delete(older_than=history_limit_timestamp)
+
+    def historian_setup(self):
+        # Setup any connection needed for this historian.
+        # If a connection does not need to be maintained this function may be deleted.
+
+        # This is called from the same thread as publish_to_historian.
+
+        # It is called after configure is called at startup
+        # and every time the Historian is reconfigured.
+
+        # If the connection is lost it is up to the Historian to
+        # recreate it if needed, often by calling this function to
+        # restore connectivity.
+
+        # This is a convenience to allow us to call this any time we like to
+        # restore a connection.
+        self.historian_teardown()
+        try:
+            self.db_connection = foo_db.connect(self.db_address, self.db_port)
+        except StandardError as e:
+            _log.error("Failed to create data base connection: {}".format(e))
+
+
+    def historian_teardown(self):
+        # Kill the connection if needed.
+        # If a connection does not need to be maintained this function may be deleted.
+        # This is called to shut down the connection before reconfiguration.
+        if self.db_connection is not None:
+            self.db_connection.close()
+            self.db_connection = None
+
+    def version(self):
+        """
+        Return the current version number of the historian
+        :return: version number
+        """
+        return __version__
+
+
+    # The following methods are for adding query support. This will allow other
+    # agents to get data from the store and will allow this historian to act as
+    # the platform.historian for VOLTTRON.
+
+    def query_topic_list(self):
+        """
+        This function is called by
+        :py:meth:`BaseQueryHistorianAgent.get_topic_list`
+        to get the topic list from the data store.
+
+        :return: List of topics in the data store.
+        :rtype: list
+        """
+        # The details of how to get the topic list will be data store specific.
+        # return self.db_connection.get_topics()
+        raise NotImplemented()
+
+    def query_topics_metadata(self, topics):
+        """
+        This function is called by
+        :py:meth:`BaseQueryHistorianAgent.get_topics_metadata`
+        to find out the metadata for the given topics
+
+        :param topics: single topic or list of topics
+        :type topics: str or list
+        :return: dictionary with the format
+
+        .. code-block:: python
+
+                 {topic_name: {metadata_key:metadata_value, ...},
+                 topic_name: {metadata_key:metadata_value, ...} ...}
+
+        :rtype: dict
+
+        """
+        # The details of how to get meta data will be data store specific.
+        # return self.db_connection.get_meta(topics)
+        raise NotImplemented()
+
+    def query_historian(self, topic, start=None, end=None, agg_type=None,
+                        agg_period=None, skip=0, count=None, order=None):
+        """
+        This function is called by :py:meth:`BaseQueryHistorianAgent.query`
+        to actually query the data store and must return the results of a
+        query in the following format:
+
+        **Single topic query:**
+
+        .. code-block:: python
+
+            {
+            "values": [(timestamp1, value1),
+                        (timestamp2:,value2),
+                        ...],
+             "metadata": {"key1": value1,
+                          "key2": value2,
+                          ...}
+            }
+
+        **Multiple topics query:**
+
+        .. code-block:: python
+
+            {
+            "values": {topic_name:[(timestamp1, value1),
+                        (timestamp2:,value2),
+                        ...],
+                       topic_name:[(timestamp1, value1),
+                        (timestamp2:,value2),
+                        ...],
+                        ...}
+             "metadata": {} #empty metadata
+            }
+
+        Timestamps must be strings formatted by
+        :py:func:`volttron.platform.agent.utils.format_timestamp`.
+
+        "metadata" is not required. The caller will normalize this to {} for
+        you if it is missing.
+
+        :param topic: Topic or list of topics to query for.
+        :param start: Start of query timestamp as a datetime.
+        :param end: End of query timestamp as a datetime.
+        :param agg_type: If this is a query for aggregate data, the type of
+                         aggregation ( for example, sum, avg)
+        :param agg_period: If this is a query for aggregate data, the time
+                           period of aggregation
+        :param skip: Skip this number of results.
+        :param count: Limit results to this value. When the query is for
+                      multiple topics, count applies to individual topics. For
+                      example, a query on 2 topics with count=5 will return 5
+                      records for each topic
+        :param order: How to order the results, either "FIRST_TO_LAST" or
+                      "LAST_TO_FIRST"
+        :type topic: str or list
+        :type start: datetime
+        :type end: datetime
+        :type skip: int
+        :type count: int
+        :type order: str
+
+        :return: Results of the query
+        :rtype: dict
+
+        """
+        # The details of how to get data will be data store specific.
+        # return self.db_connection.get_data(topic, start, end, agg_type,
+        #                agg_period, skip, count, order)
+        raise NotImplemented()
+
+
+    def query_aggregate_topics(self):
+        """
+        This function is called by
+        :py:meth:`BaseQueryHistorianAgent.get_aggregate_topics`
+        to find out the available aggregates in the data store
+
+        :return: List of tuples containing (topic_name, aggregation_type,
+                 aggregation_time_period, metadata)
+        :rtype: list
+
+        """
+        []
+
+    def query_topics_by_pattern(self, topic_pattern):
+        """ Find the list of topics and its id for a given topic_pattern
+
+            :return: returns list of dictionary object {topic_name:id}"""
+        raise NotImplemented()
+
+
+
+def main():
+    """Main method called to start the agent."""
+    utils.vip_main(historian, __identity__
+                   version=__version__)
+
+
+if __name__ == '__main__':
+    # Entry point for script
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        pass

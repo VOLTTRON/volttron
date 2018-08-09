@@ -1,0 +1,8 @@
+Register Name,Address,Type,Units,Writable,Default Value,Transform,Mixed Endian
+unsigned_short,0,uint16,None,TRUE,0,,True
+unsigned_int,1,uint32,None,TRUE,0,,True
+unsigned_long,3,uint64,None,TRUE,0,,True
+sample_short,7,int16,None,TRUE,0,,True
+sample_int,8,int32,None,TRUE,0,,True
+sample_float,10,float,None,TRUE,0.0,,True
+sample_long,12,int64,None,TRUE,0,,True

@@ -82,7 +82,9 @@ data_type_map = dict(
 transform_map = dict(
     scale=helpers.scale,
     scale_int=helpers.scale_int,
-    mod10k=helpers.mod10k
+    mod10k=helpers.mod10k,
+    scale_reg=helpers.scale_reg,
+    scale_reg_pow_10=helpers.scale_reg_pow_10
 )
 
 table_map = dict(
@@ -122,16 +124,39 @@ class CSVRegister(object):
         if csv_type == 'UNDEFINED':
             raise MapException("Type required for each field: {0}".format(self._reg_dict))
 
+        # string[length] format: "string[4]"
         if csv_type.startswith('string'):
             match = re.match('string\[(\d+)\]', csv_type)
             if match:
-                length = int(match.group(1))
-                return helpers.string(length)
+                try:
+                    length = int(match.group(1))
+                    length = length + length % 2
+                    return helpers.string(length)
+                except ValueError:
+                    raise MapException("Invalid length for string type.")
+
+        # array(type, length) format: "array(int16, 4)"
+        if csv_type.startswith('array'):
+            match = re.match("array\((\w+)\, (\d+)\)", csv_type)
+            try:
+                type = data_type_map[match.group(1)]
+            except KeyError:
+                raise MapException("Invalid type for array type.")
+
+            try:
+                length = int(match.group(2))
+            except:
+                raise MapException("Invalid length for array type.")
+
+            return helpers.array(type, length)
+
         else:
             try:
+                # normal format: "int16"
                 return data_type_map[csv_type.lower()]
             except KeyError:
                 try:
+                    # struct format: ">H"
                     struct.Struct(csv_type)
                     return csv_type
                 except struct.error:
@@ -150,7 +175,7 @@ class CSVRegister(object):
 
     @property
     def _transform(self):
-        # "scale(0.001)", "scale_int(1.0)", "mod10k(True)", or None for no_op
+        # "scale(0.001)", "scale_int(1.0)", "mod10k(True)", "scale_reg(reg_name)", or None for no_op
 
         transform_func = helpers.no_op
         csv_transform = self._reg_dict.get('transform', None)
@@ -179,7 +204,7 @@ class CSVRegister(object):
     def _table(self):
         """ Select one of the four modbus tables.
         """
-        table = self._reg_dict.get('table', '')
+        table = self._reg_dict.get('table', '').lower()
         if table:
             try:
                 return table_map[table]
@@ -206,6 +231,11 @@ class CSVRegister(object):
     def _description(self):
         return self._reg_dict.get('description', 'UNKNOWN')
 
+    @property
+    def _mixed(self):
+        return helpers.str2bool(self._reg_dict.get('mixed', 'false').lower()) or \
+               helpers.str2bool(self._reg_dict.get('mixed endian', 'false').lower())
+
     def get_field(self):
         """Return a modbus field that can be added to a Modbus client instance.
         """
@@ -216,7 +246,8 @@ class CSVRegister(object):
                      self._precision,
                      self._transform,
                      self._table,
-                     self._op_mode)
+                     self._op_mode,
+                     self._mixed)
 
 
 class Map(object):
@@ -226,7 +257,8 @@ class Map(object):
        all the Fields (Registers) defined in the CSV.
     """
 
-    def __init__(self, file='', map_dir='', addressing='offset',  name='', endian='big', description='', registry_config_lst=[]):
+    def __init__(self, file='', map_dir='', addressing='offset', name='', endian='big',
+                 description='', registry_config_lst=[]):
         self._filename = file
         self._map_dir = map_dir
 
@@ -252,7 +284,7 @@ class Map(object):
             if self._map_dir not in self._filename:
                 self._filename = self._map_dir + '/' + self._filename
             with open(self._filename) as csv_file:
-                csv_reader = csv.DictReader(csv_file)
+                csv_reader = csv.DictReader(csv_file, skipinitialspace=True)
                 self._registry_config_lst = [{key.lower(): val for key, val in row.items()} for row in csv_reader]
 
     def _load_registers(self):
@@ -313,12 +345,12 @@ class Catalog(Mapping):
             with open(yaml_path, 'rb') as yaml_file:
                 for map in yaml.load(yaml_file):
                     map = dict((k.lower(), v) for k, v in map.iteritems())
-                    Catalog._data[map['name']] = Map(file=map.get('file',''),
+                    Catalog._data[map['name']] = Map(file=map.get('file', ''),
                                                      map_dir=os.path.dirname(__file__),
-                                                     addressing=map.get('addressing','offset'),
+                                                     addressing=map.get('addressing', 'offset'),
                                                      name=map['name'],
-                                                     endian=map.get('endian','big'),
-                                                     description=map.get('description',''))
+                                                     endian=map.get('endian', 'big'),
+                                                     description=map.get('description', ''))
 
     def __getitem__(self, item):
         return self._data[item]

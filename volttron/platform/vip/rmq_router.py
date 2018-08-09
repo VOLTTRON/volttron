@@ -240,7 +240,6 @@ class RMQRouter(BaseRouter):
         elif subsystem == b'agentstop':
             try:
                 drop = message.args[0]
-                _log.debug("ROUTER received agent stop message. Dropping peer: {}".format(message.args))
                 self._drop_peer(drop)
             except IndexError:
                 pass
