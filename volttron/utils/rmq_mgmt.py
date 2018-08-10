@@ -183,7 +183,6 @@ def _load_rmq_config(volttron_home=None):
         volttron_rmq_config = os.path.join(volttron_home, 'rabbitmq_config.yml')
         with open(volttron_rmq_config, 'r') as yaml_file:
             config_opts = yaml.load(yaml_file)
-        print config_opts
     except yaml.YAMLError as exc:
         return exc
 
@@ -841,25 +840,24 @@ def delete_multiplatform_parameter(component, parameter_name, vhost=None):
     global config_opts
     if not config_opts:
         _load_rmq_config()
-    # delete_parameter(component, parameter_name, vhost,
-    #                  ssl_auth=is_ssl_connection())
 
-    # Delete entry in config
-    try:
-        params = config_opts[component]  # component can be shovels or
-        print params
-        # federation
-        del_list = [x for x in params if parameter_name == x]
+    delete_parameter(component, parameter_name, vhost,
+                     ssl_auth=is_ssl_connection())
 
-        for elem in del_list:
-            params.pop(elem)
-        config_opts[component] = params
-        if not params:
-            del config_opts[component]
-        config_opts.async_sync()
-    except KeyError as ex:
-        print("Parameter not found: {}".format(ex))
-        return
+    # # Delete entry in config
+    # try:
+    #     params = config_opts[component]  # component can be shovels or federation
+    #     del_list = [x for x in params if parameter_name == x]
+    #
+    #     for elem in del_list:
+    #         params.pop(elem)
+    #     config_opts[component] = params
+    #     if not params:
+    #         del config_opts[component]
+    #     config_opts.async_sync()
+    # except KeyError as ex:
+    #     print("Parameter not found: {}".format(ex))
+    #     return
 
 
 def build_connection_param(identity, instance_name, ssl_auth=None):

@@ -118,11 +118,11 @@ def _check_basic_rabbit_config():
             return False
 
     # Check if basic configuration is available in the config file, if not set default.
-    config_opts.setdefault("host","localhost")
+    config_opts.setdefault('host',"localhost")
     config_opts.setdefault("ssl", "true")
     config_opts["amqp-port"] = amqp_port = 5672 # TODO - If user defined port, this needs to change
     config_opts["mgmt-port"] = mgmt_port = 15672 # TODO - If user defined port, this needs to change
-    config_opts.setdefault("virtual-host", "volttron")
+    config_opts.setdefault('virtual-host', "volttron")
 
     with open("{vhome}/rabbitmq_config.yml".format(vhome=get_home()), 'w') as yaml_file:
         yaml.dump(config_opts, yaml_file, default_flow_style=False)
@@ -173,22 +173,23 @@ def _create_federation_setup():
         if is_ssl:
             ssl_params = get_ssl_url_params()
         try:
-            for upstreams in federation:
-                name = "upstream-{host}".format(upstreams["host"])
+            for upstream in federation:
+                print("Upstream Server: {host} ".format(upstream['host']))
+                name = "upstream-{host}".format(host=upstream['host'])
                 if is_ssl:
                     address = "amqps://{host}:{port}/{vhost}?" \
                               "{ssl_params}&server_name_indication={host}".format(
-                                host=upstreams["host"],
-                                port=upstreams["port"],
-                                vhost=upstreams["virtual-host"],
+                                host=upstream['host'],
+                                port=upstream['port'],
+                                vhost=upstream['virtual-host'],
                                 ssl_params=ssl_params)
                 else:
                     address = "amqp://{user}:{pwd}@{host}:{port}/{vhost}".format(
                                 user=config_opts.get("user", instance_name+"-admin"),
                                 pwd=config_opts.get("pass", default_pass),
-                                host=upstreams["host"],
-                                port=upstreams["port"],
-                                vhost=upstreams["virtual-host"])
+                                host=upstream['host'],
+                                port=upstream['port'],
+                                vhost=upstream['virtual-host'])
                 prop = dict(vhost=config_opts['virtual-host'],
                                 component="federation-upstream",
                                 name=name,
@@ -205,7 +206,8 @@ def _create_federation_setup():
                                 "apply-to": "exchanges"}
                 set_policy(policy_name, policy_value, config_opts['virtual-host'])
         except KeyError as ex:
-            print("Federation setup  did not complete. Missing Key: {}".format(ex))
+            print("Federation setup  did not complete. "
+                  "Missing Key {key} in upstream config {upstream}".format(key=ex, upstream=upstream))
             return ex
 
 
@@ -217,35 +219,37 @@ def _create_shovel_setup():
     global instance_name
     if not config_opts:
         _load_rmq_config()
-        return
+
     shovels = config_opts.get('shovel', [])
     is_ssl = is_ssl_connection()
     src_uri = build_rmq_address(is_ssl)
     if is_ssl:
         ssl_params = get_ssl_url_params()
+    print shovels
     try:
         for shovel in shovels:
             # Build destination address
             if is_ssl:
                 dest_uri = "amqps://{host}:{port}/{vhost}?" \
                            "{ssl_params}&server_name_indication={host}".format(
-                           host=shovel["host"],
-                           port=shovel["port"],
-                           vhost=shovel["virtual-host"],
+                           host=shovel['host'],
+                           port=shovel['port'],
+                           vhost=shovel['virtual-host'],
                            ssl_params=ssl_params)
             else:
                 dest_uri = "amqp://{user}:{pwd}@{host}:{port}/{vhost}".format(
                     user=config_opts.get("user", instance_name + "-admin"),
                     pwd=config_opts.get("pwd", default_pass),
-                    host=shovel["host"],
-                    port=shovel["port"],
-                    vhost=shovel["virtual-host"])
+                    host=shovel['host'],
+                    port=shovel['port'],
+                    vhost=shovel['virtual-host'])
 
-            pubsub_topics = shovel("pubsub-topics", [])
-            agent_ids = shovels("rpc-agent-identities", [])
+            pubsub_topics = shovel.get("pubsub-topics", [])
+            agent_ids = shovel.get("rpc-agent-identities", [])
             for topic in pubsub_topics:
-                name = "shovel-{host}-{topic}".format(shovel['host'],
-                                                      topic)
+                print "Creating shovel to forward PUBSUB topic {}".format(topic)
+                name = "shovel-{host}-{topic}".format(host=shovel['host'],
+                                                      topic=topic)
                 routing_key = "__pubsub__.{instance}.{topic}.#".format(instance=instance_name,
                                                                        topic=topic)
                 prop = dict(vhost=config_opts['virtual-host'],
@@ -256,13 +260,14 @@ def _create_shovel_setup():
                                         "src-exchange-key": routing_key,
                                         "dest-uri": dest_uri,
                                         "dest-exchange": "volttron"}
-                                )
-                print("shovel property: {}", prop)
-                set_parameter("shovel",
-                              name,
-                              prop)
+                            )
+                print "shovel property: {}".format(prop)
+                # set_parameter("shovel",
+                #               name,
+                #               prop)
 
             for identity in agent_ids:
+                print "Creating shovel to make RPC call to remote Agent : {}".format(topic)
                 name = "shovel-{host}-{identity}".format(host=shovel['host'],
                                                          identity=identity)
                 routing_key = "{instance}.{identity}.#".format(instance=instance_name,
@@ -276,10 +281,10 @@ def _create_shovel_setup():
                                         "dest-uri": dest_uri,
                                         "dest-exchange": "volttron"}
                                 )
-                print("shovel property: {}", prop)
-                set_parameter("shovel",
-                              name,
-                              prop)
+                print "shovel property: {}".format(prop)
+                # set_parameter("shovel",
+                #               name,
+                #               prop)
     except KeyError as exc:
         print("Shovel setup  did not complete. Missing Key: {}".format(exc))
 
@@ -545,10 +550,12 @@ def setup_rabbitmq_volttron(type):
     :return:
     """
     global instance_name
-    if type == "all" or "single":
-        instance_name = get_platform_instance_name(prompt=False)
-        # Store config this is checked at startup
-        store_message_bus_config(message_bus='rmq', instance_name=instance_name)
+
+    instance_name = get_platform_instance_name(prompt=False)
+    # Store config this is checked at startup
+    store_message_bus_config(message_bus='rmq', instance_name=instance_name)
+
+    if type in ["all", "single"]:
         error = _check_basic_rabbit_config()
         if not error:
             # Create local RabbitMQ setup
@@ -584,4 +591,3 @@ if __name__ == "__main__":
         setup_rabbitmq_volttron(type)
     except KeyboardInterrupt:
         print "Exiting setup process"
-
