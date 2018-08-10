@@ -46,7 +46,8 @@ def fncs_example(config_path, **kwargs):
     stop_agent_when_sim_complete = config.get("stop_agent_when_sim_complete", False)
     subscription_topic = config.get("subscription_topic", None)
     return FncsExample(topic_mapping=topic_mapping, federate_name=federate, broker_location=broker_location,
-                       time_delta=time_delta,subscription_topic=subscription_topic, sim_length=sim_length,stop_agent_when_sim_complete=stop_agent_when_sim_complete, **kwargs)
+                       time_delta=time_delta,subscription_topic=subscription_topic, sim_length=sim_length,
+                       stop_agent_when_sim_complete=stop_agent_when_sim_complete, **kwargs)
 
 
 class FncsExample(Agent):
@@ -55,8 +56,8 @@ class FncsExample(Agent):
     """
 
     def __init__(self, topic_mapping, federate_name=None, broker_location="tcp://localhost:5570",
-                 time_delta="1s",subscription_topic=None, simulation_start_time=None, sim_length="10s", stop_agent_when_sim_complete=False,
-                 **kwargs):
+                 time_delta="1s",subscription_topic=None, simulation_start_time=None, sim_length="10s", 
+                 stop_agent_when_sim_complete=False, **kwargs):
         super(FncsExample, self).__init__(enable_fncs=True, enable_store=False, **kwargs)
         _log.debug("vip_identity: " + self.core.identity)
 
@@ -116,13 +117,13 @@ class FncsExample(Agent):
         _log.debug("Current value: {}".format(current_values))
         # Check if the VOLTTRON agents update the information
         if self.subscription_topic is not None:  
-             while (self.received_volttron == False):
-                     gevent.sleep(0.2)
-             value = self.fncsmessage
-             self.received_volttron = False
+            while (self.received_volttron == False):
+                gevent.sleep(0.2)
+            value = self.fncsmessage
+            self.received_volttron = False
         else:
         # If no topic is subscribed, then just use the dummy function
-             value = str(random.randint(0, 10))
+            value = str(random.randint(0, 10))
         _log.debug("New value is: {}".format(value))
         # Must publish to the fncs_topic here.
         self.vip.fncs.publish("devices/abcd", str(value))
@@ -150,8 +151,7 @@ class FncsExample(Agent):
 
 def main():
     """Main method called to start the agent."""
-    utils.vip_main(fncs_example, 
-                   version=__version__)
+    utils.vip_main(fncs_example, version=__version__)
 
 
 if __name__ == '__main__':
