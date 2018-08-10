@@ -57,11 +57,14 @@
 import logging
 import os
 import ssl
-
+try:
+    import yaml
+except ImportError:
+    raise RuntimeError('PyYAML must be installed before running this script ')
 import grequests
+import gevent
 import pika
 import requests
-from requests.packages.urllib3 import disable_warnings, exceptions
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 
@@ -69,7 +72,6 @@ from volttron.platform import certs
 from volttron.platform import get_home
 from volttron.platform.agent import json as jsonapi
 from volttron.platform.agent.utils import get_platform_instance_name
-from volttron.utils.persistance import PersistentDict
 
 #disable_warnings(exceptions.SecurityWarning)
 
@@ -168,15 +170,22 @@ def http_get_request(url, ssl_auth=True):
 
 
 def _load_rmq_config(volttron_home=None):
+    """
+    Load RabbitMQ config from VOLTTRON_HOME
+    :param volttron_home: VOLTTRON_HOME path
+    :return:
+    """
     """Loads the config file if the path exists."""
     global config_opts, volttron_rmq_config
     if not volttron_home:
         volttron_home = get_home()
-    if not os.path.exists(volttron_home):
-        os.makedirs(volttron_home)
-    volttron_rmq_config = os.path.join(volttron_home, 'rabbitmq_config.json')
-    config_opts = PersistentDict(filename=volttron_rmq_config, flag='c',
-                                 format='json')
+    try:
+        volttron_rmq_config = os.path.join(volttron_home, 'rabbitmq_config.yml')
+        with open(volttron_rmq_config, 'r') as yaml_file:
+            config_opts = yaml.load(yaml_file)
+        print config_opts
+    except yaml.YAMLError as exc:
+        return exc
 
 
 def get_hostname():
@@ -758,27 +767,29 @@ def get_bindings(exchange, ssl_auth=None):
 # We need http address and port
 def init_rabbitmq_setup():
     """
-    Create a RabbitMQ setup for VOLTTRON based on the rabbitmq_config.json in
-    volttron home.
-     - Creates a new virtual host: “volttron”
-     - Creates a new topic exchange: “volttron” and
-      alternate exchange “undeliverable” to capture unrouteable messages
+    Create a RabbitMQ resources for VOLTTRON instance.
+     - Create a new virtual host: default is “volttron”
+     - Create a new topic exchange: “volttron”
+     - Create alternate exchange: “undeliverable” to capture unrouteable messages
 
     :return:
     """
     if not config_opts:
         _load_rmq_config()
     vhost = config_opts['virtual-host']
+    print("virtual host: {}, port: {}".format(vhost, config_opts["mgmt-port"]))
+
     # Create a new "volttron" vhost
     response = create_vhost(vhost, ssl_auth=False)
     if not response:
-        print("Remove /etc/rabbitmq/rabbitmq.conf, "
-              "restart rabbitmq-server and try again")
+        # Wait for few more seconds and retry again
+        gevent.sleep(5)
+        response = create_vhost(vhost, ssl_auth=False)
         return response
     exchange = 'volttron'
     alternate_exchange = 'undeliverable'
     # Create a new "volttron" exchange. Set up alternate exchange to capture
-    # all unroutable messages
+    # all unrouteable messages
     properties = dict(durable=True, type='topic',
                       arguments={"alternate-exchange": alternate_exchange})
     create_exchange(exchange, properties=properties, vhost=vhost,
@@ -830,16 +841,18 @@ def delete_multiplatform_parameter(component, parameter_name, vhost=None):
     global config_opts
     if not config_opts:
         _load_rmq_config()
-    delete_parameter(component, parameter_name, vhost,
-                     ssl_auth=is_ssl_connection())
+    # delete_parameter(component, parameter_name, vhost,
+    #                  ssl_auth=is_ssl_connection())
 
     # Delete entry in config
     try:
         params = config_opts[component]  # component can be shovels or
+        print params
         # federation
-        del_list = [x for x in params if parameter_name == x['name']]
+        del_list = [x for x in params if parameter_name == x]
+
         for elem in del_list:
-            params.remove(elem)
+            params.pop(elem)
         config_opts[component] = params
         if not params:
             del config_opts[component]
@@ -913,7 +926,6 @@ def build_rmq_address(ssl_auth=None, config=None):
         if ssl_auth:
             # Address format to connect to server-name, with SSL and EXTERNAL
             # authentication
-            # amqps://server-name?cacertfile=/path/to/cacert.pem&certfile=/path/to/cert.pem&keyfile=/path/to/key.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external
             rmq_address = "amqps://{host}:{port}/{vhost}?" \
                           "{ssl_params}&server_name_indication={host}".format(
                             host=config['host'],
@@ -999,7 +1011,7 @@ def create_rmq_volttron_test_setup(volttron_home, host='localhost'):
     config_opts['amqp-port'] = str(5672)
     config_opts['mgmt-port'] = str(15672)
     config_opts['ssl'] = str(ssl_auth)
-    config_opts['rmq-address'] = build_rmq_address(ssl_auth=False)
+    config_opts['rmq-address'] = build_rmq_address()
     config_opts.async_sync()
     init_rabbitmq_setup()
     create_user_with_permissions('test_user',
