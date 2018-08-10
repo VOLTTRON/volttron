@@ -55,8 +55,10 @@
 import logging
 import os
 import sys
-from abc import abstractmethod
 import requests
+import sqlite3
+import datetime
+from abc import abstractmethod
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import *
 
@@ -65,6 +67,8 @@ _log = logging.getLogger(__name__)
 # TODO testing
 testing_config_path = os.path.dirname(os.path.realpath(__file__))
 testing_config_path += "/config.config"
+
+VALID_REQUEST_TYPES = ['forecast', 'current', 'historical']
 
 class WeatherSchema:
     def __init__(self,
@@ -81,7 +85,116 @@ class WeatherSchema:
 
 
 class WeatherCache:
-    # TODO ask about sqlite for caching
+    """Caches data to create a local history, and to help reduce the
+    number of requests to the API"""
+    # TODO close the database connection onstop for the weather agent
+    # TODO check that the appropriate tables exist, based
+    # on the weather service
+    def __init__(self,
+                 db_name,
+                 service_name,
+                 request_types,
+                 cache_period,
+                 max_size,
+                 trim_percent=70,
+                 max_percent=90,
+                 log_sql=True):
+        """
+
+        :param db_name:
+        :param service_name: Name of the weather service (i.e. weather.gov)
+        :param expected_tables: Names for tables, based on available request services
+        (see VALID_REQUEST_TYPES)
+        :param cache_period: Specifies time period for which we keep data
+        :param cache_size: Specifies the size of cache to store data, in gb
+        """
+        self.db_name = db_name
+        self.db_filepath = "" + db_name
+        # TODO log sql statements
+        self.log_sql = log_sql
+        self.service_name = service_name
+        self.tables = {}
+        for request_type in request_types:
+            if request_type in VALID_REQUEST_TYPES:
+                self.tables[request_type] = service_name + "_" + request_type
+            else:
+                _log.debug("In WeatherCache: Invalid request type: ?", request_type)
+                # TODO should we pass?
+                pass
+        self.trim_period = cache_period
+        try:
+            # Check if the database and tables exist, create them if they do not
+            self.sqlite_conn = sqlite3.connect(self.db_filepath)
+            self.current_size = os.path.getsize(self.db_filepath)
+            _log.debug("connected to database ?, version: ?", self.db_name, sqlite3.version)
+        except sqlite3.Error as err:
+            _log.debug("Unable to open the sqlite database for caching: ?", err)
+            # TODO should we pass?
+            pass
+        self.sqlite_cursor = self.sqlite_conn.cursor()
+        try:
+            for table in self.tables:
+                if not self.sqlite_cursor.execute("SELECT 1 FROM ? WHERE TYPE = 'table' AND NAME='?'"
+                                                   ,db_name, self.tables[table]):
+                    self.sqlite_cursor.execute("CREATE TABLE ? (LOCATION TEXT, REQUEST_TIME TIMESTAMP, "
+                                               "JSON_RESPONSE TEXT, PRIMARY KEY (LOCATION, REQUEST_TIME))",
+                                               self.tables[table])
+                    self.sqlite_conn.commit()
+        except sqlite3.Error as err:
+            _log.debug("Unable to access database tables: ?", err)
+            # TODO should we pass?
+            pass
+        self.max_size = max_size
+        self.trim_percent = trim_percent
+        self.max_percent = max_percent
+
+    def retrieve_cached_data_by_timestamp(self, request_type, start_timestamp, end_timestamp):
+        """Returns all cached weather data based on the request type for
+        the given time range"""
+        return self.sqlite_conn.execute("SELECT * FROM ? WHERE REQUEST_TIME >= ? AND REQUEST_TIME <= ? ORDER BY"
+                                        "REQUEST_TIME DESC",
+                                        self.tables[request_type], start_timestamp, end_timestamp)
+
+    def retrieve_most_recent_cached_data(self, request_type, location, number_of_records=1):
+        return self.sqlite_cursor.execute("SELECT * FROM ? WHERE REQUEST_TIME = (SELECT MAX(REQUEST_TIME) FROM ?) AND"
+                                          " Location = ? ORDER BY REQUEST_TIME DECS LIMIT ?",
+                                          self.tables[request_type], self.tables[request_type], location,
+                                          number_of_records)
+
+    def trim_outdated_cached_data(self):
+        """Regularly eliminates data cached from cache_period time before present,
+        only if the cache is sufficiently full?"""
+        # TODO this method should be run once per cache_period amount of time
+        cutoff_time = datetime.datetime.utcnow() - datetime.timedelta(self.cache_period)
+        for table in self.tables:
+            try:
+                self.sqlite_cursor.execute("DELETE FROM ? WHERE REQUEST_TIME <= ?", table, cutoff_time)
+                self.sqlite_conn.commit()
+            except sqlite3.Error as err:
+                _log.debug("Unable to remove old data from table ?: ?", table, err)
+                # TODO should we pass?
+                pass
+
+    def trim_excess_cached_data(self, time_increment=datetime.timedelta(hours=1)):
+        """Deletes oldest data in batches based on an arbitrary time increment until the database size is reasonable
+        to prevent the cache from becoming too large."""
+        # TODO this should occur every so often...maybe after n= some arbitrary number of writes
+        try:
+            self.current_size = os.path.getsize(self.db_filepath)
+        except sqlite3.Error as err:
+            _log.debug("Sqlite database unavailable: ?", err)
+            # TODO should we pass?
+            pass
+            # don't allow unreasonable delta ranges
+        if time_increment <= datetime.timedelta(minutes=30) or time_increment > datetime.timedelta(days=1):
+            raise ValueError
+        cutoff_time = datetime.datetime.utcnow() - time_increment
+        while self.current_size / self.max_size > self.trim_percent:
+            self.current_size = os.path.getsize(self.db_filepath)
+            for table in self.tables:
+                self.sqlite_cursor.execute("DELETE FROM ? WHERE REQUEST_TIME <= ?", table, cutoff_time)
+                self.sqlite_conn.commit()
+
 
 # class WeatherAgent():
 class BaseWeatherAgent(Agent):

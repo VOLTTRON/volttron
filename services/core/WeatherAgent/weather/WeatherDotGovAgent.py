@@ -54,6 +54,7 @@
 import os
 import sys
 import requests
+from services.core.WeatherAgent.weather.agent import BaseWeatherAgent
 from volttron.platform.agent import utils
 from volttron.utils.docs import doc_inherit
 from volttron.platform.vip.agent import *
