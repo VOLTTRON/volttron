@@ -65,7 +65,7 @@ http://ryanstutorials.net/linuxtutorial/
   .ubuntu.com) and install them using dpkg -i command. For example,
 
   ```sh
-  sudo dpkp -i libwxbase3.0-0v5_3.0.4+dfsg-3_amd64.deb
+  sudo dpkg -i libwxbase3.0-0v5_3.0.4+dfsg-3_amd64.deb
   ```
 
   Install Erlang: Grab the right package for your OS version from
