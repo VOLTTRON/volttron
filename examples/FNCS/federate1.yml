@@ -8,7 +8,7 @@ time_delta: 1s
 sim_length: 60s
 # Optional stop_agent_when_sim_complete default False
 stop_agent_when_sim_complete: True
-# Optional stop_agent_when_sim_complete default False
+# Optional subscription topic for the messages that contain the inputs for FNCS
 subscription_topic: pnnl/all
 
 # Required topic_mapping
