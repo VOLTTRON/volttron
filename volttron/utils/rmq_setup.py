@@ -95,6 +95,9 @@ def _load_rmq_config(volttron_home=None):
         volttron_rmq_config = os.path.join(volttron_home, 'rabbitmq_config.yml')
         with open(volttron_rmq_config, 'r') as yaml_file:
             config_opts = yaml.load(yaml_file)
+    except IOError as exc:
+        print "Error opening {}".format(volttron_rmq_config)
+        return exc
     except yaml.YAMLError as exc:
         return exc
 
@@ -105,7 +108,9 @@ def _check_basic_rabbit_config():
     :return:
     """
     global config_opts
-    _load_rmq_config()
+    error = _load_rmq_config()
+    if error:
+        return error
     rmq_home = config_opts.get("rmq-home")
     if not rmq_home:
         rmq_home = os.path.join(os.path.expanduser("~"), "rabbitmq_server/rabbitmq_server-3.7.7")
@@ -551,7 +556,7 @@ def setup_rabbitmq_volttron(type):
     """
     global instance_name
 
-    instance_name = get_platform_instance_name(prompt=False)
+    instance_name = get_platform_instance_name(prompt=True)
     # Store config this is checked at startup
     store_message_bus_config(message_bus='rmq', instance_name=instance_name)
 
