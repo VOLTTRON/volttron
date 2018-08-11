@@ -41,6 +41,7 @@ class RMQConnection(BaseConnection):
         self._consumer_tag = None
         self._error_tag = None
         self._logger = logging.getLogger(__name__)
+
         if vc_url:
             self._url = url
         # else:
@@ -48,12 +49,11 @@ class RMQConnection(BaseConnection):
 
         self._connection_param = url #build_connection_param(instance_name)
 
-        self.routing_key = "{0}.{1}".format(instance_name, identity)
-
+        self.routing_key = self._vip_queue = self._rmq_userid = "{0}.{1}".format(instance_name, identity)
         self.exchange = 'volttron'
-        self._vip_queue = identity
         self._alternate_exchange = 'undeliverable'
-        self._alternate_queue = "{identity}.unroutable".format(identity=identity)
+        self._alternate_queue = "{instance}.{identity}.unroutable".format(instance=instance_name,
+                                                                          identity=identity)
         self._connect_callback = None
         self._connect_error_callback = None
         self._type = type
@@ -264,14 +264,14 @@ class RMQConnection(BaseConnection):
         subsystem = getattr(props, 'type')
         setattr(props, 'app_id', self.routing_key)
         setattr(props, 'type', b'error')
-        setattr(props, 'user_id', self._identity)
+        setattr(props, 'user_id', self._rmq_userid)
         errnum = errno.EHOSTUNREACH
         errmsg = os.strerror(errnum).encode('ascii')
         recipient = props.headers.get('recipient', '')
         message = [errnum, errmsg, recipient, subsystem]
-        _log.debug("Host Unreachable Error Message is: {0}, {1}, {2}".format(method.routing_key,
-                                                            sender,
-                                                            props))
+        # _log.debug("Host Unreachable Error Message is: {0}, {1}, {2}".format(method.routing_key,
+        #                                                     sender,
+        #                                                     props))
         self.channel.basic_publish(self.exchange,
                                    sender,
                                    json.dumps(message, ensure_ascii=False),
@@ -295,12 +295,12 @@ class RMQConnection(BaseConnection):
         # Fit VIP frames in the PIKA properties dict
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         dct = {
-            'user_id': self._identity,
+            'user_id': self._rmq_userid,
             'app_id': self.routing_key,  # Routing key of SENDER
             'headers': dict(
                             recipient=destination_routing_key,  # RECEIVER
                             proto=b'VIP',  # PROTO
-                            user=getattr(message, 'user', self._identity),  # USER_ID
+                            user=getattr(message, 'user', self._rmq_userid),  # USER_ID
                             ),
             'message_id': getattr(message, 'id', b''),  # MSG_ID
             'type': message.subsystem,  # SUBSYS

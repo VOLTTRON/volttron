@@ -820,6 +820,7 @@ class RMQCore(BasicCore):
         self._reconnect_attempt = 0
         self.instance_name = instance_name
         self.volttron_central_address = volttron_central_address
+
         if not self.instance_name:
             config_opts = load_platform_config()
             self.instance_name = config_opts.get('instance-name', 'volttron1')
@@ -827,7 +828,7 @@ class RMQCore(BasicCore):
             self.instance_name = volttron_central_instance_name
         _log.debug("instance:{}".format(self.instance_name))
         self._event_queue = gevent.queue.Queue
-
+        self.rmq_user = self.instance_name + '.' + self.identity
         _log.debug("AGENT RUNNING on RMQ Core {}".format(self.identity))
 
         _log.debug('address: %s', address)
@@ -874,15 +875,16 @@ class RMQCore(BasicCore):
         else:
             # Check if RabbitMQ user and certs exists for this agent, if not create a new one.
             # Add access control/permissions if necessary
-            config_access = "{identity}|{identity}.pubsub.*|{identity}.zmq.*".format(identity=self.identity)
+
+            config_access = "{user}|{user}.pubsub.*|{user}.zmq.*".format(user=self.rmq_user)
             read_access = "volttron|{}".format(config_access)
             write_access = "volttron|{}".format(config_access)
             permissions = dict(configure=config_access, read=read_access, write=write_access)
 
             is_ssl = is_ssl_connection()
             if is_ssl:
-                create_vagent_cert(self.identity)
-            create_rmq_user_with_permissions(self.identity, permissions, ssl_auth=is_ssl)
+                create_vagent_cert(self.rmq_user)
+            create_rmq_user_with_permissions(self.rmq_user, permissions, ssl_auth=is_ssl)
 
             param = build_rmq_connection_param(self.identity, self.instance_name, ssl_auth=is_ssl)
 
