@@ -188,7 +188,7 @@ def get_platform_instance_name(prompt=False):
                            "$VOLTTRON_HOME/config")
     return instance_name
 
-def create_vagent_cert(identity):
+def create_vagent_cert(rmq_user):
     """
     Create certs for agent
     :param identity: identity of agent
@@ -197,11 +197,10 @@ def create_vagent_cert(identity):
     crts = certs.Certs()
     instance_name = get_platform_instance_name()
     instance_ca, server, admin = certs.Certs.get_cert_names(instance_name)
+    _log.debug("create_vagent_cert: {}".format(rmq_user))
     # If no certs for this agent, create a new one
-    if not crts.cert_exists(identity):
-        #crts.create_ca_signed_cert(identity, ca_name=instance_ca)
-        crts.create_ca_signed_cert(identity)
-
+    if not crts.cert_exists(rmq_user):
+        crts.create_ca_signed_cert(rmq_user, ca_name=instance_ca)
 
 
 def get_messagebus():
