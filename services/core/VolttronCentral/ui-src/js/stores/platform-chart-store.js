@@ -236,7 +236,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
                                 initColors()
                             );
 
-                            itemWithColor = getItemWithColor(action.item, availableColors);
+                            itemWithColor = getItemWithColor(itemWithColor, availableColors);
 
                             // Update the chart's availableColors with the modified availableColors list
                             chartObj.availableColors = availableColors;
