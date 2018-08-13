@@ -116,10 +116,9 @@ class RMQRouter(BaseRouter):
             # Check if RabbitMQ user and certs exists for Router, if not create a new one.
             # Add permissions if necessary
             ssl_auth = is_ssl_connection()
-            user = self._instance_name + '.' + self._identity
             if ssl_auth:
-                create_vagent_cert(user)
-            create_user_with_permissions(user, permissions, ssl_auth=ssl_auth)
+                create_vagent_cert(self._identity)
+            create_user_with_permissions(self._identity, permissions, ssl_auth=ssl_auth)
             param = build_connection_param(self._identity, self._instance_name, ssl_auth)
             if ssl_auth:
                 _log.debug("connection param: {}".format(param.ssl_options))

@@ -57,14 +57,11 @@
 import logging
 import os
 import ssl
-try:
-    import yaml
-except ImportError:
-    raise RuntimeError('PyYAML must be installed before running this script ')
+
 import grequests
-import gevent
 import pika
 import requests
+from requests.packages.urllib3 import disable_warnings, exceptions
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 
@@ -72,6 +69,7 @@ from volttron.platform import certs
 from volttron.platform import get_home
 from volttron.platform.agent import json as jsonapi
 from volttron.platform.agent.utils import get_platform_instance_name
+from volttron.utils.persistance import PersistentDict
 
 #disable_warnings(exceptions.SecurityWarning)
 
@@ -170,21 +168,15 @@ def http_get_request(url, ssl_auth=True):
 
 
 def _load_rmq_config(volttron_home=None):
-    """
-    Load RabbitMQ config from VOLTTRON_HOME
-    :param volttron_home: VOLTTRON_HOME path
-    :return:
-    """
     """Loads the config file if the path exists."""
     global config_opts, volttron_rmq_config
     if not volttron_home:
         volttron_home = get_home()
-    try:
-        volttron_rmq_config = os.path.join(volttron_home, 'rabbitmq_config.yml')
-        with open(volttron_rmq_config, 'r') as yaml_file:
-            config_opts = yaml.load(yaml_file)
-    except yaml.YAMLError as exc:
-        return exc
+    if not os.path.exists(volttron_home):
+        os.makedirs(volttron_home)
+    volttron_rmq_config = os.path.join(volttron_home, 'rabbitmq_config.json')
+    config_opts = PersistentDict(filename=volttron_rmq_config, flag='c',
+                                 format='json')
 
 
 def get_hostname():
@@ -766,29 +758,27 @@ def get_bindings(exchange, ssl_auth=None):
 # We need http address and port
 def init_rabbitmq_setup():
     """
-    Create a RabbitMQ resources for VOLTTRON instance.
-     - Create a new virtual host: default is “volttron”
-     - Create a new topic exchange: “volttron”
-     - Create alternate exchange: “undeliverable” to capture unrouteable messages
+    Create a RabbitMQ setup for VOLTTRON based on the rabbitmq_config.json in
+    volttron home.
+     - Creates a new virtual host: “volttron”
+     - Creates a new topic exchange: “volttron” and
+      alternate exchange “undeliverable” to capture unrouteable messages
 
     :return:
     """
     if not config_opts:
         _load_rmq_config()
     vhost = config_opts['virtual-host']
-    print("virtual host: {}, port: {}".format(vhost, config_opts["mgmt-port"]))
-
     # Create a new "volttron" vhost
     response = create_vhost(vhost, ssl_auth=False)
     if not response:
-        # Wait for few more seconds and retry again
-        gevent.sleep(5)
-        response = create_vhost(vhost, ssl_auth=False)
+        print("Remove /etc/rabbitmq/rabbitmq.conf, "
+              "restart rabbitmq-server and try again")
         return response
     exchange = 'volttron'
     alternate_exchange = 'undeliverable'
     # Create a new "volttron" exchange. Set up alternate exchange to capture
-    # all unrouteable messages
+    # all unroutable messages
     properties = dict(durable=True, type='topic',
                       arguments={"alternate-exchange": alternate_exchange})
     create_exchange(exchange, properties=properties, vhost=vhost,
@@ -840,24 +830,23 @@ def delete_multiplatform_parameter(component, parameter_name, vhost=None):
     global config_opts
     if not config_opts:
         _load_rmq_config()
-
     delete_parameter(component, parameter_name, vhost,
                      ssl_auth=is_ssl_connection())
 
-    # # Delete entry in config
-    # try:
-    #     params = config_opts[component]  # component can be shovels or federation
-    #     del_list = [x for x in params if parameter_name == x]
-    #
-    #     for elem in del_list:
-    #         params.pop(elem)
-    #     config_opts[component] = params
-    #     if not params:
-    #         del config_opts[component]
-    #     config_opts.async_sync()
-    # except KeyError as ex:
-    #     print("Parameter not found: {}".format(ex))
-    #     return
+    # Delete entry in config
+    try:
+        params = config_opts[component]  # component can be shovels or
+        # federation
+        del_list = [x for x in params if parameter_name == x['name']]
+        for elem in del_list:
+            params.remove(elem)
+        config_opts[component] = params
+        if not params:
+            del config_opts[component]
+        config_opts.async_sync()
+    except KeyError as ex:
+        print("Parameter not found: {}".format(ex))
+        return
 
 
 def build_connection_param(identity, instance_name, ssl_auth=None):
@@ -876,14 +865,13 @@ def build_connection_param(identity, instance_name, ssl_auth=None):
     instance_ca_name, server_cert_name, admin_cert_name = \
         certs.Certs.get_cert_names(instance_name)
     crt = certs.Certs()
-    rmq_user = instance_name + '.' + identity
     try:
         if ssl_auth:
             ssl_options = dict(
                                 ssl_version=ssl.PROTOCOL_TLSv1,
                                 ca_certs=crt.cert_file(instance_ca_name),
-                                keyfile=crt.private_key_file(rmq_user),
-                                certfile=crt.cert_file(rmq_user),
+                                keyfile=crt.private_key_file(identity),
+                                certfile=crt.cert_file(identity),
                                 cert_reqs=ssl.CERT_REQUIRED)
             conn_params = pika.ConnectionParameters(
                 host=config_opts['host'],
@@ -898,7 +886,7 @@ def build_connection_param(identity, instance_name, ssl_auth=None):
                     port=int(config_opts['amqp-port']),
                     virtual_host=config_opts['virtual-host'],
                     credentials=pika.credentials.PlainCredentials(
-                        rmq_user, rmq_user))
+                        identity, identity))
     except KeyError:
         return None
     return conn_params
@@ -924,6 +912,7 @@ def build_rmq_address(ssl_auth=None, config=None):
         if ssl_auth:
             # Address format to connect to server-name, with SSL and EXTERNAL
             # authentication
+            # amqps://server-name?cacertfile=/path/to/cacert.pem&certfile=/path/to/cert.pem&keyfile=/path/to/key.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external
             rmq_address = "amqps://{host}:{port}/{vhost}?" \
                           "{ssl_params}&server_name_indication={host}".format(
                             host=config['host'],
@@ -943,7 +932,7 @@ def build_rmq_address(ssl_auth=None, config=None):
     return rmq_address
 
 
-def create_user_with_permissions(user, permissions, ssl_auth=None):
+def create_user_with_permissions(identity, permissions, ssl_auth=None):
     """
     Create RabbitMQ user for an agent and set permissions for it.
     :param identity: Identity of agent
@@ -954,9 +943,9 @@ def create_user_with_permissions(user, permissions, ssl_auth=None):
     # If user does not exist, create a new one
     if not ssl_auth:
         ssl_auth = is_ssl_connection()
-    if user not in get_users(ssl_auth):
-        create_user(user, user, ssl_auth=ssl_auth)
-    perms = get_user_permissions(user, ssl_auth=ssl_auth)
+    if identity not in get_users(ssl_auth):
+        create_user(identity, identity, ssl_auth=ssl_auth)
+    perms = get_user_permissions(identity, ssl_auth=ssl_auth)
     # Add user permissions if missing
     if not perms:
         # perms = dict(configure='.*', read='.*', write='.*')
@@ -964,7 +953,7 @@ def create_user_with_permissions(user, permissions, ssl_auth=None):
                      read=permissions['read'],
                      write=permissions['write'])
         _log.debug("permissions: {}".format(perms))
-        set_user_permissions(perms, user, ssl_auth=ssl_auth)
+        set_user_permissions(perms, identity, ssl_auth=ssl_auth)
 
 
 def _is_valid_rmq_url():
@@ -1009,7 +998,7 @@ def create_rmq_volttron_test_setup(volttron_home, host='localhost'):
     config_opts['amqp-port'] = str(5672)
     config_opts['mgmt-port'] = str(15672)
     config_opts['ssl'] = str(ssl_auth)
-    config_opts['rmq-address'] = build_rmq_address()
+    config_opts['rmq-address'] = build_rmq_address(ssl_auth=False)
     config_opts.async_sync()
     init_rabbitmq_setup()
     create_user_with_permissions('test_user',
