@@ -45,3 +45,7 @@
   endian: big
   file: scale_reg_pow_10_map.csv
   name: scale_reg_pow_10
+- addressing: offset
+  endian: big
+  file: battery_meter.csv
+  name: battery_meter

@@ -80,6 +80,7 @@ import struct
 import serial
 import six.moves
 import logging
+import math
 
 import modbus_tk.defines as modbus_constants
 import modbus_tk.modbus_tcp as modbus_tcp
@@ -449,6 +450,7 @@ class Request (object):
     def able_to_add(self, field):
         return self._table == field.table and \
            self._next_address == field.address and \
+           self._count + math.ceil(struct.calcsize(field.format_string) / 2.0) < 124 and \
            field.length == 1 and not field.byte_order and \
            not field.is_struct_format
 
