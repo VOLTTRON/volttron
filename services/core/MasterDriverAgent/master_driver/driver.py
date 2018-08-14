@@ -371,10 +371,9 @@ class DriverAgent(BasicAgent):
             headers_mod.DATE: utcnow_string,
             headers_mod.TIMESTAMP: utcnow_string,
         }
-
-        depth_first_topic, breadth_first_topic = self.get_paths_for_point(self.get_point(point_name))
+        depth_first_topic, breadth_first_topic = self.get_paths_for_point(point_name)
         for value in point_values:
-            results = {point_name: value}
+            results = {point_name: point_values[value]}
             meta = {point_name: self.meta_data[point_name]}
             message = [results, meta]
 
