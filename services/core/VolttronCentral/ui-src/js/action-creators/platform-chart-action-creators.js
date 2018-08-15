@@ -39,9 +39,6 @@ var platformChartActionCreators = {
             chartKey: chartKey
         });
     },
-    // initializeChartinitializeChart: function (series, length) {
-    //     doChartFetch(series, length, ACTION_TYPES.INITIALIZE_CHART);
-    // },
     refreshChart: function (series, length) {
         doChartFetch(series, length, ACTION_TYPES.REFRESH_CHART);
     },

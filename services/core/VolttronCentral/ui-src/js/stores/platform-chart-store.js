@@ -284,40 +284,6 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             chartStore.emitChange();
 
             break;
-        
-        // case ACTION_TYPES.INITIALIZE_CHART:
-
-        //     console.log('INITIALIZING CHART: ' + JSON.stringify(action.item));
-
-        //     removeSeries(action.item.name, action.item.uuid);
-
-        //     var itemWithColor = action.item;
-            
-        //     if (!itemWithColor.hasOwnProperty('colors'))
-        //     {
-        //         if (_chartData[action.item.name])
-        //         {
-        //             var availableColors = ((
-        //                     _chartData[action.item.name].colors && 
-        //                     _chartData[action.item.name].colors.length
-        //                 ) ? 
-        //                 _chartData[action.item.name].colors :
-        //                 initColors()
-        //             );
-                    
-        //             console.log('AVAILABLE COLORS: ' + availableColors);
-
-        //             itemWithColor = getItemWithColor(action.item, availableColors);
-
-        //             console.log('ASSIGNED COLOR: ' + JSON.stringify(itemWithColor));
-        //             console.log('AVAILABLE COLORS: ' + availableColors);
-        //         }
-        //     }
-
-        //     insertSeries(itemWithColor);
-        //     chartStore.emitChange();
-
-        //     break;
 
         case ACTION_TYPES.CHANGE_CHART_REFRESH:
 
