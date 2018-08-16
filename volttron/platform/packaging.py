@@ -440,7 +440,7 @@ def _cert_type_from_kwargs(**kwargs):
     return None
 
 
-def create_ca(override=True):
+def create_ca(override=True, data=None):
     """Creates a root ca cert using the Certs class"""
     crts = certs.Certs()
     if crts.ca_exists():
@@ -455,8 +455,8 @@ def create_ca(override=True):
                 return
         else:
             return
-
-    data = _create_cert_ui(certs.DEFAULT_ROOT_CA_CN)
+    if not data:
+        data = _create_cert_ui(certs.DEFAULT_ROOT_CA_CN)
     crts.create_root_ca(**data)
 
 def create_instance_ca(instance_name):
