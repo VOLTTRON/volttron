@@ -68,7 +68,9 @@ try:
 except ImportError:
     raise RuntimeError('PyYAML must be installed before running this script ')
 
-_log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+_log = logging.getLogger(os.path.basename(__file__))
+
 
 config_opts = {}
 default_pass = "default_passwd"
@@ -79,6 +81,8 @@ local_password = "guest"
 admin_user = None  # User to prompt for if we go the docker route
 admin_password = None
 rabbitmq_server = 'rabbitmq_server-3.7.7'
+volttron_home = get_home()
+volttron_rmq_config = os.path.join(volttron_home, 'rabbitmq_config.yml')
 
 
 def _load_rmq_config(volttron_home=None):
@@ -92,60 +96,75 @@ def _load_rmq_config(volttron_home=None):
     if not volttron_home:
         volttron_home = get_home()
     try:
-        volttron_rmq_config = os.path.join(volttron_home, 'rabbitmq_config.yml')
         with open(volttron_rmq_config, 'r') as yaml_file:
             config_opts = yaml.load(yaml_file)
     except IOError as exc:
-        print "Error opening {}".format(volttron_rmq_config)
+        _log.error("Error opening {}. Please create a rabbitmq_config.yml " \
+              "file in your volttron home. If you want to point to a volttron " \
+              "home other than {} please set it as the environment variable " \
+              "VOLTTRON_HOME".format(volttron_rmq_config, volttron_home))
         return exc
     except yaml.YAMLError as exc:
         return exc
 
 
-def _check_basic_rabbit_config():
+def _start_rabbitmq_without_ssl():
     """
-    Check if basic rabbitmq configuration is available.
+    Check if basic rabbitmq configuration is available. Start rabbitmq in
+    non ssl mode so that we can login as guest to create volttron users,
+    exchanges, and vhost.
     :return:
     """
-    global config_opts
-    error = _load_rmq_config()
-    if error:
-        return error
+    global config_opts, volttron_home, volttron_rmq_config
+    if not volttron_home:
+        volttron_home = get_home()
+
     rmq_home = config_opts.get("rmq-home")
     if not rmq_home:
         rmq_home = os.path.join(os.path.expanduser("~"), "rabbitmq_server/rabbitmq_server-3.7.7")
         if os.path.exists(rmq_home):
             config_opts.setdefault("rmq-home", rmq_home)
         else:
-            print("Missing Key in RabbitMQ config. RabbitMQ is not installed in default path: \n"
+            raise ValueError("Missing Key in RabbitMQ config. RabbitMQ is not "
+                     "installed "
+                  "in default path: \n"
                   "~/rabbitmq_server/rabbitmq_server-3.7.7 \n"
                   "Set the correct RabbitMQ installation path")
-            return False
+    else:
+        if not os.path.exists(rmq_home) or not os.path.exists(os.path.join(
+                rmq_home, 'sbin/rabbitmq-server')):
+            raise ValueError("Invalid rmq-home value ({}). Please fix rmq-home "
+                             "in {} and rerun this script".format(
+                                rmq_home, volttron_rmq_config))
+
 
     # Check if basic configuration is available in the config file, if not set default.
     config_opts.setdefault('host',"localhost")
     config_opts.setdefault("ssl", "true")
-    config_opts["amqp-port"] = amqp_port = 5672 # TODO - If user defined port, this needs to change
-    config_opts["mgmt-port"] = mgmt_port = 15672 # TODO - If user defined port, this needs to change
-    config_opts.setdefault('virtual-host', "volttron")
-
-    with open("{vhome}/rabbitmq_config.yml".format(vhome=get_home()), 'w') as yaml_file:
+    config_opts.setdefault('amqp-port', 5672)
+    config_opts.setdefault('amqp-port-ssl', 5671)
+    config_opts.setdefault('mgmt-port', 15672)
+    config_opts.setdefault('mgmt-port-ssl', 15671)
+    config_opts.setdefault('virtual-host', 'volttron')
+    config_opts.setdefault('user', local_user)
+    config_opts.setdefault('pass', local_password)
+    with open(volttron_rmq_config, 'w') as \
+            yaml_file:
         yaml.dump(config_opts, yaml_file, default_flow_style=False)
 
-    if os.path.exists(rmq_home) and \
-            os.path.exists(os.path.join(rmq_home, 'sbin/rabbitmq-server')):
-        # if existing server attempt to stop
-        stop_rabbit(rmq_home, quite=True)
-        # mv any existing conf file to backup
-        conf = os.path.join(rmq_home, "etc/rabbitmq/rabbitmq.conf")
-        if os.path.exists(conf):
-            os.rename(conf, os.path.join(rmq_home,
-                                         "etc/rabbitmq/rabbitmq.conf_" +
-                                         time.strftime("%Y%m%d-%H%M%S")
-                                         ))
+    #  attempt to stop
+    stop_rabbit(rmq_home, quite=True)
+    # mv any existing conf file to backup
+    conf = os.path.join(rmq_home, "etc/rabbitmq/rabbitmq.conf")
+    if os.path.exists(conf):
+        os.rename(conf, os.path.join(rmq_home,
+                                     "etc/rabbitmq/rabbitmq.conf_" +
+                                     time.strftime("%Y%m%d-%H%M%S")
+                                     ))
 
-    if is_valid_amqp_port(amqp_port) and is_valid_mgmt_port(mgmt_port):
-        # If ports are valid, add them to the rabbitmq conf
+    if config_opts['amqp-port'] != 5672 and config_opts['mgmt-port'] != 15672:
+        # If ports if non ssl ports are not default write a rabbitmq.conf before
+        # restarting
         new_conf = """listeners.tcp.default = 5672
             management.listener.port = 15672"""
         with open(os.path.join(config_opts['rmq-home'],
@@ -153,10 +172,10 @@ def _check_basic_rabbit_config():
                   'w+') as r_conf:
             r_conf.write(new_conf)
 
-        # Start rabbitmq server
-        start_rabbit(config_opts['rmq-home'])
-    else:
-        return False
+    # Start rabbitmq server
+    _log.info("Starting rabbitmq server")
+    start_rabbit(config_opts['rmq-home'])
+
 
 
 def _create_federation_setup():
@@ -177,9 +196,10 @@ def _create_federation_setup():
         is_ssl = is_ssl_connection()
         if is_ssl:
             ssl_params = get_ssl_url_params()
-        try:
-            for upstream in federation:
-                print("Upstream Server: {host} ".format(upstream['host']))
+
+        for upstream in federation:
+            try:
+                _log.debug("Upstream Server: {host} ".format(upstream['host']))
                 name = "upstream-{host}".format(host=upstream['host'])
                 if is_ssl:
                     address = "amqps://{host}:{port}/{vhost}?" \
@@ -189,8 +209,10 @@ def _create_federation_setup():
                                 vhost=upstream['virtual-host'],
                                 ssl_params=ssl_params)
                 else:
-                    address = "amqp://{user}:{pwd}@{host}:{port}/{vhost}".format(
-                                user=config_opts.get("user", instance_name+"-admin"),
+                    address = "amqp://{user}:{pwd}@{host}:{port}/" \
+                              "{vhost}".format(
+                                user=config_opts.get("user",
+                                                     instance_name+"-admin"),
                                 pwd=config_opts.get("pass", default_pass),
                                 host=upstream['host'],
                                 port=upstream['port'],
@@ -210,10 +232,11 @@ def _create_federation_setup():
                                 "priority":0,
                                 "apply-to": "exchanges"}
                 set_policy(policy_name, policy_value, config_opts['virtual-host'])
-        except KeyError as ex:
-            print("Federation setup  did not complete. "
-                  "Missing Key {key} in upstream config {upstream}".format(key=ex, upstream=upstream))
-            return ex
+            except KeyError as ex:
+                _log.error("Federation setup  did not complete. "
+                           "Missing Key {key} in upstream config "
+                           "{upstream}".format(key=ex, upstream=upstream))
+                return ex
 
 
 def _create_shovel_setup():
@@ -230,7 +253,7 @@ def _create_shovel_setup():
     src_uri = build_rmq_address(is_ssl)
     if is_ssl:
         ssl_params = get_ssl_url_params()
-    print shovels
+    _log.debug("Shovels: {}".format(shovels))
     try:
         for shovel in shovels:
             # Build destination address
@@ -252,7 +275,8 @@ def _create_shovel_setup():
             pubsub_topics = shovel.get("pubsub-topics", [])
             agent_ids = shovel.get("rpc-agent-identities", [])
             for topic in pubsub_topics:
-                print "Creating shovel to forward PUBSUB topic {}".format(topic)
+                _log.debug("Creating shovel to forward PUBSUB topic {}".format(
+                    topic))
                 name = "shovel-{host}-{topic}".format(host=shovel['host'],
                                                       topic=topic)
                 routing_key = "__pubsub__.{instance}.{topic}.#".format(instance=instance_name,
@@ -266,13 +290,14 @@ def _create_shovel_setup():
                                         "dest-uri": dest_uri,
                                         "dest-exchange": "volttron"}
                             )
-                print "shovel property: {}".format(prop)
+                _log.debug("shovel property: {}".format(prop))
                 # set_parameter("shovel",
                 #               name,
                 #               prop)
 
             for identity in agent_ids:
-                print "Creating shovel to make RPC call to remote Agent : {}".format(topic)
+                _log.info("Creating shovel to make RPC call to remote Agent"
+                           ": {}".format(topic))
                 name = "shovel-{host}-{identity}".format(host=shovel['host'],
                                                          identity=identity)
                 routing_key = "{instance}.{identity}.#".format(instance=instance_name,
@@ -286,12 +311,13 @@ def _create_shovel_setup():
                                         "dest-uri": dest_uri,
                                         "dest-exchange": "volttron"}
                                 )
-                print "shovel property: {}".format(prop)
+                _log.debug("shovel property: {}".format(prop))
                 # set_parameter("shovel",
                 #               name,
                 #               prop)
     except KeyError as exc:
-        print("Shovel setup  did not complete. Missing Key: {}".format(exc))
+        _log.error("Shovel setup  did not complete. Missing Key: {}".format(
+            exc))
 
 
 def _setup_for_ssl_auth(instance_name):
@@ -305,8 +331,8 @@ def _setup_for_ssl_auth(instance_name):
     :param instance_name: Instance name
     :return:
     """
-    global config_opts
-    print('\nChecking for CA certificate\n')
+    global config_opts, volttron_rmq_config
+    _log.info('\nChecking for CA certificate\n')
     instance_ca_name, server_name, admin_client_name = \
         certs.Certs.get_cert_names(instance_name)
 
@@ -315,7 +341,7 @@ def _setup_for_ssl_auth(instance_name):
 
     # if all was well, create the rabbitmq.conf file for user to copy
     # /etc/rabbitmq and update VOLTTRON_HOME/rabbitmq_config.json
-    new_conf = """listeners.ssl.default = 5671
+    new_conf = """listeners.ssl.default = {amqp_port_ssl}
 ssl_options.cacertfile = {ca}
 ssl_options.certfile = {server_cert}
 ssl_options.keyfile = {server_key}
@@ -326,11 +352,13 @@ ssl_cert_login_from = common_name
 ssl_options.versions.1 = tlsv1.2
 ssl_options.versions.2 = tlsv1.1
 ssl_options.versions.3 = tlsv1
-management.listener.port = 15671
+management.listener.port = {mgmt_port_ssl}
 management.listener.ssl = true
 management.listener.ssl_opts.cacertfile = {ca}
 management.listener.ssl_opts.certfile = {server_cert}
 management.listener.ssl_opts.keyfile = {server_key}""".format(
+        mgmt_port_ssl=config_opts.get('mgmt-port-ssl', 15671),
+        amqp_port_ssl=config_opts.get('amqp-port-ssl', 5671),
         ca=crts.cert_file(ROOT_CA_NAME),
         server_cert=crts.cert_file(server_name),
         server_key=crts.private_key_file(server_name)
@@ -341,28 +369,28 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
     # Stop server, move new config file with ssl params, start server
     stop_rabbit(config_opts['rmq-home'])
 
-    # Change to SSL ports
-    config_opts["amqp-port"] = amqp_port = 5671 # TODO - If user defined port, this needs to change
-    config_opts["mgmt-port"] = mgmt_port = 15671 # TODO - If user defined port, this needs to change
     # Add VOLTTRON admin user. This is needed to connect to web interface, multi-platform federation, shovel
+    # TODO: Could we use guest instead for all local mgmt plugin tasks and
+    # use ssl auth for others. To test.
     config_opts["user"] = admin_client_name
     config_opts["pass"] = default_pass
 
-    with open("{vhome}/rabbitmq_config.yml".format(vhome=get_home()), 'w') as yaml_file:
+    with open(volttron_rmq_config, 'w') as yaml_file:
         yaml.dump(config_opts, yaml_file, default_flow_style=False)
 
     os.rename(os.path.join(get_home(), "rabbitmq.conf"),
               os.path.join(config_opts.get("rmq-home"),
                            "etc/rabbitmq/rabbitmq.conf"))
     start_rabbit(config_opts['rmq-home'])
-    print("\n#######################"
+    _log.info("\n#######################"
           "\nSetup complete. A new admin user was created with user name: "
           "{} and password={}.\nYou could change this user's password by "
-          "logging into https://{}:{}/"
+          "logging into https://{}:{}/ Please update {} if you change password"
           "\n#######################".format(config_opts['user'],
                                              default_pass,
                                              config_opts['host'],
-                                             config_opts['mgmt-port']))
+                                             config_opts['mgmt-port-ssl'],
+                                             volttron_rmq_config))
 
 
 def stop_rabbit(rmq_home, quite=False):
@@ -380,7 +408,7 @@ def stop_rabbit(rmq_home, quite=False):
         stdout, stderr = p.communicate()
         gevent.sleep(2)
         if not quite:
-            print("**Stopped rmq server")
+            _log.info("**Stopped rmq server")
     except subprocess.CalledProcessError as e:
         if not quite:
             raise e
@@ -396,7 +424,7 @@ def start_rabbit(rmq_home):
            "-detached"]
     subprocess.check_call(cmd)
     gevent.sleep(10)
-    print("**Started rmq server")
+    _log.info("**Started rmq server at {}".format(rmq_home))
 
 
 def _create_certs_without_prompt(admin_client_name, instance_ca_name, server_cert_name):
@@ -407,124 +435,43 @@ def _create_certs_without_prompt(admin_client_name, instance_ca_name, server_cer
     :param server_cert_name: RabbitMQ sever name
     :return:
     """
-    print admin_client_name
-    global config_opts
-    create_instance_ca = False
-    instance_ca_path = config_opts.get("instance_ca_path", None)
-    instance_ca_key = config_opts.get("instance_ca_key", None)
-    # Check if insance ca public and private certs exist and valid
-    found = _verify_and_save_instance_ca(instance_ca_path, instance_ca_key)
-    if found:
-        # get instance cert name
-        filename = os.path.basename(instance_ca_path)
-        instance_ca_name = os.path.splitext(filename)[0]
-    else:
-        # create ca cert in default dir if needed
-        if crts.ca_exists():
-            print('\n Root CA Found {}'.format(crts.cert_file(ROOT_CA_NAME)))
-            create_instance_ca = True
-        else:
-            print('\n Root CA NOT Found {}'.format(crts.cert_file(ROOT_CA_NAME)))
-            create_ca(override=False)
-            create_instance_ca = True
 
-        if crts.cert_exists(instance_ca_name):
-            create_instance_ca = False
-            instance_ca_path = crts.cert_file(instance_ca_name)
-            instance_ca_key = crts.private_key_file(instance_ca_name)
-        # create instance CA (intermediate CA) if root CA exists and instance cert
-        # doesn't exist
-        if create_instance_ca:
-            crts.create_instance_ca(instance_ca_name)
-        else:
-            found = _verify_and_save_instance_ca(instance_ca_path, instance_ca_key)
-            if found:
-                # get instance cert name
-                filename = os.path.basename(instance_ca_path)
-                instance_ca_name = os.path.splitext(filename)[0]
+    global config_opts
+
+    if crts.ca_exists():
+        _log.info('\n Root CA Found {}'.format(crts.cert_file(ROOT_CA_NAME)))
+
+    else:
+        _log.info('\n Root CA ({}) NOT Found. Creating root ca for '
+              'volttron instance'.format(crts.cert_file(ROOT_CA_NAME)))
+        cert_data = config_opts.get('certificate-data')
+        if not cert_data or not all(k in cert_data for k in ['country',
+                                                             'state',
+                                                             'location',
+                                                             'organization',
+                                                             'organization-unit',
+                                                             'common-name']):
+            raise ValueError("No certificate data found in {}. Please refer "
+                             "to example config at "
+                             "examples/configs/rabbitmq_config.yml to see "
+                             "list of ssl certificate data to be configured"
+                             "".format(volttron_rmq_config))
+        data = {'C': cert_data.get('country'),
+                'ST': cert_data.get('state'),
+                'L': cert_data.get('location'),
+                'O': cert_data.get('organization'),
+                'OU': cert_data.get('organization-unit'),
+                'CN': cert_data.get('common-name')}
+
+        create_ca(override=False, data=data)
 
     crts.create_ca_signed_cert(server_cert_name, type='server',
-                               ca_name=instance_ca_name,
                                fqdn=config_opts.get('host'))
 
-    crts.create_ca_signed_cert(admin_client_name, type='client',
-                               ca_name=instance_ca_name)
+    crts.create_ca_signed_cert(admin_client_name, type='client')
     create_user(admin_client_name, ssl_auth=False)
     permissions = dict(configure=".*", read=".*", write=".*")
     set_user_permissions(permissions, admin_client_name, ssl_auth=False)
-
-
-def _create_certs(client_cert_name, instance_ca_name, server_cert_name):
-    """
-    Utility method to create certificates
-    :param client_cert_name:
-    :param instance_ca_name:
-    :param server_cert_name:
-    :return:
-    """
-    global config_opts
-    create_instance_ca = False
-    # create ca cert in default dir if needed
-    if crts.ca_exists():
-        print('\n Found {}'.format(crts.cert_file(ROOT_CA_NAME)))
-        r = prompt_response('\n Is this the root CA used to sign all volttron '
-                            'instances\' CA in this setup:',
-                            valid_answers=y_or_n, default='Y')
-        if r in y:
-            create_instance_ca = True
-    else:
-        r = prompt_response("Do you want to create a self-signed root CA "
-                            "certificate that can sign all volttron instance "
-                            "CA in your setup:", valid_answers=y_or_n,
-                            default='N')
-        if r in y:
-            create_ca(override=False)
-            create_instance_ca = True
-    instance_ca_path = None
-    instance_ca_key = None
-    if crts.cert_exists(instance_ca_name):
-        r = prompt_response(
-            '\n Found {}. Is this the instance CA signed by '
-            'volttron root CA:'.format(crts.cert_file(instance_ca_name)),
-            valid_answers=y_or_n, default='Y')
-        if r in y:
-            create_instance_ca = False
-            instance_ca_path = crts.cert_file(instance_ca_name)
-            instance_ca_key = crts.private_key_file(instance_ca_name)
-    # create instance CA (intermediate CA) if root CA exists and instance cert
-    # doesn't exist
-    if create_instance_ca:
-        crts.create_instance_ca(instance_ca_name)
-    else:
-
-        found = _verify_and_save_instance_ca(instance_ca_path, instance_ca_key)
-        while not found:
-            if instance_ca_path is not None or instance_ca_key is not None:
-                print("\nInvalid instance CA certificate or instance CA "
-                      "private key file")
-            instance_ca_path = prompt_response('\n Enter path to intermediate '
-                                               'CA certificate of this '
-                                               'volttron instance:')
-            instance_ca_key = prompt_response('\n Enter path to private key '
-                                              'file for this instance CA:')
-            found = _verify_and_save_instance_ca(instance_ca_path,
-                                                 instance_ca_key)
-            # get instance cert name
-            filename = os.path.basename(instance_ca_path)
-            instance_ca_name = os.path.splitext(filename)[0]
-    # crts.create_ca_signed_cert(server_cert_name, type='server',
-    #                            ca_name=instance_ca_name,
-    #                            fqdn=config_opts.get('host'))
-    crts.create_ca_signed_cert(server_cert_name, type='server',
-                               fqdn=config_opts.get('host'))
-    # permissions = dict(configure=".*", read=".*", write=".*")
-    # set_user_permissions(permissions, server_cert_name)
-    # crts.create_ca_signed_cert(client_cert_name, type='client',
-    #                            ca_name=instance_ca_name)
-    crts.create_ca_signed_cert(client_cert_name, type='client')
-    create_user(client_cert_name, ssl_auth=False)
-    permissions = dict(configure=".*", read=".*", write=".*")
-    set_user_permissions(permissions, client_cert_name, ssl_auth=False)
 
 
 def _verify_and_save_instance_ca(instance_ca_path, instance_ca_key):
@@ -547,7 +494,7 @@ def _verify_and_save_instance_ca(instance_ca_path, instance_ca_key):
     return found
 
 
-def setup_rabbitmq_volttron(type):
+def                                                                         setup_rabbitmq_volttron(type):
     """
     Setup VOLTTRON instance to run with RabbitMQ message bus.
     :param type:
@@ -562,29 +509,36 @@ def setup_rabbitmq_volttron(type):
     # Store config this is checked at startup
     store_message_bus_config(message_bus='rmq', instance_name=instance_name)
 
+    error = _load_rmq_config()
+    if error:
+        _log.error("\nFor single setup, configuration file must at least "
+                 "contain  "
+              "host and ssl certificate details. For federation and shovel "
+              "setup please refer to example config files under "
+              "examples/configs/rabbitmq_config.yml")
+        return error
+
+    invalid = True
     if type in ["all", "single"]:
-        error = _check_basic_rabbit_config()
-        if not error:
-            # Create local RabbitMQ setup
-            success = init_rabbitmq_setup() # should be called after check basic config
-            # changes are written to disk.
-            ssl_auth = config_opts.get('ssl', "true")
-            if success and ssl_auth in ('true', 'True', 'TRUE'):
-                _setup_for_ssl_auth(instance_name)
-            if type == "all":
-                # Create a multi-platform federation setup
-                error = _create_federation_setup()
-                if not error:
-                    # Create shovel setup
-                    _create_shovel_setup()
-    elif type == "federation":
+        invalid = False
+        _start_rabbitmq_without_ssl()
+
+        # Create local RabbitMQ setup - vhost, exchange etc.
+        success = init_rabbitmq_setup() # should be called after _start_rabbitmq_without_ssl
+        ssl_auth = config_opts.get('ssl', "true")
+        if success and ssl_auth in ('true', 'True', 'TRUE'):
+            _setup_for_ssl_auth(instance_name)
+
+    if type in ["all", "federation"]:
         # Create a multi-platform federation setup
+        invalid = False
         _create_federation_setup()
-    elif type == "shovel":
+    if type in ["shovel", "shovel"]:
         # Create shovel setup
+        invalid = False
         _create_shovel_setup()
-    else:
-        print "Unknown option. Exiting...."
+    if invalid:
+        _log.error("Unknown option. Exiting....")
 
 
 if __name__ == "__main__":
@@ -597,4 +551,4 @@ if __name__ == "__main__":
     try:
         setup_rabbitmq_volttron(type)
     except KeyboardInterrupt:
-        print "Exiting setup process"
+        _log.info("Exiting setup process")

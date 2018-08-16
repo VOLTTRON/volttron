@@ -101,17 +101,17 @@ def call_grequest(method_name, url_suffix, ssl_auth=True, **kwargs):
         response = grequests.map([request])
         if response and isinstance(response, list):
             response[0].raise_for_status()
-    except (ConnectionError, NewConnectionError):
-        print ("Connection to {} not available".format(url))
-        response = None
+    except (ConnectionError, NewConnectionError) as e:
+        _log.error("Connection to {} not available".format(url))
+        raise e
     except requests.exceptions.HTTPError as e:
-        # print("Exception when trying to make HTTP request "
-        #       "to RabbitMQ {}".format(e))
-        response = None
+        _log.error("Exception when trying to make HTTP request to {} with "
+                   "args {} : {}".format(url, kwargs, e))
+        raise e
     except AttributeError as e:
-        print("Exception when trying to make HTTP request "
+        _log.error("Exception when trying to make HTTP request "
               "to RabbitMQ {}".format(e))
-        response = None
+        raise e
     return response
 
 
@@ -141,8 +141,12 @@ def get_authentication_args(ssl_auth):
             # password but at least guest user can only access rmq using
             # localhost
             admin_password = default_pass
-        return {'auth': (admin_user, admin_password),
-                'verify': crts.cert_file(instance_ca),
+        return {
+            # TODO create guest cert and use localhost and guest cert instead
+            # when connecting to management apis. Because management api
+            # won't honour external auth the same way amqps does :(
+                'auth': (admin_user, admin_password),
+                'verify': crts.cert_file(ROOT_CA_NAME),
                 'cert': (crts.cert_file(client_cert),
                          crts.private_key_file(client_cert))}
     else:
@@ -202,6 +206,13 @@ def get_amqp_port():
     return config_opts['amqp-port']
 
 
+def get_mgmt_port_ssl():
+    if not config_opts:
+        _load_rmq_config()
+    # _log.debug("rmq config: {}".format(config_opts))
+    return config_opts['mgmt-port-ssl']
+
+
 def get_mgmt_port():
     if not config_opts:
         _load_rmq_config()
@@ -234,7 +245,7 @@ def create_vhost(vhost='volttron', ssl_auth=None):
     :param ssl_auth
     :return:
     """
-    print "Creating new VIRTUAL HOST: {}".format(vhost)
+    _log.debug("Creating new VIRTUAL HOST: {}".format(vhost))
     ssl_auth = ssl_auth if ssl_auth in [True, False] else is_ssl_connection()
     url = '/api/vhosts/{vhost}'.format(vhost=vhost)
     response = http_put_request(url, body={}, ssl_auth=ssl_auth)
@@ -324,7 +335,7 @@ def get_url_prefix(ssl_auth):
     """
     if ssl_auth:
         prefix = 'https://{host}:{port}'.format(host=get_hostname(),
-                                                port=get_mgmt_port())
+                                                port=get_mgmt_port_ssl())
     else:
         prefix = 'http://localhost:{port}'.format(port=get_mgmt_port())
     return prefix
@@ -382,8 +393,16 @@ def get_user_permissions(user, vhost=None, ssl_auth=None):
     vhost = vhost if vhost else get_vhost()
     url = '/api/permissions/{vhost}/{user}'.format(vhost=vhost,
                                                    user=user)
-    response = http_get_request(url, ssl_auth)
-    return response
+    try:
+        response = http_get_request(url, ssl_auth)
+        return response
+    except requests.exceptions.HTTPError as e:
+        if e.message.startswith("404 Client Error"):
+            # No permissions are set for this user yet. Return none
+            # so caller can try to set permissions
+            return None
+        else:
+            raise e
 
 
 # {"configure":".*","write":".*","read":".*"}
@@ -777,7 +796,6 @@ def init_rabbitmq_setup():
     if not config_opts:
         _load_rmq_config()
     vhost = config_opts['virtual-host']
-    print("virtual host: {}, port: {}".format(vhost, config_opts["mgmt-port"]))
 
     # Create a new "volttron" vhost
     response = create_vhost(vhost, ssl_auth=False)
@@ -874,21 +892,19 @@ def build_connection_param(identity, instance_name, ssl_auth=None):
         _load_rmq_config()
 
     ssl_auth = ssl_auth if ssl_auth is not None else is_ssl_connection()
-    instance_ca_name, server_cert_name, admin_cert_name = \
-        certs.Certs.get_cert_names(instance_name)
     crt = certs.Certs()
     rmq_user = instance_name + '.' + identity
     try:
         if ssl_auth:
             ssl_options = dict(
                                 ssl_version=ssl.PROTOCOL_TLSv1,
-                                ca_certs=crt.cert_file(instance_ca_name),
+                                ca_certs=crt.cert_file(ROOT_CA_NAME),
                                 keyfile=crt.private_key_file(rmq_user),
                                 certfile=crt.cert_file(rmq_user),
                                 cert_reqs=ssl.CERT_REQUIRED)
             conn_params = pika.ConnectionParameters(
                 host=config_opts['host'],
-                port=int(config_opts['amqp-port']),
+                port=int(config_opts['amqp-port-ssl']),
                 virtual_host=config_opts['virtual-host'],
                 ssl=True,
                 ssl_options=ssl_options,
@@ -928,7 +944,7 @@ def build_rmq_address(ssl_auth=None, config=None):
             rmq_address = "amqps://{host}:{port}/{vhost}?" \
                           "{ssl_params}&server_name_indication={host}".format(
                             host=config['host'],
-                            port=config['amqp-port'],
+                            port=config['amqp-port-ssl'],
                             vhost=config['virtual-host'],
                             ssl_params=get_ssl_url_params())
         else:
@@ -938,7 +954,7 @@ def build_rmq_address(ssl_auth=None, config=None):
                 port=config['amqp-port'],
                 vhost=config['virtual-host'])
     except KeyError as e:
-        print("Missing entries in rabbitmq config {}".format(e))
+        _log.error("Missing entries in rabbitmq config {}".format(e))
         raise
 
     return rmq_address
@@ -1001,7 +1017,6 @@ def get_ssl_url_params():
 def create_rmq_volttron_test_setup(volttron_home, host='localhost'):
     global config_opts
     _load_rmq_config(volttron_home)
-    # print(config_opts)
     ssl_auth = False
     # Set vhost, username, password, hostname and port
     config_opts['virtual-host'] = 'volttron_test'
@@ -1029,10 +1044,8 @@ def cleanup_rmq_volttron_test_setup(volttron_home):
         users_to_remove = []
         for user in users:
             perm = get_user_permissions(user, vhost, ssl_auth=False)
-            print perm
             if perm:
                 users_to_remove.append(user)
-        print("Users to remove: {}".format(users_to_remove))
         # Delete all the users using virtual host
         for user in users_to_remove:
             delete_user(user)
