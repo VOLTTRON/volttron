@@ -55,6 +55,7 @@
 import logging
 import os
 import sys
+import math
 import requests
 import sqlite3
 import datetime
@@ -68,173 +69,162 @@ _log = logging.getLogger(__name__)
 testing_config_path = os.path.dirname(os.path.realpath(__file__))
 testing_config_path += "/config.config"
 
-VALID_REQUEST_TYPES = ['forecast', 'current', 'historical']
-
-class WeatherSchema:
-    def __init__(self,
-                 schema_mapping):
-        self.base_schema = schema_mapping
-        self.alternate_schema = {}
-
-    def map_schema(self, mapping):
-        for key, value in mapping:
-            if key in self.base_schema:
-                self.base_schema[key] = value
-            else:
-                self.alternate_schema[key] = value
-
 
 class WeatherCache:
-    """Caches data to create a local history, and to help reduce the
-    number of requests to the API"""
+    """Caches data to help reduce the number of requests to the API"""
     # TODO close the database connection onstop for the weather agent
-    # TODO check that the appropriate tables exist, based
-    # on the weather service
     def __init__(self,
                  db_name,
                  service_name,
-                 request_types,
-                 cache_period,
-                 max_size,
-                 trim_percent=70,
-                 max_percent=90,
-                 log_sql=True):
+                 retain_records=0,
+                 max_size_gb=1,
+                 log_sql=False):
         """
 
-        :param db_name:
+        :param db_name: file name of mysql database file, should be specified in agent
+         configuration
         :param service_name: Name of the weather service (i.e. weather.gov)
-        :param expected_tables: Names for tables, based on available request services
-        (see VALID_REQUEST_TYPES)
         :param cache_period: Specifies time period for which we keep data
         :param cache_size: Specifies the size of cache to store data, in gb
         """
         self.db_name = db_name
-        self.db_filepath = "" + db_name
-        # TODO log sql statements
+        # TODO check from base historian
+        self.db_filepath = "" + self.db_name
         self.log_sql = log_sql
         self.service_name = service_name
         self.tables = {}
-        for request_type in request_types:
-            if request_type in VALID_REQUEST_TYPES:
-                self.tables[request_type] = service_name + "_" + request_type
-            else:
-                _log.debug("In WeatherCache: Invalid request type: ?", request_type)
-                # TODO should we pass?
-                pass
-        self.trim_period = cache_period
+        self.retain_records = retain_records
+        self.max_size_gb = max_size_gb
+        # Arbitrarily set values to ensure that the cache does not overflow
+        self.trim_percent = 70
+        self.max_percent = 90
+
+    def setup_cache(self):
+        """Check if the database exists, create it if it does not"""
         try:
-            # Check if the database and tables exist, create them if they do not
+
             self.sqlite_conn = sqlite3.connect(self.db_filepath)
             self.current_size = os.path.getsize(self.db_filepath)
-            _log.debug("connected to database ?, version: ?", self.db_name, sqlite3.version)
+            _log.info("connected to database {} sqlite version: {}".format(self.db_name, sqlite3.version))
+            self.sqlite_cursor = self.sqlite_conn.cursor()
         except sqlite3.Error as err:
-            _log.debug("Unable to open the sqlite database for caching: ?", err)
-            # TODO should we pass?
-            pass
-        self.sqlite_cursor = self.sqlite_conn.cursor()
-        try:
-            for table in self.tables:
-                if not self.sqlite_cursor.execute("SELECT 1 FROM ? WHERE TYPE = 'table' AND NAME='?'"
-                                                   ,db_name, self.tables[table]):
-                    self.sqlite_cursor.execute("CREATE TABLE ? (LOCATION TEXT, REQUEST_TIME TIMESTAMP, "
-                                               "JSON_RESPONSE TEXT, PRIMARY KEY (LOCATION, REQUEST_TIME))",
-                                               self.tables[table])
-                    self.sqlite_conn.commit()
-        except sqlite3.Error as err:
-            _log.debug("Unable to access database tables: ?", err)
-            # TODO should we pass?
-            pass
-        self.max_size = max_size
-        self.trim_percent = trim_percent
-        self.max_percent = max_percent
+            _log.error("Unable to open the sqlite database for caching: {}".format(err))
+
+    def table_exists(self, request_type):
+        table_name = self.service_name + "_" + request_type
+        table_query = "SELECT 1 FROM {} WHERE TYPE = 'table' AND NAME='{}'"\
+                    .format(self.db_name, table_name)
+        if self.log_sql:
+            _log.info(table_query)
+
+    def create_table(self, request_type):
+        """"""
+        if not self.table_exists(request_type):
+            create_table = "CREATE TABLE {} (LOCATION TEXT, REPORTED_TIME TIMESTAMP, JSON_RESPONSE TEXT, " \
+                           "PRIMARY KEY (LOCATION, REQUEST_TIME))".format()
+            if self.log_sql:
+                _log.info(create_table)
+            try:
+                self.sqlite_cursor.execute(create_table)
+                self.sqlite_conn.commit()
+            except sqlite3.Error as err:
+                _log.error("Unable to create database table: {}".format(err))
+
+    # TODO
+    def store_weather_data(self, request_type, location, timestamp, json_string):
+        """Helper method to provide insert statement agnostic of record type (Records should be pre-formatted)."""
+        table = self.tables[request_type]
+        query = "INSERT INTO {} (LOCATION, REPORTED_TIME, JSON_RESPONSE) VALUES({}, {}, {})"\
+            .format(table, location, timestamp, json_string)
+
+    def data_has_gaps(self, start_timestamp, end_timestamp, interval):
+        """Queries the table to check if there are any gaps in the records based on the expected interval between
+        records. Expects start_timestamp and end_timestamp as datetime objects, interval as timedelta object."""
+        if not (isinstance(start_timestamp, datetime.datetime) and isinstance(end_timestamp, datetime.datetime)
+                and isinstance(interval, datetime.timedelta)):
+            raise ValueError("expects two datetime.datetime objects, followed by datetime.timedelta object")
+        period = datetime.timedelta(end_timestamp - start_timestamp).total_seconds()
+        num_rows = math.floor(period / interval.total_seconds())
+        # TODO generate query
 
     def retrieve_cached_data_by_timestamp(self, request_type, start_timestamp, end_timestamp):
         """Returns all cached weather data based on the request type for
-        the given time range"""
-        return self.sqlite_conn.execute("SELECT * FROM ? WHERE REQUEST_TIME >= ? AND REQUEST_TIME <= ? ORDER BY"
-                                        "REQUEST_TIME DESC",
-                                        self.tables[request_type], start_timestamp, end_timestamp)
+        the given time range."""
+        query = "SELECT * FROM {} WHERE REQUEST_TIME >= {} AND REPORTED_TIME <= {} ORDER BY REQUEST_TIME DESC"\
+            .format(self.tables[request_type], start_timestamp, end_timestamp)
+        if self.log_sql:
+            _log.info(query)
+        # TODO validate
+        return self.sqlite_conn.execute(query)
 
     def retrieve_most_recent_cached_data(self, request_type, location, number_of_records=1):
-        return self.sqlite_cursor.execute("SELECT * FROM ? WHERE REQUEST_TIME = (SELECT MAX(REQUEST_TIME) FROM ?) AND"
-                                          " Location = ? ORDER BY REQUEST_TIME DECS LIMIT ?",
-                                          self.tables[request_type], self.tables[request_type], location,
-                                          number_of_records)
+        query = "SELECT * FROM {} WHERE REPORTED_TIME = (SELECT MAX(REPORTED_TIME) FROM {}) AND Location = {} " \
+                "ORDER BY REQUEST_TIME DECS LIMIT {}"\
+            .format(self.tables[request_type], self.tables[request_type], location, number_of_records)
+        if self.log_sql:
+            _log.info(query)
+        # TODO validate
+        return self.sqlite_cursor.execute(query)
 
-    def trim_outdated_cached_data(self):
-        """Regularly eliminates data cached from cache_period time before present,
-        only if the cache is sufficiently full?"""
-        # TODO this method should be run once per cache_period amount of time
-        cutoff_time = datetime.datetime.utcnow() - datetime.timedelta(self.cache_period)
-        for table in self.tables:
-            try:
-                self.sqlite_cursor.execute("DELETE FROM ? WHERE REQUEST_TIME <= ?", table, cutoff_time)
-                self.sqlite_conn.commit()
-            except sqlite3.Error as err:
-                _log.debug("Unable to remove old data from table ?: ?", table, err)
-                # TODO should we pass?
-                pass
+    # TODO
+    def cleanup_outdated_cached_data(self, request_type):
+        """Removes outdated current and forecasted weather data. Retains an optional number of records."""
 
-    def trim_excess_cached_data(self, time_increment=datetime.timedelta(hours=1)):
-        """Deletes oldest data in batches based on an arbitrary time increment until the database size is reasonable
-        to prevent the cache from becoming too large."""
-        # TODO this should occur every so often...maybe after n= some arbitrary number of writes
-        try:
-            self.current_size = os.path.getsize(self.db_filepath)
-        except sqlite3.Error as err:
-            _log.debug("Sqlite database unavailable: ?", err)
-            # TODO should we pass?
-            pass
-            # don't allow unreasonable delta ranges
-        if time_increment <= datetime.timedelta(minutes=30) or time_increment > datetime.timedelta(days=1):
-            raise ValueError
-        cutoff_time = datetime.datetime.utcnow() - time_increment
-        while self.current_size / self.max_size > self.trim_percent:
-            self.current_size = os.path.getsize(self.db_filepath)
-            for table in self.tables:
-                self.sqlite_cursor.execute("DELETE FROM ? WHERE REQUEST_TIME <= ?", table, cutoff_time)
-                self.sqlite_conn.commit()
+    # TODO
+    # look at base historian caching
+    def trim_cache(self, time_increment=datetime.timedelta(hours=1)):
+        """Delete historical data when the cache starts to become full."""
 
 
-# class WeatherAgent():
+#
 class BaseWeatherAgent(Agent):
     """Creates weather services based on the json objects from the config,
     uses the services to collect and publish weather data"""
 
-    # TODO set up defaults for a weather agent here
     def __init__(self,
-                 api_key="",
-                 base_url=None,
-                 locations=[],
                  **kwargs):
-        # TODO figure out if this is necessary
-        super(BaseWeatherAgent, self).__init__(**kwargs)
-        # TODO set protected variables
-        self._api_key = api_key
-        self._base_url = base_url
-        self._locations = locations
-        # TODO build from init parameters
 
-        self._default_config = {"api_key": self._api_key}
+        super(BaseWeatherAgent, self).__init__(**kwargs)
+        # TODO set defaults, take a look at base historian
+
+        # TODO create a default configuration
+        self._default_config = {}
         self.vip.config.set_default("config", self._default_config)
+        self.vip.config.subscribe(self._configure, actions=["NEW", "UPDATE"], pattern="config")
 
     @Core.receiver('onstart')
     def setup(self, config):
+        # try:
+        #     self.configure(config)
+            # TODO check this, might need to go in configure
+        # except Exception as e:
+        #     _log.error("Failed to load weather agent settings.")
+        # TODO do we need this?
+        # self.vip.config.subscribe(self._configure, actions=["NEW", "UPDATE"], pattern="config")
+        # self.cache = WeatherCache()
+
+
+
+    # TODO
+    @abstractmethod
+    def _configure(self, contents):
+        self.vip.heartbeat.start()
+        _log.info("Configuring weather agent.")
+        config = self._default_config.copy()
+        config.update(contents)
+
+        try:
+            # TODO reset defaults from configuration
+        except ValueError as e:
+            _log.error("Failed to load base weather agent settings. Settings not applied!")
+            return
+
+        self.stop_process_thread()
         try:
             self.configure(config)
-            # TODO check this, might need to go in configure
-            self.schema = WeatherSchema()
         except Exception as e:
             _log.error("Failed to load weather agent settings.")
-        # TODO ?
-        # self.vip.config.subscribe(self._configure, actions=["NEW", "UPDATE"], pattern="config")
-
-
-    # TODO schema mapping should be contained in the config.config, no registry config necessary?
-    @abstractmethod
-    def configure(self, config):
-        """Unimplemented method stub."""
-        pass
+        self.start_process_thread()
 
     # TODO
     @abstractmethod
