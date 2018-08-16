@@ -303,7 +303,14 @@ def install_rabbit(rmq_install_dir):
                "--directory="+rmq_install_dir]
         subprocess.check_call(cmd)
         _log.info("Installed Rabbitmq server at " + rmq_home)
-
+    # enable plugins
+    cmd = [os.path.join(rmq_home, "sbin/rabbitmq-plugins"),
+           "enable", "rabbitmq_management",
+           "rabbitmq_federation",
+           "rabbitmq_federation_management",
+           "rabbitmq_shovel",
+           "rabbitmq_auth_mechanism_ssl"]
+    subprocess.check_call(cmd)
 
 def main(argv=sys.argv):
     '''Script entry point.'''
