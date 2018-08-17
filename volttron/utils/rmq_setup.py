@@ -161,7 +161,7 @@ def _start_rabbitmq_without_ssl():
         # If ports if non ssl ports are not default write a rabbitmq.conf before
         # restarting
         new_conf = """listeners.tcp.default = 5672
-            management.listener.port = 15672"""
+management.listener.port = 15672"""
         with open(os.path.join(config_opts['rmq-home'],
                                "etc/rabbitmq", "rabbitmq.conf"),
                   'w+') as r_conf:
@@ -437,7 +437,22 @@ def start_rabbit(rmq_home):
     cmd = [os.path.join(rmq_home, "sbin/rabbitmq-server"),
            "-detached"]
     subprocess.check_call(cmd)
-    gevent.sleep(10)
+    gevent.sleep(5)
+    cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "status"]
+    i = 5
+    started = False
+    while not started:
+        try:
+            subprocess.check_call(cmd, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE)
+            started = True
+        except subprocess.CalledProcessError as e:
+            if i > 60:  # if more than a minute, may be somthing is wrong
+                raise e
+            else:
+                # sleep for another 5 seconds and check status again
+                gevent.sleep(5)
+                i = i + 5
     _log.info("**Started rmq server at {}".format(rmq_home))
 
 
