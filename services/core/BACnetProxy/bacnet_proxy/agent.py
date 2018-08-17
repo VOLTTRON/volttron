@@ -114,7 +114,7 @@ task_manager = TaskManager()
 #     def set_exception(self, exception):
 #         self.ioCall.send(None, self.ioResult.set_exception, exception)
 
-class SubscriptionContext:
+class SubscriptionContext(object):
 
     def __init__(self, address, point_name, object_type, instance_number, sub_process_ID, lifetime=None):
 
