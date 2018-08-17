@@ -54,10 +54,9 @@ from volttron.platform import certs
 from volttron.platform import get_home
 from volttron.platform.agent.utils import load_platform_config, \
     store_message_bus_config, get_platform_instance_name
-from volttron.platform.packaging import create_ca
+from volttron.platform.packaging import _create_ca
 from volttron.utils.persistance import PersistentDict
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
-from volttron.platform.certs import ROOT_CA_NAME
 from rmq_mgmt import is_ssl_connection, get_vhost, http_put_request, \
     set_policy, build_rmq_address, is_valid_amqp_port, \
     is_valid_mgmt_port, init_rabbitmq_setup, get_ssl_url_params, create_user, \
@@ -584,7 +583,7 @@ def _create_certs(client_cert_name, instance_ca_name, server_cert_name):
     create_instance_ca = False
     # create ca cert in default dir if needed
     if crts.ca_exists():
-        print('\n Found {}'.format(crts.cert_file(ROOT_CA_NAME)))
+        print('\n Found {}'.format(crts.cert_file(crts.root_ca_name)))
         r = prompt_response('\n Is this the root CA used to sign all volttron '
                             'instances\' CA in this setup:',
                             valid_answers=y_or_n, default='Y')
@@ -596,7 +595,7 @@ def _create_certs(client_cert_name, instance_ca_name, server_cert_name):
                             "CA in your setup:", valid_answers=y_or_n,
                             default='N')
         if r in y:
-            create_ca(override=False)
+            _create_ca(override=False)
             create_instance_ca = True
     instance_ca_path = None
     instance_ca_key = None

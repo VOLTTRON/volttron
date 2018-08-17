@@ -68,8 +68,6 @@ import pika
 import requests
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
-from volttron.platform.certs import ROOT_CA_NAME
-
 from volttron.platform import certs
 from volttron.platform import get_home
 from volttron.platform.agent import json as jsonapi
@@ -147,7 +145,7 @@ def get_authentication_args(ssl_auth):
             # when connecting to management apis. Because management api
             # won't honour external auth the same way amqps does :(
                 'auth': (admin_user, admin_password),
-                'verify': crts.cert_file(ROOT_CA_NAME),
+                'verify': crts.cert_file(crts.root_ca_name),
                 'cert': (crts.cert_file(client_cert),
                          crts.private_key_file(client_cert))}
     else:
@@ -900,7 +898,7 @@ def build_connection_param(identity, instance_name, ssl_auth=None):
         if ssl_auth:
             ssl_options = dict(
                                 ssl_version=ssl.PROTOCOL_TLSv1,
-                                ca_certs=crt.cert_file(ROOT_CA_NAME),
+                                ca_certs=crt.cert_file(crt.root_ca_name),
                                 keyfile=crt.private_key_file(rmq_user),
                                 certfile=crt.cert_file(rmq_user),
                                 cert_reqs=ssl.CERT_REQUIRED)
@@ -1006,7 +1004,7 @@ def get_ssl_url_params():
     instance_ca, server_cert, client_cert = certs.Certs.get_cert_names(
         instance_name)
     #ca_file = crts.cert_file(instance_ca)
-    ca_file = crts.cert_file(ROOT_CA_NAME)
+    ca_file = crts.cert_file(crts.root_ca_name)
     cert_file = crts.cert_file(client_cert)
     key_file = crts.private_key_file(client_cert)
     return "cacertfile={ca}&certfile={cert}&keyfile={key}" \

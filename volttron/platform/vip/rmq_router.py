@@ -75,8 +75,8 @@ _log = logging.getLogger(__name__)
 
 class RMQRouter(BaseRouter):
     """
-    Concrete VIP Router for RabbitMQ message bus. It handles router specific messages
-    and unrouteable messages.
+    Concrete VIP Router for RabbitMQ message bus. It handles router specific
+    messages and unrouteable messages.
     """
 
     def __init__(self, address, local_address, instance_name,
@@ -102,7 +102,8 @@ class RMQRouter(BaseRouter):
         self._identity = identity
         self.event_queue = Queue()
         param = self._build_connection_parameters()
-        self.connection = RMQConnection(param, identity, self._instance_name, type='platform')
+        self.connection = RMQConnection(param, identity, self._instance_name,
+                                        type='platform')
 
     def _build_connection_parameters(self):
 
@@ -110,23 +111,28 @@ class RMQRouter(BaseRouter):
             raise ValueError("Agent's VIP identity is not set")
         else:
             permissions = dict(configure=".*", read=".*", write=".*")
-            # Check if RabbitMQ user and certs exists for Router, if not create a new one.
+            # Check if RabbitMQ user and certs exists for Router,
+            # if not create a new one.
             # Add permissions if necessary
             ssl_auth = is_ssl_connection()
-            rmq_user = self._instance_name + '.' + self._identity
-            _log.debug("connection params: {}".format(rmq_user))
+            user = self._instance_name + '.' + self._identity
+            _log.debug("connection params: {}".format(user))
             if ssl_auth:
                 crts = certs.Certs()
-                crts.create_ca_signed_cert(rmq_user, overwrite=False)
-            create_user_with_permissions(rmq_user, permissions, ssl_auth=ssl_auth)
-            param = build_connection_param(self._identity, self._instance_name, ssl_auth)
+                crts.create_ca_signed_cert(user, overwrite=False)
+            create_user_with_permissions(user, permissions, ssl_auth=ssl_auth)
+            param = build_connection_param(self._identity,
+                                           self._instance_name,
+                                           ssl_auth)
+
             if ssl_auth:
                 _log.debug("connection param: {}".format(param.ssl_options))
         return param
 
     def start(self):
         """
-        Register VIP message handler with connection object and create connection to RabbitMQ broker.
+        Register VIP message handler with connection object and create
+        connection to RabbitMQ broker.
         :return:
         """
         self.connection.register(self.handle_system)

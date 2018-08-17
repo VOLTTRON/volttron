@@ -38,47 +38,47 @@
 
 from __future__ import absolute_import, print_function
 
-from contextlib import contextmanager
-from datetime import datetime
-from errno import ENOENT
 import heapq
 import inspect
 import logging
 import os
-import sys
+import signal
 import threading
 import time
 import urlparse
 import uuid
 import weakref
-import signal
+from contextlib import contextmanager
+from errno import ENOENT
 
 import gevent.event
+from gevent.queue import Queue
 from zmq import green as zmq
-from zmq.green import ZMQError, EAGAIN, ENOTSOCK, EADDRINUSE
-from volttron.platform.agent import json
+from zmq.green import ZMQError, EAGAIN, ENOTSOCK
 from zmq.utils.monitor import recv_monitor_message
 
+from volttron.platform import certs
 from volttron.platform import get_address
-from .decorators import annotate, annotations, dualmethod
-from .dispatch import Signal
-from .errors import VIPError
-from .. import green as vip
-from .. import router
-from .... import platform
-from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.agent import utils
-from ..zmq_connection import ZMQConnection
-from ..rmq_connection import RMQConnection
-from ..socket import Message
-from gevent.queue import Queue
 from volttron.platform.agent.utils import load_platform_config
+from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.utils.rmq_mgmt import \
     build_connection_param as build_rmq_connection_param, \
     is_ssl_connection, \
     create_user_with_permissions as create_rmq_user_with_permissions
+<<<<<<< HEAD
 
 from volttron.platform import certs
+=======
+from .decorators import annotate, annotations, dualmethod
+from .dispatch import Signal
+from .errors import VIPError
+from .. import router
+from ..rmq_connection import RMQConnection
+from ..socket import Message
+from ..zmq_connection import ZMQConnection
+from .... import platform
+>>>>>>> 1db52086fd43bb473d6a15cde4fba9c5acabd102
 
 __all__ = ['BasicCore', 'Core', 'RMQCore', 'ZMQCore', 'killing']
 
@@ -185,7 +185,8 @@ class BasicCore(object):
         prev_int_signal = gevent.signal.getsignal(signal.SIGINT)
         # To avoid a child agent handler overwriting the parent agent handler
         if prev_int_signal in [None, signal.SIG_IGN, signal.SIG_DFL]:
-            self.oninterrupt = gevent.signal.signal(signal.SIGINT, self._on_sigint_handler)
+            self.oninterrupt = gevent.signal.signal(signal.SIGINT,
+                                                    self._on_sigint_handler)
         self._owner = owner
 
     def setup(self):
@@ -439,7 +440,8 @@ class ZMQCore(BasicCore):
                  publickey=None, secretkey=None, serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, reconnect_interval=None,
-                 version='0.1', enable_fncs=False, instance_name=None, messagebus='zmq'):
+                 version='0.1', enable_fncs=False,
+                 instance_name=None, messagebus='zmq'):
         self.volttron_home = volttron_home
 
         # These signals need to exist before calling super().__init__()
@@ -521,8 +523,8 @@ class ZMQCore(BasicCore):
         if (self.serverkey is not None and known_serverkey is not None
             and self.serverkey != known_serverkey):
             raise Exception("Provided server key ({}) for {} does "
-                            "not match known serverkey ({}).".format(self.serverkey,
-                                                                     self.address, known_serverkey))
+                            "not match known serverkey ({}).".format(
+                                self.serverkey, self.address, known_serverkey))
 
         # Until we have containers for agents we should not require all
         # platforms that connect to be in the known host file.
@@ -587,7 +589,10 @@ class ZMQCore(BasicCore):
     def loop(self, running_event):
         # pre-setup
         #self.context.set(zmq.MAX_SOCKETS, 30690)
-        self.connection = ZMQConnection(self.address, self.identity, self.instance_name, context=self.context)
+        self.connection = ZMQConnection(self.address,
+                                        self.identity,
+                                        self.instance_name,
+                                        context=self.context)
         self.connection.open_connection(zmq.DEALER)
         flags = dict(hwm=True, reconnect_interval=self.reconnect_interval)
         self.connection.set_properties(flags)
@@ -720,10 +725,8 @@ class ZMQCore(BasicCore):
                         raise
 
                 subsystem = bytes(message.subsystem)
-                # _log.debug("Received new message {0}, {1}, {2}, {3}".format(subsystem,
-                #                                                              message.id,
-                #                                                              len(message.args),
-                #                                                              message.args[0]))
+                # _log.debug("Received new message {0}, {1}, {2}, {3}".format(
+                # subsystem, message.id, len(message.args), message.args[0]))
                 # Handle hellos sent by CONNECTED event
                 if (subsystem == b'hello' and
                             bytes(message.id) == state.ident and
@@ -811,7 +814,8 @@ class RMQCore(BasicCore):
         self.configuration = Signal()
         super(RMQCore, self).__init__(owner)
         self.address = address if address is not None else get_address()
-        self.identity = str(identity) if identity is not None else str(uuid.uuid4())
+        self.identity = str(identity) if identity is not None else \
+            str(uuid.uuid4())
         self.agent_uuid = agent_uuid
         self.publickey = publickey
         self.secretkey = secretkey
@@ -873,28 +877,36 @@ class RMQCore(BasicCore):
         if self.identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
-            # Check if RabbitMQ user and certs exists for this agent, if not create a new one.
+            # Check if RabbitMQ user and certs exists for this agent, if not
+            # create a new one.
             # Add access control/permissions if necessary
 
-            config_access = "{user}|{user}.pubsub.*|{user}.zmq.*".format(user=self.rmq_user)
+            config_access = "{user}|{user}.pubsub.*|{user}.zmq.*".format(
+                user=self.rmq_user)
             read_access = "volttron|{}".format(config_access)
             write_access = "volttron|{}".format(config_access)
-            permissions = dict(configure=config_access, read=read_access, write=write_access)
+            permissions = dict(configure=config_access, read=read_access,
+                               write=write_access)
 
             is_ssl = is_ssl_connection()
             if is_ssl:
                 crts = certs.Certs()
                 crts.create_ca_signed_cert(self.rmq_user, overwrite=False)
-            create_rmq_user_with_permissions(self.rmq_user, permissions, ssl_auth=is_ssl)
 
-            param = build_rmq_connection_param(self.identity, self.instance_name, ssl_auth=is_ssl)
+            create_rmq_user_with_permissions(self.rmq_user, permissions,
+                                             ssl_auth=is_ssl)
+            
+            param = build_rmq_connection_param(self.identity,
+                                               self.instance_name,
+                                               ssl_auth=is_ssl)
 
         return param
 
     def loop(self, running_event):
         param = self._build_connection_parameters()
         # pre-setup
-        self.connection = RMQConnection(param, self.identity, self.instance_name,
+        self.connection = RMQConnection(param, self.identity,
+                                        self.instance_name,
                                         vc_url=self.volttron_central_address)
         yield
 
@@ -924,11 +936,13 @@ class RMQCore(BasicCore):
             self.stop(timeout=5.0)
 
         def hello():
-            # Send hello message to VIP router to confirm connection with platform
+            # Send hello message to VIP router to confirm connection with
+            # platform
             state.ident = ident = b'connect.hello.%d' % state.count
             state.count += 1
             self.spawn(connection_failed_check)
-            message = Message(peer=b'',subsystem=b'hello',id=ident,args=[b'hello'])
+            message = Message(peer=b'', subsystem=b'hello',
+                              id=ident, args=[b'hello'])
             self.connection.send_vip_object(message)
 
         def hello_response(sender, version='',
@@ -948,7 +962,8 @@ class RMQCore(BasicCore):
             self.stop()
             self.ondisconnected.send(self)
 
-        # Connect to RMQ broker. Register a callback to get notified when connection is confirmed
+        # Connect to RMQ broker. Register a callback to get notified when
+        # connection is confirmed
         self.connection.connect(hello, connection_error)
 
         self.onconnected.connect(hello_response)
@@ -967,10 +982,7 @@ class RMQCore(BasicCore):
                     raise
                 if message:
                     subsystem = bytes(message.subsystem)
-                    # _log.debug("Received new message {0}, {1}, {2}, {3}".format(subsystem,
-                    #                                                              message.id,
-                    #                                                              state.ident,
-                    #                                                              message.args[0]))
+
                     if subsystem == b'hello':
                         if (subsystem == b'hello' and
                                     bytes(message.id) == state.ident and
@@ -980,7 +992,8 @@ class RMQCore(BasicCore):
                                 bytes(x) for x in message.args[1:4]]
                             self.__connected = True
                             self.onconnected.send(self, version=version,
-                                                  router=server, identity=identity)
+                                                  router=server,
+                                                  identity=identity)
                             continue
                     try:
                         handle = self.subsystems[subsystem]

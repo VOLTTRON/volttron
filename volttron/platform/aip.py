@@ -672,7 +672,6 @@ class AIPplatform(object):
             ssl = is_ssl_connection()
             if ssl:
                 _log.info("Created agent cert")
-                #create_vagent_cert(rmq_user)
                 crts = certs.Certs()
                 crts.create_ca_signed_cert(rmq_user, overwrite=False)
             create_rmq_user_with_permissions(rmq_user, permissions)

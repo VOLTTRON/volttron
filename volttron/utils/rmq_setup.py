@@ -56,7 +56,6 @@ from volttron.platform import certs
 from volttron.platform import get_home
 from volttron.platform.agent.utils import store_message_bus_config, \
     get_platform_instance_name
-from volttron.platform.certs import ROOT_CA_NAME
 from volttron.utils.prompt import prompt_response, y, y_or_n
 
 
@@ -360,7 +359,7 @@ management.listener.ssl_opts.certfile = {server_cert}
 management.listener.ssl_opts.keyfile = {server_key}""".format(
         mgmt_port_ssl=config_opts.get('mgmt-port-ssl', 15671),
         amqp_port_ssl=config_opts.get('amqp-port-ssl', 5671),
-        ca=crts.cert_file(ROOT_CA_NAME),
+        ca=crts.cert_file(crts.root_ca_name),
         server_cert=crts.cert_file(server_name),
         server_key=crts.private_key_file(server_name)
     )
@@ -408,7 +407,8 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
     _log.info(msg.format(instance_name, config_opts['user'],
                          default_pass, config_opts['host'],
                          config_opts['mgmt-port-ssl'], volttron_rmq_config,
-                         root_ca=crts.cert_file(ROOT_CA_NAME), vhome=vhome))
+                         root_ca=crts.cert_file(crts.root_ca_name),
+                         vhome=vhome))
 
 
 def stop_rabbit(rmq_home, quite=False):
@@ -457,11 +457,12 @@ def _create_certs_without_prompt(admin_client_name, instance_ca_name, server_cer
     global config_opts
 
     if crts.ca_exists():
-        _log.info('\n Root CA Found {}'.format(crts.cert_file(ROOT_CA_NAME)))
+        _log.info('\n Root CA Found {}'.format(crts.cert_file(
+            crts.root_ca_name)))
 
     else:
-        _log.info('\n Root CA ({}) NOT Found. Creating root ca for '
-              'volttron instance'.format(crts.cert_file(ROOT_CA_NAME)))
+        _log.info('\n Creating root ca for volttron instance: {}'.format(
+            crts.cert_file(crts.root_ca_name)))
         cert_data = config_opts.get('certificate-data')
         if not cert_data or not all(k in cert_data for k in ['country',
                                                              'state',
@@ -480,8 +481,8 @@ def _create_certs_without_prompt(admin_client_name, instance_ca_name, server_cer
                 'O': cert_data.get('organization'),
                 'OU': cert_data.get('organization-unit'),
                 'CN': cert_data.get('common-name')}
-        from volttron.platform.packaging import create_ca
-        create_ca(override=False, data=data)
+        _log.info("Creating root ca with the following info: {}".format(data))
+        crts.create_root_ca(overwrite=False, **data)
 
     crts.create_ca_signed_cert(server_cert_name, type='server',
                                fqdn=config_opts.get('host'))
