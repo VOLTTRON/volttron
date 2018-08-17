@@ -37,7 +37,7 @@
 # }}}
 
 """
-    Rabbitmq setup script to setup single instance, federation and shovel
+    RabbitMQ setup script to setup single instance, federation and shovel
 """
 
 import argparse
@@ -170,7 +170,7 @@ def _start_rabbitmq_without_ssl():
             r_conf.write(new_conf)
 
     # Start rabbitmq server
-    _log.info("Starting rabbitmq server")
+    _log.info("Starting RabbitMQ server")
     start_rabbit(config_opts['rmq-home'])
 
 
@@ -470,11 +470,11 @@ def _create_certs_without_prompt(admin_client_name, instance_ca_name, server_cer
                                                              'organization',
                                                              'organization-unit',
                                                              'common-name']):
-            raise ValueError("No certificate data found in {}. Please refer "
-                             "to example config at "
-                             "examples/configs/rabbitmq_config.yml to see "
-                             "list of ssl certificate data to be configured"
-                             "".format(volttron_rmq_config))
+            raise ValueError(
+                "No certificate data found in {}. Please refer to example "
+                "config at examples/configurations/rabbitmq/rabbitmq_config.yml"
+                " to see list of ssl certificate data to be configured".format(
+                    volttron_rmq_config))
         data = {'C': cert_data.get('country'),
                 'ST': cert_data.get('state'),
                 'L': cert_data.get('location'),
@@ -526,10 +526,9 @@ def setup_rabbitmq_volttron(type, verbose=False, prompt=False):
 
     # Initialize global variable. Do it here as this method might be called
     # from volttron-cfg. vcfg might set vhome
-    crts = certs.Certs()
+
     volttron_home = get_home()
     volttron_rmq_config = os.path.join(volttron_home, 'rabbitmq_config.yml')
-
     if verbose:
         _log.setLevel(logging.DEBUG)
         _log.debug("verbose set to True")
@@ -538,6 +537,8 @@ def setup_rabbitmq_volttron(type, verbose=False, prompt=False):
     instance_name = get_platform_instance_name(prompt=True)
     # Store config this is checked at startup
     store_message_bus_config(message_bus='rmq', instance_name=instance_name)
+
+    crts = certs.Certs()
 
     if prompt:
         # ignore any existing rabbitmq_config.yml in vhome. Prompt user and
@@ -552,7 +553,7 @@ def setup_rabbitmq_volttron(type, verbose=False, prompt=False):
                    "and shovel setup config should contain details about the "
                    "other volttron instance with which communication needs "
                    "to be established. Please refer to example config files "
-                   "under examples/configs/rabbitmq_config.yml")
+                   "under examples/configurations/rabbitmq/rabbitmq_config.yml")
         return error
 
     invalid = True
@@ -628,7 +629,7 @@ def _create_rabbitmq_config(instance_name, type):
                                                                + '-root-ca')
             config_opts['certificate-data'] = cert_data
 
-        prompt = "Do you want to use default values for rabbitmq home, " \
+        prompt = "Do you want to use default values for RabbitMQ home, " \
                  "ports, and virtual host:"
         prompt = prompt_response(prompt,
                                  valid_answers=y_or_n,
@@ -649,7 +650,7 @@ def _create_rabbitmq_config(instance_name, type):
             config_opts['mgmt-port'] = prompt_port(15672, prompt)
 
             if config_opts["ssl"] == "true":
-                prompt = 'AMQPS (ssl) port RabbitMQ address:'
+                prompt = 'AMQPS (SSL) port RabbitMQ address:'
                 config_opts['amqp-port-ssl'] = prompt_port(5671, prompt)
 
                 prompt = 'https port for the RabbitMQ management plugin:'
@@ -688,7 +689,7 @@ def _prompt_rmq_home():
     rmq_home = default_dir
     valid_dir = False
     while not valid_dir:
-        prompt = 'Rabbitmq server home:'
+        prompt = 'RabbitMQ server home:'
         rmq_home = prompt_response(prompt, default=rmq_home)
         if rmq_home == default_dir and not os.path.exists(default_dir):
             os.mkdir(default_dir)
@@ -702,7 +703,7 @@ def _prompt_rmq_home():
 
 def _prompt_vhost():
     vhost = config_opts.get('virtual-host', 'volttron')
-    prompt = 'Name of the virtual host under which Rabbitmq V' \
+    prompt = 'Name of the virtual host under which RabbitMQ ' \
              'VOLTTRON will be running:'
     new_vhost = prompt_response(prompt, default=vhost)
     return new_vhost

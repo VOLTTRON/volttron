@@ -79,7 +79,7 @@ http://ryanstutorials.net/linuxtutorial/
 
   **On Redhat based systems:**
 
-  Easiest way to install Erlang for use with Rabbitmq is to use [Zero dependency
+  Easiest way to install Erlang for use with RabbitMQ is to use [Zero dependency
   Erlang RPM](https://github.com/rabbitmq/erlang-rpm). This included only the components required for RabbitMQ.
   Copy the contents of the repo file provided into /etc/yum.repos.d/rabbitmq-erlang.repo and then run yum install erlang. 
   You would need to do both these as root user. Below is a example
@@ -112,13 +112,13 @@ enabled=1
 Make sure that your hostname is correctly configured in /etc/hosts.
 See (https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho)
 
-Hostname should be resolvable to a valid ip. Rabbitmq checks for this during
+Hostname should be resolvable to a valid ip. RabbitMQ checks for this during
 initial boot. Without this (for example, when running on a VM in NAT mode)
-rabbitmq  start would fail with the error "unable to connect to empd (
+RabbitMQ  start would fail with the error "unable to connect to empd (
 port 4369) on <hostname>."
 
-Note: rabbitmq startup error would show up in syslog (/var/log/messages) file
-and not in rabbitmq logs (/var/log/rabbitmq/rabbitmq@hostname.log)
+Note: RabbitMQ startup error would show up in syslog (/var/log/messages) file
+and not in RabbitMQ logs (/var/log/rabbitmq/rabbitmq@hostname.log)
 
 
 **4. Download VOLTTRON code from experimental branch**
@@ -130,9 +130,9 @@ python bootstrap.py --rabbitmq [optional install directory. defaults to
 ```
 
 This will build the platform and create a virtual Python environment and
-dependencies for rabbitmq. It also installs rabbitmq server as the current user.
-If providing a install path, path should exists and be writeable. Rabbitmq will
-be installed under <install dir>/rabbitmq_server-3.7.7 Rest of the
+dependencies for RabbitMQ. It also installs RabbitMQ server as the current user.
+If an install path is provided, path should exists and be writeable. RabbitMQ
+will be installed under <install dir>/rabbitmq_server-3.7.7 Rest of the
 documentation refers to the directory <install dir>/rabbitmq_server-3.7.7 as
 $RABBITMQ_HOME
 
@@ -152,25 +152,29 @@ Running the above command without the optional configuration file parameter will
  prompt user for all the needed data at the command prompt and use that to
  generate a rabbitmq_config.yml file in VOLTTRON_HOME directory.
 
-This scripts creates a new virtual host  and creates ssl certificates needed
+This scripts creates a new virtual host  and creates SSL certificates needed
 for this VOLTTRON instance. These certificates get created under the sub
 directory "certificates" in your VOLTTRON home (typically in ~/.volttron). It
 then creates the main VIP exchange named "volttron" to route message between
 platform and agents and alternate exchange to capture unrouteable messages.
 
-NOTE: We configure rabbitmq instance for a single volttron_home and
+NOTE: We configure RabbitMQ instance for a single volttron_home and
 volttron_instance. This script will confirm with the user the volttron_home to
-be configured. To prevent this prompt users can optionally pass --vhome
-parameter to vcfg.
+be configured. volttron instance name will be read from volttron_home/config
+if available, if not user will be prompted for volttron instance name. To
+run the scripts without any prompts, save the volttron instance name in
+volttron_home/config file and pass the volttron home directory as command line
+argument For example: "vcfg --vhome /home/vdev/.new_vhome --rabbitmq single"
  
-Following is the example inputs for vcfg --rabbitmq single command
+Following is the example inputs for "vcfg --rabbitmq single" command. Since no
+config file is passed the script prompts for necessary details.
 
 ```sh
 Your VOLTTRON_HOME currently set to: /home/vdev/new_vhome2
 
 Is this the volttron you are attempting to setup?  [Y]:
 Creating rmq config yml
-Rabbitmq server home: [/home/vdev/rabbitmq_server/rabbitmq_server-3.7.7]:
+RabbitMQ server home: [/home/vdev/rabbitmq_server/rabbitmq_server-3.7.7]:
 Fully qualified domain name of the system: [cs_cbox.pnl.gov]:
 
 Enable SSL Authentication: [Y]:
@@ -182,11 +186,11 @@ Please enter the following details for root CA certificates
 	Organization: PNNL
 	Organization Unit: Volttron-Team
 	Common Name: [volttron1-root-ca]:
-Do you want to use default values for rabbitmq home, ports, and virtual host: [Y]: N
-Name of the virtual host under which Rabbitmq VVOLTTRON will be running: [volttron]:
+Do you want to use default values for RabbitMQ home, ports, and virtual host: [Y]: N
+Name of the virtual host under which RabbitMQ VOLTTRON will be running: [volttron]:
 AMQP port for RabbitMQ: [5672]:
 http port for the RabbitMQ management plugin: [15672]:
-AMQPS (ssl) port RabbitMQ address: [5671]:
+AMQPS (SSL) port RabbitMQ address: [5671]:
 https port for the RabbitMQ management plugin: [15671]:
 INFO:rmq_setup.pyc:Starting rabbitmq server
 Warning: PID file not written; -detached was passed.
@@ -198,7 +202,7 @@ INFO:rmq_setup.pyc:
 Checking for CA certificate
 
 INFO:rmq_setup.pyc:
- Root CA (/home/vdev/new_vhome2/certificates/certs/volttron-root-ca.crt) NOT Found. Creating root ca for volttron instance
+ Root CA (/home/vdev/new_vhome2/certificates/certs/volttron1-root-ca.crt) NOT Found. Creating root ca for volttron instance
 Created CA cert
 INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
 INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
@@ -212,7 +216,8 @@ INFO:rmq_setup.pyc:
 Setup complete for volttron home /home/vdev/new_vhome2 with instance name=volttron1
 Notes:
  - Please set environment variable VOLTTRON_HOME to /home/vdev/new_vhome2 before starting volttron
- - On production environments, restrict write access to /home/vdev/new_vhome2/certificates/certs/volttron-root-ca.crt to only admin user. For example: sudo chown root /home/vdev/new_vhome2/certificates/certs/volttron-root-ca.crt
+ - On production environments, restrict write access to
+ /home/vdev/new_vhome2/certificates/certs/volttron1-root-ca.crt to only admin user. For example: sudo chown root /home/vdev/new_vhome2/certificates/certs/volttron1-root-ca.crt
  - A new admin user was created with user name: volttron1-admin and password=default_passwd.
    You could change this user's password by logging into https://cs_cbox.pnl.gov:15671/ Please update /home/vdev/new_vhome2/rabbitmq_config.yml if you change password
 
@@ -307,19 +312,25 @@ subcommands:
 We can configure multi-platform VOLTTRON setup with RabbitMQ message bus using
 built-in "federation" feature provided by RabbitMQ.
 
-1. Setup two volttron instances using the above steps. Please note that each
-instance should have a unique name.
+1. Setup two VOLTTRON instances using the above steps. Please note that each
+instance should have a unique instance name.
 
 2. In a multi platform setup that need to communicate with each other with
-   rabbitmq over ssl, each volttron instance should should trust the ROOT CA of
-   the other volttron instance(rabbitmq root ca)
+   RabbitMQ over SSL, each VOLTTRON instance should should trust the ROOT CA of
+   the other instance(RabbitMQ root ca)
 
-   a.  Transfer (scp/sftp/similar) the  first instance root ca crt to
-   the second instance and append the content of the first instance cert file to
-   the volttron-root-ca.crt file on the second instance.
+   a.  Transfer (scp/sftp/similar)
+   voltttron_home/certificates/certs/<instance_name>-root-ca.crt to a temporary
+   location on the other volttron instance machine. For example, if you have two
+   instance v1 and v2, scp v1's v1-root-ca.crt to v2 and
+   v2-root-ca.crt to v1.
 
-   b. Transfer the the second instance root-ca crt to first instance, append
-   second instance's cert contents to first instance volttron-root-ca.
+   b. Append the contents of the transferred root ca to the instance's root ca.
+   For example:
+   On v1:
+   cat /tmp/v2-root-ca.crt >> /home/vdev/.my_volttron_home/certificates/v1-root-ca.crt
+   On v2:
+   cat /tmp/v1-root-ca.crt >> /home/vdev/.my_volttron_home/certificates/v2-root-ca.crt
 
 
 3. Identify upstream servers (publisher nodes) and downstream servers
@@ -335,14 +346,14 @@ upstream servers on the downstream server and make the VOLTTRON exchange
         ```
 
         If no config file is provided, the script will prompt for
-        hostname (or IP address), port, and vhost of each upstream node. The
-        hostname provided should match the hostname in the ssl
-        certificate of the upstream server. For bi-directional data flow,
+        hostname (or IP address), port, and vhost of each upstream node you
+        would like to add. Hostname provided should match the hostname in the
+        SSL certificate of the upstream server. For bi-directional data flow,
         we will have to run the same script on both the nodes.
 
     b.  Create a user in the upstream server(publisher) with
     username=<downstream adminuser name> (i.e. <instance-name>-admin) and
-    provide it access to the  virtualhost of the upstream rabbitmq server. Run
+    provide it access to the  virtual host of the upstream RabbitMQ server. Run
     the below command in the upstream server
 
         ```sh
@@ -350,23 +361,22 @@ upstream servers on the downstream server and make the VOLTTRON exchange
         ./sbin/rabbitmqctl add_user <username> <password>
         ./sbin/rabbitmqctl set_permissions -p volttron <username> ".*" ".*" ".*"
         ```
-3. Test the federation setup.
+4. Test the federation setup.
    a. On the downstream server run a listener agent which subscribes to messages
    from all platforms (set @PubSub.subscribe('pubsub', '', all_platforms=True)
    instead of @PubSub.subscribe('pubsub', '') )
-   b.Start volttron on upstream volttron
-   c. Verify listener agent in downstream volttron instance is able to receive
+   b.Start VOLTTRON on upstream VOLTTRON
+   c. Verify listener agent in downstream VOLTTRON instance is able to receive
    the messages.
 
-4. Open ports and https service if needed
-   On Redhat based systems ports used by rabbbitmq - 5671, 15671 for ssl, 5672
-   and 15672 otherwise - might not be open by default. In that case please
+5. Open ports and https service if needed
+   On Redhat based systems ports used by RabbitMQ (defaults to 5671, 15671 for
+   SSL, 5672 and 15672 otherwise) might not be open by default. Please
    contact system administrator to get ports opened on the downstream server.
    Following are commands used on centos 7.
 
    ```
    sudo firewall-cmd --zone=public --add-port=15671/tcp --permanent
-   sudo firewall-cmd --zone=public --add-port=5671/tcp --permanent
    sudo firewall-cmd --zone=public --add-port=5671/tcp --permanent
    sudo firewall-cmd --reload
    ```
