@@ -465,11 +465,11 @@ def _create_certs_without_prompt(admin_client_name, instance_ca_name, server_cer
                                                              'organization',
                                                              'organization-unit',
                                                              'common-name']):
-            raise ValueError("No certificate data found in {}. Please refer "
-                             "to example config at "
-                             "examples/configs/rabbitmq_config.yml to see "
-                             "list of ssl certificate data to be configured"
-                             "".format(volttron_rmq_config))
+            raise ValueError(
+                "No certificate data found in {}. Please refer to example "
+                "config at examples/configurations/rabbitmq/rabbitmq_config.yml"
+                " to see list of ssl certificate data to be configured".format(
+                    volttron_rmq_config))
         data = {'C': cert_data.get('country'),
                 'ST': cert_data.get('state'),
                 'L': cert_data.get('location'),
@@ -548,7 +548,7 @@ def setup_rabbitmq_volttron(type, verbose=False, prompt=False):
                    "and shovel setup config should contain details about the "
                    "other volttron instance with which communication needs "
                    "to be established. Please refer to example config files "
-                   "under examples/configs/rabbitmq_config.yml")
+                   "under examples/configurations/rabbitmq/rabbitmq_config.yml")
         return error
 
     invalid = True
