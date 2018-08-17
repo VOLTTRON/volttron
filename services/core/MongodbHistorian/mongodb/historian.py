@@ -929,7 +929,7 @@ class MongodbHistorian(BaseHistorian):
 
     @doc_inherit
     def query_topics_by_pattern(self, topics_pattern):
-        _log.debug("In query topics by pattern")
+        _log.debug("In query topics by pattern: {}".format(topics_pattern))
         db = self._client.get_default_database()
         topics_pattern = topics_pattern.replace('/', '\/')
         pattern = {'topic_name': {'$regex': topics_pattern, '$options': 'i'}}
@@ -1077,6 +1077,26 @@ class MongodbHistorian(BaseHistorian):
                 {'table_id': 'meta_table',
                  'table_name': self._meta_collection, 'table_prefix': ''},
                 upsert=True)])
+
+    def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
+        """
+        Remove documents older than `history_limit_timestamp` from
+        all collections when `history_limit_days` is specified in the
+        agent configuration. `storage_limit_gb` is ignored.
+        """
+        history_limit_timestamp = history_limit_timestamp.replace(hour=0,
+                                                                  minute=0,
+                                                                  second=0,
+                                                                  microsecond=0)
+        collection_names = (self._data_collection,
+                            self.HOURLY_COLLECTION,
+                            self.DAILY_COLLECTION)
+
+        db = self._client.get_default_database()
+        query = {"ts": {"$lt": history_limit_timestamp}}
+
+        for collection_name in collection_names:
+            db[collection_name].delete_many(query)
 
 
 def main(argv=sys.argv):

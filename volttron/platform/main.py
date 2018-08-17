@@ -52,6 +52,7 @@ import struct
 import sys
 import threading
 import uuid
+import signal
 
 import gevent
 from gevent.fileobject import FileObject
@@ -359,7 +360,7 @@ class Router(BaseRouter):
         subsystem = bytes(frames[5])
         if subsystem == b'quit':
             sender = bytes(frames[0])
-            if sender == b'control' and user_id == self.default_user_id:
+            if sender == b'control' or b'platform.auth' and user_id == self.default_user_id:
                 if self._ext_routing:
                     self._ext_routing.close_external_connections()
                 self.stop()
@@ -596,6 +597,7 @@ def start_volttron_process(opts):
         if opts.resource_monitor:
             _log.info('Resource monitor enabled')
             opts.resmon = resmon.ResourceMonitor()
+
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
 
@@ -655,11 +657,29 @@ def start_volttron_process(opts):
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise
+        except KeyboardInterrupt:
+            pass
         finally:
             stop()
 
     address = 'inproc://vip'
     try:
+        def on_sigint_handler(signo, *_):
+            '''
+            Event handler to set onstop event when the platform wants to shutdown
+            :param signo: signal interrupt number
+            :param _:
+            :return:
+            '''
+            if signo == signal.SIGINT:
+                _log.info('SIGINT received; shutting down platform')
+                auth.core.socket.send_vip(b'', b'quit')
+
+        oninterrupt = None
+        prev_int_signal = gevent.signal.getsignal(signal.SIGINT)
+        # To override default handler
+        if prev_int_signal in [None, signal.SIG_IGN, signal.SIG_DFL, signal.default_int_handler]:
+            oninterrupt = gevent.signal.signal(signal.SIGINT, on_sigint_handler)
 
         # Start the config store before auth so we may one day have auth use it.
         config_store = ConfigStoreService(address=address, identity=CONFIGURATION_STORE)
@@ -686,6 +706,7 @@ def start_volttron_process(opts):
         thread = threading.Thread(target=router, args=(auth.core.stop,))
         thread.daemon = True
         thread.start()
+
 
         gevent.sleep(0.1)
         if not thread.isAlive():
@@ -759,14 +780,15 @@ def start_volttron_process(opts):
         try:
             gevent.wait(tasks, count=1)
         except KeyboardInterrupt:
-            _log.info('SIGINT received; shutting down')
+            _log.debug('SIGINT received; shutting down')
+        finally:
             sys.stderr.write('Shutting down.\n')
             for task in tasks:
                 task.kill(block=False)
             gevent.wait(tasks)
+            del tasks
     finally:
         opts.aip.finish()
-
 
 def main(argv=sys.argv):
     # Refuse to run as root

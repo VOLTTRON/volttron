@@ -1,0 +1,22 @@
+{
+  "period": 900, # Post cleaned data every 15 minutes.
+  # Points to clean.
+  "points": {
+    "fake0/OutsideAirTemperature1": {
+      "min_value": 0,
+      "max_value": 100,
+      "output_topic": "record/cleaned/fake0/OutsideAirTemperature1",
+      "aggregate_method": "avg"
+    },
+    "fake0/SampleWritableFloat1": {
+      "min_value": 50,
+      "max_value": 75,
+      "output_topic": "record/cleaned/fake0/SampleWritableFloat1"
+    },
+    "fake0/SampleLong1": {
+      "min_value": 25,
+      "max_value": 125,
+      "output_topic": "record/cleaned/fake0/SampleLong1"
+    }
+  }
+}

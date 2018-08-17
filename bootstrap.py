@@ -73,12 +73,13 @@ from __future__ import print_function
 
 import argparse
 import errno
+import json
 import logging
-import os
 import subprocess
 import sys
-import json
 
+import os
+from distutils.version import LooseVersion
 
 _log = logging.getLogger(__name__)
 
@@ -101,7 +102,6 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
     '''
     # Imports used only for bootstrapping the environment
     import contextlib
-    import re
     import shutil
     import tarfile
     import tempfile
@@ -133,23 +133,41 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
                 sys.exit(1)
             return response
 
+        def _url_available(self, url):
+            '''Open url and if response is 200 then return True else return False'''
+            _log.debug('Checking url %s', url)
+            try:
+                response = urllib2.urlopen(url)
+                if response.getcode() != 200:
+                    return False
+            except urllib2.HTTPError:
+                return False
+            return True
+
         def get_version(self):
-            '''Return the latest version from virtualenv DOAP record.'''
-            _log.info('Downloading virtualenv DOAP record')
-            doap_url = ('https://pypi.python.org/pypi'
-                        '?:action=doap&name=virtualenv')
-            with contextlib.closing(self._fetch(doap_url)) as response:
-                doap_xml = response.read()
-            self.version = re.search(
-                r'<revision>([^<]*)</revision>', doap_xml).group(1)
-            return self.version
+            """Return the latest version from virtualenv DOAP record."""
+            _log.info('Downloading virtualenv package information')
+            default_version = "15.1.0"
+            url = 'https://pypi.python.org/pypi/virtualenv/json'
+            with contextlib.closing(self._fetch(url)) as response:
+                result = json.load(response)
+                releases_dict = result.get("releases", {})
+                releases = sorted(
+                    [LooseVersion(x) for x in releases_dict.keys()])
+            if releases:
+                _log.info('latest release of virtualenv={}'.format(releases[-1]))
+                return str(releases[-1])
+            else:
+                _log.info("Returning default version of virtualenv "
+                          "({})".format(default_version))
+                return default_version
 
         def download(self, directory):
             '''Download the virtualenv tarball into directory.'''
             if self.version is None:
-                self.get_version()
-            url = ('https://github.com/pypa/virtualenv/archive/'
-                   '{}.tar.gz'.format(self.version))
+                self.version = self.get_version()
+            url = ('https://pypi.python.org/packages/source/v/virtualenv/'
+                   'virtualenv-{}.tar.gz'.format(self.version))
             _log.info('Downloading virtualenv %s', self.version)
             tarball = os.path.join(directory, 'virtualenv.tar.gz')
             with contextlib.closing(self._fetch(url)) as response:
@@ -215,7 +233,13 @@ def update(operation, verbose=None, upgrade=False, offline=False):
         try:
             import wheel
         except ImportError:
-            pip('install', ['wheel'], verbose, offline=offline)
+            # wheel version 0.31 breaks packaging.
+            # TODO Look towards fixing the packaging so that it works with 0.31
+            pip('install', ['wheel==0.30'], verbose, offline=offline)
+    # Downgrade wheel if necessary so things don't break.
+    # TODO Fix hard coded version in this spot...should be somewhere else.
+    pip('install', ['wheel==0.30'], verbose, offline=offline)
+
     # Build option_requirements separately to pass install options
     build_option = '--build-option' if wheeling else '--install-option'
     for requirement, options in option_requirements:

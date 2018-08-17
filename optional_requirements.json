@@ -5,7 +5,7 @@
     },
     "--testing": {
         "help": "Installs testing infrastructure dependencies",
-        "packages": ["pytest==3.1.1", "pytest-timeout", "mock", "websocket-client",
+        "packages": ["pytest", "pytest-timeout", "mock", "websocket-client",
 			"pytest-catchlog"]
     },
     "--crate": {
@@ -26,7 +26,8 @@
     },
     "--documentation": {
         "help": "Installs requirements for building the documentation",
-        "packages": ["sphinx", "mock", "psutil","pymongo","mysql-connector-python-rf"]
+        "packages": ["sphinx==1.7.2", "mock", "psutil","pymongo",
+            "mysql-connector-python-rf"]
     },
     "--market": {
         "help": "Installs requirements for the market service",

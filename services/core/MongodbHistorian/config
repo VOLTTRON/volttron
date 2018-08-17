@@ -4,9 +4,9 @@
         "params": {
             "host": "localhost",
             "port": 27017,
-            "database": "test_historian",
-            "user": "historian",
-            "passwd": "historian"
+            "database": "mongo_test",
+            "user": "test",
+            "passwd": "test"
         }
     },
     "readonly":false,

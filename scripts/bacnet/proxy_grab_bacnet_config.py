@@ -53,7 +53,8 @@ from volttron.platform.agent import utils
 from volttron.platform.agent.bacnet_proxy_reader import BACnetReader
 from volttron.platform.keystore import KeyStore
 from volttron.platform.messaging import topics
-from volttron.platform.vip.agent import Agent, PubSub, errors, build_agent
+from volttron.platform.vip.agent import Agent, PubSub, errors
+from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.jsonrpc import RemoteError
 
 

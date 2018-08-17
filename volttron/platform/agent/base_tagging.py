@@ -70,6 +70,7 @@ from __future__ import absolute_import, print_function
 
 import logging
 import os
+import re
 
 from abc import abstractmethod
 
@@ -87,10 +88,13 @@ class BaseTaggingService(Agent):
     the tag details
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, historian_vip_identity=None, **kwargs):
         super(BaseTaggingService, self).__init__(**kwargs)
         self.valid_tags = dict()
         self.tag_refs = dict()
+        self.historian_vip_identity = historian_vip_identity
+        if historian_vip_identity is None:
+            self.historian_vip_identity = PLATFORM_HISTORIAN
         current_dir = os.path.dirname(os.path.abspath(__file__))
         self.resource_sub_dir = os.path.join(current_dir, "../../..",
                                              "volttron_data/tagging_resources")
@@ -490,10 +494,12 @@ class BaseTaggingService(Agent):
         Add tags to specific topic name or topic name prefix. Calls the method
         :py:meth:`BaseTaggingService.add_tags`.
 
-        Note: Use of this api require's platform.historian to be running. This
-        api makes RPC calls to platform.historian's get_topic_list api to
+        Note: Use of this api require's a configured historian to be running.
+        This can be configured using the optional historian_id
+        configuration.If not configured, defaults to platform.historian. This
+        api makes RPC calls to historian to get_topic_list api to
         get the list of topics. This is used to find topic/topic prefix
-        matching any given input topic pattern.
+        matching any given input topic pattern or specific topic prefix.
 
         :param topic_prefix: topic name or topic name prefix
         :param tags: dictionary of tag and value in the format 
@@ -562,12 +568,13 @@ class BaseTaggingService(Agent):
 
     def get_matching_topic_prefixes(self, topic_pattern):
         """
-        Queries the platform historian to get the list of topics that match the
-        given topic pattern. So use of this api require's platform.historian
-        to be running. This api makes RPC calls to platform.historian's
-        :py:meth:`BaseHistorian.get_topic_list` to get the list of topics.
-        This is used to find topic/topic prefix matching any given input
-        topic pattern.
+        Queries the configured/platform historian to get the list of topics
+        that match the given topic pattern. So use of this api require's
+        the configured historian (or platform.historian if specific historian id
+        is not specified) to be running. This api makes RPC calls to
+        platform.historian's :py:meth:`BaseHistorian.get_topic_list` to get
+        the list of topics. This is used to find topic/topic prefix matching
+        any given input topic pattern.
 
         Pattern matching done here is not true string pattern matching.
         Matches are applied to different topic_prefix.
@@ -584,8 +591,10 @@ class BaseTaggingService(Agent):
         topic_pattern = topic_pattern.replace("*", ".*")
         topic_prefixes = set()
         try:
+            _log.debug("Querying {} for matching topics for pattern "
+                       "{}".format(self.historian_vip_identity, topic_pattern))
             topic_map = self.vip.rpc.call(
-                PLATFORM_HISTORIAN,
+                self.historian_vip_identity,
                 "get_topics_by_pattern",
                 topic_pattern=topic_pattern).get(timeout=5)
             point_topics = topic_map.keys()
@@ -604,15 +613,24 @@ class BaseTaggingService(Agent):
                     # to full topic names
                     topic_parts = topic.split("/")
                     pattern_parts = topic_pattern.split("/")
-                    topic_prefixes.add(
-                        '/'.join(topic_parts[ :len(pattern_parts)]))
+                    result_prefix = '/'.join(topic_parts[:len(pattern_parts)])
+
+                    # get topics_by_pattern will return based on re.match
+                    # which is anything starting with given pattern
+                    # but if the pattern is /campus1/device1 we want to
+                    # match /campus1/device1 and not /campus1/device11
+                    # if pattern is /campus1/device1.* then we match both
+                    # device1 and device11
+                    if re.match(topic_pattern+"$", result_prefix):
+                        topic_prefixes.add(result_prefix)
 
             _log.debug("topic prefixes {}".format(topic_prefixes))
         except Unreachable:
             _log.error("add_topic_tags and add_tags "
                        "operations need plaform.historian to be running."
                        "Topics and topic patterns sent are matched against "
-                       "list of valid topics queried from platform.historian")
+                       "list of valid topics queried"
+                       " from {}".format(self.historian_vip_identity))
             raise
 
         except Exception as e:

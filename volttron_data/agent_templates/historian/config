@@ -1,0 +1,30 @@
+{
+  # VOLTTRON config files are JSON with support for python style comments.
+  "connection_parameters": {
+                            "address": "localhost",
+                            "port": 1337
+                            },
+  # Following parameters are passed to the base historian and are common to all
+  # historians. Unchanged, these values are the defaults.
+  "retry_period": 300.0,
+  "submit_size_limit": 1000, # Largest batch to submit to publish_to_historian.
+  "max_time_publishing": 30.0, # How long to continually publish before we are considered backlogged.
+  "backup_storage_limit_gb": null, # Maximum size of backup cache.
+
+  # List of topic replacement string records in the form
+  # {"from": <input string>, "to": <output string>}
+  "topic_replace_list": [],
+
+  "gather_timing_data": false, # For benchmarking historians.
+  "readonly": false, # Turn off data collection.
+
+  # Which catagories of data to collect.
+  "capture_device_data": true,
+  "capture_log_data": true,
+  "capture_analysis_data": true,
+  "capture_record_data": true,
+
+  "message_publish_count": 10000, # How frequently to log the total number of publishes.
+  "history_limit_days": null, # Number of days back to store data. Historian must implement manage_db_size.
+  "storage_limit_gb": null # Limit to data size. Historian must implement manage_db_size.
+}

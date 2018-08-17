@@ -1,0 +1,14 @@
+{
+  "connection": {
+    "params": {
+      "host": "localhost",
+      "port": 8086,
+      "database": "historian",
+      "user": "admin",
+      "passwd": "admin"
+    }
+  },
+  "aggregations": {
+    "use_calendar_time_periods": true
+  }
+}

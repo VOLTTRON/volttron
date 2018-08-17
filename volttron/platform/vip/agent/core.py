@@ -173,7 +173,7 @@ class BasicCore(object):
         self.oninterrupt = None
         prev_int_signal = gevent.signal.getsignal(signal.SIGINT)
         # To avoid a child agent handler overwriting the parent agent handler
-        if prev_int_signal in [None, signal.SIG_IGN, signal.SIG_DFL]:
+        if prev_int_signal in [None, signal.SIG_IGN, signal.SIG_DFL, signal.default_int_handler]:
             self.oninterrupt = gevent.signal.signal(signal.SIGINT, self._on_sigint_handler)
         self._owner = owner
 
@@ -314,10 +314,9 @@ class BasicCore(object):
         :param _:
         :return:
         '''
-        _log.debug("SIG interrupt received. Calling stop")
+        _log.debug("SIG interrupt received. Setting stop event")
         if signo == signal.SIGINT:
             self._stop_event.set()
-            #self.stop()
 
     def send(self, func, *args, **kwargs):
         self._async_calls.append((func, args, kwargs))
@@ -428,7 +427,7 @@ class Core(BasicCore):
                  publickey=None, secretkey=None, serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, reconnect_interval=None,
-                 version='0.1'):
+                 version='0.1', enable_fncs=False):
 
         self.volttron_home = volttron_home
 
@@ -459,6 +458,7 @@ class Core(BasicCore):
         self.subsystems = {'error': self.handle_error}
         self.__connected = False
         self._version = version
+        self._fncs_enabled=enable_fncs
 
     def version(self):
         return self._version

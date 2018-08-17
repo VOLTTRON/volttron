@@ -8,6 +8,8 @@ import tempfile
 from time import sleep
 import sys
 
+import yaml
+
 
 logging.basicConfig(level=logging.WARN)
 log = logging.getLogger(os.path.basename(__file__))
@@ -52,7 +54,7 @@ from volttron.platform import get_address, get_home, get_volttron_root, \
     is_instance_running
 from volttron.platform.packaging import create_package, add_files_to_package
 
-__version__ = '0.2'
+__version__ = '0.3'
 
 
 def _build_copy_env(opts):
@@ -88,6 +90,17 @@ def remove_agent(opts, agent_uuid):
     process.wait()
 
 
+def install_requirements(agent_source):
+    req_file = os.path.join(agent_source, "requirements.txt")
+    if os.path.exists(req_file):
+        log.info("Installing requirements for agent.")
+        cmds = ["pip", "install", "-r", req_file]
+        try:
+            subprocess.check_call(cmds)
+        except subprocess.CalledProcessError:
+            sys.exit(1)
+
+
 def install_agent(opts, package, config):
     """
     The main installation method for installing the agent on the correct local
@@ -106,14 +119,15 @@ def install_agent(opts, package, config):
     else:
         cfg = tempfile.NamedTemporaryFile()
         with open(cfg.name, 'w') as fout:
-            fout.write(jsonapi.dumps(config))
+            fout.write(yaml.safe_dump(config)) # jsonapi.dumps(config))
         config_file = cfg.name
 
     try:
         with open(config_file) as fp:
-            data = json.load(fp)
+            data = yaml.safe_load(fp)
+            # data = json.load(fp)
     except:
-        log.error("Invalid json config file.")
+        log.error("Invalid yaml/json config file.")
         sys.exit(-10)
 
     # Configure the whl file before installing.
@@ -211,6 +225,7 @@ def install_agent(opts, package, config):
                 valueline += "%s" % output_dict[keys[k]]
         sys.stdout.write("%s\n%s\n" % (keyline, valueline))
 
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(version=__version__)
@@ -245,9 +260,11 @@ if __name__ == '__main__':
                         help="format the standard out output to csv")
     parser.add_argument("--json", action="store_true",
                         help="format the standard out output to jso")
+    parser.add_argument("--skip-requirements", action="store_true",
+                        help="skip a requirements.txt file if it exists.")
 
     opts = parser.parse_args()
-
+    
     agent_source = opts.agent_source
     if not os.path.isdir(agent_source):
         if os.path.isdir(os.path.join(opts.volttron_root, agent_source)):
@@ -311,6 +328,10 @@ if __name__ == '__main__':
             "Force option specified without a target identity to force.")
         sys.exit(-10)
 
+    if not opts.skip_requirements:
+        # use pip requirements.txt file and install dependencies if nessary.
+        install_requirements(agent_source)
+
     opts.package = create_package(agent_source, wheelhouse, opts.vip_identity)
 
     if not os.path.isfile(opts.package):
@@ -318,20 +339,46 @@ if __name__ == '__main__':
         sys.exit(-10)
 
     jsonobj = None
+    # At this point if we have opts.config, it will be an open reference to the
+    # passed config file.
     if opts.config:
-        tmpconfigfile = tempfile.NamedTemporaryFile()
+        # Attempt to use the yaml parser directly first
+        try:
+            tmp_cfg_load = yaml.safe_load(opts.config.read())
+            opts.config = tmp_cfg_load
 
-        with open(tmpconfigfile.name, 'w') as fout:
+        except yaml.scanner.ScannerError:
+            sys.stderr.write("Invalid yaml file detect, attempting to parser using json parser.\n")
+            opts.config.seek(0)
+            should_parse_json = False
             for line in opts.config:
                 line = line.partition('#')[0]
                 if line.rstrip():
-                    fout.write(line.rstrip())
-        config_file = tmpconfigfile.name
-        try:
-            with open(tmpconfigfile.name) as f:
-                opts.config = jsonapi.loads(f.read())
-        finally:
-            tmpconfigfile.close()
+                    if line.rstrip()[0] in ('{', '['):
+                        should_parse_json = True
+                        break
+            if not should_parse_json:
+                sys.stderr.write("Invalid json file detected, must start with { or [ character.\n")
+                sys.exit(1)
+
+            # Yaml failed for some reason, could be invalid yaml or could
+            # have embedded invalid character in a json file.  So now we
+            # are going to try to deal with json here.
+
+            tmpconfigfile = tempfile.NamedTemporaryFile()
+            opts.config.seek(0)
+            with open(tmpconfigfile.name, 'w') as fout:
+
+                for line in opts.config:
+                    line = line.partition('#')[0]
+                    if line.rstrip():
+                        fout.write(line.rstrip() + "\n")
+            config_file = tmpconfigfile.name
+            try:
+                with open(tmpconfigfile.name) as f:
+                    opts.config = jsonapi.loads(f.read())
+            finally:
+                tmpconfigfile.close()
 
     if opts.config:
         install_agent(opts, opts.package, opts.config)
