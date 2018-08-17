@@ -66,10 +66,6 @@ from volttron.utils.rmq_mgmt import \
     build_connection_param as build_rmq_connection_param, \
     is_ssl_connection, \
     create_user_with_permissions as create_rmq_user_with_permissions
-<<<<<<< HEAD
-
-from volttron.platform import certs
-=======
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
 from .errors import VIPError
@@ -78,7 +74,6 @@ from ..rmq_connection import RMQConnection
 from ..socket import Message
 from ..zmq_connection import ZMQConnection
 from .... import platform
->>>>>>> 1db52086fd43bb473d6a15cde4fba9c5acabd102
 
 __all__ = ['BasicCore', 'Core', 'RMQCore', 'ZMQCore', 'killing']
 
@@ -895,7 +890,7 @@ class RMQCore(BasicCore):
 
             create_rmq_user_with_permissions(self.rmq_user, permissions,
                                              ssl_auth=is_ssl)
-            
+
             param = build_rmq_connection_param(self.identity,
                                                self.instance_name,
                                                ssl_auth=is_ssl)

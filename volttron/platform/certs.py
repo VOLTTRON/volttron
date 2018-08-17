@@ -635,8 +635,5 @@ class Certs(object):
             kwargs['CN'] = self.default_root_ca_cn
 
         cert, pk = _mk_cacert(**kwargs)
-<<<<<<< HEAD
-        self._save_cert(ROOT_CA_NAME, cert, pk)
-=======
+
         self._save_cert(self.root_ca_name, cert, pk)
->>>>>>> 1db52086fd43bb473d6a15cde4fba9c5acabd102
