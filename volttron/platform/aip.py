@@ -421,7 +421,9 @@ class AIPplatform(object):
         if msg_bus == 'rmq':
             # Delete RabbitMQ user for the agent
             identity = self.agent_identity(agent_uuid)
-            delete_rmq_user(identity)
+            instance_name = get_platform_instance_name()
+            rmq_user = instance_name + '.' + identity
+            delete_rmq_user(rmq_user)
         self.agents.pop(agent_uuid, None)
         if remove_auth:
             self._unauthorize_agent_keys(agent_uuid)

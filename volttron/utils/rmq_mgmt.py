@@ -99,7 +99,6 @@ def call_grequest(method_name, url_suffix, ssl_auth=True, **kwargs):
     try:
         fn = getattr(grequests, method_name)
         request = fn(url, **kwargs)
-        _log.debug("GREQUEST: {}, {}".format(url, kwargs))
         response = grequests.map([request])
         if response and isinstance(response, list):
             response[0].raise_for_status()
@@ -339,7 +338,8 @@ def get_url_prefix(ssl_auth):
         prefix = 'https://{host}:{port}'.format(host=get_hostname(),
                                                 port=get_mgmt_port_ssl())
     else:
-        prefix = 'http://localhost:{port}'.format(port=get_mgmt_port())
+        prefix = 'http://{host}:{port}'.format(host=get_hostname(),
+                                               port=get_mgmt_port())
     return prefix
 
 
