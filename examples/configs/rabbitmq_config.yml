@@ -36,18 +36,18 @@ rmq-home: "/home/volttron/rabbitmq_server/rabbitmq_server-3.7.7"
 
 # Mandatory parameters for federation setup
 federation-upstream:
-- host: rabbit-4
-  port: '5671'
-  virtual-host: volttron4
-- host: rabbit-5
-  port: '5671'
-  virtual-host: volttron5
-- host: rabbit-6
-  port: '5671'
-  virtual-host: volttron6
-- host: rabbit-7
-  port: '5671'
-  virtual-host: volttron7
+  rabbit-4:
+    port: '5671'
+    virtual-host: volttron4
+  rabbit-5:
+    port: '5671'
+    virtual-host: volttron5
+  rabbit-6:
+    port: '5671'
+    virtual-host: volttron6
+  rabbit-7:
+    port: '5671'
+    virtual-host: volttron7
 
 # Mandatory parameters for federation setup
 shovel:
