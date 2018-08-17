@@ -16,7 +16,6 @@ There are nine arguments for the "driver_config" section of the device configura
     - **ping_retry_interval** - (Optional) The driver will ping the device to establish a route at startup. If the BACnet proxy is not available the driver will retry the ping at this interval until it succeeds. Defaults to 5.
     - **use_read_multiple** - (Optional) During a scrape the driver will tell the proxy to use a ReadPropertyMultipleRequest to get data from the device. Otherwise the proxy will use multiple ReadPropertyRequest calls. If the BACnet proxy is reporting a device is rejecting requests try changing this to false for that device. Be aware that setting this to false will cause scrapes for that device to take much longer. Only change if needed. Defaults to true.
     - **cov_lifetime** - (Optional) When a device establishes a change of value subscription for a point, this argument will be used to determine the lifetime and renewal period for the subscription, in seconds. Defaults to 180. (Added to Master Driver version 3.2)
-    - **cov_scrape_all** - (Optional) During a scrape, this value determines whether points flagged as change of value points in the registry configuration will be included in the results. Defaults to false. (Added to Master Driver version 3.2)
 
 Here is an example device configuration file:
 

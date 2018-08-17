@@ -283,7 +283,7 @@ class Interface(BaseInterface):
         of the subscription."""
         register = self.get_register_by_name(point_name)
         try:
-            self.vip.rpc.call(self.proxy_address, 'generate_COV_sub', self.target_address,
+            self.vip.rpc.call(self.proxy_address, 'create_COV_subscription', self.target_address,
                               point_name, register.object_type, register.instance_number,
                               lifetime=lifetime)
         except errors.Unreachable:

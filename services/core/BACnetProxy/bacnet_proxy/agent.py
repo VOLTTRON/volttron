@@ -792,7 +792,7 @@ class BACnetProxyAgent(Agent):
 
     # Called by the BACnet interface to establish a COV subscription with a BACnet device
     @RPC.export
-    def generate_COV_sub(self, target_address, point_name, object_type, instance_number, lifetime=None):
+    def create_COV_subscription(self, target_address, point_name, object_type, instance_number, lifetime=None):
         # TODO check that the device supports cov
         subscription = None
         for sub in self.this_application.sub_cov_contexts:
