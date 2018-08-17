@@ -76,8 +76,8 @@ from volttron.platform import get_home
 _log = logging.getLogger(__name__)
 
 ROOT_CA_NAME = 'volttron-root-ca'
-DEFAULT_ROOT_CA_CN = '{} {}'.format(gethostname(), ROOT_CA_NAME)
-DEFAULT_CERTS_DIR = os.path.join(get_home(), 'certificates')
+DEFAULT_ROOT_CA_CN = None
+DEFAULT_CERTS_DIR = None
 KEY_SIZE = 1024
 ENC_STANDARD = 65537
 SHA_HASH = 'sha256'
@@ -293,6 +293,10 @@ class Certs(object):
 
     def __init__(self, certificate_dir=None):
         """Creates a Certs instance"""
+        global DEFAULT_ROOT_CA_CN, DEFAULT_CERTS_DIR
+        DEFAULT_ROOT_CA_CN = '{} {}'.format(gethostname(), ROOT_CA_NAME)
+        DEFAULT_CERTS_DIR = os.path.join(get_home(), 'certificates')
+
         if not certificate_dir:
             certificate_dir = DEFAULT_CERTS_DIR
         # If user provided explicit directory then it should exist

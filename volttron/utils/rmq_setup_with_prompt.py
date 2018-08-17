@@ -204,6 +204,8 @@ def _set_initial_rabbit_config(instance_name):
     if prompt in y:
         config_opts['amqp-port'] = '5672'
         config_opts['mgmt-port'] = '15672'
+        config_opts['amqp-port-ssl'] = '5671'
+        config_opts['mgmt-port-ssl'] = '15671'
         config_opts['rmq-address'] = build_rmq_address(ssl_auth=False,
                                                        config=config_opts)
         config_opts.sync()
@@ -527,8 +529,8 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
     # updated rabbitmq_config.json
     config_opts['user'] = admin_client_name
     config_opts['pass'] = ""
-    config_opts['amqp-port'] = '5671'
-    config_opts['mgmt-port'] = '15671'
+    config_opts['amqp-port-ssl'] = '5671'
+    config_opts['mgmt-port-ssl'] = '15671'
     config_opts.sync()
 
     # Stop server, move new config file with ssl params, start server
@@ -544,7 +546,7 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
           "logging into https://{}:{}/"
           "\n#######################".format(config_opts['user'],
                                              default_pass, config_opts['host'],
-                                             config_opts['mgmt-port']))
+                                             config_opts['mgmt-port-ssl']))
 
 
 def stop_rabbit(rmq_home, quite=False):

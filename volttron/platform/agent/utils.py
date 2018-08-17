@@ -196,11 +196,10 @@ def create_vagent_cert(rmq_user):
     """
     crts = certs.Certs()
     instance_name = get_platform_instance_name()
-    instance_ca, server, admin = certs.Certs.get_cert_names(instance_name)
     _log.debug("create_vagent_cert: {}".format(rmq_user))
     # If no certs for this agent, create a new one
     if not crts.cert_exists(rmq_user):
-        crts.create_ca_signed_cert(rmq_user, ca_name=instance_ca)
+        crts.create_ca_signed_cert(rmq_user)
 
 
 def get_messagebus():

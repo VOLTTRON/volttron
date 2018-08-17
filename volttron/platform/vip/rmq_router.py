@@ -361,7 +361,8 @@ class RMQRouter(BaseRouter):
         :param user: Agent identity
         :return:
         """
-        user_error_msg = self._check_user_permissions(identity)
+        user_error_msg = self._check_user_permissions(self._instance_name +
+                                                      "." + identity)
         return user_error_msg
 
     def _check_user_permissions(self, identity):

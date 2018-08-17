@@ -50,13 +50,14 @@ import traceback
 import errno
 
 from wheel.install import WheelFile
-from .packages import *
-from . import config
-from .agent import utils
+from volttron.platform.packages import *
+from volttron.platform.agent import utils
 from volttron.platform import get_volttron_data, get_home
 from volttron.utils.prompt import prompt_response
 from volttron.platform import certs
 from volttron.platform.agent.utils import get_platform_instance_name
+from volttron.platform import config
+
 try:
      from volttron.restricted import auth
 except ImportError:
@@ -440,7 +441,7 @@ def _cert_type_from_kwargs(**kwargs):
     return None
 
 
-def create_ca(override=True):
+def create_ca(override=True, data=None):
     """Creates a root ca cert using the Certs class"""
     crts = certs.Certs()
     if crts.ca_exists():
@@ -455,8 +456,8 @@ def create_ca(override=True):
                 return
         else:
             return
-
-    data = _create_cert_ui(certs.DEFAULT_ROOT_CA_CN)
+    if not data:
+        data = _create_cert_ui(certs.DEFAULT_ROOT_CA_CN)
     crts.create_root_ca(**data)
 
 def create_instance_ca(instance_name):
@@ -486,7 +487,8 @@ def _create_cert(name=None, **kwargs):
 
     instance_name = get_platform_instance_name()
     instance_ca, server, admin = certs.Certs.get_cert_names(instance_name)
-    crts.create_ca_signed_cert(name, ca_name=instance_ca,  **cert_data)
+    #crts.create_ca_signed_cert(name, ca_name=instance_ca,  **cert_data)
+    crts.create_ca_signed_cert(name, **cert_data)
 
 
 def _create_cert_ui(cn):
