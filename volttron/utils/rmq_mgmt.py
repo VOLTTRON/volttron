@@ -101,15 +101,14 @@ def call_grequest(method_name, url_suffix, ssl_auth=True, **kwargs):
         if response and isinstance(response, list):
             response[0].raise_for_status()
     except (ConnectionError, NewConnectionError):
-        print ("Connection to {} not available".format(url))
         response = None
     except requests.exceptions.HTTPError as e:
         # print("Exception when trying to make HTTP request "
         #       "to RabbitMQ {}".format(e))
         response = None
     except AttributeError as e:
-        print("Exception when trying to make HTTP request "
-              "to RabbitMQ {}".format(e))
+        # print("Exception when trying to make HTTP request "
+        #       "to RabbitMQ {}".format(e))
         response = None
     return response
 
@@ -999,7 +998,7 @@ def get_ssl_url_params():
 def create_rmq_volttron_test_setup(volttron_home, host='localhost'):
     global config_opts
     _load_rmq_config(volttron_home)
-    # print(config_opts)
+
     ssl_auth = False
     # Set vhost, username, password, hostname and port
     config_opts['virtual-host'] = 'volttron_test'
@@ -1021,20 +1020,12 @@ def cleanup_rmq_volttron_test_setup(volttron_home):
     global config_opts
     _load_rmq_config(volttron_home)
     try:
-        vhost = config_opts.get('virtual-host', 'volttron_test')
         users = get_users(ssl_auth=False)
         users.remove('guest')
         users_to_remove = []
-        for user in users:
-            perm = get_user_permissions(user, vhost, ssl_auth=False)
-            print perm
-            if perm:
-                users_to_remove.append(user)
         print("Users to remove: {}".format(users_to_remove))
         # Delete all the users using virtual host
         for user in users_to_remove:
             delete_user(user)
-        # Finally delete the virtual host
-        delete_vhost(config_opts['virtual-host'])
     except KeyError as e:
         return

@@ -61,7 +61,8 @@ from volttron.platform.certs import ROOT_CA_NAME
 from rmq_mgmt import is_ssl_connection, get_vhost, http_put_request, \
     set_policy, build_rmq_address, is_valid_amqp_port, \
     is_valid_mgmt_port, init_rabbitmq_setup, get_ssl_url_params, create_user, \
-    set_user_permissions, set_parameter
+    set_user_permissions, set_parameter, \
+    cleanup_rmq_volttron_test_setup
 
 try:
     import yaml
@@ -179,8 +180,9 @@ def _create_federation_setup():
             ssl_params = get_ssl_url_params()
         try:
             for upstream in federation:
-                print("Upstream Server: {host} ".format(upstream['host']))
-                name = "upstream-{host}".format(host=upstream['host'])
+                name = "upstream-{vhost}-{host}".format(vhost=upstream['virtual-host'],
+                                                        host=upstream['host'])
+                print("Upstream Server: {name} ".format(name=name))
                 if is_ssl:
                     address = "amqps://{host}:{port}/{vhost}?" \
                               "{ssl_params}&server_name_indication={host}".format(
@@ -230,7 +232,7 @@ def _create_shovel_setup():
     src_uri = build_rmq_address(is_ssl)
     if is_ssl:
         ssl_params = get_ssl_url_params()
-    print shovels
+
     try:
         for shovel in shovels:
             # Build destination address
@@ -267,9 +269,9 @@ def _create_shovel_setup():
                                         "dest-exchange": "volttron"}
                             )
                 print "shovel property: {}".format(prop)
-                # set_parameter("shovel",
-                #               name,
-                #               prop)
+                set_parameter("shovel",
+                              name,
+                              prop)
 
             for identity in agent_ids:
                 print "Creating shovel to make RPC call to remote Agent : {}".format(topic)
@@ -287,9 +289,9 @@ def _create_shovel_setup():
                                         "dest-exchange": "volttron"}
                                 )
                 print "shovel property: {}".format(prop)
-                # set_parameter("shovel",
-                #               name,
-                #               prop)
+                set_parameter("shovel",
+                              name,
+                              prop)
     except KeyError as exc:
         print("Shovel setup  did not complete. Missing Key: {}".format(exc))
 
