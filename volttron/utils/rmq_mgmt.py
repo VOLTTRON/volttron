@@ -335,8 +335,7 @@ def get_url_prefix(ssl_auth):
         prefix = 'https://{host}:{port}'.format(host=get_hostname(),
                                                 port=get_mgmt_port_ssl())
     else:
-        prefix = 'http://{host}:{port}'.format(host=get_hostname(),
-                                               port=get_mgmt_port())
+        prefix = 'http://localhost:{port}'.format(port=get_mgmt_port())
     return prefix
 
 
@@ -972,15 +971,12 @@ def create_user_with_permissions(user, permissions, ssl_auth=None):
         ssl_auth = is_ssl_connection()
     if user not in get_users(ssl_auth):
         create_user(user, user, ssl_auth=ssl_auth)
-    perms = get_user_permissions(user, ssl_auth=ssl_auth)
-    # Add user permissions if missing
-    if not perms:
-        # perms = dict(configure='.*', read='.*', write='.*')
-        perms = dict(configure=permissions['configure'],
-                     read=permissions['read'],
-                     write=permissions['write'])
-        _log.debug("permissions: {}".format(perms))
-        set_user_permissions(perms, user, ssl_auth=ssl_auth)
+    # perms = dict(configure='.*', read='.*', write='.*')
+    perms = dict(configure=permissions['configure'],
+                 read=permissions['read'],
+                 write=permissions['write'])
+    _log.debug("permissions: {}".format(perms))
+    set_user_permissions(perms, user, ssl_auth=ssl_auth)
 
 
 def _is_valid_rmq_url():
