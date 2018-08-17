@@ -552,11 +552,11 @@ def main():
 
     group.add_argument('--agent', nargs='+',
                         help='configure listed agents')
-    group.add_argument('--rmq', nargs='+',
+    group.add_argument('--rabbbitmq', nargs='+',
                        help='Configure rabbitmq for single instance, '
                             'federation, shovel or all either based on '
                             'configuration file in yml format or providing '
-                            'details when prompted. \nUsage: vcfg --rmq '
+                            'details when prompted. \nUsage: vcfg --rabbbitmq '
                             'single|federation|shovel|all [rabbitmq config '
                             'file]')
 
@@ -566,30 +566,30 @@ def main():
     if args.vhome:
         set_home(args.vhome)
         prompt_vhome = False
-
-    fail_if_instance_running()
+    if not args.rabbitmq or args.rabbitmq[0] in ["single", "all"]:
+        fail_if_instance_running()
     fail_if_not_in_src_root()
 
     _load_config()
 
     if args.list_agents:
         print "Agents available to configure:{}".format(agent_list)
-    elif args.rmq:
-        if len(args.rmq) > 2:
-            print("vcfg --rmq can at most accept 2 arguments")
+    elif args.rabbitmq:
+        if len(args.rabbitmq) > 2:
+            print("vcfg --rabbbitmq can at most accept 2 arguments")
             parser.print_help()
             exit(1)
-        elif args.rmq[0] not in ['single', 'federation', 'shovel', 'all']:
-            print("Usage: vcf --rmq single|federation|shovel|all [optional "
+        elif args.rabbitmq[0] not in ['single', 'federation', 'shovel', 'all']:
+            print("Usage: vcf --rabbbitmq single|federation|shovel|all [optional "
                   "path to rabbitmq config yml]")
             parser.print_help()
             exit(1)
-        elif len(args.rmq) == 2 and not os.path.exists(args.rmq[1]):
+        elif len(args.rabbitmq) == 2 and not os.path.exists(args.rabbitmq[1]):
             print("Invalid rabbitmq configuration file path.")
             parser.print_help()
             exit(1)
         else:
-            process_rmq_inputs(args.rmq)
+            process_rmq_inputs(args.rabbitmq)
     elif not args.agent:
         wizard()
 
