@@ -220,7 +220,6 @@ class RMQRouter(BaseRouter):
         subsystem = message.subsystem
         self._add_peer(sender)
         if subsystem == b'hello':
-            _log.debug("RMQ Router received hello message from {}".format(message))
             self.authenticate(sender)
             # send welcome message back
             message.args = [b'welcome', b'1.0', self._identity, sender]

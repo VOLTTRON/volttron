@@ -738,6 +738,47 @@ def prompt_upstream_servers(update=True):
                                   'virtual-host': vhost}
     return upstream_servers
 
+def prompt_shovels(update=True):
+    """
+    Get upstream servers
+    :return:
+    """
+    global config_opts
+
+    shovels = config_opts.get('shovels', {})
+    prompt = 'Number of destination hosts to configure:'
+    count = prompt_response(prompt, default=1)
+    count = int(count)
+    i = 0
+
+    for i in range(0, count):
+        prompt = 'Hostname of the destination server: '
+        host = prompt_response(prompt)
+        prompt = 'Port of the destination server: '
+        port = prompt_response(prompt, default=5671)
+        prompt = 'Virtual host of the destination server: '
+        vhost = prompt_response(prompt, default='volttron')
+        shovels[host] = {'port': port,
+                         'virtual-host': vhost}
+        prompt = prompt_response('\nDo you want shovels for PUBSUB communication? ',
+                                 valid_answers=y_or_n,
+                                 default='N')
+
+        if prompt in y:
+            prompt = 'List of PUBSUB topics to publish to this remote instance (comma seperated)'
+            topics = prompt_response(prompt, default="")
+            topics = topics.split(",")
+            shovels[host]['pubsub-topics'] = topics
+        prompt = prompt_response('\nDo you want shovels for RPC communication? ',
+                                 valid_answers=y_or_n,
+                                 default='N')
+        if prompt in y:
+            prompt = 'List of identities of remote agents (comma seperated)'
+            agent_ids = prompt_response(prompt, default="")
+            agent_ids = agent_ids.split(",")
+            shovels[host]['rpc-agent-identities'] = agent_ids
+    return shovels
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
