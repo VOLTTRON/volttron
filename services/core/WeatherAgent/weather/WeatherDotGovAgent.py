@@ -59,37 +59,18 @@ from volttron.platform.agent import utils
 from volttron.utils.docs import doc_inherit
 from volttron.platform.vip.agent import *
 
+# TODO figure out if we are expected to resolve the location
 class WeatherDotGovAgent(BaseWeatherAgent):
     def __init__(self):
         super(BaseWeatherAgent, None, "https://api.weather.gov/")
 
-    @Core.receiver('onstart')
-    @doc_inherit
-    def setup(self):
 
     @doc_inherit
-    def configure(self):
+    def query_current_weather(self, location):
+        api_format_location = self.resolve_location(location)
+
+            request = requests.request("GET", "https://api.weather.gov/points/{}/".format(api_format_location))
 
     @doc_inherit
-    def get_current_weather(self, location):
-        response = self.generate_weather_request(self.base_url + "stations/{}/observations/current".format(location))
-        # TODO handle bad request results
-        # if the request results are yuck, do a thing
-        # TODO convert response to dict
-        # TODO convert dict response to schema
-        # TODO apply to other methods
-
-
-    @doc_inherit
-    def get_forecast(self, location):
-        # TODO handle different forecast types (might want hourly/daily to be separate, inherited methods or
-        # have some variable which determines which call to make, probably the first one
-        response = self.generate_weather_request(self.base_url + "".format(location))
-
-    def generate_weather_request(self, request):
-        try:
-            response = requests.get(request)
-            return response
-        except:
-            # TODO handle failed requests
-            # TODO logging for error
+    def query_hourly_forcast(self, location):
+        api_format_location = self.resolve_location(location)

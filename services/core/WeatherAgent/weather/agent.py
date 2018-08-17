@@ -59,7 +59,11 @@ import math
 import requests
 import sqlite3
 import datetime
+import threading
+from functools import wraps
 from abc import abstractmethod
+import gevent
+from gevent import get_hub
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import *
 
@@ -69,15 +73,189 @@ _log = logging.getLogger(__name__)
 testing_config_path = os.path.dirname(os.path.realpath(__file__))
 testing_config_path += "/config.config"
 
+class BaseWeatherAgent(Agent):
+    """Creates weather services based on the json objects from the config,
+    uses the services to collect and publish weather data"""
 
+    def __init__(self,
+                 db_name="weather_cache",
+                 max_size_gb=None,
+                 log_sql=False,
+                 **kwargs):
+
+        super(BaseWeatherAgent, self).__init__(**kwargs)
+        self._db_name = db_name
+        self._max_size_gb = max_size_gb
+        self._log_sql = log_sql
+        self._default_config = {
+                                "db_name": self._db_name,
+                                "max_size_gb": self._max_size_gb,
+                                "log_sql": self._log_sql
+                               }
+        self.vip.config.set_default("config", self._default_config)
+        self.vip.config.subscribe(self._configure, actions=["NEW", "UPDATE"], pattern="config")
+
+    def update_default_config(self, config):
+        """
+        May be called by historians to add to the default configuration for its
+        own use.
+        """
+        self._default_config.update(config)
+        self.vip.config.set_default("config", self._default_config)
+
+    # TODO check with Kyle
+    def start_process_thread(self):
+        if self._process_loop_in_greenlet:
+            self._process_thread = self.core.spawn(self._process_loop)
+            self._process_thread.start()
+            _log.debug("Process greenlet started.")
+        else:
+            self._process_thread = threading.Thread(target=self._process_loop)
+            self._process_thread.daemon = True  # Don't wait on thread to exit.
+            self._process_thread.start()
+            _log.debug("Process thread started.")
+
+    # TODO documentation (look at baseHistorian)
+    def manage_cache_size(self, historical_limit_timestamp, storage_limit_gb):
+        """
+
+        :param historical_limit_timestamp: remove all data older than this timestamp from historical data
+        :param storage_limit_gb: remove oldest historical data until database is smaller than this value
+        """
+        pass
+
+    # TODO ask Kyle
+    def stop_process_thread(self):
+        _log.debug("Stopping the process loop.")
+        if self._process_thread is None:
+            return
+
+        # Tell the loop it needs to die.
+        self._stop_process_loop = True
+        # Wake the loop.
+        self._event_queue.put(None)
+
+        # 9 seconds as configuration timeout is 10 seconds.
+        self._process_thread.join(9.0)
+        # Greenlets have slightly different API than threads in this case.
+        if self._process_loop_in_greenlet:
+            if not self._process_thread.ready():
+                _log.error("Failed to stop process greenlet during reconfiguration!")
+        elif self._process_thread.is_alive():
+            _log.error("Failed to stop process thread during reconfiguration!")
+
+        self._process_thread = None
+        _log.debug("Process loop stopped.")
+
+    # TODO take a look at basehistorian
+    def _configure(self, contents):
+        self.vip.heartbeat.start()
+        _log.info("Configuring weather agent.")
+        config = self._default_config.copy()
+        config.update(contents)
+
+        self.cache = WeatherCache()
+
+        try:
+            # TODO reset defaults from configuration
+        except ValueError as err:
+            _log.error("Failed to load base weather agent settings. Settings not applied!")
+            return
+
+        self.stop_process_thread()
+        try:
+            self.configure(config)
+        except Exception as err:
+            _log.error("Failed to load weather agent settings.")
+        self.start_process_thread()
+
+    def configure(self, configuration):
+        """Optional, may be implemented by a concrete implementation to add support for the configuration store.
+        Values should be stored in this function only.
+
+        The process thread is stopped before this is called if it is running. It is started afterwards."""
+        pass
+
+    # TODO do we need this?
+
+    def get_data(self, method, request, cache_callback, location, **kwargs):
+        # TODO get data from cache via callback
+        data = self.cache.cache_callback(location, **kwargs)
+        if not data:
+            data = requests.request(method, request)
+        return data
+
+    @abstractmethod
+    def resolve_location(self, location):
+
+    @RPC.export
+    def get_current_weather(self, location):
+        return self.query_current_weather(location)
+
+    @abstractmethod
+    def query_current_weather(self, location):
+
+
+    @RPC.export
+    def get_hourly_forecast(self, location):
+        return self.query_hourly_forecast(location)
+
+    @abstractmethod
+    def query_hourly_forecast(self):
+
+    @RPC.export
+    def get_daily_historical_weather(self, location, start_period, end_period):
+        return self.query_daily_historical_weather(location, start_period, end_period)
+
+    @abstractmethod
+    def query_daily_historical_weather(self, location, start_period, end_period):
+
+    @staticmethod
+    def _get_status_from_context(context):
+        status = STATUS_GOOD
+        if (context.get("backlogged") or
+                context.get("cache_full") or
+                not context.get("publishing")):
+            status = STATUS_BAD
+        return status
+
+    def _update_status_callback(self, status, context):
+        self.vip.health.set_status(status, context)
+
+    def _update_status(self, updates):
+        context_copy, new_status = self._update_and_get_context_status(updates)
+        self._async_call.send(None, self._update_status_callback, new_status, context_copy)
+
+    def _send_alert_callback(self, status, context, key):
+        self.vip.health.set_status(status, context)
+        alert_status = Status()
+        alert_status.update_status(status, context)
+        self.vip.health.send_alert(key, alert_status)
+
+    def _update_and_get_context_status(self, updates):
+        self._current_status_context.update(updates)
+        context_copy = self._current_status_context.copy()
+        new_status = self._get_status_from_context(context_copy)
+        return context_copy, new_status
+
+    def _send_alert(self, updates, key):
+        context_copy, new_status = self._update_and_get_context_status(updates)
+        self._async_call.send(None, self._send_alert_callback, new_status, context_copy, key)
+
+    # TODO check base historian
+    def _process_loop(self):
+        _log.debug("Starting process loop.")
+
+# TODO: define columns, implement other caching features
 class WeatherCache:
     """Caches data to help reduce the number of requests to the API"""
+
     # TODO close the database connection onstop for the weather agent
     def __init__(self,
                  db_name,
                  service_name,
-                 retain_records=0,
                  max_size_gb=1,
+                 request_types=[],
                  log_sql=False):
         """
 
@@ -89,157 +267,101 @@ class WeatherCache:
         """
         self.db_name = db_name
         # TODO check from base historian
-        self.db_filepath = "" + self.db_name
+        self.db_filepath = self.db_name + ".sqlite"
         self.log_sql = log_sql
         self.service_name = service_name
-        self.tables = {}
-        self.retain_records = retain_records
-        self.max_size_gb = max_size_gb
+        for request in request_types:
+            self.tables[request] = service_name + "_" + request
+        self._default_columns = {"CURRENT": ["LOCATION", "REQUEST_TIME", "OBS_TIME", "JSON_STRING"],
+                                 "FORECAST_HOURLY": ["LOCATION", "REQUEST_TIME", "PREDICTION_TIME",
+                                                     "JSON_STRING"],
+                                 "HISTORICAL_DAILY": ["LOCATION", "REQUEST_TIME", "", "JSON_STRING"]}
+        self._max_size_gb = max_size_gb
         # Arbitrarily set values to ensure that the cache does not overflow
         self.trim_percent = 70
         self.max_percent = 90
 
-    def setup_cache(self):
-        """Check if the database exists, create it if it does not"""
-        try:
+        self.setup_cache()
 
-            self.sqlite_conn = sqlite3.connect(self.db_filepath)
+    def setup_cache(self, check_same_thread):
+        # Check if the database exists, create it if it does not
+        try:
+            # TODO
+            self._sqlite_conn = sqlite3.connect(
+                self.db_filepath,
+                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
+                check_same_thread=check_same_thread)
             self.current_size = os.path.getsize(self.db_filepath)
             _log.info("connected to database {} sqlite version: {}".format(self.db_name, sqlite3.version))
-            self.sqlite_cursor = self.sqlite_conn.cursor()
+
+            cursor = self.sqlite_conn.cursor()
+
+            if self._max_size_gb is not None:
+                cursor.execute('''PRAGMA page_size''')
+                page_size = cursor.fetchone()[0]
+                max_storage_bytes = self._max_size_gb * 1024 ** 3
+                self.max_pages = max_storage_bytes / page_size
         except sqlite3.Error as err:
             _log.error("Unable to open the sqlite database for caching: {}".format(err))
+        # create tables if they don't exist
+        for request in self.tables:
+            self.create_table(self.tables[request], cursor)
 
-    def table_exists(self, request_type):
-        table_name = self.service_name + "_" + request_type
-        table_query = "SELECT 1 FROM {} WHERE TYPE = 'table' AND NAME='{}'"\
-                    .format(self.db_name, table_name)
+    def table_exists(self, request_type, cursor):
+        table_query = "SELECT 1 FROM {} WHERE TYPE = 'table' AND NAME='{}'" \
+            .format(self.db_name, request_type)
         if self.log_sql:
             _log.info(table_query)
+        return bool(cursor.execute(table_query))
 
-    def create_table(self, request_type):
-        """"""
+    def create_table(self, request_type, columns):
+        """Populate the database with the given table"""
+        cursor = self._sqlite_conn.cursor()
         if not self.table_exists(request_type):
-            create_table = "CREATE TABLE {} (LOCATION TEXT, REPORTED_TIME TIMESTAMP, JSON_RESPONSE TEXT, " \
-                           "PRIMARY KEY (LOCATION, REQUEST_TIME))".format()
+            create_table = "CREATE TABLE {} (LOCATION TEXT, REQUEST_TIME TIMESTAMP, JSON_RESPONSE TEXT, " \
+                           "PRIMARY KEY (LOCATION, REQUEST_TIME))".format(request_type)
             if self.log_sql:
                 _log.info(create_table)
             try:
-                self.sqlite_cursor.execute(create_table)
-                self.sqlite_conn.commit()
+                cursor.execute(create_table)
+                self._sqlite_conn.commit()
             except sqlite3.Error as err:
                 _log.error("Unable to create database table: {}".format(err))
+        # check that the table columns are correct
+        else:
+            cursor.execute("pragma table_info({});".format(request_type))
+            name_index = 0
+            for description in cursor.description:
+                if description[0] == "name":
+                    break
+                name_index += 1
 
-    # TODO
-    def store_weather_data(self, request_type, location, timestamp, json_string):
-        """Helper method to provide insert statement agnostic of record type (Records should be pre-formatted)."""
-        table = self.tables[request_type]
-        query = "INSERT INTO {} (LOCATION, REPORTED_TIME, JSON_RESPONSE) VALUES({}, {}, {})"\
-            .format(table, location, timestamp, json_string)
-
-    def data_has_gaps(self, start_timestamp, end_timestamp, interval):
-        """Queries the table to check if there are any gaps in the records based on the expected interval between
-        records. Expects start_timestamp and end_timestamp as datetime objects, interval as timedelta object."""
-        if not (isinstance(start_timestamp, datetime.datetime) and isinstance(end_timestamp, datetime.datetime)
-                and isinstance(interval, datetime.timedelta)):
-            raise ValueError("expects two datetime.datetime objects, followed by datetime.timedelta object")
-        period = datetime.timedelta(end_timestamp - start_timestamp).total_seconds()
-        num_rows = math.floor(period / interval.total_seconds())
-        # TODO generate query
-
-    def retrieve_cached_data_by_timestamp(self, request_type, start_timestamp, end_timestamp):
-        """Returns all cached weather data based on the request type for
-        the given time range."""
-        query = "SELECT * FROM {} WHERE REQUEST_TIME >= {} AND REPORTED_TIME <= {} ORDER BY REQUEST_TIME DESC"\
-            .format(self.tables[request_type], start_timestamp, end_timestamp)
-        if self.log_sql:
-            _log.info(query)
-        # TODO validate
-        return self.sqlite_conn.execute(query)
-
-    def retrieve_most_recent_cached_data(self, request_type, location, number_of_records=1):
-        query = "SELECT * FROM {} WHERE REPORTED_TIME = (SELECT MAX(REPORTED_TIME) FROM {}) AND Location = {} " \
-                "ORDER BY REQUEST_TIME DECS LIMIT {}"\
-            .format(self.tables[request_type], self.tables[request_type], location, number_of_records)
-        if self.log_sql:
-            _log.info(query)
-        # TODO validate
-        return self.sqlite_cursor.execute(query)
-
-    # TODO
-    def cleanup_outdated_cached_data(self, request_type):
-        """Removes outdated current and forecasted weather data. Retains an optional number of records."""
-
-    # TODO
-    # look at base historian caching
-    def trim_cache(self, time_increment=datetime.timedelta(hours=1)):
-        """Delete historical data when the cache starts to become full."""
+    def close(self):
+        self._sqlite_conn.close()
+        self._sqlite_conn = None
 
 
-#
-class BaseWeatherAgent(Agent):
-    """Creates weather services based on the json objects from the config,
-    uses the services to collect and publish weather data"""
-
-    def __init__(self,
-                 **kwargs):
-
-        super(BaseWeatherAgent, self).__init__(**kwargs)
-        # TODO set defaults, take a look at base historian
-
-        # TODO create a default configuration
-        self._default_config = {}
-        self.vip.config.set_default("config", self._default_config)
-        self.vip.config.subscribe(self._configure, actions=["NEW", "UPDATE"], pattern="config")
-
-    @Core.receiver('onstart')
-    def setup(self, config):
-        # try:
-        #     self.configure(config)
-            # TODO check this, might need to go in configure
-        # except Exception as e:
-        #     _log.error("Failed to load weather agent settings.")
-        # TODO do we need this?
-        # self.vip.config.subscribe(self._configure, actions=["NEW", "UPDATE"], pattern="config")
-        # self.cache = WeatherCache()
+def _using_threadpool(method):
+    @wraps(method, ['__name__', '__doc__'])
+    def apply(*args, **kwargs):
+        return get_hub().threadpool.apply(method, args, kwargs)
+    return apply
 
 
+# TODO checkout base historian
+class AsyncWeatherCache(WeatherCache):
+    def __init__(self, **kwargs):
+        kwargs["check_same_thread"] = False
+        super(AsyncWeatherCache, self).__init__(**kwargs)
 
-    # TODO
-    @abstractmethod
-    def _configure(self, contents):
-        self.vip.heartbeat.start()
-        _log.info("Configuring weather agent.")
-        config = self._default_config.copy()
-        config.update(contents)
-
-        try:
-            # TODO reset defaults from configuration
-        except ValueError as e:
-            _log.error("Failed to load base weather agent settings. Settings not applied!")
-            return
-
-        self.stop_process_thread()
-        try:
-            self.configure(config)
-        except Exception as e:
-            _log.error("Failed to load weather agent settings.")
-        self.start_process_thread()
-
-    # TODO
-    @abstractmethod
-    def get_current_weather(self, location):
-        pass
-
-    # TODO
-    @abstractmethod
-    def get_forecast(self, location):
-        pass
-
-    @abstractmethod
-    def get_historical_weather(self, location, start_period, end_period):
-        pass
+# TODO fill with methods, check base historian
+for method in []:
+    setattr(AsyncWeatherCache, method.__name__, _using_threadpool(method))
 
 
-
-
+class BaseWeather(BaseWeatherAgent):
+    def __init__(self, **kwargs):
+        _log.debug('Constructor of BaseWeather thread: {}'.format(
+            threading.currentThread().getName()
+        ))
+        super(BaseWeather, self).__init__(**kwargs)
