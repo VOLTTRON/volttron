@@ -336,8 +336,7 @@ def get_url_prefix(ssl_auth):
         prefix = 'https://{host}:{port}'.format(host=get_hostname(),
                                                 port=get_mgmt_port_ssl())
     else:
-        prefix = 'http://{host}:{port}'.format(host=get_hostname(),
-                                               port=get_mgmt_port())
+        prefix = 'http://localhost:{port}'.format(port=get_mgmt_port())
     return prefix
 
 
