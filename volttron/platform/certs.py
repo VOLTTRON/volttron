@@ -398,7 +398,7 @@ class Certs(object):
             os.chmod(key_file, 0600)
 
     def create_ca_signed_cert(self, name, type='client',
-                              ca_name=None, **kwargs):
+                              ca_name=None, overwrite=True, **kwargs):
         """
         Create a new certificate and sign it with the volttron instance's
         CA certificate. Save the created certificate and the private key of
@@ -416,6 +416,10 @@ class Certs(object):
              CN - Common Name
         :return: True if certificate creation was successful
         """
+        if not overwrite:
+            if self.cert_exists(name):
+                return
+
         if not ca_name:
             ca_name = ROOT_CA_NAME
         ca_cert = self.cert(ca_name)

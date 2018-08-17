@@ -61,7 +61,6 @@ from dateutil.tz import tzutc, tzoffset
 from tzlocal import get_localzone
 from volttron.platform.agent import json as jsonapi
 from ConfigParser import ConfigParser
-from volttron.platform import certs
 
 try:
     from ..lib.inotify.green import inotify, IN_MODIFY
@@ -187,19 +186,6 @@ def get_platform_instance_name(prompt=False):
                            "$VOLTTRON_HOME/config. Please set instance-name in "
                            "$VOLTTRON_HOME/config")
     return instance_name
-
-def create_vagent_cert(rmq_user):
-    """
-    Create certs for agent
-    :param identity: identity of agent
-    :return:
-    """
-    crts = certs.Certs()
-    instance_name = get_platform_instance_name()
-    _log.debug("create_vagent_cert: {}".format(rmq_user))
-    # If no certs for this agent, create a new one
-    if not crts.cert_exists(rmq_user):
-        crts.create_ca_signed_cert(rmq_user)
 
 
 def get_messagebus():

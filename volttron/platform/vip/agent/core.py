@@ -78,7 +78,7 @@ from volttron.utils.rmq_mgmt import \
     is_ssl_connection, \
     create_user_with_permissions as create_rmq_user_with_permissions
 
-from volttron.platform.agent.utils import create_vagent_cert
+from volttron.platform import certs
 
 __all__ = ['BasicCore', 'Core', 'RMQCore', 'ZMQCore', 'killing']
 
@@ -883,7 +883,8 @@ class RMQCore(BasicCore):
 
             is_ssl = is_ssl_connection()
             if is_ssl:
-                create_vagent_cert(self.rmq_user)
+                crts = certs.Certs()
+                crts.create_ca_signed_cert(self.rmq_user, overwrite=False)
             create_rmq_user_with_permissions(self.rmq_user, permissions, ssl_auth=is_ssl)
 
             param = build_rmq_connection_param(self.identity, self.instance_name, ssl_auth=is_ssl)

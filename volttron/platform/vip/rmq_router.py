@@ -58,9 +58,6 @@
 
 from __future__ import absolute_import
 
-import os
-import pika
-import logging
 from .rmq_connection import RMQConnection
 from .socket import Message, Address
 from ..main import __version__
@@ -69,7 +66,7 @@ import errno
 from Queue import Queue
 from ..keystore import KeyStore
 from volttron.utils.rmq_mgmt import *
-from volttron.platform.agent.utils import create_vagent_cert
+from volttron.platform import certs
 
 __all__ = ['RMQRouter']
 
@@ -116,10 +113,12 @@ class RMQRouter(BaseRouter):
             # Check if RabbitMQ user and certs exists for Router, if not create a new one.
             # Add permissions if necessary
             ssl_auth = is_ssl_connection()
-            user = self._instance_name + '.' + self._identity
+            rmq_user = self._instance_name + '.' + self._identity
+            _log.debug("connection params: {}".format(rmq_user))
             if ssl_auth:
-                create_vagent_cert(user)
-            create_user_with_permissions(user, permissions, ssl_auth=ssl_auth)
+                crts = certs.Certs()
+                crts.create_ca_signed_cert(rmq_user, overwrite=False)
+            create_user_with_permissions(rmq_user, permissions, ssl_auth=ssl_auth)
             param = build_connection_param(self._identity, self._instance_name, ssl_auth)
             if ssl_auth:
                 _log.debug("connection param: {}".format(param.ssl_options))

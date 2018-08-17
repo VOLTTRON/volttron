@@ -67,7 +67,6 @@ from .packages import UnpackedPackage
 from .vip.agent import Agent
 from .keystore import KeyStore
 from .auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
-from volttron.platform.agent.utils import create_vagent_cert
 from volttron.utils.rmq_mgmt import delete_user as delete_rmq_user, \
     create_user_with_permissions as create_rmq_user_with_permissions, \
     is_ssl_connection
@@ -671,7 +670,9 @@ class AIPplatform(object):
             ssl = is_ssl_connection()
             if ssl:
                 _log.info("Created agent cert")
-                create_vagent_cert(rmq_user)
+                #create_vagent_cert(rmq_user)
+                crts = certs.Certs()
+                crts.create_ca_signed_cert(rmq_user, overwrite=False)
             create_rmq_user_with_permissions(rmq_user, permissions)
 
         module, _, func = module.partition(':')

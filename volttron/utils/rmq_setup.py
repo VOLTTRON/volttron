@@ -525,7 +525,7 @@ def setup_rabbitmq_volttron(type, verbose=False, prompt=False):
     global instance_name, _log, crts, volttron_home, volttron_rmq_config
 
     # Initialize global variable. Do it here as this method might be called
-    # from volttron-cfg. vcfg might set vhome
+    # from volttron-cfg. volttron-cfg might set vhome
 
     volttron_home = get_home()
     volttron_rmq_config = os.path.join(volttron_home, 'rabbitmq_config.yml')

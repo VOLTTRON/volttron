@@ -99,6 +99,7 @@ def call_grequest(method_name, url_suffix, ssl_auth=True, **kwargs):
     try:
         fn = getattr(grequests, method_name)
         request = fn(url, **kwargs)
+        _log.debug("GREQUEST: {}, {}".format(url, kwargs))
         response = grequests.map([request])
         if response and isinstance(response, list):
             response[0].raise_for_status()
