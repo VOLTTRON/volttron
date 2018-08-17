@@ -48,20 +48,16 @@ import time
 from socket import getfqdn
 
 import gevent
-import wget
 
+from rmq_mgmt import is_ssl_connection, set_policy, build_rmq_address, \
+    init_rabbitmq_setup, get_ssl_url_params, create_user, \
+    set_user_permissions, set_parameter
 from volttron.platform import certs
 from volttron.platform import get_home
-from volttron.platform.agent.utils import load_platform_config, \
-    store_message_bus_config, get_platform_instance_name
-from volttron.platform.packaging import create_ca
-from volttron.utils.persistance import PersistentDict
-from volttron.utils.prompt import prompt_response, y, n, y_or_n
+from volttron.platform.agent.utils import store_message_bus_config, \
+    get_platform_instance_name
 from volttron.platform.certs import ROOT_CA_NAME
-from rmq_mgmt import is_ssl_connection, get_vhost, http_put_request, \
-    set_policy, build_rmq_address, is_valid_amqp_port, \
-    is_valid_mgmt_port, init_rabbitmq_setup, get_ssl_url_params, create_user, \
-    set_user_permissions, set_parameter
+from volttron.utils.prompt import prompt_response, y, y_or_n
 
 try:
     import yaml
@@ -480,7 +476,7 @@ def _create_certs_without_prompt(admin_client_name, instance_ca_name, server_cer
                 'O': cert_data.get('organization'),
                 'OU': cert_data.get('organization-unit'),
                 'CN': cert_data.get('common-name')}
-
+        from volttron.platform.packaging import create_ca
         create_ca(override=False, data=data)
 
     crts.create_ca_signed_cert(server_cert_name, type='server',
