@@ -391,13 +391,14 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
             result_dict = {}
             for element in apdu.listOfValues:
                 property_id = element.propertyIdentifier
-                values = []
-                for tag in element.value.tagList:
-                    values.append(tag.app_to_object().value)
-                if len(values) == 1:
-                    result_dict[property_id] = values[0]
-                else:
-                    result_dict[property_id] = values
+                if not property_id == "statusFlags":
+                    values = []
+                    for tag in element.value.tagList:
+                        values.append(tag.app_to_object().value)
+                    if len(values) == 1:
+                        result_dict[property_id] = values[0]
+                    else:
+                        result_dict[property_id] = values
 
             if result_dict:
                 context = self.sub_cov_contexts[apdu.subscriberProcessIdentifier]
