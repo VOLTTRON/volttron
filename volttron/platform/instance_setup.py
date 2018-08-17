@@ -552,11 +552,11 @@ def main():
 
     group.add_argument('--agent', nargs='+',
                         help='configure listed agents')
-    group.add_argument('--rabbbitmq', nargs='+',
+    group.add_argument('--rabbitmq', nargs='+',
                        help='Configure rabbitmq for single instance, '
                             'federation, shovel or all either based on '
                             'configuration file in yml format or providing '
-                            'details when prompted. \nUsage: vcfg --rabbbitmq '
+                            'details when prompted. \nUsage: vcfg --rabbitmq '
                             'single|federation|shovel|all [rabbitmq config '
                             'file]')
 
@@ -576,11 +576,11 @@ def main():
         print "Agents available to configure:{}".format(agent_list)
     elif args.rabbitmq:
         if len(args.rabbitmq) > 2:
-            print("vcfg --rabbbitmq can at most accept 2 arguments")
+            print("vcfg --rabbitmq can at most accept 2 arguments")
             parser.print_help()
             exit(1)
         elif args.rabbitmq[0] not in ['single', 'federation', 'shovel', 'all']:
-            print("Usage: vcf --rabbbitmq single|federation|shovel|all [optional "
+            print("Usage: vcf --rabbitmq single|federation|shovel|all [optional "
                   "path to rabbitmq config yml]")
             parser.print_help()
             exit(1)
