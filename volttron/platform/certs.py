@@ -53,29 +53,28 @@
 # under Contract DE-AC05-76RL01830
 
 # }}}
-import copy
 import datetime
-import logging
-import pwd
-from socket import gethostname, getfqdn
-from shutil import copyfile
-
-import os
 import json
+import logging
+import os
+from shutil import copyfile
+from socket import gethostname, getfqdn
+
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID, ExtensionOID
-from cryptography.x509.name import RelativeDistinguishedName
 from cryptography.x509.general_name import DNSName
-from volttron.platform import get_home
+from cryptography.x509.name import RelativeDistinguishedName
+from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
 
+from volttron.platform import get_home
+from volttron.platform.agent.utils import get_platform_instance_name
 
 _log = logging.getLogger(__name__)
 
-ROOT_CA_NAME = 'volttron-root-ca'
+ROOT_CA_NAME = ""
 DEFAULT_ROOT_CA_CN = None
 DEFAULT_CERTS_DIR = None
 KEY_SIZE = 1024
@@ -293,9 +292,11 @@ class Certs(object):
 
     def __init__(self, certificate_dir=None):
         """Creates a Certs instance"""
-        global DEFAULT_ROOT_CA_CN, DEFAULT_CERTS_DIR
+        global DEFAULT_ROOT_CA_CN, DEFAULT_CERTS_DIR, ROOT_CA_NAME
+
         DEFAULT_ROOT_CA_CN = '{} {}'.format(gethostname(), ROOT_CA_NAME)
         DEFAULT_CERTS_DIR = os.path.join(get_home(), 'certificates')
+        ROOT_CA_NAME = get_platform_instance_name(prompt=True) + '-root-ca'
 
         if not certificate_dir:
             certificate_dir = DEFAULT_CERTS_DIR
@@ -531,7 +532,6 @@ class Certs(object):
         cert = cert_builder.sign(ca_key, hashes.SHA256(), default_backend())
         self._save_cert(name, cert, key)
         self.update_ca_db(cert, ca_name, serial)
-        from service_identity.cryptography import verify_certificate_hostname
         return True
 
     def _save_cert(self, name, cert, pk):
