@@ -125,146 +125,102 @@ and not in rabbitmq logs (/var/log/rabbitmq/rabbitmq@hostname.log)
 ```sh
 git clone -b rabbitmq-volttron https://github.com/VOLTTRON/volttron.git
 cd volttron
-python bootstrap.py
+python bootstrap.py --rabbitmq [optional install directory. defaults to
+<user_home>/rabbitmq_server]
 ```
 
-This will build the platform and create a virtual Python environment. It will
-also install the dependencies for rabbimq.  Activate the environment :
+This will build the platform and create a virtual Python environment and
+dependencies for rabbitmq. It also installs rabbitmq server as the current user.
+If providing a install path, path should exists and be writeable. Rabbitmq will
+be installed under <install dir>/rabbitmq_server-3.7.7 Rest of the
+documentation refers to the directory <install dir>/rabbitmq_server-3.7.7 as
+$RABBITMQ_HOME
+
+Activate the environment :
 
 ```sh
 . env/bin/activate
 ```
 
 **4. Create RabbitMQ setup for VOLTTRON :**
-```sh
-python volttron/utils/rmq_setup.py single
 ```
-This command will install rabbitmq server and run it as the current user. When
-prompted provide path to an existing rabbitmq-server directory or a writeable
-directory under which rabbitmq-server would get installed.Rabbitmq will be
-installed under <provided install dir>/rabbitmq_server-3.7.7 Rest of the
-documentation refers to this directory as $RABBITMQ_HOME
+vcfg --rabbitmq single [optional rabbbitmq_config.yml]
+```
 
-User can choose to run with or without ssl authentication by choosing Y/N when
-prompted. Description below explains the steps when user chooses to run the
-platform with SSL based authentication. This creates a new virtual host
-“volttron” and creates ssl certificates needed for this VOLTTRON instance.
-These certificates get created under the sub directory "certificates" in
-your VOLTTRON home (typically in ~/.volttron). It then creates the main VIP
-exchange named "volttron" to route message between platform and agents and
-alternate exchange to capture unrouteable messages.
+Refer to examples/configs/rabbitmq_config.yml for a sample configuration file.
+Running the above command without the optional configuration file parameter will
+ prompt user for all the needed data at the command prompt and use that to
+ generate a rabbitmq_config.yml file in VOLTTRON_HOME directory.
 
-This script prompt for multiple information from the user regarding the
-VOLTTRON instance for which we are configuring rabbitmq. For each VOLTTRON
-instance there a single instance-ca certificate is created. All VOLTTRON
-instances that need to work together in a federation/shovel setup needs to
-have a instance-ca certificate signed by the same root CA.  A single VOLTTRON
-instance can create a self signed root ca. Instance-ca for all VOLTTRON
-instances should be generated in this VOLTTRON instance and should be scp-ed
-into the other instance.
+This scripts creates a new virtual host  and creates ssl certificates needed
+for this VOLTTRON instance. These certificates get created under the sub
+directory "certificates" in your VOLTTRON home (typically in ~/.volttron). It
+then creates the main VIP exchange named "volttron" to route message between
+platform and agents and alternate exchange to capture unrouteable messages.
+
+NOTE: We configure rabbitmq instance for a single volttron_home and
+volttron_instance. This script will confirm with the user the volttron_home to
+be configured. To prevent this prompt users can optionally pass --vhome
+parameter to vcfg.
  
-Following is the example inputs for rmq_setup.py single command for VOLTTRON
-instance that has root CA.
+Following is the example inputs for vcfg --rabbitmq single command
+
 ```sh
-python volttron/utils/rmq_setup.py single
-Your VOLTTRON_HOME currently set to: /home/velo/new_volttron
-Is this the volttron instance you are attempting to configure rabbitmq for? [Y]:
+Your VOLTTRON_HOME currently set to: /home/vdev/new_vhome2
 
-What is the name of the virtual host under which Rabbitmq VOLTTRON will be running? [volttron]:
+Is this the volttron you are attempting to setup?  [Y]:
+Creating rmq config yml
+Rabbitmq server home: [/home/vdev/rabbitmq_server/rabbitmq_server-3.7.7]:
+Fully qualified domain name of the system: [cs_cbox.pnl.gov]:
 
-Do you want SSL Authentication [Y]: 
+Enable SSL Authentication: [Y]:
 
-Use default rabbitmq configuration [Y]:
-
-Creating new VIRTUAL HOST: volttron
-
-Create new exchange: volttron
-
-Create new exchange: undeliverable
-
+Please enter the following details for root CA certificates
+	Country: [US]:
+	State: Washington
+	Location: Richland
+	Organization: PNNL
+	Organization Unit: Volttron-Team
+	Common Name: [volttron1-root-ca]:
+Do you want to use default values for rabbitmq home, ports, and virtual host: [Y]: N
+Name of the virtual host under which Rabbitmq VVOLTTRON will be running: [volttron]:
+AMQP port for RabbitMQ: [5672]:
+http port for the RabbitMQ management plugin: [15672]:
+AMQPS (ssl) port RabbitMQ address: [5671]:
+https port for the RabbitMQ management plugin: [15671]:
+INFO:rmq_setup.pyc:Starting rabbitmq server
+Warning: PID file not written; -detached was passed.
+INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.7.7
+INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
+INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
+INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
+INFO:rmq_setup.pyc:
 Checking for CA certificate
 
-What is the fully qualified domain name of the system? [vbox2.pnl.gov]:
-
-Do you want to create a self-signed root CA certificate that can sign all volttron instance CA in your setup: [N]: y
-
-Please enter the following for certificate creation:
-
-C - Country(US):
-
-ST - State(Washington):
-
-L - Location(Richland):
-
-O - Organization(PNNL):
-
-OU - Organization Unit(Volttron Team):
-
-CN - Common Name(vbox2 volttron-ca):
-
+INFO:rmq_setup.pyc:
+ Root CA (/home/vdev/new_vhome2/certificates/certs/volttron-root-ca.crt) NOT Found. Creating root ca for volttron instance
 Created CA cert
-
-Creating new USER: volttron1
-
-Create READ, WRITE and CONFIGURE permissions for the user: volttron1
-
-Created CA cert
-**Stopped rmq server
+INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
+INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
+INFO:rmq_setup.pyc:**Stopped rmq server
 Warning: PID file not written; -detached was passed.
-**Started rmq server
+INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.7.7
+INFO:rmq_setup.pyc:
 
 #######################
-Setup complete. A new admin user was created with user name: volttron1-admin and password=default_passwd.
-You could change this user's password by logging into https://cs_cbox.pnl.gov:15671/
-#######################
 
+Setup complete for volttron home /home/vdev/new_vhome2 with instance name=volttron1
+Notes:
+ - Please set environment variable VOLTTRON_HOME to /home/vdev/new_vhome2 before starting volttron
+ - On production environments, restrict write access to /home/vdev/new_vhome2/certificates/certs/volttron-root-ca.crt to only admin user. For example: sudo chown root /home/vdev/new_vhome2/certificates/certs/volttron-root-ca.crt
+ - A new admin user was created with user name: volttron1-admin and password=default_passwd.
+   You could change this user's password by logging into https://cs_cbox.pnl.gov:15671/ Please update /home/vdev/new_vhome2/rabbitmq_config.yml if you change password
+
+#######################
 
 ```
 
-Example inputs for 'python rmq_setup.py single' command for a volttron instance
-that does not contain the root CA cert
 
-```sh
-python volttron/utils/rmq_setup.py single
-Your VOLTTRON_HOME currently set to: /home/velo/volttron_test
-
-Is this the volttron instance you are attempting to configure rabbitmq for? [Y]:
-
-Name of this volttron instance: [volttron1]:
-
-What is the name of the virtual host under which Rabbitmq VOLTTRON will be running? [volttron]:
-
-Use default rabbitmq configuration [Y]:
-
-Creating new VIRTUAL HOST: volttron
-
-Create new exchange: volttron
-
-Create new exchange: undeliverable
-
-Checking for CA certificate
-
-What is the fully qualified domain name of the system? [localhost.localdomain]: osboxes.pnl.gov
-
-Do you want to create a self-signed root CA certificate that can sign all volttron instance CA in your setup: [N]: N
-
-Enter path to intermediate CA certificate of this volttron instance: /home/velo/volttron1-instance-ca.crt
-
-Enter path to private key file for this instance CA: /home/velo/volttron1-instance-ca.pem
-
-Creating new USER: volttron1
-
-Create READ, WRITE and CONFIGURE permissions for the user: volttron1
-Created CA cert
-**Stopped rmq server
-Warning: PID file not written; -detached was passed.
-**Started rmq server
-
-#######################
-Setup complete. A new admin user was created with user name: volttron1-admin and password=default_passwd.
-You could change this user's password by logging into https://cs_cbox.pnl.gov:15671/
-#######################
-```
 
 **5. Test**
 
@@ -351,37 +307,22 @@ subcommands:
 We can configure multi-platform VOLTTRON setup with RabbitMQ message bus using
 built-in "federation" feature provided by RabbitMQ.
 
-1. Generate ssl certificates for the new volttron instance.
-   In a multi platform setup that need to communicate with each other with
-   rabbitmq over ssl, each volttron instance should have a intermediate CA and
-   all intermediate CAs( for each volttron instance) should be signed by the
-   same ROOT CA.
+1. Setup two volttron instances using the above steps. Please note that each
+instance should have a unique name.
 
-   a. To generate intermediate CA for the second volttron instance,
-      run the following command in the instance containing the ROOT CA.
-      volttron-pkg create_instance_ca <instance_name>
+2. In a multi platform setup that need to communicate with each other with
+   rabbitmq over ssl, each volttron instance should should trust the ROOT CA of
+   the other volttron instance(rabbitmq root ca)
 
-```
-(volttron)[velo@osboxes myvolttron]$ volttron-pkg create_instance_ca volttron2
+   a.  Transfer (scp/sftp/similar) the  first instance root ca crt to
+   the second instance and append the content of the first instance cert file to
+   the volttron-root-ca.crt file on the second instance.
 
-Created files:
-/home/velo/.volttron_r2/certificates/certs/volttron2-instance-ca.crt
-/home/velo/.volttron_r2/certificates/private/volttron2-instance-ca.pem
-```
-
-    b. Transfer (scp/sftp/similar) the generated .crt and .pem files to the
-       second volttron instance and make sure that the files have read access to
-       rabbitmq user
-
-    c. Do the initial setup of Erlang, and volttron using the steps above
-
-    d. Run "python volttron/utils/rmq_setup.py single" command but when prompted
-       for creation of root certificate choose N. The script will now prompt you
-       for the location of the instance CA (intermediate CA). Provide the path
-       of the files your transferred to this machine.
+   b. Transfer the the second instance root-ca crt to first instance, append
+   second instance's cert contents to first instance volttron-root-ca.
 
 
-2. Identify upstream servers (publisher nodes) and downstream servers
+3. Identify upstream servers (publisher nodes) and downstream servers
 (collector nodes). To create a RabbitMQ federation, we have to configure
 upstream servers on the downstream server and make the VOLTTRON exchange
 "federated".
@@ -389,17 +330,20 @@ upstream servers on the downstream server and make the VOLTTRON exchange
     a.  On the downstream server (collector node),
 
         ```
-        python volttron/utils/rmq_setup.py federation
+        vcfg --rabbitmq federation [optional path to rabbitmq_config.yml
+        containing the details of the upstream hostname, port and vhost]
         ```
 
-        Please provide the hostname (or IP address) and port of the upstream nodes when
-        prompted. The hostname provided should match the hostname in the ssl
+        If no config file is provided, the script will prompt for
+        hostname (or IP address), port, and vhost of each upstream node. The
+        hostname provided should match the hostname in the ssl
         certificate of the upstream server. For bi-directional data flow,
         we will have to run the same script on both the nodes.
 
-    b.  Create a user in the upstream server with username=downstream admin
-    user name. (i.e. <instance-name>-admin) and provide it access to the
-    virtualhost of the upstream rabbitmq server.
+    b.  Create a user in the upstream server(publisher) with
+    username=<downstream adminuser name> (i.e. <instance-name>-admin) and
+    provide it access to the  virtualhost of the upstream rabbitmq server. Run
+    the below command in the upstream server
 
         ```sh
         cd $RABBITMQ_HOME
