@@ -88,7 +88,7 @@ from .vip.rmq_router import RMQRouter
 from volttron.platform.agent.utils import store_message_bus_config
 from zmq import green as _green
 from volttron.platform.vip.proxy_zmq_router import ZMQProxyRouter
-from volttron.platform.certs import Certs, DEFAULT_CERTS_DIR
+
 try:
     import volttron.restricted
 except ImportError:
