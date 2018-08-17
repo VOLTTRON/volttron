@@ -352,7 +352,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
         we will have to run the same script on both the nodes.
 
     b.  Create a user in the upstream server(publisher) with
-    username=<downstream adminuser name> (i.e. <instance-name>-admin) and
+    username=<downstream admin user name> (i.e. (instance-name)-admin) and
     provide it access to the  virtual host of the upstream RabbitMQ server. Run
     the below command in the upstream server
 
@@ -362,10 +362,13 @@ upstream servers on the downstream server and make the VOLTTRON exchange
         ./sbin/rabbitmqctl set_permissions -p volttron <username> ".*" ".*" ".*"
         ```
 4. Test the federation setup.
+
    a. On the downstream server run a listener agent which subscribes to messages
    from all platforms (set @PubSub.subscribe('pubsub', '', all_platforms=True)
    instead of @PubSub.subscribe('pubsub', '') )
+
    b.Start VOLTTRON on upstream VOLTTRON
+
    c. Verify listener agent in downstream VOLTTRON instance is able to receive
    the messages.
 
@@ -383,8 +386,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
 ## Next Steps
 We request you to explore and contribute towards development of VOLTTRON message bus refactor task. This is an ongoing task and we are working towards completing the following:
-* Integrating Volttron Central, forwarder, data mover and other agents which connect to remote instances to use RabbitMQ message bus with SSL.
-* Streamlining the installation steps.
+* Integrating Volttron Central to use RabbitMQ message bus with SSL.
 * Test scripts for RabbitMQ message bus.
 * Scalability tests for large scale VOLTTRON deployment.
 
