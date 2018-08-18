@@ -276,7 +276,7 @@ def _create_shovel_setup():
             for topic in pubsub_topics:
                 _log.debug("Creating shovel to forward PUBSUB topic {}".format(
                     topic))
-                name = "shovel-{host}-{topic}".format(host=shovel['host'],
+                name = "shovel-{host}-{topic}".format(host=host,
                                                       topic=topic)
                 routing_key = "__pubsub__.{instance}.{topic}.#".format(instance=instance_name,
                                                                        topic=topic)
@@ -297,7 +297,7 @@ def _create_shovel_setup():
             for identity in agent_ids:
                 _log.info("Creating shovel to make RPC call to remote Agent"
                            ": {}".format(topic))
-                name = "shovel-{host}-{identity}".format(host=shovel['host'],
+                name = "shovel-{host}-{identity}".format(host=host,
                                                          identity=identity)
                 routing_key = "{instance}.{identity}.#".format(instance=instance_name,
                                                                identity=identity)
