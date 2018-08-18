@@ -41,25 +41,25 @@ Installation steps for system running Matlab:
 4. Start Matlab and set the python path.
    In the Matlab command window set the python path with `pyversion`:
 
-.. code-block:: console
+   .. code-block:: console
 
-   >> pyversion python.exe
+      >> pyversion python.exe
 
 5. To test that the python path has been set correctly type following in
    the Matlab command window. Matlab shoud print the python path with version
    information.
 
-.. code-block:: console
+   .. code-block:: console
 
-   >> pyversion
+      >> pyversion
 
 6. To test that the pyzmq library is installed correctly and is accessible
    from python inside Matlab, type the following in Matlab command window
    and it should show pyzmq version installed.
 
-.. code-block:: console
+   .. code-block:: console
 
-   >> py.zmq.pyzmq_version()
+      >> py.zmq.pyzmq_version()
 
 7. Copy `example.m` from `volttron/examples/ExampleMatlabApplication/matlab`
    to your desired folder.
@@ -73,16 +73,24 @@ Installation:
 1. Install VOLTTRON on a VM or different system than the one
    running Matlab.
 
-    Follow link: http://volttron.readthedocs.io/en/develop/install.html
+   Follow link: http://volttron.readthedocs.io/en/develop/install.html
 
 2. Clone volttron-applications in any directory outside of your volttron
-   source directory. (Best practise: clone in the parent directory of volttron
-   source. For example, /users/user1/volttron and
-   /users/user1/volttron-applications):
+   source directory.
 
-.. code-block:: console
+   .. Note::
 
-    git clone https://github.com/VOLTTRON/volttron-applications.git
+      Best practise is to clone in the parent directory of volttron
+      source. For example, /users/user1/volttron and
+      /users/user1/volttron-applications).
+
+   .. code-block:: console
+
+      (volttron)[user1@osboxes workspace]$ ls
+      volttron
+      (volttron)[user1@osboxes workspace]$ git clone https://github.com/VOLTTRON/volttron-applications.git
+      (volttron)[user1@osboxes workspace]$ ls
+      volttron volttron-applications
 
 Install Dependencies
 ~~~~~~~~~~~~~~~~~~~~
@@ -94,48 +102,41 @@ To test the interaction between matlab driven agent and matlab code you would
    by the device will be scraped by master driver agent and published to message
    bus. DrivenMatlabAgent subscribes to device topics and sends the data to
    matalab code.
+   To test the interaction between the masterdriver and matlab agent install
+   master driver agent, a fake device, and a listener agent using command
 
-   The easiest way to do this for testing is to use the volttron-cfg command.
-   This command needs to be run when volttron instance is not running.
-   It can install master driver and sets up a fake device. Code snippet below
-   shows an example run of the volttron-cfg command. Say "Y" to the prompt to
-   install a master driver and a fake device,
-   fake-campus/fake-building/fake-device.
+   .. code-block:: console
 
-.. code-block:: console
+      (volttron)[velo@osboxes workspace]$ cd myvolttron
+      (volttron)[velo@osboxes myvolttron]$ vcfg --agent master_driver listener
+      Configuring /home/velo/workspace/myvolttron/services/core/MasterDriverAgent
+      Install a fake device on the master driver? [N]: y
+      Should agent autostart? [N]: n
+      Configuring examples/ListenerAgent
+      Should agent autostart? [N]: n
 
-   (volttron)[velo@osboxes myvolttron]$ ./stop-volttron
-   Shutting down VOLTTRON
-   (volttron)[velo@osboxes myvolttron]$ volttron-cfg
+   .. Note::
 
-   Your VOLTTRON_HOME currently set to: /home/velo/volttron_test
+      The vcfg command needs to be run when volttron instance is not running.
+      The above command sets up a fake device -
+      fake-campus/fake-building/fake-device.
 
-   Is this the volttron you are attempting to setup?  [Y]: y
-   What is the external instance ipv4 address? [tcp://127.0.0.1]:
-   What is the instance port for the vip address? [22916]:
-   Is this instance a volttron central? [N]: N
-   Will this instance be controlled by volttron central? [Y]: N
-   Would you like to install a platform historian? [N]: N
-   Would you like to install a master driver? [N]: Y
-   Configuring /home/velo/workspace/myvolttron/services/core/MasterDriverAgent
-   Install a fake device on the master driver? [N]: Y
-   Should agent autostart? [N]:
-   Would you like to install a listener agent? [N]: Y
-   Configuring examples/ListenerAgent
-   Should agent autostart? [N]: N
-   Finished configuration
 
 2. Actuator Agent
 
-Run the following command to install and start Actuator agent if you don't
-already have it running. Drivenmatlab agent get device control commands from
-matlab code and sends it to the device using an Actuator agent.
+   Run the following command to install and start Actuator agent if you don't
+   already have it running. Drivenmatlab agent get device control commands from
+   matlab code and sends it to the device using an Actuator agent.
 
-.. code-block:: console
+   .. code-block:: console
 
-   python scripts/install-agent.py  -s services/core/ActuatorAgent
+      python scripts/install-agent.py  -s services/core/ActuatorAgent
 
-3. Start volttron.
+3. Start volttron
+
+   .. code-block:: console
+
+      ./start-volttron
 
 Configure driven matlab agent
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -158,20 +159,21 @@ Configure driven matlab agent
    Provide the ip address of the machine running matlab in config_url and
    data_url
 
-.. code-block:: python
-   "arguments": {
-        "temperature": "temperature",
+   .. code-block:: python
 
-        "config_url": "tcp://<ip address of machine running matlab>:5556",
-        "data_url": "tcp://<ip address of machine running matlab>:5557",
-        "recv_timeout": 50000
-    },
-    "conversion_map": {
-        "temperature*": "float"
-    },
-    "unittype_map": {
-        "temperature*": "Farenheit"
-    }
+      "arguments": {
+           "temperature": "temperature",
+
+           "config_url": "tcp://<ip address of machine running matlab>:5556",
+           "data_url": "tcp://<ip address of machine running matlab>:5557",
+           "recv_timeout": 50000
+       },
+       "conversion_map": {
+           "temperature*": "float"
+       },
+       "unittype_map": {
+           "temperature*": "Farenheit"
+       }
 
 5. Open example.m and change following line:
 
@@ -205,6 +207,10 @@ Steps to test integration:
    config/config_waterheater
 
 5. Run DrivenMatlabAgent
+
+.. code-block:: console
+
+   vctl start --name DrivenMat*
 
 6. Run example.m in Matlab
 
@@ -255,7 +261,7 @@ Agent - Matlab Interaction
 6. Matlab sends commands to set new values to device points
 7. DrivenMatlabAgent request a new schedule to ActuatorAgent
 8. At the scheduled time, DrivenMatlab agent sent the device point with the
-new value provided by matlab code.
+   new value provided by matlab code.
 
 Troubleshooting
 ~~~~~~~~~~~~~~~
@@ -263,23 +269,27 @@ Troubleshooting
 1. Matlab fails with "No volttron agent running"
 
    There are two possible causes.
+
    a. Driven agent waits for a initial config
-      request from matlab only the configured time before it timeouts. Check
-      the timeout parameter of driven matalb agent, increase is as needed and
-      reinstall and restart the driven matalab agent
+   request from matlab only the configured time before it timeouts. Check
+   the timeout parameter of driven matalb agent, increase is as needed and
+   reinstall and restart the driven matalab agent
+
    b. Your firewall is restricting access to port 5556 and 5557. Verify that
    these ports are open for zmq socket communication. Easiest way to check
    this is run volttron on a VM in nat mode and run matlab in the host that
    runs the VM. This way the communication is within the host and hence your
    internet firewall rules will not apply
 
-2. You could also verify that the zmq communication is working fine outside
-of volttron environment using the
-volttron/examples/ExampleMatlabApplication/matlab/matlab_example.py. Update
-the variables config_url and data_url in this file to point to ip address of
-machine running matlab and run this python code on the machine running volttron
-and then start matlab. See if the python code and matlab code are able to
-talk to each other without any errors.
+2. Verify zmq communitcation outside of VOLTTRON
+
+   You could also verify that the zmq communication is working fine outside
+   of volttron environment using the
+   volttron/examples/ExampleMatlabApplication/matlab/matlab_example.py.
+   Update the variables config_url and data_url in this file to point to ip
+   address of machine running matlab and run this python code on the machine
+   running volttron and then start matlab. See if the python code and matlab
+   code are able to talk to each other without any errors.
 
 Resources
 ---------
