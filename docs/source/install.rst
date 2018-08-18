@@ -6,24 +6,28 @@ Installing Volttron
 
 Installing Linux Virtual Machine
 --------------------------------
-Volttron requires a Linux system to run. For most this will require virtual machine (VM). This section will describe the
-steps necessary to install VOLTTRON using Oracle VirtualBox software. Virtual Box is free and can be
+VOLTTRON requires a Linux system to run. For Windows users this will require a virtual machine (VM). This section will
+describe the steps necessary to install VOLTTRON using Oracle VirtualBox software. Virtual Box is free and can be
 downloaded from https://www.virtualbox.org/wiki/Downloads.
 
 |VirtualBox Download|
 
 .. |VirtualBox Download| image:: images/vbox-download.png
 
-After installing VirtualBox, it will also be necessary to download a Linux operating system image for use on the VM.
-Ubuntu 14.04 LTS or Linux Mint 17 or later is the recommended Linux operating system for use with VOLTTRON, however any
-distribution will work. Linux Mint 18.3 with the Xfce desktop is used as an example, however platform setup in Ubuntu
-should be identical. A 32-bit version of Linux should be used when running VOLTTRON on a system with limited hardware
-(less than 2 GB of RAM). Go to https://www.osboxes.org/linux-mint/ to download one of the versions of Linux Mint and
-extract VDI from downloaded archive.
+After installing VirtualBox download a virtual box appliance from https://www.osboxes.org/linux-mint/ extract the
+VDI from the downlaoded archive, **or** download a system installation disk. VOLTTRON has been tested using Ubuntu
+14.04, 16.04; raspian, debian 8,9; Linux Mint 17, 18; and CentOS 7. However, any modern apt based Linux distribution
+should work out of the box. Linux Mint 18.3 with the Xfce desktop is used as an example, however platform setup in
+Ubuntu should be identical.
 
-Note: this is a prepackaged version with many of the VM settings already defined. To get the base version of Linux Mint
-go to https://linuxmint.com/.
+.. note::
 
+    A 32-bit version of Linux should be used when
+    running VOLTTRON on a system with limited hardware (less than 2 GB of RAM).
+
+
+Adding a VDI Image to VirtualBox Environment
+--------------------------------------------
 
 |Linux Mint|
 
@@ -65,6 +69,8 @@ Drag’n’Drop as Bidirectional.
 
 .. |VirtualBox Bidirectional| image:: images/vbox-bidirectional.png
 
+.. note::
+    Currently, this feature only works under certain circumstances (e.g. copying / pasting text).
 
 Go to System Settings. In the processor tab, set the number of processors to two.
 
@@ -74,7 +80,10 @@ Go to System Settings. In the processor tab, set the number of processors to two
 
 
 Go to Storage Settings. Confirm that the Linux Mint VDI is attached to Controller: SATA.
-Do **not** install the Linux Mint iso for Controller: IDE. Will result in errors.
+
+
+.. DANGER::
+    Do **NOT** install the Linux Mint iso for Controller: IDE. **Will result in errors.**
 
 |VirtualBox Controller|
 
@@ -154,7 +163,7 @@ directory.
 Activate
 --------
 
-Activating the shell sets the correct environment for executing a volttron
+Activating the shell sets the correct environment for executing a VOLTTRON
 instance.  From the project root directory execute the following.
 
 .. code-block:: bash
@@ -202,7 +211,7 @@ root directory using an activated command prompt:
 Execution
 ---------
 
-To start a default instance of volttron from an activated command prompt
+To start a default instance of VOLTTRON from an activated command prompt
 execute the following.
 
 .. code-block:: bash
