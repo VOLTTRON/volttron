@@ -162,7 +162,7 @@ def _start_rabbitmq_without_ssl():
         # If ports if non ssl ports are not default write a rabbitmq.conf before
         # restarting
         new_conf = """listeners.tcp.default = 5672
-            management.listener.port = 15672"""
+management.listener.port = 15672"""
         with open(os.path.join(config_opts['rmq-home'],
                                "etc/rabbitmq", "rabbitmq.conf"),
                   'w+') as r_conf:
@@ -441,8 +441,24 @@ def start_rabbit(rmq_home):
     cmd = [os.path.join(rmq_home, "sbin/rabbitmq-server"),
            "-detached"]
     subprocess.check_call(cmd)
-    gevent.sleep(10)
-    _log.info("**Started rmq server at {}".format(rmq_home))
+    gevent.sleep(5)
+    cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "status"]
+    i = 5
+    started = False
+    while not started:
+        try:
+            subprocess.check_call(cmd, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE)
+            gevent.sleep(5) # give a few seconds for all plugins to startup
+            started = True
+            _log.info("Started rmq server at {}".format(rmq_home))
+        except subprocess.CalledProcessError as e:
+            if i > 60:  # if more than a minute, may be somthing is wrong
+                raise e
+            else:
+                # sleep for another 5 seconds and check status again
+                gevent.sleep(5)
+                i = i + 5
 
 
 def _create_certs_without_prompt(admin_client_name, instance_ca_name, server_cert_name):
@@ -741,6 +757,47 @@ def prompt_upstream_servers(update=True):
         upstream_servers[host] = {'port': port,
                                   'virtual-host': vhost}
     return upstream_servers
+
+def prompt_shovels(update=True):
+    """
+    Get upstream servers
+    :return:
+    """
+    global config_opts
+
+    shovels = config_opts.get('shovels', {})
+    prompt = 'Number of destination hosts to configure:'
+    count = prompt_response(prompt, default=1)
+    count = int(count)
+    i = 0
+
+    for i in range(0, count):
+        prompt = 'Hostname of the destination server: '
+        host = prompt_response(prompt)
+        prompt = 'Port of the destination server: '
+        port = prompt_response(prompt, default=5671)
+        prompt = 'Virtual host of the destination server: '
+        vhost = prompt_response(prompt, default='volttron')
+        shovels[host] = {'port': port,
+                         'virtual-host': vhost}
+        prompt = prompt_response('\nDo you want shovels for PUBSUB communication? ',
+                                 valid_answers=y_or_n,
+                                 default='N')
+
+        if prompt in y:
+            prompt = 'List of PUBSUB topics to publish to this remote instance (comma seperated)'
+            topics = prompt_response(prompt, default="")
+            topics = topics.split(",")
+            shovels[host]['pubsub-topics'] = topics
+        prompt = prompt_response('\nDo you want shovels for RPC communication? ',
+                                 valid_answers=y_or_n,
+                                 default='N')
+        if prompt in y:
+            prompt = 'List of identities of remote agents (comma seperated)'
+            agent_ids = prompt_response(prompt, default="")
+            agent_ids = agent_ids.split(",")
+            shovels[host]['rpc-agent-identities'] = agent_ids
+    return shovels
 
 
 def prompt_shovels(update=True):

@@ -101,15 +101,16 @@ def call_grequest(method_name, url_suffix, ssl_auth=True, **kwargs):
         if response and isinstance(response, list):
             response[0].raise_for_status()
     except (ConnectionError, NewConnectionError) as e:
-        _log.error("Connection to {} not available".format(url))
+        _log.error("Error connecting to {} with "
+                   "args {}: {}".format(url, kwargs, e))
         raise e
     except requests.exceptions.HTTPError as e:
         _log.error("Exception when trying to make HTTP request to {} with "
                    "args {} : {}".format(url, kwargs, e))
         raise e
     except AttributeError as e:
-        _log.error("Exception when trying to make HTTP request "
-              "to RabbitMQ {}".format(e))
+        _log.error("Exception when trying to make HTTP request to {} with "
+                   "args {} : {}".format(url, kwargs, e))
         raise e
     return response
 
@@ -972,15 +973,12 @@ def create_user_with_permissions(user, permissions, ssl_auth=None):
         ssl_auth = is_ssl_connection()
     if user not in get_users(ssl_auth):
         create_user(user, user, ssl_auth=ssl_auth)
-    perms = get_user_permissions(user, ssl_auth=ssl_auth)
-    # Add user permissions if missing
-    if not perms:
-        # perms = dict(configure='.*', read='.*', write='.*')
-        perms = dict(configure=permissions['configure'],
-                     read=permissions['read'],
-                     write=permissions['write'])
-        _log.debug("permissions: {}".format(perms))
-        set_user_permissions(perms, user, ssl_auth=ssl_auth)
+    # perms = dict(configure='.*', read='.*', write='.*')
+    perms = dict(configure=permissions['configure'],
+                 read=permissions['read'],
+                 write=permissions['write'])
+    _log.debug("permissions: {}".format(perms))
+    set_user_permissions(perms, user, ssl_auth=ssl_auth)
 
 
 def _is_valid_rmq_url():
