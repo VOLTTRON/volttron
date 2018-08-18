@@ -445,7 +445,9 @@ def start_rabbit(rmq_home):
         try:
             subprocess.check_call(cmd, stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE)
+            gevent.sleep(5) # give a few seconds for all plugins to startup
             started = True
+            _log.info("Started rmq server at {}".format(rmq_home))
         except subprocess.CalledProcessError as e:
             if i > 60:  # if more than a minute, may be somthing is wrong
                 raise e
@@ -453,7 +455,6 @@ def start_rabbit(rmq_home):
                 # sleep for another 5 seconds and check status again
                 gevent.sleep(5)
                 i = i + 5
-    _log.info("**Started rmq server at {}".format(rmq_home))
 
 
 def _create_certs_without_prompt(admin_client_name, instance_ca_name, server_cert_name):
