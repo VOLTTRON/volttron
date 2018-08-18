@@ -320,9 +320,9 @@ def _setup_for_ssl_auth(instance_name):
     """
     Utility method to create
     1. Root CA
-    2. Instance CA
-    3. RabbitMQ server certificates (public and private)
-    4. Admin user to connect to RabbitMQ management web interface
+    2. RabbitMQ server certificates (public and private)
+    3. RabbitMQ config with SSL setting
+    4. Admin user to connect to RabbitMQ management Web interface
 
     :param instance_name: Instance name
     :return:
