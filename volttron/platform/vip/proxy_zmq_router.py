@@ -67,8 +67,9 @@ class ZMQProxyRouter(Agent):
         super(ZMQProxyRouter, self).__init__(identity, address, **kwargs)
         self.zmq_router = zmq_router
         self._routing_key = self.core.instance_name + '.' + 'proxy'
-        self._outbound_queue = "{identity}.zmq.outbound".format(identity=identity) #'proxy_outbound'
-        self._external_pubsub_rpc_queue = "{identity}.zmq.inbound".format(identity=identity) #'proxy_inbound'
+        rmq_user = self.core.instance_name + '.' + identity
+        self._outbound_queue = "{user}.zmq.outbound".format(user=rmq_user) #'proxy_outbound'
+        self._external_pubsub_rpc_queue = "{user}.zmq.inbound".format(user=rmq_user) #'proxy_inbound'
 
     @Core.receiver('onstart')
     def startup(self, sender, **kwargs):
@@ -266,7 +267,7 @@ class ZMQProxyRouter(Agent):
         # Fit VIP frames into the PIKA properties dictionary
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         dct = {
-            'user_id': self.core.identity,
+            'user_id': self.core.instance_name + '.' + self.core.identity,
             'app_id': app_id,  # Routing key of SOURCE AGENT
             'headers': dict(sender=bytes(sender),  # SENDER
                             recipient=destination_routing_key,  # RECEIVER

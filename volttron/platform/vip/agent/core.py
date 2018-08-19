@@ -887,6 +887,7 @@ class RMQCore(BasicCore):
             if is_ssl:
                 crts = certs.Certs()
                 crts.create_ca_signed_cert(self.rmq_user, overwrite=False)
+
             create_rmq_user_with_permissions(self.rmq_user, permissions,
                                              ssl_auth=is_ssl)
 

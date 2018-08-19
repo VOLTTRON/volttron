@@ -58,9 +58,6 @@
 
 from __future__ import absolute_import
 
-import os
-import pika
-import logging
 from .rmq_connection import RMQConnection
 from .socket import Message, Address
 from ..main import __version__
@@ -119,6 +116,7 @@ class RMQRouter(BaseRouter):
             # Add permissions if necessary
             ssl_auth = is_ssl_connection()
             user = self._instance_name + '.' + self._identity
+            _log.debug("connection params: {}".format(user))
             if ssl_auth:
                 crts = certs.Certs()
                 crts.create_ca_signed_cert(user, overwrite=False)
@@ -126,6 +124,7 @@ class RMQRouter(BaseRouter):
             param = build_connection_param(self._identity,
                                            self._instance_name,
                                            ssl_auth)
+
             if ssl_auth:
                 _log.debug("connection param: {}".format(param.ssl_options))
         return param

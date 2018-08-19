@@ -61,6 +61,7 @@ try:
     import yaml
 except ImportError:
     raise RuntimeError('PyYAML must be installed before running this script ')
+
 import grequests
 import gevent
 import pika
@@ -1013,6 +1014,7 @@ def get_ssl_url_params():
 def create_rmq_volttron_test_setup(volttron_home, host='localhost'):
     global config_opts
     _load_rmq_config(volttron_home)
+
     ssl_auth = False
     # Set vhost, username, password, hostname and port
     config_opts['virtual-host'] = 'volttron_test'
@@ -1034,18 +1036,12 @@ def cleanup_rmq_volttron_test_setup(volttron_home):
     global config_opts
     _load_rmq_config(volttron_home)
     try:
-        vhost = config_opts.get('virtual-host', 'volttron_test')
         users = get_users(ssl_auth=False)
         users.remove('guest')
         users_to_remove = []
-        for user in users:
-            perm = get_user_permissions(user, vhost, ssl_auth=False)
-            if perm:
-                users_to_remove.append(user)
+
         # Delete all the users using virtual host
         for user in users_to_remove:
             delete_user(user)
-        # Finally delete the virtual host
-        delete_vhost(config_opts['virtual-host'])
     except KeyError as e:
         return

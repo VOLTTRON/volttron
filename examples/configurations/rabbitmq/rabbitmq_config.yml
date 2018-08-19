@@ -24,6 +24,7 @@ amqp-port-ssl: '5671'
 
 # defaults to 15672
 mgmt-port: '15672'
+
 # defaults to 15671
 mgmt-port-ssl: '15671'
 

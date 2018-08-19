@@ -309,6 +309,7 @@ def install_rabbit(rmq_install_dir):
            "rabbitmq_federation",
            "rabbitmq_federation_management",
            "rabbitmq_shovel",
+           "rabbitmq_shovel_management",
            "rabbitmq_auth_mechanism_ssl"]
     subprocess.check_call(cmd)
 

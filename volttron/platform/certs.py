@@ -420,6 +420,7 @@ class Certs(object):
         if not overwrite:
             if self.cert_exists(name):
                 return
+
         if not ca_name:
             ca_name = self.root_ca_name
         ca_cert = self.cert(ca_name)
@@ -634,4 +635,5 @@ class Certs(object):
             kwargs['CN'] = self.default_root_ca_cn
 
         cert, pk = _mk_cacert(**kwargs)
+
         self._save_cert(self.root_ca_name, cert, pk)

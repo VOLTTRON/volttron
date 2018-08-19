@@ -199,12 +199,13 @@ def _create_federation_setup():
 
         for host, upstream in federation.iteritems():
             try:
-                _log.debug("Upstream Server: {} ".format(host))
-                name = "upstream-{host}".format(host=host)
+                name = "upstream-{vhost}-{host}".format(vhost=upstream['virtual-host'],
+                                                        host=host)
+                print("Upstream Server: {name} ".format(name=name))
+
                 if is_ssl:
                     address = "amqps://{host}:{port}/{vhost}?" \
-                              "{ssl_params}" \
-                              "&server_name_indication={host}".format(
+                              "{ssl_params}&server_name_indication={host}".format(
                                 host=host,
                                 port=upstream['port'],
                                 vhost=upstream['virtual-host'],
@@ -232,9 +233,7 @@ def _create_federation_setup():
                                 "definition":{"federation-upstream-set":"all"},
                                 "priority":0,
                                 "apply-to": "exchanges"}
-                set_policy(policy_name,
-                           policy_value,
-                           config_opts['virtual-host'])
+                set_policy(policy_name, policy_value, config_opts['virtual-host'])
             except KeyError as ex:
                 _log.error("Federation setup  did not complete. "
                            "Missing Key {key} in upstream config "
@@ -283,8 +282,8 @@ def _create_shovel_setup():
                     topic))
                 name = "shovel-{host}-{topic}".format(host=host,
                                                       topic=topic)
-                routing_key = "__pubsub__.{instance}.{topic}.#".format(
-                    instance=instance_name, topic=topic)
+                routing_key = "__pubsub__.{instance}.{topic}.#".format(instance=instance_name,
+                                                                       topic=topic)
                 prop = dict(vhost=config_opts['virtual-host'],
                                 component="shovel",
                                 name=name,
@@ -304,8 +303,8 @@ def _create_shovel_setup():
                            ": {}".format(topic))
                 name = "shovel-{host}-{identity}".format(host=host,
                                                          identity=identity)
-                routing_key = "{instance}.{identity}.#".format(
-                    instance=instance_name, identity=identity)
+                routing_key = "{instance}.{identity}.#".format(instance=instance_name,
+                                                               identity=identity)
                 prop = dict(vhost=config_opts['virtual-host'],
                                 component="shovel",
                                 name=name,
@@ -317,7 +316,9 @@ def _create_shovel_setup():
                                 )
 
                 print "shovel property: {}".format(prop)
-                set_parameter("shovel", name, prop)
+                set_parameter("shovel",
+                              name,
+                              prop)
     except KeyError as exc:
         _log.error("Shovel setup  did not complete. Missing Key: {}".format(
             exc))
@@ -547,7 +548,7 @@ def setup_rabbitmq_volttron(type, verbose=False, prompt=False):
     global instance_name, _log, crts, volttron_home, volttron_rmq_config
 
     # Initialize global variable. Do it here as this method might be called
-    # from volttron-cfg. vcfg might set vhome
+    # from volttron-cfg. volttron-cfg might set vhome
 
     volttron_home = get_home()
     volttron_rmq_config = os.path.join(volttron_home, 'rabbitmq_config.yml')
