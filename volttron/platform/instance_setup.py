@@ -580,8 +580,8 @@ def main():
             parser.print_help()
             exit(1)
         elif args.rabbitmq[0] not in ['single', 'federation', 'shovel', 'all']:
-            print("Usage: vcf --rabbitmq single|federation|shovel|all [optional "
-                  "path to rabbitmq config yml]")
+            print("Usage: vcf --rabbitmq single|federation|shovel|all "
+                  "[optional path to rabbitmq config yml]")
             parser.print_help()
             exit(1)
         elif len(args.rabbitmq) == 2 and not os.path.exists(args.rabbitmq[1]):

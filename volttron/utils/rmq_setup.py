@@ -58,7 +58,6 @@ from volttron.platform.agent.utils import store_message_bus_config, \
     get_platform_instance_name
 from volttron.utils.prompt import prompt_response, y, y_or_n
 
-
 try:
     import yaml
 except ImportError:
@@ -95,10 +94,11 @@ def _load_rmq_config(volttron_home=None):
         with open(volttron_rmq_config, 'r') as yaml_file:
             config_opts = yaml.load(yaml_file)
     except IOError as exc:
-        _log.error("Error opening {}. Please create a rabbitmq_config.yml " \
-              "file in your volttron home. If you want to point to a volttron " \
-              "home other than {} please set it as the environment variable " \
-              "VOLTTRON_HOME".format(volttron_rmq_config, volttron_home))
+        _log.error("Error opening {}. Please create a rabbitmq_config.yml "
+                   "file in your volttron home. If you want to point to a "
+                   "volttron home other than {} please set it as the "
+                   "environment variable VOLTTRON_HOME".format(
+            volttron_rmq_config, volttron_home))
         return exc
     except yaml.YAMLError as exc:
         return exc
@@ -117,15 +117,16 @@ def _start_rabbitmq_without_ssl():
 
     rmq_home = config_opts.get("rmq-home")
     if not rmq_home:
-        rmq_home = os.path.join(os.path.expanduser("~"), "rabbitmq_server/rabbitmq_server-3.7.7")
+        rmq_home = os.path.join(os.path.expanduser("~"),
+                                "rabbitmq_server/rabbitmq_server-3.7.7")
         if os.path.exists(rmq_home):
             config_opts.setdefault("rmq-home", rmq_home)
         else:
-            raise ValueError("Missing Key in RabbitMQ config. RabbitMQ is not "
-                     "installed "
-                  "in default path: \n"
-                  "~/rabbitmq_server/rabbitmq_server-3.7.7 \n"
-                  "Set the correct RabbitMQ installation path")
+            raise ValueError(
+                "Missing Key in RabbitMQ config. RabbitMQ is not installed "
+                "in default path: \n"
+                "~/rabbitmq_server/rabbitmq_server-3.7.7 \n"
+                "Set the correct RabbitMQ installation path")
     else:
         if not os.path.exists(rmq_home) or not os.path.exists(os.path.join(
                 rmq_home, 'sbin/rabbitmq-server')):
@@ -134,7 +135,8 @@ def _start_rabbitmq_without_ssl():
                                 rmq_home, volttron_rmq_config))
 
 
-    # Check if basic configuration is available in the config file, if not set default.
+    # Check if basic configuration is available in the config file,
+    # if not set default.
     config_opts.setdefault('host',"localhost")
     config_opts.setdefault("ssl", "true")
     config_opts.setdefault('amqp-port', 5672)
@@ -173,9 +175,11 @@ management.listener.port = 15672"""
     start_rabbit(config_opts['rmq-home'])
 
 
+
 def _create_federation_setup():
     """
-    Creates a RabbitMQ federation of multiple VOLTTRON instances based on rabbitmq config.
+    Creates a RabbitMQ federation of multiple VOLTTRON instances based on
+    rabbitmq config.
         - Builds AMQP/S address for each upstream server
         - Creates upstream servers
         - Adds policy to make "volttron" exchange "federated".
@@ -324,9 +328,9 @@ def _setup_for_ssl_auth(instance_name):
     """
     Utility method to create
     1. Root CA
-    2. Instance CA
-    3. RabbitMQ server certificates (public and private)
-    4. Admin user to connect to RabbitMQ management web interface
+    2. RabbitMQ server certificates (public and private)
+    3. RabbitMQ config with SSL setting
+    4. Admin user to connect to RabbitMQ management Web interface
 
     :param instance_name: Instance name
     :return:
@@ -337,7 +341,7 @@ def _setup_for_ssl_auth(instance_name):
         certs.Certs.get_cert_names(instance_name)
 
     # prompt for host before creating certs as it is needed for server cert
-    _create_certs_without_prompt(admin_client_name, instance_ca_name, server_name)
+    _create_certs_without_prompt(admin_client_name, server_name)
 
     # if all was well, create the rabbitmq.conf file for user to copy
     # /etc/rabbitmq and update VOLTTRON_HOME/rabbitmq_config.json
@@ -370,7 +374,8 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
     # Stop server, move new config file with ssl params, start server
     stop_rabbit(config_opts['rmq-home'])
 
-    # Add VOLTTRON admin user. This is needed to connect to web interface, multi-platform federation, shovel
+    # Add VOLTTRON admin user. This is needed to connect to web interface,
+    # multi-platform federation, shovel
     # TODO: Could we use guest instead for all local mgmt plugin tasks and
     # use ssl auth for others. To test.
     config_opts["user"] = admin_client_name
@@ -461,7 +466,7 @@ def start_rabbit(rmq_home):
                 i = i + 5
 
 
-def _create_certs_without_prompt(admin_client_name, instance_ca_name, server_cert_name):
+def _create_certs_without_prompt(admin_client_name, server_cert_name):
     """
     Utility method to create certificates
     :param client_cert_name: client (agent) cert name
@@ -480,12 +485,13 @@ def _create_certs_without_prompt(admin_client_name, instance_ca_name, server_cer
         _log.info('\n Creating root ca for volttron instance: {}'.format(
             crts.cert_file(crts.root_ca_name)))
         cert_data = config_opts.get('certificate-data')
-        if not cert_data or not all(k in cert_data for k in ['country',
-                                                             'state',
-                                                             'location',
-                                                             'organization',
-                                                             'organization-unit',
-                                                             'common-name']):
+        if not cert_data or not all(k in cert_data
+                                    for k in ['country',
+                                              'state',
+                                              'location',
+                                              'organization',
+                                              'organization-unit',
+                                              'common-name']):
             raise ValueError(
                 "No certificate data found in {}. Please refer to example "
                 "config at examples/configurations/rabbitmq/rabbitmq_config.yml"
@@ -534,7 +540,8 @@ def setup_rabbitmq_volttron(type, verbose=False, prompt=False):
     Setup VOLTTRON instance to run with RabbitMQ message bus.
     :param type:
             single - Setup to run as single instance
-            federation - Setup to connect multiple VOLTTRON instances as a federation
+            federation - Setup to connect multiple VOLTTRON instances as
+                         a federation
             shovel - Setup shovels to forward local messages to remote instances
     :return:
     """
@@ -579,7 +586,9 @@ def setup_rabbitmq_volttron(type, verbose=False, prompt=False):
         _log.debug("Creating rabbitmq virtual hosts and required users for "
                    "volttron")
         # Create local RabbitMQ setup - vhost, exchange etc.
-        success = init_rabbitmq_setup() # should be called after _start_rabbitmq_without_ssl
+        # should be called after _start_rabbitmq_without_ssl
+        # TODO: pass only necessary params instead reading files
+        success = init_rabbitmq_setup()
         ssl_auth = config_opts.get('ssl', "true")
         if success and ssl_auth in ('true', 'True', 'TRUE'):
             _setup_for_ssl_auth(instance_name)
@@ -628,21 +637,21 @@ def _create_rabbitmq_config(instance_name, type):
         if config_opts['ssl'] == "true":
             cert_data = {}
             print(
-                "\nPlease enter the following details for root CA certificates")
+                "\nPlease enter the following details for root CA certificate")
             prompt = '\tCountry:'
             cert_data['country'] = prompt_response(prompt, default='US')
             prompt = '\tState:'
-            cert_data['state'] = prompt_response(prompt)
+            cert_data['state'] = prompt_response(prompt, mandatory=True)
             prompt = '\tLocation:'
-            cert_data['location'] = prompt_response(prompt)
+            cert_data['location'] = prompt_response(prompt, mandatory=True)
             prompt = '\tOrganization:'
-            cert_data['organization'] = prompt_response(prompt)
+            cert_data['organization'] = prompt_response(prompt, mandatory=True)
             prompt = '\tOrganization Unit:'
-            cert_data['organization-unit'] = prompt_response(prompt)
+            cert_data['organization-unit'] = prompt_response(prompt,
+                                                             mandatory=True)
             prompt = '\tCommon Name:'
-            cert_data['common-name'] = prompt_response(prompt,
-                                                       default=instance_name
-                                                               + '-root-ca')
+            cert_data['common-name'] = prompt_response(
+                prompt, default=instance_name + '-root-ca')
             config_opts['certificate-data'] = cert_data
 
         prompt = "Do you want to use default values for RabbitMQ home, " \
@@ -682,7 +691,6 @@ def _create_rabbitmq_config(instance_name, type):
         # if option was all then config_opts would be not null
         # if this was called with just type = shovel, load existing
         # config so that we don't overwrite existing list
-        print("Configure shovel")
         if not config_opts:
             _load_rmq_config()
         config_opts['shovel'] = prompt_shovels()
@@ -699,7 +707,7 @@ def prompt_port(default_port, prompt):
             port = int(port)
             return port
         except ValueError:
-            print("Invalid port. Port should be a integer")
+            print("Invalid port. Port should be an integer")
 
 
 def _prompt_rmq_home():
@@ -761,6 +769,7 @@ def prompt_upstream_servers(update=True):
                                   'virtual-host': vhost}
     return upstream_servers
 
+
 def prompt_shovels(update=True):
     """
     Get upstream servers
@@ -783,20 +792,22 @@ def prompt_shovels(update=True):
         vhost = prompt_response(prompt, default='volttron')
         shovels[host] = {'port': port,
                          'virtual-host': vhost}
-        prompt = prompt_response('\nDo you want shovels for PUBSUB communication? ',
+        prompt = prompt_response('\nDo you want shovels for '
+                                 'PUBSUB communication? ',
                                  valid_answers=y_or_n,
                                  default='N')
 
         if prompt in y:
-            prompt = 'List of PUBSUB topics to publish to this remote instance (comma seperated)'
+            prompt = 'List of PUBSUB topics to publish to ' \
+                     'this remote instance (comma seperated)'
             topics = prompt_response(prompt, default="")
             topics = topics.split(",")
             shovels[host]['pubsub-topics'] = topics
-        prompt = prompt_response('\nDo you want shovels for RPC communication? ',
-                                 valid_answers=y_or_n,
-                                 default='N')
+        prompt = prompt_response(
+            '\nDo you want shovels for RPC communication? ',
+            valid_answers=y_or_n, default='N')
         if prompt in y:
-            prompt = 'List of identities of remote agents (comma seperated)'
+            prompt = 'List of identities of remote agents (comma separated)'
             agent_ids = prompt_response(prompt, default="")
             agent_ids = agent_ids.split(",")
             shovels[host]['rpc-agent-identities'] = agent_ids
