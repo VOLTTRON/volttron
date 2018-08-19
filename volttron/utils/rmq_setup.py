@@ -776,7 +776,7 @@ def prompt_upstream_servers(update=True):
     i = 0
     for i in range(0, count):
         prompt = 'Hostname of the upstream server: '
-        host = prompt_response(prompt)
+        host = prompt_response(prompt, mandatory=True)
         prompt = 'Port of the upstream server: '
         port = prompt_response(prompt, default=5671)
         prompt = 'Virtual host of the upstream server: '
@@ -801,7 +801,7 @@ def prompt_shovels(update=True):
 
     for i in range(0, count):
         prompt = 'Hostname of the destination server: '
-        host = prompt_response(prompt)
+        host = prompt_response(prompt, mandatory=True)
         prompt = 'Port of the destination server: '
         port = prompt_response(prompt, default=5671)
         prompt = 'Virtual host of the destination server: '

@@ -362,9 +362,11 @@ instance should have a unique instance name.
    b. Append the contents of the transferred root ca to the instance's root ca.
    For example:
    On v1:
-   cat /tmp/v2-root-ca.crt >> /home/vdev/.my_volttron_home/certificates/v1-root-ca.crt
+   cat /tmp/v2-root-ca.crt >> /home/vdev/
+   .my_volttron_home/certificates/v1-trusted-cas.crt
    On v2:
-   cat /tmp/v1-root-ca.crt >> /home/vdev/.my_volttron_home/certificates/v2-root-ca.crt
+   cat /tmp/v1-root-ca.crt >> /home/vdev/
+   .my_volttron_home/certificates/v2-trusted-cas.crt
 
 
 3. Identify upstream servers (publisher nodes) and downstream servers
@@ -401,7 +403,16 @@ upstream servers on the downstream server and make the VOLTTRON exchange
    from all platforms (set @PubSub.subscribe('pubsub', '', all_platforms=True)
    instead of @PubSub.subscribe('pubsub', '') )
 
-   b.Start VOLTTRON on upstream VOLTTRON
+   b.Install master driver, configure fake device on upstream server and start
+   volttron and master driver. vcfg --agent master_driver command can install
+   master driver and setup a fake device.
+
+   ```sh
+   ./stop-volttron
+   vcfg --agent master_driver
+   ./start-volttron
+   vctl start --tag master_driver
+   ```
 
    c. Verify listener agent in downstream VOLTTRON instance is able to receive
    the messages.
