@@ -53,31 +53,27 @@
 # under Contract DE-AC05-76RL01830
 
 # }}}
-import copy
 import datetime
-import logging
-import pwd
-from socket import gethostname, getfqdn
-from shutil import copyfile
-
-import os
 import json
+import logging
+import os
+from shutil import copyfile
+from socket import gethostname, getfqdn
+
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID, ExtensionOID
-from cryptography.x509.name import RelativeDistinguishedName
 from cryptography.x509.general_name import DNSName
-from volttron.platform import get_home
+from cryptography.x509.name import RelativeDistinguishedName
+from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
 
+from volttron.platform import get_home
+from volttron.platform.agent.utils import get_platform_instance_name
 
 _log = logging.getLogger(__name__)
 
-ROOT_CA_NAME = 'volttron-root-ca'
-DEFAULT_ROOT_CA_CN = '{} {}'.format(gethostname(), ROOT_CA_NAME)
-DEFAULT_CERTS_DIR = os.path.join(get_home(), 'certificates')
 KEY_SIZE = 1024
 ENC_STANDARD = 65537
 SHA_HASH = 'sha256'
@@ -243,7 +239,11 @@ def _load_key(key_file_path):
 
 
 def _get_cert_attribute_value(cert, attribute):
-    return cert.subject.get_attributes_for_oid(attribute)[0].value
+    _log.debug("Getting value for attribute: {}".format(attribute))
+    try:
+        return cert.subject.get_attributes_for_oid(attribute)[0].value
+    except Exception as e:
+        raise ValueError("Error getting value of {} :{}".format(attribute, e))
 
 
 class Certs(object):
@@ -293,11 +293,17 @@ class Certs(object):
 
     def __init__(self, certificate_dir=None):
         """Creates a Certs instance"""
+
+        self.default_certs_dir = os.path.join(get_home(), 'certificates')
+        self.root_ca_name = get_platform_instance_name(prompt=True) + '-root-ca'
+        self.default_root_ca_cn = '{} {}'.format(gethostname(),
+                                                 self.root_ca_name)
+
         if not certificate_dir:
-            certificate_dir = DEFAULT_CERTS_DIR
+            certificate_dir = self.default_certs_dir
         # If user provided explicit directory then it should exist
         if not os.path.exists(certificate_dir):
-            if certificate_dir != DEFAULT_CERTS_DIR:
+            if certificate_dir != self.default_certs_dir:
                 raise ValueError('Invalid cert_dir {}'.format(self.cert_dir))
 
         self.cert_dir = os.path.join(os.path.expanduser(certificate_dir),
@@ -322,7 +328,7 @@ class Certs(object):
         if not self.ca_exists():
             raise CertError("ca certificate doesn't exist")
 
-        return self.cert(ROOT_CA_NAME)
+        return self.cert(self.root_ca_name)
 
     def cert(self, name):
         """
@@ -349,7 +355,7 @@ class Certs(object):
         Returns true if the ca cert has been created already
         :return: True if CA cert exists, False otherwise
         """
-        return os.path.exists(self.cert_file(ROOT_CA_NAME))
+        return os.path.exists(self.cert_file(self.root_ca_name))
 
     @staticmethod
     def get_cert_names(instance_name):
@@ -366,7 +372,7 @@ class Certs(object):
     def create_instance_ca(self, name):
         self.create_ca_signed_cert(name, type='CA')
         with open(self.cert_file(name), 'a') as destination:
-            with open(self.cert_file(ROOT_CA_NAME), 'rb') as source:
+            with open(self.cert_file(self.root_ca_name), 'rb') as source:
                 destination.write(os.linesep)
                 s = source.read()
                 destination.write(s)
@@ -392,8 +398,8 @@ class Certs(object):
             copyfile(file_path, key_file)
             os.chmod(key_file, 0600)
 
-    def create_ca_signed_cert(self, name, type='client',
-                              ca_name=None, **kwargs):
+    def create_ca_signed_cert(self, name, type='client', ca_name=None,
+                              overwrite=True, **kwargs):
         """
         Create a new certificate and sign it with the volttron instance's
         CA certificate. Save the created certificate and the private key of
@@ -411,8 +417,11 @@ class Certs(object):
              CN - Common Name
         :return: True if certificate creation was successful
         """
+        if not overwrite:
+            if self.cert_exists(name):
+                return
         if not ca_name:
-            ca_name = ROOT_CA_NAME
+            ca_name = self.root_ca_name
         ca_cert = self.cert(ca_name)
 
         issuer = ca_cert.subject
@@ -527,7 +536,6 @@ class Certs(object):
         cert = cert_builder.sign(ca_key, hashes.SHA256(), default_backend())
         self._save_cert(name, cert, key)
         self.update_ca_db(cert, ca_name, serial)
-        from service_identity.cryptography import verify_certificate_hostname
         return True
 
     def _save_cert(self, name, cert, pk):
@@ -603,7 +611,7 @@ class Certs(object):
         cert = self.cert(cert_name)
         return cert.verify(cacert.get_pubkey())
 
-    def create_root_ca(self, **kwargs):
+    def create_root_ca(self, overwrite=True, **kwargs):
         """
         Create a CA certificate with the given args and save it with the given
         name
@@ -618,8 +626,12 @@ class Certs(object):
             CN - Common Name
         :return:
         """
+        if not overwrite:
+            if self.ca_exists():
+                return
+
         if 'CN' not in kwargs.keys() or kwargs['CN'] is None:
-            kwargs['CN'] = DEFAULT_ROOT_CA_CN
+            kwargs['CN'] = self.default_root_ca_cn
 
         cert, pk = _mk_cacert(**kwargs)
-        self._save_cert(ROOT_CA_NAME, cert, pk)
+        self._save_cert(self.root_ca_name, cert, pk)

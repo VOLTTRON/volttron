@@ -61,12 +61,12 @@ try:
 except ImportError:
     import json as jsonapi
 
-from .agent.utils import is_valid_identity, get_messagebus
+from .agent.utils import is_valid_identity, get_messagebus, \
+    get_platform_instance_name
 from .packages import UnpackedPackage
 from .vip.agent import Agent
 from .keystore import KeyStore
 from .auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
-from volttron.platform.agent.utils import create_vagent_cert
 from volttron.utils.rmq_mgmt import delete_user as delete_rmq_user, \
     create_user_with_permissions as create_rmq_user_with_permissions, \
     is_ssl_connection
@@ -421,7 +421,9 @@ class AIPplatform(object):
         if msg_bus == 'rmq':
             # Delete RabbitMQ user for the agent
             identity = self.agent_identity(agent_uuid)
-            delete_rmq_user(identity)
+            instance_name = get_platform_instance_name()
+            rmq_user = instance_name + '.' + identity
+            delete_rmq_user(rmq_user)
         self.agents.pop(agent_uuid, None)
         if remove_auth:
             self._unauthorize_agent_keys(agent_uuid)
@@ -661,15 +663,18 @@ class AIPplatform(object):
         # auth only cert created is used
         msg_bus = get_messagebus()
         if msg_bus == 'rmq':
-            config_access = "{identity}|{identity}.pubsub.*|{identity}.zmq.*".format(identity=agent_vip_identity)
+            instance_name = get_platform_instance_name()
+            rmq_user = instance_name + '.' + agent_vip_identity
+            config_access = "{user}|{user}.pubsub.*|{user}.zmq.*".format(user=rmq_user)
             read_access = "volttron|{}".format(config_access)
             write_access = "volttron|{}".format(config_access)
             permissions = dict(configure=config_access, read=read_access, write=write_access)
             ssl = is_ssl_connection()
             if ssl:
                 _log.info("Created agent cert")
-                create_vagent_cert(agent_vip_identity)
-            create_rmq_user_with_permissions(agent_vip_identity, permissions)
+                crts = certs.Certs()
+                crts.create_ca_signed_cert(rmq_user, overwrite=False)
+            create_rmq_user_with_permissions(rmq_user, permissions)
 
         module, _, func = module.partition(':')
         if func:
