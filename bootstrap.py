@@ -383,8 +383,10 @@ def main(argv=sys.argv):
                         '--rabbitmq', action='store', const=default_rmq_dir,
                         nargs='?',
                         help='install rabbitmq server and its dependencies. '
-                             'Please provide a install directory that exists '
-                             'and is writeable. Defaults to ' + default_rmq_dir)
+                             'optional argument: Install directory '
+                             'that exists and is writeable. RabbitMQ server '
+                             'will be installed in a subdirectory.'
+                             'Defaults to ' + default_rmq_dir)
                 else:
                     optional_args.append(arg)
                     if 'help' in vals.keys():

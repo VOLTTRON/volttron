@@ -46,6 +46,7 @@ import os
 import subprocess
 import time
 from socket import getfqdn
+from shutil import copy
 
 import gevent
 
@@ -363,7 +364,7 @@ management.listener.ssl_opts.certfile = {server_cert}
 management.listener.ssl_opts.keyfile = {server_key}""".format(
         mgmt_port_ssl=config_opts.get('mgmt-port-ssl', 15671),
         amqp_port_ssl=config_opts.get('amqp-port-ssl', 5671),
-        ca=crts.cert_file(crts.root_ca_name),
+        ca=crts.cert_file(crts.trusted_ca_name),
         server_cert=crts.cert_file(server_name),
         server_key=crts.private_key_file(server_name)
     )
@@ -404,7 +405,7 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
           "with instance name={}\nNotes:" + additional_to_do + \
           "\n - On production environments, restrict write access to {" \
           "root_ca} to only admin user. For example: " \
-          "sudo chown root {root_ca}" \
+          "sudo chown root {root_ca} and {trusted_ca}" \
           "\n - A new admin user was created with user name: {} and " \
           "password={}.\n   You could change this user's password by logging " \
           "into https://{}:{}/ Please update {} if you change password" \
@@ -413,6 +414,7 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
                          default_pass, config_opts['host'],
                          config_opts['mgmt-port-ssl'], volttron_rmq_config,
                          root_ca=crts.cert_file(crts.root_ca_name),
+                         trusted_ca=crts.cert_file(crts.trusted_ca_name),
                          vhome=vhome))
 
 
@@ -478,33 +480,42 @@ def _create_certs_without_prompt(admin_client_name, server_cert_name):
     global config_opts
 
     if crts.ca_exists():
-        _log.info('\n Root CA Found {}'.format(crts.cert_file(
-            crts.root_ca_name)))
+        prompt = "Found {}\n Creating a new Root CA will invalidate any " \
+                 "existing agent certificate. Do you want to create a " \
+                 "new Root CA.".format(crts.cert_file(crts.root_ca_name))
+        prompt = prompt_response(prompt,
+                                 valid_answers=y_or_n,
+                                 default='N')
+        if prompt not in y:
+            return
 
-    else:
-        _log.info('\n Creating root ca for volttron instance: {}'.format(
-            crts.cert_file(crts.root_ca_name)))
-        cert_data = config_opts.get('certificate-data')
-        if not cert_data or not all(k in cert_data
-                                    for k in ['country',
-                                              'state',
-                                              'location',
-                                              'organization',
-                                              'organization-unit',
-                                              'common-name']):
-            raise ValueError(
-                "No certificate data found in {}. Please refer to example "
-                "config at examples/configurations/rabbitmq/rabbitmq_config.yml"
-                " to see list of ssl certificate data to be configured".format(
-                    volttron_rmq_config))
-        data = {'C': cert_data.get('country'),
-                'ST': cert_data.get('state'),
-                'L': cert_data.get('location'),
-                'O': cert_data.get('organization'),
-                'OU': cert_data.get('organization-unit'),
-                'CN': cert_data.get('common-name')}
-        _log.info("Creating root ca with the following info: {}".format(data))
-        crts.create_root_ca(overwrite=False, **data)
+    _log.info('\n Creating root ca for volttron instance: {}'.format(
+        crts.cert_file(crts.root_ca_name)))
+    cert_data = config_opts.get('certificate-data')
+    if not cert_data or not all(k in cert_data
+                                for k in ['country',
+                                          'state',
+                                          'location',
+                                          'organization',
+                                          'organization-unit',
+                                          'common-name']):
+        raise ValueError(
+            "No certificate data found in {}. Please refer to example "
+            "config at examples/configurations/rabbitmq/rabbitmq_config.yml"
+            " to see list of ssl certificate data to be configured".format(
+                volttron_rmq_config))
+    data = {'C': cert_data.get('country'),
+            'ST': cert_data.get('state'),
+            'L': cert_data.get('location'),
+            'O': cert_data.get('organization'),
+            'OU': cert_data.get('organization-unit'),
+            'CN': cert_data.get('common-name')}
+    _log.info("Creating root ca with the following info: {}".format(data))
+    crts.create_root_ca(overwrite=False, **data)
+
+    # create a copy of the root ca as instance_name-trusted-cas.crt.
+    copy(crts.cert_file(crts.root_ca_name),
+         crts.cert_file(crts.trusted_ca_name))
 
     crts.create_ca_signed_cert(server_cert_name, type='server',
                                fqdn=config_opts.get('host'))
@@ -573,10 +584,10 @@ def setup_rabbitmq_volttron(type, verbose=False, prompt=False):
     if error:
         _log.error("\nFor single setup, configuration file must at least "
                    "contain host and ssl certificate details. For federation "
-                   "and shovel setup config should contain details about the "
-                   "other volttron instance with which communication needs "
-                   "to be established. Please refer to example config files "
-                   "under examples/configurations/rabbitmq/rabbitmq_config.yml")
+                   "and shovel setup, config should contain details about the "
+                   "volttron instance with which communication needs "
+                   "to be established. Please refer to example config file "
+                   "at examples/configurations/rabbitmq/rabbitmq_config.yml")
         return error
 
     invalid = True
@@ -611,19 +622,27 @@ def _create_rabbitmq_config(instance_name, type):
     volttron home
     :param type: Type of rmq setup - single, federation, shovel or all
     """
-    print ("Creating rmq config yml")
     global volttron_rmq_config
 
     if type == 'single' or type == 'all':
-        if os.path.exists(os.path.join(get_home(),'rabbitmq_config.yml')):
+        if os.path.exists(volttron_rmq_config):
             prompt = "rabbitmq_config.yml exists in {} Do you wish to " \
-                     "overwrite this file based on inputs provided?".format(
-                get_home())
+                     "use this file to configure the instance".format(
+                        get_home())
             prompt = prompt_response(prompt,
                                      valid_answers=y_or_n,
                                      default='Y')
-            if prompt not in y:
-                exit(1)
+            if prompt in y:
+                return
+            else:
+                _log.info("New input data will be used to overwrite existing "
+                          "{}".format(volttron_rmq_config))
+                # TODO: ideally we can load existing file and set values in it
+                # default and the compare what changed. If rmq-home changed
+                # and existing config those should get cleared. If cert details
+                # get changed - overwrite ca, server, admin cert and delete all
+                # other certs.
+
         global config_opts
         config_opts = {}
         config_opts['rmq-home'] = _prompt_rmq_home()
@@ -713,13 +732,10 @@ def prompt_port(default_port, prompt):
 def _prompt_rmq_home():
     default_dir = os.path.join(os.path.expanduser("~"),
                                "rabbitmq_server", rabbitmq_server)
-    rmq_home = default_dir
     valid_dir = False
     while not valid_dir:
         prompt = 'RabbitMQ server home:'
-        rmq_home = prompt_response(prompt, default=rmq_home)
-        if rmq_home == default_dir and not os.path.exists(default_dir):
-            os.mkdir(default_dir)
+        rmq_home = prompt_response(prompt, default=default_dir)
         if os.path.exists(rmq_home) and \
             os.path.exists(os.path.join(rmq_home, 'sbin/rabbitmq-server')):
             return rmq_home

@@ -295,7 +295,8 @@ class Certs(object):
         """Creates a Certs instance"""
 
         self.default_certs_dir = os.path.join(get_home(), 'certificates')
-        self.root_ca_name = get_platform_instance_name(prompt=True) + '-root-ca'
+        self.root_ca_name = get_platform_instance_name() + '-root-ca'
+        self.trusted_ca_name = get_platform_instance_name() + '-trusted-cas'
         self.default_root_ca_cn = '{} {}'.format(gethostname(),
                                                  self.root_ca_name)
 

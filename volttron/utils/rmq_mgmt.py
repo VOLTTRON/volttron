@@ -79,7 +79,7 @@ _log = logging.getLogger(__name__)
 
 config_opts = {}
 default_pass = "default_passwd"
-crts = certs.Certs()
+crts = None
 instance_name = None
 local_user = "guest"
 local_password = "guest"
@@ -124,7 +124,10 @@ def get_authentication_args(ssl_auth):
     request/grequest methods
     """
     global local_user, local_password, admin_user, admin_password, \
-        instance_name
+        instance_name, crts
+
+    if not crts:
+        crts = certs.Certs()
 
     if ssl_auth:
         if not instance_name:
@@ -998,6 +1001,8 @@ def get_ssl_url_params():
     global crts, instance_name
     if not instance_name:
         instance_name = get_platform_instance_name()
+    if not crts:
+        crts = certs.Certs()
     instance_ca, server_cert, client_cert = certs.Certs.get_cert_names(
         instance_name)
     #ca_file = crts.cert_file(instance_ca)
