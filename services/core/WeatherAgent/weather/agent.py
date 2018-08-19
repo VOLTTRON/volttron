@@ -358,7 +358,14 @@ class AsyncWeatherCache(WeatherCache):
 for method in []:
     setattr(AsyncWeatherCache, method.__name__, _using_threadpool(method))
 
-
+if not property_id == "statusFlags":
+                    values = []
+                    for tag in element.value.tagList:
+                        values.append(tag.app_to_object().value)
+                    if len(values) == 1:
+                        result_dict[property_id] = values[0]
+                    else:
+                        result_dict[property_id] = values
 class BaseWeather(BaseWeatherAgent):
     def __init__(self, **kwargs):
         _log.debug('Constructor of BaseWeather thread: {}'.format(
