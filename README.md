@@ -310,9 +310,41 @@ subcommands:
 
 ## Multi-Platform Deployment With RabbitMQ Message bus
 
+In ZeroMQ based VOLTTRON, if multiple instances needed to be connected together
+and be able to send or receive messages to/from remote instances we would do it
+in few different ways.
+
+1. Write an agent that would connect to remote instance directly and publish/subscribe
+to messages or perform RPC communication directly.
+
+2. Use special agents such as forwarder/data puller agents to forward/receive
+messages to/from remote instances.
+
+3. Configure vip address of all remote instances that an instance has to connect to
+in it's $VOLTTRON_HOME/external_discovery.json and let the router module in each instance
+manage the connection and take care of the message routing for us.
+This is the most seamless way to do multi-platform communication.
+
+RabbitMQ's shovel pluggin can be used to replace connection type 2 described above.
+Similarly, RabbitMQ's federation pluggin can be used to replace connection type 3.
+
+
 **Using Federation Pluggin**
-We can configure multi-platform VOLTTRON setup with RabbitMQ message bus using
-built-in "federation" feature provided by RabbitMQ.
+
+Federation pluggin allows us to send and receive messages to/from remote instances with
+few simple connection settings. Once a federation link is established to remote instance,
+the messages published on the remote instance become available to local instance as if it
+were published on the local instance. Before, we illustrate the steps to setup a federation
+link, let us start by defining the concept of upstream and downstream server.
+
+Upstream Server - The node that is publishing some message of interest
+
+DownStream Server - The node that wants to receive messages from the upstream server
+
+A federation link needs to be established from downstream server to the upstream server. The
+data flows in single direction from upstream server to downstream server. For bi-directional
+data flow we would need to create federation links on both the nodes.
+
 
 1. Setup two VOLTTRON instances using the above steps. Please note that each
 instance should have a unique instance name.
@@ -386,18 +418,67 @@ upstream servers on the downstream server and make the VOLTTRON exchange
    sudo firewall-cmd --reload
    ```
 
+5. Trouble Shooting
+
+   a. Check the status of the shovel connection.
+
+   ```
+   $RABBITMQ_HOME/sbin/rabbitmqctl eval 'rabbit_federation_status:status().'
+   ```
+
+   If everything is properly configured, then the status is set to "running".
+   If not look for the error status. Some of the typical errors are,
+
+   i. "failed_to_connect_using_provided_uris" - Check if RabbitMQ user is created
+   in downstream server node. Refer to step 3 b.
+
+   ii. "unknown ca" - Check if the root CAs are copied to all the nodes
+   correctly. Refer to step 2.
+
+   iii. "no_suitable_auth_mechanism" - Check if the AMPQ/S ports are correctly
+   configured.
+
+   b. Check the RabbitMQ logs for any errors.
+
+   ```
+   tail -f $RABBITMQ_HOME/var/log/rabbitmq/rabbit@<hostname>.log
+   ```
+
+   hostname needs to be replaced with actual hostname of the node.
+
+6. Remove the Federation link.
+
+   a. Using the management web interface
+
+   Log into management web interface using downstream server's admin username.
+   Navigate to admin tab and then to federation management page. The status of the
+   upstream link will be displayed on the page. Click on the upstream link name and
+   delete it.
+
+   b. Using "volttron-ctl" command on the publisher node.
+   ```
+   vctl rabbitmq list-federation-parameters
+   NAME                         URI
+   upstream-volttron2-rabbit-2  amqps://rabbit-2:5671/volttron2?cacertfile=/home/nidd494/.volttron1/certificates/certs/volttron1-root-ca.crt&certfile=/home/nidd494/.volttron1/certificates/certs/volttron1-admin.crt&keyfile=/home/nidd494/.volttron1/certificates/private/volttron1-admin.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-2
+   ```
+
+   Grab the upstream link name and run the below command to remove it.
+
+   ```
+   vctl rabbitmq remove-federation-parameters upstream-volttron2-rabbit-2
+   ```
+
 **Using Shovel Pluggin**
 
-In ZMQ based VOLTTRON, if we needed to forward pubsub messages from local to
-remote instance, we needed to use forwarder or data mover agents and similarly
-to forward messages from remote to local instance, we needed to use a data puller
-agent. In RabbitMQ based VOLTTRON, these agents can be replaced with shovels.
-Shovel is a built-in feature provided by RabbitMQ and it behaves like a well
-written client application that connects to its source ( can be local or remote )
-and destination ( can be local or remote instance ), reads and writes messages,
-and copes with connection failures. Shovels can also be used for remote RPC
-communication. We would have to create shovel in both the instances, one to send
-the RPC request and other to send the response back.
+In RabbitMQ based VOLTTRON, forwarder and data mover agents can be replaced with shovels
+to send or receive remote pubsub messages.
+Shovel behaves like a well written client application that connects to its source
+( can be local or remote ) and destination ( can be local or remote instance ),
+reads and writes messages, and copes with connection failures. In case of shovel, apart
+from configuring the hostname, port and virtual host of the remote instance, we will
+also have to provide list of topics that we want to forward to remote instance. Shovels
+can also be used for remote RPC communication in which case we would have to create shovel
+in both the instances, one to send the RPC request and other to send the response back.
 
 Following are the steps to create Shovel for multi-platform pubsub communication.
 
@@ -438,8 +519,7 @@ certain topics to remote instance "v2".
 
         If no config file is provided, the script will prompt for
         hostname (or IP address), port, vhost and list of topics for each
-        remote instance you would like to add. Hostname provided should match
-        the hostname in the SSL certificate of the upstream server. For
+        remote instance you would like to add. For
         bi-directional data flow, we will have to run the same script on both the nodes.
 
     b.  Create a user in the subscriber node with username set to publisher instance's
@@ -476,9 +556,15 @@ certain topics to remote instance "v2".
 
    If everything is properly configured, then the status is set to "running".
    If not look for the error status. Some of the typical errors are,
-   "failed_to_connect_using_provided_uris",
-   "unknown ca",
-   "no_suitable_auth_mechanism"
+
+   i. "failed_to_connect_using_provided_uris" - Check if RabbitMQ user is created
+   in subscriber node. Refer to step 3 b.
+
+   ii. "unknown ca" - Check if the root CAs are copied to remote servers
+   correctly. Refer to step 2.
+
+   iii. "no_suitable_auth_mechanism" - Check if the AMPQ/S ports are correctly
+   configured.
 
    b. Check the RabbitMQ logs for any errors.
 
@@ -486,22 +572,26 @@ certain topics to remote instance "v2".
    tail -f $RABBITMQ_HOME/var/log/rabbitmq/rabbit@<hostname>.log
    ```
 
-   <hostname> to be replaced with actual hostname of the node.
+   hostname needs to be replaced with actual hostname of the node.
 
 6. Remove the shovel setup.
 
-   a. Using the management web interface.
-   Log into management we interface with VOLTTRON instance admin username
-   and remove the shovel.
+   a. Using the management web interface
+
+   Log into management web interface using publisher instance's admin username.
+   Navigate to admin tab and then to shovel management page. The status of the
+   shovel will be displayed on the page. Click on the shovel name and delete
+   the shovel.
 
    b. Using "volttron-ctl" command on the publisher node.
    ```
    vctl rabbitmq list-shovel-parameters
    NAME                     SOURCE ADDRESS                                                 DESTINATION ADDRESS                                            BINDING KEY
-   shovel-rabbit-3-devices  amqp://volttron1-admin:default_passwd@rabbit-1:5672/volttron1  amqp://volttron1-admin:default_passwd@rabbit-3:5672/volttron3  __pubsub__.volttron1.devices.#
+   shovel-rabbit-3-devices  amqps://rabbit-1:5671/volttron1?cacertfile=/home/nidd494/.volttron1/certificates/certs/volttron1-root-ca.crt&certfile=/home/nidd494/.volttron1/certificates/certs/volttron1-admin.crt&keyfile=/home/nidd494/.volttron1/certificates/private/volttron1-admin.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-1  amqps://rabbit-3:5671/volttron3?cacertfile=/home/nidd494/.volttron1/certificates/certs/volttron1-root-ca.crt&certfile=/home/nidd494/.volttron1/certificates/certs/volttron1-admin.crt&keyfile=/home/nidd494/.volttron1/certificates/private/volttron1-admin.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-3  __pubsub__.volttron1.devices.#
    ```
 
    Grab the shovel name and run the below command to remove it.
+
    ```
    vctl rabbitmq remove-shovel-parameters shovel-rabbit-3-devices
    ```
