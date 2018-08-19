@@ -683,6 +683,9 @@ def _create_rabbitmq_config(instance_name, type):
         # if this was called with just type = shovel, load existing
         # config so that we don't overwrite existing list
         print("Configure shovel")
+        if not config_opts:
+            _load_rmq_config()
+        config_opts['shovel'] = prompt_shovels()
 
     with open(volttron_rmq_config, 'w') as yaml_file:
         yaml.dump(config_opts, yaml_file, default_flow_style=False)
@@ -757,48 +760,6 @@ def prompt_upstream_servers(update=True):
         upstream_servers[host] = {'port': port,
                                   'virtual-host': vhost}
     return upstream_servers
-
-def prompt_shovels(update=True):
-    """
-    Get upstream servers
-    :return:
-    """
-    global config_opts
-
-    shovels = config_opts.get('shovels', {})
-    prompt = 'Number of destination hosts to configure:'
-    count = prompt_response(prompt, default=1)
-    count = int(count)
-    i = 0
-
-    for i in range(0, count):
-        prompt = 'Hostname of the destination server: '
-        host = prompt_response(prompt)
-        prompt = 'Port of the destination server: '
-        port = prompt_response(prompt, default=5671)
-        prompt = 'Virtual host of the destination server: '
-        vhost = prompt_response(prompt, default='volttron')
-        shovels[host] = {'port': port,
-                         'virtual-host': vhost}
-        prompt = prompt_response('\nDo you want shovels for PUBSUB communication? ',
-                                 valid_answers=y_or_n,
-                                 default='N')
-
-        if prompt in y:
-            prompt = 'List of PUBSUB topics to publish to this remote instance (comma seperated)'
-            topics = prompt_response(prompt, default="")
-            topics = topics.split(",")
-            shovels[host]['pubsub-topics'] = topics
-        prompt = prompt_response('\nDo you want shovels for RPC communication? ',
-                                 valid_answers=y_or_n,
-                                 default='N')
-        if prompt in y:
-            prompt = 'List of identities of remote agents (comma seperated)'
-            agent_ids = prompt_response(prompt, default="")
-            agent_ids = agent_ids.split(",")
-            shovels[host]['rpc-agent-identities'] = agent_ids
-    return shovels
-
 
 def prompt_shovels(update=True):
     """
