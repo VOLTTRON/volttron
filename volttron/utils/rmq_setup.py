@@ -64,7 +64,7 @@ try:
 except ImportError:
     raise RuntimeError('PyYAML must be installed before running this script ')
 
-logging.basicConfig(level=logging.INFO)
+#logging.basicConfig(level=logging.INFO)
 _log = logging.getLogger(os.path.basename(__file__))
 
 
