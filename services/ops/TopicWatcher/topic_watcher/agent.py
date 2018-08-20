@@ -42,7 +42,7 @@ import gevent
 import sqlite3
 import datetime
 
-from volttron.platform.agent.known_identities import PLATFORM_ALERTER
+from volttron.platform.agent.known_identities import PLATFORM_TOPIC_WATCHER
 from volttron.platform.agent import utils
 from volttron.platform.messaging.health import Status, STATUS_BAD
 from volttron.platform.vip.agent import Agent, Core, RPC
@@ -439,7 +439,7 @@ class AlertGroup(Agent):
 
 
 def main():
-    utils.vip_main(AlertAgent, identity=PLATFORM_ALERTER, version=__version__)
+    utils.vip_main(AlertAgent, identity=PLATFORM_TOPIC_WATCHER, version=__version__)
 
 
 if __name__ == '__main__':

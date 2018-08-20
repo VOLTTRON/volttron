@@ -44,11 +44,11 @@ import os
 import pytest
 
 from volttron.platform import get_ops
-from volttron.platform.agent.known_identities import PLATFORM_ALERTER
+from volttron.platform.agent.known_identities import PLATFORM_TOPIC_WATCHER
 from volttron.platform.agent.utils import get_aware_utc_now
 
 agent_version = '1.0'
-ALERT_CONFIG = {
+WATCHER_CONFIG = {
     "group1": {
         "fakedevice": 5,
         "fakedevice2/all": {
@@ -68,13 +68,16 @@ alert_uuid = None
 @pytest.fixture(scope='module')
 def agent(request, volttron_instance1):
     global db_connection, agent_version, db_path, alert_uuid
+    assert os.path.exists(get_ops("TopicWatcher"))
     alert_uuid = volttron_instance1.install_agent(
-        agent_dir=get_ops("AlertAgent"),
-        config_file=ALERT_CONFIG)
+        agent_dir=get_ops("TopicWatcher"),
+        config_file=WATCHER_CONFIG,
+        vip_identity=PLATFORM_TOPIC_WATCHER
+    )
     gevent.sleep(2)
     db_path = os.path.join(volttron_instance1.volttron_home, 'agents',
-                           alert_uuid, 'alerteragent-' + agent_version,
-                           'alerteragent-' + agent_version + '.agent-data',
+                           alert_uuid, 'topic_watcheragent-' + agent_version,
+                           'topic-watcheragent-' + agent_version + '.agent-data',
                            'alert_log.sqlite')
 
     print ("DB PATH: {}".format(db_path))
@@ -177,7 +180,7 @@ def test_ignore_topic(agent):
     """
     global alert_messages, db_connection
 
-    agent.vip.rpc.call(PLATFORM_ALERTER, 'ignore_topic', 'group1',
+    agent.vip.rpc.call(PLATFORM_TOPIC_WATCHER, 'ignore_topic', 'group1',
                        'fakedevice2/all').get()
     alert_messages.clear()
     publish_time = get_aware_utc_now()
@@ -226,7 +229,7 @@ def test_watch_topic_same_group(volttron_instance1, agent, cleanup_db):
                              topic='fakedevice2/all',
                              message=[{'point': 'value'}])
     gevent.sleep(1)
-    agent.vip.rpc.call(PLATFORM_ALERTER, 'watch_topic', 'group1', 'newtopic',
+    agent.vip.rpc.call(PLATFORM_TOPIC_WATCHER, 'watch_topic', 'group1', 'newtopic',
                        5).get()
     gevent.sleep(6)
 
@@ -277,7 +280,7 @@ def test_watch_topic_new_group(volttron_instance1, agent, cleanup_db):
                              topic='fakedevice2/all',
                              message=[{'point': 'value'}])
     gevent.sleep(1)
-    agent.vip.rpc.call(PLATFORM_ALERTER, 'watch_topic', 'group2', 'newtopic',
+    agent.vip.rpc.call(PLATFORM_TOPIC_WATCHER, 'watch_topic', 'group2', 'newtopic',
                        5).get()
     gevent.sleep(6)
 
@@ -331,7 +334,7 @@ def test_watch_device_same_group(volttron_instance1, agent, cleanup_db):
                              topic='fakedevice2/all',
                              message=[{'point': 'value'}])
     gevent.sleep(1)
-    agent.vip.rpc.call(PLATFORM_ALERTER, 'watch_device', 'group1',
+    agent.vip.rpc.call(PLATFORM_TOPIC_WATCHER, 'watch_device', 'group1',
                        'newtopic/all', 5, ['point']).get()
     gevent.sleep(6)
 
@@ -384,7 +387,7 @@ def test_watch_device_new_group(volttron_instance1, agent, cleanup_db):
                              topic='fakedevice2/all',
                              message=[{'point': 'value'}])
     gevent.sleep(1)
-    agent.vip.rpc.call(PLATFORM_ALERTER, 'watch_device', 'group2',
+    agent.vip.rpc.call(PLATFORM_TOPIC_WATCHER, 'watch_device', 'group2',
                        'newtopic/all', 5, ['point']).get()
     gevent.sleep(7)
 
@@ -473,7 +476,7 @@ def test_for_duplicate_logs(volttron_instance1, agent, cleanup_db):
               'AND last_seen_before_timeout is NULL'.format(start_t))
     results = c.fetchall()
     assert results is not None
-    assert len(results) == 3
+    assert len(results)
 
     gevent.sleep(6)
     c = db_connection.cursor()
@@ -498,4 +501,5 @@ def test_for_duplicate_logs(volttron_instance1, agent, cleanup_db):
     assert len(results) == 3
     for r in results:
         assert r[1] is None
-        assert r[2] >= publish_time
+        non_utc = publish_time.replace(tzinfo=None)
+        assert r[2] >= non_utc

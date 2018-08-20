@@ -36,12 +36,18 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+# import warnings
+
 AUTH = 'platform.auth'
 
 VOLTTRON_CENTRAL = 'volttron.central'
 VOLTTRON_CENTRAL_PLATFORM = 'platform.agent'
 
-PLATFORM_ALERTER = 'platform.alerter'
+PLATFORM_TOPIC_WATCHER = 'platform.topic_watcher'
+
+# The PLATFORM_ALERTER known name is now deprecated
+# warnings.warn("the name PLATFORM_ALERTER has been deprecated in favor of PLATFORM_TOPIC_WATCHER")
+PLATFORM_ALERTER = PLATFORM_TOPIC_WATCHER
 PLATFORM_HISTORIAN = 'platform.historian'
 
 PLATFORM_MARKET_SERVICE = 'platform.market'
@@ -53,5 +59,5 @@ CONFIGURATION_STORE = 'config.store'
 PLATFORM_DRIVER = 'platform.driver'
 
 all_known = (VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, PLATFORM_HISTORIAN,
-             CONTROL, CONTROL_CONNECTION, MASTER_WEB, AUTH, PLATFORM_ALERTER,
+             CONTROL, CONTROL_CONNECTION, MASTER_WEB, AUTH, PLATFORM_TOPIC_WATCHER,
              CONFIGURATION_STORE, PLATFORM_MARKET_SERVICE)
