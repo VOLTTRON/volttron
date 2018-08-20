@@ -8,13 +8,17 @@ time_delta: 1s
 sim_length: 60s
 # Optional stop_agent_when_sim_complete default False
 stop_agent_when_sim_complete: True
+# Optional subscription topic for the messages that contain the inputs for FNCS
+subscription_topic: pnnl/all
 
 # Required topic_mapping
 topic_mapping:
   # fncs key
   a:
     # fncs_topic to be subscribed to
-    fncs_topic: devices/abcd
+    # because calling publish on fncs automatically prepends the federate name to the topic
+    # we need to include it as wwell when we are subscribing.
+    fncs_topic: federate1/devices/abcd
     volttron_topic: fncs/abc
   b:
     fncs_topic: alpha/betagama
