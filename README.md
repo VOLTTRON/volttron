@@ -15,9 +15,7 @@ platform provides services for collecting and storing data from buildings and
 devices and provides an environment for developing applications which interact
 with that data.
 
-# NOTE: This is an experiment branch to test and collaborate on Message Bus
-Refactor effort. VOLTTRON message bus now works with both ZeroMQ and RabbitMQ
-messaging libraries.
+# NOTE: This is an experiment branch to test and collaborate on Message Bus Refactor effort. VOLTTRON message bus now works with both ZeroMQ and RabbitMQ messaging libraries.
 ## Features
 
 * [Message Bus](https://volttron.readthedocs.io/en/latest/core_services/messagebus/index.html#messagebus-index) allows agents to subcribe to data sources and publish results and messages
@@ -58,9 +56,9 @@ http://ryanstutorials.net/linuxtutorial/
 
 
  For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
+
   **On Debian based systems:**
   Easiest way to install Erlang version 21.x is to install from RabbitMQ's repository.
-  This will instruct apt to trust packages signed by that key
 
   In order to use the repository, add a key used to sign RabbitMQ releases to apt-key
 
@@ -69,13 +67,12 @@ http://ryanstutorials.net/linuxtutorial/
   ```
 
   Add the below Apt (Debian) repository entry in /etc/apt/sources.list.d/bintray.erlang.list.
-  Distribution parameter will vary according to the distribution used in your system.
 
   ```
   # See below for supported distribution and component values
   deb https://dl.bintray.com/rabbitmq/debian $distribution erlang-21.x
   ```
-  For example,
+  Distribution parameter will vary according to the distribution used in your system. For example,
 
     bionic for Ubuntu 18.04
     xenial for Ubuntu 16.04
