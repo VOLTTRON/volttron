@@ -68,7 +68,7 @@ _log = logging.getLogger(__name__)
 
 config_opts = {}
 default_pass = "default_passwd"
-crts = certs.Certs()
+crts = None
 instance_name = None
 local_user = "guest"
 local_password = "guest"
@@ -486,7 +486,9 @@ def _setup_for_ssl_auth(instance_name):
     :param instance_name: Instance name
     :return:
     """
-    global config_opts
+    global config_opts, crts
+    if crts is None:
+        crts = certs.Certs()
     print('\nChecking for CA certificate\n')
     instance_ca_name, server_name, admin_client_name = \
         certs.Certs.get_cert_names(instance_name)
@@ -579,7 +581,9 @@ def _create_certs(client_cert_name, instance_ca_name, server_cert_name):
     :param server_cert_name:
     :return:
     """
-    global config_opts
+    global config_opts, crts
+    if crts is None:
+        crts = certs.Certs()
     create_instance_ca = False
     # create ca cert in default dir if needed
     if crts.ca_exists():
@@ -648,6 +652,7 @@ def _verify_and_save_instance_ca(instance_ca_path, instance_ca_key):
     :param instance_ca_key:
     :return:
     """
+    global crts
     found = False
     if instance_ca_path and os.path.exists(instance_ca_path) and \
             instance_ca_key and os.path.exists(instance_ca_key):

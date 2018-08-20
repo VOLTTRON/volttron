@@ -180,7 +180,7 @@ def get_platform_instance_name(prompt=False):
     except KeyError as exc:
         if prompt:
             instance_name = prompt_response("Name of this volttron instance:",
-                                        default="volttron1")
+                                            mandatory=True)
         else:
             raise KeyError("No instance-name is configured in "
                            "$VOLTTRON_HOME/config. Please set instance-name in "
