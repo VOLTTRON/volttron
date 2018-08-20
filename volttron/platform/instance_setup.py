@@ -527,11 +527,16 @@ def wizard():
 def process_rmq_inputs(args):
     confirm_volttron_home()
     _install_config_file()
+    print args
     if len(args) == 2:
         vhome = get_home()
+        print vhome
         vhome_config = os.path.join(vhome,'rabbitmq_config.yml')
+
         if args[1] != vhome_config:
-            copy(args[1], vhome)
+            print "not equal"
+            copy(args[1], vhome_config)
+        print args[1], vhome_config
         setup_rabbitmq_volttron(args[0], verbose)
     else:
         setup_rabbitmq_volttron(args[0], verbose, prompt=True)

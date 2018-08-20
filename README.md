@@ -175,6 +175,10 @@ it needs to be set to RabbitMQ installation directory (default path is
 <user_home>/rabbitmq_server/rabbitmq_server/rabbitmq_server-3.7.7)
 
 ```
+echo 'RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server/rabbitmq_server-3.7.7'|sudo tee --append ~/.bash_rc
+```
+
+```
 $RABBITMQ_HOME/sbin/rabbitmqctl status
 ```
 
@@ -186,13 +190,13 @@ Activate the environment :
 
 **4. Create RabbitMQ setup for VOLTTRON :**
 ```
-vcfg --rabbitmq single [optional rabbbitmq_config.yml]
+vcfg --rabbitmq single [optional path to rabbitmq_config.yml]
 ```
 
-Refer to examples/configs/rabbitmq_config.yml for a sample configuration file.
+Refer to examples/configurations/rabbitmq/rabbitmq_config.yml for a sample configuration file.
 Running the above command without the optional configuration file parameter will
- prompt user for all the needed data at the command prompt and use that to
- generate a rabbitmq_config.yml file in VOLTTRON_HOME directory.
+prompt user for all the needed data at the command prompt and use that to
+generate a rabbitmq_config.yml file in VOLTTRON_HOME directory.
 
 This scripts creates a new virtual host  and creates SSL certificates needed
 for this VOLTTRON instance. These certificates get created under the sub
@@ -404,24 +408,12 @@ instance should have a unique instance name.
    b. Append the contents of the transferred root ca to the instance's root ca.
    For example:
    On v1:
-   cat /tmp/v2-root-ca.crt >> /home/vdev/
-   .my_volttron_home/certificates/v1-trusted-cas.crt
+   cat /tmp/v2-root-ca.crt >> /home/vdev/.my_volttron_home/certificates/v1-root-ca.crt
    On v2:
-   cat /tmp/v1-root-ca.crt >> /home/vdev/
-   .my_volttron_home/certificates/v2-trusted-cas.crt
+   cat /tmp/v1-root-ca.crt >> /home/vdev/.my_volttron_home/certificates/v2-root-ca.crt
 
-3. Stop volttron, restart rabbitmq server and start volttron on both the
-instances. This is required only when you update the root certificate and not
-required when you add a new shovel/federation between the same hosts
 
-   ```sh
-   ./stop-volttron
-   $RABBITMQ_HOME/sbin/rabbitmqctl stop
-   $RABBITMQ_HOME/sbin/rabbitmq-server -detached
-   ./stop-volttron
-   ```
-
-4. Identify upstream servers (publisher nodes) and downstream servers
+3. Identify upstream servers (publisher nodes) and downstream servers
 (collector nodes). To create a RabbitMQ federation, we have to configure
 upstream servers on the downstream server and make the VOLTTRON exchange
 "federated".
@@ -430,7 +422,9 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
         ```
         vcfg --rabbitmq federation [optional path to rabbitmq_config.yml
-        containing the details of the upstream hostname, port and vhost]
+        containing the details of the upstream hostname, port and vhost.
+        Example configuration for shovel is available
+        in examples/configurations/rabbitmq/rabbitmq_config_federation.yml]
         ```
 
         If no config file is provided, the script will prompt for
@@ -449,27 +443,18 @@ upstream servers on the downstream server and make the VOLTTRON exchange
         ./sbin/rabbitmqctl add_user <username> <password>
         ./sbin/rabbitmqctl set_permissions -p volttron <username> ".*" ".*" ".*"
         ```
-5. Test the federation setup.
+4. Test the federation setup.
 
    a. On the downstream server run a listener agent which subscribes to messages
    from all platforms (set @PubSub.subscribe('pubsub', '', all_platforms=True)
    instead of @PubSub.subscribe('pubsub', '') )
 
-   b.Install master driver, configure fake device on upstream server and start
-   volttron and master driver. vcfg --agent master_driver command can install
-   master driver and setup a fake device.
-
-   ```sh
-   ./stop-volttron
-   vcfg --agent master_driver
-   ./start-volttron
-   vctl start --tag master_driver
-   ```
+   b.Start VOLTTRON on upstream VOLTTRON
 
    c. Verify listener agent in downstream VOLTTRON instance is able to receive
    the messages.
 
-6. Open ports and https service if needed
+5. Open ports and https service if needed
    On Redhat based systems ports used by RabbitMQ (defaults to 5671, 15671 for
    SSL, 5672 and 15672 otherwise) might not be open by default. Please
    contact system administrator to get ports opened on the downstream server.
@@ -481,7 +466,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
    sudo firewall-cmd --reload
    ```
 
-7. Trouble Shooting
+5. Trouble Shooting
 
    a. Check the status of the shovel connection.
 
@@ -575,7 +560,8 @@ certain topics to remote instance "v2".
         ```
         vcfg --rabbitmq shovel [optional path to rabbitmq_config.yml
         containing the details of the remote hostname, port, vhost
-        and list of topics to forward]
+        and list of topics to forward. Example configuration for shovel is available
+        in examples/configurations/rabbitmq/rabbitmq_config_shovel.yml]
         ```
 
         For this example, let's set the topic to "devices"
