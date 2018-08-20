@@ -816,7 +816,7 @@ def prompt_shovels(update=True):
         if prompt in y:
             prompt = 'List of PUBSUB topics to publish to ' \
                      'this remote instance (comma seperated)'
-            topics = prompt_response(prompt, default="")
+            topics = prompt_response(prompt, mandatory=True)
             topics = topics.split(",")
             shovels[host]['pubsub-topics'] = topics
         prompt = prompt_response(
@@ -824,7 +824,7 @@ def prompt_shovels(update=True):
             valid_answers=y_or_n, default='N')
         if prompt in y:
             prompt = 'List of identities of remote agents (comma separated)'
-            agent_ids = prompt_response(prompt, default="")
+            agent_ids = prompt_response(prompt, mandatory=True)
             agent_ids = agent_ids.split(",")
             shovels[host]['rpc-agent-identities'] = agent_ids
     return shovels

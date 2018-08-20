@@ -368,8 +368,18 @@ instance should have a unique instance name.
    cat /tmp/v1-root-ca.crt >> /home/vdev/
    .my_volttron_home/certificates/v2-trusted-cas.crt
 
+3. Stop volttron, restart rabbitmq server and start volttron on both the
+instances. This is required only when you update the root certificate and not
+required when you add a new shovel/federation between the same hosts
 
-3. Identify upstream servers (publisher nodes) and downstream servers
+   ```sh
+   ./stop-volttron
+   $RABBITMQ_HOME/sbin/rabbitmqctl stop
+   $RABBITMQ_HOME/sbin/rabbitmq-server -detached
+   ./stop-volttron
+   ```
+
+4. Identify upstream servers (publisher nodes) and downstream servers
 (collector nodes). To create a RabbitMQ federation, we have to configure
 upstream servers on the downstream server and make the VOLTTRON exchange
 "federated".
@@ -397,7 +407,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
         ./sbin/rabbitmqctl add_user <username> <password>
         ./sbin/rabbitmqctl set_permissions -p volttron <username> ".*" ".*" ".*"
         ```
-4. Test the federation setup.
+5. Test the federation setup.
 
    a. On the downstream server run a listener agent which subscribes to messages
    from all platforms (set @PubSub.subscribe('pubsub', '', all_platforms=True)
@@ -417,7 +427,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
    c. Verify listener agent in downstream VOLTTRON instance is able to receive
    the messages.
 
-5. Open ports and https service if needed
+6. Open ports and https service if needed
    On Redhat based systems ports used by RabbitMQ (defaults to 5671, 15671 for
    SSL, 5672 and 15672 otherwise) might not be open by default. Please
    contact system administrator to get ports opened on the downstream server.
@@ -429,7 +439,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
    sudo firewall-cmd --reload
    ```
 
-5. Trouble Shooting
+7. Trouble Shooting
 
    a. Check the status of the shovel connection.
 
