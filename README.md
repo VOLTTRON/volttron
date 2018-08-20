@@ -58,6 +58,7 @@ http://ryanstutorials.net/linuxtutorial/
  For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
 
   **On Debian based systems:**
+
   Easiest way to install Erlang version 21.x is to install from RabbitMQ's repository.
 
   In order to use the repository, add a key used to sign RabbitMQ releases to apt-key
@@ -66,18 +67,18 @@ http://ryanstutorials.net/linuxtutorial/
   wget -O - 'https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc' | sudo apt-key add -
   ```
 
-  Add the below Apt (Debian) repository entry in /etc/apt/sources.list.d/bintray.erlang.list.
-
-  ```
-  # See below for supported distribution and component values
-  deb https://dl.bintray.com/rabbitmq/debian $distribution erlang-21.x
-  ```
-  Distribution parameter will vary according to the distribution used in your system. For example,
+  Add the below Apt (Debian) repository entry in /etc/apt/sources.list.d/bintray.erlang.list. Please note,
+  distribution parameter will vary according to the distribution used in your system. For example,
 
     bionic for Ubuntu 18.04
     xenial for Ubuntu 16.04
     stretch for Debian Stretch
     jessie for Debian Jessie
+
+
+  ```
+  echo 'deb https://dl.bintray.com/rabbitmq/debian xenial erlang-21.x'|sudo tee --append /etc/apt/sources.list.d/bintray.erlang.list
+  ```
 
   Install Erlang package
 
