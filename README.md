@@ -16,8 +16,8 @@ devices and provides an environment for developing applications which interact
 with that data.
 
 # NOTE: This is an experiment branch to test and collaborate on Message Bus
-\Refactor effort. VOLTTRON message bus now works with both ZeroMQ and RabbitMQ
-\messaging libraries.
+Refactor effort. VOLTTRON message bus now works with both ZeroMQ and RabbitMQ
+messaging libraries.
 ## Features
 
 * [Message Bus](https://volttron.readthedocs.io/en/latest/core_services/messagebus/index.html#messagebus-index) allows agents to subcribe to data sources and publish results and messages
@@ -58,8 +58,42 @@ http://ryanstutorials.net/linuxtutorial/
 
 
  For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
-
   **On Debian based systems:**
+  Easiest way to install Erlang version 21.x is to install from RabbitMQ's repository.
+  This will instruct apt to trust packages signed by that key
+
+  In order to use the repository, add a key used to sign RabbitMQ releases to apt-key
+
+  ```
+  wget -O - 'https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc' | sudo apt-key add -
+  ```
+
+  Add the below Apt (Debian) repository entry in /etc/apt/sources.list.d/bintray.erlang.list.
+  Distribution parameter will vary according to the distribution used in your system.
+
+  ```
+  # See below for supported distribution and component values
+  deb https://dl.bintray.com/rabbitmq/debian $distribution erlang-21.x
+  ```
+  For example,
+
+    bionic for Ubuntu 18.04
+    xenial for Ubuntu 16.04
+    stretch for Debian Stretch
+    jessie for Debian Jessie
+
+  Install Erlang package
+
+  ```
+  sudo apt-get update
+  sudo apt-get install erlang-nox
+  ```
+
+  If above steps do not work then you will have to install all the dependent packages
+  individually. Follow the below steps ONLY if erlang 21.x does not get installed with previous
+  instructions.
+
+
   Install pre-requisites for Erlang: libwxbase, libwxgtk, and libsctpl. Search
   and download these packages using [Ubuntu package search](https://packages
   .ubuntu.com) and install them using dpkg -i command. For example,
@@ -122,6 +156,7 @@ and not in RabbitMQ logs (/var/log/rabbitmq/rabbitmq@hostname.log)
 
 
 **4. Download VOLTTRON code from experimental branch**
+
 ```sh
 git clone -b rabbitmq-volttron https://github.com/VOLTTRON/volttron.git
 cd volttron
@@ -135,6 +170,15 @@ If an install path is provided, path should exists and be writeable. RabbitMQ
 will be installed under <install dir>/rabbitmq_server-3.7.7 Rest of the
 documentation refers to the directory <install dir>/rabbitmq_server-3.7.7 as
 $RABBITMQ_HOME
+
+You can check if RabbitMQ server is installed by checking it's status. Please
+note, RABBITMQ_HOME environment variable can be set in ~/.bashrc. If doing so,
+it needs to be set to RabbitMQ installation directory (default path is
+<user_home>/rabbitmq_server/rabbitmq_server/rabbitmq_server-3.7.7)
+
+```
+$RABBITMQ_HOME/sbin/rabbitmqctl status
+```
 
 Activate the environment :
 
@@ -455,7 +499,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
    upstream link will be displayed on the page. Click on the upstream link name and
    delete it.
 
-   b. Using "volttron-ctl" command on the publisher node.
+   b. Using "volttron-ctl" command on the upstream server.
    ```
    vctl rabbitmq list-federation-parameters
    NAME                         URI
@@ -470,7 +514,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
 **Using Shovel Pluggin**
 
-In RabbitMQ based VOLTTRON, forwarder and data mover agents can be replaced with shovels
+In RabbitMQ based VOLTTRON, forwarder and data mover agents will be replaced by shovels
 to send or receive remote pubsub messages.
 Shovel behaves like a well written client application that connects to its source
 ( can be local or remote ) and destination ( can be local or remote instance ),
