@@ -176,7 +176,6 @@ management.listener.port = 15672"""
     start_rabbit(config_opts['rmq-home'])
 
 
-
 def _create_federation_setup():
     """
     Creates a RabbitMQ federation of multiple VOLTTRON instances based on
@@ -240,7 +239,6 @@ def _create_federation_setup():
                            "Missing Key {key} in upstream config "
                            "{upstream}".format(key=ex, upstream=upstream))
                 return ex
-
 
 def _create_shovel_setup():
     """

@@ -531,7 +531,7 @@ def process_rmq_inputs(args):
         vhome = get_home()
         vhome_config = os.path.join(vhome,'rabbitmq_config.yml')
         if args[1] != vhome_config:
-            copy(args[1], vhome)
+            copy(args[1], vhome_config)
         setup_rabbitmq_volttron(args[0], verbose)
     else:
         setup_rabbitmq_volttron(args[0], verbose, prompt=True)
