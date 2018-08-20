@@ -4,11 +4,13 @@
 Installing Volttron
 ===================
 
+VOLTTRON requires a Linux system to run.
+
 Installing Linux Virtual Machine
 --------------------------------
-VOLTTRON requires a Linux system to run. For Windows users this will require a virtual machine (VM). This section will
-describe the steps necessary to install VOLTTRON using Oracle VirtualBox software. Virtual Box is free and can be
-downloaded from https://www.virtualbox.org/wiki/Downloads.
+For Windows users this will require a virtual machine (VM). This section describes the steps necessary to install
+VOLTTRON using Oracle VirtualBox software. Virtual Box is free and can be downloaded from
+https://www.virtualbox.org/wiki/Downloads.
 
 |VirtualBox Download|
 
@@ -83,7 +85,7 @@ Go to Storage Settings. Confirm that the Linux Mint VDI is attached to Controlle
 
 
 .. DANGER::
-    Do **NOT** install the Linux Mint iso for Controller: IDE. **Will result in errors.**
+    Do **NOT** mount the Linux Mint iso for Controller: IDE. **Will result in errors.**
 
 |VirtualBox Controller|
 
