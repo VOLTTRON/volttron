@@ -142,14 +142,12 @@ enabled=1
 **3. Configure hostname**
 
 Make sure that your hostname is correctly configured in /etc/hosts.
-See (https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho)
+See (https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho). If you are testing with VMs make please make sure to provide unique host names for each of the VM you are using. 
 
-Hostname should be resolvable to a valid ip. RabbitMQ checks for this during
+Hostname should be resolvable to a valid ip when running on bridged mode. RabbitMQ checks for this during
 initial boot. Without this (for example, when running on a VM in NAT mode)
 RabbitMQ  start would fail with the error "unable to connect to empd (
-port 4369) on <hostname>."
-
-Note: RabbitMQ startup error would show up in syslog (/var/log/messages) file
+port 4369) on <hostname>." Note: RabbitMQ startup error would show up in syslog (/var/log/messages) file
 and not in RabbitMQ logs (/var/log/rabbitmq/rabbitmq@hostname.log)
 
 
@@ -394,7 +392,8 @@ data flow we would need to create federation links on both the nodes.
 
 
 1. Setup two VOLTTRON instances using the above steps. Please note that each
-instance should have a unique instance name.
+instance should have a unique instance name and should be running on machine/VM that has a unique host name.
+
 
 2. In a multi platform setup that need to communicate with each other with
    RabbitMQ over SSL, each VOLTTRON instance should should trust the ROOT CA of
@@ -405,6 +404,8 @@ instance should have a unique instance name.
    location on the other volttron instance machine. For example, if you have two
    instance v1 and v2, scp v1's v1-root-ca.crt to v2 and
    v2-root-ca.crt to v1.
+   
+   Note: If using VMs, in order to scp files between VM openssh should be installed and running.
 
    b. Append the contents of the transferred root ca to the instance's root ca.
    For example:
@@ -459,8 +460,8 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 5. Test the federation setup.
 
    a. On the downstream server run a listener agent which subscribes to messages
-   from all platforms (set @PubSub.subscribe('pubsub', '', all_platforms=True)
-   instead of @PubSub.subscribe('pubsub', '') )
+   from all platforms
+   
      - Open the file examples/ListenerAgent/listener/agent.py. Search for @PubSub.subscribe('pubsub', '') and replace that         line with @PubSub.subscribe('pubsub', 'devices', all_platforms=True)
      - updgrade the listener
      ```sh
