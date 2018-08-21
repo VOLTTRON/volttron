@@ -461,6 +461,11 @@ upstream servers on the downstream server and make the VOLTTRON exchange
    a. On the downstream server run a listener agent which subscribes to messages
    from all platforms (set @PubSub.subscribe('pubsub', '', all_platforms=True)
    instead of @PubSub.subscribe('pubsub', '') )
+     - Open the file examples/ListenerAgent/listener/agent.py. Search for @PubSub.subscribe('pubsub', '') and replace that         line with @PubSub.subscribe('pubsub', 'devices', all_platforms=True)
+     - updgrade the listener
+     ```sh
+        scripts/core/upgrade-listener
+     ```   
 
    b.Install master driver, configure fake device on upstream server and start
    volttron and master driver. vcfg --agent master_driver command can install
