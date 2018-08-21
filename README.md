@@ -480,7 +480,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
    ```
 
    c. Verify listener agent in downstream VOLTTRON instance is able to receive
-   the messages.
+   the messages. downstream volttron instance's volttron.log should display device data scrapped by master driver agent in upstream volttron instance 
 
 6. Open ports and https service if needed
    On Redhat based systems ports used by RabbitMQ (defaults to 5671, 15671 for
@@ -496,7 +496,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
 7. Trouble Shooting
 
-   a. Check the status of the shovel connection.
+   a. Check the status of the federation connection.
 
    ```
    $RABBITMQ_HOME/sbin/rabbitmqctl eval 'rabbit_federation_status:status().'
@@ -521,6 +521,8 @@ upstream servers on the downstream server and make the VOLTTRON exchange
    ```
 
    hostname needs to be replaced with actual hostname of the node.
+   
+
 
 6. Remove the Federation link.
 
