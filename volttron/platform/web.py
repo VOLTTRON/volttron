@@ -695,6 +695,15 @@ class MasterWebService(Agent):
             start_response('200 OK',
                            [('Content-Type', 'application/json')])
             return jsonapi.dumps(res)
+        elif isinstance(res, list):
+            _log.debug('list implies [content, headers]')
+            if len(res) == 2:
+                start_response('200 OK',
+                               res[1])
+                return res[0]
+            elif len(res) == 3:
+                start_response(res[0], res[2])
+                return res[1]
 
         # If this is a tuple then we know we are going to have a response
         # and a headers portion of the data.
