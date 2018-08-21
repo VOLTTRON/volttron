@@ -74,7 +74,7 @@ def do_publish(agent1):
     agent1.vip.pubsub.publish(
         'pubsub', DEVICES_ALL_TOPIC, headers, all_message).get(timeout=10)
     publishedmessages.append(all_message)
-    gevent.sleep(1)
+    gevent.sleep(1.5)
 
 
 def onmessage(peer, sender, bus, topic, headers, message):
@@ -107,7 +107,7 @@ def test_reconnect_forwarder(get_volttron_instances):
     print('Before Subscribing')
     receiver.vip.pubsub.subscribe('pubsub', '', callback=onmessage)
     publisher.vip.pubsub.publish('pubsub', 'stuff', message='Fuzzy')
-    gevent.sleep(.2)
+    gevent.sleep(3)
 
     num_messages = 5
     for i in range(num_messages):
