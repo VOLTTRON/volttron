@@ -399,21 +399,20 @@ instance should have a unique instance name and should be running on machine/VM 
    the other instance(RabbitMQ root ca)
 
    a.  Transfer (scp/sftp/similar)
-   voltttron_home/certificates/certs/<instance_name>-root-ca.crt to a temporary
-   location on the other volttron instance machine. For example, if you have two
-   instance v1 and v2, scp v1's v1-root-ca.crt to v2 and
-   v2-root-ca.crt to v1.
+       voltttron_home/certificates/certs/<instance_name>-root-ca.crt to a temporary
+       location on the other volttron instance machine. For example, if you have two
+       instance v1 and v2, scp v1's v1-root-ca.crt to v2 and
+       v2-root-ca.crt to v1.
    
-   Note: If using VMs, in order to scp files between VM openssh should be installed and running.
+       Note: If using VMs, in order to scp files between VM openssh should be installed and running.
 
    b. Append the contents of the transferred root ca to the instance's root ca.
-   For example:
-   On v1:
-   cat /tmp/v2-root-ca.crt >> /home/vdev/
-   .my_volttron_home/certificates/v1-trusted-cas.crt
-   On v2:
-   cat /tmp/v1-root-ca.crt >> /home/vdev/
-   .my_volttron_home/certificates/v2-trusted-cas.crt
+   
+      For example:
+      On v1:
+      cat /tmp/v2-root-ca.crt >> /home/vdev/  .my_volttron_home/certificates/v1-trusted-cas.crt
+      On v2:
+      cat /tmp/v1-root-ca.crt >> /home/vdev/ .my_volttron_home/certificates/v2-trusted-cas.crt
 
 3. Stop volttron, restart rabbitmq server and start volttron on both the
 instances. This is required only when you update the root certificate and not
