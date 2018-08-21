@@ -175,7 +175,8 @@ it needs to be set to RabbitMQ installation directory (default path is
 <user_home>/rabbitmq_server/rabbitmq_server/rabbitmq_server-3.7.7)
 
 ```
-echo 'RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server/rabbitmq_server-3.7.7'|sudo tee --append ~/.bash_rc
+echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.7.7'|sudo tee --append ~/.bashrc
+source ~/.bashrc
 ```
 
 ```
@@ -422,7 +423,7 @@ required when you add a new shovel/federation between the same hosts
    ./stop-volttron
    $RABBITMQ_HOME/sbin/rabbitmqctl stop
    $RABBITMQ_HOME/sbin/rabbitmq-server -detached
-   ./stop-volttron
+   ./start-volttron
    ```
 
 4. Identify upstream servers (publisher nodes) and downstream servers
