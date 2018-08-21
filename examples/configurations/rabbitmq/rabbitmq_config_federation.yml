@@ -35,3 +35,14 @@ ssl: 'true'
 # defaults to user_home/rabbitmq_server/rabbbitmq_server-3.7.7
 rmq-home: "/home/volttron/rabbitmq_server/rabbitmq_server-3.7.7"
 
+
+# Mandatory parameters for federation setup
+federation-upstream:
+  rabbit-4:
+    port: '5671'
+    virtual-host: volttron4
+  rabbit-5:
+    port: '5671'
+    virtual-host: volttron5
+
+

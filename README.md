@@ -15,9 +15,7 @@ platform provides services for collecting and storing data from buildings and
 devices and provides an environment for developing applications which interact
 with that data.
 
-# NOTE: This is an experiment branch to test and collaborate on Message Bus
-\Refactor effort. VOLTTRON message bus now works with both ZeroMQ and RabbitMQ
-\messaging libraries.
+# NOTE: This is an experiment branch to test and collaborate on Message Bus Refactor effort. VOLTTRON message bus now works with both ZeroMQ and RabbitMQ messaging libraries.
 ## Features
 
 * [Message Bus](https://volttron.readthedocs.io/en/latest/core_services/messagebus/index.html#messagebus-index) allows agents to subcribe to data sources and publish results and messages
@@ -60,6 +58,40 @@ http://ryanstutorials.net/linuxtutorial/
  For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
 
   **On Debian based systems:**
+
+  Easiest way to install Erlang version 21.x is to install from RabbitMQ's repository.
+
+  In order to use the repository, add a key used to sign RabbitMQ releases to apt-key
+
+  ```
+  wget -O - 'https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc' | sudo apt-key add -
+  ```
+
+  Add the below Apt (Debian) repository entry in /etc/apt/sources.list.d/bintray.erlang.list. Please note,
+  distribution parameter will vary according to the distribution used in your system. For example,
+
+    bionic for Ubuntu 18.04
+    xenial for Ubuntu 16.04
+    stretch for Debian Stretch
+    jessie for Debian Jessie
+
+
+  ```
+  echo 'deb https://dl.bintray.com/rabbitmq/debian xenial erlang-21.x'|sudo tee --append /etc/apt/sources.list.d/bintray.erlang.list
+  ```
+
+  Install Erlang package
+
+  ```
+  sudo apt-get update
+  sudo apt-get install erlang-nox
+  ```
+
+  If above steps do not work then you will have to install all the dependent packages
+  individually. Follow the below steps ONLY if erlang 21.x does not get installed with previous
+  instructions.
+
+
   Install pre-requisites for Erlang: libwxbase, libwxgtk, and libsctpl. Search
   and download these packages using [Ubuntu package search](https://packages
   .ubuntu.com) and install them using dpkg -i command. For example,
@@ -122,6 +154,7 @@ and not in RabbitMQ logs (/var/log/rabbitmq/rabbitmq@hostname.log)
 
 
 **4. Download VOLTTRON code from experimental branch**
+
 ```sh
 git clone -b rabbitmq-volttron https://github.com/VOLTTRON/volttron.git
 cd volttron
@@ -136,6 +169,19 @@ will be installed under <install dir>/rabbitmq_server-3.7.7 Rest of the
 documentation refers to the directory <install dir>/rabbitmq_server-3.7.7 as
 $RABBITMQ_HOME
 
+You can check if RabbitMQ server is installed by checking it's status. Please
+note, RABBITMQ_HOME environment variable can be set in ~/.bashrc. If doing so,
+it needs to be set to RabbitMQ installation directory (default path is
+<user_home>/rabbitmq_server/rabbitmq_server/rabbitmq_server-3.7.7)
+
+```
+echo 'RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server/rabbitmq_server-3.7.7'|sudo tee --append ~/.bash_rc
+```
+
+```
+$RABBITMQ_HOME/sbin/rabbitmqctl status
+```
+
 Activate the environment :
 
 ```sh
@@ -144,13 +190,13 @@ Activate the environment :
 
 **4. Create RabbitMQ setup for VOLTTRON :**
 ```
-vcfg --rabbitmq single [optional rabbbitmq_config.yml]
+vcfg --rabbitmq single [optional path to rabbitmq_config.yml]
 ```
 
-Refer to examples/configs/rabbitmq_config.yml for a sample configuration file.
+Refer to examples/configurations/rabbitmq/rabbitmq_config.yml for a sample configuration file.
 Running the above command without the optional configuration file parameter will
- prompt user for all the needed data at the command prompt and use that to
- generate a rabbitmq_config.yml file in VOLTTRON_HOME directory.
+prompt user for all the needed data at the command prompt and use that to
+generate a rabbitmq_config.yml file in VOLTTRON_HOME directory.
 
 This scripts creates a new virtual host  and creates SSL certificates needed
 for this VOLTTRON instance. These certificates get created under the sub
@@ -388,7 +434,9 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
         ```
         vcfg --rabbitmq federation [optional path to rabbitmq_config.yml
-        containing the details of the upstream hostname, port and vhost]
+        containing the details of the upstream hostname, port and vhost.
+        Example configuration for federation is available
+        in examples/configurations/rabbitmq/rabbitmq_config_federation.yml]
         ```
 
         If no config file is provided, the script will prompt for
@@ -476,7 +524,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
    upstream link will be displayed on the page. Click on the upstream link name and
    delete it.
 
-   b. Using "volttron-ctl" command on the publisher node.
+   b. Using "volttron-ctl" command on the upstream server.
    ```
    vctl rabbitmq list-federation-parameters
    NAME                         URI
@@ -491,7 +539,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
 **Using Shovel Pluggin**
 
-In RabbitMQ based VOLTTRON, forwarder and data mover agents can be replaced with shovels
+In RabbitMQ based VOLTTRON, forwarder and data mover agents will be replaced by shovels
 to send or receive remote pubsub messages.
 Shovel behaves like a well written client application that connects to its source
 ( can be local or remote ) and destination ( can be local or remote instance ),
@@ -533,7 +581,8 @@ certain topics to remote instance "v2".
         ```
         vcfg --rabbitmq shovel [optional path to rabbitmq_config.yml
         containing the details of the remote hostname, port, vhost
-        and list of topics to forward]
+        and list of topics to forward. Example configuration for shovel is available
+        in examples/configurations/rabbitmq/rabbitmq_config_shovel.yml]
         ```
 
         For this example, let's set the topic to "devices"

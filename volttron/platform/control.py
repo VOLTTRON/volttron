@@ -72,6 +72,8 @@ from volttron.platform.vip.socket import Message
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from .vip.agent.errors import VIPError
 from volttron.utils.rmq_mgmt import *
+from requests.packages.urllib3.connection import (ConnectionError,
+                                                  NewConnectionError)
 
 try:
     import volttron.restricted
@@ -1517,7 +1519,13 @@ def get_keys(opts):
 
 # RabbitMQ management methods
 def add_vhost(opts):
-    create_vhost(opts.vhost)
+    try:
+        create_vhost(opts.vhost)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("Error adding a Virtual Host: {} \n".format(opts.vhost))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
 
 def add_user(opts):
     create_user(opts.user, opts.pwd)
@@ -1532,7 +1540,13 @@ def add_user(opts):
         permissions['write'] = ".*"
     if configure:
         permissions['configure'] = ".*"
-    set_user_permissions(permissions, opts.user, opts.pwd)
+    try:
+        set_user_permissions(permissions, opts.user, opts.pwd)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("Error Setting User permissions : {} \n".format(opts.user))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
 
 def add_exchange(opts):
     if opts.type not in ['topic', 'fanout', 'direct']:
@@ -1543,43 +1557,92 @@ def add_exchange(opts):
     alternate = _ask_yes_no("Do you want alternate exchange ")
 
     properties = dict(durable=durable, type=opts.type, auto_delete=auto_delete)
-    if alternate:
-        alternate_exch = opts.name + 'alternate'
-        properties['alternate-exchange'] = alternate_exch
-        # create alternate exchange
-        new_props = dict(durable=durable, type='fanout', auto_delete=auto_delete)
-        create_exchange(alternate_exch, new_props)
-    create_exchange(opts.name, properties)
+    try:
+        if alternate:
+            alternate_exch = opts.name + 'alternate'
+            properties['alternate-exchange'] = alternate_exch
+            # create alternate exchange
+            new_props = dict(durable=durable, type='fanout', auto_delete=auto_delete)
+            create_exchange(alternate_exch, new_props)
+        create_exchange(opts.name, properties)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("Error Adding Exchange : {} \n".format(opts.name))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def add_queue(opts):
     durable = _ask_yes_no("Do you want queue to be durable ")
     auto_delete = _ask_yes_no("Do you want queue to be auto deleted ")
     properties = dict(durable=durable, auto_delete=auto_delete)
-    create_queue(opts.name, properties)
+    try:
+        create_queue(opts.name, properties)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("Error Adding Queue : {} \n".format(opts.name))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
 
 
 def list_vhosts(opts):
-    vhosts = get_virtualhosts()
-    for item in vhosts:
-        _stdout.write(item+"\n")
+    try:
+        vhosts = get_virtualhosts()
+        for item in vhosts:
+            _stdout.write(item+"\n")
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Virtual Hosts Found: {} \n")
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
 
 def list_users(opts):
-    users = get_users()
-    for item in users:
-        _stdout.write(item+"\n")
+    try:
+        users = get_users()
+        for item in users:
+            _stdout.write(item+"\n")
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Users Found: {} \n")
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def list_user_properties(opts):
-    props = get_user_props(opts.user)
-    for key, value in props.iteritems():
-        _stdout.write("{0}: {1} \n".format(key, value))
+    try:
+        props = get_user_props(opts.user)
+        for key, value in props.iteritems():
+            _stdout.write("{0}: {1} \n".format(key, value))
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No User Found: {} \n".format(opts.user))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def list_exchanges(opts):
-    exchanges = get_exchanges()
-    for exch in exchanges:
-        _stdout.write(exch+"\n")
+    try:
+        exchanges = get_exchanges()
+        for exch in exchanges:
+            _stdout.write(exch+"\n")
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No exchanges found \n")
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def list_exchanges_with_properties(opts):
-    exchanges = get_exchanges_with_props()
+    exchanges = None
+    try:
+        exchanges = get_exchanges_with_props()
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No exchanges found \n")
+        return
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
     try:
         name_width = max(8, max(len(e['name']) for e in exchanges))
         dur_width = len('DURABLE')
@@ -1599,14 +1662,34 @@ def list_exchanges_with_properties(opts):
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in getting queue properties")
 
+
 def list_queues(opts):
-    queues = get_queues()
+    queues = None
+    try:
+        queues = get_queues()
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No queues found \n")
+        return
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
     if queues:
         for q in queues:
             _stdout.write(q+"\n")
 
+
 def list_queues_with_properties(opts):
-    queues = get_queues_with_props()
+    queues = None
+    try:
+        queues = get_queues_with_props()
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No queues found \n")
+        return
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
     try:
         name_width = max(5, max(len(q['name']) for q in queues))
         dur_width = len('DURABLE')
@@ -1629,11 +1712,30 @@ def list_queues_with_properties(opts):
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in getting queue properties")
 
+
 def list_connections(opts):
-    conn = get_connection()
+    try:
+        conn = get_connection()
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No connections found \n")
+        return
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
+
 
 def list_fed_parameters(opts):
-    parameters = get_parameter('federation-upstream')
+    parameters = None
+    try:
+        parameters = get_parameter('federation-upstream')
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Federation Parameters Found \n")
+        return
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
     try:
         if parameters:
             name_width = max(5, max(len(p['name']) for p in parameters))
@@ -1647,14 +1749,27 @@ def list_fed_parameters(opts):
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in federation parameters")
 
+
 def list_shovel_parameters(opts):
-    parameters = get_parameter('shovel')
+    parameters = None
+    try:
+        parameters = get_parameter('shovel')
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Shovel Parameters Found \n")
+        return
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
     try:
         if parameters:
             name_width = max(5, max(len(p['name']) for p in parameters))
-            src_uri_width = max(len('SOURCE ADDRESS'), max(len(p['value']['src-uri']) for p in parameters))
-            dest_uri_width = max(len('DESTINATION ADDRESS'), max(len(p['value']['dest-uri']) for p in parameters))
-            binding_key = max(len('BINDING KEY'), max(len(p['value']['src-exchange-key']) for p in parameters))
+            src_uri_width = max(len('SOURCE ADDRESS'),
+                                max(len(p['value']['src-uri']) for p in parameters))
+            dest_uri_width = max(len('DESTINATION ADDRESS'),
+                                 max(len(p['value']['dest-uri']) for p in parameters))
+            binding_key = max(len('BINDING KEY'),
+                              max(len(p['value']['src-exchange-key']) for p in parameters))
             fmt = '{:{}}  {:{}}  {:{}}  {:{}}\n'
             _stderr.write(
                 fmt.format('NAME', name_width,
@@ -1671,7 +1786,16 @@ def list_shovel_parameters(opts):
 
 
 def list_bindings(opts):
-    bindings = get_bindings(opts.exchange)
+    bindings = None
+    try:
+        bindings = get_bindings(opts.exchange)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Bindings Found \n")
+        return
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
 
     try:
         if bindings:
@@ -1692,7 +1816,16 @@ def list_bindings(opts):
 
 
 def list_policies(opts):
-    policies = get_policies()
+    policies = None
+    try:
+        policies = get_policies()
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Policies Found \n")
+        return
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
     try:
         if policies:
             name_width = max(5, max(len(p['name']) for p in policies))
@@ -1708,35 +1841,80 @@ def list_policies(opts):
 
 
 def remove_vhosts(opts):
-    for vhost in opts.vhost:
-        delete_vhost(vhost)
+    try:
+        for vhost in opts.vhost:
+            delete_vhost(vhost)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Vhost Found {} \n".format(opts.vhost))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                  "Check Connection Parameters: {} \n".format(e))
 
 
 def remove_users(opts):
-    for user in opts.user:
-        delete_user(user)
+    try:
+        for user in opts.user:
+            delete_user(user)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No User Found {} \n".format(opts.user))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                  "Check Connection Parameters: {} \n".format(e))
 
 
 def remove_exchanges(opts):
-    for e in opts.exchanges:
-        delete_exchange(e)
+    try:
+        for e in opts.exchanges:
+            delete_exchange(e)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Exchange Found {} \n".format(opts.exchanges))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                  "Check Connection Parameters: {} \n".format(e))
+
 
 def remove_queues(opts):
-    for q in opts.queues:
-        delete_queue(q)
+    try:
+        for q in opts.queues:
+            delete_queue(q)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Queues Found {} \n".format(opts.queues))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                  "Check Connection Parameters: {} \n".format(e))
 
 
 def remove_fed_parameters(opts):
-    for param in opts.parameters:
-        delete_multiplatform_parameter('federation-upstream', param)
+    try:
+        for param in opts.parameters:
+            delete_multiplatform_parameter('federation-upstream', param)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Federation Parameters Found {} \n".format(opts.parameters))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                  "Check Connection Parameters: {} \n".format(e))
+
 
 def remove_shovel_parameters(opts):
-    for param in opts.parameters:
-        delete_multiplatform_parameter('shovel', param)
+    try:
+        for param in opts.parameters:
+            delete_multiplatform_parameter('shovel', param)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Shovel Parameters Found {} \n".format(opts.parameters))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                  "Check Connection Parameters: {} \n".format(e))
+
 
 def remove_policies(opts):
-    for policy in opts.policies:
-        delete_policy(policy)
+    try:
+        for policy in opts.policies:
+            delete_policy(policy)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Policies Found {} \n".format(opts.policies))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                  "Check Connection Parameters: {} \n".format(e))
 
 def main(argv=sys.argv):
     # Refuse to run as root

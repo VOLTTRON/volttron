@@ -101,16 +101,16 @@ def call_grequest(method_name, url_suffix, ssl_auth=True, **kwargs):
         if response and isinstance(response, list):
             response[0].raise_for_status()
     except (ConnectionError, NewConnectionError) as e:
-        _log.error("Error connecting to {} with "
-                   "args {}: {}".format(url, kwargs, e))
+        _log.debug("Error connecting to {} with "
+                    "args {}: {}".format(url, kwargs, e))
         raise e
     except requests.exceptions.HTTPError as e:
-        _log.error("Exception when trying to make HTTP request to {} with "
-                   "args {} : {}".format(url, kwargs, e))
+        _log.debug("Exception when trying to make HTTP request to {} with "
+                    "args {} : {}".format(url, kwargs, e))
         raise e
     except AttributeError as e:
-        _log.error("Exception when trying to make HTTP request to {} with "
-                   "args {} : {}".format(url, kwargs, e))
+        _log.debug("Exception when trying to make HTTP request to {} with "
+                    "args {} : {}".format(url, kwargs, e))
         raise e
     return response
 
