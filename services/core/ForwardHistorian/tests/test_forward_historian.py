@@ -114,4 +114,7 @@ def test_reconnect_forwarder(get_volttron_instances):
         do_publish(publisher)
 
     for i in range(len(publishedmessages)):
-        assert allforwardedmessage[i] == publishedmessages[i]
+        # We need to compensate for float differences through the bus.
+        forwarded = "{{0:{0}f}}".format(allforwardedmessage[i])
+        published = "{{0:{0}f}}".format(publishedmessages[i])
+        assert forwarded[:8] == published[:8]
