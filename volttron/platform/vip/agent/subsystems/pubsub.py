@@ -44,12 +44,12 @@ import logging
 import random
 import re
 import weakref
-
+import sys
 import gevent
+
 from zmq import green as zmq
 from zmq import SNDMORE
 from volttron.platform.agent import json as jsonapi
-
 from .base import SubsystemBase
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..errors import Unreachable, VIPError, UnknownSubsystem
@@ -60,8 +60,8 @@ from gevent.queue import Queue, Empty
 from collections import defaultdict
 from datetime import timedelta
 
+__all__ = ['PubSub', 'BasePubSub']
 
-__all__ = ['PubSub']
 min_compatible_version = '3.0'
 max_compatible_version = ''
 
@@ -79,7 +79,33 @@ def decode_peer(peer):
     return peer
 
 
-class PubSub(SubsystemBase):
+class BasePubSub(SubsystemBase):
+    """
+    Abstract Base class for pubsub subsystem. Concrete implementations of PubSub shall vary
+    depending on the underlying message bus
+    """
+    def __init_(self, core, rpc_subsys, peerlist_subsys, owner):
+        self._instance_name = core.instance_name
+
+    def synchronize(self):
+        raise NotImplementedError()
+
+    def subscribe(self, prefix, callback, bus='', all_platforms=False, persistent_queue=None):
+        raise NotImplementedError()
+
+    def publish(self):
+        raise NotImplementedError()
+
+    def list(self, peer, prefix='', bus='', subscribed=True, reverse=False, all_platforms=False):
+        raise NotImplementedError()
+
+    def unsubscribe(self, peer, prefix, callback, bus='', all_platforms=False):
+        raise NotImplementedError()
+
+class PubSub(BasePubSub):
+    """
+    Pubsub subsystem concrete class implementation for ZMQ message bus.
+    """
     def __init__(self, core, rpc_subsys, peerlist_subsys, owner):
         self.core = weakref.ref(core)
         self.rpc = weakref.ref(rpc_subsys)
@@ -104,14 +130,16 @@ class PubSub(SubsystemBase):
         self._event_queue = Queue()
         self._retry_period = 300.0
         self._processgreenlet = None
+        self._channel = None
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
             self._processgreenlet = gevent.spawn(self._process_loop)
             core.onconnected.connect(self._connected)
-            self.vip_socket = self.core().socket
+            self.vip_socket = self.core().connection.socket
+
             def subscribe(member):   # pylint: disable=redefined-outer-name
-                for peer, bus, prefix, all_platforms in annotations(
+                for peer, bus, prefix, all_platforms, queue in annotations(
                         member, set, 'pubsub.subscriptions'):
                     # XXX: needs updated in light of onconnected signal
                     self._add_subscription(prefix, member, bus, all_platforms)
@@ -360,7 +388,7 @@ class PubSub(SubsystemBase):
 
     @dualmethod
     @spawn
-    def subscribe(self, peer, prefix, callback, bus='', all_platforms=False):
+    def subscribe(self, peer, prefix, callback, bus='', all_platforms=False, persistent_queue=None):
         """Subscribe to topic and register callback.
 
         Subscribes to topics beginning with prefix. If callback is
@@ -406,9 +434,9 @@ class PubSub(SubsystemBase):
             return result
 
     @subscribe.classmethod
-    def subscribe(cls, peer, prefix, bus='', all_platforms=False):
+    def subscribe(cls, peer, prefix, bus='', all_platforms=False, persistent_queue=None):
         def decorate(method):
-            annotate(method, set, 'pubsub.subscriptions', (peer, bus, prefix, all_platforms))
+            annotate(method, set, 'pubsub.subscriptions', (peer, bus, prefix, all_platforms, persistent_queue))
             return method
         return decorate
 
@@ -478,6 +506,8 @@ class PubSub(SubsystemBase):
                         del bus_subscriptions[bus]
                     if not bus_subscriptions:
                         del self._my_subscriptions[platform]
+            if not topics:
+                raise KeyError('no such subscription')
         else:
             _log.debug("PUSUB unsubscribe my subscriptions: {0} {1}".format(prefix, self._my_subscriptions))
             if platform in self._my_subscriptions:

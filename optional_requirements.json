@@ -31,5 +31,10 @@
     "--market": {
         "help": "Installs requirements for the market service",
         "packages": ["numpy>1.13,<2", "transitions"]
+    },
+    "--rabbitmq": {
+        "help": "Installs requirements for the rabbitmq server",
+        "packages": ["wget==3.2", "cryptography==2.2.2",
+        "git+git://github.com/shwethanidd/pika.git@gevent_connection_adapter#egg=pika"]
     }
 }

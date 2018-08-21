@@ -84,6 +84,9 @@ from distutils.version import LooseVersion
 _log = logging.getLogger(__name__)
 
 _WINDOWS = sys.platform.startswith('win')
+default_rmq_dir = os.path.join(os.path.expanduser("~"), "rabbitmq_server")
+rabbitmq_server = 'rabbitmq_server-3.7.7'
+
 
 
 def shescape(args):
@@ -124,7 +127,7 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
 
         def _fetch(self, url):
             '''Open url and return the response object (or bail).'''
-            _log.debug('Fetching %s', url)
+            _log.info('Fetching %s', url)
             response = urllib2.urlopen(url)
             if response.getcode() != 200:
                 _log.error('Server response is %s %s',
@@ -221,7 +224,8 @@ def pip(operation, args, verbose=None, upgrade=False, offline=False):
     subprocess.check_call(cmd)
 
 
-def update(operation, verbose=None, upgrade=False, offline=False):
+def update(operation, verbose=None, upgrade=False, offline=False,
+           rmq_dir=None):
     '''Install dependencies in setup.py and requirements.txt.'''
     from setup import (option_requirements, local_requirements,
                        optional_requirements)
@@ -234,8 +238,7 @@ def update(operation, verbose=None, upgrade=False, offline=False):
             import wheel
         except ImportError:
             # wheel version 0.31 breaks packaging.
-            # TODO Look towards fixing the packaging so that it works with 0.31
-            pip('install', ['wheel==0.30'], verbose, offline=offline)
+            pass
     # Downgrade wheel if necessary so things don't break.
     # TODO Fix hard coded version in this spot...should be somewhere else.
     pip('install', ['wheel==0.30'], verbose, offline=offline)
@@ -262,6 +265,53 @@ def update(operation, verbose=None, upgrade=False, offline=False):
         args.extend(['--requirement', requirements_txt])
     pip(operation, args, verbose, upgrade, offline)
 
+    # Install rmq server if needed
+    if rmq_dir:
+        install_rabbit(rmq_dir)
+
+
+def install_rabbit(rmq_install_dir):
+    import wget
+    if rmq_install_dir == default_rmq_dir and not os.path.exists(
+            default_rmq_dir):
+        os.mkdir(default_rmq_dir)
+        _log.info("\n\nInstalling Rabbitmq Server in default directory: " +
+                  default_rmq_dir)
+    else:
+        _log.info(
+            "\n\nInstalling Rabbitmq Server at {}".format(rmq_install_dir))
+
+    valid_dir = os.access(rmq_install_dir, os.W_OK)
+    if not valid_dir:
+        raise ValueError("Invalid install directory. Directory should "
+                         "exist and should have write access to user")
+
+    rmq_home = os.path.join(rmq_install_dir, rabbitmq_server)
+    if os.path.exists(rmq_home) and \
+            os.path.exists(os.path.join(rmq_home, 'sbin/rabbitmq-server')):
+        _log.info("{} already contains {}. "
+              "Skipping rabbitmq server install".format(
+            rmq_install_dir, rabbitmq_server))
+    else:
+        filename = wget.download(
+            "https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.7.7/rabbitmq-server-generic-unix-3.7.7.tar.xz",
+            out=os.path.expanduser("~"))
+        _log.info("\nDownloaded rabbitmq server")
+        cmd = ["tar",
+               "-xf",
+               filename,
+               "--directory="+rmq_install_dir]
+        subprocess.check_call(cmd)
+        _log.info("Installed Rabbitmq server at " + rmq_home)
+    # enable plugins
+    cmd = [os.path.join(rmq_home, "sbin/rabbitmq-plugins"),
+           "enable", "rabbitmq_management",
+           "rabbitmq_federation",
+           "rabbitmq_federation_management",
+           "rabbitmq_shovel",
+           "rabbitmq_shovel_management",
+           "rabbitmq_auth_mechanism_ssl"]
+    subprocess.check_call(cmd)
 
 def main(argv=sys.argv):
     '''Script entry point.'''
@@ -328,12 +378,22 @@ def main(argv=sys.argv):
         with open('optional_requirements.json', 'r') as optional_arguments:
             data = json.load(optional_arguments)
             for arg, vals in data.items():
-                optional_args.append(arg)
-                if 'help' in vals.keys():
-                    po.add_argument(arg, action='store_true', default=False,
-                                    help=vals['help'])
+                if arg == '--rabbitmq':
+                    po.add_argument(
+                        '--rabbitmq', action='store', const=default_rmq_dir,
+                        nargs='?',
+                        help='install rabbitmq server and its dependencies. '
+                             'optional argument: Install directory '
+                             'that exists and is writeable. RabbitMQ server '
+                             'will be installed in a subdirectory.'
+                             'Defaults to ' + default_rmq_dir)
                 else:
-                    po.add_argument(arg, action='store_true', default=False)
+                    optional_args.append(arg)
+                    if 'help' in vals.keys():
+                        po.add_argument(arg, action='store_true', default=False,
+                                        help=vals['help'])
+                    else:
+                        po.add_argument(arg, action='store_true', default=False)
 
     # Update options
     up = parser.add_argument_group('update options')
@@ -367,7 +427,7 @@ def main(argv=sys.argv):
     if hasattr(sys, 'real_prefix'):
         # The script was called from a virtual environment Python, so update
         update(options.operation, options.verbose,
-               options.upgrade, options.offline)
+               options.upgrade, options.offline, options.rabbitmq)
     else:
         # The script was called from the system Python, so bootstrap
         try:
@@ -394,6 +454,8 @@ def main(argv=sys.argv):
         args = [env_exe, __file__]
         if options.verbose is not None:
             args.append('--verbose' if options.verbose else '--quiet')
+        if options.rabbitmq is not None:
+            args.append('--rabbitmq={}'.format(options.rabbitmq))
         # Transfer dynamic properties to the subprocess call 'update'.
         # Clip off the first two characters expecting long parameter form.
         for arg in optional_args:

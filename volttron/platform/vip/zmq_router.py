@@ -1,40 +1,59 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+
+# Copyright (c) 2017, Battelle Memorial Institute
+# All rights reserved.
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# The views and conclusions contained in the software and documentation
+# are those of the authors and should not be interpreted as representing
+# official policies, either expressed or implied, of the FreeBSD
+# Project.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an
+# agency of the United States Government.  Neither the United States
+# Government nor the United States Department of Energy, nor Battelle,
+# nor any of their employees, nor any jurisdiction or organization that
+# has cooperated in the development of these materials, makes any
+# warranty, express or implied, or assumes any legal liability or
+# responsibility for the accuracy, completeness, or usefulness or any
+# information, apparatus, product, software, or process disclosed, or
+# represents that its use would not infringe privately owned rights.
+#
+# Reference herein to any specific commercial product, process, or
+# service by trade name, trademark, manufacturer, or otherwise does not
+# necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors
+# expressed herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY
+# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-# }}}
+#}}}
 
 
 from __future__ import absolute_import
@@ -46,7 +65,7 @@ from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
 
 from .pubsubservice import PubSubService
 
-__all__ = ['BaseRouter', 'OUTGOING', 'INCOMING', 'UNROUTABLE', 'ERROR']
+__all__ = ['BaseRouter', 'ZMQRouter', 'OUTGOING', 'INCOMING', 'UNROUTABLE', 'ERROR']
 
 OUTGOING = 0
 INCOMING = 1
@@ -68,7 +87,44 @@ _INVALID_SUBSYSTEM = (
 
 _log = logging.getLogger(__name__)
 
+
 class BaseRouter(object):
+    ''' Abstract base class of VIP router implementation
+
+    Router implementers should inherit this class and implement the
+    setup() method to bind to appropriate addresses, set identities,
+    setup authentication, etc, etc. The socket will be created by the
+    start() method, which will then call the setup() method.  Once
+    started, the socket may be polled for incoming messages and those
+    messages are handled/routed by calling the route() method.  During
+    routing, the issue() method, which may be implemented, will be
+    called to allow for debugging and logging. Custom subsystems may be
+    implemented in the handle_subsystem() method. The socket will be
+    closed when the stop() method is called.
+    '''
+    def __init__(self):
+        raise NotImplementedError()
+
+    def start(self):
+        raise NotImplementedError()
+
+    def setup(self):
+        raise NotImplementedError()
+
+    def route(self):
+        raise NotImplementedError()
+
+    def poll(self):
+        raise NotImplementedError()
+
+    def handle_system(self):
+        raise NotImplementedError()
+
+    def stop(self):
+        raise NotImplementedError()
+
+
+class ZMQRouter(BaseRouter):
     '''Abstract base class of VIP router implementation.
 
     Router implementers should inherit this class and implement the
@@ -85,7 +141,6 @@ class BaseRouter(object):
 
     _context_class = zmq.Context
     _socket_class = zmq.Socket
-    _poller_class = zmq.Poller
 
     def __init__(self, context=None, default_user_id=None):
         '''Initialize the object instance.
@@ -97,7 +152,7 @@ class BaseRouter(object):
         self.default_user_id = default_user_id
         self.socket = None
         self._peers = set()
-        self._poller = self._poller_class()
+        self._poller = zmq.Poller()
         self._ext_sockets = []
         self._socket_id_mapping = {}
 
@@ -124,6 +179,9 @@ class BaseRouter(object):
         sock.tcp_keepalive_intvl = 20
         sock.tcp_keepalive_cnt = 6
         self.context.set(zmq.MAX_SOCKETS, 30690)
+        # sock.setsockopt(zmq.SNDBUF, 40000)
+        # sock.setsockopt(zmq.RCVBUF, 40000)
+        # sock.set_hwm(60000)
         sock.set_hwm(6000)
         _log.debug("ROUTER SENDBUF: {0}, {1}".format(sock.getsockopt(zmq.SNDBUF), sock.getsockopt(zmq.RCVBUF)))
         self.setup()
@@ -236,7 +294,7 @@ class BaseRouter(object):
         self._distribute(b'peerlist', b'drop', peer)
         self._drop_pubsub_peers(peer)
 
-    def route(self, frames):
+    def route(self):
         '''Route one message and return.
 
         One message is read from the socket and processed. If the
@@ -247,10 +305,12 @@ class BaseRouter(object):
         '''
         socket = self.socket
         issue = self.issue
-
+        # Expecting incoming frames:
+        #   [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
+        frames = socket.recv_multipart(copy=False)
         issue(INCOMING, frames)
-        # for f in frames:
-        #     _log.debug("ROUTER Receiving frames: {}".format(bytes(f)))
+        #for f in frames:
+        #    _log.debug("ROUTER Receiving frames: {}".format(bytes(f)))
         if len(frames) < 6:
             # Cannot route if there are insufficient frames, such as
             # might happen with a router probe.
@@ -314,7 +374,6 @@ class BaseRouter(object):
         for peer in self._send(frames):
             self._drop_peer(peer)
 
-
     def _send(self, frames):
         issue = self.issue
         socket = self.socket
@@ -322,8 +381,8 @@ class BaseRouter(object):
         recipient, sender = frames[:2]
         # Expecting outgoing frames:
         #   [RECIPIENT, SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
-        # for f in frames:
-        #     _log.debug("ROUTER sending frames: {}".format(bytes(f)))
+        #for f in frames:
+        #    _log.debug("ROUTER sending frames: {}".format(bytes(f)))
         try:
             # Try sending the message to its recipient
             socket.send_multipart(frames, flags=NOBLOCK, copy=False)

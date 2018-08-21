@@ -1137,7 +1137,7 @@ def test_invalid_query(request, historian, publish_agent, query_agent,
                                  order="LAST_TO_FIRST").get(timeout=10)
     except Exception as error:
         print ("exception: {}".format(error))
-        assert "No route to host: platform.historian1" in str(error)
+        assert "No route to host:" in str(error)
 
 
 @pytest.mark.historian

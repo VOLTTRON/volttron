@@ -228,7 +228,7 @@ def five_platform_connection(request, get_volttron_instances):
 
     return agent1, agent2, agent3, agent4, agent5
 
-
+@pytest.mark.multiplatform
 def test_multiplatform_pubsub(request, multi_platform_connection):
     p1_publisher, p2_listener, p3_listener = multi_platform_connection
 
@@ -270,6 +270,7 @@ def test_multiplatform_pubsub(request, multi_platform_connection):
     gevent.sleep(5)
 
 
+@pytest.mark.multiplatform
 def test_multiplatform_2_publishers(request, five_platform_connection):
     subscription_results2 = {}
     subscription_results3 = {}
@@ -338,6 +339,7 @@ def test_multiplatform_2_publishers(request, five_platform_connection):
         assert message == [{'result': 'pass'}]
 
 
+@pytest.mark.multiplatform
 def test_multiplatform_subscribe_unsubscribe(request, multi_platform_connection):
     subscription_results2 = {}
     subscription_results3 = {}
@@ -389,6 +391,7 @@ def test_multiplatform_subscribe_unsubscribe(request, multi_platform_connection)
     assert message == [{'point': 'value2'}]
 
 
+@pytest.mark.multiplatform
 def test_multiplatform_stop_subscriber(request, multi_platform_connection):
     subscription_results2 = {}
     subscription_results3 = {}
@@ -440,11 +443,14 @@ def test_multiplatform_stop_subscriber(request, multi_platform_connection):
     assert message == [{'point': 'value2'}]
 
 
+@pytest.mark.multiplatform
 def test_missing_address_file(request, get_volttron_instances):
     p1 = get_volttron_instances(1, address_file=False)
     gevent.sleep(1)
     p1.shutdown_platform()
 
+
+@pytest.mark.multiplatform
 def test_multiplatform_without_setup_mode(request, build_instances):
     subscription_results1 = {}
     subscription_results3 = {}
@@ -497,6 +503,8 @@ def test_multiplatform_without_setup_mode(request, build_instances):
         except KeyError:
             pass
 
+
+@pytest.mark.multiplatform
 def test_multiplatform_local_subscription(request, build_instances):
     subscription_results1 = {}
     p1 = build_instances(1, add_my_address=True)
@@ -534,6 +542,8 @@ def test_multiplatform_local_subscription(request, build_instances):
         except KeyError:
             pass
 
+
+@pytest.mark.multiplatform
 def test_multiplatform_bad_discovery_file(request, build_instances):
     p1, p2, p3 = build_instances(3, bad_config=True)
     gevent.sleep(1)
@@ -541,6 +551,9 @@ def test_multiplatform_bad_discovery_file(request, build_instances):
     p2.shutdown_platform()
     p3.shutdown_platform()
 
+
+
+@pytest.mark.multiplatform
 def test_multiplatform_rpc(request, get_volttron_instances):
     p1, p2 = get_volttron_instances(2)
     _default_config = {

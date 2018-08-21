@@ -52,6 +52,8 @@ from volttron.platform.keystore import KnownHostsStore
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.messaging.health import STATUS_BAD, Status
 from volttron.platform.agent.known_identities import PLATFORM_HISTORIAN
+import os
+from urlparse import urlparse
 
 DATAMOVER_TIMEOUT_KEY = 'DATAMOVER_TIMEOUT_KEY'
 utils.setup_logging()
@@ -62,16 +64,25 @@ __version__ = '0.1'
 def historian(config_path, **kwargs):
     config = utils.load_config(config_path)
     destination_vip = config.get('destination-vip', None)
+    destination_instance_name = config.get('destination-instance-name', None)
     assert destination_vip is not None
-
-    hosts = KnownHostsStore()
-    serverkey = hosts.serverkey(destination_vip)
-    if serverkey is not None:
-        config['destination-serverkey'] = serverkey
+    # If running on RabbitMQ message bus, then correct destination address and instance name have to be specified
+    message_bus = os.environ.get('MESSSAGEBUS', 'zmq')
+    if message_bus == 'rmq':
+        parsed = urlparse.urlparse(destination_vip)
+        if parsed.scheme not in ('amqp', 'amqps'):
+            raise StandardError(
+                'RabbitMQ address must begin with amqp')
+        assert destination_instance_name is not None
     else:
-        assert config.get('destination-serverkey') is not None
-        _log.info("Destination serverkey not found in known hosts file, "
-                  "using config")
+        hosts = KnownHostsStore()
+        serverkey = hosts.serverkey(destination_vip)
+        if serverkey is not None:
+            config['destination-serverkey'] = serverkey
+        else:
+            assert config.get('destination-serverkey') is not None
+            _log.info("Destination serverkey not found in known hosts file, "
+                      "using config")
 
     utils.update_kwargs_with_config(kwargs, config)
     return DataMover(**kwargs)
@@ -83,6 +94,7 @@ class DataMover(BaseHistorian):
 
     def __init__(self, destination_vip, destination_serverkey,
                  destination_historian_identity=PLATFORM_HISTORIAN,
+                 destination_instance_name=None,
                  **kwargs):
         """
         
@@ -96,6 +108,7 @@ class DataMover(BaseHistorian):
         should subscribe to.
         :param destination_historian_identity: vip identity of the 
         destination historian. default is 'platform.historian'
+        :param destination_instance_name: instance name of destination server
         :param kwargs: additional arguments to be passed along to parent class
         """
         kwargs["process_loop_in_greenlet"] = True
@@ -103,10 +116,12 @@ class DataMover(BaseHistorian):
         self.destination_vip = destination_vip
         self.destination_serverkey = destination_serverkey
         self.destination_historian_identity = destination_historian_identity
+        self.destination_instance_name = destination_instance_name
 
         config = {"destination_vip":self.destination_vip,
                   "destination_serverkey": self.destination_serverkey,
-                  "destination_historian_identity": self.destination_historian_identity}
+                  "destination_historian_identity": self.destination_historian_identity,
+                  "destination_instance_name": self.destination_instance_name}
 
         self.update_default_config(config)
 
@@ -117,6 +132,7 @@ class DataMover(BaseHistorian):
         self.destination_vip = str(configuration.get('destination_vip', ""))
         self.destination_serverkey = str(configuration.get('destination_serverkey', ""))
         self.destination_historian_identity = str(configuration.get('destination_historian_identity', PLATFORM_HISTORIAN))
+        self.destination_instance_name = str(configuration.get('destination_instance_name', ""))
 
 
     #Redirect the normal capture functions to capture_data.
@@ -233,13 +249,17 @@ class DataMover(BaseHistorian):
                                 serverkey=self.destination_serverkey,
                                 publickey=self.core.publickey,
                                 secretkey=self.core.secretkey,
-                                enable_store=False)
+                                enable_store=False,
+                                instance_name=self.destination_instance_name)
         except gevent.Timeout:
             self.vip.health.set_status(
                 STATUS_BAD, "Timeout in setup of agent")
-            status = Status.from_json(self.vip.health.get_status())
-            self.vip.health.send_alert(DATAMOVER_TIMEOUT_KEY,
+            try:
+                status = Status.from_json(self.vip.health.get_status())
+                self.vip.health.send_alert(DATAMOVER_TIMEOUT_KEY,
                                        status)
+            except KeyError:
+                _log.error("Error getting the health status")
         else:
             self._target_platform = agent
 
