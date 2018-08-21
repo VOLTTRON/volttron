@@ -485,9 +485,9 @@ def _create_certs_without_prompt(admin_client_name, server_cert_name):
                  "new Root CA.".format(crts.cert_file(crts.root_ca_name))
         prompt = prompt_response(prompt,
                                  valid_answers=y_or_n,
-                                 default='N')
+                                 default='Y')
         if prompt not in y:
-            return
+            exit(1)
 
     _log.info('\n Creating root ca for volttron instance: {}'.format(
         crts.cert_file(crts.root_ca_name)))
