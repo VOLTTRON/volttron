@@ -390,8 +390,8 @@ data flows in single direction from upstream server to downstream server. For bi
 data flow we would need to create federation links on both the nodes.
 
 
-1. Setup two VOLTTRON instances using the above steps. Please note that each
-instance should have a unique instance name and should be running on machine/VM that has a unique host name.
+1. Setup two VOLTTRON instances using the above steps. __***Please note that each
+instance should have a unique instance name and should be running on machine/VM that has a unique host name.***__
 
 
 2. In a multi platform setup that need to communicate with each other with
