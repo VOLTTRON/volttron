@@ -1541,7 +1541,7 @@ def add_user(opts):
     if configure:
         permissions['configure'] = ".*"
     try:
-        set_user_permissions(permissions, opts.user, opts.pwd)
+        set_user_permissions(permissions, opts.user)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error Setting User permissions : {} \n".format(opts.user))
     except (ConnectionError, NewConnectionError) as e:
