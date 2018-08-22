@@ -452,7 +452,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
     the below command in the upstream server
 
         ```sh
-        (volttron)[vdev@cs_cbox myvolttron]$ volttron-ctl rabbitmq add-user <username> <password>
+         volttron-ctl rabbitmq add-user <username> <password>
          Do you want to set READ permission  [Y/n]
          Do you want to set WRITE permission  [Y/n]
          Do you want to set CONFIGURE permission  [Y/n]
