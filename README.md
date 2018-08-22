@@ -71,6 +71,7 @@ http://ryanstutorials.net/linuxtutorial/
 
     bionic for Ubuntu 18.04
     xenial for Ubuntu 16.04
+    xenial for Linux Mint 18.04
     stretch for Debian Stretch
     jessie for Debian Jessie
 
@@ -451,9 +452,11 @@ upstream servers on the downstream server and make the VOLTTRON exchange
     the below command in the upstream server
 
         ```sh
-        cd $RABBITMQ_HOME
-        ./sbin/rabbitmqctl add_user <username> <password>
-        ./sbin/rabbitmqctl set_permissions -p volttron <username> ".*" ".*" ".*"
+         volttron-ctl rabbitmq add-user <username> <password>
+         Do you want to set READ permission  [Y/n]
+         Do you want to set WRITE permission  [Y/n]
+         Do you want to set CONFIGURE permission  [Y/n]
+
         ```
 5. Test the federation setup.
 
