@@ -50,7 +50,8 @@ def get_rand_ipc_vip():
 
 def build_wrapper(vip_address, **kwargs):
     message_bus = kwargs.pop('message_bus', None)
-    wrapper = PlatformWrapper(message_bus)
+    ssl_auth = kwargs.pop('ssl_auth', False)
+    wrapper = PlatformWrapper(message_bus, ssl_auth)
     print('BUILD_WRAPPER: {}'.format(vip_address))
     wrapper.startup_platform(vip_address=vip_address, **kwargs)
     return wrapper
@@ -169,7 +170,7 @@ def volttron_instance_module_web(request):
 # Use this fixture when you want a single instance of volttron platform for
 # test
 @pytest.fixture(scope="module",
-                params=['zmq', 'rmq'])
+                params=[('rmq', True)])
 def volttron_instance(request):
     """Fixture that returns a single instance of volttron platform for testing
 
@@ -178,12 +179,16 @@ def volttron_instance(request):
     """
     wrapper = None
     address = get_rand_vip()
+    message_bus = request.param[0]
+    ssl_auth = request.param[1]
 
-    wrapper = build_wrapper(address, message_bus=request.param)
-
+    wrapper = build_wrapper(address, message_bus=message_bus, ssl_auth=ssl_auth)
 
     def cleanup():
         print('Shutting down instance: {}'.format(wrapper.volttron_home))
+        if message_bus == 'rmq' and ssl_auth:
+            os.remove('/home/anh/rabbitmq_server/rabbitmq_server-3.7.7/etc/rabbitmq/rabbitmq.conf')
+        wrapper.remove_all_agents()
         wrapper.shutdown_platform()
 
     request.addfinalizer(cleanup)

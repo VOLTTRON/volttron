@@ -126,8 +126,9 @@ def get_authentication_args(ssl_auth):
     global local_user, local_password, admin_user, admin_password, \
         instance_name, crts
 
-    if not crts:
-        crts = certs.Certs()
+    # if not crts:
+    #     crts = certs.Certs()
+    crts = certs.Certs()
 
     if ssl_auth:
         if not instance_name:
@@ -230,8 +231,9 @@ def get_vhost():
 
 
 def get_user():
-    if not config_opts:
-        _load_rmq_config()
+    _load_rmq_config()
+    # if not config_opts:
+    #     _load_rmq_config()
     return config_opts.get('user')
 
 
