@@ -20,7 +20,7 @@ from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging
 from volttron.platform.agent import utils
-from volttron.platform.agent.utils import strip_comments
+from volttron.platform.agent.utils import strip_comments, load_platform_config
 from volttron.platform.aip import AIPplatform
 from volttron.platform.auth import (AuthFile, AuthEntry,
                                     AuthFileEntryAlreadyExists)
@@ -30,8 +30,7 @@ from volttron.platform.vip.agent.connection import Connection
 from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttron.platform.agent import json as jsonapi
-from volttron.utils.rmq_mgmt import create_rmq_volttron_test_setup, \
-    cleanup_rmq_volttron_test_setup
+from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup, cleanup_rmq_volttron_setup
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -157,11 +156,14 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
 
 
 class PlatformWrapper:
-    def __init__(self, message_bus=None):
+    def __init__(self, message_bus=None, ssl_auth=False):
         """ Initializes a new VOLTTRON instance
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory
         for agents that are built.
+
+        :param message_bus: rmq or zmq
+        :param ssl_auth: if message_bus=rmq, authenticate users if True
         """
 
         # This is hopefully going to keep us from attempting to shutdown
@@ -226,6 +228,7 @@ class PlatformWrapper:
         self.keystore = KeyStore(keystorefile)
         self.keystore.generate()
         self.message_bus = message_bus if message_bus else 'zmq'
+        self.ssl_auth = ssl_auth
 
 
     def logit(self, message):
@@ -424,7 +427,10 @@ class PlatformWrapper:
         self.skip_cleanup = self.env.get('SKIP_CLEANUP', False)
         if self.message_bus == 'rmq':
             self.logit("Setting up volttron test environemnt {}".format(self.volttron_home))
-            create_rmq_volttron_test_setup(self.volttron_home)
+            create_rmq_volttron_setup(vhome=self.volttron_home,
+                                      ssl_auth=self.ssl_auth)
+            platform_config = load_platform_config()
+            instance_name = platform_config.get('instance-name', '').strip('"')
             if not instance_name:
                 self.instance_name = instance_name = 'volttron_test'
 
@@ -1019,7 +1025,8 @@ class PlatformWrapper:
                     logpath
                 ))
         if not self.skip_cleanup and self.message_bus == 'rmq':
-            cleanup_rmq_volttron_test_setup(self.volttron_home)
+            cleanup_rmq_volttron_setup(vhome=self.volttron_home,
+                                       ssl_auth=self.ssl_auth)
         if not self.skip_cleanup:
             self.logit('Removing {}'.format(self.volttron_home))
             shutil.rmtree(self.volttron_home, ignore_errors=True)
