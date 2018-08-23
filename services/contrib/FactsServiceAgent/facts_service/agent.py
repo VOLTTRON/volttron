@@ -1,0 +1,368 @@
+"""
+Ecorithm Facts Service Agent
+
+This agent sends collected data to Ecorithm's Facts Service API using HTTPS
+requests.
+
+Each request must be authenticated using an username/password pair provided
+by Ecorithm. Authentication is configured in the Facts Service parameters
+group of the config.
+
+If the Building Automation System (BAS) being trended belong to a unique
+building, the `building_id` parameter must be set to match the building number
+provided by Ecorithm. Topic to building_id mapping must be empty (`{}`).
+
+If the BAS trends multiple buildings or a campus, the `building_id` must be
+set to `null` and the `topic_building_mapping` must be filled.
+
+Note that this agent won't be able to read data stored on Facts Service such
+as the SQLHistorian would be able to. It is only unidirectional.
+
+Author: Thibaud Nesztler
+"""
+
+__docformat__ = 'reStructuredText'
+
+import logging
+import sys
+import requests
+import pytz
+from tzlocal import get_localzone
+from volttron.platform.agent import utils
+from volttron.platform.agent.base_historian import BaseHistorian
+
+_log = logging.getLogger(__name__)
+utils.setup_logging()
+__version__ = "1.2"
+
+
+def historian(config_path, **kwargs):
+    """
+    Parses the Agent configuration and returns an instance of
+    the agent created using that configuration.
+
+    :param config_path: Path to a configuration file.
+
+    :type config_path: str
+    :returns: `FactsService`
+    :rtype: `FactsService`
+    """
+
+    if isinstance(config_path, dict):
+        config_dict = config_path
+    else:
+        config_dict = utils.load_config(config_path)
+
+    # Gather all settings from configuration into kwargs.
+    # This ensures that settings common to all historians
+    # are passed to BaseHistorian.
+    utils.update_kwargs_with_config(kwargs, config_dict)
+    return FactsService(**kwargs)
+
+
+class FactsService(BaseHistorian):
+    """
+    Sends trend data to Ecorithm's Facts Service using HTTP PUT requests.
+    """
+
+    def __init__(self, facts_service_parameters={}, building_parameters={},
+                 **kwargs):
+        # The publish_to_historian function will run in a
+        # separate thread unless you change this to True.
+        # Unless you need to interact with the VOLTTRON platform
+        # leave this unchanged.
+        kwargs["process_loop_in_greenlet"] = False
+        super(FactsService, self).__init__(**kwargs)
+
+        self.facts_service_base_api_url = None
+        self.facts_service_username = None
+        self.facts_service_password = None
+        self.building_id = None
+        self.topic_building_mapping = None
+
+        # The base historian handles the interaction with the
+        # configuration store.
+        config = {
+            "facts_service_parameters": facts_service_parameters,
+            "building_parameters": building_parameters
+        }
+        # Add our settings to the base historians default settings.
+        self.update_default_config(config)
+
+    def configure(self, configuration):
+        # The base historian will call this whenever the
+        # Historian is reconfigured in the main process thread.
+
+        # If the Historian is already running historian_teardown
+        # will be called before this is called and
+        # historian_setup will be called afterwards.
+
+        facts_service_parameters = configuration["facts_service_parameters"]
+        building_parameters = configuration["building_parameters"]
+
+        if not isinstance(facts_service_parameters, dict):
+            _log.warning(
+                "Supplied facts_service_parameters is not a dict, ignored"
+            )
+            facts_service_parameters = {}
+
+        if not isinstance(building_parameters, dict):
+            _log.warning("Supplied building_parameters is not a dict, ignored")
+            building_parameters = {}
+
+        self.facts_service_base_api_url = \
+            facts_service_parameters.get("base_api_url")
+        self.facts_service_username = facts_service_parameters.get("username")
+        self.facts_service_password = facts_service_parameters.get("password")
+        self.building_id = building_parameters.get("building_id")
+        self.topic_building_mapping = \
+            building_parameters.get("topic_building_mapping")
+
+        if self.building_id is not None and self.topic_building_mapping:
+            _log.warning(
+                "Building ID is {}, topic to building_id mapping is ignored"
+                .format(self.building_id)
+            )
+            self.topic_building_mapping = {}
+
+        if self.building_id is None and not self.topic_building_mapping:
+            _log.warning(
+                "Topic to building_id mapping is empty."
+                " Nothing will be published. Check your configuration"
+            )
+
+    def publish_to_historian(self, to_publish_list):
+        # Called automatically by the BaseHistorian class when data is
+        # available to be published.
+
+        # This is run in a separate thread from the main agent thread.
+        # This means that this function may block for a short period of time
+        # without fear of blocking the main agent gevent loop.
+
+        # Historians may not interact with the VOLTTRON platform directly from
+        # this function unless kwargs["process_loop_in_greenlet"] is set to
+        # True in __init__ which will cause this function to be run in the
+        # main Agent thread.
+
+        # to_publish_list is a list of dictionaries of the form:
+        # {'timestamp': <datetime object>,
+        #  'source': <"scrape", "record", "log", or "analysis">,
+        # "scrape" is device data
+        #  'topic': <str>,
+        #  'value': <value>, # may be any JSON value.
+        #  'headers': <headers dictionary>,
+        #  'meta': <meta data dictionary>}
+
+        _log.debug("Number of items to publish: {}"
+                   .format(len(to_publish_list)))
+
+        # If our connection is down leave without attempting to publish.
+        # Publish failure will automatically trigger the BaseHistorian to
+        # set the health of the agent accordingly.
+        if not requests.head(
+            self.facts_service_base_api_url,
+            auth=(self.facts_service_username, self.facts_service_password)
+        ).ok:
+            _log.error(
+                'Could not connect to {} with provided username and password.'
+                .format(self.facts_service_base_api_url)
+            )
+            return
+
+        to_send = {}
+        local_tz = get_localzone()
+        for x in to_publish_list:
+            ts = x["timestamp"].replace(tzinfo=pytz.utc).astimezone(local_tz)\
+                .strftime("%Y-%m-%d %H:%M")
+            topic = x["topic"]
+            value = x["value"]
+            if isinstance(value, bool):
+                value = int(value)
+            building_id = self.topic_building_mapping.get(topic) \
+                if self.building_id is None else self.building_id
+            if building_id is not None:
+                data = {
+                    'fact_time': ts,
+                    'native_name': topic,
+                    'fact_value': value
+                }
+                to_send[building_id] = to_send[building_id] + [data] \
+                    if building_id in to_send else [data]
+
+        try:
+            _log.debug('Sending to data to Facts Service.')
+            for building_id, data in to_send.iteritems():
+                requests.put(
+                    '{}/building/{}/facts'
+                    .format(self.facts_service_base_api_url, building_id),
+                    json=data,
+                    auth=(
+                        self.facts_service_username,
+                        self.facts_service_password
+                    )
+                ).raise_for_status()
+            self.report_all_handled()
+            _log.debug('Data successfully published!')
+        except requests.exceptions.RequestException as e:
+            _log.error('Error when attempting to publish to target: {}'
+                       .format(repr(e)))
+
+    def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
+        """
+        Called in the process thread after data is published.
+        Implement this to apply the storage_limit_gb and history_limit_days
+        settings to the storage medium.
+
+        Typically only support for history_limit_timestamp will be implemented.
+        The documentation should note which of the two settings (if any)
+        are supported.
+
+        :param history_limit_timestamp:
+            remove all data older than this timestamp
+        :param storage_limit_gb:
+            remove oldest data until database is smaller than this value.
+        """
+        pass
+
+    def version(self):
+        """
+        Return the current version number of the historian
+        :return: version number
+        """
+        return __version__
+
+    # The following methods are for adding query support. This will allow other
+    # agents to get data from the store and will allow this historian to act as
+    # the platform.historian for VOLTTRON.
+
+    def query_topic_list(self):
+        """
+        This function is called by
+        :py:meth:`BaseQueryHistorianAgent.get_topic_list`
+        to get the topic list from the data store.
+
+        :return: List of topics in the data store.
+        :rtype: list
+        """
+        raise NotImplementedError()
+
+    def query_topics_metadata(self, topics):
+        """
+        This function is called by
+        :py:meth:`BaseQueryHistorianAgent.get_topics_metadata`
+        to find out the metadata for the given topics
+
+        :param topics: single topic or list of topics
+        :type topics: str or list
+        :return: dictionary with the format
+
+        .. code-block:: python
+
+                 {topic_name: {metadata_key:metadata_value, ...},
+                 topic_name: {metadata_key:metadata_value, ...} ...}
+
+        :rtype: dict
+
+        """
+        raise NotImplementedError()
+
+    def query_historian(self, topic, start=None, end=None, agg_type=None,
+                        agg_period=None, skip=0, count=None, order=None):
+        """
+        This function is called by :py:meth:`BaseQueryHistorianAgent.query`
+        to actually query the data store and must return the results of a
+        query in the following format:
+
+        **Single topic query:**
+
+        .. code-block:: python
+
+            {
+            "values": [(timestamp1, value1),
+                        (timestamp2:,value2),
+                        ...],
+             "metadata": {"key1": value1,
+                          "key2": value2,
+                          ...}
+            }
+
+        **Multiple topics query:**
+
+        .. code-block:: python
+
+            {
+            "values": {topic_name:[(timestamp1, value1),
+                        (timestamp2:,value2),
+                        ...],
+                       topic_name:[(timestamp1, value1),
+                        (timestamp2:,value2),
+                        ...],
+                        ...}
+             "metadata": {} #empty metadata
+            }
+
+        Timestamps must be strings formatted by
+        :py:func:`volttron.platform.agent.utils.format_timestamp`.
+
+        "metadata" is not required. The caller will normalize this to {} for
+        you if it is missing.
+
+        :param topic: Topic or list of topics to query for.
+        :param start: Start of query timestamp as a datetime.
+        :param end: End of query timestamp as a datetime.
+        :param agg_type: If this is a query for aggregate data, the type of
+                         aggregation ( for example, sum, avg)
+        :param agg_period: If this is a query for aggregate data, the time
+                           period of aggregation
+        :param skip: Skip this number of results.
+        :param count: Limit results to this value. When the query is for
+                      multiple topics, count applies to individual topics. For
+                      example, a query on 2 topics with count=5 will return 5
+                      records for each topic
+        :param order: How to order the results, either "FIRST_TO_LAST" or
+                      "LAST_TO_FIRST"
+        :type topic: str or list
+        :type start: datetime
+        :type end: datetime
+        :type skip: int
+        :type count: int
+        :type order: str
+
+        :return: Results of the query
+        :rtype: dict
+
+        """
+        raise NotImplementedError()
+
+    def query_aggregate_topics(self):
+        """
+        This function is called by
+        :py:meth:`BaseQueryHistorianAgent.get_aggregate_topics`
+        to find out the available aggregates in the data store
+
+        :return: List of tuples containing (topic_name, aggregation_type,
+                 aggregation_time_period, metadata)
+        :rtype: list
+
+        """
+        raise NotImplementedError()
+
+    def query_topics_by_pattern(self, topic_pattern):
+        """ Find the list of topics and its id for a given topic_pattern
+
+            :return: returns list of dictionary object {topic_name:id}"""
+        raise NotImplementedError()
+
+
+def main():
+    """Main method called to start the agent."""
+    utils.vip_main(historian, identity="facts_service",
+                   version=__version__)
+
+
+if __name__ == '__main__':
+    # Entry point for script
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        pass
