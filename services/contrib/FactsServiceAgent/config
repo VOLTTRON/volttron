@@ -5,15 +5,13 @@
     "username": "",
     "password": ""
   },
-
   ## Building Parameters
   "building_parameters": {
     "building_id": null, # Building ID if topic building mapping is not used.
     # List of topic to building_id records in the form
     # {"<topic>": <building_id>}
-    "topic_building_mapping": {},
+    "topic_building_mapping": {}
   },
-
   ## Base Historian Parameters
   # More info at https://volttron.readthedocs.io/en/latest/core_services/historians/index.html
   "retry_period": 300.0,
