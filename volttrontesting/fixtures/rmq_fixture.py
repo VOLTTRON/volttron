@@ -30,7 +30,7 @@ rabbitmq_config = {
 }
 
 
-def create_rmq_volttron_setup(ssl_auth=False):
+def create_rmq_volttron_setup(vhome=None, ssl_auth=False):
     """
         Create RMQ volttron test setup:
             - Install config and rabbitmq_config.yml in VOLTTRON_HOME
@@ -38,6 +38,9 @@ def create_rmq_volttron_setup(ssl_auth=False):
 
     :param ssl_auth: ssl authentication
     """
+    if vhome:
+        os.environ['VOLTTRON_HOME'] = vhome
+
     rabbitmq_config['ssl'] = str(ssl_auth)
     vhome = get_home()
     instance_setup._install_config_file()
@@ -55,16 +58,18 @@ def create_rmq_volttron_setup(ssl_auth=False):
                                            prompt=False)
 
 
-def cleanup_rmq_volttron_setup():
+def cleanup_rmq_volttron_setup(vhome=None):
     """
         Clean-up RMQ volttron test setup:
             - The function is called when DEBUG = False
             - delete test users, exchanges, and virtual host
     """
-    global config_opts
-    _load_rmq_config()
+    if vhome:
+        os.environ['VOLTTRON_HOME'] = vhome
+
     users_to_remove = get_users()
     users_to_remove.remove('guest')
+    users_to_remove.remove('volttron_test-admin')
 
     # Delete all the users using virtual host
     for user in users_to_remove:
@@ -73,12 +78,9 @@ def cleanup_rmq_volttron_setup():
         except (AttributeError, requests.exceptions.HTTPError):
             pass
 
-    try:
-        delete_exchange(exchange='undeliverable',
-                        vhost=rabbitmq_config['virtual-host'])
-        delete_exchange(exchange='volttron',
-                        vhost=rabbitmq_config['virtual-host'])
-        delete_vhost(vhost=rabbitmq_config['virtual-host'])
-        # stop_rabbit(rmq_home=rabbitmq_config['rmq-home'])
-    except requests.exceptions.HTTPError:
-        pass
+    delete_exchange(exchange='undeliverable',
+                    vhost=rabbitmq_config['virtual-host'])
+    delete_exchange(exchange='volttron',
+                    vhost=rabbitmq_config['virtual-host'])
+    delete_vhost(vhost=rabbitmq_config['virtual-host'])
+    delete_user('volttron_test-admin')
