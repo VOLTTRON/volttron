@@ -67,6 +67,6 @@ def cleanup_rmq_volttron_setup():
         delete_exchange(exchange='volttron',
                         vhost=rabbitmq_config['virtual-host'])
         delete_vhost(vhost=rabbitmq_config['virtual-host'])
-        stop_rabbit(rmq_home=rabbitmq_config['rmq-home'])
+        # stop_rabbit(rmq_home=rabbitmq_config['rmq-home'])
     except requests.exceptions.HTTPError:
         pass
