@@ -62,6 +62,7 @@ try:
 except ImportError:
     raise RuntimeError('PyYAML must be installed before running this script ')
 
+import subprocess
 import grequests
 import gevent
 import pika
@@ -1050,3 +1051,61 @@ def cleanup_rmq_volttron_test_setup(volttron_home):
             delete_user(user)
     except KeyError as e:
         return
+
+
+
+def stop_rabbit(rmq_home, quite=False):
+    """
+    Stop RabbitMQ Server
+    :param rmq_home: RabbitMQ installation path
+    :param quite:
+    :return:
+    """
+    try:
+        cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"),
+               "stop"]
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+        stdout, stderr = p.communicate()
+        gevent.sleep(2)
+        if not quite:
+            _log.info("**Stopped rmq server")
+    except subprocess.CalledProcessError as e:
+        if not quite:
+            raise e
+
+
+def start_rabbit(rmq_home):
+    """
+    Start RabbitMQ server
+    :param rmq_home: RabbitMQ installation path
+    :return:
+    """
+
+    status_cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "status"]
+    start_cmd = [os.path.join(rmq_home, "sbin/rabbitmq-server"), "-detached"]
+    i = 5
+    started = False
+    start = True
+    while not started:
+        try:
+            subprocess.check_call(status_cmd, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE)
+            if not start:
+                # if we have attempted started already
+                gevent.sleep(5)  # give a few seconds for all plugins to start
+            started = True
+            _log.info("Rmq server at {} is running".format(rmq_home))
+        except subprocess.CalledProcessError as e:
+            if start:
+                # attempt to start once
+                subprocess.check_call(start_cmd)
+                gevent.sleep(5)
+                start = False
+            else:
+                if i > 60:  # if more than a minute, may be something is wrong
+                    raise e
+                else:
+                    # sleep for another 5 seconds and check status again
+                    gevent.sleep(5)
+                    i = i + 5
