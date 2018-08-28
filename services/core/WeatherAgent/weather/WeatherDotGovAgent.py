@@ -59,6 +59,10 @@ from volttron.platform.agent import utils
 from volttron.utils.docs import doc_inherit
 from volttron.platform.vip.agent import *
 
+
+def weatherAgent():
+    # TODO check out the "historian" method from the sqlhistorian
+
 # TODO figure out if we are expected to resolve the location
 class WeatherDotGovAgent(BaseWeatherAgent):
     def __init__(self):
@@ -66,11 +70,56 @@ class WeatherDotGovAgent(BaseWeatherAgent):
 
 
     @doc_inherit
-    def query_current_weather(self, location):
-        api_format_location = self.resolve_location(location)
+    def query_current_weather(self, location, cache=True):
+        # TODO get the datetime object outta the data
+        most_recent_data = self.cache.get_current_data(location)
+        if cache and most_recent_data:
 
-            request = requests.request("GET", "https://api.weather.gov/points/{}/".format(api_format_location))
+        else:
+            self.manage_cache_size()
+            request = requests.request("GET", "https://api.weather.gov/points/{}/".format(location))
+            # TODO handle request results
+            data = []
+            self.cache.store_weather_records("current", data)
+            return data
 
     @doc_inherit
-    def query_hourly_forcast(self, location):
-        api_format_location = self.resolve_location(location)
+    def query_hourly_forecast(self, location, cache=True):
+        # TODO get the datetime object outta the data
+        most_recent_data = self.cache.get_forecast_data("hourly_forecast", location)
+        if cache and len(most_recent_data):
+            # TODO format from json for reporting
+        else:
+            self.manage_cache_size()
+            request = requests.request("GET", "https://api.weather.gov/points/{}/forecast/hourly".format(location))
+            # TODO record formatting for storage
+            data = []
+            self.cache.store_weather_records("hourly_forecast", data)
+            # TODO record format for reporting
+            return data
+
+    # TODO compare with historians to see how they handle unimplemented methods
+    def query_hourly_historical_Weather(self):
+        raise NotImplementedError
+
+    # TODO
+    def get_location_specification(self):
+
+def main(argv=sys.argv):
+    """" Main entry point for the agent.
+
+    :param argv:
+    :return:
+    """
+    try:
+        utils.vip_main(historian, version=__version__)
+    except Exception as e:
+        print(e)
+        _log.exception('unhandled exception')
+
+if __name__ == '__main__':
+    # Entry point for script
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        pass
