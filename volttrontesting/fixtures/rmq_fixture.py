@@ -31,6 +31,13 @@ rabbitmq_config = {
 
 
 def create_rmq_volttron_setup(ssl_auth=False):
+    """
+        Create RMQ volttron test setup:
+            - Install config and rabbitmq_config.yml in VOLTTRON_HOME
+            - Create virtual host, exchanges, certificates, and users
+
+    :param ssl_auth: ssl authentication
+    """
     rabbitmq_config['ssl'] = str(ssl_auth)
     vhome = get_home()
     instance_setup._install_config_file()
@@ -49,6 +56,11 @@ def create_rmq_volttron_setup(ssl_auth=False):
 
 
 def cleanup_rmq_volttron_setup():
+    """
+        Clean-up RMQ volttron test setup:
+            - The function is called when DEBUG = False
+            - delete test users, exchanges, and virtual host
+    """
     global config_opts
     _load_rmq_config()
     users_to_remove = get_users()

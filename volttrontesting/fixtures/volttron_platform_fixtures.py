@@ -186,8 +186,6 @@ def volttron_instance(request):
 
     def cleanup():
         print('Shutting down instance: {}'.format(wrapper.volttron_home))
-        if message_bus == 'rmq' and ssl_auth:
-            os.remove('/home/anh/rabbitmq_server/rabbitmq_server-3.7.7/etc/rabbitmq/rabbitmq.conf')
         wrapper.remove_all_agents()
         wrapper.shutdown_platform()
 
