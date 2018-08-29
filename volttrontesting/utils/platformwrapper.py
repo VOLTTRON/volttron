@@ -30,7 +30,7 @@ from volttron.platform.vip.agent.connection import Connection
 from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttron.platform.agent import json as jsonapi
-from volttrontesting.fixtures.rmq_fixture import create_rmq_volttron_setup, cleanup_rmq_volttron_setup
+from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup, cleanup_rmq_volttron_setup
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -161,6 +161,9 @@ class PlatformWrapper:
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory
         for agents that are built.
+
+        :param message_bus: rmq or zmq
+        :param ssl_auth: if message_bus=rmq, authenticate users if True
         """
 
         # This is hopefully going to keep us from attempting to shutdown

@@ -4,7 +4,7 @@ import requests
 
 from volttron.platform import instance_setup, get_home
 from volttron.platform.agent.utils import store_message_bus_config
-from volttron.utils.rmq_mgmt import _load_rmq_config, get_users, delete_user, delete_vhost, delete_exchange
+from volttron.utils.rmq_mgmt import get_users, delete_user, delete_vhost, delete_exchange
 from volttron.utils.rmq_setup import stop_rabbit
 
 
@@ -15,10 +15,10 @@ rabbitmq_config = {
     'host': 'localhost',
     'certificate-data': {
         'country': 'US',
-        'state': 'Washington',
-        'location': 'Richland',
-        'organization': 'PNNL',
-        'organization-unit': 'VOLTTRON Team',
+        'state': 'test-state',
+        'location': 'test-location',
+        'organization': 'test-organization',
+        'organization-unit': 'test-team',
         'common-name': '{}_root_ca'.format(VOLTTRON_INSTANCE_NAME),
     },
     'virtual-host': 'volttron_test',
@@ -32,11 +32,13 @@ rabbitmq_config = {
 
 def create_rmq_volttron_setup(vhome=None, ssl_auth=False):
     """
-        Create RMQ volttron test setup:
+        Set-up rabbitmq broker for volttron testing:
             - Install config and rabbitmq_config.yml in VOLTTRON_HOME
             - Create virtual host, exchanges, certificates, and users
+            - Start rabbitmq server
 
-    :param ssl_auth: ssl authentication
+    :param vhome: volttron home directory, if None, use default from environment
+    :param ssl_auth: ssl authentication, if true, all users of message queue must authenticate
     """
     if vhome:
         os.environ['VOLTTRON_HOME'] = vhome
@@ -60,9 +62,14 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False):
 
 def cleanup_rmq_volttron_setup(vhome=None):
     """
-        Clean-up RMQ volttron test setup:
+        Teardown rabbitmq at test end:
             - The function is called when DEBUG = False
             - delete test users, exchanges, and virtual host
+            - user volttron_test-admin is deleted last in order to use its credentials to connect
+            to the management interface
+            - remove rabbitmq.conf
+            - delete_exchange, delete_vhost, and stop_rabbit are controversial step, there maybe reason to keep
+            the server running between tests
     """
     if vhome:
         os.environ['VOLTTRON_HOME'] = vhome
@@ -71,7 +78,6 @@ def cleanup_rmq_volttron_setup(vhome=None):
     users_to_remove.remove('guest')
     users_to_remove.remove('volttron_test-admin')
 
-    # Delete all the users using virtual host
     for user in users_to_remove:
         try:
             delete_user(user)
@@ -84,3 +90,5 @@ def cleanup_rmq_volttron_setup(vhome=None):
                     vhost=rabbitmq_config['virtual-host'])
     delete_vhost(vhost=rabbitmq_config['virtual-host'])
     delete_user('volttron_test-admin')
+    stop_rabbit(rmq_home=rabbitmq_config['rmq-home'])
+    os.remove(os.path.join(rabbitmq_config['rmq-home'], 'etc/rabbitmq/rabbitmq.conf'))

@@ -1016,39 +1016,3 @@ def get_ssl_url_params():
            "&auth_mechanism=external".format(ca=ca_file,
                                              cert=cert_file,
                                              key=key_file)
-
-
-def create_rmq_volttron_test_setup(volttron_home, host='localhost'):
-    global config_opts
-    _load_rmq_config(volttron_home)
-
-    ssl_auth = False
-    # Set vhost, username, password, hostname and port
-    config_opts['virtual-host'] = 'volttron_test'
-    config_opts['user'] = 'test_user'
-    config_opts['pass'] = 'test_user'
-    config_opts['host'] = host
-    config_opts['amqp-port'] = str(5672)
-    config_opts['mgmt-port'] = str(15672)
-    config_opts['ssl'] = str(ssl_auth)
-    config_opts['rmq-address'] = build_rmq_address()
-    config_opts.async_sync()
-    init_rabbitmq_setup()
-    create_user_with_permissions('test_user',
-                                 dict(configure=".*", read=".*", write=".*"),
-                                 ssl_auth=ssl_auth)
-
-
-def cleanup_rmq_volttron_test_setup(volttron_home):
-    global config_opts
-    _load_rmq_config(volttron_home)
-    try:
-        users = get_users(ssl_auth=False)
-        users.remove('guest')
-        users_to_remove = []
-
-        # Delete all the users using virtual host
-        for user in users_to_remove:
-            delete_user(user)
-    except KeyError as e:
-        return
