@@ -27,6 +27,7 @@ import logging
 import sys
 import requests
 import pytz
+import sqlite3
 from tzlocal import get_localzone
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
@@ -79,6 +80,7 @@ class FactsService(BaseHistorian):
         self.facts_service_password = None
         self.building_id = None
         self.topic_building_mapping = None
+        self.db_connection = None
 
         # The base historian handles the interaction with the
         # configuration store.
@@ -156,9 +158,18 @@ class FactsService(BaseHistorian):
         _log.debug("Number of items to publish: {}"
                    .format(len(to_publish_list)))
 
+        alive = False
+        if self.db_connection is not None:
+            alive = self.db_connection.is_alive()
+
+        if not alive:
+            self.historian_setup()
+
         # If our connection is down leave without attempting to publish.
         # Publish failure will automatically trigger the BaseHistorian to
         # set the health of the agent accordingly.
+        if self.db_connection is None:
+            return
         if not requests.head(
             self.facts_service_base_api_url,
             auth=(self.facts_service_username, self.facts_service_password)
@@ -171,11 +182,18 @@ class FactsService(BaseHistorian):
 
         to_send = {}
         local_tz = get_localzone()
+        unmapped_topics = []
         for x in to_publish_list:
-            ts = x["timestamp"].replace(tzinfo=pytz.utc).astimezone(local_tz)\
-                .strftime("%Y-%m-%d %H:%M")
+            ts_datetime = x["timestamp"].replace(tzinfo=pytz.utc)\
+                .astimezone(local_tz)
+            ts = ts_datetime.strftime("%Y-%m-%d %H:%M")
             topic = x["topic"]
             value = x["value"]
+            if self.building_id is None \
+                    and topic not in self.topic_building_mapping:
+                unmapped_topics.append({
+                    "topic": topic, "ts": ts_datetime.isoformat()
+                })
             if isinstance(value, bool):
                 value = int(value)
             building_id = self.topic_building_mapping.get(topic) \
@@ -207,6 +225,22 @@ class FactsService(BaseHistorian):
             _log.error('Error when attempting to publish to target: {}'
                        .format(repr(e)))
 
+        if unmapped_topics:
+            try:
+                _log.debug('Saving {} untrended topics to the database'
+                           .format(len(unmapped_topics)))
+                with self.db_connection:
+                    self.db_connection.executemany(
+                        "INSERT OR REPLACE INTO "
+                        "unmapped_topics(topic, created_at, updated_at) "
+                        "VALUES (:topic, COALESCE((SELECT created_at FROM "
+                        "unmapped_topics WHERE topic = :topic), :ts), :ts);",
+                        unmapped_topics
+                    )
+            except sqlite3.IntegrityError as e:
+                _log.error('Error when saving unmapped_topics: {}'
+                           .format(repr(e)))
+
     def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
         """
         Called in the process thread after data is published.
@@ -230,6 +264,39 @@ class FactsService(BaseHistorian):
         :return: version number
         """
         return __version__
+
+    def historian_setup(self):
+        # Setup any connection needed for this historian.
+        # This is called from the same thread as publish_to_historian.
+
+        # It is called after configure is called at startup
+        # and every time the Historian is reconfigured.
+
+        # If the connection is lost it is up to the Historian to
+        # recreate it if needed, often by calling this function to
+        # restore connectivity.
+
+        # This is a convenience to allow us to call this any time we like to
+        # restore a connection.
+        self.historian_teardown()
+        try:
+            self.db_connection = sqlite3.connect('trends.db')
+            with self.db_connection:
+                self.db_connection.execute(
+                    "CREATE TABLE IF NOT EXISTS unmapped_topics ("
+                    "topic TEXT PRIMARY KEY, created_at TEXT"
+                    "updated_at TEXT);"
+                )
+        except Exception as e:
+            _log.error("Failed to create database connection: {}"
+                       .format(repr(e)))
+
+    def historian_teardown(self):
+        # Kill the connection if needed.
+        # This is called to shut down the connection before reconfiguration.
+        if self.db_connection is not None:
+            self.db_connection.close()
+            self.db_connection = None
 
     # The following methods are for adding query support. This will allow other
     # agents to get data from the store and will allow this historian to act as
