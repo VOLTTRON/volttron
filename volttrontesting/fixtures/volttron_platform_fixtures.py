@@ -66,13 +66,10 @@ def cleanup_wrappers(platforms):
     for p in platforms:
         cleanup_wrapper(p)
 
-@pytest.fixture(scope="module",
-                params=[('zmq', False), ('rmq', True)])
+@pytest.fixture(scope="module")
 def volttron_instance1(request):
     print("building instance 1")
-    wrapper = build_wrapper(get_rand_vip(),
-                            message_bus=request.param[0],
-                            ssl_auth=request.param[1])
+    wrapper = build_wrapper(get_rand_vip())
 
     def cleanup():
         cleanup_wrapper(wrapper)
@@ -81,13 +78,10 @@ def volttron_instance1(request):
     return wrapper
 
 
-@pytest.fixture(scope="module",
-                params=[('zmq', False), ('rmq', True)])
+@pytest.fixture(scope="module")
 def volttron_instance2(request):
     print("building instance 2")
-    wrapper = build_wrapper(get_rand_vip(),
-                            message_bus=request.param[0],
-                            ssl_auth=request.param[1])
+    wrapper = build_wrapper(get_rand_vip())
 
     def cleanup():
         cleanup_wrapper(wrapper)
@@ -129,15 +123,13 @@ def volttron_instance_encrypt(request):
     return wrapper
 
 
-@pytest.fixture(params=[('zmq', False), ('rmq', True)])
+@pytest.fixture
 def volttron_instance1_web(request):
     print("building instance 1 (using web)")
     address = get_rand_vip()
     web_address = "http://{}".format(get_rand_ip_and_port())
     wrapper = build_wrapper(address,
-                            bind_web_address=web_address,
-                            message_bus=request.param[0],
-                            ssl_auth=request.param[1])
+                            bind_web_address=web_address)
 
     def cleanup():
         cleanup_wrapper(wrapper)
@@ -146,15 +138,13 @@ def volttron_instance1_web(request):
     return wrapper
 
 
-@pytest.fixture(params=[('zmq', False), ('rmq', True)])
+@pytest.fixture
 def volttron_instance2_web(request):
     print("building instance 2 (using web)")
     address = get_rand_vip()
     web_address = "http://{}".format(get_rand_ip_and_port())
     wrapper = build_wrapper(address,
-                            bind_web_address=web_address,
-                            message_bus=request.param[0],
-                            ssl_auth=request.param[1])
+                            bind_web_address=web_address)
 
     def cleanup():
         cleanup_wrapper(wrapper)
