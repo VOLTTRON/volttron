@@ -427,7 +427,8 @@ class PlatformWrapper:
         self.skip_cleanup = self.env.get('SKIP_CLEANUP', False)
         if self.message_bus == 'rmq':
             self.logit("Setting up volttron test environemnt {}".format(self.volttron_home))
-            create_rmq_volttron_setup(vhome=self.volttron_home, ssl_auth=self.ssl_auth)
+            create_rmq_volttron_setup(vhome=self.volttron_home,
+                                      ssl_auth=self.ssl_auth)
             platform_config = load_platform_config()
             instance_name = platform_config.get('instance-name', '').strip('"')
             if not instance_name:
@@ -1024,7 +1025,8 @@ class PlatformWrapper:
                     logpath
                 ))
         if not self.skip_cleanup and self.message_bus == 'rmq':
-            cleanup_rmq_volttron_setup(self.volttron_home)
+            cleanup_rmq_volttron_setup(vhome=self.volttron_home,
+                                       ssl_auth=self.ssl_auth)
         if not self.skip_cleanup:
             self.logit('Removing {}'.format(self.volttron_home))
             shutil.rmtree(self.volttron_home, ignore_errors=True)

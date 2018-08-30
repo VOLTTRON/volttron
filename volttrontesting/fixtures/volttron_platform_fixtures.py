@@ -59,6 +59,7 @@ def build_wrapper(vip_address, **kwargs):
 def cleanup_wrapper(wrapper):
     print('Shutting down instance: {}'.format(wrapper.volttron_home))
     # Shutdown handles case where the platform hasn't started.
+    wrapper.remove_all_agents()
     wrapper.shutdown_platform()
 
 
@@ -191,6 +192,7 @@ def volttron_instance(request):
 
     def cleanup():
         print('Shutting down instance: {}'.format(wrapper.volttron_home))
+        wrapper.remove_all_agents()
         wrapper.shutdown_platform()
 
     request.addfinalizer(cleanup)

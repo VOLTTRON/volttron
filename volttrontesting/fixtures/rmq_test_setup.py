@@ -60,7 +60,7 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False):
                                            prompt=False)
 
 
-def cleanup_rmq_volttron_setup(vhome=None):
+def cleanup_rmq_volttron_setup(vhome=None, ssl_auth=False):
     """
         Teardown rabbitmq at test end:
             - The function is called when DEBUG = False
@@ -76,7 +76,8 @@ def cleanup_rmq_volttron_setup(vhome=None):
 
     users_to_remove = get_users()
     users_to_remove.remove('guest')
-    users_to_remove.remove('volttron_test-admin')
+    if ssl_auth:
+        users_to_remove.remove('volttron_test-admin')
 
     for user in users_to_remove:
         try:
@@ -89,6 +90,11 @@ def cleanup_rmq_volttron_setup(vhome=None):
     delete_exchange(exchange='volttron',
                     vhost=rabbitmq_config['virtual-host'])
     delete_vhost(vhost=rabbitmq_config['virtual-host'])
-    delete_user('volttron_test-admin')
+
+    if ssl_auth:
+        delete_user('volttron_test-admin')
+
     stop_rabbit(rmq_home=rabbitmq_config['rmq-home'])
-    os.remove(os.path.join(rabbitmq_config['rmq-home'], 'etc/rabbitmq/rabbitmq.conf'))
+
+    if ssl_auth:
+        os.remove(os.path.join(rabbitmq_config['rmq-home'], 'etc/rabbitmq/rabbitmq.conf'))
