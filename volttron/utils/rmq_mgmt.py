@@ -192,6 +192,8 @@ def _load_rmq_config(volttron_home=None):
         volttron_rmq_config = os.path.join(volttron_home, 'rabbitmq_config.yml')
         with open(volttron_rmq_config, 'r') as yaml_file:
             config_opts = yaml.load(yaml_file)
+            config_opts['rmq-home'] = os.path.expanduser(config_opts[
+                                                             'rmq-home'])
     except yaml.YAMLError as exc:
         return exc
 

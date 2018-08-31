@@ -92,6 +92,8 @@ def _load_rmq_config(volttron_home=None):
     try:
         with open(volttron_rmq_config, 'r') as yaml_file:
             config_opts = yaml.load(yaml_file)
+            config_opts['rmq-home'] = os.path.expanduser(config_opts[
+                                                             'rmq-home'])
     except IOError as exc:
         _log.error("Error opening {}. Please create a rabbitmq_config.yml "
                    "file in your volttron home. If you want to point to a "
@@ -573,7 +575,7 @@ def setup_rabbitmq_volttron(type, verbose=False, prompt=False):
             os.unlink(log_name)
         os.symlink(os.path.join(config_opts['rmq-home'],
                                 'var/log/rabbitmq',
-                                "rabbitmq@" +
+                                "rabbit@" +
                                 config_opts['host'].split('.')[0] + ".log"),
                    log_name)
 
