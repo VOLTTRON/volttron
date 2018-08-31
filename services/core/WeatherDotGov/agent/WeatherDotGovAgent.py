@@ -59,7 +59,7 @@ import sys
 import requests
 import datetime
 import json
-from services.core.WeatherAgent.weather.agent import BaseWeather
+from volttron.platform.agent.base_weather import BaseWeather
 from volttron.platform.agent import utils
 from volttron.utils.docs import doc_inherit
 from volttron.platform.vip.agent import *
@@ -71,30 +71,25 @@ LAT_LONG_REGEX = re.compile("^[0-9]{1,3}(\.[0-9]{1,4})?,( |\t?)[0-9]{1,3}(\.[0-9
 STATION_REGEX = re.compile("^[Kk][a-zA-Z]{3}$")
 
 def weather_agent():
-    # TODO
+    # TODO check out the historian class from sql historian
     return WeatherDotGovAgent
 
 
-# TODO manage format for all times
 class WeatherDotGovAgent(BaseWeather):
     def __init__(self):
-        super(WeatherDotGovAgent,self).__init__("WeatherDotGov")
+        super(WeatherDotGovAgent, self).__init__("WeatherDotGov")
         self._api_features = {"get_hourly_forecast": {"PARAMS": "location (as string)"},
-                             "get_current_weather": {"PARAMS": "location (as string)"}
-                             }
+                              "get_current_weather": {"PARAMS": "location (as string)"}
+                              }
         self._tables = {"current_weather": "current",
-                       "hourly_forecast": "forecast"
-                       }
+                        "hourly_forecast": "forecast"
+                        }
         self._update_frequency = {"current_weather": datetime.timedelta(hours=1),
-                                  "hourly_forecast": datetime.timedelta(hours=1)}
-        # TODO encoding?
+                                  "hourly_forecast": datetime.timedelta(hours=1)
+                                  }
         self.headers = {"Accept": "application/json",
                         "Accept-Language": "en-US"
                         }
-
-    @doc_inherit
-    def configure(self):
-        # TODO
 
     @doc_inherit
     def query_current_weather(self, location, cache=True):
@@ -106,37 +101,35 @@ class WeatherDotGovAgent(BaseWeather):
         :return: a single current data record as a list
         """
         formatted_location = None
-        url= ""
+        url = ""
         if "LAT/LONG" in location:
             if LAT_LONG_REGEX.match(str(location["LAT/LONG"])):
                 formatted_location = str(location)
                 url = "https://api.weather.gov/points/{}/".format(formatted_location)
             else:
-                # TODO lat long improperly formatted
+                raise ValueError("Improperly formatted lat/long was passed.")
         elif "STATION" in location:
             if STATION_REGEX.match(str(location["STATION"])):
                 formatted_location = str(location)
                 url = "https://api.weather.gov/stations/{}/observations/current".format(formatted_location)
             else:
-                # TODO station improperly formatted
+                raise ValueError("Improperly formatted station ID was passed.")
         if formatted_location:
-            most_recent_data = self.cache.get_current_data(formatted_location)[0]
+            most_recent_data = self.get_cached_current_data("current_weather", formatted_location)[0]
             update_required = (datetime.datetime.utcnow() - most_recent_data[2]) < datetime.timedelta(hours=1)
             if cache and not update_required:
                 return most_recent_data
             else:
-
-                self.manage_cache_size()
                 request = requests.get(url, headers=self.headers)
                 response = request.json()
-                if self.api_error(response):
-                    # TODO error state
+                if not request.ok():
+                    raise RuntimeError("API request failed.")
                 else:
                     data_dict = {}
                     points = {}
-                    # TODO get times out of the data
-                    request_time = 0
-                    data_time = response["properties"]["generatedAt"]
+                    request_time = datetime.datetime.utcnow().timestamp()
+                    data_time = datetime.datetime.strptime(response["properties"]["generatedAt"], "%Y-%m-%dT%H:%M%z")\
+                        .timestamp()
                     for point in response["properties"]:
                         if "value" in response[point]:
                             value = response["properties"][point]['value']
@@ -150,15 +143,20 @@ class WeatherDotGovAgent(BaseWeather):
                                 points[point] = value
                     data_dict[formatted_location][request_time] = {"data_time": data_time,
                                                                    "points": points}
-                    self.cache.store_weather_records("current_weather",
-                                                     [formatted_location, request_time, data_time, json.dumps(points)])
+                    self.store_weather_records("current_weather", "current",
+                                               [formatted_location, request_time, data_time, json.dumps(points)])
                     return data_dict
         else:
-            # TODO
-            string = "location not in an accepted format."
+            raise ValueError("Unhandled location format was passed.")
 
     @doc_inherit
     def query_hourly_forecast(self, location, cache=True):
+        """
+
+        :param location:
+        :param cache:
+        :return:
+        """
         formatted_location = None
         url = ""
         if "LAT/LONG" in location:
@@ -166,11 +164,9 @@ class WeatherDotGovAgent(BaseWeather):
                 formatted_location = str(location)
                 url = "https://api.weather.gov/points/{}/forecast/hourly".format(formatted_location)
             else:
-                # TODO lat/long improperly formatted
-        elif "STATION" in location:
-            # TODO we don't allow this type, as station->point does not exist
+                raise ValueError("Improperly formatted lat/long was passed.")
         if formatted_location:
-            most_recent_data = self.cache.get_forecast_data("hourly_forecast", formatted_location)
+            most_recent_data = self.get_cached_forecast_data("hourly_forecast", formatted_location)
             update_required = False
             if most_recent_data:
                 forecast_timestamp = most_recent_data[0][2]
@@ -178,48 +174,43 @@ class WeatherDotGovAgent(BaseWeather):
             if cache and not update_required:
                 return most_recent_data
             else:
-                # TODO time formatting all times should be in utc format
-                request_time = datetime.datetime.utcnow()
+                request_time = datetime.datetime.utcnow().timestamp()
                 request = requests.get(url, headers=self.headers)
                 response = request.json()
-                if self.api_error(response):
-                    # TODO return special thing
+                if not request.ok():
+                    raise RuntimeError("API request failed.")
                 else:
-                    # TODO get these out of the data
                     data_time = response["properties"]["generatedAt"]
+                    data_list = []
                     data_dict = {}
-                    data_list= []
-                    # TODO record formatting for storage
-                    for forecast_record in response["properties"]["periods"]:
-                        # TODO get these out of the data
-                        forecast_time = 0
-                        record = [formatted_location, request_time, data_time, forecast_time, json.dumps()]
+                    for record in response["properties"]["periods"]:
+                        forecast_record = response["properties"]["periods"][record]
+                        forecast_time = datetime.datetime.strptime(forecast_record["point"],
+                                                                   "%Y-%m-%dT%H:%M%z").timestamp()
+                        data_dict[formatted_location][request_time] = forecast_record["point"]
+                        record = [formatted_location, request_time, data_time, forecast_time,
+                                  json.dumps(forecast_record)]
                         data_list.append(record)
-                    self.cache.store_weather_records("hourly_forecast", data_list)
+                    self.store_weather_records("hourly_forecast", "forecast", data_list)
                     return data_dict
         else:
-            # TODO completely unreadable location
+            raise ValueError("Unhandled location format was passed.")
 
-
-    # TODO compare with historians to see how they handle unimplemented rpc methods
-    def query_hourly_historical_Weather(self):
+    def query_hourly_historical_weather(self, location, start_period, end_period):
+        """Unimplemented method stub."""
         raise NotImplementedError
 
     @doc_inherit
-    def api_error(self, response):
-        # TODO
-
-    @doc_inherit
     def version(self):
+        """
+
+        :return: Running WeatherDotGovAgent's version number
+        """
         return __version__
 
 
 def main(argv=sys.argv):
-    """" Main entry point for the agent.
-
-    :param argv:
-    :return:
-    """
+    """" Main entry point for the agent."""
     try:
         utils.vip_main(weather_agent, version=__version__)
     except Exception as e:

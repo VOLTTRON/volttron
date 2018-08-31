@@ -58,6 +58,7 @@ import pint
 import sqlite3
 import datetime
 import threading
+import requests
 from functools import wraps
 from abc import abstractmethod
 from Queue import Queue, Empty
@@ -74,7 +75,6 @@ from volttron.platform.messaging.health import (STATUS_BAD,
 
 _log = logging.getLogger(__name__)
 
-# TODO update for weather
 STATUS_KEY_PUBLISHING = "publishing"
 STATUS_KEY_CACHE_FULL = "cache_full"
 
@@ -102,7 +102,7 @@ class BaseWeatherAgent(Agent):
                                 "log_sql": self._log_sql
                                }
         self.unit_registry = pint.UnitRegistry()
-        # parse weather mapping
+        self.weather_mapping = {}
         self._api_features = {}
         self._update_intervals = {}
         self._tables = {}
@@ -111,26 +111,11 @@ class BaseWeatherAgent(Agent):
             STATUS_KEY_PUBLISHING: True,
             STATUS_KEY_CACHE_FULL: False
         }
-        self.weather_mapping = {}
         self.reverse_map = self.get_reverse_mapping()
         self.vip.config.set_default("config", self._default_config)
         self.vip.config.subscribe(self._configure, actions=["NEW", "UPDATE"], pattern="config")
 
-    def manage_unit_conversion(self, from_units, value, to_units):
-        """
-        Used to convert units from a query response to the expected standardized units
-        :param from_units: pint formatted unit string for the current value
-        :param value: magnitude of a measurement
-        :param to_units: pint formatted unit string for the output value
-        :return: magnitude of measurement in the desired units
-        """
-        if ((1 * self.unit_registry.parse_expression(from_units)) ==
-            (1 * self.unit_registry.parse_expression(to_units))):
-            return value
-        else:
-            updated_value = (value * self.unit_registry(from_units)).to(self.unit_registry(to_units)).magnitude
-            return updated_value
-
+    # Configuration methods
 
     def get_reverse_mapping(self):
         """Helper method for fetching the standardized_point_name based on a service_point_name"""
@@ -148,7 +133,6 @@ class BaseWeatherAgent(Agent):
         self._default_config.update(config)
         self.vip.config.set_default("config", self._default_config)
 
-    # TODO
     def parse_weather_mapping(self, config_dict):
         """
         Parses the registry config, which should contain a mapping of service points to standardized points, with
@@ -171,7 +155,6 @@ class BaseWeatherAgent(Agent):
         config = self._default_config.copy()
         config.update(config_dict)
         try:
-            # TODO error handling
             api_key = config.get("api_key")
             max_size_gb = config.get("max_size_gb")
             log_sql = config.get("log_sql", False)
@@ -179,18 +162,16 @@ class BaseWeatherAgent(Agent):
             if max_size_gb is not None:
                 max_size_gb = float(max_size_gb)
             self.parse_weather_mapping(registry_config)
-        except ValueError as err:
+        except ValueError:
             _log.error("Failed to load base weather agent settings. Settings not applied!")
             return
         self._api_key = api_key
         self._max_size_gb = max_size_gb
         self._log_sql = log_sql
         self._polling_locations = polling_locations
-        if self._polling_locations:
-            self.core.periodic(self._update_intervals["current"], self.poll_for_locations)
         try:
             self.configure(config)
-        except Exception as err:
+        except:
             _log.error("Failed to load weather agent settings.")
 
     def configure(self, configuration):
@@ -200,16 +181,11 @@ class BaseWeatherAgent(Agent):
         The process thread is stopped before this is called if it is running. It is started afterwards."""
         pass
 
+    # RPC, helper and abstract methods to be used by concrete implementations of the weather agent
+
     @RPC.export
     def get_api_features(self):
         return self._api_features
-
-    @abstractmethod
-    def resolve_location(self, location):
-        """"""
-
-    # TODO fill in documentation?
-    # RPC METHODS which call abstract methods to be used by concrete implementations of the weather agent
 
     @RPC.export
     def get_version(self):
@@ -245,19 +221,50 @@ class BaseWeatherAgent(Agent):
 
     def poll_for_locations(self):
         for location in self._polling_locations:
-            self.query_current_weather(location)
+            try:
+                data_point = self.query_current_weather(location)
+            except:
+                raise
 
-    @abstractmethod
-    def api_error(self, response):
+    def manage_unit_conversion(self, from_units, value, to_units):
         """
-        Checks if weather api returned an error. If so, raises an exception.
-        :param response: a response from the agent's api
-        :return True if there is no exception, else raise WeatherException
+        Used to convert units from a query response to the expected standardized units
+        :param from_units: pint formatted unit string for the current value
+        :param value: magnitude of a measurement
+        :param to_units: pint formatted unit string for the output value
+        :return: magnitude of measurement in the desired units
+        """
+        if ((1 * self.unit_registry.parse_expression(from_units)) ==
+                (1 * self.unit_registry.parse_expression(to_units))):
+            return value
+        else:
+            updated_value = (value * self.unit_registry(from_units)).to(self.unit_registry(to_units)).magnitude
+            return updated_value
+
+    # methods to hide cache functionality from concrete weather agent implementations
+
+    def get_cached_current_data(self, request_name, location):
+        self._cache.get_current_data(request_name, location)
+
+    def get_cached_forecast_data(self, request_name, location):
+        self._cache.get_forecast_data(request_name, location)
+
+    def get_cached_historical_data(self, request_type, location, start_timestamp, end_timestamp):
+        self._cache.get_historical_data(request_type, location, start_timestamp, end_timestamp)
+
+    def store_weather_records(self, request_name, request_type, records):
         """
 
-    # TODO publishing?
+        :param request_name:
+        :param request_type:
+        :param records:
+        """
+        self._cache.manage_cache_size()
+        self._cache.store_weather_records(request_name, request_type, records)
 
-    # TODO
+    # Status management methods
+
+    # TODO use status
     @staticmethod
     def _get_status_from_context(context):
         status = STATUS_GOOD
@@ -288,10 +295,16 @@ class BaseWeatherAgent(Agent):
         context_copy, new_status = self._update_and_get_context_status(updates)
         self._async_call.send(None, self._send_alert_callback, new_status, context_copy, key)
 
+    # Agent lifecycle methods
+
+    @Core.receiver("onstart")
+    def onstart(self):
+        if self._polling_locations:
+            self.core.periodic(self._update_intervals["current"], self.poll_for_locations)
 
     @Core.receiver("onstop")
     def onstop(self):
-        self.cache.close()
+        self._cache.close()
 
 
 # TODO tables may be being used improperly
@@ -321,7 +334,7 @@ class WeatherCache:
         self._sqlite_conn = None
         self._setup_cache(check_same_thread)
 
-    # TODO lifecycle
+    # cache setup methods
 
     def _setup_cache(self, check_same_thread):
         """
@@ -334,7 +347,6 @@ class WeatherCache:
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
             check_same_thread=check_same_thread)
         _log.info("connected to database {} sqlite version: {}".format(self._service_name, sqlite3.version))
-        # TODO fix up tables?
         for request_name in self._tables:
             self.create_table(request_name)
         cursor = self._sqlite_conn.cursor()
@@ -393,7 +405,7 @@ class WeatherCache:
                 if description[0] == "name":
                     break
                 name_index += 1
-            columns = {"LOCATION": False, "REQUEST_TIME":False, "DATA_TIME":False, "JSON_RESPONSE":False}
+            columns = {"LOCATION": False, "REQUEST_TIME": False, "DATA_TIME": False, "JSON_RESPONSE": False}
             for row in cursor:
                 if row[name_index] in columns:
                     columns[row[name_index]] = True
@@ -401,6 +413,8 @@ class WeatherCache:
                 if not columns[column]:
                     _log.error("The Database is missing column {}.".format(columns[column]))
         cursor.close()
+
+    # cache data storage and retrieval methods
 
     def get_current_data(self, request_name, location):
         """
@@ -430,7 +444,6 @@ class WeatherCache:
         :param location:
         :return: list of forecast records
         """
-        # TODO
         try:
             cursor = self._sqlite_conn.cursor()
             query = """SELECT * FROM {} WHERE LOCATION = {} AND DATA_TIME = 
@@ -454,7 +467,6 @@ class WeatherCache:
         :return: list of historical records
         """
         try:
-            # TODO
             cursor = self._sqlite_conn.cursor()
             query = """SELECT * FROM {} WHERE LOCATION = {} AND DATA_TIME >= {} AND DATA_TIME <= {} 
                     ORDER BY DATA_TIME ASC""".format(request_type, location, start_timestamp, end_timestamp)
@@ -467,11 +479,11 @@ class WeatherCache:
         except sqlite3.Error as e:
             _log.error("Error fetching historical data from cache: {}".format(e))
 
-    # TODO try catch for this, make sure records are at least sorta formatted right?
     def store_weather_records(self, request_name, request_type, records):
         """
         Request agnostic method to store weather records in the cache.
         :param request_name:
+        :param request_type:
         :param records: expects a list of records (as lists) formatted to match tables
         """
         cursor = self._sqlite_conn.cursor()
@@ -488,9 +500,10 @@ class WeatherCache:
             self._sqlite_conn.commit()
         except sqlite3.Error as e:
             _log.info(query)
-            _log.error("Failed to store data in the cache.")
-
+            _log.error("Failed to store data in the cache: {}".format(e))
         cursor.close()
+
+    # cache management/ lifecycle methods
 
     def manage_cache_size(self):
         """
@@ -503,7 +516,6 @@ class WeatherCache:
                 cursor.execute("PRAGMA page_count")
                 return cursor.fetchone()[0]
             row_counts = {}
-            # TODO
             for table in self._tables:
                 query = "SELECT COUNT(*) FROM {}".format(table)
                 row_counts[table] = (int(cursor.execute(query).fetchone()[0]), self._tables[table])
@@ -538,6 +550,7 @@ class WeatherCache:
         self._sqlite_conn.close()
         self._sqlite_conn = None
 
+
 # Code reimplemented from https://github.com/gilesbrown/gsqlite3
 def _using_threadpool(method):
     @wraps(method, ['__name__', '__doc__'])
@@ -552,6 +565,7 @@ class AsyncWeatherCache(WeatherCache):
         kwargs["check_same_thread"] = False
         super(AsyncWeatherCache, self).__init__(**kwargs)
 
+
 # TODO documentation
 for method in [WeatherCache.get_current_data,
                WeatherCache.get_forecast_data,
@@ -563,8 +577,8 @@ for method in [WeatherCache.get_current_data,
 
 # TODO documentation
 class BaseWeather(BaseWeatherAgent):
-    def __init__(self, **kwargs):
+    def __init__(self, service):
         _log.debug('Constructor of BaseWeather thread: {}'.format(
             threading.currentThread().getName()
         ))
-        super(BaseWeather, self).__init__(**kwargs)
+        super(BaseWeather, self).__init__(service)
