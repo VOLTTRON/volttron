@@ -132,4 +132,4 @@ def validate_published_device_data(expected_headers, expected_message,
 
     for k, v in expected_message[0].items():
         assert k in message[0]
-        assert message[0][k] == pytest.approx(v, abs=1e-6)
+        assert message[0][k] == pytest.approx(v, rel=0.0000001)
