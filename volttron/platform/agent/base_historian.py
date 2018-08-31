@@ -1043,7 +1043,7 @@ class BaseHistorianAgent(Agent):
 
                 # Check to see if we are caught up.
                 if not to_publish_list:
-                    if self._message_publish_count > 0:
+                    if self._message_publish_count > 0 and next_report_count < current_published_count:
                         _log.info("Historian processed {} total records.".format(current_published_count))
                         next_report_count = current_published_count + self._message_publish_count
                     self._update_status({STATUS_KEY_BACKLOGGED: False,
