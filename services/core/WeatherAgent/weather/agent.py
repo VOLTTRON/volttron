@@ -52,20 +52,20 @@
 # under Contract DE-AC05-76RL01830
 
 # }}}
+
 import logging
-import os
-import sys
-import math
-import requests
+import pint
 import sqlite3
 import datetime
 import threading
 from functools import wraps
 from abc import abstractmethod
+from Queue import Queue, Empty
 import gevent
 from gevent import get_hub
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import *
+from volttron.platform.async import AsyncCall
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_UNKNOWN,
                                                 STATUS_GOOD,
@@ -74,30 +74,71 @@ from volttron.platform.messaging.health import (STATUS_BAD,
 
 _log = logging.getLogger(__name__)
 
+# TODO update for weather
+STATUS_KEY_PUBLISHING = "publishing"
+STATUS_KEY_CACHE_FULL = "cache_full"
+
+
+# TODO process loop/ agent lifecycle
 class BaseWeatherAgent(Agent):
     """Creates weather services based on the json objects from the config,
     uses the services to collect and publish weather data"""
 
     def __init__(self,
                  service=None,
-                 max_size_gb=None,
-                 log_sql=False,
                  **kwargs):
 
         super(BaseWeatherAgent, self).__init__(**kwargs)
+        self._async_call = AsyncCall()
         self._service = service
-        self._max_size_gb = max_size_gb
-        self._log_sql = log_sql
+        self._api_key = None
+        self._max_size_gb = None
+        self._log_sql = False
+        self._polling_locations = []
+        self._current_status_context = {}
         self._default_config = {
+                                "api_key": self._api_key,
                                 "max_size_gb": self._max_size_gb,
                                 "log_sql": self._log_sql
                                }
-
-        # TODO create default mapping dictionary with values set to None
-
+        self.unit_registry = pint.UnitRegistry()
+        # parse weather mapping
+        self._api_features = {}
+        self._update_intervals = {}
+        self._tables = {}
+        self._cache = None
+        self._current_status_context = {
+            STATUS_KEY_PUBLISHING: True,
+            STATUS_KEY_CACHE_FULL: False
+        }
+        self.weather_mapping = {}
+        self.reverse_map = self.get_reverse_mapping()
         self.vip.config.set_default("config", self._default_config)
         self.vip.config.subscribe(self._configure, actions=["NEW", "UPDATE"], pattern="config")
-        self.update_intervals = {}
+
+    def manage_unit_conversion(self, from_units, value, to_units):
+        """
+        Used to convert units from a query response to the expected standardized units
+        :param from_units: pint formatted unit string for the current value
+        :param value: magnitude of a measurement
+        :param to_units: pint formatted unit string for the output value
+        :return: magnitude of measurement in the desired units
+        """
+        if ((1 * self.unit_registry.parse_expression(from_units)) ==
+            (1 * self.unit_registry.parse_expression(to_units))):
+            return value
+        else:
+            updated_value = (value * self.unit_registry(from_units)).to(self.unit_registry(to_units)).magnitude
+            return updated_value
+
+
+    def get_reverse_mapping(self):
+        """Helper method for fetching the standardized_point_name based on a service_point_name"""
+        reverse_mappings = {}
+        for key in self.weather_mapping:
+            value = self.weather_mapping[key]["Service_Point_Name"]
+            reverse_mappings[value] = key
+        return reverse_mappings
 
     def update_default_config(self, config):
         """
@@ -107,103 +148,50 @@ class BaseWeatherAgent(Agent):
         self._default_config.update(config)
         self.vip.config.set_default("config", self._default_config)
 
-    # TODO check with Kyle
-    def start_process_thread(self):
-        if self._process_loop_in_greenlet:
-            self._process_thread = self.core.spawn(self._process_loop)
-            self._process_thread.start()
-            _log.debug("Process greenlet started.")
-        else:
-            self._process_thread = threading.Thread(target=self._process_loop)
-            self._process_thread.daemon = True  # Don't wait on thread to exit.
-            self._process_thread.start()
-            _log.debug("Process thread started.")
-
-    def manage_cache_size(self):
+    # TODO
+    def parse_weather_mapping(self, config_dict):
         """
-        Removes data from the weather cache until the cache is a safe size. prioritizes removal from current, then
-        forecast, then historical request types
+        Parses the registry config, which should contain a mapping of service points to standardized points, with
+        specified unit
+        :param config_dict:
         """
-        cursor = self.cache._sqlite_conn.cursor()
-        if self._max_size_gb is not None:
-            def page_count():
-                cursor.execute("PRAGMA page_count")
-                return cursor.fetchone()[0]
-            row_counts = {}
-            for table in self.cache.tables:
-                query = "SELECT COUNT(*) FROM {}".format(self.cache.tables[table][0])
-                row_counts[table] = (int(cursor.execute(query).fetchone()[0]), self.cache.tables[table][1])
-            priority = 1
-            while page_count() > self.cache.max_pages:
-                for table in row_counts:
-                    if priority ==1:
-                        # Remove all but the most recent 'current' records
-                        if row_counts[table][1] == "current" and row_counts[table][0] > 1:
-                            query = "SELECT MAX(DATA_TIME) FROM {}".format(table)
-                            most_recent = cursor.execute(query).fetchone()[0]
-                            query = "DELETE FROM {} WHERE DATA_TIME < {}".format(table, most_recent)
-                            cursor.execute(query)
-                            self.cache._sqlite_conn.commit()
-                    elif priority == 2:
-                        # Remove all but the most recent 'forecast' records
-                        if row_counts[table][1] == "forecast" and row_counts[table][0] > 1:
-                            query = "SELECT MAX(DATA_TIME) FROM {}".format(table)
-                            most_recent = cursor.execute(query).fetchone()[0]
-                            query = "DELETE FROM {} WHERE DATA_TIME < {}".format(table, most_recent)
-                            cursor.execute(query)
-                    elif priority == 3:
-                        # Remove historical records in batches of 100 until the table is of appropriate size
-                        if row_counts[table][1] == "historical" and row_counts[table][0] >= 1:
-                            query = "DELETE FROM {} ORDER BY REQUEST_TIME ASC LIMIT 100".format(table)
-                            cursor.execute(query)
-                    self.cache._sqlite_conn.commit()
-                    priority += 1
+        for map_item in config_dict:
+            standard_point_name = map_item.get("Standard_Point_Name")
+            service_point_name = map_item.get("Service_Point_Name")
+            standardized_units = map_item.get("Standardized_Units")
+            service_units = map_item.get("Service_Units")
+            self.weather_mapping[standard_point_name] = {"Service_Point_Name": service_point_name,
+                                                         "Standardized_Units": standardized_units,
+                                                         "Service_units": service_units}
 
-    # TODO ask Kyle
-    def stop_process_thread(self):
-        _log.debug("Stopping the process loop.")
-        if self._process_thread is None:
-            return
-
-        # Tell the loop it needs to die.
-        self._stop_process_loop = True
-        # Wake the loop.
-        self._event_queue.put(None)
-
-        # 9 seconds as configuration timeout is 10 seconds.
-        self._process_thread.join(9.0)
-        # Greenlets have slightly different API than threads in this case.
-        if self._process_loop_in_greenlet:
-            if not self._process_thread.ready():
-                _log.error("Failed to stop process greenlet during reconfiguration!")
-        elif self._process_thread.is_alive():
-            _log.error("Failed to stop process thread during reconfiguration!")
-
-        self._process_thread = None
-        _log.debug("Process loop stopped.")
-
-    # TODO take a look at basehistorian
-    # TODO query forecast and current to track the last report time
-    def _configure(self, contents):
+    # TODO copy documentation?
+    def _configure(self, config_dict, registry_config):
         self.vip.heartbeat.start()
         _log.info("Configuring weather agent.")
         config = self._default_config.copy()
-        config.update(contents)
-        # TODO fill in inits
-        self.cache = WeatherCache()
-
+        config.update(config_dict)
         try:
-            # TODO reset defaults from configuration
+            # TODO error handling
+            api_key = config.get("api_key")
+            max_size_gb = config.get("max_size_gb")
+            log_sql = config.get("log_sql", False)
+            polling_locations = config.get("poll_locations")
+            if max_size_gb is not None:
+                max_size_gb = float(max_size_gb)
+            self.parse_weather_mapping(registry_config)
         except ValueError as err:
             _log.error("Failed to load base weather agent settings. Settings not applied!")
             return
-
-        self.stop_process_thread()
+        self._api_key = api_key
+        self._max_size_gb = max_size_gb
+        self._log_sql = log_sql
+        self._polling_locations = polling_locations
+        if self._polling_locations:
+            self.core.periodic(self._update_intervals["current"], self.poll_for_locations)
         try:
             self.configure(config)
         except Exception as err:
             _log.error("Failed to load weather agent settings.")
-        self.start_process_thread()
 
     def configure(self, configuration):
         """Optional, may be implemented by a concrete implementation to add support for the configuration store.
@@ -212,7 +200,24 @@ class BaseWeatherAgent(Agent):
         The process thread is stopped before this is called if it is running. It is started afterwards."""
         pass
 
+    @RPC.export
+    def get_api_features(self):
+        return self._api_features
+
+    @abstractmethod
+    def resolve_location(self, location):
+        """"""
+
+    # TODO fill in documentation?
     # RPC METHODS which call abstract methods to be used by concrete implementations of the weather agent
+
+    @RPC.export
+    def get_version(self):
+        return self.version()
+
+    @abstractmethod
+    def version(self):
+        """"""
 
     @RPC.export
     def get_current_weather(self, location):
@@ -220,35 +225,46 @@ class BaseWeatherAgent(Agent):
 
     @abstractmethod
     def query_current_weather(self, location):
-
+        """"""
 
     @RPC.export
     def get_hourly_forecast(self, location):
         return self.query_hourly_forecast(location)
 
     @abstractmethod
-    def query_hourly_forecast(self):
+    def query_hourly_forecast(self, location):
+        """"""
 
     @RPC.export
-    def get_daily_historical_weather(self, location, start_period, end_period):
-        return self.query_daily_historical_weather(location, start_period, end_period)
+    def get_hourly_historical_weather(self, location, start_period, end_period):
+        return self.query_hourly_historical_weather(location, start_period, end_period)
 
     @abstractmethod
     def query_hourly_historical_weather(self, location, start_period, end_period):
+        """"""
+
+    def poll_for_locations(self):
+        for location in self._polling_locations:
+            self.query_current_weather(location)
 
     @abstractmethod
-    def get_location_specification(self):
+    def api_error(self, response):
+        """
+        Checks if weather api returned an error. If so, raises an exception.
+        :param response: a response from the agent's api
+        :return True if there is no exception, else raise WeatherException
+        """
 
+    # TODO publishing?
+
+    # TODO
     @staticmethod
     def _get_status_from_context(context):
         status = STATUS_GOOD
-        if (context.get("backlogged") or
-                context.get("cache_full") or
-                not context.get("publishing")):
+        if context.get("cache_full") or not context.get("publishing"):
             status = STATUS_BAD
         return status
 
-    # TODO
     def _update_status_callback(self, status, context):
         self.vip.health.set_status(status, context)
 
@@ -272,72 +288,72 @@ class BaseWeatherAgent(Agent):
         context_copy, new_status = self._update_and_get_context_status(updates)
         self._async_call.send(None, self._send_alert_callback, new_status, context_copy, key)
 
-    # TODO check base historian
-    def _process_loop(self):
-        _log.debug("Starting process loop.")
+
+    @Core.receiver("onstop")
+    def onstop(self):
+        self.cache.close()
 
 
-# TODO logging for sql statements
+# TODO tables may be being used improperly
 class WeatherCache:
     """Caches data to help reduce the number of requests to the API"""
 
-    # TODO close the database connection onstop for the weather agent
     def __init__(self,
                  service_name,
-                 request_info,
+                 tables=None,
                  max_size_gb=1,
                  log_sql=False,
                  check_same_thread=True):
         """
 
         :param service_name: Name of the weather service (i.e. weather.gov)
-        :param request_info: list of tuples containing (request_name, request_type) where request type is  one of
+        :param tables: dict formatted as {key: table_name, value: request_type} where request type is  one of
         ['current', 'forecast', 'historical']
-        :param max_size_gb: maximum size in gigaBytes of the sqlite database file, useful for deployments with limited
+        :param max_size_gb: maximum size in gigabytes of the sqlite database file, useful for deployments with limited
         storage capacity
         :param log_sql: if True, all sql statements executed will be written to log.info
         """
-        # TODO check from base historian
-        self.service_name = service_name
-        self.db_filepath = self.service_name + ".sqlite"
-        self.log_sql = log_sql
-        self.tables = {}
-        for r_ind in request_info:
-            request = request_info[r_ind]
-            self.tables[request] = (service_name + "_" + request[0], request[1])
+        self._service_name = service_name
+        self._db_file_path = self._service_name + ".sqlite"
+        self._log_sql = log_sql
+        self._tables = tables
         self._max_size_gb = max_size_gb
+        self._sqlite_conn = None
+        self._setup_cache(check_same_thread)
 
-        self.setup_cache(check_same_thread)
+    # TODO lifecycle
 
-    def setup_cache(self, check_same_thread):
+    def _setup_cache(self, check_same_thread):
         """
         prepare the cache to begin processing weather data
         :param check_same_thread:
         """
-        try:
-            # TODO
-            self._sqlite_conn = sqlite3.connect(
-                self.db_filepath,
-                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
-                check_same_thread=check_same_thread)
-            self.current_size = os.path.getsize(self.db_filepath)
-            _log.info("connected to database {} sqlite version: {}".format(self.db_name, sqlite3.version))
-            cursor = self._sqlite_conn.cursor()
-            if self._max_size_gb is not None:
-                cursor.execute('''PRAGMA page_size''')
-                page_size = cursor.fetchone()[0]
-                max_storage_bytes = self._max_size_gb * 1024 ** 3
-                self.max_pages = max_storage_bytes / page_size
-
-        except sqlite3.Error as err:
-            _log.error("Unable to open the sqlite database for caching: {}".format(err))
-
-        for request in self.tables:
-            self.create_table(self.tables[request][0], cursor)
+        _log.debug("Setting up backup DB.")
+        self._sqlite_conn = sqlite3.connect(
+            self._db_file_path,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
+            check_same_thread=check_same_thread)
+        _log.info("connected to database {} sqlite version: {}".format(self._service_name, sqlite3.version))
+        # TODO fix up tables?
+        for request_name in self._tables:
+            self.create_table(request_name)
+        cursor = self._sqlite_conn.cursor()
+        if self._max_size_gb is not None:
+            cursor.execute('''PRAGMA page_size''')
+            page_size = cursor.fetchone()[0]
+            max_storage_bytes = self._max_size_gb * 1024 ** 3
+            self.max_pages = max_storage_bytes / page_size
+        cursor.close()
 
     def table_exists(self, request_name, cursor):
-        table_query = "SELECT 1 FROM {} WHERE TYPE = 'table' AND NAME='{}'".format(self.service_name, request_name)
-        if self.log_sql:
+        """
+        Checks if a table can be found in the database, for use during database initialization
+        :param request_name: name of the table to check for
+        :param cursor: cursor object, avoids redundant cursor objects
+        :return: True if the table is in the database, else False
+        """
+        table_query = "SELECT 1 FROM {} WHERE TYPE = 'table' AND NAME='{}'".format(self._service_name, request_name)
+        if self._log_sql:
             _log.info(table_query)
         return bool(cursor.execute(table_query))
 
@@ -347,13 +363,23 @@ class WeatherCache:
         """
         cursor = self._sqlite_conn.cursor()
         if not self.table_exists(request_name, cursor):
-            create_table ='''CREATE TABLE {}
-                            (LOCATION TEXT NOT NULL,
-                             REQUEST_TIME TIMESTAMP NOT NULL,
-                             DATA_TIME TIMESTAMP NOT NULL, 
-                             JSON_RESPONSE TEXT NOT NULL) 
-                             PRIMARY KEY (LOCATION, REQUEST_TIME))'''.format(request_name)
-            if self.log_sql:
+            table_type = self._tables[request_name]
+            if table_type == "forecast":
+                create_table = """CREATE TABLE {}
+                                                (LOCATION TEXT NOT NULL,
+                                                 REQUEST_TIME TIMESTAMP NOT NULL,
+                                                 DATA_TIME TIMESTAMP NOT NULL,
+                                                 FORECAST_TIME TIMESTAMP NOT NULL,
+                                                 JSON_RESPONSE TEXT NOT NULL) 
+                                                 PRIMARY KEY (LOCATION, REQUEST_TIME))""".format(request_name)
+            else:
+                create_table ="""CREATE TABLE {}
+                                (LOCATION TEXT NOT NULL,
+                                 REQUEST_TIME TIMESTAMP NOT NULL,
+                                 DATA_TIME TIMESTAMP NOT NULL, 
+                                 JSON_RESPONSE TEXT NOT NULL) 
+                                 PRIMARY KEY (LOCATION, REQUEST_TIME))""".format(request_name)
+            if self._log_sql:
                 _log.info(create_table)
             try:
                 cursor.execute(create_table)
@@ -374,6 +400,7 @@ class WeatherCache:
             for column in columns:
                 if not columns[column]:
                     _log.error("The Database is missing column {}.".format(columns[column]))
+        cursor.close()
 
     def get_current_data(self, request_name, location):
         """
@@ -384,13 +411,17 @@ class WeatherCache:
         """
         try:
             cursor = self._sqlite_conn.cursor()
-            query = "SELECT * FROM (SELECT * FROM {} WHERE LOCATION = {} ORDER BY DATA_TIME DESC) LIMIT 1"\
+            query = """SELECT * FROM (SELECT * FROM {} WHERE LOCATION = {} ORDER BY DATA_TIME DESC) LIMIT 1"""\
                 .format(request_name, location)
+            if self._log_sql:
+                _log.info(query)
             cursor.execute(query)
-            return cursor.fetchone()
+            data = cursor.fetchone()
+            cursor.close()
+            return data
         except sqlite3.Error as e:
             _log.error("Error fetching current data from cache: {}".format(e))
-            return None;
+            return None
 
     def get_forecast_data(self, request_name, location):
         """
@@ -399,12 +430,17 @@ class WeatherCache:
         :param location:
         :return: list of forecast records
         """
+        # TODO
         try:
             cursor = self._sqlite_conn.cursor()
-            query = "SELECT * FROM {} WHERE REQUEST_TIME = (SELECT MAX(REQUEST_TIME) FROM {} WHERE LOCATION = {})"\
-                .format(request_name, request_name, location)
+            query = """SELECT * FROM {} WHERE LOCATION = {} AND DATA_TIME = 
+                    (SELECT MAX(DATA_TIME) FROM {} WHERE LOCATION = {}})""".format(request_name, request_name, location)
+            if self._log_sql:
+                _log.info(query)
             cursor.execute(query)
-            return cursor.fetchall()
+            data = cursor.fetchall()
+            cursor.close()
+            return data
         except sqlite3.Error as e:
             _log.error("Error fetching forecast data from cache: {}".format(e))
 
@@ -418,33 +454,89 @@ class WeatherCache:
         :return: list of historical records
         """
         try:
+            # TODO
             cursor = self._sqlite_conn.cursor()
-            query = "SELECT * FROM {} WHERE LOCATION = {} AND DATA_TIME >= {} AND DATA_TIME <= {} ORDER BY DATA_TIME ASC".\
-                format(request_type, location, start_timestamp, end_timestamp)
+            query = """SELECT * FROM {} WHERE LOCATION = {} AND DATA_TIME >= {} AND DATA_TIME <= {} 
+                    ORDER BY DATA_TIME ASC""".format(request_type, location, start_timestamp, end_timestamp)
+            if self._log_sql:
+                _log.info(query)
             cursor.execute(query)
-            return cursor.fetchall()
+            data = cursor.fetchall()
+            cursor.close()
+            return data
         except sqlite3.Error as e:
             _log.error("Error fetching historical data from cache: {}".format(e))
 
     # TODO try catch for this, make sure records are at least sorta formatted right?
-    def store_weather_records(self, request_name, records):
+    def store_weather_records(self, request_name, request_type, records):
         """
         Request agnostic method to store weather records in the cache.
         :param request_name:
-        :param records: expects a list of records formatted to match tables
+        :param records: expects a list of records (as lists) formatted to match tables
         """
         cursor = self._sqlite_conn.cursor()
-        query = "INSERT INTO {} (LOCATION, REQUEST_TIME, DATA_TIME, JSON_RESPONSE) VALUES (?, ?, ?, ?)"\
-            .format(request_name)
-        cursor.executemany(query, records)
-        self._sqlite_conn.commit()
+        if request_type == "current":
+            query = "INSERT INTO {} (LOCATION, REQUEST_TIME, DATA_TIME, FORECAST_TIME, JSON_RESPONSE)" \
+                    "VALUES (?, ?, ?, ?, ?)".format(request_name)
+        else:
+            query = "INSERT INTO {} (LOCATION, REQUEST_TIME, DATA_TIME, JSON_RESPONSE) VALUES (?, ?, ?, ?)"\
+                .format(request_name)
+        if self._log_sql:
+            _log.info(query)
+        try:
+            cursor.executemany(query, records)
+            self._sqlite_conn.commit()
+        except sqlite3.Error as e:
+            _log.info(query)
+            _log.error("Failed to store data in the cache.")
 
+        cursor.close()
+
+    def manage_cache_size(self):
+        """
+        Removes data from the weather cache until the cache is a safe size. prioritizes removal from current, then
+        forecast, then historical request types
+        """
+        cursor = self._sqlite_conn.cursor()
+        if self._max_size_gb is not None:
+            def page_count():
+                cursor.execute("PRAGMA page_count")
+                return cursor.fetchone()[0]
+            row_counts = {}
+            # TODO
+            for table in self._tables:
+                query = "SELECT COUNT(*) FROM {}".format(table)
+                row_counts[table] = (int(cursor.execute(query).fetchone()[0]), self._tables[table])
+            priority = 1
+            while page_count() > self.max_pages:
+                for table in row_counts:
+                    if priority ==1:
+                        # Remove all but the most recent 'current' records
+                        if row_counts[table][1] == "current" and row_counts[table][0] > 1:
+                            query = "SELECT MAX(DATA_TIME) FROM {}".format(table)
+                            most_recent = cursor.execute(query).fetchone()[0]
+                            query = "DELETE FROM {} WHERE DATA_TIME < {}".format(table, most_recent)
+                            cursor.execute(query)
+                            self._sqlite_conn.commit()
+                    elif priority == 2:
+                        # Remove all but the most recent 'forecast' records
+                        if row_counts[table][1] == "forecast" and row_counts[table][0] > 1:
+                            query = "SELECT MAX(DATA_TIME) FROM {}".format(table)
+                            most_recent = cursor.execute(query).fetchone()[0]
+                            query = "DELETE FROM {} WHERE DATA_TIME < {}".format(table, most_recent)
+                            cursor.execute(query)
+                    elif priority == 3:
+                        # Remove historical records in batches of 100 until the table is of appropriate size
+                        if row_counts[table][1] == "historical" and row_counts[table][0] >= 1:
+                            query = "DELETE FROM {} ORDER BY REQUEST_TIME ASC LIMIT 100".format(table)
+                            cursor.execute(query)
+                    self._sqlite_conn.commit()
+                    priority += 1
 
     def close(self):
         """Close the sqlite database connection when the agent stops"""
         self._sqlite_conn.close()
         self._sqlite_conn = None
-
 
 # Code reimplemented from https://github.com/gilesbrown/gsqlite3
 def _using_threadpool(method):
@@ -454,27 +546,22 @@ def _using_threadpool(method):
     return apply
 
 
-# TODO checkout base historian
 class AsyncWeatherCache(WeatherCache):
     """Asynchronous weather cache wrapper for use with gevent"""
     def __init__(self, **kwargs):
         kwargs["check_same_thread"] = False
         super(AsyncWeatherCache, self).__init__(**kwargs)
 
-# TODO fill with methods, check base historian
-for method in []:
+# TODO documentation
+for method in [WeatherCache.get_current_data,
+               WeatherCache.get_forecast_data,
+               WeatherCache.get_historical_data,
+               WeatherCache._setup_cache,
+               WeatherCache.store_weather_records]:
     setattr(AsyncWeatherCache, method.__name__, _using_threadpool(method))
 
-# TODO where did this even come from?
-if not property_id == "statusFlags":
-                    values = []
-                    for tag in element.value.tagList:
-                        values.append(tag.app_to_object().value)
-                    if len(values) == 1:
-                        result_dict[property_id] = values[0]
-                    else:
-                        result_dict[property_id] = values
 
+# TODO documentation
 class BaseWeather(BaseWeatherAgent):
     def __init__(self, **kwargs):
         _log.debug('Constructor of BaseWeather thread: {}'.format(
