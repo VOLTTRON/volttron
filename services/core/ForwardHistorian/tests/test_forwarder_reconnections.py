@@ -112,8 +112,6 @@ def test_topic_forwarding(setup_instances, topic_root, topic, replace, headers):
     pub_listener.core.stop()
 
 
-
-
 def test_target_shutdown(setup_instances):
 
     inst_forward, inst_target = setup_instances
@@ -174,7 +172,3 @@ def test_target_shutdown(setup_instances):
     validate_published_device_data(headers, message,
                                    pubsub_retrieved[0][1],
                                    pubsub_retrieved[0][2])
-
-
-def test_can_pause_publishing(setup_instances):
-    pass
