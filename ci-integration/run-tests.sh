@@ -34,7 +34,17 @@ testdirs="services/core/VolttronCentral/tests services/core/VolttronCentralPlatf
 #directories that must have their subdirectories split
 splitdirs="services/core/*"
 
+echo "installing ERLANG"
+wget -O - 'https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc' | sudo apt-key add -
+echo 'deb https://dl.bintray.com/rabbitmq/debian trusty erlang-21.x'|sudo tee --append /etc/apt/sources.list.d/bintray.erlang.list
+sudo apt-get update
+sudo apt-get install -y erlang-diameter erlang-eldap
+sudo apt-get install -y erlang-nox
+
 python bootstrap.py --rabbitmq
+
+echo "rabbitmq status"
+$HOME/rabbitmq_server/rabbitmq_server-3.7.7/sbin/rabbitmqctl status
 
 echo "TestDirs"
 for dir in $testdirs; do
