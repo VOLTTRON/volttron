@@ -67,6 +67,7 @@ from gevent import get_hub
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import *
 from volttron.platform.async import AsyncCall
+from volttron.platform.messaging import headers
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_UNKNOWN,
                                                 STATUS_GOOD,
@@ -74,6 +75,9 @@ from volttron.platform.messaging.health import (STATUS_BAD,
                                                 Status)
 
 _log = logging.getLogger(__name__)
+
+HEADER_NAME_DATE = headers.DATE
+HEADER_NAME_CONTENT_TYPE = headers.CONTENT_TYPE
 
 STATUS_KEY_PUBLISHING = "publishing"
 STATUS_KEY_CACHE_FULL = "cache_full"
@@ -111,6 +115,8 @@ class BaseWeatherAgent(Agent):
             STATUS_KEY_PUBLISHING: True,
             STATUS_KEY_CACHE_FULL: False
         }
+        # TODO successfully publishing should not affect the status if polling is not being used
+        self.succesfully_publishing = True
         self.reverse_map = self.get_reverse_mapping()
         self.vip.config.set_default("config", self._default_config)
         self.vip.config.subscribe(self._configure, actions=["NEW", "UPDATE"], pattern="config")
@@ -220,11 +226,30 @@ class BaseWeatherAgent(Agent):
         """"""
 
     def poll_for_locations(self):
+        topic = "weather/{}/current/{}/all"
         for location in self._polling_locations:
-            try:
-                data_point = self.query_current_weather(location)
-            except:
-                raise
+            if len(location):
+                try:
+                    data_point = self.query_current_weather(location)
+                    poll_topic = topic.format("poll", location)
+                    self.publish_response(poll_topic, data_point)
+                except ValueError:
+                    self.successfully_publishing = False
+                    # TODO alerts/ status update
+                    raise
+                except RuntimeError as error:
+                    # TODO alerts/status update
+                    error_topic = topic.format("error", location)
+                    self.publish_error(error_topic, error)
+
+    def publish_error(self, topic, error):
+        _log.error(error)
+        self.publish_response(topic, error)
+
+    def publish_response(self, topic, publish_items):
+        publish_headers = {HEADER_NAME_DATE: utils.format_timestamp(utils.get_aware_utc_now()),
+                           HEADER_NAME_CONTENT_TYPE: headers.CONTENT_TYPE}
+        self.vip.pubsub.publish(peer="pubsub", topic=topic, message=publish_items, headers=publish_headers)
 
     def manage_unit_conversion(self, from_units, value, to_units):
         """
@@ -260,11 +285,13 @@ class BaseWeatherAgent(Agent):
         :param records:
         """
         self._cache.manage_cache_size()
-        self._cache.store_weather_records(request_name, request_type, records)
+        # TODO update status?
+        self._current_status_context[STATUS_KEY_CACHE_FULL] = \
+            self._cache.store_weather_records(request_name, request_type, records)
+        # TODO alerts?
 
     # Status management methods
 
-    # TODO use status
     @staticmethod
     def _get_status_from_context(context):
         status = STATUS_GOOD
@@ -501,9 +528,15 @@ class WeatherCache:
         except sqlite3.Error as e:
             _log.info(query)
             _log.error("Failed to store data in the cache: {}".format(e))
+        cache_full = self.page_count(cursor) >= self.max_pages
         cursor.close()
+        return cache_full
 
     # cache management/ lifecycle methods
+
+    def page_count(self, cursor):
+        cursor.execute("PRAGMA page_count")
+        return cursor.fetchone()[0]
 
     def manage_cache_size(self):
         """
@@ -512,17 +545,14 @@ class WeatherCache:
         """
         cursor = self._sqlite_conn.cursor()
         if self._max_size_gb is not None:
-            def page_count():
-                cursor.execute("PRAGMA page_count")
-                return cursor.fetchone()[0]
             row_counts = {}
             for table in self._tables:
                 query = "SELECT COUNT(*) FROM {}".format(table)
                 row_counts[table] = (int(cursor.execute(query).fetchone()[0]), self._tables[table])
             priority = 1
-            while page_count() > self.max_pages:
+            while self.page_count(cursor) > self.max_pages:
                 for table in row_counts:
-                    if priority ==1:
+                    if priority == 1:
                         # Remove all but the most recent 'current' records
                         if row_counts[table][1] == "current" and row_counts[table][0] > 1:
                             query = "SELECT MAX(DATA_TIME) FROM {}".format(table)
