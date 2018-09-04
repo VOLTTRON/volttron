@@ -10,7 +10,7 @@ export CI=travis
 #pip install pytest pytest-timeout --upgrade
 
 pip list
-
+lsb_release -a
 exit_code=0
 
 # Break up the tests to work around the issue in #754. Breaking them up allows 
@@ -37,11 +37,11 @@ splitdirs="services/core/*"
 echo "installing ERLANG"
 ERLANG_DIST=esl-erlang_21.0.5-1~ubuntu~trusty_amd64.deb
 sudo apt-get update
-sudo apt-get install -y libwxgtk3.0-0v5 libsctp1
+sudo apt-get install -y libsctp1
 sudo apt-get install -yf
 
 wget http://packages.erlang-solutions.com/site/esl/esl-erlang/FLAVOUR_1_general/$ERLANG_DIST
-sudo dpkg -i $ERLANG_DIST
+sudo dpkg -i $ERLANG_DIST --auto-deconfigure
 
 echo "bootstrapping RABBITMQ"
 python bootstrap.py --rabbitmq --market
