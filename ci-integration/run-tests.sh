@@ -1,7 +1,7 @@
 #!/bin/sh
 
 export CI=travis
-export FAST_FAIL=1
+#export FAST_FAIL=1
 
 
 # The context should already have been activated at this point.
@@ -35,13 +35,16 @@ testdirs="services/core/VolttronCentral/tests services/core/VolttronCentralPlatf
 splitdirs="services/core/*"
 
 echo "installing ERLANG"
-wget -O - 'https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc' | sudo apt-key add -
-echo 'deb https://dl.bintray.com/rabbitmq/debian trusty erlang-21.x'|sudo tee --append /etc/apt/sources.list.d/bintray.erlang.list
+ERLANG_DIST=esl-erlang_21.0.5-1~ubuntu~trusty_amd64.deb
 sudo apt-get update
-sudo apt-get install -y erlang-diameter erlang-eldap
-sudo apt-get install -y erlang-nox
+sudo apt-get install -y libwxgtk3.0-0v5 libsctp1
+sudo apt-get install -yf
 
-python bootstrap.py --rabbitmq
+wget http://packages.erlang-solutions.com/site/esl/esl-erlang/FLAVOUR_1_general/$ERLANG_DIST
+sudo dpkg -i $ERLANG_DIST
+
+echo "bootstrapping RABBITMQ"
+python bootstrap.py --rabbitmq --market
 
 echo "rabbitmq status"
 $HOME/rabbitmq_server/rabbitmq_server-3.7.7/sbin/rabbitmqctl status
