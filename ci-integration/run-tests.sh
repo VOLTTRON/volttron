@@ -37,6 +37,7 @@ splitdirs="services/core/*"
 echo "installing ERLANG"
 ERLANG_DIST=esl-erlang_21.0.5-1~ubuntu~trusty_amd64.deb
 sudo apt-get update
+sudo apt autoremove
 sudo apt-get install -y libsctp1
 sudo apt-get install -yf
 
