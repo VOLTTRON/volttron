@@ -81,6 +81,7 @@ class FactsService(BaseHistorian):
         self.building_id = None
         self.topic_building_mapping = None
         self.db_connection = None
+        self.db_is_alive = False
 
         # The base historian handles the interaction with the
         # configuration store.
@@ -158,26 +159,13 @@ class FactsService(BaseHistorian):
         _log.debug("Number of items to publish: {}"
                    .format(len(to_publish_list)))
 
-        alive = False
-        if self.db_connection is not None:
-            alive = self.db_connection.is_alive()
-
-        if not alive:
+        if not self.db_is_alive:
             self.historian_setup()
 
         # If our connection is down leave without attempting to publish.
         # Publish failure will automatically trigger the BaseHistorian to
         # set the health of the agent accordingly.
         if self.db_connection is None:
-            return
-        if not requests.head(
-            self.facts_service_base_api_url,
-            auth=(self.facts_service_username, self.facts_service_password)
-        ).ok:
-            _log.error(
-                'Could not connect to {} with provided username and password.'
-                .format(self.facts_service_base_api_url)
-            )
             return
 
         to_send = {}
@@ -194,18 +182,19 @@ class FactsService(BaseHistorian):
                 unmapped_topics.append({
                     "topic": topic, "ts": ts_datetime.isoformat()
                 })
-            if isinstance(value, bool):
-                value = int(value)
-            building_id = self.topic_building_mapping.get(topic) \
-                if self.building_id is None else self.building_id
-            if building_id is not None:
-                data = {
-                    'fact_time': ts,
-                    'native_name': topic,
-                    'fact_value': value
-                }
-                to_send[building_id] = to_send[building_id] + [data] \
-                    if building_id in to_send else [data]
+            else:
+                if isinstance(value, bool):
+                    value = int(value)
+                building_id = self.topic_building_mapping.get(topic) \
+                    if self.building_id is None else self.building_id
+                if building_id is not None:
+                    data = {
+                        'fact_time': ts,
+                        'native_name': topic,
+                        'fact_value': value
+                    }
+                    to_send[building_id] = to_send[building_id] + [data] \
+                        if building_id in to_send else [data]
 
         try:
             _log.debug('Sending to data to Facts Service.')
@@ -237,7 +226,7 @@ class FactsService(BaseHistorian):
                         "unmapped_topics WHERE topic = :topic), :ts), :ts);",
                         unmapped_topics
                     )
-            except sqlite3.IntegrityError as e:
+            except sqlite3.Error as e:
                 _log.error('Error when saving unmapped_topics: {}'
                            .format(repr(e)))
 
@@ -278,6 +267,7 @@ class FactsService(BaseHistorian):
 
         # This is a convenience to allow us to call this any time we like to
         # restore a connection.
+        _log.info("Opening unmapped topics database connection.")
         self.historian_teardown()
         try:
             self.db_connection = sqlite3.connect('trends.db')
@@ -287,6 +277,7 @@ class FactsService(BaseHistorian):
                     "topic TEXT PRIMARY KEY, created_at TEXT"
                     "updated_at TEXT);"
                 )
+            self.db_is_alive = True
         except Exception as e:
             _log.error("Failed to create database connection: {}"
                        .format(repr(e)))
@@ -297,6 +288,7 @@ class FactsService(BaseHistorian):
         if self.db_connection is not None:
             self.db_connection.close()
             self.db_connection = None
+            self.db_is_alive = False
 
     # The following methods are for adding query support. This will allow other
     # agents to get data from the store and will allow this historian to act as
