@@ -49,8 +49,8 @@ def get_rand_ipc_vip():
 
 
 def build_wrapper(vip_address, **kwargs):
-    message_bus = kwargs.pop('message_bus', None)
-    wrapper = PlatformWrapper(message_bus)
+    wrapper = PlatformWrapper(message_bus=kwargs.pop('message_bus', None),
+                              ssl_auth=kwargs.pop('ssl_auth', False))
     print('BUILD_WRAPPER: {}'.format(vip_address))
     wrapper.startup_platform(vip_address=vip_address, **kwargs)
     return wrapper
@@ -59,6 +59,7 @@ def build_wrapper(vip_address, **kwargs):
 def cleanup_wrapper(wrapper):
     print('Shutting down instance: {}'.format(wrapper.volttron_home))
     # Shutdown handles case where the platform hasn't started.
+    wrapper.remove_all_agents()
     wrapper.shutdown_platform()
 
 
@@ -66,26 +67,10 @@ def cleanup_wrappers(platforms):
     for p in platforms:
         cleanup_wrapper(p)
 
-@pytest.fixture(scope="module",
-                params=['zmq', 'rmq'])
+@pytest.fixture(scope="module")
 def volttron_instance1(request):
     print("building instance 1")
-
-    wrapper = build_wrapper(get_rand_vip(), message_bus=request.param)
-
-    def cleanup():
-        cleanup_wrapper(wrapper)
-
-    request.addfinalizer(cleanup)
-    return wrapper
-
-
-@pytest.fixture(scope="module",
-                params=['zmq', 'rmq'])
-def volttron_instance2(request):
-    print("building instance 2")
-
-    wrapper = build_wrapper(get_rand_vip(), message_bus=request.param)
+    wrapper = build_wrapper(get_rand_vip())
 
     def cleanup():
         cleanup_wrapper(wrapper)
@@ -95,9 +80,25 @@ def volttron_instance2(request):
 
 
 @pytest.fixture(scope="module")
+def volttron_instance2(request):
+    print("building instance 2")
+    wrapper = build_wrapper(get_rand_vip())
+
+    def cleanup():
+        cleanup_wrapper(wrapper)
+
+    request.addfinalizer(cleanup)
+    return wrapper
+
+
+@pytest.fixture(scope="module",
+                params=[('zmq', False), ('rmq', True)])
 def volttron_instance_msgdebug(request):
     print("building msgdebug instance")
-    wrapper = build_wrapper(get_rand_vip(), msgdebug=True)
+    wrapper = build_wrapper(get_rand_vip(),
+                            msgdebug=True,
+                            message_bus=request.param[0],
+                            ssl_auth=request.param[1])
 
     def cleanup():
         cleanup_wrapper(wrapper)
@@ -128,7 +129,8 @@ def volttron_instance1_web(request):
     print("building instance 1 (using web)")
     address = get_rand_vip()
     web_address = "http://{}".format(get_rand_ip_and_port())
-    wrapper = build_wrapper(address, bind_web_address=web_address)
+    wrapper = build_wrapper(address,
+                            bind_web_address=web_address)
 
     def cleanup():
         cleanup_wrapper(wrapper)
@@ -142,7 +144,8 @@ def volttron_instance2_web(request):
     print("building instance 2 (using web)")
     address = get_rand_vip()
     web_address = "http://{}".format(get_rand_ip_and_port())
-    wrapper = build_wrapper(address, bind_web_address=web_address)
+    wrapper = build_wrapper(address,
+                            bind_web_address=web_address)
 
     def cleanup():
         cleanup_wrapper(wrapper)
@@ -150,12 +153,16 @@ def volttron_instance2_web(request):
     request.addfinalizer(cleanup)
     return wrapper
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module",
+                params=[('zmq', False), ('rmq', True)])
 def volttron_instance_module_web(request):
     print("building module instance (using web)")
     address = get_rand_vip()
     web_address = "http://{}".format(get_rand_ip_and_port())
-    wrapper = build_wrapper(address, bind_web_address=web_address)
+    wrapper = build_wrapper(address,
+                            bind_web_address=web_address,
+                            message_bus=request.param[0],
+                            ssl_auth=request.param[1])
 
     def cleanup():
         cleanup_wrapper(wrapper)
@@ -169,21 +176,23 @@ def volttron_instance_module_web(request):
 # Use this fixture when you want a single instance of volttron platform for
 # test
 @pytest.fixture(scope="module",
-                params=['zmq', 'rmq'])
+                params=[('zmq', False), ('rmq', True)])
 def volttron_instance(request):
     """Fixture that returns a single instance of volttron platform for testing
 
     @param request: pytest request object
     @return: volttron platform instance
     """
+    print("building instance")
     wrapper = None
     address = get_rand_vip()
-
-    wrapper = build_wrapper(address, message_bus=request.param)
-
+    wrapper = build_wrapper(address,
+                            message_bus=request.param[0],
+                            ssl_auth=request.param[1])
 
     def cleanup():
         print('Shutting down instance: {}'.format(wrapper.volttron_home))
+        wrapper.remove_all_agents()
         wrapper.shutdown_platform()
 
     request.addfinalizer(cleanup)
