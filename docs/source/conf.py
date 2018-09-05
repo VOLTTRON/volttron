@@ -43,9 +43,9 @@ copyright = u'2018, The VOLTTRON Community'
 author = u'The VOLTTRON Community'
 
 # The short X.Y version
-version = u'5.0.3'
+version = u'5.1.0'
 # The full version, including alpha/beta/rc tags
-release = u'5.0.3'
+release = u'5.1.0'
 
 
 # -- General configuration ---------------------------------------------------
