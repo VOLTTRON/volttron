@@ -33,10 +33,11 @@ Agent Status Display
 
 ::
 
-      AGENT             TAG      STATUS
+      AGENT                   IDENTITY            TAG                STATUS          HEALTH
+    4 listeneragent-3.2       listeneragent-3.2_1 listener           running [2923]  GOOD
+    0 master_driveragent-3.2  platform.driver     master_driver      running [2925]  GOOD
+    1 sqlhistorianagent-3.6.1 platform.historian  platform_historian running [2924]  GOOD
 
-    d listeneragent-3.0 listener running [3813]
-    2 testeragent-0.1                 0
 
 ``volttron-ctl status`` shows a list of all agents installed on the
 platform and their current status.
@@ -54,6 +55,12 @@ platform and their current status.
 -  STATUS is the current condition of the agent. If the agent is
    currently executing, it has "running" and the process id of the
    agent. If the agent is not running, the exit code is shown.
+-  HEALTH indicates the availability of agent functionality. An agent
+   will display either "GOOD", "BAD", "STARTING" or "UNKNOWN" given
+   its corresponding capacity to perform its specified functions on
+   the platform (an agent which is working as expected should display
+   "GOOD", and so forth). The various agent types will choose to update
+   health differently, and therefore exact display behaviors will vary.
 
 Agent Health Display
 ====================
