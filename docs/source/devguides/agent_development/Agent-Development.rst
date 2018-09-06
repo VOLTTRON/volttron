@@ -21,7 +21,7 @@ not exist when the command is run.
 
 `tester` is the name of the agent module created by wizard.
 
-The Wizard will promt for the following information:
+The Wizard will prompt for the following information:
 
 ::
 
