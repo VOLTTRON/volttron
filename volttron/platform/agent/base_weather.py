@@ -225,6 +225,7 @@ class BaseWeatherAgent(Agent):
     def query_hourly_historical_weather(self, location, start_period, end_period):
         """"""
 
+    # TODO make this a periodic function
     def poll_for_locations(self):
         topic = "weather/{}/current/{}/all"
         for location in self._polling_locations:
@@ -235,10 +236,10 @@ class BaseWeatherAgent(Agent):
                     self.publish_response(poll_topic, data_point)
                 except ValueError:
                     self.successfully_publishing = False
-                    # TODO alerts/ status update
+                    self._update_status({STATUS_KEY_PUBLISHING: False})
                     raise
                 except RuntimeError as error:
-                    # TODO alerts/status update
+                    # TODO do we want to set the status
                     error_topic = topic.format("error", location)
                     self.publish_error(error_topic, error)
 
