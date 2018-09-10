@@ -53,10 +53,13 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 
 from __future__ import absolute_import
+import logging
+import pika
+import os
 
 from .rmq_connection import RMQConnection
 from .socket import Message, Address
@@ -65,8 +68,9 @@ from .zmq_router import BaseRouter
 import errno
 from Queue import Queue
 from ..keystore import KeyStore
-from volttron.utils.rmq_mgmt import *
+from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.platform import certs
+from volttron.platform.agent import json as jsonapi
 
 __all__ = ['RMQRouter']
 
@@ -100,6 +104,7 @@ class RMQRouter(BaseRouter):
         self._bind_web_address = bind_web_address
         self._instance_name = instance_name
         self._identity = identity
+        self.rmq_mgmt = RabbitMQMgmt()
         self.event_queue = Queue()
         param = self._build_connection_parameters()
         self.connection = RMQConnection(param, identity, self._instance_name,
@@ -110,23 +115,8 @@ class RMQRouter(BaseRouter):
         if self._identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
-            permissions = dict(configure=".*", read=".*", write=".*")
-            # Check if RabbitMQ user and certs exists for Router,
-            # if not create a new one.
-            # Add permissions if necessary
-            ssl_auth = is_ssl_connection()
-            user = self._instance_name + '.' + self._identity
-            _log.debug("connection params: {}".format(user))
-            if ssl_auth:
-                crts = certs.Certs()
-                crts.create_ca_signed_cert(user, overwrite=False)
-            create_user_with_permissions(user, permissions, ssl_auth=ssl_auth)
-            param = build_connection_param(self._identity,
-                                           self._instance_name,
-                                           ssl_auth)
-
-            if ssl_auth:
-                _log.debug("connection param: {}".format(param.ssl_options))
+            param = self.rmq_mgmt.build_router_connection(self._identity,
+                                                          self._instance_name)
         return param
 
     def start(self):
@@ -215,7 +205,7 @@ class RMQRouter(BaseRouter):
         """
         # [SENDER, RECIPIENT, PROTOCOL, USER_ID, MSG_ID, SUBSYSTEM, ...]
 
-        sender = message.peer #source
+        sender = message.peer  # source
         subsystem = message.subsystem
         self._add_peer(sender)
         if subsystem == b'hello':
@@ -299,7 +289,7 @@ class RMQRouter(BaseRouter):
             # Router does not know of the subsystem
             message.type = b'error'
             errnum = errno.EPROTONOSUPPORT
-            errmsg = os.strerror(errnum).encode('ascii')#str(errnum).encode('ascii')
+            errmsg = os.strerror(errnum).encode('ascii')  # str(errnum).encode('ascii')
             _log.debug("ROUTER proto unsupported {}, sender {}".format(subsystem, sender))
             message.args = [errnum, errmsg, b'', subsystem]
 
@@ -371,10 +361,10 @@ class RMQRouter(BaseRouter):
 
     def _check_user_permissions(self, identity):
         msg = None
-        user_permission = get_user_permissions(identity)
+        user_permission = self.rmq_mgmt.get_user_permissions(identity)
         # Check user access permissions for the agent
         allowed_tokens = self._make_user_access_tokens(identity)
-        #_log.debug("Identity: {0}, User permissions: {1}".format(identity, user_permission))
+        # _log.debug("Identity: {0}, User permissions: {1}".format(identity, user_permission))
         if user_permission:
             config_perms = user_permission.get("configure", "").split("|")
             read_perms = user_permission.get("read", "").split("|")
@@ -395,6 +385,5 @@ class RMQRouter(BaseRouter):
             read_access = "volttron|{}".format(common_access)
             write_access = "volttron|{}".format(common_access)
             permissions = dict(configure=config_access, read=read_access, write=write_access)
-            set_user_permissions(permissions, identity)
+            self.rmq_mgmt.set_user_permissions(permissions, identity)
         return msg
-

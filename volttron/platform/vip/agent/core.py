@@ -62,10 +62,7 @@ from volttron.platform import get_address
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import load_platform_config
 from volttron.platform.keystore import KeyStore, KnownHostsStore
-from volttron.utils.rmq_mgmt import \
-    build_connection_param as build_rmq_connection_param, \
-    is_ssl_connection, \
-    create_user_with_permissions as create_rmq_user_with_permissions
+from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
 from .errors import VIPError
@@ -841,6 +838,7 @@ class RMQCore(BasicCore):
         self.messagebus = messagebus
         self.connection = None
         self._event_queue = Queue()
+        self.rmq_mgmt = RabbitMQMgmt()
 
     def version(self):
         return self._version
@@ -872,28 +870,9 @@ class RMQCore(BasicCore):
         if self.identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
-            # Check if RabbitMQ user and certs exists for this agent, if not
-            # create a new one.
-            # Add access control/permissions if necessary
 
-            config_access = "{user}|{user}.pubsub.*|{user}.zmq.*".format(
-                user=self.rmq_user)
-            read_access = "volttron|{}".format(config_access)
-            write_access = "volttron|{}".format(config_access)
-            permissions = dict(configure=config_access, read=read_access,
-                               write=write_access)
-
-            is_ssl = is_ssl_connection()
-            if is_ssl:
-                crts = certs.Certs()
-                crts.create_ca_signed_cert(self.rmq_user, overwrite=False)
-
-            create_rmq_user_with_permissions(self.rmq_user, permissions,
-                                             ssl_auth=is_ssl)
-
-            param = build_rmq_connection_param(self.identity,
-                                               self.instance_name,
-                                               ssl_auth=is_ssl)
+            param = self.rmq_mgmt.build_agent_connection(self.identity,
+                                                         self.instance_name)
 
         return param
 
