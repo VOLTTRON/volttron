@@ -1,32 +1,33 @@
 Ecorithm's Facts Service Agent
 ==============================
+Ecorithm's Facts Service agent is used to push BACnet data to a remote cloud storage solution at frequent intervals.
+
+.. figure:: https://assets.ecorithm.com/static/ecoweb/img/historian_2x.png
+   :alt: Real-time Historian on Ecorithm's Platform
+   :align: center
+   :width: 61%
+
+   *Real-time Historian on Ecorithm's Platform*
+
+Features
+--------
+- Sending data to Ecorithm's Facts Service `API <https://facts.prod.ecorithm.com/api/v1/>`_ using ``requests`` module
+- Database to store topics not being sent to the API when running a multi-building configuration
+- Automatic backup of data if API is unreachable using ``Base Historian`` agent built-in backup database
 
 Prerequisites
 -------------
-
-- An Ecorithm account: visit Ecorithm.com_ for more information
+- An Ecorithm account: visit `Ecorithm.com <https://ecorithm.com>`_ for more information
 - At minimum, one building attached to your account
-
-.. _Ecorithm.com: https://ecorithm.com
-
+- An Internet connection (for HTTPS requests)
 
 Recommended Setup
 -----------------
-
 - ``BACnet Proxy`` Agent
 - ``Facts Service`` Agent
 - ``Master Driver`` Agent
 
-Note: ``Volttron Platform`` Agent isn't running
-
-Features
---------
-
-- Sending data to Ecorithm's Facts Service API_ using ``requests`` module
-- Database to store topics not being sent to the API when running a multi-building configuration
-- Automatic backup of data if API is unreachable using BaseHistorian built-in backup batabase
-
-.. _API: https://facts.prod.ecorithm.com/api/v1/
+**Note**: If you're planning on using only the Facts Service agent, it is recommended to disable the ``Platform`` agent since communication with a Volttron Central instance isn't required, hence saving resources.
 
 Configuration
 -------------
@@ -74,3 +75,9 @@ Changes to apply:
     },
 
 Other settings belong to the ``BaseHistorian`` agent.
+
+Installation
+------------
+
+1. Start volttron
+2. From an activated shell, run ``python scripts/install-agent.py -s services/contrib/FactsServiceAgent -c services/contrib/FactsServiceAgent/config --start --enable``
