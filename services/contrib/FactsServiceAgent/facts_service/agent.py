@@ -34,7 +34,7 @@ from volttron.platform.agent.base_historian import BaseHistorian
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
-__version__ = "1.2"
+__version__ = "1.3"
 
 
 def historian(config_path, **kwargs):
@@ -130,8 +130,8 @@ class FactsService(BaseHistorian):
 
         if self.building_id is None and not self.topic_building_mapping:
             _log.warning(
-                "Topic to building_id mapping is empty."
-                " Nothing will be published. Check your configuration"
+                "Topic to building ID mapping is empty."
+                " Nothing will be published. Check your configuration!"
             )
 
     def publish_to_historian(self, to_publish_list):
@@ -169,6 +169,7 @@ class FactsService(BaseHistorian):
             return
 
         to_send = {}
+        to_report_as_handled = {}
         local_tz = get_localzone()
         unmapped_topics = []
         for x in to_publish_list:
@@ -195,10 +196,13 @@ class FactsService(BaseHistorian):
                     }
                     to_send[building_id] = to_send[building_id] + [data] \
                         if building_id in to_send else [data]
+                    to_report_as_handled[building_id] = \
+                        to_report_as_handled[building_id] + [x] \
+                        if building_id in to_report_as_handled else [x]
 
-        try:
-            _log.debug('Sending to data to Facts Service.')
-            for building_id, data in to_send.iteritems():
+        _log.debug('Sending data to Facts Service')
+        for building_id, data in to_send.iteritems():
+            try:
                 requests.put(
                     '{}/building/{}/facts'
                     .format(self.facts_service_base_api_url, building_id),
@@ -208,11 +212,12 @@ class FactsService(BaseHistorian):
                         self.facts_service_password
                     )
                 ).raise_for_status()
-            self.report_all_handled()
-            _log.debug('Data successfully published!')
-        except requests.exceptions.RequestException as e:
-            _log.error('Error when attempting to publish to target: {}'
-                       .format(repr(e)))
+                self.report_handled(to_report_as_handled[building_id])
+                _log.debug('Data successfully published to building {}!'
+                           .format(building_id))
+            except requests.exceptions.RequestException as e:
+                _log.error('Error when attempting to publish to target: {}'
+                           .format(repr(e)))
 
         if unmapped_topics:
             try:
@@ -227,7 +232,7 @@ class FactsService(BaseHistorian):
                         unmapped_topics
                     )
             except sqlite3.Error as e:
-                _log.error('Error when saving unmapped_topics: {}'
+                _log.error('Error when saving unmapped topics: {}'
                            .format(repr(e)))
 
     def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
@@ -267,15 +272,14 @@ class FactsService(BaseHistorian):
 
         # This is a convenience to allow us to call this any time we like to
         # restore a connection.
-        _log.info("Opening unmapped topics database connection.")
+        _log.info("Setting up unmapped topics database connection")
         self.historian_teardown()
         try:
             self.db_connection = sqlite3.connect('trends.db')
             with self.db_connection:
                 self.db_connection.execute(
                     "CREATE TABLE IF NOT EXISTS unmapped_topics ("
-                    "topic TEXT PRIMARY KEY, created_at TEXT"
-                    "updated_at TEXT);"
+                    "topic TEXT PRIMARY KEY, created_at TEXT, updated_at TEXT)"
                 )
             self.db_is_alive = True
         except Exception as e:
