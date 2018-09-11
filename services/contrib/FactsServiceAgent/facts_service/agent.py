@@ -34,7 +34,7 @@ from volttron.platform.agent.base_historian import BaseHistorian
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
-__version__ = '1.3.1'
+__version__ = '1.3.2'
 
 
 def historian(config_path, **kwargs):
@@ -184,6 +184,7 @@ class FactsService(BaseHistorian):
                     "topic": topic,
                     "ts": ts_datetime.replace(tzinfo=None).isoformat()
                 })
+                self.report_handled(x)
             else:
                 if isinstance(value, bool):
                     value = int(value)
