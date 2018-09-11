@@ -34,7 +34,7 @@ from volttron.platform.agent.base_historian import BaseHistorian
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
-__version__ = "1.3"
+__version__ = '1.3.1'
 
 
 def historian(config_path, **kwargs):
@@ -75,13 +75,13 @@ class FactsService(BaseHistorian):
         kwargs["process_loop_in_greenlet"] = False
         super(FactsService, self).__init__(**kwargs)
 
-        self.facts_service_base_api_url = None
-        self.facts_service_username = None
-        self.facts_service_password = None
-        self.building_id = None
-        self.topic_building_mapping = None
-        self.db_connection = None
-        self.db_is_alive = False
+        self._facts_service_base_api_url = None
+        self._facts_service_username = None
+        self._facts_service_password = None
+        self._building_id = None
+        self._topic_building_mapping = None
+        self._db_connection = None
+        self._db_is_alive = False
 
         # The base historian handles the interaction with the
         # configuration store.
@@ -113,22 +113,22 @@ class FactsService(BaseHistorian):
             _log.warning("Supplied building_parameters is not a dict, ignored")
             building_parameters = {}
 
-        self.facts_service_base_api_url = \
+        self._facts_service_base_api_url = \
             facts_service_parameters.get("base_api_url")
-        self.facts_service_username = facts_service_parameters.get("username")
-        self.facts_service_password = facts_service_parameters.get("password")
-        self.building_id = building_parameters.get("building_id")
-        self.topic_building_mapping = \
+        self._facts_service_username = facts_service_parameters.get("username")
+        self._facts_service_password = facts_service_parameters.get("password")
+        self._building_id = building_parameters.get("building_id")
+        self._topic_building_mapping = \
             building_parameters.get("topic_building_mapping")
 
-        if self.building_id is not None and self.topic_building_mapping:
+        if self._building_id is not None and self._topic_building_mapping:
             _log.warning(
                 "Building ID is {}, topic to building_id mapping is ignored"
-                .format(self.building_id)
+                .format(self._building_id)
             )
-            self.topic_building_mapping = {}
+            self._topic_building_mapping = {}
 
-        if self.building_id is None and not self.topic_building_mapping:
+        if self._building_id is None and not self._topic_building_mapping:
             _log.warning(
                 "Topic to building ID mapping is empty."
                 " Nothing will be published. Check your configuration!"
@@ -159,13 +159,13 @@ class FactsService(BaseHistorian):
         _log.debug("Number of items to publish: {}"
                    .format(len(to_publish_list)))
 
-        if not self.db_is_alive:
+        if not self._db_is_alive:
             self.historian_setup()
 
         # If our connection is down leave without attempting to publish.
         # Publish failure will automatically trigger the BaseHistorian to
         # set the health of the agent accordingly.
-        if self.db_connection is None:
+        if self._db_connection is None:
             return
 
         to_send = {}
@@ -178,16 +178,17 @@ class FactsService(BaseHistorian):
             ts = ts_datetime.strftime("%Y-%m-%d %H:%M")
             topic = x["topic"]
             value = x["value"]
-            if self.building_id is None \
-                    and topic not in self.topic_building_mapping:
+            if self._building_id is None \
+                    and topic not in self._topic_building_mapping:
                 unmapped_topics.append({
-                    "topic": topic, "ts": ts_datetime.isoformat()
+                    "topic": topic,
+                    "ts": ts_datetime.replace(tzinfo=None).isoformat()
                 })
             else:
                 if isinstance(value, bool):
                     value = int(value)
-                building_id = self.topic_building_mapping.get(topic) \
-                    if self.building_id is None else self.building_id
+                building_id = self._topic_building_mapping.get(topic) \
+                    if self._building_id is None else self._building_id
                 if building_id is not None:
                     data = {
                         'fact_time': ts,
@@ -205,11 +206,11 @@ class FactsService(BaseHistorian):
             try:
                 requests.put(
                     '{}/building/{}/facts'
-                    .format(self.facts_service_base_api_url, building_id),
+                    .format(self._facts_service_base_api_url, building_id),
                     json=data,
                     auth=(
-                        self.facts_service_username,
-                        self.facts_service_password
+                        self._facts_service_username,
+                        self._facts_service_password
                     )
                 ).raise_for_status()
                 self.report_handled(to_report_as_handled[building_id])
@@ -223,8 +224,8 @@ class FactsService(BaseHistorian):
             try:
                 _log.debug('Saving {} untrended topics to the database'
                            .format(len(unmapped_topics)))
-                with self.db_connection:
-                    self.db_connection.executemany(
+                with self._db_connection:
+                    self._db_connection.executemany(
                         "INSERT OR REPLACE INTO "
                         "unmapped_topics(topic, created_at, updated_at) "
                         "VALUES (:topic, COALESCE((SELECT created_at FROM "
@@ -275,13 +276,13 @@ class FactsService(BaseHistorian):
         _log.info("Setting up unmapped topics database connection")
         self.historian_teardown()
         try:
-            self.db_connection = sqlite3.connect('trends.db')
-            with self.db_connection:
-                self.db_connection.execute(
+            self._db_connection = sqlite3.connect('trends.db')
+            with self._db_connection:
+                self._db_connection.execute(
                     "CREATE TABLE IF NOT EXISTS unmapped_topics ("
                     "topic TEXT PRIMARY KEY, created_at TEXT, updated_at TEXT)"
                 )
-            self.db_is_alive = True
+            self._db_is_alive = True
         except Exception as e:
             _log.error("Failed to create database connection: {}"
                        .format(repr(e)))
@@ -289,10 +290,10 @@ class FactsService(BaseHistorian):
     def historian_teardown(self):
         # Kill the connection if needed.
         # This is called to shut down the connection before reconfiguration.
-        if self.db_connection is not None:
-            self.db_connection.close()
-            self.db_connection = None
-            self.db_is_alive = False
+        if self._db_connection is not None:
+            self._db_connection.close()
+            self._db_connection = None
+            self._db_is_alive = False
 
     # The following methods are for adding query support. This will allow other
     # agents to get data from the store and will allow this historian to act as
