@@ -23,5 +23,13 @@
 	#"vendor_id": 15,
 	
 	#Required, use this network interface for the virtual device.
-    "device_address": "10.0.2.15" 
+    "device_address": "10.0.2.15",
+
+    #Interval, in ms, of how often the BACnet device checks for
+    #new requests from VOLTTRON. Lower values improve the performance
+    #of serial requests (grabbing configurations from devices, for example).
+    #WARNING: very low values will result in high CPU usage by this agent.
+    # Values below 25 have deminishing returns.
+    # Defaults to 100.
+    #"request_check_interval": 100
 }

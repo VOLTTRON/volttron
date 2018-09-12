@@ -1,0 +1,4 @@
+isodate==0.6
+signxml==2.4
+SQLAlchemy==1.1.4
+numpy==1.13.0

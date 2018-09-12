@@ -53,6 +53,7 @@ import pytz
 import re
 import stat
 import time
+import yaml
 from volttron.platform import get_home, get_address
 from dateutil.parser import parse
 from dateutil.tz import tzutc, tzoffset
@@ -143,12 +144,18 @@ def load_config(config_path):
         _log.info("Config file specified by AGENT_CONFIG does not exist. load_config returning empty configuration.")
         return {}
 
+    # First attempt parsing the file with a yaml parser (allows comments natively)
+    # Then if that fails we fallback to our modified json parser.
     try:
         with open(config_path) as f:
-            return parse_json_config(f.read())
-    except StandardError as e:
-        _log.error("Problem parsing agent configuration")
-        raise
+            return yaml.safe_load(f.read())
+    except yaml.scanner.ScannerError as e:
+        try:
+            with open(config_path) as f:
+                return parse_json_config(f.read())
+        except StandardError as e:
+            _log.error("Problem parsing agent configuration")
+            raise
 
 def update_kwargs_with_config(kwargs, config):
     """
@@ -186,6 +193,7 @@ def update_kwargs_with_config(kwargs, config):
 
     for k, v in config.items():
         kwargs[k.replace("-","_")] = v
+
 
 def parse_json_config(config_str):
     """Parse a JSON-encoded configuration file."""
@@ -438,7 +446,7 @@ def parse_timestamp_string(time_stamp_str):
             base_time_stamp_str = time_stamp_str[:26]
             time_zone_str = time_stamp_str[26:]
             time_stamp = datetime.strptime(base_time_stamp_str, "%Y-%m-%dT%H:%M:%S.%f")
-            #Handle most common case.
+            # Handle most common case.
             if time_zone_str == "+00:00":
                 return time_stamp.replace(tzinfo=pytz.UTC)
 
@@ -534,6 +542,7 @@ def watch_file(fullpath, callback):
             for event in inot:
                 if event.name == filename and event.mask & IN_MODIFY:
                     callback()
+
 
 def watch_file_with_fullpath(fullpath, callback):
     """Run callback method whenever the file changes

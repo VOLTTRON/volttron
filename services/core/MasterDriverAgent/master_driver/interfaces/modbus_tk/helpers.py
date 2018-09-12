@@ -104,6 +104,16 @@ META_REQUESTS = '_requests'
 META_REQUEST_MAP = '_request_map'
 META_PROPERTIES = '_properties'
 
+TABLE_EXCEPTION_CODE = {
+    "1": "ILLEGAL FUNCTION",
+    "2": "ILLEGAL DATA ADDRESS",
+    "3": "ILLEGAL DATA VALUE",
+    "4": "SLAVE DEVICE FAILURE",
+    "5": "COMMAND ACKNOWLEDGE",
+    "6": "SLAVE DEVICE BUSY",
+    "8": "MEMORY PARITY ERROR"
+}
+
 
 def array(type, length):
     if type in (SHORT, USHORT):
@@ -126,7 +136,7 @@ def str2bool(str_val):
     state = str_val.strip().lower()
     if state in ('t', 'y', 'true', 'yes', '1'):
         return True
-    elif state in ('f', 'n', 'false', 'no', '0'):
+    elif state in ('f', 'n', 'false', 'no', '0', ''):
         return False
     else:
         raise ValueError
@@ -160,6 +170,22 @@ def parse_transform_arg(func, arg):
     return parse_arg
 
 
+def transform_func_helper(multiple_lst):
+    """Fix floating point decimal places."""
+    value = 1
+    num_digits = 0
+    for val in multiple_lst:
+        value *= val
+        try:
+            num_digits += len(str(val).split(".")[1])
+        except IndexError: #int
+            pass
+    try:
+        return round(value, num_digits)
+    except TypeError: #string
+        return value
+
+
 def scale(multiplier):
     """
         Scales modbus register values on reading.  Inverse_func is
@@ -171,14 +197,16 @@ def scale(multiplier):
     multiplier = parse_transform_arg(scale, multiplier)
 
     def func(value):
-        return value*multiplier
+        return transform_func_helper([multiplier, value])
 
     def inverse_func(value):
         try:
-            inverse_value = value / float(multiplier)
-        except TypeError:
-            inverse_value = value
-        return inverse_value
+            try:
+                return value / float(multiplier)
+            except TypeError: #string
+                return value
+        except ZeroDivisionError:
+            return None
 
     func.inverse = inverse_func
     return func
@@ -194,12 +222,57 @@ def scale_int(multiplier):
     multiplier = parse_transform_arg(scale_int, multiplier)
 
     def func(value):
-        return value * multiplier
+        return int(value * multiplier)
 
     def inverse_func(value):
-        return int(value / float(multiplier))
+        try:
+            return int(value / float(multiplier))
+        except ZeroDivisionError:
+            return None
 
     func.inverse = inverse_func
+    return func
+
+
+def scale_reg(reg_name):
+    """
+        Scales modbus register values by scaling register value.
+
+    :param reg_name: scaling register name
+    :return: Returns a function used by the modbus client.
+    """
+    def func(value, scaling_register_value):
+        try:
+            return value / scaling_register_value
+        except ZeroDivisionError:
+            return None
+
+    def inverse_func(value, scaling_register_value):
+        return value * scaling_register_value
+
+    func.inverse = inverse_func
+    func.register_args = [reg_name,]
+    return func
+
+
+def scale_reg_pow_10(reg_name):
+    """
+        Same as scale, but multiplier is 10 power the scaling register value
+        For example: -1 -> 10^-1 = scale(0.1)
+                      0 -> 10^0  = scale(1)
+                      1 -> 10^1  = scale(10)
+
+    :param reg_name: scaling register name
+    :return: Returns a function used by the modbus client.
+    """
+    def func(value, scaling_register_value):
+        return transform_func_helper([value, pow(10, float(scaling_register_value))])
+
+    def inverse_func(value, scaling_register_value):
+        return value / pow(10, float(scaling_register_value))
+
+    func.inverse = inverse_func
+    func.register_args = [reg_name,]
     return func
 
 

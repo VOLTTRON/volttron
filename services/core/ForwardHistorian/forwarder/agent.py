@@ -77,7 +77,7 @@ def historian(config_path, **kwargs):
         _log.warning(w)
 
         # Populate the new values for the kwargs based upon the old data.
-        kwargs['capture_device_data'] = True if ("device" in service_topic_list  or "all" in service_topic_list) else False
+        kwargs['capture_device_data'] = True if ("device" in service_topic_list or "all" in service_topic_list) else False
         kwargs['capture_log_data'] = True if ("datalogger" in service_topic_list or "all" in service_topic_list) else False
         kwargs['capture_record_data'] = True if ("record" in service_topic_list or "all" in service_topic_list) else False
         kwargs['capture_analysis_data'] = True if ("analysis" in service_topic_list or "all" in service_topic_list) else False
@@ -129,12 +129,18 @@ class ForwardHistorian(BaseHistorian):
         self.required_target_agents = required_target_agents
         self.cache_only = cache_only
 
-        config = {"custom_topic_list": custom_topic_list,
-                  "topic_replace_list": self.topic_replace_list,
-                  "required_target_agents": self.required_target_agents,
-                  "destination_vip": self.destination_vip,
-                  "destination_serverkey": self.destination_serverkey,
-                  "cache_only": self.cache_only}
+        config = {
+            "custom_topic_list": custom_topic_list,
+            "topic_replace_list": self.topic_replace_list,
+            "required_target_agents": self.required_target_agents,
+            "destination_vip": self.destination_vip,
+            "destination_serverkey": self.destination_serverkey,
+            "cache_only": self.cache_only,
+            "capture_device_data": True,
+            "capture_analysis_data": True,
+            "capture_log_data": True,
+            "capture_record_data": True,
+        }
 
         self.update_default_config(config)
 
@@ -177,6 +183,13 @@ class ForwardHistorian(BaseHistorian):
                 self._current_custom_topics.remove(prefix)
             except (gevent.Timeout, Exception) as e:
                 _log.error("Failed to unsubscribe from {}: {}".format(prefix, repr(e)))
+
+    # Stop the BaseHistorian from setting the health status
+    def _update_status(self, *args, **kwargs):
+        pass
+
+    def _send_alert(self, *args, **kwargs):
+        pass
 
     # Redirect the normal capture functions to capture_data.
     def _capture_device_data(self, peer, sender, bus, topic, headers, message):

@@ -6,7 +6,7 @@ Communicating with BACnet devices requires that the BACnet Proxy Agent is config
 driver_config
 *************
 
-There are seven arguments for the "driver_config" section of the device configuration file:
+There are eight arguments for the "driver_config" section of the device configuration file:
 
     - **device_address** - Address of the device. If the target device is behind an IP to MS/TP router then Remote Station addressing will probably be needed for the driver to find the device.
     - **device_id** - BACnet ID of the device. Used to establish a route to the device at startup.
@@ -15,6 +15,7 @@ There are seven arguments for the "driver_config" section of the device configur
     - **proxy_address** - (Optional) VIP address of the BACnet proxy. Defaults to "platform.bacnet_proxy". See :ref:`bacnet-proxy-multiple-networks` for details. Unless your BACnet network has special needs you should not change this value.
     - **ping_retry_interval** - (Optional) The driver will ping the device to establish a route at startup. If the BACnet proxy is not available the driver will retry the ping at this interval until it succeeds. Defaults to 5.
     - **use_read_multiple** - (Optional) During a scrape the driver will tell the proxy to use a ReadPropertyMultipleRequest to get data from the device. Otherwise the proxy will use multiple ReadPropertyRequest calls. If the BACnet proxy is reporting a device is rejecting requests try changing this to false for that device. Be aware that setting this to false will cause scrapes for that device to take much longer. Only change if needed. Defaults to true.
+    - **cov_lifetime** - (Optional) When a device establishes a change of value subscription for a point, this argument will be used to determine the lifetime and renewal period for the subscription, in seconds. Defaults to 180. (Added to Master Driver version 3.2)
 
 Here is an example device configuration file:
 
@@ -64,9 +65,10 @@ The following columns are required for each row:
     - **Writable** - Either "TRUE" or "FALSE". Determines if the point can be written to. Only points labeled TRUE can be written to through the ActuatorAgent. Points labeled "TRUE" incorrectly will cause an error to be returned when an agent attempts to write to the point.
     - **Index** - Object ID of the BACnet object.
 
-The following column is optional:
+The following columns are optional:
 
     - **Write Priority** - BACnet priority for writing to this point. Valid values are 1-16. Missing this column or leaving the column blank will use the default priority of 16.
+    - **COV Flag** - Either "True" or False". Determines if a BACnet Change of Value subscription should be established for this point.  Missing this column or leaving the column blank will result in no change of value subscriptions being established. (Added to Master Driver version 3.2)
 
 Any additional columns will be ignored. It is common practice to include a **Point Name** or **Reference Point Name** to include the device documentation's name for the point and **Notes** and **Unit Details**" for additional information about a point.
 

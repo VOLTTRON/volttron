@@ -3,13 +3,14 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-====================================
-VOLTTRON\ :sup:`TM`\  documentation!
-====================================
+===================================
+VOLTTRON\ :sup:`TM`\ documentation!
+===================================
 
 |VOLTTRON Tagline|
 
-VOLTTRON\ :sup:`TM` is an open-source platform for distributed sensing and control. The platform provides services for collecting and storing data from buildings and devices and provides an environment for developing applications
+VOLTTRON\ :sup:`TM` is an open-source platform for distributed sensing and control. The platform provides services for
+collecting and storing data from buildings and devices and provides an environment for developing applications
 that interact with that data.
 
 Features
@@ -38,8 +39,11 @@ VOLTTRON\ :sup:`TM` is written in Python 2.7 and runs on Linux Operating Systems
 Installation
 ------------
 
-:ref:`Install VOLTTRON <install>` by running the following commands that installs needed
-:ref:`prerequisites <VOLTTRON-Prerequisites>`, clones the source code, then builds the virtual environment for using the platform.
+.. note::
+    For windows users we have created :ref:`Step by step instructions for installation using virtualbox <install>`
+
+Install the required :ref:`prerequisites <VOLTTRON-Prerequisites>` for your chosen Linux Distribution.  The following
+examples assume a apt base system.
 
 .. code-block:: bash
 
@@ -147,7 +151,7 @@ Contents:
    core_services/index
    specifications/index
    volttron_applications/index
-   API Documentation <apidocs>
+   VOLTTRON Platform API <volttron_api/modules>
 
 
 Indices and tables

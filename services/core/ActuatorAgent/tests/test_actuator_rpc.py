@@ -1102,7 +1102,6 @@ def test_get_default(publish_agent):
         'get_point',  # Method
         'fakedriver1/SampleWritableFloat1'  # point
     ).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result == 10.0
 
@@ -1158,11 +1157,62 @@ def test_get_success(publish_agent, cancel_schedules):
     print result
     assert result == 1.0
 
+@pytest.mark.actuator
+def test_get_success_with_point(publish_agent, cancel_schedules):
+    """
+    Test getting a float value of a point through RPC
+    Expected Result - value of the point
+
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at
+    the end of test so that other tests can use the same device and time slot
+    """
+    print ("\n**** test_get_value_success ****")
+    agentid = TEST_AGENT
+    taskid = 'task_set_and_get'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
+
+    start = str(datetime.now())
+    end = str(datetime.now() + timedelta(seconds=2))
+    msg = [
+        ['fakedriver1', start, end]
+    ]
+
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
+        PRIORITY_LOW,
+        msg).get(timeout=10)
+    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
+    print result
+    assert result['result'] == SUCCESS
+
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'set_point',  # Method
+        agentid,  # Requestor
+        'fakedriver1', 1.0, point='SampleWritableFloat1',  # Point to set
+          # New value
+    ).get(timeout=10)
+    assert result == 1.0
+
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'get_point',  # Method
+        'fakedriver1', point='SampleWritableFloat1'  # point
+    ).get(timeout=10)
+    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
+    print result
+    assert result == 1.0
+
 
 @pytest.mark.actuator
 def test_get_error_invalid_point(publish_agent):
     """
-    Test getting a float value of a point through pubsub with invalid point
+    Test getting a float value of a point through RPC with invalid point
 
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
@@ -1288,6 +1338,69 @@ def test_revert_point(publish_agent, cancel_schedules):
     # Value taken from fake_unit_testing.csv
     assert result == initial_value
 
+@pytest.mark.actuator
+def test_revert_point_with_point(publish_agent, cancel_schedules):
+    """
+    Test setting a float value of a point through rpc
+    Expected result = value of the actuation point
+
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
+    """
+    print ("\n**** test_set_float_value ****")
+    taskid = 'test_revert_point'
+    agentid = TEST_AGENT
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
+
+    start = str(datetime.now())
+    end = str(datetime.now() + timedelta(seconds=2))
+    msg = [
+        ['fakedriver0', start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
+        PRIORITY_LOW,
+        msg).get(timeout=10)
+    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
+    print result
+    assert result['result'] == SUCCESS
+
+    initial_value = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'get_point',  # Method
+        'fakedriver0', point='SampleWritableFloat1',  # Point to get
+    ).get(timeout=10)
+
+    test_value = initial_value + 1.0
+
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'set_point',  # Method
+        agentid,  # Requestor
+        'fakedriver0',  # Point to set
+        test_value, point='SampleWritableFloat1'  # New value
+    ).get(timeout=10)
+    assert result == test_value
+
+    publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'revert_point',  # Method
+        agentid,  # Requestor
+        'fakedriver0', point='SampleWritableFloat1'  # Point to revert
+    ).get(timeout=10)
+
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'get_point',  # Method
+        'fakedriver0', point='SampleWritableFloat1',  # Point to get
+    ).get(timeout=10)
+    # Value taken from fake_unit_testing.csv
+    assert result == initial_value
 
 @pytest.mark.actuator
 def test_revert_device(publish_agent, cancel_schedules):
@@ -1533,6 +1646,18 @@ def test_get_multiple_points(publish_agent, cancel_schedules):
                        'fakedriver1/SampleWritableFloat1': 1.0}
     assert errors == {}
 
+@pytest.mark.actuator
+def test_get_multiple_points_separate_pointname(publish_agent, cancel_schedules):
+    results, errors = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'get_multiple_points',
+        [['fakedriver0', 'SampleWritableFloat1'],
+         ['fakedriver1', 'SampleWritableFloat1']]).get(timeout=10)
+
+    assert results == {'fakedriver0/SampleWritableFloat1': 10.0,
+                       'fakedriver1/SampleWritableFloat1': 1.0}
+    assert errors == {}
+
 
 @pytest.mark.actuator
 def test_get_multiple_captures_errors(publish_agent, cancel_schedules):
@@ -1543,6 +1668,16 @@ def test_get_multiple_captures_errors(publish_agent, cancel_schedules):
 
     assert results == {}
     assert errors['fakedriver0/nonexistentpoint'] == "DriverInterfaceError('Point not configured on device: nonexistentpoint',)"
+
+@pytest.mark.actuator
+def test_get_multiple_captures_errors_invalid_point(publish_agent, cancel_schedules):
+    results, errors = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'get_multiple_points',
+        [42]).get(timeout=10)
+
+    assert results == {}
+    assert errors['42'] == "ValueError('Invalid topic: 42',)"
 
 
 @pytest.mark.actuator
@@ -1586,6 +1721,50 @@ def test_set_multiple_points(publish_agent, cancel_schedules):
         agentid,
         [('fakedriver0/SampleWritableFloat1', 42),
          ('fakedriver1/SampleWritableFloat1', 42)]).get(timeout=10)
+
+    assert result == {}
+
+@pytest.mark.actuator
+def test_set_multiple_points_separate_pointname(publish_agent, cancel_schedules):
+    agentid = TEST_AGENT
+    taskid0 = 'task_point_on_device_0'
+    taskid1 = 'task_point_on_device_1'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid0})
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid1})
+
+    start = str(datetime.now())
+    end = str(datetime.now() + timedelta(seconds=2))
+
+    msg = [
+        ['fakedriver0', start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid0,
+        PRIORITY_LOW,
+        msg).get(timeout=10)
+    assert result['result'] == SUCCESS
+
+    msg = [
+        ['fakedriver1', start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid1,
+        PRIORITY_LOW,
+        msg).get(timeout=10)
+    assert result['result'] == SUCCESS
+
+    result = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'set_multiple_points',
+        agentid,
+        [(('fakedriver0', 'SampleWritableFloat1'), 42),
+         (('fakedriver1', 'SampleWritableFloat1'), 42)]).get(timeout=10)
 
     assert result == {}
 

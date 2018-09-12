@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<oadr:oadrPayload xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" ><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/><ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/><ds:Reference URI="#signedObject"><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue>PRdl60o6w+ojuM6eelqNbmfi+6es9HnnOMKYt1X4iD0=</ds:DigestValue></ds:Reference></ds:SignedInfo><ds:SignatureValue>qWmhS2IUCfq5JL0NjnsiljRsCfa33/jWXXwFu1O8jBlX0AgzxoPvqwUVcsIq2Xs3NoStGESWnNtQyzpV4zfqSmve+C3kgtmOcZ3714gIwzHefWukwtReoI226dFanYu8hdd63ZrqQFmytOWBhlAKyG6bygUmAGNLGSv6vSFfN+GMFGHMKl8lp5HgL4r8FMXTGDf5fz76L7GXrJURJy1CqRFOpZAwXn+ilxThhnItdjpdzYBHMoZBhrZldleYYXV8hbTiOcITc2m7UAG40Wmon7gzEywLDikY6iow7nTlMm0rLLiH4dRVnPyJpz3GRYrLWHuG6oNP+iXC5WkeM0a9+w==</ds:SignatureValue><ds:KeyInfo><ds:KeyName>123</ds:KeyName><ds:X509Data><ds:X509Certificate>MIIEJDCCAoygAwIBAgIJAOvH0VfgNaeoMA0GCSqGSIb3DQEBCwUAMGwxCzAJBgNV
+BAYTAlVTMRkwFwYDVQQKExBPcGVuQURSIEFsbGlhbmNlMRcwFQYDVQQLEw5SU0Eg
+VkVOIENBMDAwMTEpMCcGA1UEAxMgVEVTVCBPcGVuQURSIEFsbGlhbmNlIFJTQSBW
+RU4gQ0EwHhcNMTcxMDI0MjA1NzA0WhcNMzcxMDI0MjA1NzA0WjBpMQswCQYDVQQG
+EwJVUzERMA8GA1UECgwIS2lzZW5zdW0xMjAwBgNVBAsMKVRFU1QgT3BlbkFEUiBB
+bGxpYW5jZSBSU0EgVkVOIENlcnRpZmljYXRlMRMwEQYDVQQDDApraS1ldmkuY29t
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA/POw6BJ65M0WliNEjPYK
+/hq2+L7H5mepllwAMVhQOO8DrRLiAeoLh7RuAuPdAMK05AphWtf87n05kQ13f6Bn
+IHYMvp6hlBJ0H8QzQMyVX8wktOnedoQRNzpRAoQeiSrqux2cjvxxmkYrk6qpctbB
+IXydniYXP4j8oUpqTWyVlxb0OyDnQ7J8IMq9zbmcJggZsLOAJnE17yfpYSAOWl72
+mV3TiMkF67cEgIO/ioIfcGqWuz4Bbrc1BfXBkU8dCuK956O1K03vfEIiC+ZlHutf
+NNu2n0bc+OxioWnEjePRSH2Gz6MnN/3M4I/vxatV8T98FFK+yto5W6yisxahKi7H
+5wIDAQABo0wwSjAOBgNVHQ8BAf8EBAMCBaAwHwYDVR0jBBgwFoAUhZV8Mgit2zkF
+xKk01XoYMehk76owFwYDVR0gBBAwDjAMBgorBgEEAYLELwEBMA0GCSqGSIb3DQEB
+CwUAA4IBgQAg0+PeYS13sCUClEe06BHIn+YwCq0JQDIfTvBsPKBub0tzPly8gLRa
+KFgJ0h07jracJc7wraeM1tnVc8HZC0+AWyIoYY8FjCliKfi7/UbwBI9HOS7YL2ew
+2TWKvM4PKiIZ6VjQR1SsCyyRDjATnLZBXIr1Kt4A92za8Sr6IXtOwANIWJIp8RME
+lWI0SE732FMwgU0QdKPxEwBMvvTZf+jPaEnCODLSg4ynuvKkUuNuLCRKFNuOzeko
+Yfl0xIvVsR9pHPkKLUn+D3PkG9oL/ejgpW+lpbdcmjYW5NBLIwBX+3YO1HUDjzAM
+lDsbRa4ISk9grojx3DstH1S/ugt81mV2TsETKtDgLGkaQpbGBl/IxYHW9ul0QZtg
+8X1M9alcb3ZkFjH8JxZZF11aKAFScvspZvfXi+0g6pj8H3e5oIpiKvY5ExHNx4Nv
+6LHq6AMSuvemmhIK2tOqHg4OR3u4udDUBtjQZmOXi5OHHLDZL3uHi+Frg4xi8/AL
+GpRyuBf8iLk=
+</ds:X509Certificate></ds:X509Data></ds:KeyInfo></ds:Signature>    <oadr:oadrSignedObject xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" Id="signedObject">
+        <oadr:oadrPoll xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110"  schemaVersion="1.0">
+            <ei:venID>919a1dfa088fe14b79f9</ei:venID>
+        </oadr:oadrPoll>
+    </oadr:oadrSignedObject>
+</oadr:oadrPayload>

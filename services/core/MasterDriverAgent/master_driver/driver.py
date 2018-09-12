@@ -48,8 +48,6 @@ from volttron.platform.messaging.topics import (DRIVER_TOPIC_BASE,
                                                 DEVICES_VALUE,
                                                 DEVICES_PATH)
 
-from volttron.platform.messaging import topics
-
 from volttron.platform.vip.agent.errors import VIPError, Again
 from driver_locks import publish_lock
 import datetime
@@ -365,3 +363,25 @@ class DriverAgent(BasicAgent):
     def revert_all(self, **kwargs):
         self.interface.revert_all(**kwargs)
 
+    def publish_cov_value(self, point_name, point_values):
+        """Called in the master driver agent to publish a cov from a point"""
+        utcnow = utils.get_aware_utc_now()
+        utcnow_string = utils.format_timestamp(utcnow)
+        headers = {
+            headers_mod.DATE: utcnow_string,
+            headers_mod.TIMESTAMP: utcnow_string,
+        }
+        for value in point_values:
+            results = {point_name: point_values[value]}
+            meta = {point_name: self.meta_data[point_name]}
+            message = [results, meta]
+
+            if self.publish_depth_first:
+                self._publish_wrapper(self.all_path_depth,
+                                      headers=headers,
+                                      message=message)
+            #
+            if self.publish_breadth_first:
+                self._publish_wrapper(self.all_path_breadth,
+                                      headers=headers,
+                                      message=message)

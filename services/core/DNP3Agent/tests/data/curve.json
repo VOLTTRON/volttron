@@ -1,0 +1,34 @@
+{
+  "name": "function_test_curve",
+  "function_id": "curve",
+  "function_name": "curve_function",
+  "Curve Edit Selector": 1,
+  "Curve Mode Type": 40,
+  "Curve Time Window": 5000,
+  "Curve Ramp Time": 24,
+  "Curve Revert Time": 51,
+  "Curve Maximum Number of Points": 671,
+  "Independent (X-Value) Units for Curve": 51,
+  "Dependent (Y-Value) Units for Curve": 625,
+  "Curve Time Constant": 612,
+  "Curve Decreasing Max Ramp Rate": 331,
+  "Curve Increasing Ramp Rate": 451,
+  "CurveStart-X": [
+                    {"Curve-X": 111,
+                     "Curve-Y": 2
+                    },
+                    {"Curve-X": 3,
+                     "Curve-Y": 4
+                    },
+                    {"Curve-X": 5,
+                     "Curve-Y": 6
+                    },
+                     {"Curve-X": 7,
+                      "Curve-Y": 8
+                    },
+                     {"Curve-X": 9,
+                      "Curve-Y": 10
+                    }
+                  ],
+  "Curve Number of Points": 5
+}

@@ -80,10 +80,12 @@ import struct
 import serial
 import six.moves
 import logging
+import math
 
 import modbus_tk.defines as modbus_constants
 import modbus_tk.modbus_tcp as modbus_tcp
 import modbus_tk.modbus_rtu as modbus_rtu
+from modbus_tk.exceptions import ModbusError
 
 import helpers
 
@@ -93,7 +95,8 @@ logger = logging.getLogger(__name__)
 Datum = collections.namedtuple('Datum', ('value', 'timestamp'))
 
 
-class ModbusFieldException(Exception): pass
+class ModbusFieldException(Exception):
+    pass
 
 
 class Field(object):
@@ -117,7 +120,7 @@ class Field(object):
 
     """
 
-    def __init__(self, name, address, datatype, units, precision, transform, table, op_mode):
+    def __init__(self, name, address, datatype, units, precision, transform, table, op_mode, mixed=False):
         self._name = name
         self._address = address
         self._type = datatype
@@ -126,6 +129,7 @@ class Field(object):
         self._transform = transform
         self._table = table
         self._op_mode = op_mode
+        self._mixed = mixed
 
     @property
     def is_struct_format(self):
@@ -133,7 +137,7 @@ class Field(object):
             format string, eg:  ">h", instead of one of the field tuples.
         """
         return isinstance(self._type, str) and len(self._type) and \
-               self._type[0] in (helpers.BIG_ENDIAN, helpers.LITTLE_ENDIAN)
+            self._type[0] in (helpers.BIG_ENDIAN, helpers.LITTLE_ENDIAN)
 
     @property
     def format_string(self):
@@ -203,7 +207,11 @@ class Field(object):
     def is_array_field(self):
         return self.length > 1 and self._type[helpers.FORMAT] != 's'
 
-    def value_for_transport(self, value):
+    @property
+    def mixed(self):
+        return self._mixed
+
+    def value_for_transport(self, value, modbus_client=None):
         """
             Modbus deals only in 2-byte registers.  4-byte types must be
             sent as 2 x 2-byte values. These are created using the
@@ -216,24 +224,17 @@ class Field(object):
 
         """
         transformed_value = value
-
+        transform_args = [value]
         if hasattr(self._transform, 'inverse'):
             try:
-                transformed_value = self._transform.inverse(value)
+                if hasattr(self._transform, 'register_args'):
+                    for reg_name in self._transform.register_args:
+                        transform_args.append(getattr(modbus_client, reg_name))
+
+                transformed_value = self._transform.inverse(*transform_args)
             except ZeroDivisionError:
                 transformed_value = 0
-
         return transformed_value
-
-    def values_for_transport(self, value):
-        """Like value_for_transport, but always returns a list"""
-        values = list()
-        a_value = self.value_for_transport(value)
-        if type(a_value) in (list, tuple):
-            values.extend(a_value)
-        else:
-            values.append(a_value)
-        return values
 
     @classmethod
     def default_holding_register(cls,  name, address, type, units, transform):
@@ -244,7 +245,7 @@ class Field(object):
     def absolute_address(self):
         return self.address + helpers.TABLE_ADDRESS[self._table]
 
-    def transform_value(self, value):
+    def transform_value(self, value, modbus_client=None):
         """
             Return the transformed value of the field or just
             the value if no transform has been defined.
@@ -252,7 +253,16 @@ class Field(object):
         :param value: value to be transformed.
         :return:
         """
-        return value if self._transform is None else self._transform(value)
+        transform_args = [value]
+        if value == 0:
+            return value
+        if self._transform:
+            if hasattr(self._transform, 'register_args'):
+                for reg_name in self._transform.register_args:
+                    transform_args.append(getattr(modbus_client, reg_name))
+
+            return self._transform(*transform_args)
+        return None
 
     @property
     def writable(self):
@@ -279,7 +289,10 @@ class Field(object):
         if datum is None or (datetime.utcnow() - datum.timestamp).total_seconds()*1000 >= instance.latency:
             instance.fetch_field(self)
             datum = instance.get_data(self)
-        return datum.value if datum else None
+        if datum:
+            value = Field.convert_mixed(self.type, datum.value) if self._mixed else datum.value
+            return self.transform_value(value, instance)
+        return None
 
     def __set__(self, instance, value):
         # If value is None, its a No Op, the field is not updated
@@ -288,7 +301,32 @@ class Field(object):
                 raise ValueError("Attempting to assign negative value to unisgned type.")
             if not instance._ignore_op_mode and self._op_mode == helpers.OP_MODE_READ_ONLY:
                 raise ValueError("Attempting to write read-only field.")
+            value = self.value_for_transport(value, instance)
+            if self._mixed:
+                value = Field.convert_mixed(self.type, value)
             instance._pending_writes[self] = value
+
+    @staticmethod
+    def convert_mixed(datatype, value):
+        """Reverse order of register
+
+        :param datatype: register type
+        :param value: register value to reverse
+        """
+        try:
+            datatype = datatype[1:] if datatype.startswith((">", "<")) else datatype
+            parse_struct = struct.Struct(">{}".format(datatype))
+        except AttributeError:
+            parse_struct = struct.Struct(">{}".format(datatype[0]))
+
+        value_bytes = parse_struct.pack(value)
+        register_values = []
+        for i in xrange(0, len(value_bytes), 2):
+            register_values.extend(struct.unpack(">H", value_bytes[i:i + 2]))
+        register_values.reverse()
+        convert_bytes = ''.join([struct.pack(">H", i) for i in register_values])
+
+        return parse_struct.unpack(convert_bytes)[0]
 
     def fix_address(self, address_style):
         # Translate modbus addressing to absolute offsets
@@ -412,6 +450,7 @@ class Request (object):
     def able_to_add(self, field):
         return self._table == field.table and \
            self._next_address == field.address and \
+           self._count + math.ceil(struct.calcsize(field.format_string) / 2.0) < 124 and \
            field.length == 1 and not field.byte_order and \
            not field.is_struct_format
 
@@ -446,7 +485,7 @@ class Request (object):
             field = self.fields[0]
             # Array
             field_values = {
-                field: Datum([field.transform_value(r) for r in results], now)
+                field: Datum([r for r in results], now)
             }
         else:
             # Struct formatted registers and processed as a single field.
@@ -454,10 +493,9 @@ class Request (object):
                 if type(results) is list or type(results) is tuple:
                     if len(results) > 1:
                         results = (results,)
-            # Everything else
+            # Everything else))
             field_values = collections.OrderedDict(
-                [(field, Datum(field.transform_value(value), now))
-                 for field, value in six.moves.zip(self.fields, results)]
+                [(field, Datum(value, now)) for field, value in six.moves.zip(self.fields, results)]
             )
         return field_values
 
@@ -548,7 +586,6 @@ class Client (object):
         :param write_single_values: Write registers or coils one value at a time (WRITE_SINGLE_REGISTER, etc.).
         :return:
         """
-
         # Build up metadata dictionaries from the Fields defined on the class
         self._build_meta()
 
@@ -558,7 +595,6 @@ class Client (object):
         self.slave_address = None if len(args) < 3 or args[2] is None else int(args[2])
 
         # Optional keyword arguments
-
         if self.slave_address is None:
             self.slave_address = kwargs.pop('slave_address', 1)
         self.latency = kwargs.pop('latency', 1000)
@@ -654,7 +690,10 @@ class Client (object):
                 threadsafe=False
             )
             self._data.update(request.parse_values(results))
-        except AttributeError as err:
+        except (AttributeError, ModbusError) as err:
+            if "Exception code" in err.message:
+                raise Exception("{0}: {1}".format(err.message,
+                                                  helpers.TABLE_EXCEPTION_CODE.get(err.message[-1], "UNDEFINED")))
             logger.warning("modbus read_all() failure on request: %s\tError: %s", request, err)
 
     def read_all(self):
@@ -665,7 +704,9 @@ class Client (object):
 
     def dump_all(self):
         self.read_all()
-        return [(f, d.value, d.timestamp) for f, d in six.iteritems(self._data)]
+        return [(f,
+                 f.transform_value(Field.convert_mixed(f.type, d.value), self) if f.mixed else f.transform_value(d.value, self),
+                 d.timestamp) for f, d in six.iteritems(self._data)]
 
     def write_all(self):
         logger.debug("In write_all")
@@ -673,7 +714,12 @@ class Client (object):
         if self.write_single_values:
             # Convert values if necessary for transport as modbus supported types.
             for f in fields:
-                values = f.values_for_transport(self._pending_writes.pop(f))
+                value = self._pending_writes.pop(f)
+                values = list()
+                if type(value) in (list, tuple):
+                    values.extend(value)
+                else:
+                    values.append(value)
                 logger.debug("Writing modbus data for field %s: %s", f.name, values)
                 self.client.execute(
                     self.slave_address,
@@ -689,7 +735,7 @@ class Client (object):
                 values = list()
                 # Convert values if necessary for transport as modbus supported types.
                 for f in r.fields:
-                    value = f.value_for_transport(self._pending_writes.pop(f))
+                    value = self._pending_writes.pop(f)
                     if type(value) in (list, tuple):
                         values.extend(value)
                     else:
