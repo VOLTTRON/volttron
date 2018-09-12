@@ -554,7 +554,7 @@ class TestFactsServicePublishToHistorian:
         )
         mock_requests.stop()
         assert agent_campus_with_missing_topics._successful_published \
-            == set([1, 2])
+            == set([1, 2, 3])
         rows = agent_campus_with_missing_topics._db_connection.execute(
             "SELECT * FROM unmapped_topics"
         ).fetchall()
@@ -632,7 +632,7 @@ class TestFactsServicePublishToHistorian:
         mock_timezone.stop()
         mock_requests.stop()
         assert agent_campus_with_missing_topics._successful_published \
-            == set([1, 2, 4, 5])
+            == set([1, 2, 3, 4, 5, 6])
         rows = agent_campus_with_missing_topics._db_connection.execute(
             "SELECT * FROM unmapped_topics"
         ).fetchall()
@@ -686,7 +686,7 @@ class TestFactsServicePublishToHistorian:
         mock_timezone.stop()
         mock_requests.stop()
         assert agent_campus_with_missing_topics._successful_published \
-            == set([1, 2])
+            == set([1, 2, 3])
         assert caplog.record_tuples == [
             ('facts_service.agent', logging.DEBUG,
              'Number of items to publish: 3'),
@@ -701,35 +701,38 @@ class TestFactsServicePublishToHistorian:
              "OperationalError('no such table: unmapped_topics',)"),
         ]
 
-    def test_error_during_publishing_to_facts(self, caplog, agent_bldg):
+    def test_error_during_publishing_to_facts(self, caplog, agent_campus):
         # arrange
-        agent_bldg.historian_setup()
+        agent_campus.historian_setup()
         caplog.clear()
         mock_requests = mock.patch(
             'requests.put',
-            side_effect=requests.exceptions.ConnectTimeout
+            side_effect=[mock.MagicMock(), requests.exceptions.ConnectTimeout]
         )
         mock_timezone = mock.patch(
             'facts_service.agent.get_localzone', return_value=pytz.utc
         )
         publish_list = [{
+            '_id': 1,
             'timestamp': dt.datetime(2018, 9, 10, 18, 20, 42),
             'source': 'scrape',
-            'topic': 'campus/building/fake_device/point_A',
+            'topic': 'campus/building_A/fake_device/point_1',
             'value': 24.32,
             'headers': {},
             'meta': {}
         }, {
+            '_id': 2,
             'timestamp': dt.datetime(2018, 9, 10, 18, 20, 42),
             'source': 'scrape',
-            'topic': 'campus/building/fake_device/point_B',
+            'topic': 'campus/building_A/fake_device/point_2',
             'value': True,
             'headers': {},
             'meta': {}
         }, {
+            '_id': 3,
             'timestamp': dt.datetime(2018, 9, 10, 18, 20, 43),
             'source': 'scrape',
-            'topic': 'campus/building/fake_device/point_C',
+            'topic': 'campus/building_B/fake_device/point',
             'value': 1.0,
             'headers': {},
             'meta': {}
@@ -737,22 +740,27 @@ class TestFactsServicePublishToHistorian:
         mock_requests.start()
         mock_timezone.start()
         # act
-        agent_bldg.publish_to_historian(publish_list)
+        agent_campus.publish_to_historian(publish_list)
         # assert
         mock_timezone.stop()
-        requests.put.assert_called_once_with(
+        requests.put.assert_any_call(
             'https://facts.prod.ecorithm.com/api/v1/building/42/facts',
             json=[{
                 'fact_time': '2018-09-10 18:20',
-                'native_name': 'campus/building/fake_device/point_A',
+                'native_name': 'campus/building_A/fake_device/point_1',
                 'fact_value': 24.32
             }, {
                 'fact_time': '2018-09-10 18:20',
-                'native_name': 'campus/building/fake_device/point_B',
+                'native_name': 'campus/building_A/fake_device/point_2',
                 'fact_value': 1
-            }, {
+            }],
+            auth=('foo', 'bar')
+        )
+        requests.put.assert_any_call(
+            'https://facts.prod.ecorithm.com/api/v1/building/1337/facts',
+            json=[{
                 'fact_time': '2018-09-10 18:20',
-                'native_name': 'campus/building/fake_device/point_C',
+                'native_name': 'campus/building_B/fake_device/point',
                 'fact_value': 1.0
             }],
             auth=('foo', 'bar')
@@ -763,10 +771,12 @@ class TestFactsServicePublishToHistorian:
              'Number of items to publish: 3'),
             ('facts_service.agent', logging.DEBUG,
              'Sending data to Facts Service'),
+            ('facts_service.agent', logging.DEBUG,
+             'Data successfully published to building 1337!'),
             ('facts_service.agent', logging.ERROR,
              'Error when attempting to publish to target: ConnectTimeout()')
         ]
-        assert agent_bldg._successful_published == set([])
+        assert agent_campus._successful_published == set([3])
 
 
 @pytest.mark.ecorithm
