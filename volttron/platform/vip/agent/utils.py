@@ -56,15 +56,16 @@ ks = KeyStore()
 
 
 def build_connection(identity, peer='', address=get_address(),
-                     publickey=ks.public, secretkey=ks.secret, **kwargs):
+                     publickey=ks.public, secretkey=ks.secret, message_bus=None, **kwargs):
     cn = Connection(address=address, identity=identity, peer=peer,
-                    publickey=publickey, secretkey=secretkey, **kwargs)
+                    publickey=publickey, secretkey=secretkey, message_bus=message_bus, **kwargs)
     return cn
 
 
 def build_agent(address=get_address(), identity=None, publickey=ks.public,
                 secretkey=ks.secret, timeout=10, serverkey=None,
-                agent_class=Agent, **kwargs):
+                agent_class=Agent, volttron_central_address=None,
+                volttron_central_instance_name=None, **kwargs):
     """ Builds a dynamic agent connected to the specifiedd address.
 
     All key parameters should have been encoded with
@@ -81,8 +82,11 @@ def build_agent(address=get_address(), identity=None, publickey=ks.public,
     :return: an agent based upon agent_class that has been started
     :rtype: agent_class
     """
+    message_bus = os.environ.get('MESSAGEBUS', 'zmq')
     agent = agent_class(address=address, identity=identity, publickey=publickey,
-                        secretkey=secretkey, serverkey=serverkey, **kwargs)
+                        secretkey=secretkey, serverkey=serverkey, volttron_central_address=volttron_central_address,
+                        volttron_central_instance_name=volttron_central_instance_name,
+                        message_bus=message_bus, **kwargs)
     event = gevent.event.Event()
     gevent.spawn(agent.core.run, event)
     with gevent.Timeout(timeout):

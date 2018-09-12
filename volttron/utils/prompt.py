@@ -44,7 +44,8 @@ y_or_n = ('Y', 'N', 'y', 'n')
 y = ('Y', 'y')
 n = ('N', 'n')
 
-def prompt_response(prompt, valid_answers=None, default=None, echo=True):
+def prompt_response(prompt, valid_answers=None, default=None, echo=True,
+                    mandatory=False):
 
     prompt += ' '
     if default is not None:
@@ -54,6 +55,9 @@ def prompt_response(prompt, valid_answers=None, default=None, echo=True):
             resp = raw_input(prompt)
             if resp == '' and default is not None:
                 return default
+            if str.strip(resp) == '' and mandatory:
+                print('Please enter a non empty value')
+                continue
             if valid_answers is None or resp in valid_answers:
                 return resp
             else:

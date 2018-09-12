@@ -57,6 +57,8 @@ from .agent.utils import strip_comments, create_file_if_missing, watch_file
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
 from volttron.platform.vip.agent.errors import VIPError
+from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
+from collections import defaultdict
 
 _log = logging.getLogger(__name__)
 
@@ -102,9 +104,14 @@ class AuthService(Agent):
         self._is_connected = False
         self._protected_topics_file = protected_topics_file
         self._protected_topics_file_path = os.path.abspath(protected_topics_file)
-        self._protected_topics = {}
+        self._protected_topics_for_rmq = ProtectedPubSubTopics()
         self._setup_mode = setup_mode
         self._auth_failures = []
+
+        def topics():
+            return defaultdict(set)
+
+        self._user_to_permissions = topics()
 
     @Core.receiver('onsetup')
     def setup_zap(self, sender, **kwargs):
@@ -116,6 +123,8 @@ class AuthService(Agent):
         self._read_protected_topics_file()
         self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
         self.core.spawn(watch_file, self._protected_topics_file_path, self._read_protected_topics_file)
+        if self.core.messagebus == 'rmq':
+            self.vip.peerlist.onadd.connect(self._check_topic_rules)
 
     def read_auth_file(self):
         _log.info('loading auth file %s', self.auth_file_path)
@@ -133,29 +142,37 @@ class AuthService(Agent):
         return protected
 
     def _read_protected_topics_file(self):
-        #Read protected topics file and send to router
+        # Read protected topics file and send to router
         try:
             create_file_if_missing(self._protected_topics_file)
             with open(self._protected_topics_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
                 data = FileObject(fil, close=False).read()
                 self._protected_topics = jsonapi.loads(data) if data else {}
-                self._send_protected_update_to_pubsub(self._protected_topics)
+                if self.core.messagebus == 'rmq':
+                    self._load_protected_topics_for_rmq()
+                    # Deferring the RMQ topic permissions to after "onstart" event
+                else:
+                    self._send_protected_update_to_pubsub(self._protected_topics)
         except Exception:
             _log.exception('error loading %s', self._protected_topics_file)
-
 
     def _send_update(self):
         user_to_caps = self.get_user_to_capabilities()
         peers = self.vip.peerlist().get(timeout=5)
         _log.debug("AUTH new capabilities update: {}".format(user_to_caps))
+
         for peer in peers:
-            self.vip.rpc.call(peer, 'auth.update', user_to_caps)
-        self._send_auth_update_to_pubsub()
+            if peer not in [self.core.identity]:
+                self.vip.rpc.call(peer, 'auth.update', user_to_caps)
+        if self.core.messagebus == 'rmq':
+            self._check_rmq_topic_permissions()
+        else:
+            self._send_auth_update_to_pubsub()
 
     def _send_auth_update_to_pubsub(self):
         user_to_caps = self.get_user_to_capabilities()
-        #Send auth update message to router
+        # Send auth update message to router
         json_msg = jsonapi.dumps(
             dict(capabilities=user_to_caps)
         )
@@ -173,7 +190,6 @@ class AuthService(Agent):
                 self.core.socket.send_vip(b'', 'pubsub', frames, copy=False)
             except VIPError as ex:
                 _log.error("Error in sending protected topics update to clear PubSub: " + str(ex))
-
 
     @Core.receiver('onstop')
     def stop_zap(self, sender, **kwargs):
@@ -194,7 +210,12 @@ class AuthService(Agent):
         blocked = {}
         wait_list = []
         timeout = None
-        self._send_auth_update_to_pubsub()
+        if self.core.messagebus == 'rmq':
+            # Check the topic permissions of all the connected agents
+            self._check_rmq_topic_permissions()
+        else:
+            self._send_protected_update_to_pubsub(self._protected_topics)
+
         while True:
             events = sock.poll(timeout)
             now = time()
@@ -212,6 +233,7 @@ class AuthService(Agent):
                     continue
                 response = zap[:4]
                 user = self.authenticate(domain, address, kind, credentials)
+                _log.debug("AUTH: authenticated user id: {0}, {1}".format(user, userid))
                 if user:
                     _log.info(
                         'authentication success: domain=%r, address=%r, '
@@ -224,7 +246,7 @@ class AuthService(Agent):
                         'authentication failure: domain=%r, address=%r, '
                         'mechanism=%r, credentials=%r',
                         domain, address, kind, credentials)
-                    #If in setup mode, add/update auth entry
+                    # If in setup mode, add/update auth entry
                     if self._setup_mode:
                         self._update_auth_entry(domain, address, kind, credentials[0], userid)
                         _log.info(
@@ -371,7 +393,7 @@ class AuthService(Agent):
         return self._get_authorizations(user_id, 2)
 
     def _update_auth_entry(self, domain, address, mechanism, credential, user_id):
-        #Make a new entry
+        # Make a new entry
         fields = {
             "domain": domain,
             "address": address,
@@ -391,10 +413,10 @@ class AuthService(Agent):
 
     def _update_auth_failures(self, domain, address, mechanism, credential, user_id):
         for entry in self._auth_failures:
-            #Check if failure entry exists. If so, increment the failure count
+            # Check if failure entry exists. If so, increment the failure count
             if ((entry['domain'] == domain) and
-                (entry['address'] == address) and
-                (entry['mechanism'] == mechanism) and
+                    (entry['address'] == address) and
+                    (entry['mechanism'] == mechanism) and
                     (entry['credentials'] == credential)):
                 entry['retries'] += 1
                 return
@@ -409,6 +431,124 @@ class AuthService(Agent):
         }
         self._auth_failures.append(dict(fields))
         return
+
+    def _load_protected_topics_for_rmq(self):
+        try:
+            write_protect = self._protected_topics['write-protect']
+        except KeyError:
+            write_protect = []
+
+        topics = ProtectedPubSubTopics()
+        try:
+            for entry in write_protect:
+                topics.add(entry['topic'], entry['capabilities'])
+        except KeyError:
+            _log.exception('invalid format for protected topics ')
+        else:
+            self._protected_topics_for_rmq = topics
+
+    def _check_topic_rules(self, sender, **kwargs):
+        delay = 0.05
+        self.core.spawn_later(delay, self._check_rmq_topic_permissions)
+
+    def _check_rmq_topic_permissions(self):
+        """
+        Go through the topic permissions for each agent based on the protected topic setting.
+        Update the permissions for the agent/user based on the latest configuration
+        :return:
+        """
+        return
+        # Get agent to capabilities mapping
+        user_to_caps = self.get_user_to_capabilities()
+        # Get topics to capabilities mapping
+        topic_to_caps = self._protected_topics_for_rmq.get_topic_caps()  # topic to caps
+
+        peers = self.vip.peerlist().get(timeout=5)
+        # _log.debug("USER TO CAPS: {0}, TOPICS TO CAPS: {1}, {2}".format(user_to_caps,
+        #                                                                 topic_to_caps,
+        #                                                                 self._user_to_permissions))
+        if not user_to_caps or not topic_to_caps:
+            # clear all old permission rules
+            for peer in peers:
+                self._user_to_permissions[peer].clear()
+        else:
+            for topic, caps_for_topic in topic_to_caps.iteritems():
+                for user in user_to_caps:
+                    try:
+                        caps_for_user = user_to_caps[user]
+                        common_caps = list(set(caps_for_user).intersection(caps_for_topic))
+                        if common_caps:
+                            self._user_to_permissions[user].add(topic)
+                        else:
+                            try:
+                                self._user_to_permissions[user].remove(topic)
+                            except KeyError as e:
+                                if not self._user_to_permissions[user]:
+                                    self._user_to_permissions[user] = set()
+                    except KeyError as e:
+                        try:
+                            self._user_to_permissions[user].remove(topic)
+                        except KeyError as e:
+                            if not self._user_to_permissions[user]:
+                                self._user_to_permissions[user] = set()
+
+        all = set()
+        for user in user_to_caps:
+            all.update(self._user_to_permissions[user])
+
+        # Set topic permissions now
+        for peer in peers:
+            not_allowed = all.difference(self._user_to_permissions[peer])
+            self._update_topic_permission_tokens(peer, not_allowed)
+
+    def _update_topic_permission_tokens(self, identity, not_allowed):
+        """
+        Make rules for read and write permission on topic (routing key)
+        for an agent based on protected topics setting
+        :param identity: identity of the agent
+        :return:
+        """
+        read_tokens = ["{instance}.{identity}".format(instance=self.core.instance_name, identity=identity),
+                       "__pubsub__.*"]
+        write_tokens = ["{instance}.*".format(instance=self.core.instance_name, identity=identity)]
+
+        if not not_allowed:
+            write_tokens.append("__pubsub__.{instance}.*".format(instance=self.core.instance_name))
+        else:
+            not_allowed_string = "|".join(not_allowed)
+            write_tokens.append("__pubsub__.{instance}.".format(instance=self.core.instance_name) +
+                                "^(!({not_allow})).*$".format(not_allow=not_allowed_string))
+        current = self.core.rmq_mgmt.get_topic_permissions_for_user(identity)
+        # _log.debug("CURRENT for identity: {0}, {1}".format(identity, current))
+        if current and isinstance(current, list):
+            current = current[0]
+            dift = False
+            read_allowed_str = ("|").join(read_tokens)
+            write_allowed_str = ("|").join(write_tokens)
+            if re.search(current['read'], read_allowed_str):
+                dift = True
+                current["read"] = read_allowed_str
+            if re.search(current["write"], write_allowed_str):
+                dift = True
+                current["write"] = write_allowed_str
+                # _log.debug("NEW {0}, DIFF: {1} ".format(current, dift))
+                # if dift:
+                #     set_topic_permissions_for_user(current, identity)
+        else:
+            current = dict()
+            current["exchange"] = "volttron"
+            current["read"] = "|".join(read_tokens)
+            current["write"] = "|".join(write_tokens)
+            # _log.debug("NEW {0}, New string ".format(current))
+            # set_topic_permissions_for_user(current, identity)
+
+    def _check_token(self, actual, allowed):
+        pending = actual[:]
+        for tk in actual:
+            if tk in allowed:
+                pending.remove(tk)
+        return pending
+
 
 class String(unicode):
     def __new__(cls, value):
@@ -460,6 +600,7 @@ class AuthEntry(object):
     :param bool enabled: Entry will only be used if this value is True
     :param kwargs: These extra arguments will be ignored
     """
+
     def __init__(self, domain=None, address=None, mechanism='CURVE',
                  credentials=None, user_id=None, groups=None, roles=None,
                  capabilities=None, comments=None, enabled=True, **kwargs):
@@ -532,7 +673,7 @@ class AuthEntry(object):
         if cred is None:
             raise AuthEntryInvalid(
                 'credentials parameter is required for mechanism {}'
-                .format(mechanism))
+                    .format(mechanism))
         if isregex(cred):
             return
         if mechanism == 'CURVE' and len(cred) != BASE64_ENCODED_CURVE_KEY_LEN:
@@ -742,9 +883,9 @@ class AuthFile(object):
             # Compare AuthEntry objects component-wise, rather than
             # using match, because match will evaluate regex.
             if (prev_entry.domain == entry.domain and
-                    prev_entry.address == entry.address and
-                    prev_entry.mechanism == entry.mechanism and
-                    prev_entry.credentials == entry.credentials):
+                        prev_entry.address == entry.address and
+                        prev_entry.mechanism == entry.mechanism and
+                        prev_entry.credentials == entry.credentials):
                 raise AuthFileEntryAlreadyExists([index])
 
     def _update_by_indices(self, auth_entry, indices):

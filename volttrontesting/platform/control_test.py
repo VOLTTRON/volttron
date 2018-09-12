@@ -69,6 +69,7 @@ def test_can_get_publickey(volttron_instance):
     """
     listener_identity = "listener_test"
     volttron_instance.is_running()
+    message_bus = os.environ.get('MESSAGEBUS', 'zmq')
 
     cn = volttron_instance.build_connection(peer='control')
     assert cn.is_peer_connected()

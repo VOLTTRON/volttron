@@ -61,11 +61,12 @@ class Connection(object):
 
     """
     def __init__(self, address, peer=None, publickey=None,
-                 secretkey=None, serverkey=None, volttron_home=None, **kwargs):
+                 secretkey=None, serverkey=None, volttron_home=None,
+                 instance_name=None, message_bus=None, **kwargs):
 
         self._log = logging.getLogger(__name__)
-        self._log.debug("Connection: {}, {}, {}, {}, {}"
-                   .format(address, peer, publickey, secretkey, serverkey))
+        self._log.debug("Connection: {}, {}, {}, {}, {}, {}"
+                   .format(address, peer, publickey, secretkey, serverkey, message_bus))
         self._address = address
         self._peer = peer
         self._serverkey = None
@@ -107,6 +108,8 @@ class Connection(object):
                              volttron_home=self.volttron_home,
                              enable_store=False,
                              reconnect_interval=1000,
+                             instance_name=instance_name,
+                             message_bus=message_bus,
                              **kwargs)
         # TODO the following should work as well, but doesn't.  Not sure why!
         # self._server = Agent(address=address, serverkey=serverkey,

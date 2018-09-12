@@ -44,6 +44,7 @@ import weakref
 from .base import SubsystemBase
 from ..dispatch import Signal
 from ..results import ResultsDictionary
+from volttron.platform.vip.socket import Message
 
 
 __all__ = ['PeerList']
@@ -61,9 +62,13 @@ class PeerList(SubsystemBase):
         self.ondrop = Signal()
 
     def list(self):
-        socket = self.core().socket
+        connection = self.core().connection
         result = next(self._results)
-        socket.send_vip(b'', b'peerlist', [b'list'], result.ident)
+        #socket.send_vip(b'', b'peerlist', [b'list'], result.ident)
+        connection.send_vip_object(Message(peer=b'',
+                                                subsystem=b'peerlist',
+                                                args=[b'list'],
+                                                id=result.ident))
         return result
 
     __call__ = list
