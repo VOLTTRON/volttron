@@ -35,9 +35,7 @@ import sys
 import json
 import gevent
 import logging
-from gevent.core import callback
 
-from volttron.platform import get_home, set_home
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.vip.agent import Agent, PubSub, Core
 from volttron.platform.agent import utils
@@ -48,10 +46,6 @@ from settings import remote_url, topics_prefixes_to_watch, heartbeat_period
 # Setup logging so that we could use it if we needed to.
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
-# Agents need access to VOLTTRON_HOME even if running in standalone mode
-# to keep track of keys. This sets a default home.
-set_home()
 
 logging.basicConfig(
                 level=logging.debug,
@@ -95,11 +89,11 @@ class StandAloneListener(Agent):
             headers_mod.DATE: now,
         }
         self.vip.pubsub.publish(
-            'pubsub', 'heartbeat/standalonelistener', headers, 
+            'pubsub', 'heartbeat/standalonelistener', headers,
             now).get(timeout=5)
 
-    
-if  __name__ == '__main__':
+
+if __name__ == '__main__':
     try:
         # If stdout is a pipe, re-open it line buffered
         if utils.isapipe(sys.stdout):
