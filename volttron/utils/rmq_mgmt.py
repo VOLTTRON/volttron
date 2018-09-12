@@ -746,6 +746,7 @@ class RabbitMQMgmt(object):
             # Wait for few more seconds and retry again
             gevent.sleep(5)
             response = self.create_vhost(vhost, ssl_auth=False)
+            print "Cannot create vhost {}".format(vhost)
             return response
 
         admin_user = self.config_opts['user']
@@ -805,9 +806,8 @@ class RabbitMQMgmt(object):
     def build_connection_param(self, rmq_user, ssl_auth=None):
         """
         Build Pika Connection parameters
-        :param identity:
-        :param instance_name:
-        :param ssl:
+        :param rmq_user: RabbitMQ user
+        :param ssl_auth: If SSL based connection or not
         :return:
         """
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
@@ -878,7 +878,7 @@ class RabbitMQMgmt(object):
 
     def create_user_with_permissions(self, user, permissions, ssl_auth=None):
         """
-        Create RabbitMQ user set permissions for it.
+        Create RabbitMQ user. Set permissions for it.
         :param identity: Identity of agent
         :param permissions: Configure+Read+Write permissions
         :param is_ssl: Flag to indicate if SSL connection or not
@@ -914,7 +914,7 @@ class RabbitMQMgmt(object):
                            write=write_access)
 
         if self.is_ssl:
-            self.crts.create_ca_signed_cert(rmq_user, overwrite=False)
+            self._crts.create_ca_signed_cert(rmq_user, overwrite=False)
 
         self.create_user_with_permissions(rmq_user, permissions, ssl_auth=self.is_ssl)
 
@@ -935,7 +935,7 @@ class RabbitMQMgmt(object):
         permissions = dict(configure=".*", read=".*", write=".*")
 
         if self.is_ssl:
-            self.crts.create_ca_signed_cert(rmq_user, overwrite=False)
+            self._crts.create_ca_signed_cert(rmq_user, overwrite=False)
 
         self.create_user_with_permissions(rmq_user, permissions, ssl_auth=self.is_ssl)
 

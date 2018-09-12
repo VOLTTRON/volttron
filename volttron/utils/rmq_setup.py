@@ -599,7 +599,7 @@ def setup_rabbitmq_volttron(type, verbose=False, prompt=False):
         rmq_mgmt = RabbitMQMgmt()
         success = rmq_mgmt.init_rabbitmq_setup()
         ssl_auth = config_opts.get('ssl', 'true')
-        if success and ssl_auth in ('true', 'True', 'TRUE'):
+        if success and ssl_auth in ('true', 'True', 'TRUE', True):
             _setup_for_ssl_auth(instance_name)
 
     if type in ["all", "federation"]:

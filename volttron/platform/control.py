@@ -511,7 +511,7 @@ def upgrade_agent(opts):
         publickey = None
         secretkey = None
 
-    def restore_agent_data(agent_uuid):
+    def restore_agents_data(agent_uuid):
         # if we are  upgrading transfer the old data on.
         if os.path.exists(backup_agent_file):
             new_agent_data_dir = find_agent_data_dir(opts, agent_uuid)
@@ -519,7 +519,7 @@ def upgrade_agent(opts):
             os.remove(backup_agent_file)
 
     install_agent(opts, publickey=publickey, secretkey=secretkey,
-                  callback=restore_agent_data)
+                  callback=restore_agents_data)
 
 
 def install_agent(opts, publickey=None, secretkey=None, callback=None):
