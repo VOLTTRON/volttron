@@ -1,7 +1,7 @@
 #!/bin/sh
 
 export CI=travis
-#export FAST_FAIL=1
+export FAST_FAIL=1
 
 
 # The context should already have been activated at this point.
@@ -10,7 +10,6 @@ export CI=travis
 #pip install pytest pytest-timeout --upgrade
 
 pip list
-lsb_release -a
 exit_code=0
 
 # Break up the tests to work around the issue in #754. Breaking them up allows 
