@@ -57,11 +57,8 @@ from .agent.utils import strip_comments, create_file_if_missing, watch_file
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
 from volttron.platform.vip.agent.errors import VIPError
-from volttron.utils.rmq_mgmt import set_topic_permissions_for_user, get_topic_permissions_for_user
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
 from collections import defaultdict
-import datetime
-from volttron.platform.agent import utils
 
 _log = logging.getLogger(__name__)
 
@@ -113,6 +110,7 @@ class AuthService(Agent):
 
         def topics():
             return defaultdict(set)
+
         self._user_to_permissions = topics()
 
     @Core.receiver('onsetup')
@@ -248,7 +246,7 @@ class AuthService(Agent):
                         'authentication failure: domain=%r, address=%r, '
                         'mechanism=%r, credentials=%r',
                         domain, address, kind, credentials)
-                    #If in setup mode, add/update auth entry
+                    # If in setup mode, add/update auth entry
                     if self._setup_mode:
                         self._update_auth_entry(domain, address, kind, credentials[0], userid)
                         _log.info(
@@ -395,7 +393,7 @@ class AuthService(Agent):
         return self._get_authorizations(user_id, 2)
 
     def _update_auth_entry(self, domain, address, mechanism, credential, user_id):
-        #Make a new entry
+        # Make a new entry
         fields = {
             "domain": domain,
             "address": address,
@@ -415,10 +413,10 @@ class AuthService(Agent):
 
     def _update_auth_failures(self, domain, address, mechanism, credential, user_id):
         for entry in self._auth_failures:
-            #Check if failure entry exists. If so, increment the failure count
+            # Check if failure entry exists. If so, increment the failure count
             if ((entry['domain'] == domain) and
-                (entry['address'] == address) and
-                (entry['mechanism'] == mechanism) and
+                    (entry['address'] == address) and
+                    (entry['mechanism'] == mechanism) and
                     (entry['credentials'] == credential)):
                 entry['retries'] += 1
                 return
@@ -449,7 +447,7 @@ class AuthService(Agent):
         else:
             self._protected_topics_for_rmq = topics
 
-    def _check_topic_rules(self, sender, ** kwargs):
+    def _check_topic_rules(self, sender, **kwargs):
         delay = 0.05
         self.core.spawn_later(delay, self._check_rmq_topic_permissions)
 
@@ -511,7 +509,7 @@ class AuthService(Agent):
         :return:
         """
         read_tokens = ["{instance}.{identity}".format(instance=self.core.instance_name, identity=identity),
-                        "__pubsub__.*"]
+                       "__pubsub__.*"]
         write_tokens = ["{instance}.*".format(instance=self.core.instance_name, identity=identity)]
 
         if not not_allowed:
@@ -520,8 +518,8 @@ class AuthService(Agent):
             not_allowed_string = "|".join(not_allowed)
             write_tokens.append("__pubsub__.{instance}.".format(instance=self.core.instance_name) +
                                 "^(!({not_allow})).*$".format(not_allow=not_allowed_string))
-        current = get_topic_permissions_for_user(identity)
-        #_log.debug("CURRENT for identity: {0}, {1}".format(identity, current))
+        current = self.core.rmq_mgmt.get_topic_permissions_for_user(identity)
+        # _log.debug("CURRENT for identity: {0}, {1}".format(identity, current))
         if current and isinstance(current, list):
             current = current[0]
             dift = False
@@ -533,16 +531,16 @@ class AuthService(Agent):
             if re.search(current["write"], write_allowed_str):
                 dift = True
                 current["write"] = write_allowed_str
-            #_log.debug("NEW {0}, DIFF: {1} ".format(current, dift))
-            # if dift:
-            #     set_topic_permissions_for_user(current, identity)
+                # _log.debug("NEW {0}, DIFF: {1} ".format(current, dift))
+                # if dift:
+                #     set_topic_permissions_for_user(current, identity)
         else:
             current = dict()
             current["exchange"] = "volttron"
             current["read"] = "|".join(read_tokens)
             current["write"] = "|".join(write_tokens)
             # _log.debug("NEW {0}, New string ".format(current))
-            #set_topic_permissions_for_user(current, identity)
+            # set_topic_permissions_for_user(current, identity)
 
     def _check_token(self, actual, allowed):
         pending = actual[:]
@@ -550,6 +548,7 @@ class AuthService(Agent):
             if tk in allowed:
                 pending.remove(tk)
         return pending
+
 
 class String(unicode):
     def __new__(cls, value):
@@ -601,6 +600,7 @@ class AuthEntry(object):
     :param bool enabled: Entry will only be used if this value is True
     :param kwargs: These extra arguments will be ignored
     """
+
     def __init__(self, domain=None, address=None, mechanism='CURVE',
                  credentials=None, user_id=None, groups=None, roles=None,
                  capabilities=None, comments=None, enabled=True, **kwargs):
@@ -673,7 +673,7 @@ class AuthEntry(object):
         if cred is None:
             raise AuthEntryInvalid(
                 'credentials parameter is required for mechanism {}'
-                .format(mechanism))
+                    .format(mechanism))
         if isregex(cred):
             return
         if mechanism == 'CURVE' and len(cred) != BASE64_ENCODED_CURVE_KEY_LEN:
@@ -883,9 +883,9 @@ class AuthFile(object):
             # Compare AuthEntry objects component-wise, rather than
             # using match, because match will evaluate regex.
             if (prev_entry.domain == entry.domain and
-                    prev_entry.address == entry.address and
-                    prev_entry.mechanism == entry.mechanism and
-                    prev_entry.credentials == entry.credentials):
+                        prev_entry.address == entry.address and
+                        prev_entry.mechanism == entry.mechanism and
+                        prev_entry.credentials == entry.credentials):
                 raise AuthFileEntryAlreadyExists([index])
 
     def _update_by_indices(self, auth_entry, indices):

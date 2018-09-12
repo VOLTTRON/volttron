@@ -10,7 +10,6 @@ export FAST_FAIL=1
 #pip install pytest pytest-timeout --upgrade
 
 pip list
-
 exit_code=0
 
 # Break up the tests to work around the issue in #754. Breaking them up allows 
@@ -38,10 +37,13 @@ echo "installing ERLANG"
 wget -O - 'https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc' | sudo apt-key add -
 echo 'deb https://dl.bintray.com/rabbitmq/debian trusty erlang-21.x'|sudo tee --append /etc/apt/sources.list.d/bintray.erlang.list
 sudo apt-get update
+sudo apt-get purge erlang*
+sudo apt-get install -yf
 sudo apt-get install -y erlang-diameter erlang-eldap
 sudo apt-get install -y erlang-nox
 
-python bootstrap.py --rabbitmq
+echo "bootstrapping RABBITMQ"
+python bootstrap.py --rabbitmq --market
 
 echo "rabbitmq status"
 $HOME/rabbitmq_server/rabbitmq_server-3.7.7/sbin/rabbitmqctl status

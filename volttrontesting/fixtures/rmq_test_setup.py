@@ -4,9 +4,8 @@ import requests
 
 from volttron.platform import instance_setup, get_home
 from volttron.platform.agent.utils import store_message_bus_config
-from volttron.utils.rmq_mgmt import get_users, delete_user, delete_vhost, delete_exchange
-from volttron.utils.rmq_setup import stop_rabbit
-
+from volttron.utils.rmq_mgmt import RabbitMQMgmt
+from volttron.utils.rmq_setup import setup_rabbitmq_volttron, stop_rabbit
 
 HOME = os.environ.get('HOME')
 VOLTTRON_INSTANCE_NAME = 'volttron_test'
@@ -55,9 +54,9 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False):
     store_message_bus_config(message_bus='rmq',
                              instance_name=VOLTTRON_INSTANCE_NAME)
 
-    instance_setup.setup_rabbitmq_volttron(type='single',
-                                           verbose=False,
-                                           prompt=False)
+    setup_rabbitmq_volttron(type='single',
+                            verbose=False,
+                            prompt=False)
 
 
 def cleanup_rmq_volttron_setup(vhome=None, ssl_auth=False):
@@ -73,26 +72,26 @@ def cleanup_rmq_volttron_setup(vhome=None, ssl_auth=False):
     """
     if vhome:
         os.environ['VOLTTRON_HOME'] = vhome
-
-    users_to_remove = get_users()
+    rmq_mgmt = RabbitMQMgmt()
+    users_to_remove = rmq_mgmt.get_users()
     users_to_remove.remove('guest')
     if ssl_auth:
-        users_to_remove.remove('volttron_test-admin')
+        users_to_remove.remove('{}-admin'.format(VOLTTRON_INSTANCE_NAME))
 
     for user in users_to_remove:
         try:
-            delete_user(user)
+            rmq_mgmt.delete_user(user)
         except (AttributeError, requests.exceptions.HTTPError):
             pass
 
-    delete_exchange(exchange='undeliverable',
-                    vhost=rabbitmq_config['virtual-host'])
-    delete_exchange(exchange='volttron',
-                    vhost=rabbitmq_config['virtual-host'])
-    delete_vhost(vhost=rabbitmq_config['virtual-host'])
+    rmq_mgmt.delete_exchange(exchange='undeliverable',
+                             vhost=rabbitmq_config['virtual-host'])
+    rmq_mgmt.delete_exchange(exchange='volttron',
+                             vhost=rabbitmq_config['virtual-host'])
+    rmq_mgmt.delete_vhost(vhost=rabbitmq_config['virtual-host'])
 
     if ssl_auth:
-        delete_user('volttron_test-admin')
+        rmq_mgmt.delete_user('volttron_test-admin')
 
     stop_rabbit(rmq_home=rabbitmq_config['rmq-home'])
 

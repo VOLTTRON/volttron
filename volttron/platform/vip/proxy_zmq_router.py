@@ -46,8 +46,6 @@ from volttron.platform.agent import json as jsonapi
 from .socket import Message
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN, ENOTSOCK, EADDRINUSE
-from volttron.utils.rmq_mgmt import set_user_permissions as set_rmq_user_permissions, \
-    get_user_permissions as get_rmq_user_permissions
 
 _log = logging.getLogger(__name__)
 

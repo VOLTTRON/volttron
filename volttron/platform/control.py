@@ -53,9 +53,10 @@ import uuid
 import hashlib
 import tarfile
 import subprocess
-
+import requests
 import gevent
 import gevent.event
+
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform import get_home, get_address
 
@@ -71,7 +72,7 @@ from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.socket import Message
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from .vip.agent.errors import VIPError
-from volttron.utils.rmq_mgmt import *
+from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 
@@ -91,9 +92,7 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
 message_bus = utils.get_messagebus()
-rmq_auth = False
-if message_bus == 'rmq':
-    rmq_auth = is_ssl_connection()
+rmq_mgmt = None
 
 CHUNK_SIZE = 4096
 
@@ -512,15 +511,15 @@ def upgrade_agent(opts):
         publickey = None
         secretkey = None
 
-    def restore_agent_data(agent_uuid):
+    def restore_agents_data(agent_uuid):
         # if we are  upgrading transfer the old data on.
         if os.path.exists(backup_agent_file):
-            new_agent_data_dir = find_agent_data_dir(opts, new_agent_uuid)
+            new_agent_data_dir = find_agent_data_dir(opts, agent_uuid)
             restore_agent_data(backup_agent_file, new_agent_data_dir)
             os.remove(backup_agent_file)
 
     install_agent(opts, publickey=publickey, secretkey=secretkey,
-                  callback=restore_agent_data)
+                  callback=restore_agents_data)
 
 
 def install_agent(opts, publickey=None, secretkey=None, callback=None):
@@ -1520,7 +1519,7 @@ def get_keys(opts):
 # RabbitMQ management methods
 def add_vhost(opts):
     try:
-        create_vhost(opts.vhost)
+        rmq_mgmt.create_vhost(opts.vhost)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error adding a Virtual Host: {} \n".format(opts.vhost))
     except (ConnectionError, NewConnectionError) as e:
@@ -1528,7 +1527,7 @@ def add_vhost(opts):
                       "Check Connection Parameters: {} \n".format(e))
 
 def add_user(opts):
-    create_user(opts.user, opts.pwd)
+    rmq_mgmt.create_user(opts.user, opts.pwd)
     permissions = dict(configure="", read="", write="")
     read = _ask_yes_no("Do you want to set READ permission ")
     write = _ask_yes_no("Do you want to set WRITE permission ")
@@ -1541,7 +1540,7 @@ def add_user(opts):
     if configure:
         permissions['configure'] = ".*"
     try:
-        set_user_permissions(permissions, opts.user)
+        rmq_mgmt.set_user_permissions(permissions, opts.user)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error Setting User permissions : {} \n".format(opts.user))
     except (ConnectionError, NewConnectionError) as e:
@@ -1563,8 +1562,8 @@ def add_exchange(opts):
             properties['alternate-exchange'] = alternate_exch
             # create alternate exchange
             new_props = dict(durable=durable, type='fanout', auto_delete=auto_delete)
-            create_exchange(alternate_exch, new_props)
-        create_exchange(opts.name, properties)
+            rmq_mgmt.create_exchange(alternate_exch, new_props)
+        rmq_mgmt.create_exchange(opts.name, properties)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error Adding Exchange : {} \n".format(opts.name))
     except (ConnectionError, NewConnectionError) as e:
@@ -1577,7 +1576,7 @@ def add_queue(opts):
     auto_delete = _ask_yes_no("Do you want queue to be auto deleted ")
     properties = dict(durable=durable, auto_delete=auto_delete)
     try:
-        create_queue(opts.name, properties)
+        rmq_mgmt.create_queue(opts.name, properties)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error Adding Queue : {} \n".format(opts.name))
     except (ConnectionError, NewConnectionError) as e:
@@ -1587,7 +1586,7 @@ def add_queue(opts):
 
 def list_vhosts(opts):
     try:
-        vhosts = get_virtualhosts()
+        vhosts = rmq_mgmt.get_virtualhosts()
         for item in vhosts:
             _stdout.write(item+"\n")
     except requests.exceptions.HTTPError as e:
@@ -1598,7 +1597,7 @@ def list_vhosts(opts):
 
 def list_users(opts):
     try:
-        users = get_users()
+        users = rmq_mgmt.get_users()
         for item in users:
             _stdout.write(item+"\n")
     except requests.exceptions.HTTPError as e:
@@ -1610,7 +1609,7 @@ def list_users(opts):
 
 def list_user_properties(opts):
     try:
-        props = get_user_props(opts.user)
+        props = rmq_mgmt.get_user_props(opts.user)
         for key, value in props.iteritems():
             _stdout.write("{0}: {1} \n".format(key, value))
     except requests.exceptions.HTTPError as e:
@@ -1622,7 +1621,7 @@ def list_user_properties(opts):
 
 def list_exchanges(opts):
     try:
-        exchanges = get_exchanges()
+        exchanges = rmq_mgmt.get_exchanges()
         for exch in exchanges:
             _stdout.write(exch+"\n")
     except requests.exceptions.HTTPError as e:
@@ -1635,7 +1634,7 @@ def list_exchanges(opts):
 def list_exchanges_with_properties(opts):
     exchanges = None
     try:
-        exchanges = get_exchanges_with_props()
+        exchanges = rmq_mgmt.get_exchanges_with_props()
     except requests.exceptions.HTTPError as e:
         _stdout.write("No exchanges found \n")
         return
@@ -1666,7 +1665,7 @@ def list_exchanges_with_properties(opts):
 def list_queues(opts):
     queues = None
     try:
-        queues = get_queues()
+        queues = rmq_mgmt.get_queues()
     except requests.exceptions.HTTPError as e:
         _stdout.write("No queues found \n")
         return
@@ -1682,7 +1681,7 @@ def list_queues(opts):
 def list_queues_with_properties(opts):
     queues = None
     try:
-        queues = get_queues_with_props()
+        queues = rmq_mgmt.get_queues_with_props()
     except requests.exceptions.HTTPError as e:
         _stdout.write("No queues found \n")
         return
@@ -1715,7 +1714,7 @@ def list_queues_with_properties(opts):
 
 def list_connections(opts):
     try:
-        conn = get_connection()
+        conn = rmq_mgmt.get_connection()
     except requests.exceptions.HTTPError as e:
         _stdout.write("No connections found \n")
         return
@@ -1728,7 +1727,7 @@ def list_connections(opts):
 def list_fed_parameters(opts):
     parameters = None
     try:
-        parameters = get_parameter('federation-upstream')
+        parameters = rmq_mgmt.get_parameter('federation-upstream')
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Federation Parameters Found \n")
         return
@@ -1753,7 +1752,7 @@ def list_fed_parameters(opts):
 def list_shovel_parameters(opts):
     parameters = None
     try:
-        parameters = get_parameter('shovel')
+        parameters = rmq_mgmt.get_parameter('shovel')
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Shovel Parameters Found \n")
         return
@@ -1788,7 +1787,7 @@ def list_shovel_parameters(opts):
 def list_bindings(opts):
     bindings = None
     try:
-        bindings = get_bindings(opts.exchange)
+        bindings = rmq_mgmt.get_bindings(opts.exchange)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Bindings Found \n")
         return
@@ -1818,7 +1817,7 @@ def list_bindings(opts):
 def list_policies(opts):
     policies = None
     try:
-        policies = get_policies()
+        policies = rmq_mgmt.get_policies()
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Policies Found \n")
         return
@@ -1843,7 +1842,7 @@ def list_policies(opts):
 def remove_vhosts(opts):
     try:
         for vhost in opts.vhost:
-            delete_vhost(vhost)
+            rmq_mgmt.delete_vhost(vhost)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Vhost Found {} \n".format(opts.vhost))
     except (ConnectionError, NewConnectionError) as e:
@@ -1854,7 +1853,7 @@ def remove_vhosts(opts):
 def remove_users(opts):
     try:
         for user in opts.user:
-            delete_user(user)
+            rmq_mgmt.delete_user(user)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No User Found {} \n".format(opts.user))
     except (ConnectionError, NewConnectionError) as e:
@@ -1865,7 +1864,7 @@ def remove_users(opts):
 def remove_exchanges(opts):
     try:
         for e in opts.exchanges:
-            delete_exchange(e)
+            rmq_mgmt.delete_exchange(e)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Exchange Found {} \n".format(opts.exchanges))
     except (ConnectionError, NewConnectionError) as e:
@@ -1876,7 +1875,7 @@ def remove_exchanges(opts):
 def remove_queues(opts):
     try:
         for q in opts.queues:
-            delete_queue(q)
+            rmq_mgmt.delete_queue(q)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Queues Found {} \n".format(opts.queues))
     except (ConnectionError, NewConnectionError) as e:
@@ -1887,7 +1886,7 @@ def remove_queues(opts):
 def remove_fed_parameters(opts):
     try:
         for param in opts.parameters:
-            delete_multiplatform_parameter('federation-upstream', param)
+            rmq_mgmt.delete_multiplatform_parameter('federation-upstream', param)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Federation Parameters Found {} \n".format(opts.parameters))
     except (ConnectionError, NewConnectionError) as e:
@@ -1898,7 +1897,7 @@ def remove_fed_parameters(opts):
 def remove_shovel_parameters(opts):
     try:
         for param in opts.parameters:
-            delete_multiplatform_parameter('shovel', param)
+            rmq_mgmt.delete_multiplatform_parameter('shovel', param)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Shovel Parameters Found {} \n".format(opts.parameters))
     except (ConnectionError, NewConnectionError) as e:
@@ -1909,7 +1908,7 @@ def remove_shovel_parameters(opts):
 def remove_policies(opts):
     try:
         for policy in opts.policies:
-            delete_policy(policy)
+            rmq_mgmt.delete_policy(policy)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Policies Found {} \n".format(opts.policies))
     except (ConnectionError, NewConnectionError) as e:
@@ -2359,7 +2358,8 @@ def main(argv=sys.argv):
     stats.set_defaults(func=do_stats, op='status')
 
 #==============================================================================
-    global message_bus
+    global message_bus, rmq_mgmt
+    rmq_mgmt = RabbitMQMgmt()
     if message_bus == 'rmq':
         # Add commands
         rabbitmq_cmds = add_parser("rabbitmq", help="manage rabbitmq")
