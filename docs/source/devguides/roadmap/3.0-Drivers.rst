@@ -8,6 +8,8 @@ Changes from v2.X
 -  Drivers are now agents
 -  No more smap config file, now it is an Agent config file.
 -  MODBUS, add port argument to driver\_config dictionary
+-  BACnet Change of Value services are supported by the Master
+   Driver Agent starting with version 3.2.
 -  Agent config file has links to driver config files which have links
    to driver register file.
 

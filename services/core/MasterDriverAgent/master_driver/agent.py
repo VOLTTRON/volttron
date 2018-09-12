@@ -55,7 +55,7 @@ from driver_locks import configure_socket_lock, configure_publish_lock
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.1.1'
+__version__ = '3.2'
 
 class OverrideError(DriverInterfaceError):
     """Error raised when the user tries to set/revert point when global override is set."""
@@ -427,7 +427,7 @@ class MasterDriverAgent(Agent):
                 _log.info("Mean total publish time: "+str(mean))
                 _log.info("Std dev publish time: "+str(stdev))
                 sys.exit(0)
-        
+
     @RPC.export
     def get_point(self, path, point_name, **kwargs):
         """RPC method
@@ -767,6 +767,14 @@ class MasterDriverAgent(Agent):
             #If device is in list of overriden devices, remove it.
             if device in self._override_devices:
                 self._override_devices.remove(device)
+
+    @RPC.export
+    def forward_bacnet_cov_value(self, source_address, point_name, point_values):
+        """Called by the BACnet Proxy to pass the COV value to the driver agent for publishing"""
+        for driver in self.instances.itervalues():
+            if driver.interface.target_address == source_address:
+                driver.publish_cov_value(point_name, point_values)
+
 
 def main(argv=sys.argv):
     """Main method called to start the agent."""

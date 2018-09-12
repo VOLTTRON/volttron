@@ -52,8 +52,6 @@
 
 
 from master_driver.interfaces import BaseInterface, BaseRegister
-from csv import DictReader
-from StringIO import StringIO
 import logging
 
 from datetime import datetime, timedelta
@@ -64,8 +62,6 @@ from volttron.platform.jsonrpc import RemoteError
 
 #Logging is completely configured by now.
 _log = logging.getLogger(__name__)
-
-
 
 class Register(BaseRegister):
     def __init__(self, instance_number, object_type, property_name, read_only, pointName, units,
@@ -79,20 +75,26 @@ class Register(BaseRegister):
         self.priority = priority
         self.index = list_index
 
+DEFAULT_COV_LIFETIME = 180
+COV_UPDATE_BUFFER = 3
 
 class Interface(BaseInterface):
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
         self.register_count = 10000
         self.register_count_divisor = 1
-
+        self.cov_points = []
 
     def configure(self, config_dict, registry_config_str):
         self.min_priority = config_dict.get("min_priority", 8)
         self.parse_config(registry_config_str)
-        self.target_address = config_dict["device_address"]
-        self.device_id = int(config_dict["device_id"])
+        self.target_address = config_dict.get("device_address")
+        self.device_id = int(config_dict.get("device_id"))
+
+        self.cov_lifetime = config_dict.get("cov_lifetime", DEFAULT_COV_LIFETIME)
+
         self.proxy_address = config_dict.get("proxy_address", "platform.bacnet_proxy")
+
         self.max_per_request = config_dict.get("max_per_request")
         self.use_read_multiple = config_dict.get("use_read_multiple", True)
         self.timeout = float(config_dict.get("timeout", 30.0))
@@ -101,6 +103,10 @@ class Interface(BaseInterface):
         self.scheduled_ping = None
 
         self.ping_target()
+
+        # list of points to establish change of value subscriptions with, generated from the registry config
+        for point_name in self.cov_points:
+            self.establish_cov_subscription(point_name, DEFAULT_COV_LIFETIME, True)
 
     def schedule_ping(self):
         if self.scheduled_ping is None:
@@ -163,6 +169,7 @@ class Interface(BaseInterface):
         point_map = {}
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False)
+
         for register in read_registers + write_registers:
             point_map[register.point_name] = [register.object_type,
                                               register.instance_number,
@@ -215,16 +222,21 @@ class Interface(BaseInterface):
 
         for regDef in configDict:
             #Skip lines that have no address yet.
-#             if not regDef['Point Name']:
-#                 continue
+            if not regDef.get('Volttron Point Name'):
+                continue
 
-            io_type = regDef['BACnet Object Type']
-            read_only = regDef['Writable'].lower() != 'true'
-            point_name = regDef['Volttron Point Name']
-            index = int(regDef['Index'])
+            io_type = regDef.get('BACnet Object Type')
+            read_only = regDef.get('Writable').lower() != 'true'
+            point_name = regDef.get('Volttron Point Name')
+
+            # checks if the point is flagged for change of value
+            is_cov = regDef.get("COV Flag", 'false').lower() == "true"
+
+            index = int(regDef.get('Index'))
 
             list_index = regDef.get('Array Index', '')
             list_index = list_index.strip()
+
             if not list_index:
                 list_index = None
             else:
@@ -244,8 +256,8 @@ class Interface(BaseInterface):
                                                            min=self.min_priority))
 
             description = regDef.get('Notes', '')
-            units = regDef['Units']
-            property_name = regDef['Property']
+            units = regDef.get('Units')
+            property_name = regDef.get('Property')
 
             register = Register(index,
                                 io_type,
@@ -258,3 +270,27 @@ class Interface(BaseInterface):
                                 list_index = list_index)
 
             self.insert_register(register)
+
+            if is_cov:
+                self.cov_points.append(point_name)
+
+
+    def establish_cov_subscription(self, point_name, lifetime, renew=False):
+        """Asks the BACnet proxy to establish a COV subscription for the point via RPC.
+        If lifetime is specified, the subscription will live for that period, else the
+        subscription will last indefinitely. Default period of 3 minutes. If renew is
+        True, the the core scheduler will call this method again near the expiration
+        of the subscription."""
+        register = self.get_register_by_name(point_name)
+        try:
+            self.vip.rpc.call(self.proxy_address, 'create_COV_subscription', self.target_address,
+                              point_name, register.object_type, register.instance_number,
+                              lifetime=lifetime)
+        except errors.Unreachable:
+            _log.warning("Unable to establish a subscription via the bacnet proxy as it was unreachable.")
+        # Schedule COV resubscribe
+        if renew and (lifetime > COV_UPDATE_BUFFER):
+            now = datetime.now()
+            next_sub_update = now + timedelta(seconds=(lifetime - COV_UPDATE_BUFFER))
+            self.core.schedule(next_sub_update, self.establish_cov_subscription, point_name, lifetime,
+                               renew)

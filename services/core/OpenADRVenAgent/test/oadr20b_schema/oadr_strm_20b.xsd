@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!-- edited with XMLSpy v2010 rel. 3 (http://www.altova.com) by James Zuber (private) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:strm="urn:ietf:params:xml:ns:icalendar-2.0:stream" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0" targetNamespace="urn:ietf:params:xml:ns:icalendar-2.0:stream" elementFormDefault="qualified" attributeFormDefault="qualified">
+   <xs:import namespace="urn:ietf:params:xml:ns:icalendar-2.0" schemaLocation="oadr_xcal_20b.xsd"/>
+   <xs:import namespace="http://docs.oasis-open.org/ns/energyinterop/201110" schemaLocation="oadr_ei_20b.xsd"/>
+   <!-- ##### SAME AS A #####-->
+   <!--  ******* intervals ******** -->
+   <xs:element name="intervals">
+      <xs:annotation>
+         <xs:documentation>Time intervals during which the DR event is active or report data is available</xs:documentation>
+      </xs:annotation>
+      <xs:complexType>
+         <xs:sequence>
+            <xs:element ref="ei:interval" maxOccurs="unbounded"/>
+         </xs:sequence>
+      </xs:complexType>
+   </xs:element>
+   <xs:element name="streamPayloadBase" type="strm:StreamPayloadBaseType" abstract="true"/>
+   <xs:complexType name="StreamPayloadBaseType" abstract="true">
+      <xs:annotation>
+         <xs:documentation>Abstract class to convey a payload for a stream. When a Stream is transformed to or from a WS-Calendar Interval, the contents of the Stream Payload defined element are transformed into the contents of a WS-Calendar artifactBase.</xs:documentation>
+      </xs:annotation>
+   </xs:complexType>
+   <!-- 1.0 Abstract Stream Base -->
+   <xs:element name="streamBase" type="strm:StreamBaseType" abstract="true"/>
+   <xs:complexType name="StreamBaseType" abstract="true">
+      <xs:annotation>
+         <xs:documentation>abstract base for communication of schedules for signals and observations</xs:documentation>
+      </xs:annotation>
+      <xs:sequence>
+         <xs:element ref="xcal:dtstart" minOccurs="0"/>
+         <xs:element ref="xcal:duration" minOccurs="0"/>
+         <xs:element ref="strm:intervals" minOccurs="0"/>
+      </xs:sequence>
+   </xs:complexType>
+</xs:schema>

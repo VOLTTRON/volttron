@@ -1,0 +1,1012 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!-- edited with XMLSpy v2010 rel. 3 (x64) (http://www.altova.com) by James Zuber (private) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:pyld="http://docs.oasis-open.org/ns/energyinterop/201110/payloads" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0" xmlns:emix="http://docs.oasis-open.org/ns/emix/2011/06" xmlns:strm="urn:ietf:params:xml:ns:icalendar-2.0:stream" xmlns:power="http://docs.oasis-open.org/ns/emix/2011/06/power" targetNamespace="http://docs.oasis-open.org/ns/energyinterop/201110" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:import namespace="http://docs.oasis-open.org/ns/emix/2011/06/power" schemaLocation="oadr_power_20b.xsd"/>
+	<xs:import namespace="urn:ietf:params:xml:ns:icalendar-2.0" schemaLocation="oadr_xcal_20b.xsd"/>
+	<xs:import namespace="urn:ietf:params:xml:ns:icalendar-2.0:stream" schemaLocation="oadr_strm_20b.xsd"/>
+	<xs:import namespace="http://docs.oasis-open.org/ns/emix/2011/06" schemaLocation="oadr_emix_20b.xsd"/>
+	<xs:import namespace="http://docs.oasis-open.org/ns/energyinterop/201110/payloads" schemaLocation="oadr_pyld_20b.xsd"/>
+	<!-- ##### SAME AS A  ##### -->
+	<xs:element name="eventStatus" type="ei:EventStatusEnumeratedType"/>
+	<!--  ******* EventStatusEnumeratedType ******** -->
+	<xs:simpleType name="EventStatusEnumeratedType">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="none">
+				<xs:annotation>
+					<xs:documentation>No event pending</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="far">
+				<xs:annotation>
+					<xs:documentation>Event pending in the far future. The exact definition of how far in the future this refers is dependent upon the market context, but typically means the next day.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="near">
+				<xs:annotation>
+					<xs:documentation>Event pending in the near future. The exact definition of how near in the future the pending event is active is dependent on the market context.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="active">
+				<xs:annotation>
+					<xs:documentation>The event has been initiated and is currently active.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="completed">
+				<xs:annotation>
+					<xs:documentation>The event has completed.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="cancelled">
+				<xs:annotation>
+					<xs:documentation>The event has been canceled.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<!-- ******* resourceID ******* -->
+	<xs:element name="resourceID" type="xs:string"/>
+	<!-- ******* groupID *******-->
+	<xs:element name="groupID" type="xs:string"/>
+	<!-- *******  partyID *******  -->
+	<xs:element name="partyID" type="xs:string"/>
+	<!-- ******* groupName *******-->
+	<xs:element name="groupName" type="xs:string"/>
+	<xs:simpleType name="EiExtensionTokenType">
+		<xs:annotation>
+			<xs:documentation>Pattern used for extending string enumeration, where allowed.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:pattern value="x-\S.*"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<!--  ******* venID ******** -->
+	<xs:element name="venID" type="xs:string"/>
+	<!--  ******* vtnID ******** -->
+	<xs:element name="vtnID" type="xs:string"/>
+	<!--  ******* eventID ******** -->
+	<xs:element name="eventID" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>An ID value that identifies a specific DR event instance.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!--  ******* modificationNumber ******** -->
+	<xs:element name="modificationNumber" type="xs:unsignedInt">
+		<xs:annotation>
+			<xs:documentation>Incremented each time an event is modified.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!--  ******* qualifiedEventID ******** -->
+	<xs:element name="qualifiedEventID" type="ei:QualifiedEventIDType"/>
+	<!--  ******* QualifiedEventIDType ******** -->
+	<xs:complexType name="QualifiedEventIDType">
+		<xs:annotation>
+			<xs:documentation>Fully qualified event ID includes the eventID and the modificationNumber.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="ei:eventID"/>
+			<xs:element ref="ei:modificationNumber"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!--  ******* x-eiNotification ******** -->
+	<xs:element name="x-eiNotification" type="xcal:DurationPropType">
+		<xs:annotation>
+			<xs:documentation>The VEN should receive the DR event payload prior to dtstart minus this duration.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!--  ******* x-eiRampUp ******** -->
+	<xs:element name="x-eiRampUp" type="xcal:DurationPropType">
+		<xs:annotation>
+			<xs:documentation>A duration before or after the event start time during which load shed should transit.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!--  *******x-eiRecovery******** -->
+	<xs:element name="x-eiRecovery" type="xcal:DurationPropType">
+		<xs:annotation>
+			<xs:documentation>A duration before or after the event end time during which load shed should transit.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!--  ******* interval ******** -->
+	<xs:element name="interval" type="ei:IntervalType"/>
+	<xs:complexType name="IntervalType">
+		<xs:sequence>
+			<xs:element ref="xcal:dtstart" minOccurs="0"/>
+			<xs:element ref="xcal:duration" minOccurs="0"/>
+			<xs:element ref="xcal:uid" minOccurs="0"/>
+			<xs:element ref="strm:streamPayloadBase" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!--  ******* currentValue ******** -->
+	<xs:element name="currentValue" type="ei:currentValueType">
+		<xs:annotation>
+			<xs:documentation>The payloadFloat value of the event interval currently executing.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="currentValueType">
+		<xs:choice>
+			<xs:element ref="ei:payloadFloat"/>
+		</xs:choice>
+	</xs:complexType>
+	<!--  ******* payloadFloat ******** -->
+	<xs:element name="payloadBase" type="ei:PayloadBaseType" abstract="true"/>
+	<xs:complexType name="PayloadBaseType" abstract="true">
+		<xs:annotation>
+			<xs:documentation>Base for information in signal / baseline / report payloads</xs:documentation>
+		</xs:annotation>
+	</xs:complexType>
+	<xs:element name="payloadFloat" type="ei:PayloadFloatType" substitutionGroup="ei:payloadBase">
+		<xs:annotation>
+			<xs:documentation>Data point value for event signals or for reporting  current or historical values.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="PayloadFloatType">
+		<xs:annotation>
+			<xs:documentation>This is the payload for signals that require a quantity.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="ei:PayloadBaseType">
+				<xs:sequence>
+					<xs:element name="value" type="xs:float"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<!-- ########## Message Responses ########## -->
+	<!--  ******* responseCode ******** -->
+	<xs:element name="responseCode" type="ei:ResponseCodeType">
+		<xs:annotation>
+			<xs:documentation>A 3 digit response code</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!--  ******* responseCodeType ******** -->
+	<xs:simpleType name="ResponseCodeType">
+		<xs:annotation>
+			<xs:documentation>Similar to HTTP 1.1 Error Pattern, 1st digit sufficient for most error processing
+      - 1xx: Informational - Request received, continuing process
+      - 2xx: Success - The action was successfully received, understood, and accepted
+      - 3xx: Pending - Further action must be taken in order to complete the request
+      - 4xx: Requester Error - The request contains bad syntax or cannot be fulfilled
+      - 5xx: Responder Error - The responder failed to fulfill an apparently valid request
+      xx is used for defining more fine grained errors
+	</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:pattern value="[0-9][0-9][0-9]"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<!--  ******* responseDescription ******** -->
+	<xs:element name="responseDescription" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>Narrative description of response status</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!--  ******* optType ******** -->
+	<xs:element name="optType" type="ei:OptTypeType">
+		<xs:annotation>
+			<xs:documentation>optIn or optOut of an event</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:simpleType name="OptTypeType">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="optIn"/>
+			<xs:enumeration value="optOut"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<!--  ******* eiResponse ******** -->
+	<xs:element name="eiResponse" type="ei:EiResponseType">
+		<xs:annotation>
+			<xs:documentation>Indicate whether received payload is acceptable</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="EiResponseType">
+		<xs:sequence>
+			<xs:element ref="ei:responseCode"/>
+			<xs:element ref="ei:responseDescription" minOccurs="0"/>
+			<xs:element ref="pyld:requestID"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!--  ******* eventResponses ******** -->
+	<xs:element name="eventResponses">
+		<xs:annotation>
+			<xs:documentation>optIn or optOut responses for received events</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="eventResponse" minOccurs="0" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element ref="ei:responseCode"/>
+							<xs:element ref="ei:responseDescription" minOccurs="0"/>
+							<xs:element ref="pyld:requestID"/>
+							<xs:element ref="ei:qualifiedEventID"/>
+							<xs:element ref="ei:optType"/>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<!--########### eiEvent Section ##########-->
+	<!--  ******* eiEvent ******** -->
+	<xs:element name="eiEvent" type="ei:eiEventType"/>
+	<xs:complexType name="eiEventType">
+		<xs:sequence>
+			<xs:element ref="ei:eventDescriptor"/>
+			<xs:element ref="ei:eiActivePeriod"/>
+			<xs:element ref="ei:eiEventSignals"/>
+			<xs:element ref="ei:eiTarget"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!-- ***** eiActivePeriod *****-->
+	<xs:element name="eiActivePeriod" type="ei:eiActivePeriodType">
+		<xs:annotation>
+			<xs:documentation>Time frames relevant to the overall event</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="eiActivePeriodType">
+		<xs:sequence>
+			<xs:element ref="xcal:properties"/>
+			<xs:element ref="xcal:components"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!--  ******* signalType ******** -->
+	<xs:element name="signalType" type="ei:SignalTypeEnumeratedType">
+		<xs:annotation>
+			<xs:documentation>An enumerated value describing the type of signal such as level or price</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!--  ******* SignalTypeEnumeratedType ******** -->
+	<xs:simpleType name="SignalTypeEnumeratedType">
+		<xs:annotation>
+			<xs:documentation>SignalTypeEnumerated lists the pre-defined types used to specify the payload types and conformance in a stream</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="delta">
+				<xs:annotation>
+					<xs:documentation>Signal indicates the amount to change from what one would have used without the signal.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="level">
+				<xs:annotation>
+					<xs:documentation>Signal indicates a program level.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="multiplier">
+				<xs:annotation>
+					<xs:documentation>Signal indicates a multiplier applied to the current rate of  delivery or usage from what one would have used without the signal.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="price">
+				<xs:annotation>
+					<xs:documentation>Signal indicates the price.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="priceMultiplier">
+				<xs:annotation>
+					<xs:documentation>Signal indicates the price multiplier. Extended price is the computed price value multiplied by the number of units.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="priceRelative">
+				<xs:annotation>
+					<xs:documentation>Signal indicates the relative price.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="setpoint">
+				<xs:annotation>
+					<xs:documentation>Signal indicates a target amount of units.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="x-loadControlCapacity">
+				<xs:annotation>
+					<xs:documentation>This is an instruction for the load controller to operate at a level that is some percentage of its maximum load consumption capacity. This can be mapped to specific load controllers to do things like duty cycling. Note that 1.0 refers to 100% consumption. In the case of simple ON/OFF type devices then 0 = OFF and 1 = ON.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="x-loadControlLevelOffset">
+				<xs:annotation>
+					<xs:documentation>Discrete integer levels that are relative to normal operations where 0 is normal operations.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="x-loadControlPercentOffset">
+				<xs:annotation>
+					<xs:documentation>Percentage change from normal load control operations.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="x-loadControlSetpoint">
+				<xs:annotation>
+					<xs:documentation>Load controller set points.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<!-- ##### NEW FOR B ##### -->
+	<!-- ***** Array of responses ***** -->
+	<xs:element name="responses" type="ei:ArrayofResponses"/>
+	<xs:complexType name="ArrayofResponses">
+		<xs:annotation>
+			<xs:documentation>Collection of Responses. When a service operation regards multiple referenceable items, each referenced item may have its own response. Always accompanied by an overall Response Type.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="response" type="ei:EiResponseType" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!-- ***** Extended eventDescriptor ***** -->
+	<xs:element name="eventDescriptor" type="ei:eventDescriptorType">
+		<xs:annotation>
+			<xs:documentation>Information about the event</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="eventDescriptorType">
+		<xs:sequence>
+			<xs:element ref="ei:eventID"/>
+			<xs:element ref="ei:modificationNumber"/>
+			<xs:element name="modificationDateTime" type="xcal:DateTimeType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>When an event is modified</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="modificationReason" type="xs:string" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Why an event was modified</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="priority" type="xs:unsignedInt" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The priority of the event in relation to other events (The lower the number higher the priority. A value of zero (0) indicates no priority, which is the lowest priority by default).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="eiMarketContext">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element ref="emix:marketContext"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="ei:createdDateTime"/>
+			<xs:element ref="ei:eventStatus">
+				<xs:annotation>
+					<xs:documentation>An indication of the event state: far, near, active, canceled, completed</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="testEvent" type="xs:string" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Anything other than false indicates a test event</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="vtnComment" type="xs:string" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Any text</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="signalPayload" type="ei:signalPayloadType" substitutionGroup="strm:streamPayloadBase">
+		<xs:annotation>
+			<xs:documentation>Signal values for events and baselines</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="signalPayloadType">
+		<xs:complexContent>
+			<xs:extension base="strm:StreamPayloadBaseType">
+				<xs:choice>
+					<xs:element ref="ei:payloadBase"/>
+				</xs:choice>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<!--  ******* createdDateTime ******** -->
+	<xs:element name="createdDateTime" type="xcal:DateTimeType">
+		<xs:annotation>
+			<xs:documentation>The dateTime the payload was created</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!-- ***** Extended eiTarget *****-->
+	<xs:element name="eiTarget" type="ei:EiTargetType">
+		<xs:annotation>
+			<xs:documentation>Identifies the resources associated with the logical VEN interface. For events, the values specified are the target for the event</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="EiTargetType">
+		<xs:sequence>
+			<xs:element ref="power:aggregatedPnode" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="power:endDeviceAsset" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="power:meterAsset" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="power:pnode" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="emix:serviceArea" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="power:serviceDeliveryPoint" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="power:serviceLocation" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="power:transportInterface" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="ei:groupID" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="ei:groupName" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="ei:resourceID" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="ei:venID" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="ei:partyID" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!-- ***** Extended Event Signal ***** -->
+	<xs:element name="eiEventSignal" type="ei:eiEventSignalType"/>
+	<xs:complexType name="eiEventSignalType">
+		<xs:sequence>
+			<xs:element ref="strm:intervals"/>
+			<xs:element ref="ei:eiTarget" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Optionally identifies the device class associated with the signal. Only the endDeviceAsset subelement is used</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ei:signalName">
+				<xs:annotation>
+					<xs:documentation>Descriptive name for signal.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ei:signalType"/>
+			<xs:element name="signalID" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>unique Identifier for a specific event signal</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="emix:itemBase" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>This is the unit of the signal.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ei:currentValue" minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="signalName" type="ei:signalNameType"/>
+	<xs:simpleType name="signalNameType">
+		<xs:annotation>
+			<xs:documentation>Signal name.</xs:documentation>
+		</xs:annotation>
+		<xs:union memberTypes="ei:SignalNameEnumeratedType ei:EiExtensionTokenType"/>
+	</xs:simpleType>
+	<xs:element name="SignalNameEnumerated" type="ei:SignalNameEnumeratedType"/>
+	<xs:simpleType name="SignalNameEnumeratedType">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="SIMPLE">
+				<xs:annotation>
+					<xs:documentation>Simple levels (OpenADR 2.0a compliant)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="simple">
+				<xs:annotation>
+					<xs:documentation>depreciated - for backwards compatibility with A profile</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="ELECTRICITY_PRICE">
+				<xs:annotation>
+					<xs:documentation>This is the cost of electricity</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="ENERGY_PRICE">
+				<xs:annotation>
+					<xs:documentation>This is the cost of energy</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="DEMAND_CHARGE">
+				<xs:annotation>
+					<xs:documentation>This is the demand charge</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="BID_PRICE">
+				<xs:annotation>
+					<xs:documentation>This is the price that was bid by the resource</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="BID_LOAD">
+				<xs:annotation>
+					<xs:documentation>This is the amount of load that was bid by a resource into a program</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="BID_ENERGY">
+				<xs:annotation>
+					<xs:documentation>This is the amount of energy from a resource that was bid into a program</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="CHARGE_STATE">
+				<xs:annotation>
+					<xs:documentation>State of energy storage resource</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="LOAD_DISPATCH">
+				<xs:annotation>
+					<xs:documentation>This is used to dispatch load</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="LOAD_CONTROL">
+				<xs:annotation>
+					<xs:documentation>Set load output to relative values</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<!-- ***** extended eiEventSignals to include Baselines***** -->
+	<xs:element name="eiEventSignals" type="ei:eiEventSignalsType">
+		<xs:annotation>
+			<xs:documentation>Interval data for one or more event signals and/or baselines</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="eiEventSignalsType">
+		<xs:sequence>
+			<xs:element ref="ei:eiEventSignal" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Interval data for an event</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ei:eiEventBaseline" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Interval data for a baseline</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<!--########## Baselines ########## -->
+	<xs:element name="eiEventBaseline" type="ei:eiEventBaselineType">
+		<xs:annotation>
+			<xs:documentation>B profile</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="eiEventBaselineType">
+		<xs:sequence>
+			<xs:element ref="xcal:dtstart"/>
+			<xs:element ref="xcal:duration"/>
+			<xs:element ref="strm:intervals"/>
+			<xs:element name="baselineID" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Unique ID for a specific baseline</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ei:resourceID" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element name="baselineName" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Descriptive name for baseline</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="emix:itemBase" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>This is the unit of the signal.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<!-- ########## eiOpt Section ########## -->
+	<!-- EiOpt -->
+	<xs:complexType name="EiOptType">
+		<xs:annotation>
+			<xs:documentation>Opts are used by the VEN to temporarily override the pre-existing agreement. For example, a VEN may opt in to events during the evening, or opt out from events during the world series.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="ei:optID"/>
+			<xs:element ref="ei:optType"/>
+			<xs:element ref="ei:optReason"/>
+			<xs:element ref="emix:marketContext" minOccurs="0"/>
+			<xs:element ref="ei:venID"/>
+			<xs:element ref="xcal:vavailability" minOccurs="0"/>
+			<xs:element ref="ei:createdDateTime"/>
+		</xs:sequence>
+		<xs:attribute ref="ei:schemaVersion" use="optional"/>
+	</xs:complexType>
+	<!-- optReason - same as in EIClasses -->
+	<xs:element name="optReason" type="ei:OptReasonType">
+		<xs:annotation>
+			<xs:documentation>Enumerated value for the opt reason such as x-schedule</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:simpleType name="OptReasonType">
+		<xs:annotation>
+			<xs:documentation>Reason for opting.</xs:documentation>
+		</xs:annotation>
+		<xs:union memberTypes="ei:OptReasonEnumeratedType ei:EiExtensionTokenType"/>
+	</xs:simpleType>
+	<xs:element name="optReasonEnumerated" type="ei:OptReasonEnumeratedType"/>
+	<xs:simpleType name="OptReasonEnumeratedType">
+		<xs:annotation>
+			<xs:documentation>Enumerated reasons for opting.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="economic"/>
+			<xs:enumeration value="emergency"/>
+			<xs:enumeration value="mustRun"/>
+			<xs:enumeration value="notParticipating"/>
+			<xs:enumeration value="outageRunStatus"/>
+			<xs:enumeration value="overrideStatus"/>
+			<xs:enumeration value="participating"/>
+			<xs:enumeration value="x-schedule"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<!-- optID - same as in EIClasses -->
+	<xs:element name="optID" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>Identifier for an opt interaction</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!-- ########## Reports Section ########## -->
+	<xs:element name="eiReportID" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>Reference ID for a report</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="reportRequestID" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>Identifier for a particular report request</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="reportSpecifierID" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>Identifier for a particular Metadata report specification</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="reportName" type="ei:reportNameType">
+		<xs:annotation>
+			<xs:documentation>Optional name for a report.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:simpleType name="reportNameType">
+		<xs:union memberTypes="ei:reportNameEnumeratedType ei:EiExtensionTokenType"/>
+	</xs:simpleType>
+	<xs:simpleType name="reportNameEnumeratedType">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="METADATA_HISTORY_USAGE"/>
+			<xs:enumeration value="HISTORY_USAGE"/>
+			<xs:enumeration value="METADATA_HISTORY_GREENBUTTON"/>
+			<xs:enumeration value="HISTORY_GREENBUTTON"/>
+			<xs:enumeration value="METADATA_TELEMETRY_USAGE"/>
+			<xs:enumeration value="TELEMETRY_USAGE"/>
+			<xs:enumeration value="METADATA_TELEMETRY_STATUS"/>
+			<xs:enumeration value="TELEMETRY_STATUS"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="rID" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>ReferenceID for this data point</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="reportSubject" type="ei:EiTargetType">
+		<xs:annotation>
+			<xs:documentation>Device Class target - use only endDeviceAsset.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="reportDataSource" type="ei:EiTargetType">
+		<xs:annotation>
+			<xs:documentation>Sources for data in this report. Examples include meters or submeters. For example, if a meter is capable of providing two different types of measurements, then each measurement stream would be separately identified.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="statusDateTime" type="xcal:DateTimeType">
+		<xs:annotation>
+			<xs:documentation>Date and time this artifact references.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="reportType" type="ei:ReportTypeType"/>
+	<xs:simpleType name="ReportTypeType">
+		<xs:annotation>
+			<xs:documentation>An enumerated value that gives the type of report being provided.</xs:documentation>
+		</xs:annotation>
+		<xs:union memberTypes="ei:ReportEnumeratedType ei:EiExtensionTokenType"/>
+	</xs:simpleType>
+	<xs:element name="reportEnumerated" type="ei:ReportEnumeratedType"/>
+	<xs:simpleType name="ReportEnumeratedType">
+		<xs:annotation>
+			<xs:documentation>Enumerated report types</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="reading">
+				<xs:annotation>
+					<xs:documentation>Report indicates a reading, as from a meter. Readings are moments in time-changes over time can be computed from the difference between successive readings. Payload type is float</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="usage">
+				<xs:annotation>
+					<xs:documentation>Report indicates an amount of units (denominated in ItemBase or in the EMIX Product) over a period. Payload type is Quantity. A typical ItemBase is Real Energy.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="demand">
+				<xs:annotation>
+					<xs:documentation>Report indicates an amount of units (denominated in ItemBase or in the EMIX Product). Payload type is Quantity. A typical ItemBase is Real Power.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="setPoint">
+				<xs:annotation>
+					<xs:documentation>Report indicates the amount (denominated in ItemBase or in the EMIX Product) currently set. May be a confirmation/return of the setpoint control value sent from the VTN. Payload type is Quantity. A typical ItemBase is Real Power.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="deltaUsage">
+				<xs:annotation>
+					<xs:documentation>Change in usage as compared to the baseline. See usage for more information</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="deltaSetPoint">
+				<xs:annotation>
+					<xs:documentation>Changes in setpoint from previous schedule.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="deltaDemand">
+				<xs:annotation>
+					<xs:documentation>Change in demand as compared to the baseline. See demand for more information</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="baseline">
+				<xs:annotation>
+					<xs:documentation>Can be demand or usage, as indicated by ItemBase. Indicates what [measurement] would be if not for the event or regulation. Report is of the format Baseline.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="deviation">
+				<xs:annotation>
+					<xs:documentation>Difference between some instruction and actual state.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="avgUsage">
+				<xs:annotation>
+					<xs:documentation>Average usage over the duration indicated by the Granularity. See usage for more information.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="avgDemand">
+				<xs:annotation>
+					<xs:documentation>Average usage over the duration indicated by the Granularity. See demand for more information.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="operatingState">
+				<xs:annotation>
+					<xs:documentation>Generalized state of a resource such as on/off, occupancy of building, etc. No ItemBase is relevant. Requires an Application Specific Payload Extension.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="upRegulationCapacityAvailable">
+				<xs:annotation>
+					<xs:documentation>Up Regulation capacity available for dispatch, expressed in EMIX Real Power. Payload is always expressed as positive Quantity.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="downRegulationCapacityAvailable">
+				<xs:annotation>
+					<xs:documentation>Down Regulation capacity available for dispatch, expressed in EMIX Real Power. Payload is always expressed as positive Quantity.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="regulationSetpoint">
+				<xs:annotation>
+					<xs:documentation>Regulation setpoint as instructed as part of regulation services</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="storedEnergy">
+				<xs:annotation>
+					<xs:documentation>Stored Energy is expressed as Real Energy and Payload is expressed as a Quantity.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="targetEnergyStorage">
+				<xs:annotation>
+					<xs:documentation>Target Energy is expressed as Real Energy and Payload is expressed as a Quantity.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="availableEnergyStorage">
+				<xs:annotation>
+					<xs:documentation>Capacity available for further energy storage, perhaps to get to Target Energy Storage</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="price">
+				<xs:annotation>
+					<xs:documentation>Price per ItemBase at each Interval</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="level">
+				<xs:annotation>
+					<xs:documentation>Simple level from market at each Interval. Itembase is not relevant.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="powerFactor">
+				<xs:annotation>
+					<xs:documentation>Power factor for the resource.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="percentUsage">
+				<xs:annotation>
+					<xs:documentation>Percentage of usage.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="percentDemand">
+				<xs:annotation>
+					<xs:documentation>Percentage of demand</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="x-resourceStatus">
+				<xs:annotation>
+					<xs:documentation>Percentage of demand</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="readingType" type="ei:ReadingTypeType">
+		<xs:annotation>
+			<xs:documentation>Metadata about the Readings, such as mean or derived</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:simpleType name="ReadingTypeType">
+		<xs:annotation>
+			<xs:documentation>Type of Reading.</xs:documentation>
+		</xs:annotation>
+		<xs:union memberTypes="ei:ReadingTypeEnumeratedType ei:EiExtensionTokenType"/>
+	</xs:simpleType>
+	<xs:element name="readingTypeEnumerated" type="ei:ReadingTypeEnumeratedType"/>
+	<xs:simpleType name="ReadingTypeEnumeratedType">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="Direct Read">
+				<xs:annotation>
+					<xs:documentation>Reading is read from a device that increases monotonically, and usage must be computed from pairs of start and stop readings.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="Net">
+				<xs:annotation>
+					<xs:documentation>Meter or [resource] prepares its own calculation of total use over time.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="Allocated">
+				<xs:annotation>
+					<xs:documentation>Meter covers several [resources] and usage is inferred through some sort of pro data computation.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="Estimated">
+				<xs:annotation>
+					<xs:documentation>Used when a reading is absent in a series in which most readings are present.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="Summed">
+				<xs:annotation>
+					<xs:documentation>Several meters together provide the reading for this [resource]. This is specifically a different than aggregated, which refers to multiple [resources] in the same payload. See also Hybrid.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="Derived">
+				<xs:annotation>
+					<xs:documentation>Usage is inferred through knowledge of run-time, normal operation, etc.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="Mean">
+				<xs:annotation>
+					<xs:documentation>Reading is the mean value over the period indicated in Granularity</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="Peak">
+				<xs:annotation>
+					<xs:documentation>Reading is Peak (highest) value over the period indicated in granularity. For some measurements, it may make more sense as the lowest value. May not be consistent with aggregate readings. Only valid for flow-rate Item Bases, i.e., Power not Energy.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="Hybrid">
+				<xs:annotation>
+					<xs:documentation>If aggregated, refers to different reading types in the aggregate number.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="Contract">
+				<xs:annotation>
+					<xs:documentation>Indicates reading is pro forma, i.e., is reported at agreed upon rates</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="Projected">
+				<xs:annotation>
+					<xs:documentation>Indicates reading is in the future, and has not yet been measured.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="x-RMS">
+				<xs:annotation>
+					<xs:documentation>Root Mean Square</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="x-notApplicable">
+				<xs:annotation>
+					<xs:documentation>Not Applicable</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="confidence" type="ei:ConfidenceType"/>
+	<xs:simpleType name="ConfidenceType">
+		<xs:restriction base="xs:unsignedInt">
+			<xs:minInclusive value="0"/>
+			<xs:maxInclusive value="100"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="accuracy" type="ei:AccuracyType"/>
+	<xs:simpleType name="AccuracyType">
+		<xs:annotation>
+			<xs:documentation>Number is in same units as the payload variable for an Interval. When present with Confidence, indicates the likely variability of the prediction. When present with ReadingType, indicates likely error of Reading.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:float"/>
+	</xs:simpleType>
+	<!-- ***** Report Payload Type***** -->
+	<xs:complexType name="ReportPayloadType">
+		<xs:annotation>
+			<xs:documentation>Report Payload for use in Reports, snaps, and projections.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="strm:StreamPayloadBaseType">
+				<xs:sequence>
+					<xs:element ref="ei:rID">
+						<xs:annotation>
+							<xs:documentation>A reference to a metadata data point description </xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="ei:confidence" minOccurs="0">
+						<xs:annotation>
+							<xs:documentation>Likely variability of prediction: 0-100</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="ei:accuracy" minOccurs="0">
+						<xs:annotation>
+							<xs:documentation>Accuracy in same units as interval payload value</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="ei:payloadBase"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="numDataSources" type="xs:unsignedInt"/>
+	<!-- 4.3 Report Specification -->
+	<xs:element name="reportSpecifier" type="ei:ReportSpecifierType">
+		<xs:annotation>
+			<xs:documentation>Specify data points desired in a particular report instance</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="ReportSpecifierType">
+		<xs:annotation>
+			<xs:documentation>Parameters that define the content of a Report Stream</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="ei:reportSpecifierID"/>
+			<xs:element ref="xcal:granularity">
+				<xs:annotation>
+					<xs:documentation>How frequently the [measurement] is to be recorded.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="reportBackDuration" type="xcal:DurationPropType">
+				<xs:annotation>
+					<xs:documentation>Report back with the Report-To-Date for each passing of this Duration.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="reportInterval" type="xcal:WsCalendarIntervalType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>This is the overall period of reporting.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ei:specifierPayload" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!-- 4.3.1 Specifier Payload -->
+	<xs:element name="specifierPayload" type="ei:SpecifierPayloadType"/>
+	<xs:complexType name="SpecifierPayloadType">
+		<xs:annotation>
+			<xs:documentation>Payload for use in Report Specifiers.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="ei:rID"/>
+			<xs:element ref="emix:itemBase" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>What is measured or tracked in this report (Units).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ei:readingType"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!-- registrationID-->
+	<xs:element name="registrationID" substitutionGroup="ei:refID">
+		<xs:annotation>
+			<xs:documentation>Identifier for Registration transaction. Not included in response to query registration unless already registered</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!-- 9.8.2.9 Base Type for References -->
+	<xs:element name="refID" substitutionGroup="ei:uid">
+		<xs:annotation>
+			<xs:documentation>Reference ID for a particular instance, transmittal, or artifact. Note: not the same as the native ID of the object being transmitted or shared.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<!-- 9.8.9 Base UID -->
+	<xs:element name="uid" type="ei:UidType" abstract="true"/>
+	<xs:simpleType name="UidType">
+		<xs:annotation>
+			<xs:documentation>Unique Identifier</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string"/>
+	</xs:simpleType>
+	<!-- schemaVersion -->
+	<xs:attribute name="schemaVersion" type="ei:schemaVersionType"/>
+	<xs:simpleType name="schemaVersionType">
+		<xs:union memberTypes="ei:schemaVersionEnumeratedType ei:EiExtensionTokenType"/>
+	</xs:simpleType>
+	<xs:simpleType name="schemaVersionEnumeratedType">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="2.0a"/>
+			<xs:enumeration value="2.0b"/>
+		</xs:restriction>
+	</xs:simpleType>
+</xs:schema>

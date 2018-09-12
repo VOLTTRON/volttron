@@ -1172,7 +1172,7 @@ def test_invalid_time(request, historian, publish_agent, query_agent,
                                  order="LAST_TO_FIRST").get(timeout=10)
     except RemoteError as error:
         print ("exception: {}".format(error))
-        assert 'hour must be in 0..23' == error.message
+        assert 'Syntax Error in Query' == error.message
 
 
 @pytest.mark.historian

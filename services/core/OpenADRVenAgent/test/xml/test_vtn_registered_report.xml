@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<oadr:oadrPayload xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+    <oadr:oadrSignedObject xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07">
+        <oadr:oadrRegisteredReport xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" schemaVersion="2.0b">
+            <ei:eiResponse xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:pyld="http://docs.oasis-open.org/ns/energyinterop/201110/payloads">
+                <ei:responseCode>200</ei:responseCode>
+                <oadr:responseDescription>OK</oadr:responseDescription>
+                <pyld:requestID>300</pyld:requestID>
+            </ei:eiResponse>
+            <oadr:oadrReportRequest xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110">
+                <ei:reportRequestID>286</ei:reportRequestID>
+                <ei:reportSpecifier xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                    <ei:reportSpecifierID>telemetry</ei:reportSpecifierID>
+                    <oadr:reportInterval xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                        <xcal:properties xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110">
+                            <xcal:dtstart xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                                <oadr:date-time>2017-12-18T20:27:33.485788Z</oadr:date-time>
+                            </xcal:dtstart>
+                        </xcal:properties>
+                    </oadr:reportInterval>
+                </ei:reportSpecifier>
+            </oadr:oadrReportRequest>
+            <oadr:venID>0</oadr:venID>
+        </oadr:oadrRegisteredReport>
+    </oadr:oadrSignedObject>
+</oadr:oadrPayload>

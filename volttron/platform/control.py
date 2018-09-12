@@ -65,6 +65,7 @@ from .vip.agent import Agent as BaseAgent, Core, RPC
 from . import aip as aipmod
 from . import config
 from .jsonrpc import RemoteError
+from .vip.agent.errors import VIPError
 from .auth import AuthEntry, AuthFile, AuthException
 from .keystore import KeyStore, KnownHostsStore
 
@@ -668,7 +669,31 @@ def status_agents(opts):
             return 'running [{}]'.format(pid)
         return ''
 
-    _show_filtered_agents(opts, 'STATUS', get_status, agents)
+    def get_health(agent):
+        try:
+            return opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4)[
+                'status']
+        except VIPError:
+            return ''
+
+
+    _show_filtered_agents_status(opts, get_status, get_health, agents)
+
+
+def agent_health(opts):
+    agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}.values()
+    agents = get_filtered_agents(opts, agents)
+    if not agents:
+        _stderr.write('No installed Agents found\n')
+        return
+    agent = agents.pop()
+    try:
+        _stderr.write(json.dumps(
+            opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4),
+            indent=4) + '\n'
+        )
+    except VIPError:
+        print("Agent {} is not running on the Volttron platform.".format(agent.uuid))
 
 
 def clear_status(opts):
@@ -1183,7 +1208,65 @@ def remove_group(opts):
     _stdout.write('removed group "{}"\n'.format(opts.group))
 
 
+def get_filtered_agents(opts, agents=None):
+
+    if opts.pattern:
+        filtered = set()
+        for pattern, match in filter_agents(agents, opts.pattern, opts):
+            if not match:
+                _stderr.write(
+                    '{}: error: agent not found: {}\n'.format(opts.command,
+                                                              pattern))
+            filtered |= match
+        agents = list(filtered)
+    return agents
+
 def _show_filtered_agents(opts, field_name, field_callback, agents=None):
+    """Provides generic way to filter and display agent information.
+    The agents will be filtered by the provided opts.pattern and the
+    following fields will be displayed:
+      * UUID (or part of the UUID)
+      * agent name
+      * VIP identiy
+      * tag
+      * field_name
+    @param:Namespace:opts:
+        Options from argparse
+    @param:string:field_name:
+        Name of field to display about agents
+    @param:function:field_callback:
+        Function that takes an Agent as an argument and returns data
+        to display
+    @param:list:agents:
+        List of agents to filter and display
+    """
+    if not agents:
+        agents = _list_agents(opts.aip)
+
+    agents = get_filtered_agents(opts, agents)
+
+    if not agents:
+        _stderr.write('No installed Agents found\n')
+        return
+    agents.sort()
+    if not opts.min_uuid_len:
+        n = 36
+    else:
+        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
+    name_width = max(5, max(len(agent.name) for agent in agents))
+    tag_width = max(3, max(len(agent.tag or '') for agent in agents))
+    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
+    fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
+    _stderr.write(
+        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+            'TAG', tag_width, field_name))
+    for agent in agents:
+        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                 agent.vip_identity, identity_width,
+                                 agent.tag or '', tag_width,
+                                 field_callback(agent)))
+
+def _show_filtered_agents_status(opts, status_callback, health_callback, agents=None):
     """Provides generic way to filter and display agent information.
 
     The agents will be filtered by the provided opts.pattern and the
@@ -1206,16 +1289,11 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     """
     if not agents:
         agents = _list_agents(opts.aip)
-    if opts.pattern:
-        filtered = set()
-        for pattern, match in filter_agents(agents, opts.pattern, opts):
-            if not match:
-                _stderr.write(
-                    '{}: error: agent not found: {}\n'.format(opts.command,
-                                                              pattern))
-            filtered |= match
-        agents = list(filtered)
+
+    agents = get_filtered_agents(opts, agents)
+
     if not agents:
+        _stderr.write('No installed Agents found\n')
         return
     agents.sort()
     if not opts.min_uuid_len:
@@ -1225,15 +1303,16 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     name_width = max(5, max(len(agent.name) for agent in agents))
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
     identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
+    fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
     _stderr.write(
         fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-            'TAG', tag_width, field_name))
+            'TAG', tag_width, 'STATUS', 'HEALTH'))
+    fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
     for agent in agents:
         _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
                                  agent.vip_identity, identity_width,
                                  agent.tag or '', tag_width,
-                                 field_callback(agent)))
+                                 status_callback(agent), health_callback(agent)))
 
 
 def get_agent_publickey(opts):
@@ -1544,6 +1623,11 @@ def main(argv=sys.argv):
     status.add_argument('-n', dest='min_uuid_len', type=int, metavar='N',
                         help='show at least N characters of UUID (0 to show all)')
     status.set_defaults(func=status_agents, min_uuid_len=1)
+
+    health = add_parser('health', parents=[filterable],
+                        help='show agent health as JSON')
+    health.add_argument('pattern', nargs=1, help='UUID or name of agent')
+    health.set_defaults(func=agent_health, min_uuid_len=1)
 
     clear = add_parser('clear', help='clear status of defunct agents')
     clear.add_argument('-a', '--all', dest='clear_all', action='store_true',
