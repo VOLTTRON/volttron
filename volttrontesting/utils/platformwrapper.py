@@ -30,7 +30,8 @@ from volttron.platform.vip.agent.connection import Connection
 from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttron.platform.agent import json as jsonapi
-from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup, cleanup_rmq_volttron_setup
+from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup, \
+    cleanup_rmq_volttron_setup
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)

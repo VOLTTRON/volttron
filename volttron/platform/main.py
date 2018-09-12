@@ -88,7 +88,7 @@ from .vip.rmq_router import RMQRouter
 from volttron.platform.agent.utils import store_message_bus_config
 from zmq import green as _green
 from volttron.platform.vip.proxy_zmq_router import ZMQProxyRouter
-from volttron.utils.rmq_mgmt import start_rabbit
+from volttron.utils.rmq_setup import start_rabbit
 
 try:
     import volttron.restricted

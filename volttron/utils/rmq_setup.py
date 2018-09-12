@@ -49,10 +49,7 @@ from socket import getfqdn
 from shutil import copy
 
 import gevent
-#
-# from rmq_mgmt import is_ssl_connection, set_policy, build_rmq_address, \
-#     init_rabbitmq_setup, get_ssl_url_params, create_user, \
-#     set_user_permissions, set_parameter
+
 from rmq_mgmt import RabbitMQMgmt
 from volttron.platform import certs
 from volttron.platform import get_home
@@ -94,6 +91,8 @@ def _load_rmq_config(volttron_home=None):
     try:
         with open(volttron_rmq_config, 'r') as yaml_file:
             config_opts = yaml.load(yaml_file)
+            config_opts['rmq-home'] = os.path.expanduser(config_opts[
+                                                             'rmq-home'])
     except IOError as exc:
         _log.error("Error opening {}. Please create a rabbitmq_config.yml "
                    "file in your volttron home. If you want to point to a "
@@ -419,56 +418,6 @@ management.listener.ssl_opts.keyfile = {server_key}""".format(
                          vhome=vhome))
 
 
-def stop_rabbit(rmq_home, quite=False):
-    """
-    Stop RabbitMQ Server
-    :param rmq_home: RabbitMQ installation path
-    :param quite:
-    :return:
-    """
-    try:
-        cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"),
-               "stop"]
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-        stdout, stderr = p.communicate()
-        gevent.sleep(2)
-        if not quite:
-            _log.info("**Stopped rmq server")
-    except subprocess.CalledProcessError as e:
-        if not quite:
-            raise e
-
-
-def start_rabbit(rmq_home):
-    """
-    Start RabbitMQ server
-    :param rmq_home: RabbitMQ installation path
-    :return:
-    """
-    cmd = [os.path.join(rmq_home, "sbin/rabbitmq-server"),
-           "-detached"]
-    subprocess.check_call(cmd)
-    gevent.sleep(5)
-    cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "status"]
-    i = 5
-    started = False
-    while not started:
-        try:
-            subprocess.check_call(cmd, stdout=subprocess.PIPE,
-                                  stderr=subprocess.PIPE)
-            gevent.sleep(5)  # give a few seconds for all plugins to startup
-            started = True
-            _log.info("Started rmq server at {}".format(rmq_home))
-        except subprocess.CalledProcessError as e:
-            if i > 60:  # if more than a minute, may be somthing is wrong
-                raise e
-            else:
-                # sleep for another 5 seconds and check status again
-                gevent.sleep(5)
-                i = i + 5
-
-
 def _create_certs_without_prompt(admin_client_name, server_cert_name):
     """
     Utility method to create certificates
@@ -601,6 +550,35 @@ def setup_rabbitmq_volttron(type, verbose=False, prompt=False):
         ssl_auth = config_opts.get('ssl', 'true')
         if success and ssl_auth in ('true', 'True', 'TRUE', True):
             _setup_for_ssl_auth(instance_name)
+
+        # Create utility scripts
+        script_path = os.path.dirname(os.path.realpath(__file__))
+        src_home = os.path.dirname(os.path.dirname(script_path))
+        start_script = os.path.join(src_home, 'start-rabbitmq')
+        with open(start_script, 'w+') as f:
+            f.write(os.path.join(config_opts['rmq-home'],'sbin',
+                                 'rabbitmq-server') + ' -detached')
+            f.write(os.linesep)
+            f.write("sleep 5")  # give a few seconds for all plugins to be ready
+        os.chmod(start_script, 0o755)
+
+        stop_script = os.path.join(src_home, 'stop-rabbitmq')
+        with open(stop_script, 'w+') as f:
+            f.write(os.path.join(config_opts['rmq-home'], 'sbin',
+                                 'rabbitmqctl') + ' stop')
+        os.chmod(stop_script, 0o755)
+
+        #symlink to rmq log
+        log_name = os.path.join(src_home, 'rabbitmq.log')
+        if os.path.lexists(log_name):
+            os.unlink(log_name)
+        os.symlink(os.path.join(config_opts['rmq-home'],
+                                'var/log/rabbitmq',
+                                "rabbit@" +
+                                config_opts['host'].split('.')[0] + ".log"),
+                   log_name)
+
+
 
     if type in ["all", "federation"]:
         # Create a multi-platform federation setup
@@ -841,3 +819,59 @@ if __name__ == "__main__":
         setup_rabbitmq_volttron(type, args.prompt)
     except KeyboardInterrupt:
         _log.info("Exiting setup process")
+
+def stop_rabbit(rmq_home, quite=False):
+    """
+    Stop RabbitMQ Server
+    :param rmq_home: RabbitMQ installation path
+    :param quite:
+    :return:
+    """
+    try:
+        cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"),
+               "stop"]
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+        stdout, stderr = p.communicate()
+        gevent.sleep(2)
+        if not quite:
+            _log.info("**Stopped rmq server")
+    except subprocess.CalledProcessError as e:
+        if not quite:
+            raise e
+
+
+def start_rabbit(rmq_home):
+    """
+    Start RabbitMQ server
+    :param rmq_home: RabbitMQ installation path
+    :return:
+    """
+
+    status_cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "status"]
+    start_cmd = [os.path.join(rmq_home, "sbin/rabbitmq-server"), "-detached"]
+    i = 5
+    started = False
+    start = True
+    while not started:
+        try:
+            subprocess.check_call(status_cmd, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE)
+            if not start:
+                # if we have attempted started already
+                gevent.sleep(5)  # give a few seconds for all plugins to start
+            started = True
+            _log.info("Rmq server at {} is running".format(rmq_home))
+        except subprocess.CalledProcessError as e:
+            if start:
+                # attempt to start once
+                subprocess.check_call(start_cmd)
+                gevent.sleep(5)
+                start = False
+            else:
+                if i > 60:  # if more than a minute, may be something is wrong
+                    raise e
+                else:
+                    # sleep for another 5 seconds and check status again
+                    gevent.sleep(5)
+                    i = i + 5
