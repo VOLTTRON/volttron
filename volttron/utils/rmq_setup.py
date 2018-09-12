@@ -859,14 +859,14 @@ def start_rabbit(rmq_home):
                                   stderr=subprocess.PIPE)
             if not start:
                 # if we have attempted started already
-                gevent.sleep(5)  # give a few seconds for all plugins to start
+                gevent.sleep(25)  # give a few seconds for all plugins to start
             started = True
             _log.info("Rmq server at {} is running".format(rmq_home))
         except subprocess.CalledProcessError as e:
             if start:
                 # attempt to start once
                 subprocess.check_call(start_cmd)
-                gevent.sleep(20)
+                gevent.sleep(25)  # give a few seconds for all plugins to start
                 start = False
             else:
                 if i > 60:  # if more than a minute, may be something is wrong
