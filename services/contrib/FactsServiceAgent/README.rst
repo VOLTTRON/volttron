@@ -1,6 +1,6 @@
 Ecorithm's Facts Service Agent
 ==============================
-Ecorithm's Facts Service agent is used to push BACnet data to a remote cloud storage solution at frequent intervals.
+Ecorithm's Facts Service agent is used to push data to a remote cloud storage solution at frequent intervals.
 
 .. figure:: https://assets.ecorithm.com/static/ecoweb/img/historian_2x.png
    :alt: Real-time Historian on Ecorithm's Platform
@@ -59,7 +59,7 @@ Default configuration::
       "storage_limit_gb": null
     }
 
-Changes to apply:
+Minimum changes to apply:
 
 - Fill ``username`` and ``password`` with your Ecorithm's account credentials
 - If you are trending one building only, set ``building_id`` to the ID of the building and leave ``topic_building_mapping`` to ``{}``.
@@ -79,5 +79,5 @@ Other settings belong to the ``BaseHistorian`` agent.
 Installation
 ------------
 
-1. Start volttron
+1. Start Volttron
 2. From an activated shell, run ``python scripts/install-agent.py -s services/contrib/FactsServiceAgent -c services/contrib/FactsServiceAgent/config --start --enable``
