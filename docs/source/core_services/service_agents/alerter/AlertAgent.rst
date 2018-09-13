@@ -1,11 +1,11 @@
-.. _TopicWatcher:
+.. _AlertAgent:
 
-Topic Watcher Agent
-===================
+Alert Agent
+===========
 
-The Topic Watcher Agent subscribes to a set of configured topics and publishes an alert if
-they are not published within a specified time limit. In addition to "standard" topics
-the Topic Watcher Agent supports inspecting device `all` topics. This can be useful when
+The Alert Agent listens to a set of configured topics and publishes an alert if
+they are not published within some time limit. In addition to "standard" topics
+the Alert Agent supports inspecting device `all` topics. This can be useful when
 a device contains volatile points that may not be published.
 
 
