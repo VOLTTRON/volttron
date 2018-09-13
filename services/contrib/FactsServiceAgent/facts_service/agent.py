@@ -118,8 +118,9 @@ class FactsService(BaseHistorian):
         self._facts_service_username = facts_service_parameters.get("username")
         self._facts_service_password = facts_service_parameters.get("password")
         self._building_id = building_parameters.get("building_id")
-        self._topic_building_mapping = \
-            building_parameters.get("topic_building_mapping")
+        self._topic_building_mapping = building_parameters.get(
+            "topic_building_mapping", {}
+        )
 
         if self._building_id is not None and self._topic_building_mapping:
             _log.warning(

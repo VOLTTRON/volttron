@@ -168,7 +168,7 @@ class TestFactsServiceConfigure:
         assert object._facts_service_username == 'foo'
         assert object._facts_service_password == 'bar'
         assert object._building_id is None
-        assert object._topic_building_mapping is None
+        assert object._topic_building_mapping == dict()
 
     def test_ignored_topic_building_mapping(self, caplog):
         # arrange
