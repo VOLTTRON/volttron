@@ -14,7 +14,7 @@ certificate-data:
 #
 # optional parameters for single instance setup
 #
-virtual-host: 'volttron1' #defaults to volttron
+virtual-host: 'volttron' #defaults to volttron
 
 # use the below four port variables if using custom rabbitmq ports
 # defaults to 5672
@@ -32,6 +32,6 @@ mgmt-port-ssl: '15671'
 # defaults to true
 ssl: 'true'
 
-# defaults to user_home/rabbitmq_server/rabbbitmq_server-3.7.7
-rmq-home: "/home/volttron/rabbitmq_server/rabbitmq_server-3.7.7"
+# defaults to ~/rabbitmq_server/rabbbitmq_server-3.7.7
+rmq-home: "~/rabbitmq_server/rabbitmq_server-3.7.7"
 
