@@ -37,7 +37,8 @@ Default configuration::
       "facts_service_parameters": {
         "base_api_url": "https://facts.prod.ecorithm.com/api/v1",
         "username": "",
-        "password": ""
+        "password": "",
+        "unmapped_topics_database": "unmapped_topics.db"
       },
       "building_parameters": {
         "building_id": null,

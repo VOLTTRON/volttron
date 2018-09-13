@@ -80,6 +80,7 @@ class FactsService(BaseHistorian):
         self._facts_service_password = None
         self._building_id = None
         self._topic_building_mapping = None
+        self._db_path = None
         self._db_connection = None
         self._db_is_alive = False
 
@@ -117,6 +118,9 @@ class FactsService(BaseHistorian):
             facts_service_parameters.get("base_api_url")
         self._facts_service_username = facts_service_parameters.get("username")
         self._facts_service_password = facts_service_parameters.get("password")
+        self._db_path = facts_service_parameters.get(
+            "unmapped_topics_database", "unmapped_topics.db"
+        )
         self._building_id = building_parameters.get("building_id")
         self._topic_building_mapping = building_parameters.get(
             "topic_building_mapping", {}
@@ -224,7 +228,7 @@ class FactsService(BaseHistorian):
 
         if unmapped_topics:
             try:
-                _log.debug('Saving {} untrended topics to the database'
+                _log.debug('Saving {} unmapped topics to the database'
                            .format(len(unmapped_topics)))
                 with self._db_connection:
                     self._db_connection.executemany(
@@ -278,7 +282,7 @@ class FactsService(BaseHistorian):
         _log.info("Setting up unmapped topics database connection")
         self.historian_teardown()
         try:
-            self._db_connection = sqlite3.connect('trends.db')
+            self._db_connection = sqlite3.connect(self._db_path)
             with self._db_connection:
                 self._db_connection.execute(
                     "CREATE TABLE IF NOT EXISTS unmapped_topics ("

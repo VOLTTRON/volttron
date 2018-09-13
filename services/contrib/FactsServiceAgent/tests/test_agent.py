@@ -30,6 +30,7 @@ class TestHistorian:
         assert hasattr(object, '_facts_service_password')
         assert hasattr(object, '_building_id')
         assert hasattr(object, '_topic_building_mapping')
+        assert hasattr(object, '_db_path')
         assert hasattr(object, '_db_connection')
         assert hasattr(object, '_db_is_alive')
         assert object._default_config.get('building_parameters')\
@@ -53,6 +54,7 @@ class TestHistorian:
         assert hasattr(object, '_facts_service_password')
         assert hasattr(object, '_building_id')
         assert hasattr(object, '_topic_building_mapping')
+        assert hasattr(object, '_db_path')
         assert hasattr(object, '_db_connection')
         assert hasattr(object, '_db_is_alive')
         assert object._default_config.get('facts_service_parameters')\
@@ -68,7 +70,8 @@ class TestFactsServiceInit:
         facts_service_parameters = {
             "base_api_url": "https://facts.prod.ecorithm.com/api/v1",
             "username": "",
-            "password": ""
+            "password": "",
+            "unmapped_topics_database": "trends.db"
         }
         building_parameters = {
             "building_id": None,
@@ -87,6 +90,7 @@ class TestFactsServiceInit:
         assert hasattr(object, '_facts_service_password')
         assert hasattr(object, '_building_id')
         assert hasattr(object, '_topic_building_mapping')
+        assert hasattr(object, '_db_path')
         assert hasattr(object, '_db_connection')
         assert hasattr(object, '_db_is_alive')
         assert object._default_config.get('facts_service_parameters')\
@@ -106,6 +110,7 @@ class TestFactsServiceInit:
         assert hasattr(object, '_facts_service_password')
         assert hasattr(object, '_building_id')
         assert hasattr(object, '_topic_building_mapping')
+        assert hasattr(object, '_db_path')
         assert hasattr(object, '_db_connection')
         assert hasattr(object, '_db_is_alive')
         assert object._default_config.get('facts_service_parameters') == dict()
@@ -125,8 +130,8 @@ class TestFactsServiceConfigure:
             "topic_building_mapping": {}
         }
         object = FactsService(facts_service_parameters, building_parameters)
-        # act
         caplog.clear()
+        # act
         object.configure(object._default_config)
         # assert
         assert len(caplog.records) == 1
@@ -137,6 +142,7 @@ class TestFactsServiceConfigure:
         assert object._facts_service_base_api_url is None
         assert object._facts_service_username is None
         assert object._facts_service_password is None
+        assert object._db_path == "unmapped_topics.db"
         assert object._building_id is 42
         assert object._topic_building_mapping == dict()
 
@@ -145,12 +151,13 @@ class TestFactsServiceConfigure:
         facts_service_parameters = {
             "base_api_url": "https://facts.prod.ecorithm.com/api/v1",
             "username": "foo",
-            "password": "bar"
+            "password": "bar",
+            "unmapped_topics_database": "trends.db"
         }
         building_parameters = None
         object = FactsService(facts_service_parameters, building_parameters)
-        # act
         caplog.clear()
+        # act
         object.configure(object._default_config)
         # assert
         assert len(caplog.records) == 2
@@ -167,6 +174,7 @@ class TestFactsServiceConfigure:
             == 'https://facts.prod.ecorithm.com/api/v1'
         assert object._facts_service_username == 'foo'
         assert object._facts_service_password == 'bar'
+        assert object._db_path == 'trends.db'
         assert object._building_id is None
         assert object._topic_building_mapping == dict()
 
@@ -175,7 +183,8 @@ class TestFactsServiceConfigure:
         facts_service_parameters = {
             "base_api_url": "https://facts.prod.ecorithm.com/api/v1",
             "username": "foo",
-            "password": "bar"
+            "password": "bar",
+            "unmapped_topics_database": "unmapped_topics.db"
         }
         building_parameters = {
             "building_id": 42,
@@ -198,6 +207,7 @@ class TestFactsServiceConfigure:
             == 'https://facts.prod.ecorithm.com/api/v1'
         assert object._facts_service_username == 'foo'
         assert object._facts_service_password == 'bar'
+        assert object._db_path == 'unmapped_topics.db'
         assert object._building_id is 42
         assert object._topic_building_mapping == dict()
 
@@ -206,15 +216,16 @@ class TestFactsServiceConfigure:
         facts_service_parameters = {
             "base_api_url": "https://facts.prod.ecorithm.com/api/v1",
             "username": "foo",
-            "password": "bar"
+            "password": "bar",
+            "unmapped_topics_database": "unmapped_topics.db"
         }
         building_parameters = {
             "building_id": None,
             "topic_building_mapping": {}
         }
         object = FactsService(facts_service_parameters, building_parameters)
-        # act
         caplog.clear()
+        # act
         object.configure(object._default_config)
         # assert
         assert len(caplog.records) == 1
@@ -227,6 +238,7 @@ class TestFactsServiceConfigure:
             == 'https://facts.prod.ecorithm.com/api/v1'
         assert object._facts_service_username == 'foo'
         assert object._facts_service_password == 'bar'
+        assert object._db_path == 'unmapped_topics.db'
         assert object._building_id is None
         assert object._topic_building_mapping == dict()
 
@@ -235,15 +247,16 @@ class TestFactsServiceConfigure:
         facts_service_parameters = {
             "base_api_url": "https://facts.prod.ecorithm.com/api/v1",
             "username": "foo",
-            "password": "bar"
+            "password": "bar",
+            "unmapped_topics_database": "unmapped_topics.db"
         }
         building_parameters = {
             "building_id": 42,
             "topic_building_mapping": {}
         }
         object = FactsService(facts_service_parameters, building_parameters)
-        # act
         caplog.clear()
+        # act
         object.configure(object._default_config)
         # assert
         assert len(caplog.records) == 0
@@ -251,6 +264,7 @@ class TestFactsServiceConfigure:
             == 'https://facts.prod.ecorithm.com/api/v1'
         assert object._facts_service_username == 'foo'
         assert object._facts_service_password == 'bar'
+        assert object._db_path == 'unmapped_topics.db'
         assert object._building_id is 42
         assert object._topic_building_mapping == dict()
 
@@ -263,7 +277,8 @@ class TestFactsServicePublishToHistorian:
         facts_service_parameters = {
             "base_api_url": "https://facts.prod.ecorithm.com/api/v1",
             "username": "foo",
-            "password": "bar"
+            "password": "bar",
+            "unmapped_topics_database": "unmapped_topics.db"
         }
         building_parameters = {
             "building_id": 42,
@@ -278,7 +293,8 @@ class TestFactsServicePublishToHistorian:
         facts_service_parameters = {
             "base_api_url": "https://facts.prod.ecorithm.com/api/v1",
             "username": "foo",
-            "password": "bar"
+            "password": "bar",
+            "unmapped_topics_database": "unmapped_topics.db"
         }
         building_parameters = {
             "building_id": None,
@@ -297,7 +313,8 @@ class TestFactsServicePublishToHistorian:
         facts_service_parameters = {
             "base_api_url": "https://facts.prod.ecorithm.com/api/v1",
             "username": "foo",
-            "password": "bar"
+            "password": "bar",
+            "unmapped_topics_database": "unmapped_topics.db"
         }
         building_parameters = {
             "building_id": None,
@@ -537,7 +554,7 @@ class TestFactsServicePublishToHistorian:
             ('facts_service.agent', logging.DEBUG,
              'Data successfully published to building 42!'),
             ('facts_service.agent', logging.DEBUG,
-             'Saving 1 untrended topics to the database')
+             'Saving 1 unmapped topics to the database')
         ]
         requests.put.assert_any_call(
             'https://facts.prod.ecorithm.com/api/v1/building/42/facts',
@@ -695,7 +712,7 @@ class TestFactsServicePublishToHistorian:
             ('facts_service.agent', logging.DEBUG,
              'Data successfully published to building 42!'),
             ('facts_service.agent', logging.DEBUG,
-             'Saving 1 untrended topics to the database'),
+             'Saving 1 unmapped topics to the database'),
             ('facts_service.agent', logging.ERROR,
              "Error when saving unmapped topics: "
              "OperationalError('no such table: unmapped_topics',)"),
@@ -806,6 +823,7 @@ class TestFactsServiceHistorianSetup:
     def test_valid_setup(self, caplog):
         # arrange
         agent = FactsService()
+        agent.configure(agent._default_config)
         caplog.clear()
         # act
         agent.historian_setup()
@@ -820,6 +838,7 @@ class TestFactsServiceHistorianSetup:
     def test_error_during_setup(self, caplog):
         # arrange
         agent = FactsService()
+        agent.configure(agent._default_config)
         caplog.clear()
         mock_db = mock.patch(
             'facts_service.agent.sqlite3.connect',
@@ -844,6 +863,7 @@ class TestFactsServiceHistorianTeardown:
     def test_no_connection(self):
         # arrange
         agent = FactsService()
+        agent.configure(agent._default_config)
         # act
         agent.historian_teardown()
         # assert
@@ -853,6 +873,7 @@ class TestFactsServiceHistorianTeardown:
     def test_with_existing_connection(self):
         # arrange
         agent = FactsService()
+        agent.configure(agent._default_config)
         agent.historian_setup()
         # act
         agent.historian_teardown()
