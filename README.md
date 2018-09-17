@@ -193,6 +193,10 @@ vcfg --rabbitmq single [optional path to rabbitmq_config.yml]
 ```
 
 Refer to examples/configurations/rabbitmq/rabbitmq_config.yml for a sample configuration file.
+At a minimum you would need to provide the host name and a unique common-name
+(under certificate-data) in the configuration file. Note. common-name must be
+unique and the general conventions is to use  <voltttron instance name>-root-ca.
+
 Running the above command without the optional configuration file parameter will
 prompt user for all the needed data at the command prompt and use that to
 generate a rabbitmq_config.yml file in VOLTTRON_HOME directory.

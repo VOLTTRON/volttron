@@ -340,6 +340,10 @@ def _setup_for_ssl_auth(instance_name):
     _log.info('\nChecking for CA certificate\n')
     instance_ca_name, server_name, admin_client_name = \
         certs.Certs.get_cert_names(instance_name)
+    vhome = get_home()
+    white_list_dir = os.path.join(vhome, "whitelist")
+    if not os.path.exists(white_list_dir):
+        os.mkdir(white_list_dir)
 
     # prompt for host before creating certs as it is needed for server cert
     _create_certs_without_prompt(admin_client_name, server_name)
@@ -361,14 +365,17 @@ management.listener.port = {mgmt_port_ssl}
 management.listener.ssl = true
 management.listener.ssl_opts.cacertfile = {ca}
 management.listener.ssl_opts.certfile = {server_cert}
-management.listener.ssl_opts.keyfile = {server_key}""".format(
+management.listener.ssl_opts.keyfile = {server_key}
+trust_store.directory={ca_dir}
+trust_store.refresh_interval=0""".format(
         mgmt_port_ssl=config_opts.get('mgmt-port-ssl', 15671),
         amqp_port_ssl=config_opts.get('amqp-port-ssl', 5671),
         ca=crts.cert_file(crts.trusted_ca_name),
         server_cert=crts.cert_file(server_name),
-        server_key=crts.private_key_file(server_name)
+        server_key=crts.private_key_file(server_name),
+        ca_dir=white_list_dir
     )
-    vhome = get_home()
+
     with open(os.path.join(vhome, "rabbitmq.conf"), 'w') as rconf:
         rconf.write(new_conf)
 
