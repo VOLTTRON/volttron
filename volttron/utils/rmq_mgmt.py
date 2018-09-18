@@ -52,9 +52,8 @@ import requests
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 from volttron.platform import certs
-from volttron.platform import get_home
 from volttron.platform.agent import json as jsonapi
-from volttron.platform.agent.utils import get_platform_instance_name
+from rmq_setup_config_params import RMQSetupConfigParams
 
 _log = logging.getLogger(__name__)
 default_pass = "default_passwd"
@@ -80,12 +79,7 @@ default_pass = "default_passwd"
 
 class RabbitMQMgmt(object):
     def __init__(self):
-        self._crts = certs.Certs()
-        self._local_user = "guest"
-        self._local_password = "guest"
-        self._instance_name = get_platform_instance_name()
-        self._volttron_rmq_config = None
-        self.config_opts = self._load_rmq_config()
+        self.rmq_config = RMQSetupConfigParams()
         self.is_ssl = self.is_ssl_connection()
 
     def _call_grequest(self, method_name, url_suffix, ssl_auth=True, **kwargs):
@@ -133,7 +127,7 @@ class RabbitMQMgmt(object):
 
         if ssl_auth:
             instance_ca, server_cert, client_cert = certs.Certs.get_cert_names(
-                self._instance_name)
+                self.rmq_config.instance_name)
             admin_user = self.get_user()
             admin_password = self.get_password()
             if admin_password is None:
@@ -150,12 +144,12 @@ class RabbitMQMgmt(object):
                 # when connecting to management apis. Because management api
                 # won't honour external auth the same way amqps does :(
                 'auth': (admin_user, admin_password),
-                'verify': self._crts.cert_file(self._crts.trusted_ca_name),
-                'cert': (self._crts.cert_file(client_cert),
-                         self._crts.private_key_file(client_cert))}
+                'verify': self.rmq_config.crts.cert_file(self.rmq_config.crts.trusted_ca_name),
+                'cert': (self.rmq_config.crts.cert_file(client_cert),
+                         self.rmq_config.crts.private_key_file(client_cert))}
         else:
-            password = self._local_user
-            user = self._local_password
+            password = self.rmq_config.local_user
+            user = self.rmq_config.local_password
             return {'auth': (user, password)}
 
     def _http_put_request(self, url_suffix, body=None, ssl_auth=True):
@@ -174,48 +168,30 @@ class RabbitMQMgmt(object):
             response = response[0].json()
         return response
 
-    def _load_rmq_config(self, volttron_home=None):
-        """
-        Load RabbitMQ config from VOLTTRON_HOME
-        :param volttron_home: VOLTTRON_HOME path
-        :return:
-        """
-        """Loads the config file if the path exists."""
-        if not volttron_home:
-            volttron_home = get_home()
-        config_opts = {}
-        try:
-            self._volttron_rmq_config = os.path.join(volttron_home, 'rabbitmq_config.yml')
-            with open(self._volttron_rmq_config, 'r') as yaml_file:
-                config_opts = yaml.load(yaml_file)
-        except yaml.YAMLError as exc:
-            raise
-        return config_opts
-
     def get_hostname(self):
-        # _log.debug("rmq config: {}".format(self.config_opts))
-        return self.config_opts.get('host')
+        # _log.debug("rmq config: {}".format(self.rmq_config.config_opts))
+        return self.rmq_config.config_opts.get('host')
 
     def get_amqp_port(self):
-        # _log.debug("rmq config: {}".format(self.config_opts))
-        return self.config_opts.get('amqp-port')
+        # _log.debug("rmq config: {}".format(self.rmq_config.config_opts))
+        return self.rmq_config.config_opts.get('amqp-port')
 
     def get_mgmt_port_ssl(self):
-        # _log.debug("rmq config: {}".format(self.config_opts))
-        return self.config_opts.get('mgmt-port-ssl')
+        # _log.debug("rmq config: {}".format(self.rmq_config.config_opts))
+        return self.rmq_config.config_opts.get('mgmt-port-ssl')
 
     def get_mgmt_port(self):
-        # _log.debug("rmq config: {}".format(self.config_opts))
-        return self.config_opts.get('mgmt-port')
+        # _log.debug("rmq config: {}".format(self.rmq_config.config_opts))
+        return self.rmq_config.config_opts.get('mgmt-port')
 
     def get_vhost(self):
-        return self.config_opts.get('virtual-host')
+        return self.rmq_config.config_opts.get('virtual-host')
 
     def get_user(self):
-        return self.config_opts.get('user')
+        return self.rmq_config.config_opts.get('user')
 
     def get_password(self):
-        return self.config_opts.get('pass')
+        return self.rmq_config.config_opts.get('pass')
 
     def create_vhost(self, vhost='volttron', ssl_auth=None):
         """
@@ -738,7 +714,7 @@ class RabbitMQMgmt(object):
 
         :return:
         """
-        vhost = self.config_opts['virtual-host']
+        vhost = self.rmq_config.config_opts['virtual-host']
         # Create a new "volttron" vhost
         try:
             response = self.create_vhost(vhost, ssl_auth=False)
@@ -749,7 +725,7 @@ class RabbitMQMgmt(object):
             print "Cannot create vhost {}".format(vhost)
             return response
 
-        admin_user = self.config_opts['user']
+        admin_user = self.rmq_config.config_opts['user']
         # Create admin user for the instance
         self.create_user(admin_user, ssl_auth=False)
         permissions = dict(configure=".*", read=".*", write=".*")
@@ -781,7 +757,7 @@ class RabbitMQMgmt(object):
         return port == 5672 or port == 5671
 
     def is_ssl_connection(self):
-        auth = self.config_opts.get('ssl', 'true')
+        auth = self.rmq_config.config_opts.get('ssl', 'true')
         return auth in ('true', 'True', 'TRUE', True)
 
     def is_valid_mgmt_port(port):
@@ -811,7 +787,7 @@ class RabbitMQMgmt(object):
         :return:
         """
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
-        crt = self._crts
+        crt = self.rmq_config.crts
         try:
             if ssl_auth:
                 ssl_options = dict(
@@ -821,17 +797,17 @@ class RabbitMQMgmt(object):
                     certfile=crt.cert_file(rmq_user),
                     cert_reqs=ssl.CERT_REQUIRED)
                 conn_params = pika.ConnectionParameters(
-                    host=self.config_opts['host'],
-                    port=int(self.config_opts['amqp-port-ssl']),
-                    virtual_host=self.config_opts['virtual-host'],
+                    host=self.rmq_config.config_opts['host'],
+                    port=int(self.rmq_config.config_opts['amqp-port-ssl']),
+                    virtual_host=self.rmq_config.config_opts['virtual-host'],
                     ssl=True,
                     ssl_options=ssl_options,
                     credentials=pika.credentials.ExternalCredentials())
             else:
                 conn_params = pika.ConnectionParameters(
-                    host=self.config_opts['host'],
-                    port=int(self.config_opts['amqp-port']),
-                    virtual_host=self.config_opts['virtual-host'],
+                    host=self.rmq_config.config_opts['host'],
+                    port=int(self.rmq_config.config_opts['amqp-port']),
+                    virtual_host=self.rmq_config.config_opts['virtual-host'],
                     credentials=pika.credentials.PlainCredentials(
                         rmq_user, rmq_user))
         except KeyError:
@@ -849,7 +825,7 @@ class RabbitMQMgmt(object):
         user = self.get_user()
         if user is None:
             if not ssl_auth:
-                user = self._local_user
+                user = self.rmq_config.local_user
             else:
                 raise ValueError("No user configured in rabbitmq_config.json")
 
@@ -860,16 +836,16 @@ class RabbitMQMgmt(object):
                 # authentication
                 rmq_address = "amqps://{host}:{port}/{vhost}?" \
                               "{ssl_params}&server_name_indication={host}".format(
-                    host=self.config_opts['host'],
-                    port=self.config_opts['amqp-port-ssl'],
-                    vhost=self.config_opts['virtual-host'],
-                    ssl_params=self.get_ssl_url_params())
+                    host=self.rmq_config.config_opts['host'],
+                    port=self.rmq_config.config_opts['amqp-port-ssl'],
+                    vhost=self.rmq_config.config_opts['virtual-host'],
+                    ssl_params=self._get_ssl_url_params())
             else:
-                passwd = self.get_password() if self.get_password() else self._local_password
+                passwd = self.get_password() if self.get_password() else self.rmq_config.local_password
                 rmq_address = "amqp://{user}:{pwd}@{host}:{port}/{vhost}".format(
                     user=user, pwd=passwd, host=config['host'],
-                    port=self.config_opts['amqp-port'],
-                    vhost=self.config_opts['virtual-host'])
+                    port=self.rmq_config.config_opts['amqp-port'],
+                    vhost=self.rmq_config.config_opts['virtual-host'])
         except KeyError as e:
             _log.error("Missing entries in rabbitmq config {}".format(e))
             raise
@@ -914,7 +890,7 @@ class RabbitMQMgmt(object):
                            write=write_access)
 
         if self.is_ssl:
-            self._crts.create_ca_signed_cert(rmq_user, overwrite=False)
+            self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)
 
         self.create_user_with_permissions(rmq_user, permissions, ssl_auth=self.is_ssl)
 
@@ -935,7 +911,7 @@ class RabbitMQMgmt(object):
         permissions = dict(configure=".*", read=".*", write=".*")
 
         if self.is_ssl:
-            self._crts.create_ca_signed_cert(rmq_user, overwrite=False)
+            self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)
 
         self.create_user_with_permissions(rmq_user, permissions, ssl_auth=self.is_ssl)
 
@@ -954,12 +930,16 @@ class RabbitMQMgmt(object):
         """
         pass
 
-    def get_ssl_url_params(self):
+    def _get_ssl_url_params(self):
+        """
+        Return SSL parameter string
+        :return:
+        """
         instance_ca, server_cert, client_cert = certs.Certs.get_cert_names(
-            self._instance_name)
-        ca_file = self._crts.cert_file(self._crts.trusted_ca_name)
-        cert_file = self._crts.cert_file(client_cert)
-        key_file = self._crts.private_key_file(client_cert)
+            self.rmq_config.instance_name)
+        ca_file = self.rmq_config.crts.cert_file(self.rmq_config.crts.trusted_ca_name)
+        cert_file = self.rmq_config.crts.cert_file(client_cert)
+        key_file = self.rmq_config.crts.private_key_file(client_cert)
         return "cacertfile={ca}&certfile={cert}&keyfile={key}" \
                "&verify=verify_peer&fail_if_no_peer_cert=true" \
                "&auth_mechanism=external".format(ca=ca_file,
