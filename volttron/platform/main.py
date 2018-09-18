@@ -37,7 +37,7 @@
 # }}}
 
 from __future__ import print_function, absolute_import
-
+import yaml
 import argparse
 import errno
 import logging
@@ -88,6 +88,7 @@ from .vip.rmq_router import RMQRouter
 from volttron.platform.agent.utils import store_message_bus_config
 from zmq import green as _green
 from volttron.platform.vip.proxy_zmq_router import ZMQProxyRouter
+from volttron.utils.rmq_setup import start_rabbit
 
 try:
     import volttron.restricted
@@ -760,6 +761,10 @@ def start_volttron_process(opts):
             if not thread.isAlive():
                 sys.exit()
         else:
+            with open(os.path.join(os.environ['VOLTTRON_HOME'],
+                              "rabbitmq_config.yml"), 'r') as f:
+                config_opts = yaml.load(f)
+                start_rabbit(config_opts['rmq-home'])
             # Start the config store before auth so we may one day have auth use it.
             config_store = ConfigStoreService(address=address,
                                               identity=CONFIGURATION_STORE,
