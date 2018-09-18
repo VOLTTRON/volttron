@@ -53,10 +53,9 @@ from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 from volttron.platform import certs
 from volttron.platform.agent import json as jsonapi
-from rmq_setup_config_params import RMQSetupConfigParams
+from rmq_setup_config_params import RMQConfigParams
 
 _log = logging.getLogger(__name__)
-default_pass = "default_passwd"
 
 """
     RabbitMQ Management class that contains HTTP management utility methods to
@@ -79,7 +78,7 @@ default_pass = "default_passwd"
 
 class RabbitMQMgmt(object):
     def __init__(self):
-        self.rmq_config = RMQSetupConfigParams()
+        self.rmq_config = RMQConfigParams()
         self.is_ssl = self.is_ssl_connection()
 
     def _call_grequest(self, method_name, url_suffix, ssl_auth=True, **kwargs):
@@ -138,7 +137,7 @@ class RabbitMQMgmt(object):
                 # with guest user with localhost. We still have to persist guest
                 # password but at least guest user can only access rmq using
                 # localhost
-                admin_password = default_pass
+                admin_password = self.rmq_config.default_pass
             return {
                 # TODO create guest cert and use localhost and guest cert instead
                 # when connecting to management apis. Because management api

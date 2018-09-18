@@ -115,10 +115,10 @@ class RMQPubSub(BasePubSub):
                                                                                     queue_name=queue_name)
                     else:
                         queue_name = "{user}.pubsub.{uid}".format(user=self.core().rmq_user,
-                                                             uid=bytes(uuid.uuid4()))
+                                                                  uid=bytes(uuid.uuid4()))
 
                     self._add_subscription(routing_key, member, queue_name)
-                    #self._logger.debug("SYNC RMQ: all_platforms {}")
+                    # self._logger.debug("SYNC RMQ: all_platforms {}")
 
             inspect.getmembers(owner, subscribe)
 
@@ -225,7 +225,7 @@ class RMQPubSub(BasePubSub):
             durable = True
             auto_delete = False
             queue_name = "{user}.pubsub.persistent.{queue_name}".format(user=self.core().rmq_user,
-                                                                   queue_name=persistent_queue)
+                                                                        queue_name=persistent_queue)
         else:
             queue_name = "{user}.pubsub.{uid}".format(user=self.core().rmq_user, uid=str(uuid.uuid4()))
         # Store subscriptions for later use
@@ -275,6 +275,7 @@ class RMQPubSub(BasePubSub):
         :param callback: callback method
         :return:
         """
+
         def rmq_callback(ch, method, properties, body):
             # Strip prefix from routing key
             topic = self._get_original_topic(str(method.routing_key))
@@ -303,6 +304,7 @@ class RMQPubSub(BasePubSub):
         :param persistent_queue: Name of the queue for persistent behavior
         :return:
         """
+
         def decorate(method):
             annotate(method, set, 'pubsub.subscriptions', (peer, bus, prefix, all_platforms, persistent_queue))
             return method

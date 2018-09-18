@@ -89,6 +89,7 @@ from volttron.platform.agent.utils import store_message_bus_config
 from zmq import green as _green
 from volttron.platform.vip.proxy_zmq_router import ZMQProxyRouter
 from volttron.utils.rmq_setup import start_rabbit
+from volttron.utils.rmq_setup_config_params import RMQConfigParams
 
 try:
     import volttron.restricted
@@ -329,10 +330,10 @@ class Router(BaseRouter):
                                            self._addr, self._instance_name)
 
         self.pubsub = PubSubService(self.socket,
-                                     self._protected_topics,
-                                     self._ext_routing)
+                                    self._protected_topics,
+                                    self._ext_routing)
         self.ext_rpc = ExternalRPCService(self.socket,
-                                           self._ext_routing)
+                                          self._ext_routing)
         self._poller.register(sock, zmq.POLLIN)
         _log.debug("ZMQ version: {}".format(zmq.zmq_version()))
 
@@ -510,6 +511,7 @@ class GreenRouter(Router):
     """
 
     """
+
     def __init__(self, local_address, addresses=(),
                  context=None, secretkey=None, publickey=None,
                  default_user_id=None, monitor=False, tracker=None,
@@ -517,7 +519,7 @@ class GreenRouter(Router):
                  bind_web_address=None, volttron_central_serverkey=None,
                  protected_topics={}, external_address_file='',
                  msgdebug=None, volttron_central_rmq_address=None):
-        self._context_class =_green.Context
+        self._context_class = _green.Context
         self._socket_class = _green.Socket
         self._poller_class = _green.Poller
         super(GreenRouter, self).__init__(
@@ -761,10 +763,10 @@ def start_volttron_process(opts):
             if not thread.isAlive():
                 sys.exit()
         else:
-            with open(os.path.join(os.environ['VOLTTRON_HOME'],
-                              "rabbitmq_config.yml"), 'r') as f:
-                config_opts = yaml.load(f)
-                start_rabbit(config_opts['rmq-home'])
+            # Start RabbitMQ server if not running
+            rmq_config = RMQConfigParams()
+            start_rabbit(rmq_config.config_opts['rmq-home'])
+
             # Start the config store before auth so we may one day have auth use it.
             config_store = ConfigStoreService(address=address,
                                               identity=CONFIGURATION_STORE,
@@ -901,6 +903,7 @@ def start_volttron_process(opts):
     finally:
         _log.debug("AIP finally")
         opts.aip.finish()
+
 
 def main(argv=sys.argv):
     # Refuse to run as root

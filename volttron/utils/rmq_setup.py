@@ -58,8 +58,7 @@ from volttron.platform import certs
 from volttron.platform import get_home
 from volttron.platform.agent.utils import store_message_bus_config
 from volttron.utils.prompt import prompt_response, y, y_or_n
-from rmq_setup_config_params import RMQSetupConfigParams
-
+from rmq_setup_config_params import RMQConfigParams
 
 _log = logging.getLogger(os.path.basename(__file__))
 
@@ -500,7 +499,7 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False):
             shovel - Setup shovels to forward local messages to remote instances
     :return:
     """
-    setup_config = RMQSetupConfigParams()
+    setup_config = RMQConfigParams()
     if verbose:
         _log.setLevel(logging.DEBUG)
         _log.debug("verbose set to True")

@@ -38,6 +38,7 @@
 
 import os
 import logging
+
 try:
     import yaml
 except ImportError:
@@ -50,7 +51,7 @@ from volttron.platform.agent.utils import get_platform_instance_name
 _log = logging.getLogger(os.path.basename(__file__))
 
 
-class RMQSetupConfigParams(object):
+class RMQConfigParams(object):
     def __init__(self):
         self.local_user = "guest"
         self.local_password = "guest"
