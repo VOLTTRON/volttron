@@ -341,7 +341,7 @@ def _setup_for_ssl_auth(instance_name):
     instance_ca_name, server_name, admin_client_name = \
         certs.Certs.get_cert_names(instance_name)
     vhome = get_home()
-    white_list_dir = os.path.join(vhome, "whitelist")
+    white_list_dir = os.path.join(vhome, "certificates", "whitelist")
     if not os.path.exists(white_list_dir):
         os.mkdir(white_list_dir)
 
