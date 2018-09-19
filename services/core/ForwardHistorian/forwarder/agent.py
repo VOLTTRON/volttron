@@ -78,7 +78,7 @@ def historian(config_path, **kwargs):
         _log.warning(w)
 
         # Populate the new values for the kwargs based upon the old data.
-        kwargs['capture_device_data'] = True if ("device" in service_topic_list or "all" in service_topic_list) else False
+        kwargs['capture_device_data'] = True if ("device" in service_topic_list  or "all" in service_topic_list) else False
         kwargs['capture_log_data'] = True if ("datalogger" in service_topic_list or "all" in service_topic_list) else False
         kwargs['capture_record_data'] = True if ("record" in service_topic_list or "all" in service_topic_list) else False
         kwargs['capture_analysis_data'] = True if ("analysis" in service_topic_list or "all" in service_topic_list) else False
@@ -147,19 +147,13 @@ class ForwardHistorian(BaseHistorian):
         self.cache_only = cache_only
         self.destination_instance_name = destination_instance_name
 
-        config = {
-            "custom_topic_list": custom_topic_list,
-            "topic_replace_list": self.topic_replace_list,
-            "required_target_agents": self.required_target_agents,
-            "destination_vip": self.destination_vip,
-            "destination_serverkey": self.destination_serverkey,
-            "cache_only": self.cache_only,
-            "capture_device_data": True,
-            "capture_analysis_data": True,
-            "capture_log_data": True,
-            "capture_record_data": True,
-            "destination_instance_name": self.destination_instance_name
-        }
+        config = {"custom_topic_list": custom_topic_list,
+                  "topic_replace_list": self.topic_replace_list,
+                  "required_target_agents": self.required_target_agents,
+                  "destination_vip": self.destination_vip,
+                  "destination_instance_name": self.destination_instance_name,
+                  "destination_serverkey": self.destination_serverkey,
+                  "cache_only": self.cache_only}
 
         self.update_default_config(config)
 

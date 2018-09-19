@@ -8,7 +8,7 @@ Platform services provide the underlying functionality used by applications to p
 
 .. toctree::
     :glob:
-    :maxdepth: 1
+    :maxdepth: 2
 
     service_agents/index
     control/index
