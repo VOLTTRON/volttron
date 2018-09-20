@@ -193,7 +193,8 @@ class AIPplatform(object):
     def __init__(self, env, **kwargs):
         self.env = env
         self.agents = {}
-        self.rmq_mgmt = RabbitMQMgmt()
+        if get_messagebus() == 'rmq':
+            self.rmq_mgmt = RabbitMQMgmt()
 
     def setup(self):
         '''Creates paths for used directories for the instance.'''
@@ -214,19 +215,14 @@ class AIPplatform(object):
 
     def shutdown(self):
         for agent_uuid in self.agents.iterkeys():
-            _log.debug("Stopping agent {}".format(agent_uuid))
+            _log.debug("Stopping agent UUID {}".format(agent_uuid))
             self.stop_agent(agent_uuid)
         event = gevent.event.Event()
-        agent = Agent(identity='aip', address='inproc://vip')
+        agent = Agent(identity='aip', address='inproc://vip',
+                      message_bus=get_messagebus())
         task = gevent.spawn(agent.core.run, event)
         try:
-            _log.debug("I'm waiting")
             event.wait()
-            _log.debug("I'm done waiting")
-            # agent.vip.pubsub.publish(
-            #     'pubsub', topics.PLATFORM_SHUTDOWN,
-            #     {'reason': 'Received shutdown command'}).get()
-
         finally:
             agent.core.stop()
             task.kill()

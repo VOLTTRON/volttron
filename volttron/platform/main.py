@@ -56,7 +56,8 @@ import uuid
 import gevent
 from gevent.fileobject import FileObject
 import zmq
-from zmq import green, ZMQError
+from zmq import ZMQError
+from zmq import green
 
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
@@ -89,7 +90,7 @@ from volttron.platform.agent.utils import store_message_bus_config
 from zmq import green as _green
 from volttron.platform.vip.proxy_zmq_router import ZMQProxyRouter
 from volttron.utils.rmq_setup import start_rabbit
-from volttron.utils.rmq_setup_config_params import RMQConfigParams
+from volttron.utils.rmq_config_params import RMQConfigParams
 
 try:
     import volttron.restricted
@@ -509,7 +510,7 @@ class Router(BaseRouter):
 
 class GreenRouter(Router):
     """
-
+    Greenlet friendly Router
     """
 
     def __init__(self, local_address, addresses=(),
@@ -531,6 +532,20 @@ class GreenRouter(Router):
             protected_topics=protected_topics, external_address_file=external_address_file,
             msgdebug=msgdebug)
 
+    def start(self):
+        '''Create the socket and call setup().
+
+        The socket is save in the socket attribute. The setup() method
+        is called at the end of the method to perform additional setup.
+        '''
+        self.socket = sock = self._socket_class(self.context, zmq.ROUTER)
+        sock.router_mandatory = True
+        sock.tcp_keepalive = True
+        sock.tcp_keepalive_idle = 180
+        sock.tcp_keepalive_intvl = 20
+        sock.tcp_keepalive_cnt = 6
+        sock.set_hwm(6000)
+        self.setup()
 
 def start_volttron_process(opts):
     '''Start the main volttron process.
@@ -580,6 +595,7 @@ def start_volttron_process(opts):
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
     opts.vip_local_address = config.expandall(opts.vip_local_address)
     opts.message_bus = config.expandall(opts.message_bus)
+
     os.environ['MESSAGEBUS'] = opts.message_bus
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
@@ -651,7 +667,7 @@ def start_volttron_process(opts):
         _log.warning('insecure mode on key file')
     publickey = decode_key(keystore.public)
     if publickey:
-        _log.info('public key: %s', encode_key(publickey))
+        #_log.info('public key: %s', encode_key(publickey))
         # Authorize the platform key:
         entry = AuthEntry(credentials=encode_key(publickey),
                           user_id='platform',
@@ -765,7 +781,7 @@ def start_volttron_process(opts):
         else:
             # Start RabbitMQ server if not running
             rmq_config = RMQConfigParams()
-            start_rabbit(rmq_config.config_opts['rmq-home'])
+            start_rabbit(rmq_config.rmq_home)
 
             # Start the config store before auth so we may one day have auth use it.
             config_store = ConfigStoreService(address=address,
