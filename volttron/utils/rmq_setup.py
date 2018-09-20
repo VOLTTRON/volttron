@@ -803,7 +803,7 @@ def prompt_shovels(vhome):
 
 
 def _read_config_file(filename):
-    data = None
+    data = {}
     try:
         with open(filename, 'r') as yaml_file:
             data = yaml.load(yaml_file)

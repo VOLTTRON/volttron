@@ -810,7 +810,7 @@ class RabbitMQMgmt(object):
                     host=self.rmq_config.hostname,
                     port=self.rmq_config.amqp_port_ssl,
                     vhost=self.rmq_config.virtual_host,
-                    ssl_params=self._get_ssl_url_params())
+                    ssl_params=self.get_ssl_url_params())
             else:
                 passwd = self.rmq_config.admin_pwd
                 rmq_address = "amqp://{user}:{pwd}@{host}:{port}/{vhost}".format(
@@ -888,7 +888,7 @@ class RabbitMQMgmt(object):
         param = self.build_connection_param(rmq_user, ssl_auth=self.is_ssl)
         return param
 
-    def _get_ssl_url_params(self):
+    def get_ssl_url_params(self):
         """
         Return SSL parameter string
         :return:
