@@ -275,7 +275,7 @@ def update(operation, verbose=None, upgrade=False, offline=False,
 
 
 def install_rabbit(rmq_install_dir):
-    import wget, tarfile
+    import wget
     if rmq_install_dir == default_rmq_dir and not os.path.exists(
             default_rmq_dir):
         os.makedirs(default_rmq_dir)
@@ -301,9 +301,11 @@ def install_rabbit(rmq_install_dir):
             "https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.7.7/rabbitmq-server-generic-unix-3.7.7.tar.xz",
             out=os.path.expanduser("~"))
         _log.info("\nDownloaded rabbitmq server")
-        t = tarfile.open(filename, 'r')
-        t.extractall(path=rmq_install_dir)
-        t.close()
+        cmd = ["tar",
+               "-xf",
+               filename,
+               "--directory=" + rmq_install_dir]
+        subprocess.check_call(cmd)
         _log.info("Installed Rabbitmq server at " + rmq_home)
     # enable plugins
     cmd = [os.path.join(rmq_home, "sbin/rabbitmq-plugins"),
