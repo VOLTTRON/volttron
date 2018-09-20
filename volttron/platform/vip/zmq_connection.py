@@ -68,8 +68,8 @@ class ZMQConnection(BaseConnection):
     """
     Maintains ZMQ socket connection
     """
-    def __init__(self, url, identity, instance_name, context, *args, **kwargs):
-        super(ZMQConnection, self).__init__(url, instance_name, identity, args, kwargs)
+    def __init__(self, url, identity, instance_name, context):
+        super(ZMQConnection, self).__init__(url, instance_name, identity)
 
         self.socket = None
         self.context = context

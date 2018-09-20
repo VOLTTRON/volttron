@@ -73,9 +73,11 @@ logging.getLogger("pika").setLevel(logging.WARNING)
 class RMQConnection(BaseConnection):
     """
     Connection class for RabbitMQ message bus.
-    It maintains connection with RabbitMQ broker
+    1. It maintains connection with RabbitMQ broker using Pika library APIs
+    2. Translates from VIP message format to RabbitMQ message format and visa-versa
+    3. Sends and receives messages using Pika library APIs
     """
-    def __init__(self, identity, instance_name, url, vc_url=None):
+    def __init__(self, url, identity, instance_name, vc_url=None):
         super(RMQConnection, self).__init__(url, identity, instance_name)
         self._connection = None
         self.channel = None
@@ -183,7 +185,7 @@ class RMQConnection(BaseConnection):
         :param method_frame: The Queue.DeclareOk frame
         :return:
         """
-        self._logger.debug('Binding {0} to {1} with {2}'.format(self.exchange,
+        _log.debug('Binding {0} to {1} with {2}'.format(self.exchange,
                                                                 self._vip_queue_name,
                                                                 self.routing_key))
         self.channel.queue_bind(self.on_bind_ok,
@@ -328,9 +330,9 @@ class RMQRouterConnection(RMQConnection):
     """
     RabbitMQ message bus connection class for Router module
     """
-    def __init__(self, identity, instance_name, url, vc_url=None):
+    def __init__(self, url, identity, instance_name, vc_url=None):
         super(RMQRouterConnection, self).__init__(url, identity, instance_name)
-
+        _log.debug("ROUTER URL: {}".format(url))
         self._alternate_exchange = 'undeliverable'
         self._alternate_queue = "{instance}.{identity}.unroutable".format(instance=instance_name,
                                                                           identity=identity)
@@ -418,11 +420,11 @@ class RMQRouterConnection(RMQConnection):
         if props.type == 'pubsub':
             return
 
-        sender = getattr(props, 'app_id')
-        subsystem = getattr(props, 'type')
-        props['app_id'] = self.routing_key
-        props['type'] = b'error'
-        props['user_id'] = self._rmq_userid
+        sender = props.app_id
+        subsystem = props.type
+        props.app_id = self.routing_key
+        props.type = b'error'
+        props.user_id = self._rmq_userid
         errnum = errno.EHOSTUNREACH
         errmsg = os.strerror(errnum).encode('ascii')
         recipient = props.headers.get('recipient', '')

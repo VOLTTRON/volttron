@@ -431,8 +431,7 @@ class Core(BasicCore):
                  publickey=None, secretkey=None, serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, reconnect_interval=None,
-                 version='0.1', enable_fncs=False,
-                 instance_name=None, messagebus=None):
+                 version='0.1', instance_name=None, messagebus=None):
         self.volttron_home = volttron_home
 
         # These signals need to exist before calling super().__init__()
@@ -538,8 +537,14 @@ class ZMQCore(Core):
                  agent_uuid=None, reconnect_interval=None,
                  version='0.1', enable_fncs=False,
                  instance_name=None, messagebus='zmq'):
-        super(ZMQCore, self).__init__(owner)
+        super(ZMQCore, self).__init__(owner,address=address, identity=identity,
+                 context=context, publickey=publickey, secretkey=secretkey,
+                 serverkey=serverkey, volttron_home=volttron_home,
+                 agent_uuid=agent_uuid, reconnect_interval=reconnect_interval,
+                 version=version,
+                 instance_name=instance_name, messagebus=messagebus)
         self.context = context or zmq.Context.instance()
+        self._fncs_enabled = enable_fncs
         self.messagebus = messagebus
         self._set_keys()
 
@@ -809,7 +814,11 @@ class RMQCore(Core):
                  version='0.1', instance_name=None, messagebus='rmq',
                  volttron_central_address=None,
                  volttron_central_instance_name=None):
-        super(RMQCore, self).__init__(owner)
+        super(RMQCore, self).__init__(owner,address=address, identity=identity,
+                 context=context, publickey=publickey, secretkey=secretkey,
+                 serverkey=serverkey, volttron_home=volttron_home,
+                 agent_uuid=agent_uuid, reconnect_interval=reconnect_interval,
+                 version=version, instance_name=instance_name, messagebus=messagebus)
         self.volttron_central_address = volttron_central_address
         if not self.instance_name:
             config_opts = load_platform_config()
@@ -817,7 +826,8 @@ class RMQCore(Core):
         if volttron_central_instance_name:
             self.instance_name = volttron_central_instance_name
 
-        self._event_queue = gevent.queue.Queue
+        #self._event_queue = gevent.queue.Queue
+        self._event_queue = Queue()
         self.rmq_user = self.instance_name + '.' + self.identity
         _log.debug("AGENT RUNNING on RMQ Core {}".format(self.identity))
 
@@ -837,9 +847,9 @@ class RMQCore(Core):
     def loop(self, running_event):
         param = self._build_connection_parameters()
         # pre-setup
-        self.connection = RMQConnection(self.identity,
+        self.connection = RMQConnection(param,
+                                        self.identity,
                                         self.instance_name,
-                                        param,
                                         vc_url=self.volttron_central_address)
         yield
 

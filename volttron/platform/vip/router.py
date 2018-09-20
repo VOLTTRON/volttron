@@ -42,9 +42,8 @@ from __future__ import absolute_import
 import os
 import logging
 import zmq
-from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
+from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH, green
 
-from .pubsubservice import PubSubService
 
 __all__ = ['BaseRouter', 'OUTGOING', 'INCOMING', 'UNROUTABLE', 'ERROR']
 
@@ -299,7 +298,6 @@ class BaseRouter(object):
                 if response is None:
                     # Handler does not know of the subsystem
                     errnum, errmsg = error = _INVALID_SUBSYSTEM
-                    _log.debug("ROUTER proto unsupported")
                     issue(ERROR, frames, error)
                     frames = [sender, recipient, proto, b'', msg_id,
                               b'error', errnum, errmsg, b'', subsystem]

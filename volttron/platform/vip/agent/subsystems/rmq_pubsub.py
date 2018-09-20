@@ -148,12 +148,12 @@ class RMQPubSub(BasePubSub):
                 durable = False
                 auto_delete = True
                 # Check if queue needs to be persistent
-                if queue_name.find('persistent'):
+                if 'persistent' in queue_name:
                     durable = True
                     auto_delete = False
                 connection.channel.queue_declare(queue=queue_name,
                                                  durable=durable,
-                                                 exclusive=False,
+                                                 exclusive=True,
                                                  auto_delete=auto_delete,
                                                  callback=None)
                 connection.channel.queue_bind(exchange=connection.exchange,

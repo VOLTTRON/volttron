@@ -106,9 +106,9 @@ class RMQRouter(BaseRouter):
         self.rmq_mgmt = RabbitMQMgmt()
         self.event_queue = Queue()
         param = self._build_connection_parameters()
-        self.connection = RMQRouterConnection(identity,
-                                              instance_name,
-                                              param
+        self.connection = RMQRouterConnection(param,
+                                              identity,
+                                              instance_name
                                               )
 
     def _build_connection_parameters(self):

@@ -86,7 +86,7 @@ class Agent(object):
                  enable_web=False, enable_channel=False,
                  reconnect_interval=None, version='0.1', enable_fncs=False,
                  instance_name=None, message_bus=None,
-                 volttron_central_address=None,volttron_central_instance_name=None):
+                 volttron_central_address=None, volttron_central_instance_name=None):
 
         self._version = version
 
