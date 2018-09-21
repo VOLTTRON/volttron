@@ -36,7 +36,7 @@ The following is an example of the configuration file
 
     [volttron]
     vip-addres=tcp://127.0.0.1:22916
-    bind-web-address=http://127.0.0.1:8080
+    bind-web-address=http://127.0.0.1:8080/vc/
 
 ** Note the above configuration will open a discoverable port for the volttron
    instance.  In addition, the opening of this web address allows you to serve
@@ -46,7 +46,7 @@ Verify that the instance is serving properly by pointing your web browser to
 
 ::
 
-    http://127.0.0.1:8080/discovery/
+    http://127.0.0.1:8080/vc/discovery/
 
 This is the required information for a VolttronCentralPlatform to be able to
 be managed.
