@@ -46,7 +46,7 @@ Verify that the instance is serving properly by pointing your web browser to
 
 ::
 
-    http://127.0.0.1:8080/vc/discovery/
+    http://127.0.0.1:8080/discovery/
 
 This is the required information for a VolttronCentralPlatform to be able to
 be managed.

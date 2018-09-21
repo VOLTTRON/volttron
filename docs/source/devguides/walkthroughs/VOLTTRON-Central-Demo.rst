@@ -150,8 +150,7 @@ details on how to configure the agent for your specific use case.
 Log In
 ------
 
-To log in to VOLTTRON Central, navigate in a browser to localhost:8080/vc,
-and enter the user name and password on the login screen.
+To log in to VOLTTRON Central, navigate in a browser to localhost:8080/vc/index.html, and enter the user name and password on the login screen.
 
 |Login Screen|
 
