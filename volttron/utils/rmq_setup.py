@@ -528,6 +528,11 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False):
     try:
         rmq_config.load_rmq_config()
     except (IOError, yaml.YAMLError) as exc:
+        _log.error("Error opening {}. Please create a rabbitmq_config.yml "
+                   "file in your volttron home. If you want to point to a "
+                   "volttron home other than {} please set it as the "
+                   "environment variable VOLTTRON_HOME".format(
+            rmq_config.volttron_rmq_config, rmq_config.volttron_home))
         _log.error("\nFor single setup, configuration file must at least "
                    "contain host and ssl certificate details. For federation "
                    "and shovel setup, config should contain details about the "

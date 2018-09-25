@@ -47,7 +47,9 @@ except ImportError:
 from volttron.platform import certs
 from volttron.platform import get_home
 from volttron.platform.agent.utils import get_platform_instance_name
+from volttron.platform.agent.utils import setup_logging
 
+setup_logging()
 _log = logging.getLogger(__name__)
 
 
@@ -80,11 +82,6 @@ class RMQConfig(object):
             with open(self._volttron_rmq_config, 'r') as yaml_file:
                 self.config_opts = yaml.load(yaml_file)
         except IOError as exc:
-            _log.error("Error opening {}. Please create a rabbitmq_config.yml "
-                       "file in your volttron home. If you want to point to a "
-                       "volttron home other than {} please set it as the "
-                       "environment variable VOLTTRON_HOME".format(
-                self._volttron_rmq_config, self._volttron_home))
             raise
         except yaml.YAMLError as exc:
             raise
