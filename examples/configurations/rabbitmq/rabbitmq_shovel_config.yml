@@ -1,0 +1,10 @@
+# Mandatory parameters for shovel setup
+shovel:
+  rabbit-3:
+    port: '5671'
+    virtual-host: volttron3
+    pubsub-topics:
+    - devices
+    - heartbeat
+    rpc-agent-identities:
+    - schedule_example

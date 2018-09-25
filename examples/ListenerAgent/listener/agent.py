@@ -104,7 +104,7 @@ class ListenerAgent(Agent):
             message = compat.unpack_legacy_message(headers, message)
         self._logfn(
             "Peer: {0}, Sender: {1}:, Bus: {2}, Topic: {3}, Headers: {4}, "
-            "Message: \n{5}".format(peer, sender, bus, topic, headers, message))
+            "Message: \n{5}".format(peer, sender, bus, topic, headers, pformat(message)))
 
 
 def main(argv=sys.argv):

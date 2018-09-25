@@ -50,7 +50,7 @@ import gevent
 from zmq import green as zmq
 from zmq import SNDMORE
 from volttron.platform.agent import json as jsonapi
-from .base import SubsystemBase
+from .base import BasePubSub
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..errors import Unreachable, VIPError, UnknownSubsystem
 from .... import jsonrpc
@@ -60,7 +60,7 @@ from gevent.queue import Queue, Empty
 from collections import defaultdict
 from datetime import timedelta
 
-__all__ = ['PubSub', 'BasePubSub']
+__all__ = ['PubSub']
 
 min_compatible_version = '3.0'
 max_compatible_version = ''
@@ -79,31 +79,6 @@ def decode_peer(peer):
     if peer.startswith('\x00'):
         return peer[:1] + b64decode(peer[1:])
     return peer
-
-
-class BasePubSub(SubsystemBase):
-    """
-    Abstract Base class for pubsub subsystem. Concrete implementations of PubSub shall vary
-    depending on the underlying message bus
-    """
-
-    def __init_(self, core, rpc_subsys, peerlist_subsys, owner):
-        self._instance_name = core.instance_name
-
-    def synchronize(self):
-        raise NotImplementedError()
-
-    def subscribe(self, prefix, callback, bus='', all_platforms=False, persistent_queue=None):
-        raise NotImplementedError()
-
-    def publish(self):
-        raise NotImplementedError()
-
-    def list(self, peer, prefix='', bus='', subscribed=True, reverse=False, all_platforms=False):
-        raise NotImplementedError()
-
-    def unsubscribe(self, peer, prefix, callback, bus='', all_platforms=False):
-        raise NotImplementedError()
 
 
 class PubSub(BasePubSub):
@@ -148,7 +123,7 @@ class PubSub(BasePubSub):
                         member, set, 'pubsub.subscriptions'):
                     # XXX: needs updated in light of onconnected signal
                     self._add_subscription(prefix, member, bus, all_platforms)
-                    # _log.debug("SYNC: all_platforms {}".format(self._my_subscriptions['internal'][bus][prefix]))
+                    #_log.debug("SYNC ZMQ: all_platforms {}".format(self._my_subscriptions['internal'][bus][prefix]))
 
             inspect.getmembers(owner, subscribe)
 

@@ -60,16 +60,15 @@ from __future__ import absolute_import
 import logging
 import pika
 import os
+import errno
 
-from .rmq_connection import RMQConnection
+from .rmq_connection import RMQRouterConnection
 from .socket import Message, Address
 from ..main import __version__
-from .zmq_router import BaseRouter
-import errno
+from .router import BaseRouter
 from Queue import Queue
 from ..keystore import KeyStore
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
-from volttron.platform import certs
 from volttron.platform.agent import json as jsonapi
 
 __all__ = ['RMQRouter']
@@ -107,8 +106,10 @@ class RMQRouter(BaseRouter):
         self.rmq_mgmt = RabbitMQMgmt()
         self.event_queue = Queue()
         param = self._build_connection_parameters()
-        self.connection = RMQConnection(param, identity, self._instance_name,
-                                        type='platform')
+        self.connection = RMQRouterConnection(param,
+                                              identity,
+                                              instance_name
+                                              )
 
     def _build_connection_parameters(self):
 
@@ -155,7 +156,8 @@ class RMQRouter(BaseRouter):
             self.connection.loop()
         except KeyboardInterrupt:
             pass
-        except (pika.exceptions.AMQPConnectionError, pika.exceptions.AMQPChannelError) as exc:
+        except (pika.exceptions.AMQPConnectionError,
+                pika.exceptions.AMQPChannelError) as exc:
             _log.error("RabbitMQ Connection Error. {}".format(exc))
         finally:
             self.stop()
@@ -338,6 +340,12 @@ class RMQRouter(BaseRouter):
         return tokens
 
     def _check_token(self, actual, allowed):
+        """
+        Check if actual permission string matches the allowed permission
+        :param actual: actual permission
+        :param allowed: allowed permission
+        :return: returns missing permissions
+        """
         pending = actual[:]
         for tk in actual:
             if tk in allowed:

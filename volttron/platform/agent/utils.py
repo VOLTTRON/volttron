@@ -220,11 +220,13 @@ def store_message_bus_config(message_bus, instance_name):
     else:
         if not os.path.exists(v_home):
             os.makedirs(v_home, 0o755)
-        with open(os.path.join(v_home, "config"), 'w') as f:
-            _log.info("rmq config is at {}".format(f.name))
-            f.write("[volttron]\n")
-            f.write("message-bus={}\n".format(message_bus))
-            f.write("instance-name="+instance_name)
+        config = ConfigParser()
+        config.add_section('volttron')
+        config.set('volttron', 'message-bus', message_bus)
+        config.set('volttron', 'instance-name', instance_name)
+
+        with open(config_path, 'w') as configfile:
+            config.write(configfile)
 
 
 def update_kwargs_with_config(kwargs, config):
