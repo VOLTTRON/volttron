@@ -48,17 +48,15 @@ from volttron.platform import certs
 from volttron.platform import get_home
 from volttron.platform.agent.utils import get_platform_instance_name
 
-_log = logging.getLogger(os.path.basename(__file__))
+_log = logging.getLogger(__name__)
 
 
-class RMQConfigParams(object):
+class RMQConfig(object):
     """
     Utility class to read/write RabbitMQ related configuration
     """
 
     def __init__(self):
-        self._local_user = "guest"
-        self._local_password = "guest"
         self._instance_name = get_platform_instance_name()
         self._rabbitmq_server = 'rabbitmq_server-3.7.7'
         self._crts = certs.Certs()
@@ -107,9 +105,24 @@ class RMQConfigParams(object):
         except yaml.YAMLError as exc:
             raise
 
-    def set_default_config(self, config):
-        for k, v in config.iteritems():
-            self.config_opts.setdefault(k, v)
+    def set_default_config(self):
+        """
+        # Check if basic configuration is available in the config file,
+        # if not set default.
+        :return:
+        """
+        self.config_opts.setdefault('host', "localhost")
+        self.config_opts.setdefault("ssl", "true")
+        self.config_opts.setdefault('amqp-port', 5672)
+        self.config_opts.setdefault('amqp-port-ssl', 5671)
+        self.config_opts.setdefault('mgmt-port', 15672)
+        self.config_opts.setdefault('mgmt-port-ssl', 15671)
+        self.config_opts.setdefault('virtual-host', 'volttron')
+        self.config_opts.setdefault('user', self.instance_name + '-admin')
+        rmq_home = os.path.join(os.path.expanduser("~"),
+                                "rabbitmq_server/rabbitmq_server-3.7.7")
+        self.config_opts.setdefault("rmq-home", rmq_home)
+        self.write_rmq_config()
 
     @property
     def hostname(self):
@@ -158,11 +171,11 @@ class RMQConfigParams(object):
 
     @property
     def local_user(self):
-        return self._local_user
+        return "guest"
 
     @property
     def local_password(self):
-        return self._local_password
+        return "guest"
 
     @property
     def instance_name(self):

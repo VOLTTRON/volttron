@@ -59,7 +59,7 @@ from volttron.platform import get_home
 from volttron.platform.agent.utils import store_message_bus_config
 from volttron.utils.prompt import prompt_response, y, y_or_n
 from volttron.platform.agent.utils import get_platform_instance_name
-from rmq_config_params import RMQConfigParams
+from rmq_config_params import RMQConfig
 
 _log = logging.getLogger(os.path.basename(__file__))
 
@@ -95,21 +95,7 @@ def _start_rabbitmq_without_ssl(rmq_config):
         else:
             os.environ['RABBITMQ_HOME'] = rmq_home
 
-    # Check if basic configuration is available in the config file,
-    # if not set to default.
-    default_config = dict()
-    default_config['rmq-home'] = rmq_home
-    default_config['ssl'] = True
-    default_config['amqp-port'] = 5672
-    default_config['amqp-port-ssl'] = 5671
-    default_config['mgmt-port'] = 15672
-    default_config['mgmt-port-ssl'] = 15671
-    default_config['virtual-host'] = 'volttron'
-    default_config['user'] = rmq_config.instance_name + '-admin'
-    rmq_config.set_default_config(default_config)
-
-    # Write new config options to RabbitMQ config file
-    rmq_config.write_rmq_config()
+    rmq_config.set_default_config()
 
     # attempt to stop
     stop_rabbit(rmq_home, quite=True)
@@ -527,13 +513,11 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False):
     # Store config this is checked at startup
     store_message_bus_config(message_bus='rmq', instance_name=instance_name)
 
-    rmq_config = RMQConfigParams()
+    rmq_config = RMQConfig()
     if verbose:
         _log.setLevel(logging.DEBUG)
         _log.debug("verbose set to True")
         _log.debug(get_home())
-
-    rmq_config.crts = certs.Certs()
 
     if prompt:
         # ignore any existing rabbitmq_config.yml in vhome. Prompt user and
@@ -564,6 +548,33 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False):
         success = rmq_mgmt.init_rabbitmq_setup()
         if success and rmq_config.is_ssl:
             _setup_for_ssl_auth(rmq_config)
+
+        # Create utility scripts
+        script_path = os.path.dirname(os.path.realpath(__file__))
+        src_home = os.path.dirname(os.path.dirname(script_path))
+        start_script = os.path.join(src_home, 'start-rabbitmq')
+        with open(start_script, 'w+') as f:
+            f.write(os.path.join(rmq_config.rmq_home, 'sbin',
+                                 'rabbitmq-server') + ' -detached')
+            f.write(os.linesep)
+            f.write("sleep 5")  # give a few seconds for all plugins to be ready
+        os.chmod(start_script, 0o755)
+
+        stop_script = os.path.join(src_home, 'stop-rabbitmq')
+        with open(stop_script, 'w+') as f:
+            f.write(os.path.join(rmq_config.rmq_home, 'sbin',
+                                 'rabbitmqctl') + ' stop')
+        os.chmod(stop_script, 0o755)
+
+        # symlink to rmq log
+        log_name = os.path.join(src_home, 'rabbitmq.log')
+        if os.path.lexists(log_name):
+            os.unlink(log_name)
+        os.symlink(os.path.join(rmq_config.rmq_home,
+                                'var/log/rabbitmq',
+                                "rabbit@" +
+                                rmq_config.hostname.split('.')[0] + ".log"),
+                       log_name)
 
     if setup_type in ["all", "federation"]:
         # Create a multi-platform federation setup

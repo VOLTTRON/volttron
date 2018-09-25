@@ -53,7 +53,7 @@ from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 from volttron.platform import certs
 from volttron.platform.agent import json as jsonapi
-from rmq_config_params import RMQConfigParams
+from rmq_config_params import RMQConfig
 
 _log = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ _log = logging.getLogger(__name__)
 
 class RabbitMQMgmt(object):
     def __init__(self):
-        self.rmq_config = RMQConfigParams()
+        self.rmq_config = RMQConfig()
         self.is_ssl = self.rmq_config.is_ssl
 
     def _call_grequest(self, method_name, url_suffix, ssl_auth=True, **kwargs):

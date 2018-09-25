@@ -90,7 +90,7 @@ from volttron.platform.agent.utils import store_message_bus_config
 from zmq import green as _green
 from volttron.platform.vip.proxy_zmq_router import ZMQProxyRouter
 from volttron.utils.rmq_setup import start_rabbit, check_rabbitmq_running
-from volttron.utils.rmq_config_params import RMQConfigParams
+from volttron.utils.rmq_config_params import RMQConfig
 
 try:
     import volttron.restricted
@@ -780,7 +780,7 @@ def start_volttron_process(opts):
                 sys.exit()
         else:
             # Start RabbitMQ server if not running
-            rmq_config = RMQConfigParams()
+            rmq_config = RMQConfig()
             if not check_rabbitmq_running(rmq_config.rmq_home):
                 start_rabbit(rmq_config.rmq_home)
 
