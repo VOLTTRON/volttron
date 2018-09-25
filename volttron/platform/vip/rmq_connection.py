@@ -1,13 +1,68 @@
-import errno
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+
+# Copyright (c) 2017, Battelle Memorial Institute
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# The views and conclusions contained in the software and documentation
+# are those of the authors and should not be interpreted as representing
+# official policies, either expressed or implied, of the FreeBSD
+# Project.
+#
+# This material was prepared as an account of work sponsored by an
+# agency of the United States Government.  Neither the United States
+# Government nor the United States Department of Energy, nor Battelle,
+# nor any of their employees, nor any jurisdiction or organization that
+# has cooperated in the development of these materials, makes any
+# warranty, express or implied, or assumes any legal liability or
+# responsibility for the accuracy, completeness, or usefulness or any
+# information, apparatus, product, software, or process disclosed, or
+# represents that its use would not infringe privately owned rights.
+#
+# Reference herein to any specific commercial product, process, or
+# service by trade name, trademark, manufacturer, or otherwise does not
+# necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors
+# expressed herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#
+# PACIFIC NORTHWEST NATIONAL LABORATORY
+# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
+# }}}
+
 import json
 import logging
 import os
 
 import pika
-
-from volttron.platform.vip.socket import Message
 import errno
-
+from volttron.platform.vip.socket import Message
+from volttron.platform.vip import BaseConnection
 
 
 _log = logging.getLogger(__name__)
@@ -15,73 +70,43 @@ _log = logging.getLogger(__name__)
 logging.getLogger("pika").setLevel(logging.WARNING)
 
 
-class BaseConnection(object):
-    """
-    Base connection class for message bus connection.
-    """
-    def __init__(self, url, identity, instance_name, *args, **kwargs):
-        self._url = url
-        self._identity = identity
-        self._instance_name = instance_name
-        self._vip_handler = None
-
-    def bind(self):
-        raise NotImplementedError()
-
-
 class RMQConnection(BaseConnection):
     """
-    Maintains connection with RabbitMQ broker
+    Connection class for RabbitMQ message bus.
+    1. It maintains connection with RabbitMQ broker using Pika library APIs
+    2. Translates from VIP message format to RabbitMQ message format and visa-versa
+    3. Sends and receives messages using Pika library APIs
     """
-    def __init__(self, url, identity, instance_name, type='agent', vc_url=None, *args, **kwargs):
-        super(RMQConnection, self).__init__(url, identity, instance_name, args, kwargs)
+    def __init__(self, url, identity, instance_name, vc_url=None):
+        super(RMQConnection, self).__init__(url, identity, instance_name)
         self._connection = None
         self.channel = None
         self._closing = False
         self._consumer_tag = None
         self._error_tag = None
-        self._logger = logging.getLogger(__name__)
 
         if vc_url:
             self._url = url
-        # else:
-        #     self._url = build_rmq_address()
 
-        self._connection_param = url #build_connection_param(instance_name)
-
-        self.routing_key = self._vip_queue = self._rmq_userid = "{0}.{1}".format(instance_name, identity)
+        self._connection_param = url
+        self.routing_key = self._vip_queue_name = self._rmq_userid = \
+            "{instance}.{identity}".format(instance=instance_name, identity=identity)
         self.exchange = 'volttron'
-        self._alternate_exchange = 'undeliverable'
-        self._alternate_queue = "{instance}.{identity}.unroutable".format(instance=instance_name,
-                                                                          identity=identity)
         self._connect_callback = None
         self._connect_error_callback = None
-        self._type = type
         self._queue_properties = dict()
         #_log.debug("ROUTING KEY: {}".format(self.routing_key))
 
-    def open_connection(self, type=None):
+    def open_connection(self):
         """
-        If the connection is for an agent, open a gevent adapter connection.
-        If the connection
-        is for platform, open asynchronous connection.
-        :param type: agent/platform
+        Open a gevent adapter connection.
         :return:
         """
-        self._type = type
-        if type == 'agent':
-            self._connection = pika.GeventConnection(self._connection_param,
-                                                     on_open_callback=self.on_connection_open,
-                                                     on_open_error_callback=self.on_open_error,
-                                                     #on_close_callback=self.on_connection_closed,
-                                                     )
-        else:  # platform
-            self._connection = pika.SelectConnection(self._connection_param,
-                                                     on_open_callback=self.on_connection_open,
-                                                     on_close_callback=self.on_connection_closed,
-                                                     on_open_error_callback=self.on_open_error,
-                                                     stop_ioloop_on_close=False
-                                                     )
+        self._connection = pika.GeventConnection(self._connection_param,
+                                                 on_open_callback=self.on_connection_open,
+                                                 on_open_error_callback=self.on_open_error,
+                                                 #on_close_callback=self.on_connection_closed,
+                                                 )
 
     def on_connection_open(self, unused_connection):
         """
@@ -95,25 +120,31 @@ class RMQConnection(BaseConnection):
         self._connection.channel(self.on_channel_open)
 
     def on_open_error(self, _connection_unused, error_message=None):
+        """
+        Call the registered error handler
+        :param _connection_unused:
+        :param error_message: connection error message
+        :return:
+        """
         _log.error("Connection open error. Check if RabbitMQ broker is running.")
-        if self._type == 'platform':
-            self._connection.ioloop.stop()
         if self._connect_error_callback:
             self._connect_error_callback()
 
     def on_connection_closed(self, connection, reply_code, reply_text):
         """
         Try to reconnect to the broker after few seconds
-        :param connection:
-        :param reply_code:
-        :param reply_text:
+        :param connection: connection object
+        :param reply_code: Connection Code
+        :param reply_text: Connection reply message
         :return:
         """
-        _log.debug("Connection closed unexpectedly, reopening in 5 seconds. {}".format(self._identity))
+        _log.debug("Connection closed unexpectedly, reopening in 5 seconds. {}"
+                   .format(self._identity))
         self._connection.add_timeout(5, self._reconnect)
 
     def _reconnect(self):
-        """Will be invoked by the IOLoop timer if the connection is closed
+        """
+        Will be invoked by the IOLoop timer if the connection is closed
         """
         # First, close the old connection IOLoop instance
         self._connection.ioloop.stop()
@@ -131,22 +162,18 @@ class RMQConnection(BaseConnection):
         :return:
         """
         self.channel = channel
-        args = dict()
-        args['alternate-exchange'] = self._alternate_exchange
-
-        self.channel.queue_declare(queue=self._vip_queue,
+        self.channel.queue_declare(queue=self._vip_queue_name,
                                     durable=self._queue_properties['durable'],
                                     exclusive=self._queue_properties['exclusive'],
                                     auto_delete=self._queue_properties['auto_delete'],
                                     callback=self.on_queue_declare_ok)
-        if self._type == 'platform':
-            self.channel.queue_declare(queue=self._alternate_queue,
-                                       durable=False,
-                                       exclusive=True,
-                                       auto_delete= True,
-                                       callback=self.on_alternate_queue_declare_ok)
 
     def set_properties(self, flags):
+        """
+        Set queue properties
+        :param flags:
+        :return:
+        """
         self._queue_properties['durable'] = flags.get('durable', True)
         self._queue_properties['exclusive'] = flags.get('exclusive', False)
         self._queue_properties['auto_delete'] = flags.get('auto_delete', True)
@@ -158,25 +185,13 @@ class RMQConnection(BaseConnection):
         :param method_frame: The Queue.DeclareOk frame
         :return:
         """
-        self._logger.debug('Binding {0} to {1} with {2}'.format(self.exchange,
-                                                                self._vip_queue,
+        _log.debug('Binding {0} to {1} with {2}'.format(self.exchange,
+                                                                self._vip_queue_name,
                                                                 self.routing_key))
         self.channel.queue_bind(self.on_bind_ok,
                                 exchange=self.exchange,
-                                queue=self._vip_queue,
+                                queue=self._vip_queue_name,
                                 routing_key=self.routing_key)
-
-    def on_alternate_queue_declare_ok(self, method_frame):
-        """
-        Callback method invoked after alternate queue has been declared. Next, we bind the
-        queue to the alternate exchange to receive unroutable messages.
-        :param method_frame: The Queue.DeclareOk frame
-        :return:
-        """
-        self.channel.queue_bind(self.on_alternate_queue_bind_ok,
-                                exchange=self._alternate_exchange,
-                                queue=self._alternate_queue,
-                                routing_key=self._instance_name)
 
     def on_bind_ok(self, unused_frame):
         """
@@ -186,30 +201,21 @@ class RMQConnection(BaseConnection):
         :return:
         """
         self._consumer_tag = self.channel.basic_consume(self.rmq_message_handler,
-                                                        queue=self._vip_queue)
+                                                        queue=self._vip_queue_name)
         if self._connect_callback:
             self._connect_callback()
 
-    def on_alternate_queue_bind_ok(self, unused_frame):
-        """
-        Callback method invoked by Pika when alternate queue bind has completed. At this point
-        we will start consuming messages by calling start_consuming.
-        :param unused_frame: The Queue.BindOk response frame
-        :return:
-        """
-        self._error_tag = self.channel.basic_consume(self._handle_error,
-                                                     queue=self._alternate_queue)
-
     def connect(self, connection_callback=None, connection_error_callback=None):
         """
-        Connect to RabbitMQ broker. Save the callback method to be invoked after connection
-        steps are completed.
-        :param callback:
+        Connect to RabbitMQ broker. Save the callback method to be invoked
+        after connection steps are completed.
+        :param connection_callback:
+        :param connection_error_callback:
         :return:
         """
         self._connect_callback = connection_callback
         self._connect_error_callback = connection_error_callback
-        self.open_connection(type=self._type)
+        self.open_connection()
 
     def register(self, handler):
         """
@@ -230,7 +236,8 @@ class RMQConnection(BaseConnection):
         :param body: message body
         :return:
         """
-        # _log.debug("*************rmq_message_handler {}*****************************".format(self._identity))
+        # _log.debug("*************rmq_message_handler {}*****************************".
+        # format(self._identity))
         # _log.debug("Channel {0}, Props {1}, body {2}".format(channel, props, body))
         app_id = str(props.app_id)
         platform, peer = app_id.split(".", 1)
@@ -245,42 +252,11 @@ class RMQConnection(BaseConnection):
         if self._vip_handler:
             self._vip_handler(msg)
 
-    def _handle_error(self, channel, method, props, body):
-        """
-         Handle unroutable messages. Send error message back to sender.
-         Ignore if subsystem is pubsub.
-        :param channel: channel object
-        :param method: method frame - contains routing key
-        :param props: message properties containing VIP info such as
-                      [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS,]
-        :param body: message body
-        :return:
-        """
-        # Ignore if message type is 'pubsub'
-        if props.type == 'pubsub':
-            return
-
-        sender = getattr(props, 'app_id')
-        subsystem = getattr(props, 'type')
-        setattr(props, 'app_id', self.routing_key)
-        setattr(props, 'type', b'error')
-        setattr(props, 'user_id', self._rmq_userid)
-        errnum = errno.EHOSTUNREACH
-        errmsg = os.strerror(errnum).encode('ascii')
-        recipient = props.headers.get('recipient', '')
-        message = [errnum, errmsg, recipient, subsystem]
-        # _log.debug("Host Unreachable Error Message is: {0}, {1}, {2}".format(method.routing_key,
-        #                                                     sender,
-        #                                                     props))
-        self.channel.basic_publish(self.exchange,
-                                   sender,
-                                   json.dumps(message, ensure_ascii=False),
-                                   props)
-
     def send_vip_object(self, message):
         """
-        Send the VIP message over RabbitMQ message bus. Reformat the VIP message object into Pika
-        message object and publish it using Pika library
+        Send the VIP message over RabbitMQ message bus.
+        Reformat the VIP message object into Pika message object and
+        publish it using Pika library
         :param message: VIP message object
         :return:
         """
@@ -313,20 +289,9 @@ class RMQConnection(BaseConnection):
         #                                                              properties,
         #                                                              self.routing_key))
         self.channel.basic_publish(self.exchange,
-                                    destination_routing_key,
-                                    json.dumps(msg, ensure_ascii=False),
-                                    properties)
-
-    def loop(self):
-        """
-        Connect to RabbiMQ broker and run infinite loop to listen to incoming messages
-        :return:
-        """
-        try:
-            self.connect()
-            self._connection.ioloop.start()
-        except (pika.exceptions.AMQPConnectionError, pika.exceptions.AMQPChannelError) as exc:
-            _log.error("RabbitMQ Connection Error. {}".format(exc))
+                                   destination_routing_key,
+                                   json.dumps(msg, ensure_ascii=False),
+                                   properties)
 
     def disconnect(self):
         """
@@ -359,3 +324,127 @@ class RMQConnection(BaseConnection):
             _log.debug("Closing connection to RMQ: {}".format(self._identity))
             _log.debug("********************************************************************")
             self._connection.close()
+
+
+class RMQRouterConnection(RMQConnection):
+    """
+    RabbitMQ message bus connection class for Router module
+    """
+    def __init__(self, url, identity, instance_name, vc_url=None):
+        super(RMQRouterConnection, self).__init__(url, identity, instance_name)
+        _log.debug("ROUTER URL: {}".format(url))
+        self._alternate_exchange = 'undeliverable'
+        self._alternate_queue = "{instance}.{identity}.unroutable".format(instance=instance_name,
+                                                                          identity=identity)
+
+    def open_connection(self):
+        """
+        Open asynchronous connection for router/platform
+        :return:
+        """
+        self._connection = pika.SelectConnection(self._connection_param,
+                                                 on_open_callback=self.on_connection_open,
+                                                 on_close_callback=self.on_connection_closed,
+                                                 on_open_error_callback=self.on_open_error,
+                                                 stop_ioloop_on_close=False
+                                                 )
+
+    def on_channel_open(self, channel):
+        """
+        This method is invoked by pika when channel has been opened.
+        Declare VIP queue to handle messages
+        :param new_channel: new channel object
+        :return:
+        """
+        self.channel = channel
+        args = dict()
+        args['alternate-exchange'] = self._alternate_exchange
+
+        self.channel.queue_declare(queue=self._vip_queue_name,
+                                    durable=self._queue_properties['durable'],
+                                    exclusive=self._queue_properties['exclusive'],
+                                    auto_delete=self._queue_properties['auto_delete'],
+                                    callback=self.on_queue_declare_ok)
+        self.channel.queue_declare(queue=self._alternate_queue,
+                                   durable=False,
+                                   exclusive=True,
+                                   auto_delete= True,
+                                   callback=self.on_alternate_queue_declare_ok)
+
+    def on_alternate_queue_declare_ok(self, method_frame):
+        """
+        Callback method invoked after alternate queue has been declared. Next, we bind the
+        queue to the alternate exchange to receive unroutable messages.
+        :param method_frame: The Queue.DeclareOk frame
+        :return:
+        """
+        self.channel.queue_bind(self.on_alternate_queue_bind_ok,
+                                exchange=self._alternate_exchange,
+                                queue=self._alternate_queue,
+                                routing_key=self._instance_name)
+
+    def on_alternate_queue_bind_ok(self, unused_frame):
+        """
+        Callback method invoked by Pika when alternate queue bind has completed. At this point
+        we will start consuming messages by calling start_consuming.
+        :param unused_frame: The Queue.BindOk response frame
+        :return:
+        """
+        self._error_tag = self.channel.basic_consume(self._handle_error,
+                                                     queue=self._alternate_queue)
+
+    def on_open_error(self, _connection_unused, error_message=None):
+        """
+        Stop the infinite loop and call the registered error handler
+        :param _connection_unused:
+        :param error_message: connection error message
+        :return:
+        """
+        _log.error("Connection open error. Check if RabbitMQ broker is running.")
+        self._connection.ioloop.stop()
+        if self._connect_error_callback:
+            self._connect_error_callback()
+
+    def _handle_error(self, channel, method, props, body):
+        """
+         Handle unroutable messages. Send error message back to sender.
+         Ignore if subsystem is pubsub.
+        :param channel: channel object
+        :param method: method frame - contains routing key
+        :param props: message properties containing VIP info such as
+                      [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS,]
+        :param body: message body
+        :return:
+        """
+        # Ignore if message type is 'pubsub'
+        if props.type == 'pubsub':
+            return
+
+        sender = props.app_id
+        subsystem = props.type
+        props.app_id = self.routing_key
+        props.type = b'error'
+        props.user_id = self._rmq_userid
+        errnum = errno.EHOSTUNREACH
+        errmsg = os.strerror(errnum).encode('ascii')
+        recipient = props.headers.get('recipient', '')
+        message = [errnum, errmsg, recipient, subsystem]
+        # _log.debug("Host Unreachable Error Message is: {0}, {1}, {2}".format(method.routing_key,
+        #                                                     sender,
+        #                                                     props))
+        self.channel.basic_publish(self.exchange,
+                                   sender,
+                                   json.dumps(message, ensure_ascii=False),
+                                   props)
+
+    def loop(self):
+        """
+        Connect to RabbiMQ broker and run infinite loop to listen to incoming messages
+        :return:
+        """
+        try:
+            self.connect()
+            self._connection.ioloop.start()
+        except (pika.exceptions.AMQPConnectionError,
+                pika.exceptions.AMQPChannelError) as exc:
+            _log.error("RabbitMQ Connection Error. {}".format(exc))
