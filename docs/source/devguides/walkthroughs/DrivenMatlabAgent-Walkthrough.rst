@@ -79,7 +79,6 @@ Installation:
    source directory.
 
    .. Note::
-
       Best practise is to clone in the parent directory of volttron
       source. For example, /users/user1/volttron and
       /users/user1/volttron-applications).
