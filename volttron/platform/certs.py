@@ -57,6 +57,7 @@ import datetime
 import json
 import logging
 import os
+import time
 from shutil import copyfile
 from socket import gethostname, getfqdn
 
@@ -155,7 +156,7 @@ def _mk_cacert(**kwargs):
         # set CA to true
         x509.BasicConstraints(ca=True, path_length=1),
         critical=True
-    ).serial_number(1).add_extension(
+    ).serial_number(int(time.time())).add_extension(
         x509.SubjectKeyIdentifier(
             _create_fingerprint(key.public_key())),
         critical=False
@@ -239,7 +240,6 @@ def _load_key(key_file_path):
 
 
 def _get_cert_attribute_value(cert, attribute):
-    _log.debug("Getting value for attribute: {}".format(attribute))
     try:
         return cert.subject.get_attributes_for_oid(attribute)[0].value
     except Exception as e:
@@ -358,17 +358,65 @@ class Certs(object):
         """
         return os.path.exists(self.cert_file(self.root_ca_name))
 
+    def get_cert_subject(self, name):
+        """
+        Retrieves the subject details of a certificate
+        :param name: name of the certificate
+        :return: dictionary object with the format
+        {
+            'country':value,
+            'state': value,
+            'location': value,
+            'organization': value,
+            'organization-unit': value,
+            'common-name':value
+        }
+        """
+        subject = self.cert(name).subject
+        return {
+            'common-name': subject.get_attributes_for_oid(
+                NameOID.COMMON_NAME)[0].value,
+            'country': subject.get_attributes_for_oid(
+                NameOID.COUNTRY_NAME)[0].value,
+            'state':subject.get_attributes_for_oid(
+                NameOID.STATE_OR_PROVINCE_NAME)[0].value,
+            'location': subject.get_attributes_for_oid(
+                NameOID.LOCALITY_NAME)[0].value,
+            'organization': subject.get_attributes_for_oid(
+                NameOID.ORGANIZATION_NAME)[0].value,
+            'organization-unit': subject.get_attributes_for_oid(
+                NameOID.ORGANIZATIONAL_UNIT_NAME)[0].value
+        }
+
+
     @staticmethod
     def get_cert_names(instance_name):
         """
-        Returns the name of the instance ca certificate(
-        intermediate ca to be signed by the root ca), instance server
-        certificate and instance client (admin user) certificate
+        Returns the name of the instance ca certificate(root ca), instance
+        server certificate and instance client (admin user) certificate
         :param instance_name: name of the volttron instance
-        :return:
+        :return: names of volttron instance certs
         """
-        return instance_name + '-instance-ca', instance_name + "-server", \
+        return instance_name + '-root-ca', instance_name + "-server", \
             instance_name + "-admin"
+
+    @staticmethod
+    def validate_key_pair(public_key_file, private_key_file):
+        """
+        Given a public private key pair, validate the pair.
+        :param public_key_file: path to public certificate file
+        :param private_key_file: path to private key file
+        :return True if the pair is valid, False otherwise
+        """
+        mod_pub = os.subprocess.check_output(['openssl', 'x509', '-noout',
+                                              '-modulus', '-in',
+                                              public_key_file])
+        mod_key = os.subprocess.check_output(['openssl', 'x509', '-noout',
+                                              '-modulus', '-in',
+                                              private_key_file])
+
+        return mod_pub == mod_key
+
 
     def create_instance_ca(self, name):
         self.create_ca_signed_cert(name, type='CA')
@@ -520,6 +568,10 @@ class Certs(object):
         serial_file = self.ca_serial_file(ca_name)
         # If there is no ca db, start with signing CA's serial number + 1 so
         # that there is no clash of serial numbers in certificate chain
+        # ca cert's serial number is set to int(time.time()).
+        # A CA should generate unique serial numbers for each certificate it
+        # generated. (signing authority + serial number) together is expected to
+        #  be unique across all certificates.
         serial = ca_cert.serial_number + 1
         if os.path.exists(serial_file):
             with open(serial_file, "r") as f:

@@ -285,15 +285,14 @@ def _setup_for_ssl_auth(rmq_config):
     :return:
     """
     _log.info('\nChecking for CA certificate\n')
-    instance_ca_name, server_name, admin_client_name = \
+    root_ca_name, server_name, admin_client_name = \
         certs.Certs.get_cert_names(rmq_config.instance_name)
     vhome = get_home()
     white_list_dir = os.path.join(vhome, "certificates", "whitelist")
     if not os.path.exists(white_list_dir):
         os.mkdir(white_list_dir)
 
-    # prompt for host before creating certs as it is needed for server cert
-    _create_certs_without_prompt(rmq_config, admin_client_name, server_name)
+    _create_certs(rmq_config, admin_client_name, server_name)
 
     # if all was well, create the rabbitmq.conf file for user to copy
     # /etc/rabbitmq and update VOLTTRON_HOME/rabbitmq_config.json
@@ -312,7 +311,7 @@ management.listener.port = {mgmt_port_ssl}
 management.listener.ssl = true
 management.listener.ssl_opts.cacertfile = {ca}
 management.listener.ssl_opts.certfile = {server_cert}
-management.listener.ssl_opts.keyfile = {server_key},
+management.listener.ssl_opts.keyfile = {server_key}
 trust_store.directory={ca_dir}
 trust_store.refresh_interval=0""".format(
         mgmt_port_ssl=rmq_config.mgmt_port_ssl,
@@ -366,75 +365,7 @@ trust_store.refresh_interval=0""".format(
                              rmq_config.crts.trusted_ca_name),
                          vhome=vhome))
 
-
-def stop_rabbit(rmq_home, quite=False):
-    """
-    Stop RabbitMQ Server
-    :param rmq_home: RabbitMQ installation path
-    :param quite:
-    :return:
-    """
-    try:
-        cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"),
-               "stop"]
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-        stdout, stderr = p.communicate()
-        gevent.sleep(2)
-        if not quite:
-            _log.info("**Stopped rmq server")
-    except subprocess.CalledProcessError as e:
-        if not quite:
-            raise e
-
-
-def check_rabbitmq_running(rmq_home):
-    """
-        Start RabbitMQ server
-        :param rmq_home: RabbitMQ installation path
-        :return:
-    """
-    running = True
-    cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "status"]
-
-    try:
-        subprocess.check_call(cmd,
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError as e:
-        running = False
-    return running
-
-def start_rabbit(rmq_home):
-    """
-    Start RabbitMQ server
-    :param rmq_home: RabbitMQ installation path
-    :return:
-    """
-    cmd = [os.path.join(rmq_home, "sbin/rabbitmq-server"),
-           "-detached"]
-    subprocess.check_call(cmd)
-    gevent.sleep(5)
-    cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "status"]
-    i = 5
-    started = False
-    while not started:
-        try:
-            subprocess.check_call(cmd, stdout=subprocess.PIPE,
-                                  stderr=subprocess.PIPE)
-            gevent.sleep(5)  # give a few seconds for all plugins to startup
-            started = True
-            _log.info("Started rmq server at {}".format(rmq_home))
-        except subprocess.CalledProcessError as e:
-            if i > 60:  # if more than a minute, may be somthing is wrong
-                raise e
-            else:
-                # sleep for another 5 seconds and check status again
-                gevent.sleep(5)
-                i = i + 5
-
-
-def _create_certs_without_prompt(rmq_config, admin_client_name, server_cert_name):
+def _create_certs(rmq_config, admin_client_name, server_cert_name):
     """
     Utility method to create certificates
     :param client_cert_name: client (agent) cert name
@@ -445,38 +376,72 @@ def _create_certs_without_prompt(rmq_config, admin_client_name, server_cert_name
 
     crts = rmq_config.crts
     if rmq_config.crts.ca_exists():
-        prompt = "Found {}\n Creating a new Root CA will invalidate any " \
-                 "existing agent certificate. Do you want to create a " \
-                 "new Root CA.".format(crts.cert_file(crts.root_ca_name))
-        prompt = prompt_response(prompt,
+        attributes = crts.get_cert_subject(crts.root_ca_name)
+        prompt_str = "Found {} with the following attributes. \n {} \n Do " \
+                     "you want to use this certificate: ".format(
+            crts.cert_file(crts.root_ca_name), attributes)
+        prompt = prompt_response(prompt_str,
                                  valid_answers=y_or_n,
                                  default='Y')
+        if prompt in y:
+            return
+
+        prompt_str = "\n**IMPORTANT:**\nCreating a new Root CA will " \
+                     "invalidate " \
+                     "any existing agent certificate and hence any existing " \
+                     "certificates will be deleted. If you have federation " \
+                     "or shovel setup, you will have to share the new " \
+                     "certificate with the other volttron instance(s) for " \
+                     "the shovel/federation connections to work. " \
+                     "Do you want to create a new Root CA."
+        prompt = prompt_response(prompt_str,
+                                 valid_answers=y_or_n,
+                                 default='N')
         if prompt not in y:
-            exit(1)
+            return
+
+    # We are creating new CA cert so delete any existing certs.  The user has
+    # already been warned
+    for d in [crts.cert_dir, crts.private_dir, crts.ca_db_dir]:
+        for x in os.listdir(d):
+            os.remove(os.path.join(d,x))
 
     _log.info('\n Creating root ca for volttron instance: {}'.format(
         crts.cert_file(crts.root_ca_name)))
     cert_data = rmq_config.certificate_data
-    if not cert_data or not all(k in cert_data
-                                for k in ['country',
-                                          'state',
-                                          'location',
-                                          'organization',
-                                          'organization-unit',
-                                          'common-name']):
+    if not cert_data or \
+            not (all(k in cert_data for k in ['country',
+                                             'state',
+                                             'location',
+                                             'organization',
+                                             'organization-unit',
+                                             'common-name']) or
+                 all(
+                  k in cert_data for k in ['ca-public-key', 'ca-private-key'])):
         raise ValueError(
-            "No certificate data found in {}. Please refer to example "
+            "No certificate data found in {} or certificate data is "
+            "incomplete. certificate-data should either contain all "
+            "the details necessary to create a self signed CA or "
+            "point to the file path of an existing CA's public and "
+            "private key. Please refer to example "
             "config at examples/configurations/rabbitmq/rabbitmq_config.yml"
             " to see list of ssl certificate data to be configured".format(
                 rmq_config.volttron_rmq_config))
-    data = {'C': cert_data.get('country'),
-            'ST': cert_data.get('state'),
-            'L': cert_data.get('location'),
-            'O': cert_data.get('organization'),
-            'OU': cert_data.get('organization-unit'),
-            'CN': cert_data.get('common-name')}
-    _log.info("Creating root ca with the following info: {}".format(data))
-    crts.create_root_ca(overwrite=False, **data)
+    if cert_data.get('ca-public-key'):
+        # using existing CA
+        copy(cert_data['ca-public-key'],
+             rmq_config.crts.cert_file(crts.root_ca_name))
+        copy(cert_data['ca-private-key'],
+             rmq_config.crts.key_file(crts.root_ca_name))
+    else:
+        data = {'C': cert_data.get('country'),
+                'ST': cert_data.get('state'),
+                'L': cert_data.get('location'),
+                'O': cert_data.get('organization'),
+                'OU': cert_data.get('organization-unit'),
+                'CN': cert_data.get('common-name')}
+        _log.info("Creating root ca with the following info: {}".format(data))
+        crts.create_root_ca(overwrite=False, **data)
 
     # create a copy of the root ca as instance_name-trusted-cas.crt.
     copy(rmq_config.crts.cert_file(crts.root_ca_name),
@@ -646,24 +611,53 @@ def _create_rabbitmq_config(rmq_config, setup_type):
         rmq_config.is_ssl = _prompt_ssl()
 
         if rmq_config.is_ssl:
-            cert_data = {}
-            print(
-                "\nPlease enter the following details for root CA certificate")
-            prompt = '\tCountry:'
-            cert_data['country'] = prompt_response(prompt, default='US')
-            prompt = '\tState:'
-            cert_data['state'] = prompt_response(prompt, mandatory=True)
-            prompt = '\tLocation:'
-            cert_data['location'] = prompt_response(prompt, mandatory=True)
-            prompt = '\tOrganization:'
-            cert_data['organization'] = prompt_response(prompt, mandatory=True)
-            prompt = '\tOrganization Unit:'
-            cert_data['organization-unit'] = prompt_response(prompt,
-                                                             mandatory=True)
-            prompt = '\tCommon Name:'
-            cert_data['common-name'] = prompt_response(
-                prompt, default=rmq_config.instance_name + '-root-ca')
-            rmq_config.certificate_data = cert_data
+            prompt = "Would you like to create a new self signed root CA" \
+                     "certificate for this instance:"
+            prompt = prompt_response(prompt,
+                                     valid_answers=y_or_n,
+                                     default='Y')
+            if prompt in y:
+                cert_data = {}
+                print(
+                    "\nPlease enter the following details for root CA certificate")
+                prompt = '\tCountry:'
+                cert_data['country'] = prompt_response(prompt, default='US')
+                prompt = '\tState:'
+                cert_data['state'] = prompt_response(prompt, mandatory=True)
+                prompt = '\tLocation:'
+                cert_data['location'] = prompt_response(prompt, mandatory=True)
+                prompt = '\tOrganization:'
+                cert_data['organization'] = prompt_response(prompt, mandatory=True)
+                prompt = '\tOrganization Unit:'
+                cert_data['organization-unit'] = prompt_response(prompt,
+                                                                 mandatory=True)
+                prompt = '\tCommon Name:'
+                cert_data['common-name'] = prompt_response(
+                    prompt, default=rmq_config.instance_name + '-root-ca')
+                rmq_config.certificate_data = cert_data
+            else:
+                error = True
+                while error:
+                    while True:
+                        prompt = 'Enter the root CA certificate public key file:'
+                        root_public = prompt_response(prompt, mandatory=True)
+                        if is_file_readable(root_public):
+                            break
+                    while True:
+                        prompt = 'Enter the root CA certificate private key file:'
+                        root_key = prompt_response(prompt, mandatory=True)
+                        if is_file_readable(root_key):
+                            break
+                    if certs.Certs.validate_key_pair(root_public, root_key):
+                        error = False
+                        cert_data = {
+                            'ca-public-key': root_public,
+                            'ca-private-key': root_key
+                        }
+                        rmq_config.certificate_data = cert_data
+                    else:
+                        print("Error: Given public key and private key do not "
+                              "match")
 
         prompt = "Do you want to use default values for RabbitMQ home, " \
                  "ports, and virtual host:"
@@ -704,6 +698,14 @@ def _create_rabbitmq_config(rmq_config, setup_type):
         # if this was called with just setup_type = shovel, load existing
         # config so that we don't overwrite existing list
         prompt_shovels(rmq_config.volttron_home)
+
+
+def is_file_readable(root_public):
+    if os.path.exists(root_public) and os.access(root_public, os.R_OK):
+        return True
+    else:
+        print("\nInvalid file path. Path does not exists or is not readable")
+        return False
 
 
 def prompt_port(default_port, prompt):
@@ -881,7 +883,6 @@ def stop_rabbit(rmq_home, quite=False):
     except subprocess.CalledProcessError as e:
         if not quite:
             raise e
-
 
 def start_rabbit(rmq_home):
     """
