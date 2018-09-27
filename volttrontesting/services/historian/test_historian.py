@@ -523,7 +523,8 @@ def test_basic_function(request, historian, publish_agent, query_agent,
 
     # now = '2015-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: now
+        headers_mod.DATE: now,
+        headers_mod.TIMESTAMP: now
     }
     print("Published time in header: " + now)
     # Publish messages
@@ -1049,7 +1050,8 @@ def test_topic_name_case_change(request, historian, publish_agent,
     # Create timestamp
     time1 = '2015-12-17 00:00:00.000000Z'
     headers = {
-        headers_mod.DATE: time1
+        headers_mod.DATE: time1,
+        headers_mod.TIMESTAMP: time1
     }
 
     # Publish messages
@@ -1068,7 +1070,8 @@ def test_topic_name_case_change(request, historian, publish_agent,
     # Create timestamp
     time2 = '2015-12-17 01:10:00.000000Z'
     headers = {
-        headers_mod.DATE: time2
+        headers_mod.DATE: time2,
+        headers_mod.TIMESTAMP: time2
     }
 
     # Publish messages
@@ -1217,7 +1220,8 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
     print("publish_time ", publish_time)
     # publish_time = '2015-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: publish_time
+        headers_mod.DATE: publish_time,
+        headers_mod.TIMESTAMP: publish_time
     }
 
     # Publish messages
@@ -1375,7 +1379,8 @@ def test_analysis_topic_no_meta(request, historian, publish_agent, query_agent,
     print("publish_time ", publish_time)
     # publish_time = '2015-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: publish_time
+        headers_mod.DATE: publish_time,
+        headers_mod.TIMESTAMP: publish_time
     }
 
     # Publish messages
@@ -1454,7 +1459,8 @@ def test_tz_conversion_local_tz(request, historian, publish_agent, query_agent,
     print("publish_time local tz is ", publish_time)
     # publish_time = '2015-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: publish_time
+        headers_mod.DATE: publish_time,
+        headers_mod.TIMESTAMP: publish_time
     }
 
     # Publish messages
@@ -1528,7 +1534,8 @@ def test_tz_conversion_naive_ts(request, historian, publish_agent, query_agent,
     print("publish_time naive ", publish_time)
     # publish_time = '2015-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: publish_time
+        headers_mod.DATE: publish_time,
+        headers_mod.TIMESTAMP: publish_time
     }
 
     # Publish messages
@@ -2426,7 +2433,8 @@ def publish_devices_fake_data(publish_agent, time=None):
         time = datetime.utcnow().isoformat('T') + "+00:00"
     # now = '2015-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: time
+        headers_mod.DATE: time,
+        headers_mod.TIMESTAMP: time
     }
     print("Published time in header: " + time)
     # Publish messages
@@ -2450,7 +2458,8 @@ def publish_devices_fake_data_single_topic(publish_agent, time=None):
         time = datetime.utcnow().isoformat('T') + "+00:00"
     # now = '2015-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: time
+        headers_mod.DATE: time,
+        headers_mod.TIMESTAMP: time
     }
     print("Published time in header: " + time)
     # Publish messages
