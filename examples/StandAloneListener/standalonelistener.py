@@ -82,11 +82,12 @@ class StandAloneListener(Agent):
         heartbeat_period is set and can be adjusted in the settings module.
         '''
         sys.stdout.write('publishing heartbeat.\n')
-        now = datetime.utcnow().isoformat(' ') + 'Z'
+        now = utils.format_timestamp(datetime.utcnow())
         headers = {
             #'AgentID': self._agent_id,
             headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.PLAIN_TEXT,
             headers_mod.DATE: now,
+            headers_mod.TIMESTAMP: now
         }
         self.vip.pubsub.publish(
             'pubsub', 'heartbeat/standalonelistener', headers,

@@ -29,10 +29,11 @@ class NodeRedSubscriber(Agent):
     # Demonstrate periodic decorator and settings access
     @Core.periodic(heartbeat_period)
     def publish_heartbeat(self):
-        now = datetime.utcnow().isoformat(' ') + 'Z'
+        now = utils.format_timestamp(datetime.utcnow())
         headers = {
             headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.PLAIN_TEXT,
             headers_mod.DATE: now,
+            headers_mod.TIMESTAMP: now
         }
         result = self.vip.pubsub.publish('pubsub', 'heartbeat/NodeRedSubscriber', headers, now)
         result.get(timeout=10)
