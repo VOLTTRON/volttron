@@ -624,7 +624,7 @@ def test_nan_value(publish_agent, query_agent):
         order="LAST_TO_FIRST").get(timeout=10)
 
     assert (len(result['values']) == 1)
-    (time1_date, time1_time) = time1.split(" ")
+    (time1_date, time1_time) = time1.split("T")
     assert (result['values'][0][0] == time1_date + 'T' + time1_time + '+00:00')
     assert (math.isnan(result['values'][0][1]))
     assert set(result['metadata'].items()) == set(float_meta.items())
