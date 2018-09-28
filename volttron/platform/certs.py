@@ -57,6 +57,7 @@ import datetime
 import json
 import logging
 import os
+import subprocess
 import time
 from shutil import copyfile
 from socket import gethostname, getfqdn
@@ -408,12 +409,18 @@ class Certs(object):
         :param private_key_file: path to private key file
         :return True if the pair is valid, False otherwise
         """
-        mod_pub = os.subprocess.check_output(['openssl', 'x509', '-noout',
-                                              '-modulus', '-in',
-                                              public_key_file])
-        mod_key = os.subprocess.check_output(['openssl', 'x509', '-noout',
-                                              '-modulus', '-in',
-                                              private_key_file])
+        try:
+            mod_pub = subprocess.check_output(['openssl', 'x509', '-noout',
+                                                  '-modulus', '-in',
+                                                  public_key_file])
+            mod_key = subprocess.check_output(['openssl', 'rsa', '-noout',
+                                                  '-modulus', '-in',
+                                                  private_key_file])
+        except Exception as e:
+            _log.info("Error validating {} and {}: {}".format(public_key_file,
+                                                              private_key_file,
+                                                              e))
+            return False
 
         return mod_pub == mod_key
 

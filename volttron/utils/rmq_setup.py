@@ -432,7 +432,7 @@ def _create_certs(rmq_config, admin_client_name, server_cert_name):
         copy(cert_data['ca-public-key'],
              rmq_config.crts.cert_file(crts.root_ca_name))
         copy(cert_data['ca-private-key'],
-             rmq_config.crts.key_file(crts.root_ca_name))
+             rmq_config.crts.private_key_file(crts.root_ca_name))
     else:
         data = {'C': cert_data.get('country'),
                 'ST': cert_data.get('state'),
@@ -641,11 +641,14 @@ def _create_rabbitmq_config(rmq_config, setup_type):
                     while True:
                         prompt = 'Enter the root CA certificate public key file:'
                         root_public = prompt_response(prompt, mandatory=True)
+                        root_public = os.path.expanduser(root_public)
                         if is_file_readable(root_public):
                             break
                     while True:
-                        prompt = 'Enter the root CA certificate private key file:'
+                        prompt =\
+                            'Enter the root CA certificate private key file:'
                         root_key = prompt_response(prompt, mandatory=True)
+                        root_key = os.path.expanduser(root_key)
                         if is_file_readable(root_key):
                             break
                     if certs.Certs.validate_key_pair(root_public, root_key):
@@ -657,7 +660,9 @@ def _create_rabbitmq_config(rmq_config, setup_type):
                         rmq_config.certificate_data = cert_data
                     else:
                         print("Error: Given public key and private key do not "
-                              "match")
+                              "match or is invalid. public and private key "
+                              "files should be PEM encoded and private key "
+                              "should use RSA encryption")
 
         prompt = "Do you want to use default values for RabbitMQ home, " \
                  "ports, and virtual host:"
@@ -700,8 +705,8 @@ def _create_rabbitmq_config(rmq_config, setup_type):
         prompt_shovels(rmq_config.volttron_home)
 
 
-def is_file_readable(root_public):
-    if os.path.exists(root_public) and os.access(root_public, os.R_OK):
+def is_file_readable(file_path):
+    if os.path.exists(file_path) and os.access(file_path, os.R_OK):
         return True
     else:
         print("\nInvalid file path. Path does not exists or is not readable")
