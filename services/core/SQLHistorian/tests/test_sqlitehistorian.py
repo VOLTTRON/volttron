@@ -334,7 +334,7 @@ def test_sqlite_timeout(request, historian, publish_agent, query_agent,
                                           order="LAST_TO_FIRST").get(timeout=100)
         print('Query Result', result)
         assert (len(result['values']) == 1)
-        (now_date, now_time) = now.split(" ")
+        (now_date, now_time) = now.split("T")
         assert result['values'][0][0] == now_date + 'T' + now_time + '+00:00'
         assert (result['values'][0][1] == oat_reading)
         assert set(result['metadata'].items()) == set(float_meta.items())
