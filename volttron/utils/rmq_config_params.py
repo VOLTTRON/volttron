@@ -82,6 +82,9 @@ class RMQConfig(object):
         try:
             with open(self.volttron_rmq_config, 'r') as yaml_file:
                 self.config_opts = yaml.load(yaml_file)
+                if self.config_opts.get('rmq-home'):
+                    self.config_opts['rmq-home'] = os.path.expanduser(
+                        self.config_opts['rmq-home'])
         except IOError as exc:
             raise
         except yaml.YAMLError as exc:
