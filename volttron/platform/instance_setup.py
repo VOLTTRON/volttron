@@ -529,7 +529,14 @@ def process_rmq_inputs(args):
     _install_config_file()
     if len(args) == 2:
         vhome = get_home()
-        vhome_config = os.path.join(vhome,'rabbitmq_config.yml')
+        if args[0] == 'single':
+            vhome_config = os.path.join(vhome, 'rabbitmq_config.yml')
+        elif args[0] == 'federation':
+            vhome_config = os.path.join(vhome, 'rabbitmq_federation_config.yml')
+        elif args[0] == 'shovel':
+            vhome_config = os.path.join(vhome, 'rabbitmq_shovel_config.yml')
+        else: # Ignoring 'all' for now
+            return
         if args[1] != vhome_config:
             copy(args[1], vhome_config)
         setup_rabbitmq_volttron(args[0], verbose)
