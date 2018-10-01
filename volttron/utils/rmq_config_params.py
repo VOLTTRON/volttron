@@ -59,12 +59,13 @@ class RMQConfig(object):
     """
 
     def __init__(self):
-        self._instance_name = get_platform_instance_name()
-        self._rabbitmq_server = 'rabbitmq_server-3.7.7'
-        self._crts = certs.Certs()
-        self._volttron_home = get_home()
-        self._volttron_rmq_config = os.path.join(self.volttron_home, 'rabbitmq_config.yml')
-        self._default_pass = "default_passwd"
+        self.instance_name = get_platform_instance_name()
+        self.rabbitmq_server = 'rabbitmq_server-3.7.7'
+        self.crts = certs.Certs()
+        self.volttron_home = get_home()
+        self.volttron_rmq_config = \
+            os.path.join(self.volttron_home, 'rabbitmq_config.yml')
+        self.default_pass = "default_passwd"
         self.config_opts = None
         try:
             self.load_rmq_config()
@@ -79,7 +80,7 @@ class RMQConfig(object):
         """
         """Loads the config file if the path exists."""
         try:
-            with open(self._volttron_rmq_config, 'r') as yaml_file:
+            with open(self.volttron_rmq_config, 'r') as yaml_file:
                 self.config_opts = yaml.load(yaml_file)
         except IOError as exc:
             raise
@@ -93,12 +94,12 @@ class RMQConfig(object):
         :return:
         """
         try:
-            with open(self._volttron_rmq_config, 'w') as \
+            with open(self.volttron_rmq_config, 'w') as \
                     yaml_file:
                 yaml.dump(self.config_opts, yaml_file, default_flow_style=False)
         except IOError as exc:
             _log.error("Error writing to rabbitmq_config.yml file. Please"
-                       "check VOLTTRON_HOME".format(self._volttron_home))
+                       "check VOLTTRON_HOME".format(self.volttron_home))
         except yaml.YAMLError as exc:
             raise
 
@@ -174,30 +175,6 @@ class RMQConfig(object):
     def local_password(self):
         return "guest"
 
-    @property
-    def instance_name(self):
-        return self._instance_name
-
-    @property
-    def rabbitmq_server(self):
-        return self._rabbitmq_server
-
-    @property
-    def crts(self):
-        return self._crts
-
-    @property
-    def volttron_home(self):
-        return self._volttron_home
-
-    @property
-    def volttron_rmq_config(self):
-        return self._volttron_rmq_config
-
-    @property
-    def default_pass(self):
-        return self._default_pass
-
     @hostname.setter
     def hostname(self, host):
         self.config_opts['host'] = host
@@ -242,6 +219,3 @@ class RMQConfig(object):
     def certificate_data(self, data):
         self.config_opts['certificate-data'] = data
 
-    @crts.setter
-    def crts(self, crts=None):
-        self._crts = crts

@@ -81,17 +81,21 @@ def _start_rabbitmq_without_ssl(rmq_config):
         if os.path.exists(rmq_home):
             os.environ['RABBITMQ_HOME'] = rmq_home
         else:
-            raise ValueError(
-                "Missing Key in RabbitMQ config. RabbitMQ is not installed "
-                "in default path: \n"
-                "~/rabbitmq_server/rabbitmq_server-3.7.7 \n"
-                "Set the correct RabbitMQ installation path")
+            print("\nERROR:\n"
+                  "Missing key 'rmq_home' in RabbitMQ config and RabbitMQ is "
+                  "not installed in default path: \n"
+                  "~/rabbitmq_server/rabbitmq_server-3.7.7 \n"
+                  "Please set the correct RabbitMQ installation path in "
+                  "rabbitmq_config.yml")
+            exit(1)
     else:
         if not os.path.exists(rmq_home) or not os.path.exists(os.path.join(
                 rmq_home, 'sbin/rabbitmq-server')):
-            raise ValueError("Invalid rmq-home value ({}). Please fix rmq-home "
-                             "in {} and rerun this script".format(
+            print("\nERROR:\n"
+                  "Invalid rmq-home value ({}). Please fix rmq-home "
+                  "in {} and rerun this script".format(
                 rmq_home, rmq_config.volttron_rmq_config))
+            exit(1)
         else:
             os.environ['RABBITMQ_HOME'] = rmq_home
 
@@ -418,7 +422,8 @@ def _create_certs(rmq_config, admin_client_name, server_cert_name):
                                              'common-name']) or
                  all(
                   k in cert_data for k in ['ca-public-key', 'ca-private-key'])):
-        raise ValueError(
+        print(
+            "\nERROR:\n"
             "No certificate data found in {} or certificate data is "
             "incomplete. certificate-data should either contain all "
             "the details necessary to create a self signed CA or "
@@ -427,6 +432,7 @@ def _create_certs(rmq_config, admin_client_name, server_cert_name):
             "config at examples/configurations/rabbitmq/rabbitmq_config.yml"
             " to see list of ssl certificate data to be configured".format(
                 rmq_config.volttron_rmq_config))
+        exit(1)
     if cert_data.get('ca-public-key'):
         # using existing CA
         copy(cert_data['ca-public-key'],

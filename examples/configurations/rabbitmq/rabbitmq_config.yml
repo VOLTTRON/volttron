@@ -11,6 +11,16 @@ certificate-data:
   organization-unit: 'VOLTTRON Team'
   # volttron_instance has to be replaced with actual instance name of the VOLTTRON
   common-name: 'volttron_instance_root_ca'
+# certificate data could also point to existing public and private key files
+# of a CA. In that case, use the below certificate-data parameters instead of
+# the above. Note. public and private should be pem encoded and use rsa
+#  encryption
+#
+#certificate-data:
+#  ca-public-key: /path/to/ca/public/key/ca_pub.crt
+#  ca-private-key: /path/to/ca/private/key/ca_private.pem
+
+
 #
 # optional parameters for single instance setup
 #

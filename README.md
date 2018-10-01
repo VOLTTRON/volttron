@@ -516,7 +516,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
    vctl rabbitmq remove-federation-parameters upstream-volttron2-rabbit-2
    ```
 
-**Using Shovel Pluggin**
+**Using Shovel Plugin**
 
 In RabbitMQ based VOLTTRON, forwarder and data mover agents will be replaced by shovels
 to send or receive remote pubsub messages.
