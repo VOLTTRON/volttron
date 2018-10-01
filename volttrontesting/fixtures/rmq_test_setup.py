@@ -54,7 +54,7 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False):
     store_message_bus_config(message_bus='rmq',
                              instance_name=VOLTTRON_INSTANCE_NAME)
 
-    setup_rabbitmq_volttron(type='single',
+    setup_rabbitmq_volttron('single',
                             verbose=False,
                             prompt=False)
 

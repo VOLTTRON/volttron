@@ -364,6 +364,7 @@ to messages or perform RPC communication directly.
 
 2. Use special agents such as forwarder/data puller agents to forward/receive
 messages to/from remote instances.
+messages to/from remote instances.
 
 3. Configure vip address of all remote instances that an instance has to connect to
 in it's $VOLTTRON_HOME/external_discovery.json and let the router module in each instance
@@ -434,7 +435,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
     a.  On the downstream server (collector node),
 
         ```
-        vcfg --rabbitmq federation [optional path to rabbitmq_config.yml
+        vcfg --rabbitmq federation [optional path to rabbitmq_federation_config.yml
         containing the details of the upstream hostname, port and vhost.
         Example configuration for federation is available
         in examples/configurations/rabbitmq/rabbitmq_config_federation.yml]
@@ -585,7 +586,7 @@ certain topics to remote instance "v2".
     a.  On the publisher node,
 
         ```
-        vcfg --rabbitmq shovel [optional path to rabbitmq_config.yml
+        vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
         containing the details of the remote hostname, port, vhost
         and list of topics to forward. Example configuration for shovel is available
         in examples/configurations/rabbitmq/rabbitmq_config_shovel.yml]
