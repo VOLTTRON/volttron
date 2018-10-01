@@ -126,8 +126,8 @@ class RabbitMQMgmt(object):
         """
 
         if ssl_auth:
-            instance_ca, server_cert, client_cert = certs.Certs.get_cert_names(
-                self.rmq_config.instance_name)
+            instance_ca, server_cert, client_cert = \
+                certs.Certs.get_admin_cert_names(self.rmq_config.instance_name)
 
             # TODO: figure out how to manage admin user and password. rabbitmq
             # federation plugin doesn't handle external_auth plugin !!
@@ -893,8 +893,8 @@ class RabbitMQMgmt(object):
         Return SSL parameter string
         :return:
         """
-        instance_ca, server_cert, client_cert = certs.Certs.get_cert_names(
-            self.rmq_config.instance_name)
+        instance_ca, server_cert, client_cert = \
+            certs.Certs.get_admin_cert_names(self.rmq_config.instance_name)
         ca_file = self.rmq_config.crts.cert_file(self.rmq_config.crts.trusted_ca_name)
         cert_file = self.rmq_config.crts.cert_file(client_cert)
         key_file = self.rmq_config.crts.private_key_file(client_cert)

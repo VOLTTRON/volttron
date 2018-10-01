@@ -290,7 +290,7 @@ def _setup_for_ssl_auth(rmq_config):
     """
     _log.info('\nChecking for CA certificate\n')
     root_ca_name, server_name, admin_client_name = \
-        certs.Certs.get_cert_names(rmq_config.instance_name)
+        certs.Certs.get_admin_cert_names(rmq_config.instance_name)
     vhome = get_home()
     white_list_dir = os.path.join(vhome, "certificates", "whitelist")
     if not os.path.exists(white_list_dir):

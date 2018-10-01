@@ -391,7 +391,7 @@ class Certs(object):
 
 
     @staticmethod
-    def get_cert_names(instance_name):
+    def get_admin_cert_names(instance_name):
         """
         Returns the name of the instance ca certificate(root ca), instance
         server certificate and instance client (admin user) certificate
