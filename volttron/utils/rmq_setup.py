@@ -498,6 +498,12 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False):
         _log.setLevel(logging.DEBUG)
         _log.debug("verbose set to True")
         _log.debug(get_home())
+        logging.getLogger("requests.packages.urllib3.connectionpool"
+                          "").setLevel(logging.DEBUG)
+    else:
+        _log.setLevel(logging.WARN)
+        logging.getLogger("requests.packages.urllib3.connectionpool"
+                          "").setLevel(logging.WARN)
 
     if prompt:
         # ignore any existing rabbitmq_config.yml in vhome. Prompt user and
@@ -770,8 +776,13 @@ def prompt_upstream_servers(vhome):
     rabbitmq_federation_config.yml
     :return:
     """
-    federation_config_file = os.path.join(vhome, 'rabbitmq_federation_config.yml')
-    federation_config = _read_config_file(federation_config_file)
+    federation_config_file = os.path.join(vhome,
+                                          'rabbitmq_federation_config.yml')
+
+    if os.path.exists(federation_config_file):
+        federation_config = _read_config_file(federation_config_file)
+    else:
+        federation_config = {}
 
     upstream_servers = federation_config.get('federation-upstream', {})
     prompt = 'Number of upstream servers to configure:'
@@ -799,7 +810,11 @@ def prompt_shovels(vhome):
     :return:
     """
     shovel_config_file = os.path.join(vhome, 'rabbitmq_shovel_config.yml')
-    shovel_config = _read_config_file(shovel_config_file)
+
+    if os.path.exists(shovel_config_file):
+        shovel_config = _read_config_file(shovel_config_file)
+    else:
+        shovel_config = {}
 
     shovels = shovel_config.get('shovels', {})
     prompt = 'Number of destination hosts to configure:'
