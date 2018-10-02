@@ -193,6 +193,10 @@ vcfg --rabbitmq single [optional path to rabbitmq_config.yml]
 ```
 
 Refer to examples/configurations/rabbitmq/rabbitmq_config.yml for a sample configuration file.
+At a minimum you would need to provide the host name and a unique common-name
+(under certificate-data) in the configuration file. Note. common-name must be
+unique and the general conventions is to use  <voltttron instance name>-root-ca.
+
 Running the above command without the optional configuration file parameter will
 prompt user for all the needed data at the command prompt and use that to
 generate a rabbitmq_config.yml file in VOLTTRON_HOME directory.
@@ -417,14 +421,13 @@ and should be running on machine/VM that has a unique host name.***__
       On v2:
       cat /tmp/v1-root-ca.crt >> /home/vdev/ .my_volttron_home/certificates/v2-trusted-cas.crt
 
-3. Stop volttron, restart rabbitmq server and start volttron on both the
+3. Stop volttron, stop rabbitmq server and start volttron on both the
 instances. This is required only when you update the root certificate and not
 required when you add a new shovel/federation between the same hosts
 
    ```sh
    ./stop-volttron
-   $RABBITMQ_HOME/sbin/rabbitmqctl stop
-   $RABBITMQ_HOME/sbin/rabbitmq-server -detached
+   ./stop-rabbitmq
    ./start-volttron
    ```
 
@@ -493,37 +496,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
    sudo firewall-cmd --reload
    ```
 
-7. Trouble Shooting
-
-   a. Check the status of the federation connection.
-
-   ```
-   $RABBITMQ_HOME/sbin/rabbitmqctl eval 'rabbit_federation_status:status().'
-   ```
-
-   If everything is properly configured, then the status is set to "running".
-   If not look for the error status. Some of the typical errors are,
-
-   i. "failed_to_connect_using_provided_uris" - Check if RabbitMQ user is created
-   in downstream server node. Refer to step 3 b.
-
-   ii. "unknown ca" - Check if the root CAs are copied to all the nodes
-   correctly. Refer to step 2.
-
-   iii. "no_suitable_auth_mechanism" - Check if the AMPQ/S ports are correctly
-   configured.
-
-   b. Check the RabbitMQ logs for any errors.
-
-   ```
-   tail -f $RABBITMQ_HOME/var/log/rabbitmq/rabbit@<hostname>.log
-   ```
-
-   hostname needs to be replaced with actual hostname of the node.
-   
-
-
-6. Remove the Federation link.
+7. How to remove federation link
 
    a. Using the management web interface
 
@@ -545,7 +518,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
    vctl rabbitmq remove-federation-parameters upstream-volttron2-rabbit-2
    ```
 
-**Using Shovel Pluggin**
+**Using Shovel Plugin**
 
 In RabbitMQ based VOLTTRON, forwarder and data mover agents will be replaced by shovels
 to send or receive remote pubsub messages.
@@ -606,8 +579,7 @@ certain topics to remote instance "v2".
 
         ```sh
         cd $RABBITMQ_HOME
-        ./sbin/rabbitmqctl add_user <username> <password>
-        ./sbin/rabbitmqctl set_permissions -p <virtual-host> <username> ".*" ".*" ".*"
+        vctl add-user <username> <password>
         ```
 
 4. Test the shovel setup.
@@ -624,35 +596,7 @@ certain topics to remote instance "v2".
    d. Verify listener agent in subscriber node is able to receive the messages
    matching "devices" topic.
 
-5. Trouble Shooting
-
-   a. Check the status of the shovel connection.
-
-   ```
-   $RABBITMQ_HOME/sbin/rabbitmqctl eval 'rabbit_shovel_status:status().'
-   ```
-
-   If everything is properly configured, then the status is set to "running".
-   If not look for the error status. Some of the typical errors are,
-
-   i. "failed_to_connect_using_provided_uris" - Check if RabbitMQ user is created
-   in subscriber node. Refer to step 3 b.
-
-   ii. "unknown ca" - Check if the root CAs are copied to remote servers
-   correctly. Refer to step 2.
-
-   iii. "no_suitable_auth_mechanism" - Check if the AMPQ/S ports are correctly
-   configured.
-
-   b. Check the RabbitMQ logs for any errors.
-
-   ```
-   tail -f $RABBITMQ_HOME/var/log/rabbitmq/rabbit@<hostname>.log
-   ```
-
-   hostname needs to be replaced with actual hostname of the node.
-
-6. Remove the shovel setup.
+5. How to remove the shovel setup.
 
    a. Using the management web interface
 
@@ -673,6 +617,91 @@ certain topics to remote instance "v2".
    ```
    vctl rabbitmq remove-shovel-parameters shovel-rabbit-3-devices
    ```
+
+
+
+** RabbitMQ Trouble Shooting **
+
+   1. Check the status of the federation connection.
+
+      ```
+      $RABBITMQ_HOME/sbin/rabbitmqctl eval 'rabbit_federation_status:status().'
+      ```
+
+      If everything is properly configured, then the status is set to "running".
+      If not look for the error status. Some of the typical errors are,
+
+      a. "failed_to_connect_using_provided_uris" - Check if RabbitMQ user is
+         created in downstream server node. Refer to step 3 b of federation
+         setup
+
+      b. "unknown ca" - Check if the root CAs are copied to all the nodes
+         correctly. Refer to step 2 of federation setup
+
+      c. "no_suitable_auth_mechanism" - Check if the AMPQ/S ports are correctly
+         configured.
+
+   2. Check the status of the shovel connection.
+
+      ```
+      $RABBITMQ_HOME/sbin/rabbitmqctl eval 'rabbit_shovel_status:status().'
+      ```
+
+      If everything is properly configured, then the status is set to "running".
+      If not look for the error status. Some of the typical errors are,
+
+      i. "failed_to_connect_using_provided_uris" - Check if RabbitMQ user is created
+         in subscriber node. Refer to step 3 b of shovel setup
+
+      ii. "unknown ca" - Check if the root CAs are copied to remote servers
+           correctly. Refer to step 2 of shovel setup
+
+      iii. "no_suitable_auth_mechanism" - Check if the AMPQ/S ports are correctly
+           configured.
+
+   2. Check the RabbitMQ logs for any errors.
+
+       ```
+       tail -f <volttron source dir>/rabbitmq.log
+       ```
+
+
+   3. If rabbitmq startup hangs
+      a. Check for errors in rabbitmq log. There is a rabbitmq.log file in your
+      volttron source directory that is a symbolic link to the rabbitmq server
+      logs.
+
+      b. Check for errors in syslog (/var/log/syslog or /var/log/messages)
+      c. If there are no errors in either of the logs, stop rabbitmq and
+         starting rabbitmq server in foreground and see if there are any errors
+         written on the console. Once you find the error you can kill the
+         process by entering Ctl+C, fix the error and start rabbitmq again using
+         ./start-rabbitmq from volttron source directory.
+
+         ```
+         ./stop-volttron
+         ./stop-rabbitmq
+         @RABBITMQ_HOME/sbin/rabbitmq-server
+         ```
+
+   4. ssl trouble shooting.
+      There are few things that are essential for SSL certificates to work
+      right.
+      a. Please use a unique common-name for CA certificate for each volttron
+         instance. This is configured under certificate-data in the
+         rabbitmq_config.yml or if no yml file is used while configuring a
+         volttron single instance (using vcfg --rabbitmq single). Certificate
+         generated for agent will automatically get agent's vip identity as the
+         certificate's common-name
+      b. host name in ssl certificate should match hostname used to access the
+      server. For example, if the fully qualified domain name was configured in
+      the certificate-data, you should use the fully qualified domain name to
+      access rabbitmq's management url.
+
+      c. Check if your system time is correct especially if you are running
+      virtual machines. If the system clock is not right, it could lead to
+      ssl certificate errors
+
 
 ## Next Steps
 We request you to explore and contribute towards development of VOLTTRON message

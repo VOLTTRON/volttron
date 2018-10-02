@@ -314,7 +314,8 @@ def install_rabbit(rmq_install_dir):
            "rabbitmq_federation_management",
            "rabbitmq_shovel",
            "rabbitmq_shovel_management",
-           "rabbitmq_auth_mechanism_ssl"]
+           "rabbitmq_auth_mechanism_ssl",
+           "rabbitmq_trust_store"]
     subprocess.check_call(cmd)
 
 def main(argv=sys.argv):

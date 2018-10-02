@@ -462,7 +462,7 @@ def _create_ca(override=True, data=None):
 
 def create_instance_ca(instance_name):
     crts = certs.Certs()
-    ca_name, server_name, admin_name = crts.get_cert_names(instance_name)
+    ca_name, server_name, admin_name = crts.get_admin_cert_names(instance_name)
     crts.create_instance_ca(ca_name)
     print("\nCreated files: \n{}\n{}".format(
         crts.cert_file(ca_name),
@@ -486,7 +486,7 @@ def _create_cert(name=None, **kwargs):
         cert_data = _create_cert_ui('{} ({})'.format(cert_type, name))
 
     instance_name = get_platform_instance_name()
-    instance_ca, server, admin = certs.Certs.get_cert_names(instance_name)
+    instance_ca, server, admin = certs.Certs.get_admin_cert_names(instance_name)
     #crts.create_ca_signed_cert(name, ca_name=instance_ca,  **cert_data)
     crts.create_ca_signed_cert(name, **cert_data)
 
