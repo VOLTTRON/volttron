@@ -40,7 +40,7 @@
 from os import path
 from setuptools import setup, find_packages
 
-MAIN_MODULE = 'WeatherDotGov'
+MAIN_MODULE = 'WeatherDotGovAgent'
 
 # Find the agent package that contains the main module
 packages = find_packages('.')
