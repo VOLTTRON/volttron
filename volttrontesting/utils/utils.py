@@ -8,6 +8,7 @@ import gevent
 import pytest
 
 from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.agent import utils
 
 
 def poll_gevent_sleep(max_seconds, condition=lambda: True, sleep_time=0.2):
@@ -90,9 +91,10 @@ def build_devices_header_and_message(points=['abc', 'def']):
         data[point] = random() * 10
         meta_data[point] = meta_templates[randint(0,len(meta_templates)-1)]
 
-    time1 = datetime.utcnow().isoformat(' ')
+    time1 = utils.format_timestamp( datetime.utcnow())
     headers = {
-        headers_mod.DATE: time1
+        headers_mod.DATE: time1,
+        headers_mod.TIMESTAMP: time1
     }
 
     return headers, [data, meta_data]

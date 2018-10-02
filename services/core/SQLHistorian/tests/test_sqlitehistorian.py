@@ -313,11 +313,12 @@ def test_sqlite_timeout(request, historian, publish_agent, query_agent,
                         }]
 
         # Create timestamp
-        now = datetime.utcnow().isoformat(' ')
+        now = utils.format_timestamp(datetime.utcnow())
 
         # now = '2015-12-02T00:00:00'
         headers = {
-            headers_mod.DATE: now
+            headers_mod.DATE: now,
+            headers_mod.TIMESTAMP: now
         }
         print("Published time in header: " + now)
         # Publish messages
@@ -333,7 +334,7 @@ def test_sqlite_timeout(request, historian, publish_agent, query_agent,
                                           order="LAST_TO_FIRST").get(timeout=100)
         print('Query Result', result)
         assert (len(result['values']) == 1)
-        (now_date, now_time) = now.split(" ")
+        (now_date, now_time) = now.split("T")
         assert result['values'][0][0] == now_date + 'T' + now_time + '+00:00'
         assert (result['values'][0][1] == oat_reading)
         assert set(result['metadata'].items()) == set(float_meta.items())
@@ -362,10 +363,11 @@ def publish_devices_fake_data(publish_agent, time=None):
                     }]
     # Create timestamp
     if not time:
-        time = datetime.utcnow().isoformat('T') + "+00:00"
+        time = utils.format_timestamp(datetime.utcnow())
     # now = '2015-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: time
+        headers_mod.DATE: time,
+        headers_mod.TIMESTAMP: time
     }
     print("Published time in header: " + time)
     # Publish messages

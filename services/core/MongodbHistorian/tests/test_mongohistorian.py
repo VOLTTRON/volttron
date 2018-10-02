@@ -264,7 +264,10 @@ def publish_minute_data_for_two_hours(agent):
                 "damper_point": damper_reading}
 
             # now = '2015-12-02T00:00:00'
-            headers = {headers_mod.DATE: now_iso_string}
+            headers = {
+                headers_mod.DATE: now_iso_string,
+                headers_mod.TIMESTAMP: now_iso_string
+            }
 
             # Publish messages
             agent.vip.pubsub.publish(
@@ -330,7 +333,10 @@ def publish_fake_data(agent, now=None, value=None):
     print('NOW IS: ', now)
 
     # now = '2015-12-02T00:00:00'
-    headers = {headers_mod.DATE: now.isoformat()}
+    headers = {
+        headers_mod.DATE: format_timestamp(now),
+        headers_mod.TIMESTAMP: format_timestamp(now)
+    }
 
     # Publish messages
     agent.vip.pubsub.publish('pubsub', ALL_TOPIC, headers, all_message).get(
@@ -378,7 +384,10 @@ def test_insert_duplicate(volttron_instance, database_client):
         print('NOW IS: ', now)
 
         # now = '2015-12-02T00:00:00'
-        headers = {headers_mod.DATE: now.isoformat()}
+        headers = {
+            headers_mod.DATE: format_timestamp(now),
+            headers_mod.TIMESTAMP: format_timestamp(now)
+        }
 
         # Publish messages
         publisher.vip.pubsub.publish(
@@ -397,7 +406,12 @@ def test_insert_duplicate(volttron_instance, database_client):
 def publish_data(publisher, topic, message, now=None):
     if now is None:
         now = datetime.now()
-    headers = {headers_mod.DATE: now.isoformat()}
+
+    now = format_timestamp(now)
+    headers = {
+        headers_mod.DATE: now,
+        headers_mod.TIMESTAMP: now
+    }
 
     # Publish messages
     publisher.vip.pubsub.publish('pubsub', topic, headers, message).get(

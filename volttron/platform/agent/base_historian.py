@@ -831,7 +831,7 @@ class BaseHistorianAgent(Agent):
         # Anon the topic if necessary.
         topic = self.get_renamed_topic(topic)
         timestamp_string = headers.get(headers_mod.SYNC_TIMESTAMP if self._sync_timestamp else headers_mod.TIMESTAMP,
-                                       None)
+                                       headers.get(headers_mod.DATE))
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
             timestamp, my_tz = process_timestamp(timestamp_string, topic)

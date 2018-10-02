@@ -1370,8 +1370,9 @@ def test_get_value_success(publish_agent, cancel_schedules):
     publish_agent.vip.pubsub.publish('pubsub',
                                      get_topic,
                                      headers=header).get(timeout=10)
+    gevent.sleep(0.5)
     print("call args list", publish_agent.callback.call_args_list)
-    assert publish_agent.callback.call_count == 1
+    assert publish_agent.callback.call_count == 2
     print('call args ', publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == value_topic

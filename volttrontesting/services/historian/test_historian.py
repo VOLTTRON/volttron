@@ -519,7 +519,7 @@ def test_basic_function(request, historian, publish_agent, query_agent,
                     }]
 
     # Create timestamp
-    now = datetime.utcnow().isoformat(' ')
+    now = utils.format_timestamp(datetime.utcnow())
 
     # now = '2015-12-02T00:00:00'
     headers = {
@@ -1048,7 +1048,7 @@ def test_topic_name_case_change(request, historian, publish_agent,
                     }]
 
     # Create timestamp
-    time1 = '2015-12-17 00:00:00.000000Z'
+    time1 = '2015-12-17T00:00:00.000000Z'
     headers = {
         headers_mod.DATE: time1,
         headers_mod.TIMESTAMP: time1
@@ -1068,7 +1068,7 @@ def test_topic_name_case_change(request, historian, publish_agent,
                     }]
 
     # Create timestamp
-    time2 = '2015-12-17 01:10:00.000000Z'
+    time2 = '2015-12-17T01:10:00.000000Z'
     headers = {
         headers_mod.DATE: time2,
         headers_mod.TIMESTAMP: time2
@@ -1090,7 +1090,7 @@ def test_topic_name_case_change(request, historian, publish_agent,
     print('Query Result', result)
 
     assert (len(result['values']) == 2)
-    (time1_date, time1_time) = time1.split(" ")
+    (time1_date, time1_time) = time1.split("T")
     time1_time = time1_time[:-1]
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == oat_reading)
@@ -1216,7 +1216,8 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
 
     # Create timestamp
 
-    publish_time = (datetime.utcnow() - timedelta(days=1)).isoformat()
+    publish_time = (datetime.utcnow() - timedelta(days=1))
+    publish_time = utils.format_timestamp(publish_time)
     print("publish_time ", publish_time)
     # publish_time = '2015-12-02T00:00:00'
     headers = {
@@ -1306,9 +1307,10 @@ def test_analysis_topic_replacement(request, historian, publish_agent,
                                             'type': 'float'}}]
 
         # Create timestamp
-        now = datetime.utcnow().isoformat() + 'Z'
+        now = utils.format_timestamp(datetime.utcnow())
         print("now is ", now)
-        headers = {headers_mod.DATE: now}
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         # Publish messages
         publish(publish_agent, 'analysis/pnnl/seb/device', headers,
                 all_message)
@@ -1375,7 +1377,8 @@ def test_analysis_topic_no_meta(request, historian, publish_agent, query_agent,
 
     # Create timestamp
 
-    publish_time = (datetime.utcnow() - timedelta(days=1)).isoformat()
+    publish_time = (datetime.utcnow() - timedelta(days=1))
+    publish_time = utils.format_timestamp(publish_time)
     print("publish_time ", publish_time)
     # publish_time = '2015-12-02T00:00:00'
     headers = {
@@ -1453,8 +1456,8 @@ def test_tz_conversion_local_tz(request, historian, publish_agent, query_agent,
     publish_time_naive  = datetime.now() - timedelta(days=1)
     local_tz = get_localzone()
     local_t = local_tz.localize(publish_time_naive)
-    publish_time = local_t.isoformat()
-    utc_publish_time = local_t.astimezone(pytz.utc).isoformat()
+    publish_time = utils.format_timestamp(local_t)
+    utc_publish_time = utils.format_timestamp(local_t.astimezone(pytz.utc))
     print("publish_time UTC is ", utc_publish_time)
     print("publish_time local tz is ", publish_time)
     # publish_time = '2015-12-02T00:00:00'
@@ -1528,8 +1531,8 @@ def test_tz_conversion_naive_ts(request, historian, publish_agent, query_agent,
     publish_time_naive  = datetime.now() - timedelta(days=1)
     local_tz = get_localzone()
     local_t = local_tz.localize(publish_time_naive)
-    utc_publish_time = local_t.astimezone(pytz.utc).isoformat()
-    publish_time = publish_time_naive.isoformat()
+    utc_publish_time = utils.format_timestamp(local_t.astimezone(pytz.utc))
+    publish_time = utils.format_timestamp(publish_time_naive)
     print("publish_time UTC is ", utc_publish_time)
     print("publish_time naive ", publish_time)
     # publish_time = '2015-12-02T00:00:00'
@@ -1649,7 +1652,8 @@ def test_log_topic(request, historian, publish_agent, query_agent,
     print("current_time is ", current_time)
     future_time = '2017-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: future_time
+        headers_mod.DATE: future_time,
+        headers_mod.TIMESTAMP: future_time
     }
     print("time in header is ", future_time)
 
@@ -1752,10 +1756,11 @@ def test_log_topic_timestamped_readings(request, historian, publish_agent,
 
     # pytest.set_trace()
     # Create timestamp
-    now = datetime.utcnow().isoformat() + 'Z'
+    now = utils.format_timestamp(datetime.utcnow())
     print("now is ", now)
     headers = {
-        headers_mod.DATE: now
+        headers_mod.DATE: now,
+        headers_mod.TIMESTAMP: now
     }
     # Publish messages
     publish(publish_agent, "datalogger/Building/LAB/Device", headers, message)
@@ -1818,10 +1823,11 @@ def test_get_topic_metadata(request, historian, publish_agent,
 
     # pytest.set_trace()
     # Create timestamp
-    now = datetime.utcnow().isoformat() + 'Z'
+    now = utils.format_timestamp(datetime.utcnow())
     print("now is ", now)
     headers = {
-        headers_mod.DATE: now
+        headers_mod.DATE: now,
+        headers_mod.TIMESTAMP: now
     }
     # Publish messages
     publish(publish_agent, "datalogger/Building/LAB/Device", headers,
@@ -1886,11 +1892,12 @@ def test_insert_duplicate(request, historian, publish_agent, query_agent,
                    {'OutsideAirTemperature': float_meta}]
 
     # Create timestamp
-    now = datetime.utcnow().isoformat(' ')
+    now = utils.format_timestamp(datetime.utcnow())
 
     # now = '2015-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: now
+        headers_mod.DATE: now,
+        headers_mod.TIMESTAMP: now
     }
     print("Published time in header: " + now)
     # Publish messages
@@ -1906,7 +1913,7 @@ def test_insert_duplicate(request, historian, publish_agent, query_agent,
                                       order="LAST_TO_FIRST").get(timeout=100)
     print('Query Result', result)
     assert (len(result['values']) == 1)
-    (now_date, now_time) = now.split(" ")
+    (now_date, now_time) = now.split("T")
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == oat_reading)
     assert set(result['metadata'].items()) == set(float_meta.items())
@@ -1923,7 +1930,7 @@ def test_insert_duplicate(request, historian, publish_agent, query_agent,
         timeout=100)
     print('Query Result', result)
     assert (len(result['values']) == 1)
-    (now_date, now_time) = now.split(" ")
+    (now_date, now_time) = now.split("T")
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == oat_reading)
     assert set(result['metadata'].items()) == set(float_meta.items())
@@ -2022,10 +2029,10 @@ def test_multi_topic_query_single_result(request, historian, publish_agent,
     # will not return this
     all_message = [{'MixedAirTemperature': 1.1}]
     # Create timestamp
-    old_time = (datetime.utcnow() - timedelta(days=1)).isoformat(
-        'T') + "+00:00"
+    old_time = utils.format_timestamp(datetime.utcnow() - timedelta(days=1))
     # now = '2015-12-02T00:00:00'
-    headers = {headers_mod.DATE: old_time}
+    headers = {headers_mod.DATE: old_time,
+               headers_mod.TIMESTAMP: old_time}
     publish(publish_agent, DEVICES_ALL_TOPIC, headers, all_message)
     gevent.sleep(1)
 
@@ -2289,11 +2296,12 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
                         'MixedAirTemperature': float_meta}]
 
         # Create timestamp
-        now = datetime.utcnow().isoformat(' ')
+        now = utils.format_timestamp(datetime.utcnow())
 
         # now = '2015-12-02T00:00:00'
         headers = {
-            headers_mod.DATE: now
+            headers_mod.DATE: now,
+            headers_mod.TIMESTAMP: now
         }
         print("Published time in header: " + now)
         # Publish messages
@@ -2430,7 +2438,7 @@ def publish_devices_fake_data(publish_agent, time=None):
                     }]
     # Create timestamp
     if not time:
-        time = datetime.utcnow().isoformat('T') + "+00:00"
+        time = utils.format_timestamp(datetime.utcnow())
     # now = '2015-12-02T00:00:00'
     headers = {
         headers_mod.DATE: time,
@@ -2455,7 +2463,7 @@ def publish_devices_fake_data_single_topic(publish_agent, time=None):
                     }]
     # Create timestamp
     if not time:
-        time = datetime.utcnow().isoformat('T') + "+00:00"
+        time = utils.format_timestamp(datetime.utcnow())
     # now = '2015-12-02T00:00:00'
     headers = {
         headers_mod.DATE: time,
