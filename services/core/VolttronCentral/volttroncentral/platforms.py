@@ -342,7 +342,7 @@ class PlatformHandler(object):
             # devices and status.
             # ('devices/', self._on_device_message),
             # statistics for showing performance in the ui.
-            ('datalogger/platform/status', self._on_platform_stats),
+            ('status', self._on_platform_stats),
             # iam and configure callbacks
             ('iam/', self._on_platform_message),
             # iam and configure callbacks
@@ -683,11 +683,11 @@ class PlatformHandler(object):
                                                                     expected_prefix)))
 
         # Pull off the "real" topic from the prefix
-        topic = topic[len(expected_prefix):]
+        which_stats = topic[len(expected_prefix):]
+        self._log.debug("WHICH STATS: {}".format(which_stats))
 
         prefix = "datalogger/platform"
-        which_stats = topic[len(prefix)+1:]
-        self._log.debug("WHICH STATS: {}".format(which_stats))
+
         point_list = []
 
         for point, item in message.iteritems():
