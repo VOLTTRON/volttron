@@ -15,6 +15,7 @@ from dateutil.parser import parse
 from volttron.platform import get_services_core
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE
+from volttron.platform.agent import utils
 
 AGG_AGENT_VIP = 'aggregate_agent'
 
@@ -204,8 +205,10 @@ def publish_test_data(publish_agent, start_time, start_reading, count):
                        {'in_temp': float_meta,
                         'out_temp': float_meta
                         }]
+        time_str = utils.format_timestring(time)
         headers = {
-            headers_mod.DATE: time.isoformat()
+            headers_mod.DATE: time_str,
+            headers_mod.TIMESTAMP: time_str
         }
         publish_agent.vip.pubsub.publish('pubsub',
                                          "devices/device1/all",

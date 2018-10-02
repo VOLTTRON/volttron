@@ -195,9 +195,10 @@ def subscriber_agent(config_path, **kwargs):
             damper_message = [damper_reading,{'units': '%', 'tz': 'UTC', 'type': 'float'}]
             
             #Create timestamp
-            now = datetime.utcnow().isoformat(' ') + 'Z'
+            now = utils.format_timestamp(datetime.utcnow())
             headers = {
-                headers_mod.DATE: now
+                headers_mod.DATE: now,
+                headers_mod.TIMESTAMP: now
             }
             
             #Publish messages
