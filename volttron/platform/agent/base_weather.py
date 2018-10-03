@@ -319,11 +319,11 @@ class BaseWeatherAgent(Agent):
                 except:
                     # TODO might need to do a different thing here
                     response = []
-                _log.debug(response)
                 if len(response):
-                    storage_record = [response[0], response[1], json.dumps(response[2])]
+                    storage_record = [response[0], utils.parse_timestamp_string(response[1]), json.dumps(response[2])]
                     self.store_weather_records(service_name, storage_record)
                 data.append(response)
+
         return data
 
     @abstractmethod
@@ -363,9 +363,10 @@ class BaseWeatherAgent(Agent):
                     response = []
                 storage_records = []
                 for item in response:
-                    location_data.append(item)
-                    storage_record = [item[0], item[1], item[2], json.dumps(item[3])]
+                    storage_record = [item[0], utils.parse_timestamp_string(item[1]),
+                                      utils.parse_timestamp_string(item[2]), json.dumps(item[3])]
                     storage_records.append(storage_record)
+                    location_data.append(item)
                 if len(storage_records):
                     self.store_weather_records(service_name, storage_records)
             for record in location_data:

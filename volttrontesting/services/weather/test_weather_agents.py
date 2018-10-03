@@ -114,7 +114,7 @@ def test_success_current(weather, query_agent):
     for record in current_data:
         if len(record) == 3:
             assert isinstance(record[0], str)
-            assert isinstance(record[1], datetime.datetime)
+            assert isinstance(utils.parse_timestamp_string(record[1]), datetime)
             assert isinstance(record[2], dict)
         else:
             _log.debug("response sanity checking: ")
@@ -135,8 +135,8 @@ def test_success_forecast(weather, query_agent):
     for record in forecast_data:
         if len(record) == 4:
             assert isinstance(record[0], str)
-            assert isinstance(record[1], datetime.datetime)
-            assert isinstance(record[2], datetime.datetime)
+            assert isinstance(utils.parse_timestamp_string(record[1]), datetime)
+            assert isinstance(utils.parse_timestamp_string(record[2]), datetime)
             assert isinstance(record[3], dict)
         else:
             assert len(record) == 0

@@ -160,20 +160,17 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             raise ValueError("Improperly formatted station ID was passed.")
         try:
-            request = requests.get(url, headers=self.headers, timeout=0.001)
+            request = requests.get(url, headers=self.headers, timeout=5)
             response = request.json()
             if request.status_code != 200:
                 raise RuntimeError("API request failed with code {}.".format(request.status_code))
             else:
-                _log.debug(response)
-                data = []
                 properties = response["properties"]
-                observation_time = utils.parse_timestamp_string(properties["timestamp"])
-                record = [location, observation_time, properties]
+                observation_time = properties["timestamp"]
+                record = [formatted_location, observation_time, properties]
                 # TODO record post processing
                 # TODO unit conversions
-                data.append(record)
-                return data
+                return record
         except (requests.ConnectionError, requests.Timeout, requests.HTTPError, requests.TooManyRedirects) as error:
             _log.debug(error)
             return []
@@ -190,23 +187,22 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         #     url = "https://api.weather.gov/points/{}/forecast/hourly".format(formatted_location)
         if location.get("wfo") and location.get("x") and location.get("y"):
             formatted_location = self.get_gridpoints_str(location)
-            url = "https://api.weather.gov/gridpoints/{}".format(formatted_location)
+            url = "https://api.weather.gov/gridpoints/{}/forecast/hourly".format(formatted_location)
         else:
             raise ValueError("Improperly formatted station ID was passed.")
         try:
-            request = requests.get(url, headers=self.headers, timeout=0.001)
+            request = requests.get(url, headers=self.headers, timeout=5)
             response = request.json()
             if request.status_code != 200:
                 raise RuntimeError("API request failed with code {}.".format(request.status_code))
             else:
-                _log.debug(response)
                 data = []
                 properties = response["properties"]
-                generation_time = utils.parse_timestamp_string(properties["generatedAt"])
+                generation_time = properties["generatedAt"]
                 periods = properties["periods"]
                 for period in periods:
                     forecast_time = period["startTime"]
-                    record = [location, generation_time, forecast_time, period]
+                    record = [formatted_location, generation_time, forecast_time, period]
                     # TODO record post processing
                     # TODO unit conversions
                     data.append(record)
