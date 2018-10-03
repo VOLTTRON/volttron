@@ -91,7 +91,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
                         "Accept-Language": "en-US"
                         }
         self.set_update_interval("get_current_weather", datetime.timedelta(hours=1))
-        self.set_accepted_location_formats("get_current_weather", ["station", "lat/long"])
+        self.set_accepted_location_formats("get_current_weather", ["station"])
         # TODO get hourly may be a different interval
         self.set_update_interval("get_hourly_forecast", datetime.timedelta(hours=1))
         self.set_accepted_location_formats("get_hourly_forecast", ["gridpoints", "lat/long"])
@@ -148,10 +148,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         lat/long (up to 4 decimals)
         :return: a single current data record as a list
         """
-        if location.get('lat') and location.get('long'):
-            formatted_location = self.get_location_string(location)
-            url = "https://api.weather.gov/points/{}/".format(formatted_location)
-        elif location.get('station'):
+        if location.get('station'):
             formatted_location = self.get_location_string(location)
             url = "https://api.weather.gov/stations/{}/observations/latest".format(formatted_location)
         else:
@@ -165,7 +162,6 @@ class WeatherDotGovAgent(BaseWeatherAgent):
                 properties = response["properties"]
                 observation_time = properties["timestamp"]
                 record = [formatted_location, observation_time, properties]
-                # TODO record post processing
                 # TODO unit conversions
                 return record
         except (requests.ConnectionError, requests.Timeout, requests.HTTPError, requests.TooManyRedirects) as error:
@@ -200,7 +196,6 @@ class WeatherDotGovAgent(BaseWeatherAgent):
                 for period in periods:
                     forecast_time = period["startTime"]
                     record = [formatted_location, generation_time, forecast_time, period]
-                    # TODO record post processing
                     # TODO unit conversions
                     data.append(record)
                 return data
