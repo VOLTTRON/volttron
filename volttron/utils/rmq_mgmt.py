@@ -285,7 +285,11 @@ class RabbitMQMgmt(object):
         """
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
         url = '/api/users/{user}'.format(user=user)
-        response = self._http_delete_request(url, ssl_auth)
+        try:
+            response = self._http_delete_request(url, ssl_auth)
+        except requests.exceptions.HTTPError as e:
+            if not e.message.startswith("404 Client Error"):
+                raise
 
     def delete_users_in_bulk(self, users, ssl_auth=None):
         """
@@ -785,7 +789,9 @@ class RabbitMQMgmt(object):
             return None
         return conn_params
 
-    def build_rmq_address(self, ssl_auth=None, config=None):
+    def build_rmq_address(self, user=None, password=None,
+                          host=None, port=None, vhost=None,
+                          ssl_auth=None, ssl_params=None):
         """
         Build RMQ address for federation or shovel connection
         :param ssl_auth:
@@ -793,12 +799,12 @@ class RabbitMQMgmt(object):
         :return:
         """
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
-        user = self.rmq_config.admin_user
-        if user is None:
-            if not ssl_auth:
-                user = self.rmq_config.local_user
-            else:
-                raise ValueError("No user configured in rabbitmq_config.json")
+        user = user if user else self.rmq_config.admin_user
+        password = password if password else self.rmq_config.admin_pwd
+        host = host if host else self.rmq_config.hostname
+        vhost = vhost if vhost else self.rmq_config.virtual_host
+        if ssl_auth:
+            ssl_params = ssl_params if ssl_params else self.get_ssl_url_params()
 
         rmq_address = None
         try:
@@ -807,16 +813,16 @@ class RabbitMQMgmt(object):
                 # authentication
                 rmq_address = "amqps://{host}:{port}/{vhost}?" \
                               "{ssl_params}&server_name_indication={host}".format(
-                    host=self.rmq_config.hostname,
-                    port=self.rmq_config.amqp_port_ssl,
-                    vhost=self.rmq_config.virtual_host,
-                    ssl_params=self.get_ssl_url_params())
+                    host=host,
+                    port=port,
+                    vhost=vhost,
+                    ssl_params=ssl_params)
             else:
-                passwd = self.rmq_config.admin_pwd
+
                 rmq_address = "amqp://{user}:{pwd}@{host}:{port}/{vhost}".format(
-                    user=user, pwd=passwd, host=config['host'],
-                    port=self.rmq_config.amqp_port,
-                    vhost=self.rmq_config.virtual_host)
+                    user=user, pwd=password, host=host,
+                    port=port,
+                    vhost=vhost)
         except KeyError as e:
             _log.error("Missing entries in rabbitmq config {}".format(e))
             raise
@@ -866,6 +872,42 @@ class RabbitMQMgmt(object):
 
         param = self.build_connection_param(rmq_user, ssl_auth=self.is_ssl)
         return param
+
+    def build_shovel_connection(self, identity, instance_name, host, port, vhost, is_ssl):
+        """
+        Check if RabbitMQ user and certs exists for this agent, if not
+        create a new one. Add access control/permissions if necessary.
+        Return connection parameters.
+        :param identity: Identity of agent
+        :param instance_name: instance name of the platform
+        :param host: hostname
+        :param port: amqp/amqps port
+        :param vhost: virtual host
+        :param is_ssl: Flag to indicate if SSL connection or not
+        :return: Return connection uri
+        """
+        rmq_user = instance_name + '.' + identity
+        config_access = "{user}|{user}.pubsub.*|{user}.zmq.*".format(
+            user=rmq_user)
+        read_access = "volttron|{}".format(config_access)
+        write_access = "volttron|{}".format(config_access)
+        permissions = dict(configure=config_access, read=read_access,
+                           write=write_access)
+
+        self.create_user_with_permissions(rmq_user, permissions)
+        ssl_params = None
+        if is_ssl:
+            self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)
+            ca_certs = self.rmq_config.crts.cert_file(self.rmq_config.crts.trusted_ca_name)
+            key_file = self.rmq_config.crts.private_key_file(rmq_user)
+            cert_file = self.rmq_config.crts.cert_file(rmq_user)
+            ssl_params = "cacertfile={ca}&certfile={cert}&keyfile={key}" \
+               "&verify=verify_peer&fail_if_no_peer_cert=true" \
+               "&auth_mechanism=external".format(ca=ca_certs,
+                                                 cert=cert_file,
+                                                 key=key_file)
+        return self.build_rmq_address(rmq_user, self.rmq_config.admin_pwd,
+                                      host, port, vhost, is_ssl, ssl_params)
 
     def build_router_connection(self, identity, instance_name):
         """

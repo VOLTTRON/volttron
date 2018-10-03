@@ -104,8 +104,8 @@ class RMQConfig(object):
 
     def set_default_config(self):
         """
-        # Check if basic configuration is available in the config file,
-        # if not set default.
+        Check if basic configuration is available in the config file,
+        if not set default.
         :return:
         """
         self.config_opts.setdefault('host', "localhost")

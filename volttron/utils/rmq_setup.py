@@ -188,7 +188,7 @@ def _create_federation_setup(admin_user, admin_password, is_ssl, vhost, vhome):
                            "{upstream}".format(key=ex, upstream=upstream))
 
 
-def _create_shovel_setup(admin_user, admin_password, is_ssl, instance_name, vhost, vhome):
+def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
     """
     Create RabbitMQ shovel based on the RabbitMQ config
     :return:
@@ -196,78 +196,81 @@ def _create_shovel_setup(admin_user, admin_password, is_ssl, instance_name, vhos
     shovel_config_file = os.path.join(vhome,
                                       'rabbitmq_shovel_config.yml')
     shovel_config = _read_config_file(shovel_config_file)
-    shovels = shovel_config.get('shovel', [])
+    shovels = shovel_config.get('shovel', {})
 
     rmq_mgmt = RabbitMQMgmt()
-    src_uri = rmq_mgmt.build_rmq_address(is_ssl)
+
     ssl_params = None
-
-    if is_ssl:
-        ssl_params = rmq_mgmt.get_ssl_url_params()
-
+    _log.debug("shovel config: {}".format(shovel_config))
     try:
-        for host, shovel in shovels.iteritems():
-            # Build destination address
-            if is_ssl:
-                dest_uri = "amqps://{host}:{port}/{vhost}?" \
-                           "{ssl_params}&server_name_indication={host}".format(
-                    host=host,
-                    port=shovel['port'],
-                    vhost=shovel['virtual-host'],
-                    ssl_params=ssl_params)
-            else:
-                dest_uri = "amqp://{user}:{pwd}@{host}:{port}/{vhost}".format(
-                    user=admin_user,
-                    pwd=admin_password,
-                    host=host,
-                    port=shovel['port'],
-                    vhost=shovel['virtual-host'])
+        for remote_host, shovel in shovels.iteritems():
+            pubsub_config = shovel.get("pubsub", {})
+            _log.debug("shovel parameters: {}".format(shovel))
+            for identity, topics in pubsub_config.iteritems():
+                # Build source address
+                src_uri = rmq_mgmt.build_shovel_connection(identity, instance_name,
+                                                           local_host, port,
+                                                           vhost, is_ssl)
+                # Build destination address
+                dest_uri = rmq_mgmt.build_shovel_connection(identity, instance_name,
+                                                            remote_host, shovel['port'],
+                                                            shovel['virtual-host'],
+                                                            is_ssl)
+                if not isinstance(topics, list):
+                    topics = [topics]
+                for topic in topics:
+                    _log.debug("Creating shovel to forward PUBSUB topic {}".format(
+                        topic))
+                    name = "shovel-{host}-{topic}".format(host=remote_host,
+                                                          topic=topic)
+                    routing_key = "__pubsub__.{instance}.{topic}.#".format(
+                        instance=instance_name,
+                        topic=topic)
+                    prop = dict(vhost=vhost,
+                                component="shovel",
+                                name=name,
+                                value={"src-uri": src_uri,
+                                       "src-exchange": "volttron",
+                                       "src-exchange-key": routing_key,
+                                       "dest-uri": dest_uri,
+                                       "dest-exchange": "volttron"}
+                                )
+                    _log.debug("shovel property: {}".format(prop))
+                    rmq_mgmt.set_parameter("shovel",
+                                           name,
+                                           prop)
+            rpc_config = shovel.get("rpc", {})
+            _log.debug("RPC config: {}".format(rpc_config))
+            for remote_instance, agent_ids in rpc_config.iteritems():
+                for ids in agent_ids:
+                    local_identity = ids[0]
+                    remote_identity = ids[1]
+                    src_uri = rmq_mgmt.build_shovel_connection(local_identity, instance_name,
+                                                               local_host, port, vhost, is_ssl)
+                    dest_uri = rmq_mgmt.build_shovel_connection(local_identity, instance_name,
+                                                                remote_host, shovel['port'],
+                                                                shovel['virtual-host'], is_ssl)
+                    _log.info("Creating shovel to make RPC call to remote Agent"
+                              ": {}".format(remote_identity))
 
-            pubsub_topics = shovel.get("pubsub-topics", [])
-            agent_ids = shovel.get("rpc-agent-identities", [])
-            for topic in pubsub_topics:
-                _log.debug("Creating shovel to forward PUBSUB topic {}".format(
-                    topic))
-                name = "shovel-{host}-{topic}".format(host=host,
-                                                      topic=topic)
-                routing_key = "__pubsub__.{instance}.{topic}.#".format(
-                    instance=rmq_mgmt.rmq_config.instance_name,
-                    topic=topic)
-                prop = dict(vhost=vhost,
-                            component="shovel",
-                            name=name,
-                            value={"src-uri": src_uri,
-                                   "src-exchange": "volttron",
-                                   "src-exchange-key": routing_key,
-                                   "dest-uri": dest_uri,
-                                   "dest-exchange": "volttron"}
-                            )
-                _log.debug("shovel property: {}".format(prop))
-                rmq_mgmt.set_parameter("shovel",
-                                       name,
-                                       prop)
+                    name = "shovel-{host}-{identity}".format(host=remote_host,
+                                                             identity=local_identity)
+                    routing_key = "{instance}.{identity}.#".format(
+                        instance=remote_instance,
+                        identity=remote_identity)
+                    prop = dict(vhost=vhost,
+                                component="shovel",
+                                name=name,
+                                value={"src-uri": src_uri,
+                                       "src-exchange": "volttron",
+                                       "src-exchange-key": routing_key,
+                                       "dest-uri": dest_uri,
+                                       "dest-exchange": "volttron"}
+                                )
 
-            for identity in agent_ids:
-                _log.info("Creating shovel to make RPC call to remote Agent"
-                          ": {}".format(topic))
-                name = "shovel-{host}-{identity}".format(host=host,
-                                                         identity=identity)
-                routing_key = "{instance}.{identity}.#".format(
-                    instance=instance_name,
-                    identity=identity)
-                prop = dict(vhost=vhost,
-                            component="shovel",
-                            name=name,
-                            value={"src-uri": src_uri,
-                                   "src-exchange": "volttron",
-                                   "src-exchange-key": routing_key,
-                                   "dest-uri": dest_uri,
-                                   "dest-exchange": "volttron"}
-                            )
-
-                rmq_mgmt.set_parameter("shovel",
-                                       name,
-                                       prop)
+                    rmq_mgmt.set_parameter("shovel",
+                                           name,
+                                           prop)
     except KeyError as exc:
         _log.error("Shovel setup  did not complete. Missing Key: {}".format(
             exc))
@@ -393,6 +396,7 @@ def check_rabbitmq_running(rmq_home):
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE)
     except subprocess.CalledProcessError as e:
+        _log.error("Sub process error {}".format(e))
         running = False
     return running
 
@@ -592,12 +596,16 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False):
     if setup_type in ["all", "shovel"]:
         # Create shovel setup
         invalid = False
-        _create_shovel_setup(rmq_config.admin_user,
-                             rmq_config.admin_pwd,
-                             rmq_config.is_ssl,
-                             rmq_config.instance_name,
+        if rmq_config.is_ssl:
+            port = rmq_config.amqp_port_ssl
+        else:
+            port = rmq_config.amqp_port
+        _create_shovel_setup(rmq_config.instance_name,
+                             rmq_config.hostname,
+                             port,
                              rmq_config.virtual_host,
-                             rmq_config.volttron_home)
+                             rmq_config.volttron_home,
+                             rmq_config.is_ssl)
     if invalid:
         _log.error("Unknown option. Exiting....")
 
@@ -792,6 +800,7 @@ def prompt_shovels(vhome):
         port = prompt_response(prompt, default=5671)
         prompt = 'Virtual host of the destination server: '
         vhost = prompt_response(prompt, default='volttron')
+
         shovels[host] = {'port': port,
                          'virtual-host': vhost}
         prompt = prompt_response('\nDo you want shovels for '
@@ -809,10 +818,21 @@ def prompt_shovels(vhome):
             '\nDo you want shovels for RPC communication? ',
             valid_answers=y_or_n, default='N')
         if prompt in y:
-            prompt = 'List of identities of remote agents (comma separated)'
-            agent_ids = prompt_response(prompt, mandatory=True)
-            agent_ids = agent_ids.split(",")
-            shovels[host]['rpc-agent-identities'] = agent_ids
+            prompt = 'Name of the remote instance: '
+            remote_instance = prompt_response(prompt, mandatory=True)
+            prompt = 'Number of Local to Remote pairs:'
+            agent_count = prompt_response(prompt, default=1)
+            agent_count = int(agent_count)
+            r = 0
+            agent_tuples = []
+            for r in range(0, agent_count):
+                prompt = 'Local agent that wants to make RPC'
+                local_agent_id = prompt_response(prompt, mandatory=True)
+                prompt = 'Remote agent on which to make the RPC'
+                remote_agent_id = prompt_response(prompt, mandatory=True)
+                agent_tuples.append((local_agent_id, remote_agent_id))
+            shovels[host]['rpc'] = {'remote-instance-name': remote_instance,
+                                    'agent-identities': agent_tuples}
 
     shovel_config['shovel'] = shovels
     _write_to_config_file(shovel_config_file, shovel_config)
