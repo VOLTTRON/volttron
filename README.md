@@ -364,6 +364,7 @@ to messages or perform RPC communication directly.
 
 2. Use special agents such as forwarder/data puller agents to forward/receive
 messages to/from remote instances.
+messages to/from remote instances.
 
 3. Configure vip address of all remote instances that an instance has to connect to
 in it's $VOLTTRON_HOME/external_discovery.json and let the router module in each instance
@@ -391,8 +392,9 @@ data flows in single direction from upstream server to downstream server. For bi
 data flow we would need to create federation links on both the nodes.
 
 
-1. Setup two VOLTTRON instances using the above steps. __***Please note that each
-instance should have a unique instance name and should be running on machine/VM that has a unique host name.***__
+1. Setup two VOLTTRON instances using the above steps.
+__***Please note that each instance should have a unique instance name
+and should be running on machine/VM that has a unique host name.***__
 
 
 2. In a multi platform setup that need to communicate with each other with
@@ -434,10 +436,10 @@ upstream servers on the downstream server and make the VOLTTRON exchange
     a.  On the downstream server (collector node),
 
         ```
-        vcfg --rabbitmq federation [optional path to rabbitmq_config.yml
+        vcfg --rabbitmq federation [optional path to rabbitmq_federation_config.yml
         containing the details of the upstream hostname, port and vhost.
         Example configuration for federation is available
-        in examples/configurations/rabbitmq/rabbitmq_config_federation.yml]
+        in examples/configurations/rabbitmq/rabbitmq_federation_config.yml]
         ```
 
         If no config file is provided, the script will prompt for
@@ -585,10 +587,10 @@ certain topics to remote instance "v2".
     a.  On the publisher node,
 
         ```
-        vcfg --rabbitmq shovel [optional path to rabbitmq_config.yml
+        vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
         containing the details of the remote hostname, port, vhost
         and list of topics to forward. Example configuration for shovel is available
-        in examples/configurations/rabbitmq/rabbitmq_config_shovel.yml]
+        in examples/configurations/rabbitmq/rabbitmq_shovel_config.yml]
         ```
 
         For this example, let's set the topic to "devices"
