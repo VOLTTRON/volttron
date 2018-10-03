@@ -91,7 +91,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
                         "Accept-Language": "en-US"
                         }
         self.set_update_interval("get_current_weather", datetime.timedelta(hours=1))
-        self.set_accepted_location_formats("get_current_weather", ["station", "gridpoints", "lat/long"])
+        self.set_accepted_location_formats("get_current_weather", ["station", "lat/long"])
         # TODO get hourly may be a different interval
         self.set_update_interval("get_hourly_forecast", datetime.timedelta(hours=1))
         self.set_accepted_location_formats("get_hourly_forecast", ["gridpoints", "lat/long"])
@@ -154,9 +154,6 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         elif location.get('station'):
             formatted_location = self.get_location_string(location)
             url = "https://api.weather.gov/stations/{}/observations/latest".format(formatted_location)
-        elif location.get("wfo") and location.get("x") and location.get("y"):
-            formatted_location = self.get_location_string(location)
-            url = "https://api.weather.gov/gridpoints/{}".format(formatted_location)
         else:
             raise ValueError("Improperly formatted station ID was passed.")
         try:

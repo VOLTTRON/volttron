@@ -107,7 +107,7 @@ def test_success_current(weather, query_agent):
     :param weather: instance of weather service to be tested
     :param query_agent: agent to leverage to use RPC calls
     """
-    locations = [{"station": "KLAX"}, {"wfo": 'PDT', "x": 120, "y": 130}, {"lat": 39.7555, "long": -105.2211}]
+    locations = [{"station": "KLAX"}, {"lat": 39.7555, "long": -105.2211}]
 
     current_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=10)
     # TODO deal with current data parsing

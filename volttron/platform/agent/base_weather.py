@@ -311,7 +311,8 @@ class BaseWeatherAgent(Agent):
             if not len(record):
                 try:
                     response = self.query_current_weather(location)
-                except:
+                except RuntimeError as error:
+                    _log.error(error)
                     # TODO might need to do a different thing here
                     response = []
                 if len(response):
@@ -352,7 +353,8 @@ class BaseWeatherAgent(Agent):
             if not len(location_data) or (hours and len(data) < hours):
                 try:
                     response = self.query_hourly_forecast(location)
-                except RuntimeError:
+                except RuntimeError as error:
+                    _log.debug(error)
                     # TODO might need to do a different thing here
                     response = []
                 storage_records = []
