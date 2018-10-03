@@ -107,7 +107,7 @@ def test_success_current(weather, query_agent):
     :param weather: instance of weather service to be tested
     :param query_agent: agent to leverage to use RPC calls
     """
-    locations = [{"station": "KLAX"}, {"wfo": 'PDT', "x": 120, "y": 130}]
+    locations = [{"station": "KLAX"}, {"wfo": 'PDT', "x": 120, "y": 130}, {"lat": 39.7555, "long": -105.2211}]
 
     current_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=10)
     # TODO deal with current data parsing
@@ -118,7 +118,7 @@ def test_success_current(weather, query_agent):
             assert isinstance(record[2], dict)
         else:
             _log.debug("response sanity checking: ")
-            _log.debug(current_data)
+            _log.debug(record)
             assert len(record) == 0
 
 @pytest.mark.dev
@@ -128,7 +128,7 @@ def test_success_forecast(weather, query_agent):
     :param weather: instance of weather service to be tested
     :param query_agent: agent to leverage to use RPC calls
     """
-    locations = [{"wfo": 'PDT', "x": 120, "y": 130}]
+    locations = [{"wfo": 'PDT', "x": 120, "y": 130}, {"lat": 39.7555, "long": -105.2211}]
 
     forecast_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast', locations).get(timeout=10)
 
@@ -139,4 +139,6 @@ def test_success_forecast(weather, query_agent):
             assert isinstance(utils.parse_timestamp_string(record[2]), datetime)
             assert isinstance(record[3], dict)
         else:
+            _log.debug("response sanity checking: ")
+            _log.debug(record)
             assert len(record) == 0

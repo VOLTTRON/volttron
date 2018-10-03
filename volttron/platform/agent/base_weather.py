@@ -58,14 +58,12 @@ import pint
 import json
 import sqlite3
 import datetime
-import threading
 from functools import wraps
 from abc import abstractmethod
-from Queue import Queue, Empty
-import gevent
 from gevent import get_hub
 from volttron.platform.agent import utils
-#from utils import setup_logging
+# TODO figure out why this isn't working
+from utils import parse_timestamp_string
 from volttron.platform.vip.agent import *
 from volttron.platform.async import AsyncCall
 from volttron.platform.messaging import headers
@@ -77,9 +75,6 @@ from volttron.platform.messaging.health import (STATUS_BAD,
 
 __version__ = "0.1.0"
 
-# TODO setup logging doesn't work
-#utils.setup_logging(logging.DEBUG)
-#setup_logging()
 _log = logging.getLogger(__name__)
 
 HEADER_NAME_DATE = headers.DATE
@@ -320,10 +315,9 @@ class BaseWeatherAgent(Agent):
                     # TODO might need to do a different thing here
                     response = []
                 if len(response):
-                    storage_record = [response[0], utils.parse_timestamp_string(response[1]), json.dumps(response[2])]
+                    storage_record = [response[0], response[1], json.dumps(response[2])]
                     self.store_weather_records(service_name, storage_record)
                 data.append(response)
-
         return data
 
     @abstractmethod
@@ -363,8 +357,7 @@ class BaseWeatherAgent(Agent):
                     response = []
                 storage_records = []
                 for item in response:
-                    storage_record = [item[0], utils.parse_timestamp_string(item[1]),
-                                      utils.parse_timestamp_string(item[2]), json.dumps(item[3])]
+                    storage_record = [item[0], item[1], item[2], json.dumps(item[3])]
                     storage_records.append(storage_record)
                     location_data.append(item)
                 if len(storage_records):

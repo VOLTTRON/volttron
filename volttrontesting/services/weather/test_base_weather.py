@@ -269,12 +269,12 @@ def test_get_data_success():
             data = test_cache.get_forecast_data(service_name, location)
             assert len(data) == 3
             assert len(data[0]) == 5
-        elif test_api_services[service_name]["type"] == "history":
-            fake_end = datetime.datetime.utcnow()
-            fake_start = fake_end - datetime.timedelta(days=7)
-            data = test_cache.get_historical_data(service_name, location, fake_start)
-            assert len(data) == 3
-            assert len(data[0]) == 4
+        # elif test_api_services[service_name]["type"] == "history":
+        #     fake_end = datetime.datetime.utcnow()
+        #     fake_start = fake_end - datetime.timedelta(days=7)
+        #     data = test_cache.get_historical_data(service_name, location, fake_start)
+        #     assert len(data) == 3
+        #     assert len(data[0]) == 4
 
 
 class BasicWeatherAgent(BaseWeatherAgent):

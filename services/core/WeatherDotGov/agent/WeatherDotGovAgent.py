@@ -91,17 +91,17 @@ class WeatherDotGovAgent(BaseWeatherAgent):
                         "Accept-Language": "en-US"
                         }
         self.set_update_interval("get_current_weather", datetime.timedelta(hours=1))
-        self.set_accepted_location_formats("get_current_weather", ["station", "gridpoints"])
+        self.set_accepted_location_formats("get_current_weather", ["station", "gridpoints", "lat/long"])
         # TODO get hourly may be a different interval
         self.set_update_interval("get_hourly_forecast", datetime.timedelta(hours=1))
-        self.set_accepted_location_formats("get_hourly_forecast", ["gridpoints"])
+        self.set_accepted_location_formats("get_hourly_forecast", ["gridpoints", "lat/long"])
         self.remove_service("get_hourly_historical")
 
     @doc_inherit
     def get_location_string(self, location):
-        # if location.get('lat') and location.get('long'):
-        #     formatted_location = self.get_lat_long_str(location)
-        #     return formatted_location
+        if location.get('lat') and location.get('long'):
+            formatted_location = self.get_lat_long_str(location)
+            return formatted_location
         if location.get('station'):
             formatted_location = self.get_station_str(location)
             return formatted_location
@@ -125,11 +125,11 @@ class WeatherDotGovAgent(BaseWeatherAgent):
 
     @doc_inherit
     def validate_location(self, accepted_formats, location):
-        # if ("lat/long"in accepted_formats) and (location.get('lat') and location.get('long')):
-        #     location_string = self.get_lat_long_str(location)
-        #     if LAT_LONG_REGEX.match(location_string):
-        #         return True
-        if ("station" in accepted_formats) and (location.get('station')):
+        if ("lat/long"in accepted_formats) and (location.get('lat') and location.get('long')):
+            location_string = self.get_lat_long_str(location)
+            if LAT_LONG_REGEX.match(location_string):
+                return True
+        elif ("station" in accepted_formats) and (location.get('station')):
             location_string = self.get_station_str(location)
             if STATION_REGEX.match(location_string):
                 return True
@@ -148,10 +148,10 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         lat/long (up to 4 decimals)
         :return: a single current data record as a list
         """
-        # if location.get('lat') and location.get('long'):
-        #     formatted_location = self.get_location_string(location)
-        #     url = "https://api.weather.gov/points/{}/".format(formatted_location)
-        if location.get('station'):
+        if location.get('lat') and location.get('long'):
+            formatted_location = self.get_location_string(location)
+            url = "https://api.weather.gov/points/{}/".format(formatted_location)
+        elif location.get('station'):
             formatted_location = self.get_location_string(location)
             url = "https://api.weather.gov/stations/{}/observations/latest".format(formatted_location)
         elif location.get("wfo") and location.get("x") and location.get("y"):
@@ -182,10 +182,10 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         :param location: currently accepts lat/long only
         :return:
         """
-        # if location.get('lat') and location.get('long'):
-        #     formatted_location = self.get_location_string(location)
-        #     url = "https://api.weather.gov/points/{}/forecast/hourly".format(formatted_location)
-        if location.get("wfo") and location.get("x") and location.get("y"):
+        if location.get('lat') and location.get('long'):
+            formatted_location = self.get_location_string(location)
+            url = "https://api.weather.gov/points/{}/forecast/hourly".format(formatted_location)
+        elif location.get("wfo") and location.get("x") and location.get("y"):
             formatted_location = self.get_gridpoints_str(location)
             url = "https://api.weather.gov/gridpoints/{}/forecast/hourly".format(formatted_location)
         else:
