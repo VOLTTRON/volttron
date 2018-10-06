@@ -109,7 +109,8 @@ def test_success_current(weather, query_agent):
     """
     locations = [{"station": "KLAX"}, {"station": "KABQ"}]
 
-    current_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=10)
+    current_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
+                                            locations).get(timeout=30)
     # TODO deal with current data parsing
     for record in current_data:
         if len(record) == 3:
@@ -128,9 +129,11 @@ def test_success_forecast(weather, query_agent):
     :param weather: instance of weather service to be tested
     :param query_agent: agent to leverage to use RPC calls
     """
-    locations = [{"wfo": 'PDT', "x": 120, "y": 130}, {"lat": 39.7555, "long": -105.2211}]
+    locations = [{"wfo": 'PDT', "x": 120, "y": 130},
+                 {"lat": 39.7555, "long": -105.2211}]
 
-    forecast_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast', locations).get(timeout=10)
+    forecast_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
+                                             locations).get(timeout=30)
 
     for record in forecast_data:
         if len(record) == 4:
