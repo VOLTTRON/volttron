@@ -236,9 +236,9 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                                        "dest-exchange": "volttron"}
                                 )
                     _log.debug("shovel property: {}".format(prop))
-                    rmq_mgmt.set_parameter("shovel",
-                                           name,
-                                           prop)
+                    # rmq_mgmt.set_parameter("shovel",
+                    #                        name,
+                    #                        prop)
             rpc_config = shovel.get("rpc", {})
             _log.debug("RPC config: {}".format(rpc_config))
             for remote_instance, agent_ids in rpc_config.iteritems():
@@ -268,9 +268,9 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                                        "dest-exchange": "volttron"}
                                 )
 
-                    rmq_mgmt.set_parameter("shovel",
-                                           name,
-                                           prop)
+                    # rmq_mgmt.set_parameter("shovel",
+                    #                        name,
+                    #                        prop)
     except KeyError as exc:
         _log.error("Shovel setup  did not complete. Missing Key: {}".format(
             exc))
@@ -417,7 +417,7 @@ def start_rabbit(rmq_home):
         try:
             subprocess.check_call(cmd, stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE)
-            gevent.sleep(5)  # give a few seconds for all plugins to startup
+            gevent.sleep(25)  # give a few seconds for all plugins to startup
             started = True
             _log.info("Started rmq server at {}".format(rmq_home))
         except subprocess.CalledProcessError as e:
@@ -809,11 +809,14 @@ def prompt_shovels(vhome):
                                  default='N')
 
         if prompt in y:
+            prompt = 'Name of the agent publishing the topic:'
+            agent_id = prompt_response(prompt, mandatory=True)
+
             prompt = 'List of PUBSUB topics to publish to ' \
                      'this remote instance (comma seperated)'
             topics = prompt_response(prompt, mandatory=True)
             topics = topics.split(",")
-            shovels[host]['pubsub-topics'] = topics
+            shovels[host]['pubsub'] = {agent_id : topics}
         prompt = prompt_response(
             '\nDo you want shovels for RPC communication? ',
             valid_answers=y_or_n, default='N')
@@ -823,16 +826,14 @@ def prompt_shovels(vhome):
             prompt = 'Number of Local to Remote pairs:'
             agent_count = prompt_response(prompt, default=1)
             agent_count = int(agent_count)
-            r = 0
-            agent_tuples = []
+            agent_ids = []
             for r in range(0, agent_count):
                 prompt = 'Local agent that wants to make RPC'
                 local_agent_id = prompt_response(prompt, mandatory=True)
                 prompt = 'Remote agent on which to make the RPC'
                 remote_agent_id = prompt_response(prompt, mandatory=True)
-                agent_tuples.append((local_agent_id, remote_agent_id))
-            shovels[host]['rpc'] = {'remote-instance-name': remote_instance,
-                                    'agent-identities': agent_tuples}
+                agent_ids.append([local_agent_id, remote_agent_id])
+            shovels[host]['rpc'] = {remote_instance: agent_ids}
 
     shovel_config['shovel'] = shovels
     _write_to_config_file(shovel_config_file, shovel_config)
