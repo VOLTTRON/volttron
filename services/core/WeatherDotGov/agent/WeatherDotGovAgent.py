@@ -90,12 +90,16 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         self.headers = {"Accept": "application/json",
                         "Accept-Language": "en-US"
                         }
-        self.set_update_interval("get_current_weather", datetime.timedelta(hours=1))
-        self.set_accepted_location_formats("get_current_weather", ["station"])
-        # TODO get hourly may be a different interval
-        self.set_update_interval("get_hourly_forecast", datetime.timedelta(hours=1))
-        self.set_accepted_location_formats("get_hourly_forecast", ["gridpoints", "lat/long"])
         self.remove_service("get_hourly_historical")
+
+    def get_update_interval(self, service_name):
+        if service_name == "get_current_weather":
+            return datetime.timedelta(hours=1)
+        elif service_name == "get_hourly_forecast":
+            # TODO get hourly may be a different interval
+            return datetime.timedelta(hours=1)
+        else:
+            return None
 
     @doc_inherit
     def get_location_string(self, location):
@@ -123,9 +127,15 @@ class WeatherDotGovAgent(BaseWeatherAgent):
     def get_gridpoints_str(self, location_dict):
         return "{}/{},{}".format(location_dict.get("wfo"), location_dict.get("x"), location_dict.get("y"))
 
+    def validate_location_for_current(self, location):
+        self.validate_location(("station",), location)
+
+    def validate_location_for_forecast(self, location):
+        self.validate_location(("gridpoints", "lat/long"), location)
+
     @doc_inherit
     def validate_location(self, accepted_formats, location):
-        if ("lat/long"in accepted_formats) and (location.get('lat') and location.get('long')):
+        if ("lat/long" in accepted_formats) and (location.get('lat') and location.get('long')):
             location_string = self.get_lat_long_str(location)
             if LAT_LONG_REGEX.match(location_string):
                 return True
@@ -136,7 +146,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         elif ("gridpoints" in accepted_formats) and (location.get("wfo") and location.get("x") and location.get("y")):
             if WFO_REGEX.match(location.get("wfo")) and (1 <= len(str(location.get("x"))) <= 3) and \
                     (1 <= len(str(location.get("y"))) <= 3):
-                        return True
+                return True
         else:
             return False
 
@@ -150,14 +160,17 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         """
         if location.get('station'):
             formatted_location = self.get_location_string(location)
-            url = "https://api.weather.gov/stations/{}/observations/latest".format(formatted_location)
+            url = "https://api.weather.gov/stations/{}/" \
+                  "observations/latest".format(formatted_location)
         else:
-            raise ValueError("Improperly formatted station ID was passed.")
+            raise ValueError('Invalid location. Expected format is:'
+                             '{"station":"station_id_value"}')
         try:
-            request = requests.get(url, headers=self.headers, timeout=5)
+            request = requests.get(url, headers=self.headers, timeout=3)
             response = request.json()
             if request.status_code != 200:
-                raise RuntimeError("API request failed with code {}.".format(request.status_code))
+                raise RuntimeError("API request failed with code "
+                                   "{}.".format(request.status_code))
             else:
                 properties = response["properties"]
                 observation_time = properties["timestamp"]
@@ -184,7 +197,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             raise ValueError("Improperly formatted station ID was passed.")
         try:
-            request = requests.get(url, headers=self.headers, timeout=5)
+            request = requests.get(url, headers=self.headers, timeout=3)
             response = request.json()
             if request.status_code != 200:
                 raise RuntimeError("API request failed with code {}.".format(request.status_code))
