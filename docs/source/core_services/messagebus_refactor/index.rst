@@ -10,7 +10,6 @@ built in.
   1. It has many different messaging patterns and routing topologies.
   2. It offers flexibility in deployment and supports large scale deployment
   3. It has well-developed SSL based authentication plugin.
-
 The goal of the message bus refactor task is to
   1. Maintain essential features of current message bus and minimize transition cost
   2. Leverage an existing and growing community dedicated to the further development of RabbitMQ

@@ -25,7 +25,7 @@ A connection class that has methods to handle
   2. Set properties such as message transmission rate, send/receive buffer sizes, open socket limits etc.
   3. Send/receive messages from the underlying layer.
   4. Error handling functionality.
-  4. Disconnect from the message bus
+  5. Disconnect from the message bus
 
 
 Platform Level Changes
