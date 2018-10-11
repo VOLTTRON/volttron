@@ -858,7 +858,7 @@ class RabbitMQMgmt(object):
         :return: Return connection parameters
         """
         rmq_user = instance_name + '.' + identity
-        config_access = "{user}|{user}.pubsub.*|{user}.zmq.*".format(
+        config_access = "{user}|{user}.pubsub.*|{user}.zmq.*|amq.*".format(
             user=rmq_user)
         read_access = "volttron|{}".format(config_access)
         write_access = "volttron|{}".format(config_access)
@@ -887,7 +887,7 @@ class RabbitMQMgmt(object):
         :return: Return connection uri
         """
         rmq_user = instance_name + '.' + identity
-        config_access = "{user}|{user}.pubsub.*|{user}.zmq.*".format(
+        config_access = "{user}|{user}.pubsub.*|{user}.zmq.*|amq.*".format(
             user=rmq_user)
         read_access = "volttron|{}".format(config_access)
         write_access = "volttron|{}".format(config_access)

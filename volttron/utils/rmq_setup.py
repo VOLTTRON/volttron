@@ -793,50 +793,53 @@ def prompt_shovels(vhome):
     count = int(count)
     i = 0
 
-    for i in range(0, count):
-        prompt = 'Hostname of the destination server: '
-        host = prompt_response(prompt, mandatory=True)
-        prompt = 'Port of the destination server: '
-        port = prompt_response(prompt, default=5671)
-        prompt = 'Virtual host of the destination server: '
-        vhost = prompt_response(prompt, default='volttron')
+    try:
+        for i in range(0, count):
+            prompt = 'Hostname of the destination server: '
+            host = prompt_response(prompt, mandatory=True)
+            prompt = 'Port of the destination server: '
+            port = prompt_response(prompt, default=5671)
+            prompt = 'Virtual host of the destination server: '
+            vhost = prompt_response(prompt, default='volttron')
 
-        shovels[host] = {'port': port,
-                         'virtual-host': vhost}
-        prompt = prompt_response('\nDo you want shovels for '
-                                 'PUBSUB communication? ',
-                                 valid_answers=y_or_n,
-                                 default='N')
+            shovels[host] = {'port': port,
+                             'virtual-host': vhost}
+            prompt = prompt_response('\nDo you want shovels for '
+                                     'PUBSUB communication? ',
+                                     valid_answers=y_or_n,
+                                     default='N')
 
-        if prompt in y:
-            prompt = 'Name of the agent publishing the topic:'
-            agent_id = prompt_response(prompt, mandatory=True)
+            if prompt in y:
+                prompt = 'Name of the agent publishing the topic:'
+                agent_id = prompt_response(prompt, mandatory=True)
 
-            prompt = 'List of PUBSUB topics to publish to ' \
-                     'this remote instance (comma seperated)'
-            topics = prompt_response(prompt, mandatory=True)
-            topics = topics.split(",")
-            shovels[host]['pubsub'] = {agent_id : topics}
-        prompt = prompt_response(
-            '\nDo you want shovels for RPC communication? ',
-            valid_answers=y_or_n, default='N')
-        if prompt in y:
-            prompt = 'Name of the remote instance: '
-            remote_instance = prompt_response(prompt, mandatory=True)
-            prompt = 'Number of Local to Remote pairs:'
-            agent_count = prompt_response(prompt, default=1)
-            agent_count = int(agent_count)
-            agent_ids = []
-            for r in range(0, agent_count):
-                prompt = 'Local agent that wants to make RPC'
-                local_agent_id = prompt_response(prompt, mandatory=True)
-                prompt = 'Remote agent on which to make the RPC'
-                remote_agent_id = prompt_response(prompt, mandatory=True)
-                agent_ids.append([local_agent_id, remote_agent_id])
-            shovels[host]['rpc'] = {remote_instance: agent_ids}
-
-    shovel_config['shovel'] = shovels
-    _write_to_config_file(shovel_config_file, shovel_config)
+                prompt = 'List of PUBSUB topics to publish to ' \
+                         'this remote instance (comma seperated)'
+                topics = prompt_response(prompt, mandatory=True)
+                topics = topics.split(",")
+                shovels[host]['pubsub'] = {agent_id : topics}
+            prompt = prompt_response(
+                '\nDo you want shovels for RPC communication? ',
+                valid_answers=y_or_n, default='N')
+            if prompt in y:
+                prompt = 'Name of the remote instance: '
+                remote_instance = prompt_response(prompt, mandatory=True)
+                prompt = 'Number of Local to Remote pairs:'
+                agent_count = prompt_response(prompt, default=1)
+                agent_count = int(agent_count)
+                agent_ids = []
+                for r in range(0, agent_count):
+                    prompt = 'Local agent that wants to make RPC'
+                    local_agent_id = prompt_response(prompt, mandatory=True)
+                    prompt = 'Remote agent on which to make the RPC'
+                    remote_agent_id = prompt_response(prompt, mandatory=True)
+                    agent_ids.append([local_agent_id, remote_agent_id])
+                shovels[host]['rpc'] = {remote_instance: agent_ids}
+    except ValueError as e:
+        _log.error("Invalid choice in the configuration: {}".format(e))
+    else:
+        shovel_config['shovel'] = shovels
+        _write_to_config_file(shovel_config_file, shovel_config)
 
 
 def _read_config_file(filename):
