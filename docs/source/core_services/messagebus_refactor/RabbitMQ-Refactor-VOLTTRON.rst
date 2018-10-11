@@ -239,8 +239,7 @@ VOLTTRON instance "volttron2" on host "host_B". Firstly, federation link needs t
 
     agent_b.vip.subscribe.call("pubsub", prefix="devices", all_platforms=True)
 
-2. The PubSub subsystem converts the prefix to "__pubsub__.*.devices.#"
-"*" indicates that agent is subscribing to "devices" topic from all the VOLTTRON platforms.
+2. The PubSub subsystem converts the prefix to "__pubsub__.*.devices.#". Here, "*" indicates that agent is subscribing to "devices" topic from all the VOLTTRON platforms.
 
 3. A new queue is created and bound to VOLTTRON exchange with above binding key. Since the VOLTTRON exchange is a *federated exchange*, any subscribed message on the upstream server becomes available on the federated exchange and Agent B will be able to receive it.
 

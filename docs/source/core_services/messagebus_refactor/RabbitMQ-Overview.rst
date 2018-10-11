@@ -5,7 +5,7 @@ RabbitMQ Overview
 RabbitMQ is the most popular messaging library with over 35,000 production deployments.
 It is highly scalable, easy to deploy, runs on many operating systems and cloud
 environments. It supports many kinds of distributed deployment methodologies such as
-federation, shovels and clusters (More about these in section).
+clusters, federation and shovels.
 
 RabbitMQ uses Advanced Message Queueing Protocol (AMQP) and works on the basic
 producer consumer model. A consumer is a program that consumes/receives messages and
@@ -13,6 +13,7 @@ producer is a program that sends the messages. Following are some important
 definitions that we need to know before we proceed.
 
 * Queue - Queues can be considered like a post box that stores messages until consumed by the consumer. Each consumer must create a queue to receives messages that it is interested in receiving. We can set properties to the queue during it's declaration. The queue properties are
+
   * Name - Name of the queue
   * Durable - Flag to indicate if the queue should survive broker restart.
   * Exclusive - Used only for one connection and it will be removed when connection is closed.
@@ -33,13 +34,13 @@ definitions that we need to know before we proceed.
         '#' (hash) - can match zero or more words
 
     #. Headers - If we need more complex matching then we can add a header to the message with all the attributes set to the values that need to be matched. The message is considered matching if the values of the attributes in the header is equal to that of the binding. Header exchange ignore the routing key.
-We can set some properties to the exchange during it's declaration.
+
+  We can set some properties to the exchange during it's declaration.
+
   * Name - Name of the exchange
   * Durable - Flag to indicate if the exchange should survive broker restart.
   * Auto-delete - Flag indicates if auto-delete is needed. If set to true, the exchange is deleted when the last queue is unbound from it.
   * Arguments - Optional, used by plugins and broker-specific features
-
-.. image:: files/rabbitmq_exchange.png
 
 Lets use an example to understand how they all fit together. Consider an example where there
 are four consumers (Consumer 1 - 4) interested in receiving messages matching the pattern
@@ -49,6 +50,9 @@ with the binding key of the queues. Each of the consumers declare a queue and bi
 with the exchange with a binding key of interest. Lastly, we have a producer that is continuously
 sending messages to exchange with routing key "green". The exchange will check for an exact
 match and route the messages to only Consumer 1 and Consumer 3.
+
+.. image:: files/rabbitmq_exchange.png
+
 
 For more information about queues, bindings, exchanges, please refer to
 `RabbitMQ tutorial <https://www.rabbitmq.com/getstarted.html>`_.
@@ -83,11 +87,14 @@ Federation plugin is used in applications that does not require as much of tight
 Federation has several useful features.
 
 * Loose coupling - The federation plugin can transmit messages between brokers (or clusters) in different administrative domains:
+
   * they may have different users and virtual hosts;
   * they may run on different versions of RabbitMQ and Erlang.
 
 * WAN friendliness - They can tolerate network intermittent connectivity.
+
 * Specificity - Not everything needs to be federated ( made available to other brokers ). There can be local-only components.
+
 * Scalability - Federation does not require O(n2) connections for *n* brokers, so it scales better.
 
 The federation plugin allows you to make exchanges and queues federated. A federated exchange or queue can
@@ -166,6 +173,7 @@ the hostname, port and virtual host of the remote node, we will also have to pro
 of routing keys that we want to forward to remote node.The primary advantages of shovels are
 
 * Loose coupling - A shovel can move messages between brokers (or clusters) in different administrative domains:
+
   * they may have different users and virtual hosts;
   * they may run on different versions of RabbitMQ and Erlang.
 * WAN friendliness - They can tolerate network intermittent connectivity.
@@ -188,6 +196,7 @@ Management Plugin
 The rabbitmq-management plugin provides an HTTP-based API for management and monitoring of RabbitMQ
 nodes and clusters, along with a browser-based UI and a command line tool, *rabbitmqadmin*. The management
 interface allows you to
+
 * Create, Monitor the status and delete resources such as virtual hosts, users, exchanges, queues etc.
 * Monitor queue length, message rates and connection information and more
 * Manage users and add permissions (read, write and configure) to use the resources
