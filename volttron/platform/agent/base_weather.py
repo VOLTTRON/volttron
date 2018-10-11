@@ -61,11 +61,9 @@ import datetime
 from functools import wraps
 from abc import abstractmethod
 from gevent import get_hub
-from datetime import datetime
 from volttron.platform.agent import utils
 # TODO figure out why this isn't working
 from utils import parse_timestamp_string
-import utils
 from volttron.platform.vip.agent import *
 from volttron.platform.async import AsyncCall
 from volttron.platform.messaging import headers
@@ -75,13 +73,13 @@ from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_STARTING,
                                                 Status)
 
-CREATE_STMT_CURRENT = """CREATE TABLE {}
+CREATE_STMT_CURRENT = """CREATE TABLE {table}
                         (ID INTEGER PRIMARY KEY ASC,
                          LOCATION TEXT NOT NULL,
                          OBSERVATION_TIME TIMESTAMP NOT NULL, 
                          POINTS TEXT NOT NULL);"""
 
-CREATE_STMT_FORECAST = """CREATE TABLE {}
+CREATE_STMT_FORECAST = """CREATE TABLE {table}
                         (ID INTEGER PRIMARY KEY ASC,
                          LOCATION TEXT NOT NULL,
                          GENERATION_TIME TIMESTAMP NOT NULL,
@@ -132,18 +130,30 @@ class BaseWeatherAgent(Agent):
                                      "update_interval": None,
                                      "description": "Params: locations ([{"
                                                     "type: "
-                                                    "value},...])"},
+                                                    "value},...])"
+                                     },
              "get_hourly_forecast": {"type": "forecast",
                                      "update_interval": None,
                                      "description": "Params: locations "
-                                                    "([{type: value},...])" },
+                                                    "([{type: value},...])"
+                                     },
              "get_hourly_historical": {"type": "history",
                                        "update_interval": None,
                                        "description": "Params: locations "
                                                       "([{type: value},...]), "
                                                       "start_date (date), "
-                                                      "end_date(date)"}
-                              }
+                                                      "end_date(date)"
+                                       }
+             }
+
+        for service_name in self._api_services:
+            interval = self.get_update_interval(service_name)
+            if interval:
+                self.set_update_interval(service_name, interval)
+            description = self.get_api_description(service_name)
+            if description:
+                self.set_api_description(service_name, description)
+
         # TODO finish status context
         self._current_status_context = {
             STATUS_KEY_CACHE_FULL: False
@@ -168,15 +178,15 @@ class BaseWeatherAgent(Agent):
     # TODO update documentation
     def register_service(self, service_function_name, interval, type,
                          description=None):
-        """Called in a weather agent's __init__ function to add api services to
-        the api services dictionary.
+        """Called in a weather agent's __init__ function to add api services
+        to the api services dictionary.
         :param service_function_name: function call name for an api feature
         :param interval: datetime timedelta object describing the length of
-                         time between api updates
+        time between api updates.
         :param type: the string "history", "current", or "forecast". This
-                     determines the structure of the cached data
-        :param description: optional description string describing the
-                            method's usage
+                     determines the structure of the cached data.
+        :param description: optional description string describing the method's
+        usage.
         """
         if not isinstance(interval, datetime.timedelta):
             raise ValueError("interval must be a valid datetime "
@@ -185,7 +195,8 @@ class BaseWeatherAgent(Agent):
             raise ValueError("Invalid service type. It should be history, "
                              "current, or forecast")
         self._api_services[service_function_name] = \
-            {"update_interval": interval, "type": type,
+            {"update_interval": interval,
+             "type": type,
              "description": description}
 
     # TODO docs
@@ -193,7 +204,7 @@ class BaseWeatherAgent(Agent):
         """
 
         :param service_function_name: a function call name for an api feature
-        to be removed
+        to be removed.
         """
         self._api_services.pop(service_function_name)
 
@@ -208,6 +219,7 @@ class BaseWeatherAgent(Agent):
     # TODO update documentation
     def set_update_interval(self, service_name, interval):
         """
+
         :param service_name: a function call name for an api feature to be updated
         :param interval: datetime timedelta object specifying the length of time between api updates
         """
@@ -241,12 +253,12 @@ class BaseWeatherAgent(Agent):
     def parse_point_name_mapping(self, config_dict):
         """
         Parses the registry config, which should contain a mapping of service
-        points to standardized points, with specified unit
+        points to standardized points, with specified units.
         :param config_dict: registry configuration dictionary containing
                             mappings from points included in api, to points
                             included in the NOAA standard weather structure.
                             Points listed without a standard name will be
-                            included without renaming or unit conversion
+                            included without renaming or unit conversion.
         """
         for map_item in config_dict:
             service_point_name = map_item.get("Service_Point_Name")
@@ -280,8 +292,8 @@ class BaseWeatherAgent(Agent):
             self.parse_point_name_mapping(registry_config)
 
         except ValueError:
-            _log.error("Failed to load base weather agent settings. "
-                       "Settings not applied!")
+            _log.error("""Failed to load base weather agent settings. 
+                          Settings not applied!""")
             return
         self._api_key = api_key
         self._max_size_gb = max_size_gb
@@ -327,12 +339,12 @@ class BaseWeatherAgent(Agent):
 
     # TODO docs
     @abstractmethod
-    def validate_location_for_forecast(self, location):
+    def validate_location_for_hourly_forecast(self, location):
       pass
 
     # TODO docs
     @abstractmethod
-    def validate_location_for_history(self, location):
+    def validate_location_for_hourly_history(self, location):
       pass
 
     # TODO add doc
@@ -341,7 +353,6 @@ class BaseWeatherAgent(Agent):
         data = []
         service_name = "get_current_weather"
         interval = self._api_services[service_name]["update_interval"]
-        # When we register the interval details it is validated there
         for location in locations:
             record = []
             if not self.validate_location_for_current(location):
@@ -385,16 +396,16 @@ class BaseWeatherAgent(Agent):
         service_name = "get_hourly_forecast"
         interval = self._api_services[service_name]["update_interval"]
         for location in locations:
-            if not self.validate_location_for_forecast(location):
+            if not self.validate_location_for_hourly_forecast(location):
                 raise ValueError("Invalid location: {}".format(location))
-            most_recent_for_location = self.get_cached_forecast_data(
-                service_name, location)
+            most_recent_for_location = \
+                self.get_cached_forecast_data(service_name, location)
             location_data = []
             if most_recent_for_location:
                 current_time = datetime.datetime.utcnow()
                 update_window = current_time - interval
                 generation_time = most_recent_for_location[0][1]
-                if generation_time > update_window:
+                if generation_time >= update_window:
                     for record in most_recent_for_location:
                         entry = [record[0], record[1], record[2],
                                  json.loads(record[3])]
@@ -436,7 +447,7 @@ class BaseWeatherAgent(Agent):
                        (datetime.timedelta(days=1) - datetime.timedelta(milliseconds=1))
         # TODO
         for location in locations:
-            if not self.validate_location_for_history(location):
+            if not self.validate_location_for_hourly_history(location):
                 raise ValueError("Invalid Location:{}".format(location))
             current = start_datetime
             while current <= end_datetime:
@@ -464,7 +475,8 @@ class BaseWeatherAgent(Agent):
         """
 
         :param location:
-        :param date:
+        :param start_date:
+        :param end_date:
         :return: list containing 1 dictionary per data record in the history set
         """
 
@@ -567,13 +579,6 @@ class BaseWeatherAgent(Agent):
 
     @Core.receiver("onstart")
     def setup(self, sender, **kwargs):
-        for service_name in self._api_services:
-            interval = self.get_update_interval(service_name)
-            if interval:
-                self.set_update_interval(service_name, interval)
-            description = self.get_api_description(service_name)
-            if description:
-                self.set_api_description(service_name, description)
         if self.polling_locations:
             self.core.periodic(self.poll_interval, self.poll_for_locations)
 
@@ -623,7 +628,7 @@ class WeatherCache:
         self.create_tables()
         cursor = self._sqlite_conn.cursor()
         if self._max_size_gb is not None:
-            cursor.execute('''PRAGMA page_size''')
+            cursor.execute("PRAGMA page_size")
             page_size = cursor.fetchone()[0]
             max_storage_bytes = self._max_size_gb * 1024 ** 3
             _log.error(self._max_size_gb)
@@ -650,7 +655,6 @@ class WeatherCache:
                                      "for table {}.".format(table_type,
                                                             service_name))
                 _log.debug(create_table)
-
                 cursor.execute(create_table)
                 self._sqlite_conn.commit()
             except sqlite3.OperationalError as o:
@@ -703,11 +707,10 @@ class WeatherCache:
         try:
             cursor = self._sqlite_conn.cursor()
             query = """SELECT LOCATION, max(OBSERVATION_TIME), POINTS 
-            FROM {table} 
-            WHERE  LOCATION = '{location}'""".format(table=service_name,
-                                                     location=location)
+                       FROM {table}
+                       WHERE LOCATION = ?;""".format(table=service_name)
             _log.debug(query)
-            cursor.execute(query)
+            cursor.execute(query, (location,))
             data = cursor.fetchone()
             cursor.close()
             return data
@@ -724,16 +727,18 @@ class WeatherCache:
         """
         try:
             cursor = self._sqlite_conn.cursor()
-            query = """SELECT LOCATION, GENERATION_TIME, 
-                       FORECAST_TIME, POINTS 
+            query = """SELECT LOCATION, GENERATION_TIME, FORECAST_TIME, POINTS 
                        FROM {table} 
-                       WHERE LOCATION = ? AND 
-                       FORECAST_TIME > ? AND GENERATION_TIME =
-                        (SELECT MAX(GENERATION_TIME) FROM {table} 
-                         WHERE LOCATION = ?) 
-                      ORDER BY FORECAST_TIME ASC;""".format(table=service_name)
+                       WHERE LOCATION = ? 
+                       AND FORECAST_TIME > ?
+                       AND GENERATION_TIME =
+                       (SELECT MAX(GENERATION_TIME) 
+                        FROM {table}
+                        WHERE LOCATION = ?) 
+                       ORDER BY FORECAST_TIME ASC;""".format(table=service_name)
             _log.debug(query)
-            cursor.execute(query, (location, datetime.utcnow(), location))
+            cursor.execute(query, (location, datetime.datetime.utcnow(),
+                                   location))
             data = cursor.fetchall()
             cursor.close()
             return data
@@ -754,8 +759,11 @@ class WeatherCache:
             raise ValueError("service {} does not exist in the agent's services.".format(service_name))
         try:
             cursor = self._sqlite_conn.cursor()
-            query = """SELECT ID, LOCATION, OBSERVATION_TIME, POINTS FROM {} WHERE LOCATION = ? AND 
-            OBSERVATION_TIME BETWEEN ? AND ? ORDER BY OBSERVATION_TIME ASC;""".format(service_name)
+            query = """SELECT ID, LOCATION, OBSERVATION_TIME, POINTS 
+                       FROM {table} WHERE LOCATION = ? 
+                       AND OBSERVATION_TIME BETWEEN ? AND ? 
+                       ORDER BY OBSERVATION_TIME ASC;""".format(
+                table=service_name)
             _log.debug(query)
             cursor.execute(query, (location, start_timestamp, end_timestamp))
             data = cursor.fetchall()
@@ -771,20 +779,18 @@ class WeatherCache:
         :param records: expects a list of records (as lists) formatted to match tables
         :return: boolean value representing whether or not the cache is full
         """
-        # service name would have got validate much earlier and this method is
-        # only called by base weather.
         if self._max_size_gb is not None:
             self.manage_cache_size()
         cursor = self._sqlite_conn.cursor()
         request_type = self._api_services[service_name]["type"]
         if request_type == "forecast":
-            query = "INSERT INTO {} " \
-                    "(LOCATION, GENERATION_TIME, FORECAST_TIME, POINTS)" \
-                    " VALUES (?, ?, ?, ?)".format(service_name)
+            query = """INSERT INTO {} 
+                       (LOCATION, GENERATION_TIME, FORECAST_TIME, POINTS) 
+                       VALUES (?, ?, ?, ?)""".format(service_name)
         else:
-            query = "INSERT INTO {} " \
-                    "(LOCATION, OBSERVATION_TIME, POINTS) VALUES (?, ?, ?)"\
-                .format(service_name)
+            query = """INSERT INTO {} 
+                       (LOCATION, OBSERVATION_TIME, POINTS) 
+                       VALUES (?, ?, ?)""".format(service_name)
         _log.debug(query)
         try:
             if request_type == "current":
@@ -811,8 +817,8 @@ class WeatherCache:
     def manage_cache_size(self):
         """
         Removes data from the weather cache until the cache is a safe size.
-        prioritizes removal from current, then forecast, then
-        historical request types
+        Prioritizes removal from current, then forecast, then historical
+        request types
         """
         if self._max_size_gb:
 
@@ -823,34 +829,33 @@ class WeatherCache:
 
             attempt = 1
             records_deleted = 0
-            now = datetime.utcnow()
+            now = datetime.datetime.utcnow()
             while page_count >= self.max_pages:
                 if attempt == 1:
                     for table_name, service in self._api_services.iteritems():
                         # Remove all data that is older than update interval
                         if service["type"] == "current":
-                            query = "DELETE FROM {} " \
-                                    "WHERE OBSERVATION_TIME < ?".format(
-                                            table_name)
+                            query = """DELETE FROM {table} 
+                                       WHERE OBSERVATION_TIME < ?;"""\
+                                .format(table=table_name)
                             cursor.execute(query,
-                                           (now - service["update_interval"],))
+                                           (now-service["update_interval"]))
                 elif attempt == 2:
                     for table_name, service in self._api_services.iteritems():
                         # Remove all data that is older than update interval
                         if service["type"] == "forecast":
-                            query = "DELETE FROM {} " \
-                                    "WHERE GENERATION_TIME < ?".format(
-                                        table_name)
+                            query = """DELETE FROM {table} 
+                                       WHERE GENERATION_TIME < ?""".format(
+                                table=table_name)
                             cursor.execute(query,
-                                           (now - service["update_interval"],))
-
+                                           (now - service["update_interval"]))
                 elif attempt > 2:
                     records_deleted = 0
                     for table_name, service in self._api_services.iteritems():
                         if service["type"] == "history":
-                            query = "DELETE FROM {table} WHERE ROWID IN " \
-                                    "(SELECT ROWID FROM {table} " \
-                                    "ORDER BY ROWID ASC LIMIT 100)".format(
+                            query = "DELETE FROM {table} WHERE ID IN " \
+                                    "(SELECT ID FROM {table} " \
+                                    "ORDER BY ID ASC LIMIT 100)".format(
                                         table=table_name)
                             cursor.execute(query)
                             records_deleted += cursor.rowcount
@@ -863,13 +868,12 @@ class WeatherCache:
             # if we still don't have space in cache
             while page_count >= self.max_pages:
                 for table_name in self._api_services:
-                    query = "DELETE FROM {table} WHERE ROWID IN " \
-                            "(SELECT ROWID FROM {table} " \
-                            "ORDER BY ROWID ASC LIMIT 100)".format(
+                    query = """DELETE FROM {table} WHERE ID IN 
+                               (SELECT ID FROM {table} 
+                                ORDER BY ID ASC LIMIT 100)""".format(
                         table=table_name)
                     cursor.execute(query)
-                    if self.page_count(cursor) < self.max_pages:
-                        break
+                    page_count = self.page_count(cursor)
 
 
     def close(self):
