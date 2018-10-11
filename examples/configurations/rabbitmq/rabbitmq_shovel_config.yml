@@ -7,6 +7,7 @@ shovel:
     pubsub:
       # Identity of agent that is publishing the topic
       platform.driver:
+        # Topic pattern to be forwarded
         - devices
     # Configuration to make remote RPC calls
     rpc:
