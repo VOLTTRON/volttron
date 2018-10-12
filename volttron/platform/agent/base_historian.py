@@ -1025,6 +1025,7 @@ class BaseHistorianAgent(Agent):
                                  "historian_cache_full")
             else:
                 old_backlog_state = self._current_status_context[STATUS_KEY_BACKLOGGED]
+                backlog_count = backupdb.get_backlog_count()
                 self._update_status({STATUS_KEY_CACHE_FULL: cache_full,
                                      STATUS_KEY_BACKLOGGED: old_backlog_state and backlog_count > 0,
                                      STATUS_KEY_CACHE_COUNT: backupdb.get_backlog_count()})
