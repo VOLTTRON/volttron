@@ -63,21 +63,20 @@ class BasicWeatherAgent(BaseWeatherAgent):
 
     def query_current_weather(self, location):
         current_time = datetime.datetime.utcnow()
-        record = [location,
+        record = [
                   current_time,
                   {'points': FAKE_POINTS}
-                  ]
+                 ]
         return record
 
     def query_hourly_forecast(self, location):
         records = []
         current_time = datetime.datetime.utcnow()
         for x in range(0, 3):
-            record = [location,
-                      current_time,
+            record = [current_time,
                       current_time + datetime.timedelta(hours=(x+1)),
                       {'points': FAKE_POINTS}
-                      ]
+                     ]
             records.append(record)
         return records
 
@@ -107,12 +106,12 @@ class BasicWeatherAgent(BaseWeatherAgent):
             return "returns fake hourly historical data"
 
     def validate_location_for_current(self, location):
-        print(location)
         return location.get("fake")
 
     def validate_location_for_hourly_forecast(self, location):
-        print(location)
-        return isinstance(location.get("fake"), str)
+        if isinstance(location, dict) and "fake" in location and isinstance(location["fake"]):
+            return True
+        return False
 
     def validate_location_for_hourly_history(self, location):
         return location.get("fake") == "fake_location"
@@ -123,7 +122,7 @@ def weather(request, volttron_instance):
 
     identity = 'platform.weather'
     agent = volttron_instance.build_agent(
-        agent_class=BaseWeatherAgent,
+        agent_class=BasicWeatherAgent,
         identity=identity,
         service_name="BasicWeather"
     )
@@ -304,7 +303,6 @@ def test_manage_unit_conversion_fail(weather, from_units, start, to_units):
     except pint.UndefinedUnitError as error:
         assert str(error).endswith(" is not defined in the unit registry")
 
-# TODO
 @pytest.mark.dev
 def test_get_current_success(weather):
     conn = weather._cache._sqlite_conn
@@ -313,9 +311,12 @@ def test_get_current_success(weather):
     query = "DELETE FROM 'get_current_weather';"
     cursor.execute(query)
     conn.commit()
-    fake_locations = [{"fake": "fake_location"}]
 
     size_query = "SELECT COUNT(*) FROM 'get_current_weather';"
+    size = cursor.execute(size_query).fetchone()[0]
+    assert size == 0
+
+    fake_locations = [{"fake": "fake_location"}]
 
     # results should look like:
     # [{location, "weather_results": []}]
@@ -331,7 +332,7 @@ def test_get_current_success(weather):
     size = cursor.execute(size_query).fetchone()[0]
     assert len(fake_results2) == 1
     assert size == 1
-    assert fake_results1[0]["weather_results"][1] is fake_results2[0]["weather_results"][1]
+    assert fake_results1[0]["weather_results"][0] is fake_results2[0]["weather_results"][0]
 
     cursor.close()
 
@@ -348,15 +349,16 @@ def test_get_current_fail(weather):
 
     # results should look like:
     # [{location, "location_error": []}]
+
     fake_results = weather.get_current_weather(fake_locations)
     assert len(fake_results) == 3
     for record_set in fake_results:
-        print(record_set)
         assert record_set.get("location_error")
     size_query = "SELECT COUNT(*) FROM 'get_current_weather';"
     size = cursor.execute(size_query).fetchone()[0]
     assert size == 0
 
+# TODO add in hours
 @pytest.mark.dev
 def test_get_forecast_success(weather):
     conn = weather._cache._sqlite_conn
@@ -373,18 +375,46 @@ def test_get_forecast_success(weather):
     # [{location, "weather_results": []}]
 
     #initial run
-    fake_results1 = weather.get_current_weather(fake_locations)
+    fake_results1 = weather.get_hourly_forecast(fake_locations)
     size = cursor.execute(size_query).fetchone()[0]
-    print(fake_results1)
     assert len(fake_results1) == 3
     assert len(fake_results1[0]["weather_results"]) == 3
     assert size == 9
 
     #cached run
-    fake_results2 = weather.get_current_weather(fake_locations)
+    fake_results2 = weather.get_hourly_forecast(fake_locations)
     size = cursor.execute(size_query).fetchone()[0]
     assert len(fake_results2) == 3
     assert len(fake_results2[0]["weather_results"]) == 3
     assert size == 9
+    time1 = fake_results1[0]["weather_results"][0][0]
+    time2 = fake_results2[0]["weather_results"][0][0]
+    assert time1 == time2
 
-    assert fake_results1[0]["weather_results"][1] is fake_results2[0]["weather_results"][1]
+    #hours run - any amount of hours should result in a success
+    fake_results3 = weather.get_hourly_forecast(fake_locations, hours=4)
+    assert len(fake_results3) == 3
+    time3 = fake_results3[0]["weather_results"][0][0]
+    assert not time1 == time3
+
+@pytest.mark.dev
+def test_get_forecast_fail(weather):
+    conn = weather._cache._sqlite_conn
+    cursor = conn.cursor()
+
+    query = "DELETE FROM 'get_hourly_forecast';"
+    cursor.execute(query)
+    conn.commit()
+
+    fake_locations = [{"fake": "bad_string"}, {"fail": "fail"}, "bad_format"]
+
+    # results should look like:
+    # [{location, "location_error": []}]
+
+    fake_results = weather.get_hourly_forecast(fake_locations)
+    assert len(fake_results) == 3
+    for record_set in fake_results:
+        assert record_set.get("location_error")
+    size_query = "SELECT COUNT(*) FROM 'get_hourly_forecast';"
+    size = cursor.execute(size_query).fetchone()[0]
+    assert size == 0

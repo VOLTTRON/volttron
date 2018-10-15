@@ -39,9 +39,9 @@ The set of points returned from the above queries would depends on the specific 
 
 Additional features:
 
-  1. Since individual wether data provider can support slightly different set of features, users should be able to query for the list of available features. For example a provider could provide daily weather forecast in addition to the hourly forecast data.  
+  1. Since individual weather data provider can support slightly different sets of features, users should be able to query for the list of available features. For example a provider could provide daily weather forecast in addition to the hourly forecast data.
   2. The format of location for which weather data is requested would depends on specific weather data provider, so users should be able to query location specification for the provider used.
-  3. The base weather agent would provide basic caching of data. 
+  3. The base weather agent would provide basic caching of data.
 
 ***
 API
@@ -64,7 +64,7 @@ Parameters:
     1. **locations** - dictionary containing key based on value returned get_location_specification.  
        For example if get_location_specification returned  [“zipcode”, [“region”, “country”] ] the location input can be either {“zipcode”:value} or {“region”:value, “country”: value}. 
 
-Returns: dictionary object of current weather data. The actual data points returned depends on the weather service provider. 
+Returns: List of dictionary objects containing current weather data. The actual data points returned depends on the weather service provider.
 
 
 3. Get hourly forecast data
@@ -78,9 +78,9 @@ Parameters:
 
 optional parameters:
 
-    2. **hours** - The number of hours for which forecast data should be returned. Defaults to what the weather data provider returns. 
+    2. **hours** - The number of hours for which forecast data should be returned. By default, any cached data will be returned, if available, otherwise the default quantity provided by the service will be returned.
 
-Returns: dictionary object of forecast data. The amount of data returned and duration depends on the weather service provider. For example, weatherbit.io returns hourly forecast data for 24 hours when using free account. 
+Returns: List of dictionary objects containing forecasted data. The amount of data returned and duration depends on the weather service provider. For example, weatherbit.io returns hourly forecast data for 24 hours when using free account.
 
 
 4. Get historical weather data
@@ -94,9 +94,9 @@ Parameters:
     2. **start_date** - start date of requested data
     3. **end_date** - end date of requested data
 
-Returns: dictionary object of forecast data. The amount of data returned and duration depends on the weather service provider. For example, weatherbit.io returns hourly forecast data for 24 hours when using free account. 
+Returns: List of dictionary objects containing historical data. The amount of data returned and duration depends on the weather service provider. For example, weatherbit.io returns hourly forecast data for 24 hours when using free account.
 
-.. note:: Based on the weather data provider this api could do multiple calls to the data provider to get the requested data. For example, one call per day to darksky.net get all the history data between start_date and end_date
+.. note:: Based on the weather data provider this api could do multiple calls to the data provider to get the requested data. For example, one call per day to darksky.net get all the history data between start_date and end_date. Repeated use may exhaust the amount of api calls allowed by a service.
 
 
 5. Periodic polling of current weather data
@@ -129,11 +129,11 @@ Example registry configuration:
 Caching
 *******
 
-Weather agent would cache data upto a configured number of days or configured size limit is reached. 
+Weather agent will cache data until the configured size limit is reached (if provided).
 
 1. Current and forecast data:
 
-   If current/forecast weather data exists in cache and if the request time is within the update time period of the api (configured in agent configuration) then by default cached data would be returned otherwise a new request is made for it. Users can override this behavior by setting cache=False when requesting for weather data. 
+   If current/forecast weather data exists in cache and if the request time is within the update time period of the api (configured in agent configuration) then by default cached data would be returned otherwise a new request is made for it. If hours is provided and the amount of cached data records is less than hours, this will also result in a new request.
 
 2. Historical data cache:
 
@@ -150,11 +150,11 @@ Weather agent would cache data upto a configured number of days or configured si
 Assumptions
 ***********
 
-  1. User has api key for accessing weather api for a specific weather data provider
+  1. User has api key for accessing weather api for a specific weather data provider, if a key is required.
   2. Different weather agent might have different requirement for how input locations     are specified. For example NOAA expects a station id, weatherbit.io accepts zip code. Users can get the location format accepted by an agent by calling getLocationSpecification
   3. Not all features might be implemented by a specific weather agent. For example NOAA doesn’t make history data available using their weather api.
   4. Concrete agents could expose additional apis/features
-  5. Data returned will be based on standard names tables. Only point names not mapped to a standard name would be returned as is. 
+  5. Data returned will be based on standard names provided by the CF standard names table (see Ontology). Any points with a name not mapped to a standard name would be returned as is.
 
 
 ********
@@ -162,11 +162,9 @@ Ontology
 ********
 
 Data point returned by different providers would be mapped to common point names based on `CF standard names table <http://cfconventions.org/Data/cf-standard-names/57/build/cf-standard-name-table.html>`_
-Mapping would be done using a CSV file with the following format
+Mapping would be done using a CSV file with the following format:
 
 VOLTTRON_POINT_NAME,  WEATHER_BIT_IO_POINT_NAME
-
-V_POINT_1, POINT_1
 
 
 

@@ -288,8 +288,9 @@ class BaseWeatherAgent(Agent):
     def _configure(self, config_name, actions, contents):
         """
 
-        :param config_dict:
-        :param registry_config:
+        :param config_name:
+        :param actions:
+        :param contents:
         """
         self.vip.heartbeat.start()
         _log.info("Configuring weather agent.")
@@ -371,7 +372,7 @@ class BaseWeatherAgent(Agent):
             if not isinstance(location, dict):
                 record_dict = {"bad_format": location}
             else:
-                record_dict = location
+                record_dict = location.copy()
             try:
                 if not self.validate_location_for_current(location):
                     raise ValueError("Invalid location: {}".format(location))
@@ -381,16 +382,16 @@ class BaseWeatherAgent(Agent):
                     update_window = current_time - interval
                     if most_recent_for_location[1] > update_window:
                         record = [
-                            json.loads(most_recent_for_location[0]),
                             most_recent_for_location[1],
                             json.loads(most_recent_for_location[2])
                         ]
                         record_dict["weather_results"] = record
-                if not (record_dict.get["weather_results"] and len(record_dict["weather_results"])):
+                if not (record_dict.get("weather_results") and len(record_dict["weather_results"])):
                     try:
                         response = self.query_current_weather(location)
-                        storage_record = [json.dumps(response[0]), response[1], json.dumps(response[2])]
-                        self.store_weather_records(service_name, storage_record)
+                        if response[0] is not None:
+                            storage_record = [json.dumps(location), response[0], json.dumps(response[1])]
+                            self.store_weather_records(service_name, storage_record)
                         record_dict["weather_results"] = response
                     # TODO catch specific exceptions
                     except Exception as error:
@@ -417,11 +418,11 @@ class BaseWeatherAgent(Agent):
         service_name = "get_hourly_forecast"
         interval = self._api_services[service_name]["update_interval"]
         for location in locations:
+            if not isinstance(location, dict):
+                record_dict = {"bad_location": json.dumps(location)}
+            else:
+                record_dict = location.copy()
             try:
-                if not isinstance(location, dict):
-                    record_dict = {"bad_format": location}
-                else:
-                    record_dict = location
                 if not self.validate_location_for_current(location):
                     raise ValueError("Invalid location: {}".format(location))
                 most_recent_for_location = \
@@ -433,7 +434,7 @@ class BaseWeatherAgent(Agent):
                     generation_time = most_recent_for_location[0][1]
                     if generation_time >= update_window:
                         for record in most_recent_for_location:
-                            entry = [record[0], record[1], record[2],
+                            entry = [record[1], record[2],
                                      json.loads(record[3])]
                             location_data.append(entry)
                         record_dict["weather_results"] = location_data
@@ -444,18 +445,17 @@ class BaseWeatherAgent(Agent):
                         if not len(response):
                             raise RuntimeError("No records were returned by the weather query")
                         for item in response:
-                            storage_record = [item[0], item[1], item[2],
-                                              json.dumps(item[3])]
-                            storage_records.append(storage_record)
+                            if item[0] is not None and item[1] is not None:
+                                storage_record = [json.dumps(location), item[0], item[1],
+                                                  json.dumps(item[2])]
+                                storage_records.append(storage_record)
                             location_data.append(item)
                         if len(storage_records):
                             self.store_weather_records(service_name, storage_records)
                         record_dict["weather_results"] = location_data
-                    # TODO catch specific exceptions
-                    #
-                    except RuntimeError as error:
-                        if str(error).startswith("No records were returned by the weather query"):
-                            record_dict["weather_error"] = error
+                    except Exception as error:
+                        _log.error(error)
+                        record_dict["weather_error"] = error
                 data.append(record_dict)
             except ValueError as error:
                 record_dict["location_error"] = error
@@ -471,7 +471,7 @@ class BaseWeatherAgent(Agent):
         :return: list containing 1 dictionary per data record in the forecast set
         """
 
-    # TODO do by date, add docs
+    # TODO
     @RPC.export
     def get_hourly_historical(self, locations, start_date, end_date):
         data = []
@@ -479,7 +479,6 @@ class BaseWeatherAgent(Agent):
         start_datetime = datetime.datetime.combine(start_date, datetime.time())
         end_datetime = datetime.datetime.combine(end_date, datetime.time()) + \
                        (datetime.timedelta(days=1) - datetime.timedelta(milliseconds=1))
-        # TODO
         for location in locations:
             if not self.validate_location_for_hourly_history(location):
                 raise ValueError("Invalid Location:{}".format(location))
@@ -489,14 +488,14 @@ class BaseWeatherAgent(Agent):
                 cached_history = self.get_cached_historical_data(service_name, location, current)
                 if cached_history:
                     for item in cached_history:
-                        record = [item[1], item[2], json.loads(item[3])]
+                        record = [location, item[0], json.loads(item[1])]
                         records.append(record)
                 if not len(records):
                     response = self.query_hourly_historical(location, current)
                     storage_records = []
                     for item in response:
                         records.append(item)
-                        record = [item[0], item[1], json.dumps(item[2])]
+                        record = [location, item[0], json.dumps(item[1])]
                         storage_records.append(record)
                     self.store_weather_records(service_name, storage_records)
                 for record in records:

@@ -149,6 +149,21 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             return False
 
+    def generate_response_error(self, response_code):
+        code_x100 = int(response_code / 100)
+        if code_x100 == 2:
+            raise RuntimeError("API request success, no data returned (code {})".format(response_code))
+        elif code_x100 == 3:
+            raise RuntimeError("API redirected, but requests did not reach the intended location (code {})"
+                               .format(response_code))
+        elif code_x100 == 4:
+            raise RuntimeError("Client's API request failed (code {})".format(response_code))
+        elif code_x100 == 5:
+            raise RuntimeError("API request to server failed (code {})".format(response_code))
+        else:
+            raise RuntimeError("API request failed with unexpected response code (code {})"
+                               .format(response_code))
+
     @doc_inherit
     def query_current_weather(self, location):
         """
@@ -164,21 +179,16 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             raise ValueError('Invalid location. Expected format is:'
                              '{"station":"station_id_value"}')
-        try:
-            request = requests.get(url, headers=self.headers, timeout=3)
-            response = request.json()
-            if request.status_code != 200:
-                raise RuntimeError("API request failed with code "
-                                   "{}.".format(request.status_code))
-            else:
-                properties = response["properties"]
-                observation_time = properties["timestamp"]
-                record = [formatted_location, observation_time, properties]
-                # TODO unit conversions
-                return record
-        except (requests.ConnectionError, requests.Timeout, requests.HTTPError, requests.TooManyRedirects) as error:
-            _log.debug(error)
-            return []
+        request = requests.get(url, headers=self.headers, timeout=3)
+        response = request.json()
+        if request.status_code != 200:
+            self.generate_response_error(request.status_code)
+        else:
+            properties = response["properties"]
+            observation_time = properties["timestamp"]
+            record = [observation_time, properties]
+            # TODO unit conversions, properties name mapping
+            return record
 
     @doc_inherit
     def query_hourly_forecast(self, location):
@@ -195,25 +205,21 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             url = "https://api.weather.gov/gridpoints/{}/forecast/hourly".format(formatted_location)
         else:
             raise ValueError("Improperly formatted station ID was passed.")
-        try:
-            request = requests.get(url, headers=self.headers, timeout=3)
-            response = request.json()
-            if request.status_code != 200:
-                raise RuntimeError("API request failed with code {}.".format(request.status_code))
-            else:
-                data = []
-                properties = response["properties"]
-                generation_time = properties["generatedAt"]
-                periods = properties["periods"]
-                for period in periods:
-                    forecast_time = period["startTime"]
-                    record = [formatted_location, generation_time, forecast_time, period]
-                    # TODO unit conversions
-                    data.append(record)
-                return data
-        except (requests.ConnectionError, requests.Timeout, requests.HTTPError, requests.TooManyRedirects) as error:
-            _log.debug(error)
-            return []
+        request = requests.get(url, headers=self.headers, timeout=3)
+        response = request.json()
+        if request.status_code != 200:
+            self.generate_response_error(request.status_code)
+        else:
+            data = []
+            properties = response["properties"]
+            generation_time = properties["generatedAt"]
+            periods = properties["periods"]
+            for period in periods:
+                forecast_time = period["startTime"]
+                record = [generation_time, forecast_time, period]
+                # TODO unit conversions, properties name mapping
+                data.append(record)
+            return data
 
     def query_hourly_historical(self, location, start_date, end_date):
         """
