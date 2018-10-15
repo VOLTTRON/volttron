@@ -58,7 +58,6 @@ import re
 import sys
 import requests
 import datetime
-import json
 from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.agent import utils
 from volttron.utils.docs import doc_inherit

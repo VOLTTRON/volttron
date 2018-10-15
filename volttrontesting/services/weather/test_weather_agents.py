@@ -100,7 +100,7 @@ def weather(request, volttron_instance):
     request.addfinalizer(stop_agent)
     return request.param
 
-@pytest.mark.dev
+@pytest.mark.weather2
 def test_success_current(weather, query_agent):
     """
     Tests the basic functionality of a weather agent under optimal conditions.
@@ -122,7 +122,7 @@ def test_success_current(weather, query_agent):
             _log.debug(record)
             assert len(record) == 0
 
-@pytest.mark.dev
+@pytest.mark.weather2
 def test_success_forecast(weather, query_agent):
     """
     Tests the basic functionality of a weather agent under optimal conditions.
