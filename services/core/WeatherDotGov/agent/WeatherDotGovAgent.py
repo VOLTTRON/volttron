@@ -186,9 +186,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             properties = response["properties"]
             observation_time = properties["timestamp"]
-            record = [observation_time, properties]
-            # TODO unit conversions, properties name mapping
-            return record
+            return observation_time, properties
 
     @doc_inherit
     def query_hourly_forecast(self, location):

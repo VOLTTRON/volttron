@@ -38,6 +38,8 @@
 
 import os
 import sys
+import ujson
+
 import pint
 import pytest
 import gevent
@@ -51,7 +53,7 @@ from volttron.platform.agent.base_weather import BaseWeatherAgent, WeatherCache
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-FAKE_LOCATION = {"fake": "fake_location"}
+FAKE_LOCATION = {"location": "fake_location"}
 FAKE_POINTS = {"fake": "fake_data"}
 
 class BasicWeatherAgent(BaseWeatherAgent):
@@ -106,15 +108,16 @@ class BasicWeatherAgent(BaseWeatherAgent):
             return "returns fake hourly historical data"
 
     def validate_location_for_current(self, location):
-        return location.get("fake")
+        return location.get("location")
 
     def validate_location_for_hourly_forecast(self, location):
-        if isinstance(location, dict) and "fake" in location and isinstance(location["fake"]):
+        if isinstance(location, dict) and "location" in location and isinstance(
+                location["location"]):
             return True
         return False
 
     def validate_location_for_hourly_history(self, location):
-        return location.get("fake") == "fake_location"
+        return location.get("location") == "fake_location"
 
 @pytest.fixture(scope="module")
 def weather(request, volttron_instance):
@@ -307,36 +310,72 @@ def test_manage_unit_conversion_fail(weather, from_units, start, to_units):
 def test_get_current_success(weather):
     conn = weather._cache._sqlite_conn
     cursor = conn.cursor()
-    weather.set_update_interval("get_current_weather", datetime.timedelta(days=1))
+    weather.set_update_interval("get_current_weather",
+                                datetime.timedelta(days=1))
     query = "DELETE FROM 'get_current_weather';"
     cursor.execute(query)
     conn.commit()
 
-    size_query = "SELECT COUNT(*) FROM 'get_current_weather';"
-    size = cursor.execute(size_query).fetchone()[0]
-    assert size == 0
 
-    fake_locations = [{"fake": "fake_location"}]
+    fake_locations = [{"location": "fake_location"}]
 
-    # results should look like:
+    # results1 should look like:
     # [{location, "weather_results": []}]
 
-    #initial run
-    fake_results1 = weather.get_current_weather(fake_locations)
-    size = cursor.execute(size_query).fetchone()[0]
-    assert len(fake_results1) == 1
-    assert size == 1
+    # initial run. cache is empty should return from BasicWeatherAgent's
+    # query_current
+    results1 = weather.get_current_weather(fake_locations)
+    assert len(results1) == 1
+    assert results1[0]["observation_time"]
+    assert results1[0]["weather_results"]["points"]["fake"] == "fake_data"
+    assert results1[0]["location"] == "fake_location"
 
-    #cached run
-    fake_results2 = weather.get_current_weather(fake_locations)
-    size = cursor.execute(size_query).fetchone()[0]
-    assert len(fake_results2) == 1
-    assert size == 1
-    assert fake_results1[0]["weather_results"][0] is fake_results2[0]["weather_results"][0]
+    # Check data got cached
+    query = "SELECT * FROM 'get_current_weather';"
+    cache_results = cursor.execute(query).fetchall()
+    print cache_results
+    assert len(cache_results) == 1
+    assert ujson.loads(cache_results[0][1]) == fake_locations[0]
+    assert cache_results[0][2] == results1[0]["observation_time"]
+    # assert results1 and cached data are same
+    assert ujson.loads(cache_results[0][3]) == results1[0]["weather_results"]
+
+    #update cache before querying again
+    cursor.execute("UPDATE get_current_weather SET POINTS = ?",
+                   (ujson.dumps({"points": {"fake": "updated cache"}}),))
+    conn.commit()
+
+    # second query - results should be from cache
+    results2 = weather.get_current_weather(fake_locations)
+    assert len(results2) == 1
+    assert results2[0]["observation_time"] == results1[0]["observation_time"]
+    assert results2[0]["weather_results"]["points"]["fake"] == "updated cache"
+    assert results2[0]["location"] == results1[0]["location"]
+
+    # third query  - set update interval so that cache would be marked old
+    weather.set_update_interval("get_current_weather",
+                                datetime.timedelta(seconds=1))
+    gevent.sleep(1)
+    results3 = weather.get_current_weather(fake_locations)
+    assert len(results3) == 1
+    assert results3[0]["observation_time"]
+    assert results3[0]["observation_time"] != results1[0]["observation_time"]
+    assert results3[0]["weather_results"]["points"]["fake"] == "fake_data"
+    assert results3[0]["location"] == "fake_location"
+
+    # check data got cached again
+    query = "SELECT * FROM get_current_weather ORDER BY ID;"
+    cache_results = cursor.execute(query).fetchall()
+    print cache_results
+    assert len(cache_results) == 2
+    assert ujson.loads(cache_results[1][1]) == fake_locations[0]
+    assert cache_results[1][2] == results3[0]["observation_time"]
+    # assert results1 and cached data are same
+    assert ujson.loads(cache_results[1][3]) == results3[0]["weather_results"]
 
     cursor.close()
 
-@pytest.mark.dev
+@pytest.mark.weather2
 def test_get_current_fail(weather):
     conn = weather._cache._sqlite_conn
     cursor = conn.cursor()
@@ -345,7 +384,8 @@ def test_get_current_fail(weather):
     cursor.execute(query)
     conn.commit()
 
-    fake_locations = [{"fake": "bad_string"}, {"fail": "fail"}, "bad_format"]
+    fake_locations = [{"location": "bad_string"}, {"fail": "fail"},
+                      "bad_format"]
 
     # results should look like:
     # [{location, "location_error": []}]
@@ -359,7 +399,7 @@ def test_get_current_fail(weather):
     assert size == 0
 
 # TODO add in hours
-@pytest.mark.dev
+@pytest.mark.weather2
 def test_get_forecast_success(weather):
     conn = weather._cache._sqlite_conn
     cursor = conn.cursor()
@@ -367,7 +407,9 @@ def test_get_forecast_success(weather):
     query = "DELETE FROM 'get_hourly_forecast';"
     cursor.execute(query)
     conn.commit()
-    fake_locations = [{"fake": "fake_location1"}, {"fake": "fake_location2"}, {"fake": "fake_location3"}]
+    fake_locations = [{"location": "fake_location1"},
+                      {"location": "fake_location2"},
+                      {"location": "fake_location3"}]
 
     size_query = "SELECT COUNT(*) FROM 'get_hourly_forecast';"
 
@@ -397,7 +439,7 @@ def test_get_forecast_success(weather):
     time3 = fake_results3[0]["weather_results"][0][0]
     assert not time1 == time3
 
-@pytest.mark.dev
+@pytest.mark.weather2
 def test_get_forecast_fail(weather):
     conn = weather._cache._sqlite_conn
     cursor = conn.cursor()
@@ -406,7 +448,8 @@ def test_get_forecast_fail(weather):
     cursor.execute(query)
     conn.commit()
 
-    fake_locations = [{"fake": "bad_string"}, {"fail": "fail"}, "bad_format"]
+    fake_locations = [{"location": "bad_string"},
+                      {"fail": "fail"}, "bad_format"]
 
     # results should look like:
     # [{location, "location_error": []}]

@@ -161,7 +161,7 @@ class BaseWeatherAgent(Agent):
 
         # TODO manage health with respect to these conditions
         self.successfully_publishing = None
-        if self.polling_locations and len(self.polling_locations):
+        if self.polling_locations:
             self._current_status_context[STATUS_KEY_PUBLISHING] = True
             self.successfully_publishing = True
 
@@ -365,43 +365,53 @@ class BaseWeatherAgent(Agent):
     # TODO add doc
     @RPC.export
     def get_current_weather(self, locations):
-        data = []
+        result = []
         service_name = "get_current_weather"
         interval = self._api_services[service_name]["update_interval"]
         for location in locations:
+            record_dict = location.copy()
             if not isinstance(location, dict):
-                record_dict = {"bad_format": location}
-            else:
-                record_dict = location.copy()
-            try:
-                if not self.validate_location_for_current(location):
-                    raise ValueError("Invalid location: {}".format(location))
-                most_recent_for_location = self.get_cached_current_data(service_name, location)
-                if most_recent_for_location:
-                    current_time = datetime.datetime.utcnow()
-                    update_window = current_time - interval
-                    if most_recent_for_location[1] > update_window:
-                        record = [
-                            most_recent_for_location[1],
-                            json.loads(most_recent_for_location[2])
-                        ]
-                        record_dict["weather_results"] = record
-                if not (record_dict.get("weather_results") and len(record_dict["weather_results"])):
-                    try:
-                        response = self.query_current_weather(location)
-                        if response[0] is not None:
-                            storage_record = [json.dumps(location), response[0], json.dumps(response[1])]
-                            self.store_weather_records(service_name, storage_record)
-                        record_dict["weather_results"] = response
-                    # TODO catch specific exceptions
-                    except Exception as error:
-                        _log.error(error)
-                        record_dict["weather_error"] = error
-                data.append(record_dict)
-            except ValueError as error:
-                record_dict["location_error"] = error
-                data.append(record_dict)
-        return data
+                record_dict["location_error"] = "Invalid location format. " \
+                                                "Location should be  " \
+                                                "specified as a dictionary"
+                result.append(record_dict)  # to next location
+                continue
+            elif not self.validate_location_for_current(location):
+                record_dict["location_error"] = "Invalid location"
+                result.append(record_dict)
+                continue  # to next location
+
+            observation_time, data = \
+                self.get_cached_current_data(service_name, location)
+            if observation_time and data:
+                current_time = datetime.datetime.utcnow()
+                update_window = current_time - interval
+                # if observation time is within the update interval
+                if observation_time > update_window:
+                    record_dict["observation_time"] = observation_time
+                    record_dict["weather_results"] = json.loads(data)
+
+            # if there was no data in cache or if data is old query api
+            if not record_dict.get("weather_results"):
+                try:
+                    observation_time, data = self.query_current_weather(
+                        location)
+                    # TODO unit conversions, properties name mapping
+                    if observation_time is not None:
+                        storage_record = [json.dumps(location),
+                                          observation_time,
+                                          json.dumps(data)]
+                        self.store_weather_records(service_name, storage_record)
+                        record_dict["observation_time"] = observation_time
+                        record_dict["weather_results"] = data
+                    else:
+                        record_dict["weather_error"] = "Weather api did not " \
+                                                       "return any records"
+                except Exception as error:
+                    _log.error(error)
+                    record_dict["weather_error"] = error
+            result.append(record_dict)
+        return result
 
     @abstractmethod
     def query_current_weather(self, location):
@@ -471,7 +481,7 @@ class BaseWeatherAgent(Agent):
         :return: list containing 1 dictionary per data record in the forecast set
         """
 
-    # TODO
+    # TODO do by date, add docs
     @RPC.export
     def get_hourly_historical(self, locations, start_date, end_date):
         data = []
@@ -479,6 +489,7 @@ class BaseWeatherAgent(Agent):
         start_datetime = datetime.datetime.combine(start_date, datetime.time())
         end_datetime = datetime.datetime.combine(end_date, datetime.time()) + \
                        (datetime.timedelta(days=1) - datetime.timedelta(milliseconds=1))
+        # TODO
         for location in locations:
             if not self.validate_location_for_hourly_history(location):
                 raise ValueError("Invalid Location:{}".format(location))
@@ -731,14 +742,17 @@ class WeatherCache:
         """
         try:
             cursor = self._sqlite_conn.cursor()
-            query = """SELECT LOCATION, max(OBSERVATION_TIME), POINTS 
+            query = """SELECT max(OBSERVATION_TIME), POINTS 
                        FROM {table}
                        WHERE LOCATION = ?;""".format(table=service_name)
             _log.debug(query)
             cursor.execute(query, (location,))
             data = cursor.fetchone()
             cursor.close()
-            return data
+            if data and data[0]:
+                return parse_timestamp_string(data[0]), data[1]
+            else:
+                return None, None
         except sqlite3.Error as e:
             _log.error("Error fetching current data from cache: {}".format(e))
             return None
