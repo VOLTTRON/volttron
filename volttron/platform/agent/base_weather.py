@@ -56,7 +56,7 @@
 import logging
 import pint
 import pytz
-
+import copy
 import json
 import sqlite3
 import datetime
@@ -364,8 +364,9 @@ class BaseWeatherAgent(Agent):
         service_name = "get_current_weather"
         interval = self._api_services[service_name]["update_interval"]
         for location in locations:
-            record_dict = location.copy()
+            record_dict = copy.copy(location)
             if not isinstance(location, dict):
+                record_dict = {"location": location}
                 record_dict["location_error"] = "Invalid location format. " \
                                                 "Location should be  " \
                                                 "specified as a dictionary"

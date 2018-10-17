@@ -59,8 +59,7 @@ weather_dot_gov_service = {
     'max_size_gb': None,
     'api_key': None,
     'polling_locations': [],
-    'poll_interval': None,
-    'registry_config': [{}]
+    'poll_interval': None
 }
 
 @pytest.fixture(scope="module")
@@ -103,7 +102,7 @@ def weather(request, volttron_instance):
     return request.param
 
 
-@pytest.mark.weather2
+@pytest.mark.dev
 @pytest.mark.parametrize("locations", [
     [{"station": "KLAX"}],
     [{"station": "KLAX"}, {"station": "KBOI"}],
@@ -141,7 +140,7 @@ def test_current_fail(weather, query_agent, locations):
         assert record.get("weather_results") is None
 
 
-@pytest.mark.dev
+@pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
     [{"lat": 39.7555, "long": -105.2211}],
     [{"wfo": 'BOU', 'x': 54, 'y': 62}],
@@ -197,7 +196,7 @@ def test_success_forecast(weather, query_agent, locations):
             assert cache_location_data.get("weather_error")
 
 
-@pytest.mark.dev
+@pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
     [{"station": "KLAX"}, "fail"]
 ])
