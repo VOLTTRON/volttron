@@ -24,7 +24,7 @@ Notes/Tips:
    not required and should not be used. VOLTTRON is designed to be run
    as a non-root user and running with sudo is not supported.
 -  The convenience :ref:`scripts <Scripts>` have been developed to simplify
-   many of the of the repetitive multi-step processes. For instance,
+   many of the repetitive multi-step processes. For instance,
    ``scripts/core/make-listener`` can be modified for any agent and make
    it one command to stop, remove, build, install, configure, tag,
    start, and (optionally) enable an agent for autostart.

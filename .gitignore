@@ -22,6 +22,9 @@ applications
 /docs/build/*
 /docs/source/apidocs
 volttron.log
+__pycache__
+.python-version
+.pytest_cache
 start-rabbitmq
 stop-rabbitmq
 rabbitmq.log

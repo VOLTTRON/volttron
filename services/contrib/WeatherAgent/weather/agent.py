@@ -171,10 +171,11 @@ class WeatherAgent(Agent):
             _log.info("Connection timed out!")
 
     def publish_weather_report(self, topic_name, parsed_weather_data):
-        now = datetime.utcnow().isoformat(' ') + 'Z'
+        now = utils.format_timestamp(datetime.utcnow())
         headers = {
             headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.PLAIN_TEXT,
             headers_mod.DATE: now,
+            headers_mod.TIMESTAMP: now
         }
         self.vip.pubsub.publish('pubsub', topic_name, headers, json.dumps(parsed_weather_data))
 

@@ -170,7 +170,10 @@ def publish_some_fake_data(publish_agent, data_count, value_type='float'):
             }]
 
         timestamp_iso = format_timestamp(timestamp)
-        headers = {headers_mod.DATE: timestamp_iso}
+        headers = {
+            headers_mod.DATE: timestamp_iso,
+            headers_mod.TIMESTAMP: timestamp_iso
+        }
 
         # Publish messages
         publish_agent.vip.pubsub.publish(
@@ -238,7 +241,10 @@ def publish_data_with_updated_meta(publish_agent):
         }]
 
     timestamp_iso = format_timestamp(now)
-    headers = {headers_mod.DATE: timestamp_iso}
+    headers = {
+        headers_mod.DATE: timestamp_iso,
+        headers_mod.TIMESTAMP: timestamp_iso
+    }
 
     # Publish messages
     publish_agent.vip.pubsub.publish(
@@ -284,7 +290,10 @@ def publish_data_with_updated_topic_case(publish_agent, data_count):
             }]
 
         timestamp_iso = format_timestamp(now)
-        headers = {headers_mod.DATE: timestamp_iso}
+        headers = {
+            headers_mod.DATE: timestamp_iso,
+            headers_mod.TIMESTAMP: timestamp_iso
+        }
 
         # Publish messages
         publish_agent.vip.pubsub.publish(
