@@ -65,11 +65,14 @@ import weakref
 import pika
 import uuid
 from volttron.platform.agent import json as jsonapi
+import requests
 
 from ..decorators import annotate, annotations, dualmethod, spawn
 from .base import BasePubSub
 from collections import defaultdict
 from ..results import ResultsDictionary
+from requests.packages.urllib3.connection import (ConnectionError,
+                                                  NewConnectionError)
 
 __all__ = ['RMQPubSub']
 min_compatible_version = '5.0'
@@ -331,14 +334,32 @@ class RMQPubSub(BasePubSub):
         List of tuples [(bus, topic, flag to indicate if peer is a subscriber or not)]
         """
         results = []
+        rmq_prefix = self._form_routing_key(prefix)
         if reverse:
-            test = prefix.startswith
+            test = rmq_prefix.startswith
         else:
-            test = lambda t: t.startswith(prefix)
+            test = lambda t: t.startswith(rmq_prefix)
         member = True
-        for topic, subscriptions in self._my_subscriptions.iteritems():
-            if test(topic):
-                results.append((bus, topic, member))
+        # for topic, subscriptions in self._my_subscriptions.iteritems():
+        #     if test(topic):
+        #         results.append((bus, topic, member))
+
+        try:
+            bindings = self.core().rmq_mgmt.get_bindings('volttron')
+        except (requests.exceptions.HTTPError, ConnectionError, NewConnectionError) as e:
+            self._logger.error("Error making request to RabbitMQ Management interface.\n"
+                          "Check Connection Parameters: {} \n".format(e))
+        else:
+            rmq_prefix = self._form_routing_key(prefix)
+            if bindings:
+                for b in bindings:
+                    if test(b['routing_key']):
+                        if self.core().identity in b['destination']:
+                            member = True
+                        else:
+                            member = False
+                        topic = self._get_original_topic(b['routing_key'])
+                        results.append(('', topic, member))
         return results
 
     def publish(self, peer, topic, headers=None, message=None, bus=''):
