@@ -1424,7 +1424,8 @@ volttron-central-serverkey."""
         if self._stat_publish_event is not None:
             self._stat_publish_event.cancel()
 
-        topic = LOGGER(subtopic=self._publish_topic + "/status/cpu")
+        # topic = LOGGER(subtopic=self._publish_topic + "/status/cpu")
+        topic = self._publish_topic + "/status/cpu"
 
         points = {}
 

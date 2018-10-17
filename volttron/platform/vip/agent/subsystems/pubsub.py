@@ -676,9 +676,10 @@ class PubSub(BasePubSub):
                 message = msg['message']
                 sender = msg['sender']
                 bus = msg['bus']
-                self._process_callback(sender, bus, topic, headers, message)
             except KeyError as exc:
                 _log.error("Missing keys in pubsub message: {}".format(exc))
+            else:
+                self._process_callback(sender, bus, topic, headers, message)
         else:
             _log.error("Unknown operation ({})".format(op))
 
