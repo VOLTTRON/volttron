@@ -64,7 +64,7 @@ from functools import wraps
 from abc import abstractmethod
 from gevent import get_hub
 from volttron.platform.agent import utils
-from utils import parse_timestamp_string
+from utils import parse_timestamp_string, fix_sqlite3_datetime
 from volttron.platform.vip.agent import *
 from volttron.platform.async import AsyncCall
 from volttron.platform.messaging import headers
@@ -97,6 +97,8 @@ HEADER_NAME_CONTENT_TYPE = headers.CONTENT_TYPE
 STATUS_KEY_PUBLISHING = "publishing"
 STATUS_KEY_CACHE_FULL = "cache_full"
 
+# Register a better datetime parser in sqlite3.
+fix_sqlite3_datetime()
 
 class BaseWeatherAgent(Agent):
     """Creates weather services based on the json objects from the config,
@@ -375,15 +377,15 @@ class BaseWeatherAgent(Agent):
             _log.debug("Completed location validation")
             observation_time, data = \
                 self.get_cached_current_data(service_name, location)
+
             if observation_time and data:
-                current_time = datetime.datetime.utcnow()
+                # ts in cache is tz aware utc
+                current_time = utils.get_aware_utc_now()
                 update_window = current_time - interval
-                update_window = update_window.replace(tzinfo=pytz.utc)
-                _log.debug("update_window {}".format(update_window))
-                _log.debug("observation_time {}".format(observation_time))
                 # if observation time is within the update interval
                 if observation_time > update_window:
-                    record_dict["observation_time"] = observation_time
+                    record_dict["observation_time"] = \
+                        utils.format_timestamp(observation_time)
                     record_dict["weather_results"] = json.loads(data)
 
             # if there was no data in cache or if data is old query api
@@ -391,13 +393,17 @@ class BaseWeatherAgent(Agent):
                 try:
                     observation_time, data = self.query_current_weather(
                         location)
+                    observation_time, oldtz = utils.process_timestamp(
+                        observation_time)
+
                     # TODO unit conversions, properties name mapping
                     if observation_time is not None:
                         storage_record = [json.dumps(location),
                                           observation_time,
                                           json.dumps(data)]
                         self.store_weather_records(service_name, storage_record)
-                        record_dict["observation_time"] = observation_time
+                        record_dict["observation_time"] = \
+                            utils.format_timestamp(observation_time)
                         record_dict["weather_results"] = data
                     else:
                         record_dict["weather_error"] = "Weather api did not " \
@@ -406,7 +412,16 @@ class BaseWeatherAgent(Agent):
                     _log.error(error)
                     record_dict["weather_error"] = error
             result.append(record_dict)
+        _log.debug("before returning")
         return result
+
+    def get_utc_time(self, time):
+        if time.tzinfo:
+            time = time.astimezone(pytz.utc)
+        else:
+            time = time.replace(
+                tzinfo=pytz.UTC)
+        return time
 
     @abstractmethod
     def query_current_weather(self, location):
@@ -439,21 +454,22 @@ class BaseWeatherAgent(Agent):
                 self.get_cached_forecast_data(service_name, location)
             location_data = []
             if most_recent_for_location:
-                current_time = datetime.datetime.utcnow()
+                _log.debug(" from cache")
+                current_time = utils.get_aware_utc_now()
                 update_window = current_time - interval
-                update_window = update_window.replace(tzinfo=pytz.utc)
                 generation_time = most_recent_for_location[0][0]
                 if generation_time >= update_window and \
                         len(most_recent_for_location) >= hours:
                     i = 0
                     while i < hours:
                         record = most_recent_for_location[i]
-                        # record = (generation time, forecast time, points)
-                        entry = [record[1],
+                        # record = (forecast time, points)
+                        entry = [utils.format_timestamp(record[1]),
                                  json.loads(record[2])]
                         location_data.append(entry)
                         i = i+1
-                    record_dict["generation_time"] = generation_time
+                    record_dict["generation_time"] = utils.format_timestamp(
+                        generation_time)
                     record_dict["weather_results"] = location_data
 
             # if cache didn't work out query api
@@ -467,15 +483,18 @@ class BaseWeatherAgent(Agent):
                         # in case api does not return details on when this
                         # forecast data was generated
                         generation_time = datetime.datetime.utcnow()
-
+                    else:
+                        generation_time, oldtz = utils.process_timestamp(
+                            generation_time)
                     storage_records = []
                     i = 0
                     for item in response:
                         # item contains (forecast time, points)
                         if item[0] is not None and item[1] is not None:
+                            forecast_time, tz = utils.process_timestamp(item[0])
                             storage_record = [json.dumps(location),
                                               generation_time,
-                                              item[0],
+                                              forecast_time,
                                               json.dumps(item[1])]
                             storage_records.append(storage_record)
                             if i < hours:
@@ -484,7 +503,8 @@ class BaseWeatherAgent(Agent):
                     if location_data:
                         self.store_weather_records(service_name,
                                                    storage_records)
-                        record_dict["generation_time"] = generation_time
+                        record_dict["generation_time"] = \
+                            utils.format_timestamp(generation_time)
                         record_dict["weather_results"] = location_data
                     else:
                         record_dict["weather_error"] = \
@@ -528,19 +548,26 @@ class BaseWeatherAgent(Agent):
                 cached_history = self.get_cached_historical_data(service_name, location, current)
                 if cached_history:
                     for item in cached_history:
-                        record = [location, item[0], json.loads(item[1])]
+                        observation_time = utils.format_timestamp(item[0])
+                        record = [location, observation_time,
+                                  json.loads(item[1])]
                         records.append(record)
                 if not len(records):
                     response = self.query_hourly_historical(location, current)
                     storage_records = []
                     for item in response:
                         records.append(item)
-                        record = [location, item[0], json.dumps(item[1])]
-                        storage_records.append(record)
+                        observation_time = utils.parse_timestamp_string(item[0])
+                        s_record = [location, observation_time,
+                                    json.dumps(item[1])]
+                        storage_records.append(s_record)
+                        record = [location,
+                                  utils.format_timestamp(observation_time),
+                                  json.dumps(item[1])]
                     self.store_weather_records(service_name, storage_records)
                 for record in records:
                     data.append(record)
-                current = current + datetime.timedelta(days=1)
+                current = current + datetime.timedelta(hours=1)
         return data
 
     @abstractmethod
@@ -803,7 +830,7 @@ class WeatherCache:
                         WHERE LOCATION = ?) 
                        ORDER BY FORECAST_TIME ASC;""".format(table=service_name)
             _log.debug(query)
-            cursor.execute(query, (location, datetime.datetime.utcnow(),
+            cursor.execute(query, (location, utils.get_aware_utc_now(),
                                    location))
             data = cursor.fetchall()
             cursor.close()
@@ -825,7 +852,7 @@ class WeatherCache:
             raise ValueError("service {} does not exist in the agent's services.".format(service_name))
         try:
             cursor = self._sqlite_conn.cursor()
-            query = """SELECT ID, LOCATION, OBSERVATION_TIME, POINTS 
+            query = """SELECT OBSERVATION_TIME, POINTS 
                        FROM {table} WHERE LOCATION = ? 
                        AND OBSERVATION_TIME BETWEEN ? AND ? 
                        ORDER BY OBSERVATION_TIME ASC;""".format(
