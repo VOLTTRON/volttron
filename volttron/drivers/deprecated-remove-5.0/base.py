@@ -64,6 +64,7 @@ import zmq
 import datetime
 
 from volttron.platform.agent.base import PublishMixin
+from volttron.platform.agent import utils
 
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging.topics import DRIVER_TOPIC_BASE, DRIVER_TOPIC_ALL
@@ -321,11 +322,12 @@ class BaseSmapVolttron(driver.SmapDriver, PublishMixin):
         if results is None:
             return
 
-        now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
+        now = utils.format_timestamp(datetime.utcnow())
         
         headers = {
             headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
             headers_mod.DATE: now,
+            headers_mod.TIMESTAMP: now
         }
          
         for point, value in results.iteritems():

@@ -31,7 +31,7 @@ filedirs="volttrontesting/platform"
 #directories that can be called as normal (recursive)
 testdirs="services/core/VolttronCentral/tests services/core/VolttronCentralPlatform/tests examples volttron volttrontesting/gevent volttrontesting/multiplatform volttrontesting/subsystems volttrontesting/testutils volttrontesting/zmq"
 #directories that must have their subdirectories split
-splitdirs="services/core/*"
+splitdirs="services/core/* services/contrib/*"
 
 echo "installing ERLANG"
 wget -O - 'https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc' | sudo apt-key add -
