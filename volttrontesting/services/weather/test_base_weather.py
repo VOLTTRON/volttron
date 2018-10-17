@@ -403,7 +403,7 @@ def test_get_current_fail(weather, fake_locations):
     size = cursor.execute(size_query).fetchone()[0]
     assert size == 0
 
-@pytest.mark.weather2
+@pytest.mark.dev
 @pytest.mark.parametrize("fake_locations", [
     [{"location": "fake_location1"}]
 ])
@@ -520,7 +520,7 @@ def validate_basic_weather_forecast(locations, result, warn=True,
             assert wr[1]["points"] == point_data
 
 
-@pytest.mark.weather2
+@pytest.mark.dev
 @pytest.mark.parametrize("fake_locations", [
     [{"location": "bad_string"}, {"fail": "fail"}, "bad_format"],
     [{"location": "fake_location"}, "fail"]

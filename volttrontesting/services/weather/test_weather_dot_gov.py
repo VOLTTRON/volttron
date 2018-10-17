@@ -140,7 +140,7 @@ def test_current_fail(weather, query_agent, locations):
         assert record.get("weather_results") is None
 
 
-@pytest.mark.weather2
+@pytest.mark.dev
 @pytest.mark.parametrize("locations", [
     [{"lat": 39.7555, "long": -105.2211}],
     [{"wfo": 'BOU', 'x': 54, 'y': 62}],
@@ -196,7 +196,7 @@ def test_success_forecast(weather, query_agent, locations):
             assert cache_location_data.get("weather_error")
 
 
-@pytest.mark.weather2
+@pytest.mark.dev
 @pytest.mark.parametrize("locations", [
     [{"station": "KLAX"}, "fail"]
 ])
