@@ -397,7 +397,7 @@ def test_get_current_fail(weather):
     size = cursor.execute(size_query).fetchone()[0]
     assert size == 0
 
-@pytest.mark.dev
+@pytest.mark.weather2
 def test_get_forecast_valid_location(weather):
     conn = weather._cache._sqlite_conn
     cursor = conn.cursor()
