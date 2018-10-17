@@ -310,7 +310,7 @@ def test_manage_unit_conversion_fail(weather, from_units, start, to_units):
     except pint.UndefinedUnitError as error:
         assert str(error).endswith(" is not defined in the unit registry")
 
-@pytest.mark.weather2
+@pytest.mark.dev
 @pytest.mark.parametrize("fake_locations", [
     [{"location": "fake_location"}]
 ])
@@ -379,7 +379,7 @@ def test_get_current_valid_locations(weather, fake_locations):
 
     cursor.close()
 
-@pytest.mark.weather2
+@pytest.mark.dev
 @pytest.mark.parametrize("fake_locations", [
     [{"location": "bad_string"}, {"fail": "fail"},
      "bad_format"]
