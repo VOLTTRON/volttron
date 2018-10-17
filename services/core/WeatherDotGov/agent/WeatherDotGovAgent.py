@@ -100,7 +100,6 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             return None
 
-    @doc_inherit
     def get_location_string(self, location):
         if location.get('lat') and location.get('long'):
             formatted_location = self.get_lat_long_str(location)
@@ -127,12 +126,11 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         return "{}/{},{}".format(location_dict.get("wfo"), location_dict.get("x"), location_dict.get("y"))
 
     def validate_location_for_current(self, location):
-        self.validate_location(("station",), location)
+        return self.validate_location(("station",), location)
 
     def validate_location_for_forecast(self, location):
-        self.validate_location(("gridpoints", "lat/long"), location)
+        return self.validate_location(("gridpoints", "lat/long"), location)
 
-    @doc_inherit
     def validate_location(self, accepted_formats, location):
         if ("lat/long" in accepted_formats) and (location.get('lat') and location.get('long')):
             location_string = self.get_lat_long_str(location)
@@ -140,8 +138,14 @@ class WeatherDotGovAgent(BaseWeatherAgent):
                 return True
         elif ("station" in accepted_formats) and (location.get('station')):
             location_string = self.get_station_str(location)
+            _log.debug("location string is " + location_string)
             if STATION_REGEX.match(location_string):
+                _log.debug("station matched regex. returning true")
                 return True
+            else:
+                _log.debug("station did not matched regex")
+                return False
+
         elif ("gridpoints" in accepted_formats) and (location.get("wfo") and location.get("x") and location.get("y")):
             if WFO_REGEX.match(location.get("wfo")) and (1 <= len(str(location.get("x"))) <= 3) and \
                     (1 <= len(str(location.get("y"))) <= 3):

@@ -377,10 +377,10 @@ class BaseWeatherAgent(Agent):
                 result.append(record_dict)  # to next location
                 continue
             elif not self.validate_location_for_current(location):
-                record_dict["location_error"] = "Invalid location"
+                record_dict["location_error"] = "Invalid location......."
                 result.append(record_dict)
                 continue  # to next location
-
+            _log.debug("Completed location validation")
             observation_time, data = \
                 self.get_cached_current_data(service_name, location)
             if observation_time and data:
@@ -763,9 +763,7 @@ class WeatherCache:
                 self._sqlite_conn.commit()
                 break
 
-    # TODO return the json strings as dictionaries
-    # cache data storage and retrieval methods
-    # TODO look these over, remove request time
+
     def get_current_data(self, service_name, location):
         """
         Retrieves the most recent current data by location

@@ -111,18 +111,14 @@ def test_success_current(weather, query_agent):
 
     current_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
                                             locations).get(timeout=30)
-    # TODO deal with current data parsing
-    for record in current_data:
-        if len(record) == 3:
-            assert isinstance(record[0], str)
-            assert isinstance(utils.parse_timestamp_string(record[1]), datetime)
-            assert isinstance(record[2], dict)
-        else:
-            _log.debug("response sanity checking: ")
-            _log.debug(record)
-            assert len(record) == 0
+    i = 0
+    for loc in locations:
+        assert current_data[i]['observation_time']
+        assert current_data[i]['station'] == loc["station"]
+        assert isinstance(current_data[i]["weather_results"], dict)
+        i = i + 1
 
-@pytest.mark.weather2
+@pytest.mark.dev
 def test_success_forecast(weather, query_agent):
     """
     Tests the basic functionality of a weather agent under optimal conditions.
@@ -134,14 +130,11 @@ def test_success_forecast(weather, query_agent):
 
     forecast_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
                                              locations).get(timeout=30)
+    print forecast_data
+    # for record in forecast_data:
+    #     if len(record) == 4:
+    #         assert isinstance(record[0], str)
+    #         assert isinstance(utils.parse_timestamp_string(record[1]), datetime)
+    #         assert isinstance(utils.parse_timestamp_string(record[2]), datetime)
+    #         assert isinstance(record[3], dict)
 
-    for record in forecast_data:
-        if len(record) == 4:
-            assert isinstance(record[0], str)
-            assert isinstance(utils.parse_timestamp_string(record[1]), datetime)
-            assert isinstance(utils.parse_timestamp_string(record[2]), datetime)
-            assert isinstance(record[3], dict)
-        else:
-            _log.debug("response sanity checking: ")
-            _log.debug(record)
-            assert len(record) == 0
