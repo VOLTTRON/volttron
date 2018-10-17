@@ -39,7 +39,7 @@
 import os
 import sys
 import ujson
-
+import copy
 import pint
 import pytest
 import gevent
@@ -48,13 +48,22 @@ import sqlite3
 import datetime
 from volttron.utils.docs import doc_inherit
 from volttron.platform.agent import utils
+from volttron.platform.messaging.health import *
 from volttron.platform.agent.base_weather import BaseWeatherAgent, WeatherCache
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+identity = 'platform.weather'
+
 FAKE_LOCATION = {"location": "fake_location"}
 FAKE_POINTS = {"fake": "fake_data"}
+
+@pytest.fixture(scope="module")
+def client_agent(request, volttron_instance):
+    agent = volttron_instance.build_agent()
+    yield agent
+    agent.core.stop()
 
 class BasicWeatherAgent(BaseWeatherAgent):
     """An implementation of the BaseWeatherAgent to test basic method functionality.
@@ -119,7 +128,6 @@ class BasicWeatherAgent(BaseWeatherAgent):
 def weather(request, volttron_instance):
     print("** Setting up weather agent module **")
 
-    identity = 'platform.weather'
     agent = volttron_instance.build_agent(
         agent_class=BasicWeatherAgent,
         identity=identity,
@@ -303,7 +311,10 @@ def test_manage_unit_conversion_fail(weather, from_units, start, to_units):
         assert str(error).endswith(" is not defined in the unit registry")
 
 @pytest.mark.weather2
-def test_get_current_valid_locationss(weather):
+@pytest.mark.parametrize("fake_locations", [
+    [{"location": "fake_location"}]
+])
+def test_get_current_valid_locations(weather, fake_locations):
     conn = weather._cache._sqlite_conn
     cursor = conn.cursor()
     weather.set_update_interval("get_current_weather",
@@ -311,9 +322,6 @@ def test_get_current_valid_locationss(weather):
     query = "DELETE FROM 'get_current_weather';"
     cursor.execute(query)
     conn.commit()
-
-
-    fake_locations = [{"location": "fake_location"}]
 
     # results1 should look like:
     # [{location, "weather_results": []}]
@@ -372,16 +380,17 @@ def test_get_current_valid_locationss(weather):
     cursor.close()
 
 @pytest.mark.weather2
-def test_get_current_fail(weather):
+@pytest.mark.parametrize("fake_locations", [
+    [{"location": "bad_string"}, {"fail": "fail"},
+     "bad_format"]
+])
+def test_get_current_fail(weather, fake_locations):
     conn = weather._cache._sqlite_conn
     cursor = conn.cursor()
 
     query = "DELETE FROM 'get_current_weather';"
     cursor.execute(query)
     conn.commit()
-
-    fake_locations = [{"location": "bad_string"}, {"fail": "fail"},
-                      "bad_format"]
 
     # results should look like:
     # [{location, "location_error": []}]
@@ -395,7 +404,10 @@ def test_get_current_fail(weather):
     assert size == 0
 
 @pytest.mark.weather2
-def test_get_forecast_valid_location(weather):
+@pytest.mark.parametrize("fake_locations", [
+    [{"location": "fake_location1"}]
+])
+def test_get_forecast_valid_locations(weather, fake_locations):
     conn = weather._cache._sqlite_conn
     cursor = conn.cursor()
     weather.set_update_interval("get_hourly_forecast",
@@ -403,7 +415,6 @@ def test_get_forecast_valid_location(weather):
     query = "DELETE FROM 'get_hourly_forecast';"
     cursor.execute(query)
     conn.commit()
-    fake_locations = [{"location": "fake_location1"}]
 
     # 1. initial run. cache is empty should return from BasicWeatherAgent's
     # query_current
@@ -510,7 +521,11 @@ def validate_basic_weather_forecast(locations, result, warn=True,
 
 
 @pytest.mark.weather2
-def test_get_forecast_fail(weather):
+@pytest.mark.parametrize("fake_locations", [
+    [{"location": "bad_string"}, {"fail": "fail"}, "bad_format"],
+    [{"location": "fake_location"}, "fail"]
+])
+def test_get_forecast_fail(weather, fake_locations):
     conn = weather._cache._sqlite_conn
     cursor = conn.cursor()
 
@@ -518,16 +533,57 @@ def test_get_forecast_fail(weather):
     cursor.execute(query)
     conn.commit()
 
-    fake_locations = [{"location": "bad_string"},
-                      {"fail": "fail"}, "bad_format"]
-
     # results should look like:
     # [{location, "location_error": []}]
 
     fake_results = weather.get_hourly_forecast(fake_locations)
     assert len(fake_results) == 3
     for record_set in fake_results:
-        assert record_set.get("location_error")
+        if "location" in record_set:
+            assert record_set.get("weather_results")
+        else:
+            assert record_set.get("location_error")
     size_query = "SELECT COUNT(*) FROM 'get_hourly_forecast';"
     size = cursor.execute(size_query).fetchone()[0]
     assert size == 0
+
+@pytest.mark.weather2
+@pytest.mark.parametrize("fake_locations, start_date, end_date", [])
+def test_hourly_historical_success(weather, fake_locations, start_date, end_date):
+    pass
+
+@pytest.mark.weather2
+@pytest.mark.parametrize("fake_locations, start_date, end_date", [])
+def test_hourly_historical_fail(weather, fake_locations, start_date, end_date):
+    pass
+
+# TODO
+@pytest.mark.weather2
+def test_polling_locations(volttron_instance, weather, query_agent):
+    new_config = copy.copy(weather)
+    source = new_config.pop("weather_service")
+    new_config["polling_locations"] = [{"station": "KLAX"}, {"station": "KABQ"}]
+    new_config["poll_interval"] = 5
+    agent_uuid = None
+    try:
+        agent_uuid = volttron_instance.install_agent(
+            vip_identity="poll.weather",
+            agent_dir=source,
+            start=False,
+            config_file=new_config)
+        volttron_instance.start_agent(agent_uuid)
+        gevent.sleep(5)
+        assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10) == STATUS_GOOD
+    finally:
+        if agent_uuid:
+            volttron_instance.stop_agent(agent_uuid)
+            volttron_instance.remove_agent(agent_uuid)
+
+@pytest.mark.weather2
+def test_update_and_get_status(volttron_instance, weather, query_agent):
+    assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10) == STATUS_GOOD
+    weather._update_status({"publishing": False})
+    assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10) == STATUS_BAD
+    weather.polling_locations = []
+    weather.poll_for_locations()
+    assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10) == STATUS_GOOD
