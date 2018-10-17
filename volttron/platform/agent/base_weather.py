@@ -423,54 +423,87 @@ class BaseWeatherAgent(Agent):
 
     # TODO add docs
     @RPC.export
-    def get_hourly_forecast(self, locations, hours=None):
-        data = []
+    def get_hourly_forecast(self, locations, hours=24):
+        result = []
         service_name = "get_hourly_forecast"
         interval = self._api_services[service_name]["update_interval"]
         for location in locations:
+            record_dict = location.copy()
             if not isinstance(location, dict):
-                record_dict = {"bad_location": json.dumps(location)}
-            else:
-                record_dict = location.copy()
-            try:
-                if not self.validate_location_for_current(location):
-                    raise ValueError("Invalid location: {}".format(location))
-                most_recent_for_location = \
-                    self.get_cached_forecast_data(service_name, location)
-                location_data = []
-                if most_recent_for_location:
-                    current_time = datetime.datetime.utcnow()
-                    update_window = current_time - interval
-                    generation_time = most_recent_for_location[0][1]
-                    if generation_time >= update_window:
-                        for record in most_recent_for_location:
-                            entry = [record[1], record[2],
-                                     json.loads(record[3])]
-                            location_data.append(entry)
+                record_dict["location_error"] = "Invalid location format. " \
+                                                "Location should be  " \
+                                                "specified as a dictionary"
+                result.append(record_dict)  # to next location
+                continue
+            elif not self.validate_location_for_current(location):
+                record_dict["location_error"] = "Invalid location"
+                result.append(record_dict)
+                continue  # to next location
+
+            most_recent_for_location = \
+                self.get_cached_forecast_data(service_name, location)
+            location_data = []
+            if most_recent_for_location:
+                current_time = datetime.datetime.utcnow()
+                update_window = current_time - interval
+                generation_time = most_recent_for_location[0][0]
+                if generation_time >= update_window and \
+                        len(most_recent_for_location) >= hours:
+                    i = 0
+                    while i < hours:
+                        record = most_recent_for_location[i]
+                        # record = (generation time, forecast time, points)
+                        entry = [record[1],
+                                 json.loads(record[2])]
+                        location_data.append(entry)
+                        i = i+1
+                    record_dict["generation_time"] = generation_time
+                    record_dict["weather_results"] = location_data
+
+            # if cache didn't work out query api
+            if not location_data:
+                try:
+                    # query for maximum number of hours so that we can cache it
+                    # also makes retrieval from cache simpler
+                    generation_time, response = self.query_hourly_forecast(
+                        location)
+                    if not generation_time:
+                        # in case api does not return details on when this
+                        # forecast data was generated
+                        generation_time = datetime.datetime.utcnow()
+
+                    storage_records = []
+                    i = 0
+                    for item in response:
+                        # item contains (forecast time, points)
+                        if item[0] is not None and item[1] is not None:
+                            storage_record = [json.dumps(location),
+                                              generation_time,
+                                              item[0],
+                                              json.dumps(item[1])]
+                            storage_records.append(storage_record)
+                            if i < hours:
+                                location_data.append(item)
+                        i = i + 1
+                    if location_data:
+                        self.store_weather_records(service_name,
+                                                   storage_records)
+                        record_dict["generation_time"] = generation_time
                         record_dict["weather_results"] = location_data
-                if not len(location_data) or (hours and len(location_data) < hours):
-                    try:
-                        response = self.query_hourly_forecast(location)
-                        storage_records = []
-                        if not len(response):
-                            raise RuntimeError("No records were returned by the weather query")
-                        for item in response:
-                            if item[0] is not None and item[1] is not None:
-                                storage_record = [json.dumps(location), item[0], item[1],
-                                                  json.dumps(item[2])]
-                                storage_records.append(storage_record)
-                            location_data.append(item)
-                        if len(storage_records):
-                            self.store_weather_records(service_name, storage_records)
-                        record_dict["weather_results"] = location_data
-                    except Exception as error:
-                        _log.error(error)
-                        record_dict["weather_error"] = error
-                data.append(record_dict)
-            except ValueError as error:
-                record_dict["location_error"] = error
-                data.append(record_dict)
-        return data
+                    else:
+                        record_dict["weather_error"] = \
+                            "No records were returned by the weather query"
+
+                    if len(location_data) < hours:
+                        record_dict["weather_warn"] = \
+                            "Weather provider returned less than requested " \
+                            "amount of data"
+                except Exception as error:
+                    _log.error(error)
+                    record_dict["weather_error"] = error
+            result.append(record_dict)
+
+        return result
 
     # TODO docs
     @abstractmethod
@@ -766,7 +799,7 @@ class WeatherCache:
         """
         try:
             cursor = self._sqlite_conn.cursor()
-            query = """SELECT LOCATION, GENERATION_TIME, FORECAST_TIME, POINTS 
+            query = """SELECT GENERATION_TIME, FORECAST_TIME, POINTS 
                        FROM {table} 
                        WHERE LOCATION = ? 
                        AND FORECAST_TIME > ?

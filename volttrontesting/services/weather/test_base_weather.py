@@ -75,12 +75,11 @@ class BasicWeatherAgent(BaseWeatherAgent):
         records = []
         current_time = datetime.datetime.utcnow()
         for x in range(0, 3):
-            record = [current_time,
-                      current_time + datetime.timedelta(hours=(x+1)),
+            record = [current_time + datetime.timedelta(hours=(x+1)),
                       {'points': FAKE_POINTS}
                      ]
             records.append(record)
-        return records
+        return current_time, records
 
     def query_hourly_historical(self, location, start_date, end_date):
         records = []
@@ -306,7 +305,7 @@ def test_manage_unit_conversion_fail(weather, from_units, start, to_units):
     except pint.UndefinedUnitError as error:
         assert str(error).endswith(" is not defined in the unit registry")
 
-@pytest.mark.dev
+@pytest.mark.weather2
 def test_get_current_success(weather):
     conn = weather._cache._sqlite_conn
     cursor = conn.cursor()
@@ -398,46 +397,120 @@ def test_get_current_fail(weather):
     size = cursor.execute(size_query).fetchone()[0]
     assert size == 0
 
-# TODO add in hours
-@pytest.mark.weather2
-def test_get_forecast_success(weather):
+@pytest.mark.dev
+def test_get_forecast_valid_location(weather):
     conn = weather._cache._sqlite_conn
     cursor = conn.cursor()
-    weather.set_update_interval("get_hourly_forecast", datetime.timedelta(days=1))
+    weather.set_update_interval("get_hourly_forecast",
+                                datetime.timedelta(days=1))
     query = "DELETE FROM 'get_hourly_forecast';"
     cursor.execute(query)
     conn.commit()
-    fake_locations = [{"location": "fake_location1"},
-                      {"location": "fake_location2"},
-                      {"location": "fake_location3"}]
+    fake_locations = [{"location": "fake_location1"}]
 
-    size_query = "SELECT COUNT(*) FROM 'get_hourly_forecast';"
+    # 1. initial run. cache is empty should return from BasicWeatherAgent's
+    # query_current
+    result1 = weather.get_hourly_forecast(fake_locations)
+    print result1
+    validate_basic_weather_forecast(fake_locations, result1)
 
-    # results should look like:
-    # [{location, "weather_results": []}]
+    # Check data got cached
+    query = "SELECT * FROM 'get_hourly_forecast';"
+    cache_result = cursor.execute(query).fetchall()
+    print cache_result
 
-    #initial run
-    fake_results1 = weather.get_hourly_forecast(fake_locations)
-    size = cursor.execute(size_query).fetchone()[0]
-    assert len(fake_results1) == 3
-    assert len(fake_results1[0]["weather_results"]) == 3
-    assert size == 9
+    # assert result1 and cached data are same
+    validate_cache_result_forecast(fake_locations, result1, cache_result)
 
-    #cached run
-    fake_results2 = weather.get_hourly_forecast(fake_locations)
-    size = cursor.execute(size_query).fetchone()[0]
-    assert len(fake_results2) == 3
-    assert len(fake_results2[0]["weather_results"]) == 3
-    assert size == 9
-    time1 = fake_results1[0]["weather_results"][0][0]
-    time2 = fake_results2[0]["weather_results"][0][0]
-    assert time1 == time2
+    # update cache before querying again.
+    cursor.execute("UPDATE get_hourly_forecast SET POINTS = ?",
+                   (ujson.dumps({"points": {"fake": "updated cache"}}),))
+    conn.commit()
 
-    #hours run - any amount of hours should result in a success
-    fake_results3 = weather.get_hourly_forecast(fake_locations, hours=4)
-    assert len(fake_results3) == 3
-    time3 = fake_results3[0]["weather_results"][0][0]
-    assert not time1 == time3
+    # 2. second query - results should still be got from api since not enough
+    # rows are in cache
+    result2 = weather.get_hourly_forecast(fake_locations)
+    print result2
+    validate_basic_weather_forecast(fake_locations, result2)
+
+    # assert result2 and cached data are same
+    query = "SELECT * FROM 'get_hourly_forecast' ORDER BY GENERATION_TIME DESC;"
+    cache_result = cursor.execute(query).fetchall()
+    print cache_result
+    validate_cache_result_forecast(fake_locations, result2, cache_result)
+
+    # 3. third query - results should be from cache. update cache so we know
+    # we are getting from cache
+    cursor.execute("UPDATE get_hourly_forecast SET POINTS = ? WHERE "
+                   "GENERATION_TIME= ?",
+                   (ujson.dumps({"points": {"fake": "updated cache"}}),
+                    result2[0]["generation_time"]))
+    conn.commit()
+    # set hours to 2 so cached data is sufficient
+    result3 = weather.get_hourly_forecast(fake_locations, hours=2)
+    print result3
+    validate_basic_weather_forecast(fake_locations, result3, warn=False,
+                                    point_data={"fake": "updated cache"},
+                                    hours=2)
+
+    # 4. fourth query  - set update interval so that cache would be marked old
+    # and
+    # set hours to 2 so cache has enough number of records but is out of date
+
+    weather.set_update_interval("get_hourly_forecast",
+                                datetime.timedelta(seconds=1))
+    gevent.sleep(1)
+    result4 = weather.get_hourly_forecast(fake_locations, hours=2)
+    validate_basic_weather_forecast(fake_locations, result4, warn=False,
+                                    hours=2)
+    # check data got cached again
+    query = "SELECT * FROM 'get_hourly_forecast' ORDER BY GENERATION_TIME DESC;"
+    cache_result = cursor.execute(query).fetchall()
+    print cache_result
+    validate_cache_result_forecast(fake_locations, result4, cache_result,
+                                   hours=2)
+
+
+def validate_cache_result_forecast(locations, api_result, cache_result,
+                                   hours=3):
+    j = 0
+    for location in locations:
+        assert len(cache_result) >= len(api_result[j]["weather_results"])
+        assert ujson.loads(cache_result[j][1]) == location
+        assert cache_result[j][2] == api_result[j]["generation_time"]
+        i = 0
+        while i < hours:
+            cr = cache_result[i]
+            assert ujson.loads(cr[1]) == locations[0]
+            assert cr[2] == api_result[j]["generation_time"]
+            api_weather_result = api_result[j]["weather_results"]
+            assert cr[3] == api_weather_result[i][0]
+            i = i + 1
+        j = j + 1
+
+
+def validate_basic_weather_forecast(locations, result, warn=True,
+                                    point_data=FAKE_POINTS, hours=3):
+    assert len(result) == len(locations)
+    i= 0
+    for location in locations:
+        assert result[i]["generation_time"]
+        if warn:
+            assert result[i]["weather_warn"] == \
+                   "Weather provider returned less than requested amount " \
+                   "of data"
+        else:
+            assert result[i].get("weather_warn") is None
+
+        assert result[i]["location"] == location["location"]
+        weather_result2 = result[i]["weather_results"]
+        assert len(weather_result2) == hours
+        assert len(weather_result2[0]) == 2
+        for wr in weather_result2:
+            assert isinstance(wr[0], datetime.datetime)
+            assert isinstance(wr[1], dict)
+            assert wr[1]["points"] == point_data
+
 
 @pytest.mark.weather2
 def test_get_forecast_fail(weather):

@@ -214,10 +214,10 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             periods = properties["periods"]
             for period in periods:
                 forecast_time = period["startTime"]
-                record = [generation_time, forecast_time, period]
+                record = [forecast_time, period]
                 # TODO unit conversions, properties name mapping
                 data.append(record)
-            return data
+            return generation_time, data
 
     def query_hourly_historical(self, location, start_date, end_date):
         """
