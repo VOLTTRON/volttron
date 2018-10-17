@@ -55,6 +55,8 @@
 
 import logging
 import pint
+import pytz
+
 import json
 import sqlite3
 import datetime
@@ -376,6 +378,9 @@ class BaseWeatherAgent(Agent):
             if observation_time and data:
                 current_time = datetime.datetime.utcnow()
                 update_window = current_time - interval
+                update_window = update_window.replace(tzinfo=pytz.utc)
+                _log.debug("update_window {}".format(update_window))
+                _log.debug("observation_time {}".format(observation_time))
                 # if observation time is within the update interval
                 if observation_time > update_window:
                     record_dict["observation_time"] = observation_time
@@ -436,6 +441,7 @@ class BaseWeatherAgent(Agent):
             if most_recent_for_location:
                 current_time = datetime.datetime.utcnow()
                 update_window = current_time - interval
+                update_window = update_window.replace(tzinfo=pytz.utc)
                 generation_time = most_recent_for_location[0][0]
                 if generation_time >= update_window and \
                         len(most_recent_for_location) >= hours:
