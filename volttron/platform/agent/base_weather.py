@@ -440,8 +440,9 @@ class BaseWeatherAgent(Agent):
         service_name = "get_hourly_forecast"
         interval = self._api_services[service_name]["update_interval"]
         for location in locations:
-            record_dict = location.copy()
+            record_dict = copy.copy(location)
             if not isinstance(location, dict):
+                record_dict = {"location": location}
                 record_dict["location_error"] = "Invalid location format. " \
                                                 "Location should be  " \
                                                 "specified as a dictionary"
