@@ -218,6 +218,10 @@ class BaseWeatherAgent(Agent):
             raise ValueError("service {} does not exist".format(service_function_name))
 
     @abstractmethod
+    def validate_location(self, service_name, location):
+        pass
+
+    @abstractmethod
     def get_update_interval(self, service_name):
         pass
 
@@ -347,20 +351,6 @@ class BaseWeatherAgent(Agent):
                 self._api_services[service_name]["description"]
         return features
 
-    # TODO docs
-    @abstractmethod
-    def validate_location_for_current(self, location):
-      pass
-
-    # TODO docs
-    @abstractmethod
-    def validate_location_for_hourly_forecast(self, location):
-      pass
-
-    # TODO docs
-    @abstractmethod
-    def validate_location_for_hourly_history(self, location):
-      pass
 
     # TODO add doc
     @RPC.export
@@ -376,8 +366,8 @@ class BaseWeatherAgent(Agent):
                                                 "specified as a dictionary"
                 result.append(record_dict)  # to next location
                 continue
-            elif not self.validate_location_for_current(location):
-                record_dict["location_error"] = "Invalid location......."
+            elif not self.validate_location(service_name, location):
+                record_dict["location_error"] = "Invalid location"
                 result.append(record_dict)
                 continue  # to next location
             _log.debug("Completed location validation")
@@ -435,7 +425,7 @@ class BaseWeatherAgent(Agent):
                                                 "specified as a dictionary"
                 result.append(record_dict)  # to next location
                 continue
-            elif not self.validate_location_for_current(location):
+            elif not self.validate_location(service_name, location):
                 record_dict["location_error"] = "Invalid location"
                 result.append(record_dict)
                 continue  # to next location
@@ -524,7 +514,7 @@ class BaseWeatherAgent(Agent):
                        (datetime.timedelta(days=1) - datetime.timedelta(milliseconds=1))
         # TODO
         for location in locations:
-            if not self.validate_location_for_hourly_history(location):
+            if not self.validate_location(service_name, location):
                 raise ValueError("Invalid Location:{}".format(location))
             current = start_datetime
             while current <= end_datetime:

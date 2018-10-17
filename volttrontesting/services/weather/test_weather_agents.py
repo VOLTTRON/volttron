@@ -100,6 +100,7 @@ def weather(request, volttron_instance):
     request.addfinalizer(stop_agent)
     return request.param
 
+
 @pytest.mark.weather2
 def test_success_current(weather, query_agent):
     """
@@ -130,11 +131,32 @@ def test_success_forecast(weather, query_agent):
 
     forecast_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
                                              locations).get(timeout=30)
-    print forecast_data
-    # for record in forecast_data:
-    #     if len(record) == 4:
-    #         assert isinstance(record[0], str)
-    #         assert isinstance(utils.parse_timestamp_string(record[1]), datetime)
-    #         assert isinstance(utils.parse_timestamp_string(record[2]), datetime)
-    #         assert isinstance(record[3], dict)
+    assert len(forecast_data) == len(locations)
+    i = 0
+    while i < len(locations):
+        forecast = forecast_data[i]
+        loc = locations[i]
+        for key in loc:
+            assert loc[key] == forecast[key]
+        assert forecast["generation_time"]
+        assert len(forecast["weather_results"]) == 24  #default hours
+        i = i + 1
 
+
+def test_polling_single_loc(volttron_instance, weather, query_agent):
+    new_config = copy.copy(weather)
+    source = new_config.pop("weather_service")
+    new_config["polling_locations"] = [{"station": "KLAX"}, {"station": "KABQ"}]
+    new_config["poll_interval"] = [{"station": "KLAX"}, {"station": "KABQ"}]
+    agent_uuid = None
+    try:
+        agent_uuid = volttron_instance.install_agent(
+            vip_identity="poll.weather",
+            agent_dir=source,
+            start=False,
+            config_file=new_config)
+        volttron_instance.start_agent(agent_uuid)
+    finally:
+        if agent_uuid:
+            volttron_instance.stop_agent(agent_uuid)
+            volttron_instance.remove_agent(agent_uuid)

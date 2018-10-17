@@ -106,17 +106,14 @@ class BasicWeatherAgent(BaseWeatherAgent):
         elif service_name == "get_hourly_historical":
             return "returns fake hourly historical data"
 
-    def validate_location_for_current(self, location):
-        return location.get("location")
-
-    def validate_location_for_hourly_forecast(self, location):
-        if isinstance(location, dict) and "location" in location and isinstance(
-                location["location"]):
-            return True
-        return False
-
-    def validate_location_for_hourly_history(self, location):
-        return location.get("location") == "fake_location"
+    def validate_location(self, service_name, location):
+        if service_name == "get_current_weather":
+            return location.get("location")
+        elif service_name == "get_hourly_forecast":
+            if isinstance(location, dict) and "location" in location:
+                return True
+        else:
+            return location.get("location") == "fake_location"
 
 @pytest.fixture(scope="module")
 def weather(request, volttron_instance):
@@ -306,7 +303,7 @@ def test_manage_unit_conversion_fail(weather, from_units, start, to_units):
         assert str(error).endswith(" is not defined in the unit registry")
 
 @pytest.mark.weather2
-def test_get_current_success(weather):
+def test_get_current_valid_locationss(weather):
     conn = weather._cache._sqlite_conn
     cursor = conn.cursor()
     weather.set_update_interval("get_current_weather",
