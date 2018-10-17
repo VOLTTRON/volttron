@@ -63,8 +63,9 @@ import datetime
 from functools import wraps
 from abc import abstractmethod
 from gevent import get_hub
-from volttron.platform.agent import utils
-from utils import parse_timestamp_string, fix_sqlite3_datetime
+from volttron.platform.agent.utils import fix_sqlite3_datetime, \
+    get_aware_utc_now, format_timestamp, process_timestamp, \
+    parse_timestamp_string
 from volttron.platform.vip.agent import *
 from volttron.platform.async import AsyncCall
 from volttron.platform.messaging import headers
@@ -72,7 +73,7 @@ from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_UNKNOWN,
                                                 STATUS_GOOD,
                                                 STATUS_STARTING,
-                                                Status)
+                                                 Status)
 
 CREATE_STMT_CURRENT = """CREATE TABLE {table}
                         (ID INTEGER PRIMARY KEY ASC,
@@ -380,12 +381,12 @@ class BaseWeatherAgent(Agent):
 
             if observation_time and data:
                 # ts in cache is tz aware utc
-                current_time = utils.get_aware_utc_now()
+                current_time = get_aware_utc_now()
                 update_window = current_time - interval
                 # if observation time is within the update interval
                 if observation_time > update_window:
                     record_dict["observation_time"] = \
-                        utils.format_timestamp(observation_time)
+                        format_timestamp(observation_time)
                     record_dict["weather_results"] = json.loads(data)
 
             # if there was no data in cache or if data is old query api
@@ -393,7 +394,7 @@ class BaseWeatherAgent(Agent):
                 try:
                     observation_time, data = self.query_current_weather(
                         location)
-                    observation_time, oldtz = utils.process_timestamp(
+                    observation_time, oldtz = process_timestamp(
                         observation_time)
 
                     # TODO unit conversions, properties name mapping
@@ -403,7 +404,7 @@ class BaseWeatherAgent(Agent):
                                           json.dumps(data)]
                         self.store_weather_records(service_name, storage_record)
                         record_dict["observation_time"] = \
-                            utils.format_timestamp(observation_time)
+                            format_timestamp(observation_time)
                         record_dict["weather_results"] = data
                     else:
                         record_dict["weather_error"] = "Weather api did not " \
@@ -455,7 +456,7 @@ class BaseWeatherAgent(Agent):
             location_data = []
             if most_recent_for_location:
                 _log.debug(" from cache")
-                current_time = utils.get_aware_utc_now()
+                current_time = get_aware_utc_now()
                 update_window = current_time - interval
                 generation_time = most_recent_for_location[0][0]
                 if generation_time >= update_window and \
@@ -464,11 +465,11 @@ class BaseWeatherAgent(Agent):
                     while i < hours:
                         record = most_recent_for_location[i]
                         # record = (forecast time, points)
-                        entry = [utils.format_timestamp(record[1]),
+                        entry = [format_timestamp(record[1]),
                                  json.loads(record[2])]
                         location_data.append(entry)
                         i = i+1
-                    record_dict["generation_time"] = utils.format_timestamp(
+                    record_dict["generation_time"] = format_timestamp(
                         generation_time)
                     record_dict["weather_results"] = location_data
 
@@ -484,14 +485,14 @@ class BaseWeatherAgent(Agent):
                         # forecast data was generated
                         generation_time = datetime.datetime.utcnow()
                     else:
-                        generation_time, oldtz = utils.process_timestamp(
+                        generation_time, oldtz = process_timestamp(
                             generation_time)
                     storage_records = []
                     i = 0
                     for item in response:
                         # item contains (forecast time, points)
                         if item[0] is not None and item[1] is not None:
-                            forecast_time, tz = utils.process_timestamp(item[0])
+                            forecast_time, tz = process_timestamp(item[0])
                             storage_record = [json.dumps(location),
                                               generation_time,
                                               forecast_time,
@@ -504,7 +505,7 @@ class BaseWeatherAgent(Agent):
                         self.store_weather_records(service_name,
                                                    storage_records)
                         record_dict["generation_time"] = \
-                            utils.format_timestamp(generation_time)
+                            format_timestamp(generation_time)
                         record_dict["weather_results"] = location_data
                     else:
                         record_dict["weather_error"] = \
@@ -548,7 +549,7 @@ class BaseWeatherAgent(Agent):
                 cached_history = self.get_cached_historical_data(service_name, location, current)
                 if cached_history:
                     for item in cached_history:
-                        observation_time = utils.format_timestamp(item[0])
+                        observation_time = format_timestamp(item[0])
                         record = [location, observation_time,
                                   json.loads(item[1])]
                         records.append(record)
@@ -557,12 +558,12 @@ class BaseWeatherAgent(Agent):
                     storage_records = []
                     for item in response:
                         records.append(item)
-                        observation_time = utils.parse_timestamp_string(item[0])
+                        observation_time = parse_timestamp_string(item[0])
                         s_record = [location, observation_time,
                                     json.dumps(item[1])]
                         storage_records.append(s_record)
                         record = [location,
-                                  utils.format_timestamp(observation_time),
+                                  format_timestamp(observation_time),
                                   json.dumps(item[1])]
                     self.store_weather_records(service_name, storage_records)
                 for record in records:
@@ -590,7 +591,8 @@ class BaseWeatherAgent(Agent):
 
     # TODO docs
     def publish_response(self, topic, publish_item):
-        publish_headers = {HEADER_NAME_DATE: utils.format_timestamp(utils.get_aware_utc_now()),
+        publish_headers = {HEADER_NAME_DATE: format_timestamp(
+            get_aware_utc_now()),
                            HEADER_NAME_CONTENT_TYPE: headers.CONTENT_TYPE}
         self.vip.pubsub.publish(peer="pubsub", topic=topic, message=publish_item, headers=publish_headers)
 
@@ -830,7 +832,7 @@ class WeatherCache:
                         WHERE LOCATION = ?) 
                        ORDER BY FORECAST_TIME ASC;""".format(table=service_name)
             _log.debug(query)
-            cursor.execute(query, (location, utils.get_aware_utc_now(),
+            cursor.execute(query, (location, get_aware_utc_now(),
                                    location))
             data = cursor.fetchall()
             cursor.close()
