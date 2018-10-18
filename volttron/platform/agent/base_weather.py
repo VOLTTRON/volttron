@@ -58,6 +58,7 @@ import pint
 import pytz
 import copy
 import json
+import csv
 import sqlite3
 import datetime
 from functools import wraps
@@ -128,7 +129,7 @@ class BaseWeatherAgent(Agent):
                                 "poll_interval": self.poll_interval
                                }
         self.unit_registry = pint.UnitRegistry()
-        self.point_name_mapping = {}
+        self.point_name_mapping = self.parse_point_name_mapping()
         self._api_services = \
             {"get_current_weather": {"type": "current",
                                      "update_interval": None,
@@ -272,26 +273,34 @@ class BaseWeatherAgent(Agent):
         self._default_config.update(config)
         self.vip.config.set_default("config", self._default_config)
 
-    def parse_point_name_mapping(self, config_dict):
+    @abstractmethod
+    def get_point_name_def_file(self):
         """
-        Parses the registry config, which should contain a mapping of service
+        :return: file path of a csv containing a mapping of Service_Point_Name to an optional Standard_Point_Name.
+        May also optionally provide Service_Units (a Pint-parsable unit name for a point, provided by the service) to
+        Standardized_Units (units specified for the Standard_Point_Name by the CF standards). Should return None if
+        the concrete agent does not require point name mapping and/or unit conversion.
+        """
+
+    def parse_point_name_mapping(self):
+        """
+        Parses point name mapping, which should contain a mapping of service
         points to standardized points, with specified units.
-        :param config_dict: registry configuration dictionary containing
-                            mappings from points included in api, to points
-                            included in the NOAA standard weather structure.
-                            Points listed without a standard name will be
-                            included without renaming or unit conversion.
         """
-        for map_item in config_dict:
-            service_point_name = map_item.get("Service_Point_Name")
-            if service_point_name:
-                standard_point_name = map_item.get("Standard_Point_Name")
-                standardized_units = map_item.get("Standardized_Units")
-                service_units = map_item.get("Service_Units")
-                self.point_name_mapping[service_point_name] = \
-                    {"Standard_Point_Name": standard_point_name,
-                     "Standardized_Units": standardized_units,
-                     "Service_units": service_units}
+        point_name_defs_file = self.get_point_name_def_file()
+        if point_name_defs_file:
+            with open(point_name_defs_file) as file:
+                config_dict = csv.DictReader(file)
+                for map_item in config_dict:
+                    service_point_name = map_item.get("Service_Point_Name")
+                    if service_point_name:
+                        standard_point_name = map_item.get("Standard_Point_Name")
+                        standardized_units = map_item.get("Standardized_Units")
+                        service_units = map_item.get("Service_Units")
+                        self.point_name_mapping[service_point_name] = \
+                            {"Standard_Point_Name": standard_point_name,
+                             "Standardized_Units": standardized_units,
+                             "Service_Units": service_units}
 
     # TODO copy documentation?
     def _configure(self, config_name, actions, contents):
@@ -312,8 +321,6 @@ class BaseWeatherAgent(Agent):
             poll_interval = config.get("poll_interval")
             if max_size_gb is not None:
                 max_size_gb = float(max_size_gb)
-            # TODO registry config
-            # self.parse_point_name_mapping(registry_config)
 
         except ValueError:
             _log.error("""Failed to load base weather agent settings. 

@@ -57,7 +57,17 @@ _log = logging.getLogger(__name__)
 identity = 'platform.weather'
 
 FAKE_LOCATION = {"location": "fake_location"}
-FAKE_POINTS = {"fake": "fake_data"}
+FAKE_POINTS = {"fake1": 1,
+               "fake2": 100,
+               "fake3": 1}
+
+EXPECTED_OUTPUT_VALUES = {"fake1": {"value": 2.54,
+                                    "name": "FAKE1"},
+                          "fake2": {"value": 212,
+                                    "name": "FAKE2"},
+                          "fake3": {"value": 473.176,
+                                    "name": "FAKE3"}
+                          }
 
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
@@ -77,6 +87,10 @@ class BasicWeatherAgent(BaseWeatherAgent):
     def __init__(self, **kwargs):
         super(BasicWeatherAgent, self).__init__(**kwargs)
 
+    # TODO create a file to use, a path, and stick the string here
+    def get_point_name_def_file(self):
+        return None
+
     def query_current_weather(self, location):
         current_time = datetime.datetime.utcnow()
         record = [
@@ -95,16 +109,9 @@ class BasicWeatherAgent(BaseWeatherAgent):
             records.append(record)
         return current_time, records
 
+    # TODO
     def query_hourly_historical(self, location, start_date, end_date):
-        records = []
-        for x in range(0, 3):
-            current_time = datetime.datetime.combine(start_date, datetime.time())
-            record = [location,
-                      current_time + datetime.timedelta(hours=(x+1)),
-                      {'points': FAKE_LOCATION}
-                      ]
-            records.append(record)
-        return records
+        pass
 
     def get_update_interval(self, service_name):
         if service_name == "get_current_weather":
@@ -343,7 +350,14 @@ def test_get_current_valid_locations(weather, fake_locations):
     results1 = weather.get_current_weather(fake_locations)
     assert len(results1) == len(fake_locations)
     assert results1[0]["observation_time"]
-    assert results1[0]["weather_results"]["points"]["fake"] == "fake_data"
+    test_points = results1[0]["points"]
+    assert test_points
+    for initial_point in FAKE_POINTS:
+        fake_point = EXPECTED_OUTPUT_VALUES[initial_point]
+        test_value = test_points[fake_point["name"]]
+        assert test_value
+        if test_value:
+            assert test_value == fake_point["value"]
     assert results1[0]["location"] == "fake_location"
 
     # Check data got cached
@@ -365,7 +379,7 @@ def test_get_current_valid_locations(weather, fake_locations):
     results2 = weather.get_current_weather(fake_locations)
     assert len(results2) == 1
     assert results2[0]["observation_time"] == results1[0]["observation_time"]
-    assert results2[0]["weather_results"]["points"]["fake"] == "updated cache"
+    assert results2[0]["weather_results"]["points"] == test_points
     assert results2[0]["location"] == results1[0]["location"]
 
     # third query  - set update interval so that cache would be marked old
@@ -374,9 +388,9 @@ def test_get_current_valid_locations(weather, fake_locations):
     gevent.sleep(1)
     results3 = weather.get_current_weather(fake_locations)
     assert len(results3) == 1
-    assert results3[0]["observation_time"]
     assert results3[0]["observation_time"] != results1[0]["observation_time"]
-    assert results3[0]["weather_results"]["points"]["fake"] == "fake_data"
+    for point in results3[0]["weather_results"]["points"]:
+        assert point in EXPECTED_OUTPUT_VALUES
     assert results3[0]["location"] == "fake_location"
 
     # check data got cached again
@@ -532,7 +546,7 @@ def validate_cache_result_forecast(locations, api_result, cache_result,
 def validate_basic_weather_forecast(locations, result, warn=True,
                                     point_data=FAKE_POINTS, hours=3):
     assert len(result) == len(locations)
-    i= 0
+    i = 0
     for location in locations:
         assert result[i]["generation_time"]
         if warn:
@@ -578,6 +592,27 @@ def test_get_forecast_fail(weather, fake_locations):
     size_query = "SELECT COUNT(*) FROM 'get_hourly_forecast';"
     size = cursor.execute(size_query).fetchone()[0]
     assert size == 0
+
+
+@pytest.mark.weather2
+@pytest.mark.parametrize("locations, expected_passing, expected_errors", [
+    ([{"location": "test"}], 1, 0),
+    ([{"fail": "fail"}], 0, 1),
+    ([{"location": "test"}, {"fail": "fail"}], 1, 1),
+    ([{"location": "test"}, {"location": "test2"}], 2, 0),
+    ([{"fail": "fail"}, {"fail": "fail2"}], 0, 2)
+])
+def test_hourly_forecast_mixed_locations(weather, locations, expected_passing, expected_errors):
+    results = weather.get_current_weather(locations)
+    actual_passing = 0
+    actual_failing = 0
+    for record in results:
+        if record.get("location_error"):
+            actual_failing += 1
+        if record.get("weather_results") or record.get("weather_error"):
+            actual_passing += 1
+    assert actual_failing == expected_errors
+    assert actual_passing == expected_passing
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("fake_locations, start_date, end_date", [])
