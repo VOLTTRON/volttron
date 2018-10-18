@@ -63,6 +63,13 @@ weather_dot_gov_service = {
     'poll_interval': 5
 }
 
+polling_service = {
+    'weather_service': get_services_core('WeatherDotGov'),
+    'max_size_gb': None,
+    'api_key': None,
+    'poll_interval': 5
+}
+
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
     # 1: Start a fake agent to query the historian agent in volttron_instance2
@@ -100,6 +107,7 @@ def weather(request, volttron_instance):
         volttron_instance.remove_agent(agent)
 
     request.addfinalizer(stop_agent)
+
     return request.param
 
 
@@ -213,7 +221,7 @@ def test_hourly_forecast_fail(weather, query_agent, locations):
     [{"station": "KLAX"}, {"station": "KABQ"}]
 ])
 def test_polling_locations_valid_locations(volttron_instance, weather, query_agent, locations):
-    new_config = copy.copy(weather)
+    new_config = copy.copy(weather_dot_gov_service)
     source = new_config.pop("weather_service")
     new_config["polling_locations"] = locations
     new_config["poll_interval"] = 5
@@ -241,10 +249,9 @@ def test_polling_locations_valid_locations(volttron_instance, weather, query_age
     [{"lat": 39.7555, "long": -105.2211}, {"wfo": 'BOU', 'x': 54, 'y': 62}, "fail"]
 ])
 def test_polling_locations_invalid_locations(volttron_instance, weather, query_agent, locations):
-    new_config = copy.copy(weather)
+    new_config = copy.copy(polling_service)
     source = new_config.pop("weather_service")
     new_config["polling_locations"] = locations
-    new_config["poll_interval"] = 5
     agent_uuid = None
     try:
         query_agent.callback = MagicMock(name="callback")
@@ -255,6 +262,8 @@ def test_polling_locations_invalid_locations(volttron_instance, weather, query_a
             start=False,
             config_file=new_config)
         volttron_instance.start_agent(agent_uuid)
+        query_agent.vip.pubsub.subscribe('pubsub', "weather/poll//all", query_agent.callback)
+        gevent.sleep(5)
     finally:
         if agent_uuid:
             volttron_instance.stop_agent(agent_uuid)
