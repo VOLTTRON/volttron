@@ -274,7 +274,7 @@ class BaseWeatherAgent(Agent):
         self.vip.config.set_default("config", self._default_config)
 
     @abstractmethod
-    def get_point_name_def_file(self):
+    def get_point_name_defs_file(self):
         """
         :return: file path of a csv containing a mapping of Service_Point_Name to an optional Standard_Point_Name.
         May also optionally provide Service_Units (a Pint-parsable unit name for a point, provided by the service) to
@@ -287,20 +287,26 @@ class BaseWeatherAgent(Agent):
         Parses point name mapping, which should contain a mapping of service
         points to standardized points, with specified units.
         """
-        point_name_defs_file = self.get_point_name_def_file()
+        point_name_defs_file = self.get_point_name_defs_file()
         if point_name_defs_file:
-            with open(point_name_defs_file) as file:
-                config_dict = csv.DictReader(file)
-                for map_item in config_dict:
-                    service_point_name = map_item.get("Service_Point_Name")
-                    if service_point_name:
-                        standard_point_name = map_item.get("Standard_Point_Name")
-                        standardized_units = map_item.get("Standardized_Units")
-                        service_units = map_item.get("Service_Units")
-                        self.point_name_mapping[service_point_name] = \
-                            {"Standard_Point_Name": standard_point_name,
-                             "Standardized_Units": standardized_units,
-                             "Service_Units": service_units}
+            try:
+                with open(point_name_defs_file) as file:
+                    config_dict = csv.DictReader(file)
+                    for map_item in config_dict:
+                        service_point_name = map_item.get("Service_Point_Name")
+                        if service_point_name:
+                            standard_point_name = map_item.get("Standard_Point_Name")
+                            standardized_units = map_item.get("Standardized_Units")
+                            service_units = map_item.get("Service_Units")
+                            self.point_name_mapping[service_point_name] = \
+                                {"Standard_Point_Name": standard_point_name,
+                                 "Standardized_Units": standardized_units,
+                                 "Service_Units": service_units}
+            except IOError as error:
+                _log.error(error)
+                return None
+        else:
+            return None
 
     # TODO copy documentation?
     def _configure(self, config_name, actions, contents):
@@ -404,8 +410,17 @@ class BaseWeatherAgent(Agent):
                         location)
                     observation_time, oldtz = process_timestamp(
                         observation_time)
-
-                    # TODO unit conversions, properties name mapping
+                    if self.point_name_mapping:
+                        mapped_data = []
+                        for point, value in data:
+                            if point in self.point_name_mapping:
+                                mapped_data[self.point_name_mapping["point"]["Standard_Point_Name"]] = value
+                                if (self.point_name_mapping[point]["Service_Units"] and
+                                        self.point_name_mapping[point]["Standardized_Units"]):
+                                    mapped_data[point] = self.manage_unit_conversion(
+                                        self.point_name_mapping[point]["Service_Units"],
+                                        value,
+                                        self.point_name_mapping[point]["Standardized_Units"])
                     if observation_time is not None:
                         storage_record = [json.dumps(location),
                                           observation_time,

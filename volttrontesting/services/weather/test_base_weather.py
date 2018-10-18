@@ -88,8 +88,8 @@ class BasicWeatherAgent(BaseWeatherAgent):
         super(BasicWeatherAgent, self).__init__(**kwargs)
 
     # TODO create a file to use, a path, and stick the string here
-    def get_point_name_def_file(self):
-        return None
+    def get_point_name_defs_file(self):
+        return "volttrontesting/services/weather/point_names_defs.csv"
 
     def query_current_weather(self, location):
         current_time = datetime.datetime.utcnow()
@@ -301,7 +301,6 @@ def test_set_update_interval_fail(weather, service_name, interval):
     assert not passed
 
 @pytest.mark.weather2
-@pytest.mark.xfail
 @pytest.mark.parametrize("from_units, start, to_units, end", [
     ("inch", 1, "cm", 2.54),
     ("celsius", 100, "fahrenheit", 212),
