@@ -286,6 +286,7 @@ def test_set_update_interval_fail(weather, service_name, interval):
     assert not passed
 
 @pytest.mark.weather2
+@pytest.mark.xfail
 @pytest.mark.parametrize("from_units, start, to_units, end", [
     ("inch", 1, "cm", 2.54),
     ("fahrenheit", 32, "celsius", 0),

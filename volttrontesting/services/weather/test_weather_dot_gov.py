@@ -38,6 +38,7 @@
 
 import pytest
 import gevent
+from mock import MagicMock
 import copy
 import logging
 from volttron.platform.agent import utils
@@ -59,7 +60,7 @@ weather_dot_gov_service = {
     'max_size_gb': None,
     'api_key': None,
     'polling_locations': [],
-    'poll_interval': None
+    'poll_interval': 5
 }
 
 @pytest.fixture(scope="module")
@@ -195,7 +196,7 @@ def test_success_forecast(weather, query_agent, locations):
         else:
             assert cache_location_data.get("weather_error")
 
-
+# TODO compare failure condition messages
 @pytest.mark.dev
 @pytest.mark.parametrize("locations", [
     [{"station": "KLAX"}, "fail"]
@@ -208,13 +209,46 @@ def test_hourly_forecast_fail(weather, query_agent, locations):
         assert record.get("weather_results") is None
 
 @pytest.mark.weather2
-def test_polling_locations(volttron_instance, weather, query_agent):
+@pytest.mark.parametrize("locations", [
+    [{"station": "KLAX"}, {"station": "KABQ"}]
+])
+def test_polling_locations_valid_locations(volttron_instance, weather, query_agent, locations):
     new_config = copy.copy(weather)
     source = new_config.pop("weather_service")
-    new_config["polling_locations"] = [{"station": "KLAX"}, {"station": "KABQ"}]
+    new_config["polling_locations"] = locations
     new_config["poll_interval"] = 5
     agent_uuid = None
     try:
+        query_agent.callback = MagicMock(name="callback")
+        query_agent.callback.reset_mock()
+        agent_uuid = volttron_instance.install_agent(
+            vip_identity="poll.weather",
+            agent_dir=source,
+            start=False,
+            config_file=new_config)
+        volttron_instance.start_agent(agent_uuid)
+        query_agent.vip.pubsub.subscribe('pubsub', "weather/poll//all", query_agent.callback)
+        gevent.sleep(5)
+        assert query_agent.callback.call_count == locations.length
+        print query_agent.callback.call_args
+    finally:
+        if agent_uuid:
+            volttron_instance.stop_agent(agent_uuid)
+            volttron_instance.remove_agent(agent_uuid)
+
+@pytest.mark.weather2
+@pytest.mark.parametrize("locations", [
+    [{"lat": 39.7555, "long": -105.2211}, {"wfo": 'BOU', 'x': 54, 'y': 62}, "fail"]
+])
+def test_polling_locations_invalid_locations(volttron_instance, weather, query_agent, locations):
+    new_config = copy.copy(weather)
+    source = new_config.pop("weather_service")
+    new_config["polling_locations"] = locations
+    new_config["poll_interval"] = 5
+    agent_uuid = None
+    try:
+        query_agent.callback = MagicMock(name="callback")
+        query_agent.callback.reset_mock()
         agent_uuid = volttron_instance.install_agent(
             vip_identity="poll.weather",
             agent_dir=source,

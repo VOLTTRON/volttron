@@ -585,10 +585,10 @@ class BaseWeatherAgent(Agent):
 
     # TODO docs
     def poll_for_locations(self):
-        topic = "weather/{}/current/{}/all"
-        data = self.query_current_weather(self.polling_locations)
+        topic = "weather/poll/current/{}/all"
+        data = self.get_current_weather(self.polling_locations)
         for record in data:
-            poll_topic = topic.format("poll", record["location"])
+            poll_topic = topic.format(record["location"])
             self.publish_response(poll_topic, record)
 
     # TODO docs
