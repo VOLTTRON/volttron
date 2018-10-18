@@ -643,7 +643,7 @@ class BaseWeatherAgent(Agent):
 
     def _get_status_from_context(self, context):
         status = STATUS_GOOD
-        if context.get("cache_full") or (not context.get("publishing") and len(self.polling_locations)):
+        if context.get("cache_full") or (not context.get("publishing") and self.polling_locations):
             status = STATUS_BAD
         return status
 
