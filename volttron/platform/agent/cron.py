@@ -304,7 +304,7 @@ def schedule(cron_string, start=None, stop=None):
             elif weekdays:
                 _days = _weekdays(year, month)
             else:
-                _days = range(1, 32)
+                _days = range(first_day, 32)
             for day in _days:
                 for hour in hours:
                     for minute in minutes:
