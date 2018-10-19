@@ -670,30 +670,18 @@ This says that Historian agent on v2 wants to make RPC call to DataMover agent o
         ```
             vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
         ```
-	b. We can see that shovel is created on v1 using "volttron-ctl" command.
-        ```
-            volttron-ctl rabbitmq list-shovel-parameters
-            NAME                     SOURCE ADDRESS                                                 DESTINATION ADDRESS                                            BINDING KEY
-            shovel-rabbit-2-data.mover    amqps://rabbit-1:5671/volttron1?cacertfile=/home/nidd494/.volttron_rpc/certificates/certs/volttron1-trusted-cas.crt&certfile=/home/nidd494/.volttron_rpc/certificates/certs/volttron1.data.mover.crt&keyfile=/home/nidd494/.volttron_rpc/certificates/private/volttron1.mover.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-1                      amqps://rabbit-2:5671/volttron?cacertfile=/home/nidd494/.volttron_rpc/certificates/certs/volttron1-trusted-cas.crt&certfile=/home/nidd494/.volttron_rpc/certificates/certs/volttron1.data.mover.crt&keyfile=/home/nidd494/.volttron_rpc/certificates/private/volttron1.data.mover.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-2                      volttron2.platform.historian.#
-        ```
-	c. Create a user on v2 with username set to remote agent's username
+	b. Create a user on v2 with username set to remote agent's username
 	( for example, v1.data.mover i.e., <instance_name>.<agent_identity>) and allow
 	the shovel access to the virtual host of v2.
         ```sh
             cd $RABBITMQ_HOME
             vctl add-user <username> <password>
         ```
-	d. On v2, run below command to setup a shovel from v2 to v1
+	c. On v2, run below command to setup a shovel from v2 to v1
         ```
             vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
         ```
-	e. We can see that shovel is created on v1 using "volttron-ctl" command.
-        ```
-            volttron-ctl rabbitmq list-shovel-parameters
-            NAME                     SOURCE ADDRESS                                                 DESTINATION ADDRESS                                            BINDING KEY
-            shovel-rabbit-1-platform.historian  amqps://rabbit-2:5671/volttron?cacertfile=/home/nidd494/.volttron_rpc/certificates/certs/volttron2-trusted-cas.crt&certfile=/home/nidd494/.volttron_rpc/certificates/certs/volttron2.platform.historian.crt&keyfile=/home/nidd494/.volttron_rpc/certificates/private/volttron2.platform.historian.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-2  amqps://rabbit-1:5671/volttron1?cacertfile=/home/nidd494/.volttron_rpc/certificates/certs/volttron2-trusted-cas.crt&certfile=/home/nidd494/.volttron_rpc/certificates/certs/volttron2.platform.historian.crt&keyfile=/home/nidd494/.volttron_rpc/certificates/private/volttron2.platform.historian.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-1  volttron1.data.mover.#
-        ```
-	f. Create a user on v1 with username set to remote agent's username
+	d. Create a user on v1 with username set to remote agent's username
 	( for example, v2.patform.historian i.e., <instance_name>.<agent_identity>) and allow
 	the shovel access to the virtual host of the v1.
         ```sh
