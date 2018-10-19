@@ -559,10 +559,10 @@ def test_hourly_historical_fail(weather, fake_locations, start_date, end_date):
 
 # TODO
 @pytest.mark.weather2
-def test_polling_locations(volttron_instance, weather, query_agent):
+def test_poll_locations(volttron_instance, weather, query_agent):
     new_config = copy.copy(weather)
     source = new_config.pop("weather_service")
-    new_config["polling_locations"] = [{"station": "KLAX"}, {"station": "KABQ"}]
+    new_config["poll_locations"] = [{"station": "KLAX"}, {"station": "KABQ"}]
     new_config["poll_interval"] = 5
     agent_uuid = None
     try:
@@ -584,6 +584,6 @@ def test_update_and_get_status(volttron_instance, weather, query_agent):
     assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10) == STATUS_GOOD
     weather._update_status({"publishing": False})
     assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10) == STATUS_BAD
-    weather.polling_locations = []
+    weather.poll_locations = []
     weather.poll_for_locations()
     assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10) == STATUS_GOOD

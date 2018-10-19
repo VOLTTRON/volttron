@@ -58,7 +58,7 @@ weather_dot_gov_service = {
     # 'max_size_gb': 0.00002,
     'max_size_gb': None,
     'api_key': None,
-    'polling_locations': [],
+    'poll_locations': [],
     'poll_interval': None
 }
 
@@ -102,7 +102,7 @@ def weather(request, volttron_instance):
     return request.param
 
 
-@pytest.mark.dev
+@pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
     [{"station": "KLAX"}],
     [{"station": "KLAX"}, {"station": "KBOI"}],
@@ -129,7 +129,7 @@ def test_success_current(weather, query_agent, locations):
         for key in query_data[x]:
             assert query_data[x].get(key) == cache_data[x].get(key)
 
-@pytest.mark.dev
+@pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
     [{"lat": 39.7555, "long": -105.2211}, "fail"]
 ])
@@ -208,10 +208,10 @@ def test_hourly_forecast_fail(weather, query_agent, locations):
         assert record.get("weather_results") is None
 
 @pytest.mark.weather2
-def test_polling_locations(volttron_instance, weather, query_agent):
+def test_poll_locations(volttron_instance, weather, query_agent):
     new_config = copy.copy(weather)
     source = new_config.pop("weather_service")
-    new_config["polling_locations"] = [{"station": "KLAX"}, {"station": "KABQ"}]
+    new_config["poll_locations"] = [{"station": "KLAX"}, {"station": "KABQ"}]
     new_config["poll_interval"] = 5
     agent_uuid = None
     try:
