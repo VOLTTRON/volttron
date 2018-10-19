@@ -177,7 +177,7 @@ def parse_cron_string(cron_string):
             _coallesce_ranges('weekday', weekday, 0, 7, _translate_weekday))
 
 
-def schedule(cron_string, start=None, stop=None):
+def schedule(cron_string, start=None, stop=None, second=0):
     '''Return a schedule generator from a cron-style string.
 
     cron_string is a cron-style time expression consisting of five
@@ -188,7 +188,8 @@ def schedule(cron_string, start=None, stop=None):
     object, in which case the end time is start + stop.  If start is
     None, the current time is used.  If stop is None, schedule will
     generate values infinitely.  Each iteration yields a
-    datetime.datetime object.
+    datetime.datetime object. Since the smallest cron unit is a minute,
+    second may be passed in to offset the time within the minute.
 
     The following description of the cron fields is taken from the
     crontab(5) man page (with slight modifications).
@@ -234,6 +235,8 @@ def schedule(cron_string, start=None, stop=None):
     "4:30 am on the 1st and 15th of each month, plus every Friday."
     '''
 
+    if not 0 <= second < 60:
+        raise ValueError('second is out of the range [0, 59]')
     minutes, hours, days, months, weekdays = parse_cron_string(cron_string)
     # Convert 0-Sunday to 7-Sunday to match datetime.isoweekday()
     if weekdays and weekdays[0] == 0:
@@ -284,10 +287,10 @@ def schedule(cron_string, start=None, stop=None):
                 weekdays and start.isoweekday() in weekdays):
             if start.hour in hours:
                 for minute in minutes[bisect_right(minutes, start.minute):]:
-                    yield datetime(start.year, start.month, start.day, start.hour, minute)
+                    yield datetime(start.year, start.month, start.day, start.hour, minute, second)
             for hour in hours[bisect_right(hours, start.hour):]:
                 for minute in minutes:
-                    yield datetime(start.year, start.month, start.day, hour, minute)
+                    yield datetime(start.year, start.month, start.day, hour, minute, second)
         first_month = [(start.year, start.month, start.day + 1)]
     else:
         first_month = []
@@ -308,10 +311,9 @@ def schedule(cron_string, start=None, stop=None):
             for day in _days:
                 for hour in hours:
                     for minute in minutes:
-                        dt = datetime(year, month, day, hour, minute)
+                        dt = datetime(year, month, day, hour, minute, second)
                         if stop and dt > stop:
                             return
                         yield dt
         except ValueError:
             pass
-
