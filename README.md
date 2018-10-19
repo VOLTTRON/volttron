@@ -520,15 +520,16 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
 **Using Shovel Plugin**
 
-In RabbitMQ based VOLTTRON, forwarder and data mover agents will be replaced by shovels
+In RabbitMQ based VOLTTRON, forwarder and data puller agents will be replaced by shovels
 to send or receive remote pubsub messages.
 Shovel behaves like a well written client application that connects to its source
 ( can be local or remote ) and destination ( can be local or remote instance ),
 reads and writes messages, and copes with connection failures. In case of shovel, apart
 from configuring the hostname, port and virtual host of the remote instance, we will
-also have to provide list of topics that we want to forward to remote instance. Shovels
-can also be used for remote RPC communication in which case we would have to create shovel
-in both the instances, one to send the RPC request and other to send the response back.
+also have to provide list of topics that we want to forward to remote instance and associated
+publisher agent identities. Shovels can also be used for remote RPC communication in which
+case we would have to create shovel in both the instances, one to send the RPC request and
+other to send the response back.
 
 Following are the steps to create Shovel for multi-platform pubsub communication.
 
@@ -570,12 +571,12 @@ certain topics to remote instance "v2".
 
         If no config file is provided, the script will prompt for
         hostname (or IP address), port, vhost and list of topics for each
-        remote instance you would like to add. For
-        bi-directional data flow, we will have to run the same script on both the nodes.
+        remote instance you would like to add. For bi-directional data flow,
+        we will have to run the same script on both the nodes.
 
-    b.  Create a user in the subscriber node with username set to publisher instance's
-        admin user name ( (instance-name)-admin ) and allow the shovel access to
-        the virtual host of the subscriber node.
+    b.  Create a user in the subscriber node with username set to publisher agent's username
+        ( for example, v1.platform.driver i.e., <instance_name>.<agent_identity>) and allow
+        the shovel access to the virtual host of the subscriber node.
 
         ```sh
         cd $RABBITMQ_HOME
@@ -618,6 +619,109 @@ certain topics to remote instance "v2".
    vctl rabbitmq remove-shovel-parameters shovel-rabbit-3-devices
    ```
 
+Following are the steps to create Shovel for multi-platform RPC communication. Example
+configuration can be found in examples/configurations/rabbitmq/rabbitmq_shovel_config.yml. We
+shall explain remote RPC communication using DataMover agent as an example but same principle
+needs to be applied to any agent that wants to make RPC call to an agent running on remote instance.
+DataMover agent running on one instance makes RPC call to platform historian running on remote
+instance to store data on remote instance. Platform historian agent returns response back to DataMover
+agent. For such a request-response behavior, shovels need to be created on both instances.
+
+1. Please ensure that preliminary steps for multi-platform communication are completed (namely,
+steps 1 and 2 described above) .
+
+2. To setup a data mover to send messages from local instance (say v1) to remote instance (say v2)
+and back, we would need to setup shovels on both instances.
+Example of RabbitMQ shovel configuration on v1
+```json
+shovel:
+  # hostname of remote machine
+  rabbit-2:
+    port: 5671
+    rpc:
+      # Remote instance name
+      v2:
+      # List of pair of agent identities (local caller, remote callee)
+      - [data.mover, platform.historian]
+    virtual-host: v1
+```
+
+This says that DataMover agent on v1 wants to make RPC call to Historian agent on v2.
+
+```
+    vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
+```
+
+Example of RabbitMQ shovel configuration on v2
+```json
+shovel:
+  # hostname of remote machine
+  rabbit-1:
+    port: 5671
+    rpc:
+      # Remote instance name
+      v1:
+      # List of pair of agent identities (local caller, remote callee)
+      - [platform.historian, data.mover]
+    virtual-host: v2
+```
+This says that Historian agent on v2 wants to make RPC call to DataMover agent on v1.
+
+    a. On v1, run below command to setup a shovel from v1 to v2
+    ```
+        vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
+    ```
+    b. Create a user on v2 with username set to remote agent's username
+        ( for example, v1.data.mover i.e., <instance_name>.<agent_identity>) and allow
+        the shovel access to the virtual host of v2.
+
+        ```sh
+        cd $RABBITMQ_HOME
+        vctl add-user <username> <password>
+        ```
+    c. On v2, run below command to setup a shovel from v2 to v1
+        ```
+            vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
+        ```
+    d. Create a user on v1 with username set to remote agent's username
+        ( for example, v2.patform.historian i.e., <instance_name>.<agent_identity>) and allow
+        the shovel access to the virtual host of the v1.
+
+        ```sh
+        cd $RABBITMQ_HOME
+        vctl add-user <username> <password>
+        ```
+3. Start Master driver agent on v1
+   ```sh
+   ./stop-volttron
+   vcfg --agent master_driver
+   ./start-volttron
+   vctl start --tag master_driver
+   ```
+4. Install DataMover agent on v1.
+Example start script for DataMover agent
+```
+#!/bin/bash
+export CONFIG=$(mktemp /tmp/abc-script.XXXXXX)
+cat > $CONFIG <<EOL
+{
+    "destination-vip": "amqp://test2:test2@localhost:5672/test2",
+    "destination-serverkey": "1yEUcpIcQTJzpvEwl-7KNCxe_f5rhhoShv9f3A8wdUg",
+    "destination-instance-name": "volttron2",
+    "destination-message-bus": "rmq"
+}
+EOL
+python scripts/install-agent.py -s services/core/DataMover -c $CONFIG --start --force -i data.mover
+```
+
+5. Start platform historian of your choice on v2. Example shows starting SQLiteHistorian
+   ```sh
+   ./stop-volttron
+   vcfg --agent platform_historian
+   ./start-volttron
+   vctl start --tag platform_historian
+   ```
+6. Observe data getting stored in sqlite historian on v2.
 
 
 ** RabbitMQ Trouble Shooting **
