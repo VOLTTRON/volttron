@@ -49,6 +49,7 @@ import threading
 import time
 import urlparse
 import uuid
+import warnings
 import weakref
 import signal
 
@@ -372,6 +373,11 @@ class BasicCore(object):
 
     @dualmethod
     def periodic(self, period, func, args=None, kwargs=None, wait=0):
+        warnings.warn(
+            'Use of the periodic() method is deprecated in favor of the '
+            'schedule() method with the periodic() generator. This '
+            'method will be removed in a future version.',
+            DeprecationWarning)
         greenlet = Periodic(period, args, kwargs, wait).get(func)
         self.spawned_greenlets.add(greenlet)
         greenlet.start()
@@ -379,6 +385,11 @@ class BasicCore(object):
 
     @periodic.classmethod
     def periodic(cls, period, args=None, kwargs=None, wait=0):  # pylint: disable=no-self-argument
+        warnings.warn(
+            'Use of the periodic() decorator is deprecated in favor of '
+            'the schedule() decorator with the periodic() generator. '
+            'This decorator will be removed in a future version.',
+            DeprecationWarning)
         return Periodic(period, args, kwargs, wait)
 
     @classmethod
