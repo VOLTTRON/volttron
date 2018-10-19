@@ -666,28 +666,28 @@ shovel:
     virtual-host: v2
 ```
 This says that Historian agent on v2 wants to make RPC call to DataMover agent on v1.
-	a. On v1, run below command to setup a shovel from v1 to v2.
-        ```
-            vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
-        ```
-	b. Create a user on v2 with username set to remote agent's username
-	( for example, v1.data.mover i.e., <instance_name>.<agent_identity>) and allow
-	the shovel access to the virtual host of v2.
-        ```sh
-            cd $RABBITMQ_HOME
-            vctl add-user <username> <password>
-        ```
-	c. On v2, run below command to setup a shovel from v2 to v1
-        ```
-            vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
-        ```
-	d. Create a user on v1 with username set to remote agent's username
-	( for example, v2.patform.historian i.e., <instance_name>.<agent_identity>) and allow
-	the shovel access to the virtual host of the v1.
-        ```sh
-            cd $RABBITMQ_HOME
-            vctl add-user <username> <password>
-        ```
+    a. On v1, run below command to setup a shovel from v1 to v2.
+    ```
+        vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
+    ```
+    b. Create a user on v2 with username set to remote agent's username
+    ( for example, v1.data.mover i.e., <instance_name>.<agent_identity>) and allow
+    the shovel access to the virtual host of v2.
+    ```sh
+        cd $RABBITMQ_HOME
+        vctl add-user <username> <password>
+    ```
+    c. On v2, run below command to setup a shovel from v2 to v1
+    ```
+        vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
+    ```
+    d. Create a user on v1 with username set to remote agent's username
+    ( for example, v2.patform.historian i.e., <instance_name>.<agent_identity>) and allow
+    the shovel access to the virtual host of the v1.
+    ```sh
+        cd $RABBITMQ_HOME
+        vctl add-user <username> <password>
+    ```
 3. Start Master driver agent on v1
    ```sh
    ./stop-volttron
