@@ -667,7 +667,7 @@ shovel:
 ```
 This says that Historian agent on v2 wants to make RPC call to DataMover agent on v1.
 
-    a. On v1, run below command to setup a shovel from v1 to v2
+    a. On v1, run below command to setup a shovel from v1 to v2.
     ```
         vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
     ```
@@ -698,9 +698,9 @@ This says that Historian agent on v2 wants to make RPC call to DataMover agent o
    ./start-volttron
    vctl start --tag master_driver
    ```
-4. Install DataMover agent on v1.
-Example start script for DataMover agent
-```
+4. Install DataMover agent on v1. Contents of the install script can look like below.
+```sh
+
 #!/bin/bash
 export CONFIG=$(mktemp /tmp/abc-script.XXXXXX)
 cat > $CONFIG <<EOL
@@ -713,6 +713,7 @@ cat > $CONFIG <<EOL
 EOL
 python scripts/install-agent.py -s services/core/DataMover -c $CONFIG --start --force -i data.mover
 ```
+Execute the install script.
 
 5. Start platform historian of your choice on v2. Example shows starting SQLiteHistorian
    ```sh
