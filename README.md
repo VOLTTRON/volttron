@@ -666,7 +666,6 @@ shovel:
     virtual-host: v2
 ```
 This says that Historian agent on v2 wants to make RPC call to DataMover agent on v1.
-
     a. On v1, run below command to setup a shovel from v1 to v2.
     ```
         vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
@@ -674,7 +673,6 @@ This says that Historian agent on v2 wants to make RPC call to DataMover agent o
     b. Create a user on v2 with username set to remote agent's username
         ( for example, v1.data.mover i.e., <instance_name>.<agent_identity>) and allow
         the shovel access to the virtual host of v2.
-
         ```sh
         cd $RABBITMQ_HOME
         vctl add-user <username> <password>
@@ -686,7 +684,6 @@ This says that Historian agent on v2 wants to make RPC call to DataMover agent o
     d. Create a user on v1 with username set to remote agent's username
         ( for example, v2.patform.historian i.e., <instance_name>.<agent_identity>) and allow
         the shovel access to the virtual host of the v1.
-
         ```sh
         cd $RABBITMQ_HOME
         vctl add-user <username> <password>
@@ -699,20 +696,19 @@ This says that Historian agent on v2 wants to make RPC call to DataMover agent o
    vctl start --tag master_driver
    ```
 4. Install DataMover agent on v1. Contents of the install script can look like below.
-```sh
-
-#!/bin/bash
-export CONFIG=$(mktemp /tmp/abc-script.XXXXXX)
-cat > $CONFIG <<EOL
-{
-    "destination-vip": "amqp://test2:test2@localhost:5672/test2",
-    "destination-serverkey": "1yEUcpIcQTJzpvEwl-7KNCxe_f5rhhoShv9f3A8wdUg",
-    "destination-instance-name": "volttron2",
-    "destination-message-bus": "rmq"
-}
-EOL
-python scripts/install-agent.py -s services/core/DataMover -c $CONFIG --start --force -i data.mover
-```
+   ```sh
+    #!/bin/bash
+    export CONFIG=$(mktemp /tmp/abc-script.XXXXXX)
+    cat > $CONFIG <<EOL
+    {
+        "destination-vip": "amqp://test2:test2@localhost:5672/test2",
+        "destination-serverkey": "1yEUcpIcQTJzpvEwl-7KNCxe_f5rhhoShv9f3A8wdUg",
+        "destination-instance-name": "volttron2",
+        "destination-message-bus": "rmq"
+    }
+    EOL
+    python scripts/install-agent.py -s services/core/DataMover -c $CONFIG --start --force -i data.mover
+    ```
 Execute the install script.
 
 5. Start platform historian of your choice on v2. Example shows starting SQLiteHistorian
