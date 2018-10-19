@@ -333,8 +333,8 @@ class PubSub(BasePubSub):
         type subscribed: boolean
         param reverse: reverse
         type reverse:
-        :returns: List of subscriptions, i.e, list of tuples of bus, topic and flag to indicate if peer is a
-        subscriber or not
+        :returns: List of subscriptions, i.e, list of tuples of bus, topic and
+        flag to indicate if peer is a subscriber or not
         :rtype: list of tuples
 
         :Return Values:
@@ -680,6 +680,16 @@ class PubSub(BasePubSub):
                 _log.error("Missing keys in pubsub message: {}".format(exc))
             else:
                 self._process_callback(sender, bus, topic, headers, message)
+
+        elif op == 'list_response':
+            result = None
+            try:
+                result = self._results.pop(bytes(message.id))
+                response = jsonapi.loads(message.args[1].bytes)
+                if result:
+                    result.set(response)
+            except KeyError:
+                pass
         else:
             _log.error("Unknown operation ({})".format(op))
 

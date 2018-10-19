@@ -333,16 +333,12 @@ class RMQPubSub(BasePubSub):
         :Return Values:
         List of tuples [(bus, topic, flag to indicate if peer is a subscriber or not)]
         """
+        async_result = next(self._results)
         results = []
-        rmq_prefix = self._form_routing_key(prefix)
         if reverse:
-            test = rmq_prefix.startswith
+            test = prefix.startswith
         else:
-            test = lambda t: t.startswith(rmq_prefix)
-        member = True
-        # for topic, subscriptions in self._my_subscriptions.iteritems():
-        #     if test(topic):
-        #         results.append((bus, topic, member))
+            test = lambda t: t.startswith(prefix)
 
         try:
             bindings = self.core().rmq_mgmt.get_bindings('volttron')
@@ -350,17 +346,20 @@ class RMQPubSub(BasePubSub):
             self._logger.error("Error making request to RabbitMQ Management interface.\n"
                           "Check Connection Parameters: {} \n".format(e))
         else:
-            rmq_prefix = self._form_routing_key(prefix)
-            if bindings:
-                for b in bindings:
-                    if test(b['routing_key']):
-                        if self.core().identity in b['destination']:
-                            member = True
-                        else:
-                            member = False
-                        topic = self._get_original_topic(b['routing_key'])
-                        results.append(('', topic, member))
-        return results
+            try:
+                items = [(b['destination'], self._get_original_topic(b['routing_key']))
+                     for b in bindings if b['routing_key'].startswith('__pubsub__')]
+            except KeyError as e:
+                return async_result
+
+            for item in items:
+                peer = item[0]
+                topic = item[1]
+                if test(topic):
+                    member = self.core().identity in peer
+                    results.append(('', topic, member))
+        self.core().spawn_later(0.01, self.set_result, async_result.ident, results)
+        return async_result
 
     def publish(self, peer, topic, headers=None, message=None, bus=''):
         """Publish a message to a given topic via a peer.
