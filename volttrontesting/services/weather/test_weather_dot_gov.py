@@ -207,6 +207,8 @@ def test_success_forecast(weather, query_agent, locations):
 # TODO compare failure condition messages
 @pytest.mark.dev
 @pytest.mark.parametrize("locations", [
+    ["fail"],
+    [{"station": "KLAX"}],
     [{"station": "KLAX"}, "fail"]
 ])
 def test_hourly_forecast_fail(weather, query_agent, locations):
@@ -246,7 +248,10 @@ def test_polling_locations_valid_locations(volttron_instance, weather, query_age
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
-    [{"lat": 39.7555, "long": -105.2211}, {"wfo": 'BOU', 'x': 54, 'y': 62}, "fail"]
+    [{"lat": 39.7555, "long": -105.2211}],
+    [{"lat": 39.7555}, {"long": -105.2211}],
+    [{"wfo": 'BOU', 'x': 54, 'y': 62}],
+    ["fail"]
 ])
 def test_polling_locations_invalid_locations(volttron_instance, weather, query_agent, locations):
     new_config = copy.copy(polling_service)

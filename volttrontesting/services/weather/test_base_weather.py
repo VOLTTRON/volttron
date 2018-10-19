@@ -328,6 +328,7 @@ def test_manage_unit_conversion_fail(weather, from_units, start, to_units, error
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("fake_locations", [
+    [],
     [{"location": "fake_location"}],
     [{"location": "fake_location1"}, {"location": "fake_location2"}],
     [{"location": "fake_location"}, {"location": "fake_location"}]
@@ -408,7 +409,8 @@ def test_get_current_valid_locations(weather, fake_locations):
 @pytest.mark.parametrize("fake_locations", [
     [{"location": "bad_string"}],
     [{"fail": "fail"}],
-    ["bad_format"]
+    ["bad_format"],
+    [{"fail": "fail"}, {"location": "bad_string"}, "bad_format"]
 ])
 def test_get_current_invalid_locations(weather, fake_locations):
     conn = weather._cache._sqlite_conn
@@ -450,7 +452,10 @@ def test_get_current_mixed_locations(weather, locations, expected_passing, expec
 
 @pytest.mark.dev
 @pytest.mark.parametrize("fake_locations", [
-    [{"location": "fake_location1"}]
+    [],
+    [{"location": "fake_location"}],
+    [{"location": "fake_location1"}, {"location": "fake_location2"}],
+    [{"location": "fake_location"}, {"location": "fake_location"}]
 ])
 def test_get_forecast_valid_locations(weather, fake_locations):
     conn = weather._cache._sqlite_conn
@@ -567,8 +572,10 @@ def validate_basic_weather_forecast(locations, result, warn=True,
 
 @pytest.mark.dev
 @pytest.mark.parametrize("fake_locations", [
-    [{"location": "bad_string"}, {"fail": "fail"}, "bad_format"],
-    [{"location": "fake_location"}, "fail"]
+    [{"location": "bad_string"}],
+    [{"fail": "fail"}],
+    ["bad_format"],
+    [{"location": "bad_string"}, {"fail": "fail"}, "bad_format"]
 ])
 def test_get_forecast_fail(weather, fake_locations):
     conn = weather._cache._sqlite_conn
