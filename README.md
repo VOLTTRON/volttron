@@ -666,6 +666,7 @@ shovel:
     virtual-host: v2
 ```
 This says that Historian agent on v2 wants to make RPC call to DataMover agent on v1.
+
 a. On v1, run below command to setup a shovel from v1 to v2.
 ```
 vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
