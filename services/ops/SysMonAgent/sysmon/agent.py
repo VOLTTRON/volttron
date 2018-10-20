@@ -47,6 +47,7 @@ import psutil
 
 from volttron.platform.vip.agent import Agent, RPC, Core
 from volttron.platform.agent import utils
+from volttron.platform.scheduling import periodic
 
 
 utils.setup_logging()
@@ -99,7 +100,7 @@ class SysMonAgent(Agent):
         for key in config:
             _log.warn('Ignoring unrecognized cofiguration parameter %s', key)
 
-        self._pub_greenlets = []
+        self._scheduled = []
 
     def _configure(self, config):
         self.base_topic = config.pop('base_topic', self.base_topic)
@@ -118,15 +119,15 @@ class SysMonAgent(Agent):
         """Set up periodic publishing of system resource data"""
         self._start_pub()
 
-    def _periodic_pub(self, func, period, wait=0):
+    def _periodic_pub(self, func, period):
         """Periodically call func and publish its return value"""
         def pub_wrapper():
             data = func()
             topic = self.base_topic + '/' + func.__name__
             self.vip.pubsub.publish(peer='pubsub', topic=topic,
                                     message=data)
-        greenlet = self.core.periodic(period, pub_wrapper, wait=wait)
-        self._pub_greenlets.append(greenlet)
+        sched = self.core.schedule(periodic(period), pub_wrapper)
+        self._scheduled.append(sched)
 
     @RPC.export
     def cpu_percent(self):
@@ -159,9 +160,9 @@ class SysMonAgent(Agent):
         self._periodic_pub(self.disk_percent, self.disk_check_interval)
 
     def _stop_pub(self):
-        for greenlet in self._pub_greenlets:
-            greenlet.kill()
-        self._pub_greenlets = []
+        for sched in self._scheduled:
+            sched.cancel()
+        self._scheduled = []
 
 
 def main(argv=sys.argv):

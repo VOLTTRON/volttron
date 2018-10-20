@@ -62,23 +62,34 @@ The easiest way to register a callback is with a function decorator:
 Periodic and Scheduled Function Calls
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Functions and agent methods can be registered to be called periodically or scheduled
-to be run at a particular time. Decorators or explicit access to an agent's core.periodic()
-method can be used for this purpose. The latter is especially useful if, for example, a
-decision needs to be made in an agent's onstart method as to whether a periodic call should
-be initialized.
+to run at a particular time using the Core.schedule decorator or by calling an agent's
+core.schedule() method. The latter is especially useful if, for example, a decision
+needs to be made in an agent's onstart method as to whether a call should be scheduled.
 
 .. code-block:: python
 
-    @Core.periodic(t)
-    def function(self, ...):
-        function_body
+    from volttron.platform.scheduling import cron, periodic
+
+    @Core.schedule(t)
+    def function(self):
+        ...
+
+    @Core.schedule(periodic(t))
+    def periodic_function(self):
+        ...
+
+    @Core.schedule(cron('0 1 * * *'))
+    def cron_function(self):
+       ...
 
 or
 
 .. code-block:: python
 
     # inside some agent method
-    self.core.periodic(t, function)
+    self.core.schedule(t, function)
+    self.core.schedule(periodic(t), periodic_function)
+    self.core.schedule(cron('0 1 * * *'), cron_function)
 
 
 Subsystem
