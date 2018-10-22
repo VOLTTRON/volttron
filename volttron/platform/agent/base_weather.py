@@ -421,11 +421,8 @@ class BaseWeatherAgent(Agent):
             if not record_dict.get("weather_results"):
                 _log.debug("Current weather data from api")
                 record_dict = self.get_current_weather_remote(location)
-                _log.debug("api returned record with observation time: "
-                           "{}".format(record_dict["observation_time"]))
 
             result.append(record_dict)
-        _log.debug("before returning")
         return result
 
     def get_cached_current_data(self, location):

@@ -404,7 +404,7 @@ def test_get_current_valid_locations(weather, fake_locations):
 
     cursor.close()
 
-@pytest.mark.dev
+@pytest.mark.weather2
 @pytest.mark.parametrize("fake_locations", [
     [{"location": "bad_string"}],
     [{"fail": "fail"}],
@@ -448,7 +448,7 @@ def test_get_current_mixed_locations(weather, locations, expected_passing, expec
     assert actual_failing == expected_errors
     assert actual_passing == expected_passing
 
-@pytest.mark.dev
+@pytest.mark.weather2
 @pytest.mark.parametrize("fake_locations", [
     [{"location": "fake_location1"}]
 ])
@@ -565,7 +565,7 @@ def validate_basic_weather_forecast(locations, result, warn=True,
             assert wr[1]["points"] == point_data
 
 
-@pytest.mark.dev
+@pytest.mark.weather2
 @pytest.mark.parametrize("fake_locations", [
     [{"location": "bad_string"}, {"fail": "fail"}, "bad_format"],
     [{"location": "fake_location"}, "fail"]

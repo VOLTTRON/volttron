@@ -184,7 +184,7 @@ def test_success_forecast(weather, query_agent, locations):
     for x in range(0, len(cache_data)):
         query_location_data = query_data[x]
         cache_location_data = cache_data[x]
-        assert cache_location_data.get("generation_time") == query_data.get("generation_time")
+        assert cache_location_data.get("generation_time") == query_location_data.get("generation_time")
         if cache_location_data.get("lat") and cache_location_data.get("long"):
             assert cache_location_data.get("lat") == query_location_data.get("lat")
             assert cache_location_data.get("long") == query_location_data.get("long")
@@ -204,7 +204,7 @@ def test_success_forecast(weather, query_agent, locations):
             assert cache_location_data.get("weather_error")
 
 # TODO compare failure condition messages
-@pytest.mark.dev
+@pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
     [{"station": "KLAX"}, "fail"]
 ])
