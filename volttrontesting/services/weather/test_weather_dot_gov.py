@@ -206,6 +206,8 @@ def test_success_forecast(weather, query_agent, locations):
 # TODO compare failure condition messages
 @pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
+    ["fail"],
+    [{"station": "KLAX"}],
     [{"station": "KLAX"}, "fail"]
 ])
 def test_hourly_forecast_fail(weather, query_agent, locations):
@@ -221,7 +223,7 @@ def test_hourly_forecast_fail(weather, query_agent, locations):
 ])
 def test_polling_locations_valid_locations(volttron_instance, weather, query_agent, locations):
     new_config = copy.copy(weather_dot_gov_service)
-    source = new_config.pop("weather_service")
+    source = get_services_core('WeatherDotGov')
     new_config["poll_locations"] = locations
     new_config["poll_interval"] = 5
     agent_uuid = None
@@ -236,7 +238,7 @@ def test_polling_locations_valid_locations(volttron_instance, weather, query_age
         volttron_instance.start_agent(agent_uuid)
         query_agent.vip.pubsub.subscribe('pubsub', "weather/poll//all", query_agent.callback)
         gevent.sleep(5)
-        assert query_agent.callback.call_count == locations.length
+        assert query_agent.callback.call_count == len(locations)
         print query_agent.callback.call_args
     finally:
         if agent_uuid:
@@ -245,11 +247,14 @@ def test_polling_locations_valid_locations(volttron_instance, weather, query_age
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
-    [{"lat": 39.7555, "long": -105.2211}, {"wfo": 'BOU', 'x': 54, 'y': 62}, "fail"]
+    [{"lat": 39.7555, "long": -105.2211}],
+    [{"lat": 39.7555}, {"long": -105.2211}],
+    [{"wfo": 'BOU', 'x': 54, 'y': 62}],
+    ["fail"]
 ])
 def test_polling_locations_invalid_locations(volttron_instance, weather, query_agent, locations):
     new_config = copy.copy(polling_service)
-    source = new_config.pop("weather_service")
+    source = get_services_core('WeatherDotGov'),
     new_config["polling_locations"] = locations
     agent_uuid = None
     try:

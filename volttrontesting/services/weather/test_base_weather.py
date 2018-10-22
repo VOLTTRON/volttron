@@ -328,6 +328,7 @@ def test_manage_unit_conversion_fail(weather, from_units, start, to_units, error
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("fake_locations", [
+    [],
     [{"location": "fake_location"}],
     [{"location": "fake_location1"}, {"location": "fake_location2"}],
     [{"location": "fake_location"}, {"location": "fake_location"}]
@@ -348,59 +349,62 @@ def test_get_current_valid_locations(weather, fake_locations):
     # query_current
     results1 = weather.get_current_weather(fake_locations)
     assert len(results1) == len(fake_locations)
-    assert results1[0]["observation_time"]
-    test_points = results1[0]["points"]
-    assert test_points
-    for initial_point in FAKE_POINTS:
-        fake_point = EXPECTED_OUTPUT_VALUES[initial_point]
-        test_value = test_points[fake_point["name"]]
-        assert test_value
-        if test_value:
-            assert test_value == fake_point["value"]
-    assert results1[0]["location"] == "fake_location"
+    if not len(results1):
+        assert not len(fake_locations)
+    else:
+        assert results1[0]["observation_time"]
+        test_points = results1[0]["points"]
+        assert test_points
+        for initial_point in FAKE_POINTS:
+            fake_point = EXPECTED_OUTPUT_VALUES[initial_point]
+            test_value = test_points[fake_point["name"]]
+            assert test_value
+            if test_value:
+                assert test_value == fake_point["value"]
+        assert results1[0]["location"] == "fake_location"
 
-    # Check data got cached
-    query = "SELECT * FROM 'get_current_weather';"
-    cache_results = cursor.execute(query).fetchall()
-    print cache_results
-    assert len(cache_results) == 1
-    assert ujson.loads(cache_results[0][1]) == fake_locations[0]
-    assert cache_results[0][2] == results1[0]["observation_time"]
-    # assert results1 and cached data are same
-    assert ujson.loads(cache_results[0][3]) == results1[0]["weather_results"]
+        # Check data got cached
+        query = "SELECT * FROM 'get_current_weather';"
+        cache_results = cursor.execute(query).fetchall()
+        print cache_results
+        assert len(cache_results) == 1
+        assert ujson.loads(cache_results[0][1]) == fake_locations[0]
+        assert cache_results[0][2] == results1[0]["observation_time"]
+        # assert results1 and cached data are same
+        assert ujson.loads(cache_results[0][3]) == results1[0]["weather_results"]
 
-    #update cache before querying again
-    cursor.execute("UPDATE get_current_weather SET POINTS = ?",
-                   (ujson.dumps({"points": {"fake": "updated cache"}}),))
-    conn.commit()
+        #update cache before querying again
+        cursor.execute("UPDATE get_current_weather SET POINTS = ?",
+                       (ujson.dumps({"points": {"fake": "updated cache"}}),))
+        conn.commit()
 
-    # second query - results should be from cache
-    results2 = weather.get_current_weather(fake_locations)
-    assert len(results2) == 1
-    assert results2[0]["observation_time"] == results1[0]["observation_time"]
-    assert results2[0]["weather_results"]["points"] == test_points
-    assert results2[0]["location"] == results1[0]["location"]
+        # second query - results should be from cache
+        results2 = weather.get_current_weather(fake_locations)
+        assert len(results2) == 1
+        assert results2[0]["observation_time"] == results1[0]["observation_time"]
+        assert results2[0]["weather_results"]["points"] == test_points
+        assert results2[0]["location"] == results1[0]["location"]
 
-    # third query  - set update interval so that cache would be marked old
-    weather.set_update_interval("get_current_weather",
-                                datetime.timedelta(seconds=1))
-    gevent.sleep(1)
-    results3 = weather.get_current_weather(fake_locations)
-    assert len(results3) == 1
-    assert results3[0]["observation_time"] != results1[0]["observation_time"]
-    for point in results3[0]["weather_results"]["points"]:
-        assert point in EXPECTED_OUTPUT_VALUES
-    assert results3[0]["location"] == "fake_location"
+        # third query  - set update interval so that cache would be marked old
+        weather.set_update_interval("get_current_weather",
+                                    datetime.timedelta(seconds=1))
+        gevent.sleep(1)
+        results3 = weather.get_current_weather(fake_locations)
+        assert len(results3) == 1
+        assert results3[0]["observation_time"] != results1[0]["observation_time"]
+        for point in results3[0]["weather_results"]["points"]:
+            assert point in EXPECTED_OUTPUT_VALUES
+        assert results3[0]["location"] == "fake_location"
 
-    # check data got cached again
-    query = "SELECT * FROM get_current_weather ORDER BY ID;"
-    cache_results = cursor.execute(query).fetchall()
-    print cache_results
-    assert len(cache_results) == 2
-    assert ujson.loads(cache_results[1][1]) == fake_locations[0]
-    assert cache_results[1][2] == results3[0]["observation_time"]
-    # assert results1 and cached data are same
-    assert ujson.loads(cache_results[1][3]) == results3[0]["weather_results"]
+        # check data got cached again
+        query = "SELECT * FROM get_current_weather ORDER BY ID;"
+        cache_results = cursor.execute(query).fetchall()
+        print cache_results
+        assert len(cache_results) == 2
+        assert ujson.loads(cache_results[1][1]) == fake_locations[0]
+        assert cache_results[1][2] == results3[0]["observation_time"]
+        # assert results1 and cached data are same
+        assert ujson.loads(cache_results[1][3]) == results3[0]["weather_results"]
 
     cursor.close()
 
@@ -408,7 +412,8 @@ def test_get_current_valid_locations(weather, fake_locations):
 @pytest.mark.parametrize("fake_locations", [
     [{"location": "bad_string"}],
     [{"fail": "fail"}],
-    ["bad_format"]
+    ["bad_format"],
+    [{"fail": "fail"}, {"location": "bad_string"}, "bad_format"]
 ])
 def test_get_current_invalid_locations(weather, fake_locations):
     conn = weather._cache._sqlite_conn
@@ -450,7 +455,10 @@ def test_get_current_mixed_locations(weather, locations, expected_passing, expec
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("fake_locations", [
-    [{"location": "fake_location1"}]
+    [],
+    [{"location": "fake_location"}],
+    [{"location": "fake_location1"}, {"location": "fake_location2"}],
+    [{"location": "fake_location"}, {"location": "fake_location"}]
 ])
 def test_get_forecast_valid_locations(weather, fake_locations):
     conn = weather._cache._sqlite_conn
@@ -567,8 +575,10 @@ def validate_basic_weather_forecast(locations, result, warn=True,
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("fake_locations", [
-    [{"location": "bad_string"}, {"fail": "fail"}, "bad_format"],
-    [{"location": "fake_location"}, "fail"]
+    [{"location": "bad_string"}],
+    [{"fail": "fail"}],
+    ["bad_format"],
+    [{"location": "bad_string"}, {"fail": "fail"}, "bad_format"]
 ])
 def test_get_forecast_fail(weather, fake_locations):
     conn = weather._cache._sqlite_conn
@@ -629,18 +639,18 @@ def test_poll_locations(volttron_instance, weather, query_agent):
     weather.poll_locations = [{"station": "KLAX"}, {"station": "KABQ"}]
     weather.poll_interval = 5
     try:
-        agent_uuid = volttron_instance.build_agent(
+        agent = volttron_instance.build_agent(
             agent_class=BasicWeatherAgent,
             identity="platform.weatherpolling",
             service_name="BasicWeather"
         )
-        volttron_instance.start_agent(agent_uuid)
+        volttron_instance.start_agent(agent)
         gevent.sleep(5)
         assert query_agent.vip.rpc.call("platform.weatherpolling", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
     finally:
-        if agent_uuid:
-            volttron_instance.stop_agent(agent_uuid)
-            volttron_instance.remove_agent(agent_uuid)
+        if agent:
+            agent.core.stop()
+            volttron_instance.remove_agent(agent)
 
 @pytest.mark.weather2
 @pytest.mark.xfail

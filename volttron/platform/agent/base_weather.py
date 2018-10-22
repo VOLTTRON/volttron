@@ -470,7 +470,7 @@ class BaseWeatherAgent(Agent):
                                 value,
                                 self.point_name_mapping[point][
                                     "Standardized_Units"])
-
+                data = mapped_data
             if observation_time is not None:
                 storage_record = [json.dumps(location),
                                   observation_time,
@@ -585,6 +585,23 @@ class BaseWeatherAgent(Agent):
             else:
                 generation_time, oldtz = process_timestamp(
                     generation_time)
+
+            if self.point_name_mapping:
+                mapped_data = []
+                for point, value in response:
+                    if point in self.point_name_mapping:
+                        mapped_data[self.point_name_mapping["point"][
+                            "Standard_Point_Name"]] = value
+                        if (self.point_name_mapping[point]["Service_Units"] and
+                                self.point_name_mapping[point][
+                                    "Standardized_Units"]):
+                            mapped_data[point] = self.manage_unit_conversion(
+                                self.point_name_mapping[point]["Service_Units"],
+                                value,
+                                self.point_name_mapping[point][
+                                    "Standardized_Units"])
+                response = mapped_data
+
             storage_records = []
             location_data = []
 
