@@ -57,13 +57,28 @@ _log = logging.getLogger(__name__)
 identity = 'platform.weather'
 
 FAKE_LOCATION = {"location": "fake_location"}
-FAKE_POINTS = {"fake": "fake_data"}
+FAKE_POINTS = {"fake1": 1,
+               "fake2": 100,
+               "fake3": 1}
+
+EXPECTED_OUTPUT_VALUES = {"fake1": {"value": 2.54,
+                                    "name": "FAKE1"},
+                          "fake2": {"value": 212,
+                                    "name": "FAKE2"},
+                          "fake3": {"value": 473.176,
+                                    "name": "FAKE3"}
+                          }
 
 @pytest.fixture(scope="module")
-def client_agent(request, volttron_instance):
+def query_agent(request, volttron_instance):
     agent = volttron_instance.build_agent()
-    yield agent
-    agent.core.stop()
+
+    def stop_agent():
+        print("In teardown method of query_agent")
+        agent.core.stop()
+
+    request.addfinalizer(stop_agent)
+    return agent
 
 class BasicWeatherAgent(BaseWeatherAgent):
     """An implementation of the BaseWeatherAgent to test basic method functionality.
@@ -71,6 +86,10 @@ class BasicWeatherAgent(BaseWeatherAgent):
     a particular api (essentially testing the cache functionality)."""
     def __init__(self, **kwargs):
         super(BasicWeatherAgent, self).__init__(**kwargs)
+
+    # TODO create a file to use, a path, and stick the string here
+    def get_point_name_defs_file(self):
+        return "volttrontesting/services/weather/point_names_defs.csv"
 
     def query_current_weather(self, location):
         current_time = datetime.datetime.utcnow()
@@ -90,16 +109,9 @@ class BasicWeatherAgent(BaseWeatherAgent):
             records.append(record)
         return current_time, records
 
+    # TODO
     def query_hourly_historical(self, location, start_date, end_date):
-        records = []
-        for x in range(0, 3):
-            current_time = datetime.datetime.combine(start_date, datetime.time())
-            record = [location,
-                      current_time + datetime.timedelta(hours=(x+1)),
-                      {'points': FAKE_LOCATION}
-                      ]
-            records.append(record)
-        return records
+        pass
 
     def get_update_interval(self, service_name):
         if service_name == "get_current_weather":
@@ -175,14 +187,11 @@ def test_create_tables(weather):
                 assert column in table_columns
 
 @pytest.mark.weather2
-@pytest.mark.parametrize(
-    "service_name, interval, service_type",
-    [
+@pytest.mark.parametrize("service_name, interval, service_type", [
         ("test_register_current", datetime.timedelta(hours=1), "current"),
         ("test_register_forecast", datetime.timedelta(hours=1), "forecast"),
-        ("test_register_history", None, "history")
-    ]
-)
+        ("test_register_history", None, "history"),
+])
 def test_register_service_success(weather, service_name, interval, service_type):
     weather.register_service(service_name, interval, service_type)
     assert weather._api_services.get(service_name)
@@ -194,28 +203,24 @@ def test_register_service_success(weather, service_name, interval, service_type)
     assert weather._api_services.get(service_name)["description"] == None
 
 @pytest.mark.weather2
-@pytest.mark.parametrize("service_name, interval, service_type, description", [
-    ("test_register_current", None, "current", None),
-    ("test_register_current", datetime.timedelta(hours=1), "bad_service_type", None),
-    ("test_register_history", datetime.timedelta(hours=1), "history", None),
-    ("test_register_history", datetime.timedelta(hours=1), "history", 1)
+@pytest.mark.parametrize("service_name, interval, service_type, description, failure_string", [
+    ("test_register_current", None, "current", None,
+     "Interval must be a valid datetime timedelta object."),
+    ("test_register_current", datetime.timedelta(hours=1), "bad_service_type", None,
+     "Invalid service type. It should be history, current, or forecast"),
+    ("test_register_history", datetime.timedelta(hours=1), "history", None,
+     "History object does not utilize an interval."),
+    ("test_register", datetime.timedelta(hours=1), "current", 1,
+     "description is expected as a string describing the service function's usage.")
 ])
-def test_register_service_fail(weather, service_name, interval, service_type, description):
+def test_register_service_fail(weather, service_name, interval, service_type, description, failure_string):
     passed = False
     try:
         weather.register_service(service_name, interval, service_type, description)
         passed = True
     except ValueError as error:
-        if interval is None and service_type is not "history":
-            assert str(error) == "Interval must be a valid datetime timedelta object."
-        elif service_type == "bad_service_type":
-            assert str(error) == "Invalid service type. It should be history, current, " \
-                            "or forecast"
-        elif service_type == "history" and interval is not None:
-            assert str(error) == "History object does not utilize an interval."
-        elif description:
-            assert str(error) == "description is expected as a string describing the " \
-                            "service function's usage."
+        error_string = str(error)
+        assert failure_string == error_string
     assert not passed
 
 @pytest.mark.weather2
@@ -226,6 +231,7 @@ def test_remove_service_success(weather):
     assert len(weather._api_services) == initial_length
     weather.remove_service("get_current_weather")
     assert len(weather._api_services) == initial_length-1
+    weather.register_service("get_current_weather", datetime.timedelta(hours=1), "current", None)
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("service_name", ["fake_service", False])
@@ -240,36 +246,44 @@ def test_remove_service_fail(weather, service_name):
 
 @pytest.mark.weather2
 def test_set_api_description_success(weather):
-    weather.set_api_description("get_current_weather", "kittens")
-    assert weather._api_services["get_current_weather"]["description"] is "kittens"
-    weather.set_api_description("get_current_weather", weather.get_api_description("get_current_weather"))
-    assert weather._api_services["get_current_weather"]["description"] is "returns fake current data"
+    default_description = weather.get_api_description("get_hourly_historical")
+    weather.set_api_description("get_hourly_historical", "test_description")
+    assert weather._api_services["get_hourly_historical"]["description"] is "test_description"
+    weather.set_api_description("get_hourly_historical", default_description)
+    assert weather._api_services["get_hourly_historical"]["description"] is default_description
 
 @pytest.mark.weather2
-@pytest.mark.parametrize("service_name, description", [("fake_service", "fake"), ("get_current_weather", None)])
+@pytest.mark.parametrize("service_name, description", [
+    ("fake_service", "fake"), ("get_hourly_historical", None)
+])
 def test_set_api_description_fail(weather, service_name, description):
     passed = False
+
     try:
         weather.set_api_description(service_name, description)
         passed = True
     except ValueError as error:
         if service_name not in weather._api_services:
-            assert str(error).endswith(" not found in api features.")
-        if not isinstance(description, str):
-            assert str(error) == "description expected as string"
+            error_message = str(error)
+            assert error_message.endswith(" not found in api features.")
+        elif not isinstance(description, str):
+            error_message = str(error)
+            assert error_message == "description expected as string"
+
     assert not passed
 
 @pytest.mark.weather2
 def test_set_update_interval_success(weather):
-    weather.set_update_interval("get_current_weather", datetime.timedelta(days=1))
-    assert weather._api_services["get_current_weather"]["update_interval"].total_seconds() == \
+    weather.set_update_interval("get_hourly_forecast", datetime.timedelta(days=1))
+    assert weather._api_services["get_hourly_forecast"]["update_interval"].total_seconds() == \
            datetime.timedelta(days=1).total_seconds()
+    weather.set_update_interval("get_hourly_forecast", datetime.timedelta(hours=1))
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("service_name, interval", [
     ("get_hourly_historical", datetime.timedelta(hours=1)),
     ("fake_service", datetime.timedelta(hours=1)),
-    ("get_current_weather", None)
+    ("get_hourly_forecast", None)
 ])
 def test_set_update_interval_fail(weather, service_name, interval):
     passed = False
@@ -278,17 +292,17 @@ def test_set_update_interval_fail(weather, service_name, interval):
         passed = True
     except ValueError as error:
         if service_name not in weather._api_services:
-            assert str(error).endswith(" not found in api features.")
+            error_message = str(error)
+            assert error_message.endswith(" not found in api features.")
+        elif not isinstance(interval, datetime.timedelta):
+            assert str(error) == "interval must be a valid datetime timedelta object."
         elif weather._api_services[service_name]["type"] == "history":
             assert str(error) == "historical data does not utilize an update interval."
-        if not isinstance(interval, datetime.timedelta):
-            assert str(error) == "interval must be a valid datetime timedelta object."
     assert not passed
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("from_units, start, to_units, end", [
     ("inch", 1, "cm", 2.54),
-    ("fahrenheit", 32, "celsius", 0),
     ("celsius", 100, "fahrenheit", 212),
     ("pint", 1, "milliliter", 473.176)
 ])
@@ -297,22 +311,26 @@ def test_manage_unit_conversion_success(weather, from_units, start, to_units, en
     assert str(output).startswith(str(end))
 
 @pytest.mark.weather2
-@pytest.mark.parametrize("from_units, start, to_units", [
-    ("inch", 1, "celsius"),
-    ("kittens", 1, "millimeter"),
-    ("pint", 1, "puppies")
+@pytest.mark.parametrize("from_units, start, to_units, error_string", [
+    ("inch", 1, "celsius", "Cannot convert from "),
+    ("kittens", 1, "millimeter", " is not defined in the unit registry"),
+    ("pint", 1, "puppies", " is not defined in the unit registry"),
+    (None, 1, "millimeter", "Cannot convert from 'dimensionless"),
+    ("inch", None, "millimeter", "Invalid magnitude for Quantity: "),
+    ("inch", 1, None, "NoneType' object has no attribute 'items'")
 ])
-def test_manage_unit_conversion_fail(weather, from_units, start, to_units):
+def test_manage_unit_conversion_fail(weather, from_units, start, to_units, error_string):
     try:
         weather.manage_unit_conversion(from_units, start, to_units)
-    except pint.DimensionalityError as error:
-        assert str(error).startswith("Cannot convert from ")
-    except pint.UndefinedUnitError as error:
-        assert str(error).endswith(" is not defined in the unit registry")
+    except Exception as error:
+        actual_error = str(error)
+        assert actual_error.startswith(error_string) or actual_error.endswith(error_string)
 
-@pytest.mark.dev
+@pytest.mark.weather2
 @pytest.mark.parametrize("fake_locations", [
-    [{"location": "fake_location"}]
+    [{"location": "fake_location"}],
+    [{"location": "fake_location1"}, {"location": "fake_location2"}],
+    [{"location": "fake_location"}, {"location": "fake_location"}]
 ])
 def test_get_current_valid_locations(weather, fake_locations):
     conn = weather._cache._sqlite_conn
@@ -329,9 +347,16 @@ def test_get_current_valid_locations(weather, fake_locations):
     # initial run. cache is empty should return from BasicWeatherAgent's
     # query_current
     results1 = weather.get_current_weather(fake_locations)
-    assert len(results1) == 1
+    assert len(results1) == len(fake_locations)
     assert results1[0]["observation_time"]
-    assert results1[0]["weather_results"]["points"]["fake"] == "fake_data"
+    test_points = results1[0]["points"]
+    assert test_points
+    for initial_point in FAKE_POINTS:
+        fake_point = EXPECTED_OUTPUT_VALUES[initial_point]
+        test_value = test_points[fake_point["name"]]
+        assert test_value
+        if test_value:
+            assert test_value == fake_point["value"]
     assert results1[0]["location"] == "fake_location"
 
     # Check data got cached
@@ -353,7 +378,7 @@ def test_get_current_valid_locations(weather, fake_locations):
     results2 = weather.get_current_weather(fake_locations)
     assert len(results2) == 1
     assert results2[0]["observation_time"] == results1[0]["observation_time"]
-    assert results2[0]["weather_results"]["points"]["fake"] == "updated cache"
+    assert results2[0]["weather_results"]["points"] == test_points
     assert results2[0]["location"] == results1[0]["location"]
 
     # third query  - set update interval so that cache would be marked old
@@ -362,9 +387,9 @@ def test_get_current_valid_locations(weather, fake_locations):
     gevent.sleep(1)
     results3 = weather.get_current_weather(fake_locations)
     assert len(results3) == 1
-    assert results3[0]["observation_time"]
     assert results3[0]["observation_time"] != results1[0]["observation_time"]
-    assert results3[0]["weather_results"]["points"]["fake"] == "fake_data"
+    for point in results3[0]["weather_results"]["points"]:
+        assert point in EXPECTED_OUTPUT_VALUES
     assert results3[0]["location"] == "fake_location"
 
     # check data got cached again
@@ -381,10 +406,11 @@ def test_get_current_valid_locations(weather, fake_locations):
 
 @pytest.mark.dev
 @pytest.mark.parametrize("fake_locations", [
-    [{"location": "bad_string"}, {"fail": "fail"},
-     "bad_format"]
+    [{"location": "bad_string"}],
+    [{"fail": "fail"}],
+    ["bad_format"]
 ])
-def test_get_current_fail(weather, fake_locations):
+def test_get_current_invalid_locations(weather, fake_locations):
     conn = weather._cache._sqlite_conn
     cursor = conn.cursor()
 
@@ -396,7 +422,6 @@ def test_get_current_fail(weather, fake_locations):
     # [{location, "location_error": []}]
 
     fake_results = weather.get_current_weather(fake_locations)
-    assert len(fake_results) == 3
     for record_set in fake_results:
         assert record_set.get("location_error")
     size_query = "SELECT COUNT(*) FROM 'get_current_weather';"
@@ -404,6 +429,26 @@ def test_get_current_fail(weather, fake_locations):
     assert size == 0
 
 @pytest.mark.weather2
+@pytest.mark.parametrize("locations, expected_passing, expected_errors", [
+    ([{"location": None}], 0, 1),
+    ([{"location": "test"}], 1, 0),
+    ([{"location": "test"}, {"fail": "fail"}], 1, 1,),
+    ([{"location": "test"}, {"location": "test2"}], 2, 0,),
+    ([{"loc": "thing"}, "string"], 0, 2)
+])
+def test_get_current_mixed_locations(weather, locations, expected_passing, expected_errors):
+    results = weather.get_current_weather(locations)
+    actual_passing = 0
+    actual_failing = 0
+    for record in results:
+        if record.get("location_error"):
+            actual_failing += 1
+        if record.get("weather_results") or record.get("weather_error"):
+            actual_passing += 1
+    assert actual_failing == expected_errors
+    assert actual_passing == expected_passing
+
+@pytest.mark.dev
 @pytest.mark.parametrize("fake_locations", [
     [{"location": "fake_location1"}]
 ])
@@ -500,7 +545,7 @@ def validate_cache_result_forecast(locations, api_result, cache_result,
 def validate_basic_weather_forecast(locations, result, warn=True,
                                     point_data=FAKE_POINTS, hours=3):
     assert len(result) == len(locations)
-    i= 0
+    i = 0
     for location in locations:
         assert result[i]["generation_time"]
         if warn:
@@ -520,7 +565,7 @@ def validate_basic_weather_forecast(locations, result, warn=True,
             assert wr[1]["points"] == point_data
 
 
-@pytest.mark.weather2
+@pytest.mark.dev
 @pytest.mark.parametrize("fake_locations", [
     [{"location": "bad_string"}, {"fail": "fail"}, "bad_format"],
     [{"location": "fake_location"}, "fail"]
@@ -547,6 +592,27 @@ def test_get_forecast_fail(weather, fake_locations):
     size = cursor.execute(size_query).fetchone()[0]
     assert size == 0
 
+
+@pytest.mark.weather2
+@pytest.mark.parametrize("locations, expected_passing, expected_errors", [
+    ([{"location": "test"}], 1, 0),
+    ([{"fail": "fail"}], 0, 1),
+    ([{"location": "test"}, {"fail": "fail"}], 1, 1),
+    ([{"location": "test"}, {"location": "test2"}], 2, 0),
+    ([{"fail": "fail"}, {"fail": "fail2"}], 0, 2)
+])
+def test_hourly_forecast_mixed_locations(weather, locations, expected_passing, expected_errors):
+    results = weather.get_current_weather(locations)
+    actual_passing = 0
+    actual_failing = 0
+    for record in results:
+        if record.get("location_error"):
+            actual_failing += 1
+        if record.get("weather_results") or record.get("weather_error"):
+            actual_passing += 1
+    assert actual_failing == expected_errors
+    assert actual_passing == expected_passing
+
 @pytest.mark.weather2
 @pytest.mark.parametrize("fake_locations, start_date, end_date", [])
 def test_hourly_historical_success(weather, fake_locations, start_date, end_date):
@@ -560,30 +626,28 @@ def test_hourly_historical_fail(weather, fake_locations, start_date, end_date):
 # TODO
 @pytest.mark.weather2
 def test_poll_locations(volttron_instance, weather, query_agent):
-    new_config = copy.copy(weather)
-    source = new_config.pop("weather_service")
-    new_config["poll_locations"] = [{"station": "KLAX"}, {"station": "KABQ"}]
-    new_config["poll_interval"] = 5
-    agent_uuid = None
+    weather.poll_locations = [{"station": "KLAX"}, {"station": "KABQ"}]
+    weather.poll_interval = 5
     try:
-        agent_uuid = volttron_instance.install_agent(
-            vip_identity="poll.weather",
-            agent_dir=source,
-            start=False,
-            config_file=new_config)
+        agent_uuid = volttron_instance.build_agent(
+            agent_class=BasicWeatherAgent,
+            identity="platform.weatherpolling",
+            service_name="BasicWeather"
+        )
         volttron_instance.start_agent(agent_uuid)
         gevent.sleep(5)
-        assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10) == STATUS_GOOD
+        assert query_agent.vip.rpc.call("platform.weatherpolling", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
     finally:
         if agent_uuid:
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
 
 @pytest.mark.weather2
+@pytest.mark.xfail
 def test_update_and_get_status(volttron_instance, weather, query_agent):
-    assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10) == STATUS_GOOD
+    assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
     weather._update_status({"publishing": False})
-    assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10) == STATUS_BAD
+    assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10).get('status') == STATUS_BAD
     weather.poll_locations = []
     weather.poll_for_locations()
-    assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10) == STATUS_GOOD
+    assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
