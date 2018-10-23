@@ -53,23 +53,28 @@ import uuid
 import hashlib
 import tarfile
 import subprocess
-
+import requests
 import gevent
 import gevent.event
+
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform import get_home, get_address
 
-from .agent import utils
-from .agent.known_identities import CONTROL_CONNECTION, CONFIGURATION_STORE
-from .vip.agent import Agent as BaseAgent, Core, RPC
-from . import aip as aipmod
-from . import config
-from .jsonrpc import RemoteError
-from .auth import AuthEntry, AuthFile, AuthException
-from .keystore import KeyStore, KnownHostsStore
+from volttron.platform.agent import utils
+from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
+    CONFIGURATION_STORE
+from volttron.platform.vip.agent import Agent as BaseAgent, Core, RPC
+from volttron.platform import aip as aipmod
+from volttron.platform import config
+from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.auth import AuthEntry, AuthFile, AuthException
+from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.socket import Message
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
-from volttron.utils.rmq_mgmt import *
+from .vip.agent.errors import VIPError
+from volttron.utils.rmq_mgmt import RabbitMQMgmt
+from requests.packages.urllib3.connection import (ConnectionError,
+                                                  NewConnectionError)
 
 try:
     import volttron.restricted
@@ -86,7 +91,11 @@ _stderr = sys.stderr
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
+message_bus = utils.get_messagebus()
+rmq_mgmt = None
+
 CHUNK_SIZE = 4096
+
 
 class ControlService(BaseAgent):
     def __init__(self, aip, *args, **kwargs):
@@ -170,10 +179,10 @@ class ControlService(BaseAgent):
 
         identity = self.agent_vip_identity(uuid)
         self._aip.stop_agent(uuid)
-        #Send message to router that agent is shutting down
+        # Send message to router that agent is shutting down
         frames = [bytes(identity)]
 
-        #self.core.socket.send_vip(b'', 'agentstop', frames, copy=False)
+        # self.core.socket.send_vip(b'', 'agentstop', frames, copy=False)
         self.core.connection.send_vip_object(Message(peer=b'', subsystem='agentstop', args=frames))
 
     @RPC.export
@@ -188,7 +197,7 @@ class ControlService(BaseAgent):
     @RPC.export
     def stop_platform(self):
         # XXX: Restrict call as it kills the process
-        #self.core.socket.send_vip(b'', b'quit')
+        # self.core.socket.send_vip(b'', b'quit')
         self.core.connection.send_vip_object(Message(peer=b'', subsystem=b'quit'))
 
     @RPC.export
@@ -221,6 +230,12 @@ class ControlService(BaseAgent):
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
+
+        identity = self.agent_vip_identity(uuid)
+        frames = [bytes(identity)]
+
+        # Send message to router that agent is shutting down
+        self.core.connection.send_vip_object(Message(peer=b'', subsystem='agentstop', args=frames))
         self._aip.remove_agent(uuid, remove_auth=remove_auth)
 
     @RPC.export
@@ -334,6 +349,7 @@ class ControlService(BaseAgent):
 
         peer = bytes(self.vip.rpc.context.vip_message.peer)
         channel = self.vip.channel(peer, channel_name)
+
         try:
             tmpdir = tempfile.mkdtemp()
             path = os.path.join(tmpdir, os.path.basename(filename))
@@ -412,7 +428,7 @@ def escape(pattern):
     if len(strings) == 1:
         return re.escape(pattern), False
     return ''.join('.*' if s == '*' else '.' if s == '?' else
-        s if s in [r'\?', r'\*'] else re.escape(s)
+    s if s in [r'\?', r'\*'] else re.escape(s)
                    for s in strings), True
 
 
@@ -446,7 +462,7 @@ def filter_agent(agents, pattern, opts):
 
 def backup_agent_data(output_filename, source_dir):
     with tarfile.open(output_filename, "w:gz") as tar:
-        tar.add(source_dir, arcname=os.path.sep) #os.path.basename(source_dir))
+        tar.add(source_dir, arcname=os.path.sep)  # os.path.basename(source_dir))
 
 
 def restore_agent_data(source_file, output_dir):
@@ -485,7 +501,7 @@ def upgrade_agent(opts):
         publickey = keystore.public
         secretkey = keystore.secret
         _stdout.write('Removing previous version of agent "{}"\n'
-                .format(identity))
+                      .format(identity))
         opts.connection.call('remove_agent', agent_uuid, remove_auth=False)
     else:
         _stdout.write(('Could not find agent with VIP IDENTITY "{}". '
@@ -495,15 +511,15 @@ def upgrade_agent(opts):
         publickey = None
         secretkey = None
 
-    def restore_agent_data(agent_uuid):
+    def restore_agents_data(agent_uuid):
         # if we are  upgrading transfer the old data on.
         if os.path.exists(backup_agent_file):
-            new_agent_data_dir = find_agent_data_dir(opts, new_agent_uuid)
+            new_agent_data_dir = find_agent_data_dir(opts, agent_uuid)
             restore_agent_data(backup_agent_file, new_agent_data_dir)
             os.remove(backup_agent_file)
 
     install_agent(opts, publickey=publickey, secretkey=secretkey,
-                  callback=restore_agent_data)
+                  callback=restore_agents_data)
 
 
 def install_agent(opts, publickey=None, secretkey=None, callback=None):
@@ -528,7 +544,7 @@ def install_agent(opts, publickey=None, secretkey=None, callback=None):
             _log.debug('Creating channel for sending the agent.')
             channel_name = str(uuid.uuid4())
             channel = opts.connection.server.vip.channel('control',
-                                                          channel_name)
+                                                         channel_name)
             _log.debug('calling control install agent.')
             agent_uuid = opts.connection.call_no_get('install_agent',
                                                      filename,
@@ -583,6 +599,7 @@ def install_agent(opts, publickey=None, secretkey=None, callback=None):
     # sure why this is the reason for allowing our tests to pass.
     if callback:
         callback(agent_uuid)
+
 
 def tag_agent(opts):
     agents = filter_agent(_list_agents(opts.aip), opts.agent, opts)
@@ -641,7 +658,6 @@ def _calc_min_uuid_length(agents):
 
 
 def list_agents(opts):
-
     def get_priority(agent):
         return opts.aip.agent_priority(agent.uuid) or ''
 
@@ -671,7 +687,30 @@ def status_agents(opts):
             return 'running [{}]'.format(pid)
         return ''
 
-    _show_filtered_agents(opts, 'STATUS', get_status, agents)
+    def get_health(agent):
+        try:
+            return opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4)[
+                'status']
+        except VIPError:
+            return ''
+
+    _show_filtered_agents_status(opts, get_status, get_health, agents)
+
+
+def agent_health(opts):
+    agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}.values()
+    agents = get_filtered_agents(opts, agents)
+    if not agents:
+        _stderr.write('No installed Agents found\n')
+        return
+    agent = agents.pop()
+    try:
+        _stderr.write(json.dumps(
+            opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4),
+            indent=4) + '\n'
+                      )
+    except VIPError:
+        print("Agent {} is not running on the Volttron platform.".format(agent.uuid))
 
 
 def clear_status(opts):
@@ -822,7 +861,7 @@ def remove_known_host(opts):
     store = KnownHostsStore()
     store.remove(opts.host)
     _stdout.write('host "{}" removed from {}\n'.format(opts.host,
-            store.filename))
+                                                       store.filename))
 
 
 def do_stats(opts):
@@ -854,7 +893,7 @@ def show_serverkey(opts):
     del q
     if pk is not None:
         _stdout.write('%s\n' % pk)
-	return 0
+        return 0
 
     return 1
 
@@ -865,20 +904,20 @@ def _get_auth_file(volttron_home):
 
 
 def _print_two_columns(dict_, key_name, value_name):
-        padding = 2
-        key_lengths = [len(key) for key in dict_] + [len(key_name)]
-        max_key_len = max(key_lengths) + padding
-        _stdout.write('{}{}{}\n'.format(key_name,
-            ' ' * (max_key_len - len(key_name)), value_name))
-        _stdout.write('{}{}{}\n'.format('-' * len(key_name),
-            ' ' * (max_key_len - len(key_name)),
-            '-' * len(value_name)))
-        for key in sorted(dict_):
-            value = dict_[key]
-            if isinstance(value, list):
-                value = sorted(value)
-            _stdout.write('{}{}{}\n'.format(key,
-                          ' ' * (max_key_len - len(key)), value))
+    padding = 2
+    key_lengths = [len(key) for key in dict_] + [len(key_name)]
+    max_key_len = max(key_lengths) + padding
+    _stdout.write('{}{}{}\n'.format(key_name,
+                                    ' ' * (max_key_len - len(key_name)), value_name))
+    _stdout.write('{}{}{}\n'.format('-' * len(key_name),
+                                    ' ' * (max_key_len - len(key_name)),
+                                    '-' * len(value_name)))
+    for key in sorted(dict_):
+        value = dict_[key]
+        if isinstance(value, list):
+            value = sorted(value)
+        _stdout.write('{}{}{}\n'.format(key,
+                                        ' ' * (max_key_len - len(key)), value))
 
 
 def list_auth(opts, indices=None):
@@ -904,7 +943,7 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
             self._fields = collections.OrderedDict()
 
         def add(self, name, default=None, note=None, callback=lambda x: x,
-                validate=lambda x,y: (True, '')):
+                validate=lambda x, y: (True, '')):
             self._fields[name] = {'note': note, 'default': default,
                                   'callback': callback, 'validate': validate}
 
@@ -1187,7 +1226,66 @@ def remove_group(opts):
     _stdout.write('removed group "{}"\n'.format(opts.group))
 
 
+def get_filtered_agents(opts, agents=None):
+    if opts.pattern:
+        filtered = set()
+        for pattern, match in filter_agents(agents, opts.pattern, opts):
+            if not match:
+                _stderr.write(
+                    '{}: error: agent not found: {}\n'.format(opts.command,
+                                                              pattern))
+            filtered |= match
+        agents = list(filtered)
+    return agents
+
+
 def _show_filtered_agents(opts, field_name, field_callback, agents=None):
+    """Provides generic way to filter and display agent information.
+    The agents will be filtered by the provided opts.pattern and the
+    following fields will be displayed:
+      * UUID (or part of the UUID)
+      * agent name
+      * VIP identiy
+      * tag
+      * field_name
+    @param:Namespace:opts:
+        Options from argparse
+    @param:string:field_name:
+        Name of field to display about agents
+    @param:function:field_callback:
+        Function that takes an Agent as an argument and returns data
+        to display
+    @param:list:agents:
+        List of agents to filter and display
+    """
+    if not agents:
+        agents = _list_agents(opts.aip)
+
+    agents = get_filtered_agents(opts, agents)
+
+    if not agents:
+        _stderr.write('No installed Agents found\n')
+        return
+    agents.sort()
+    if not opts.min_uuid_len:
+        n = 36
+    else:
+        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
+    name_width = max(5, max(len(agent.name) for agent in agents))
+    tag_width = max(3, max(len(agent.tag or '') for agent in agents))
+    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
+    fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
+    _stderr.write(
+        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                   'TAG', tag_width, field_name))
+    for agent in agents:
+        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                 agent.vip_identity, identity_width,
+                                 agent.tag or '', tag_width,
+                                 field_callback(agent)))
+
+
+def _show_filtered_agents_status(opts, status_callback, health_callback, agents=None):
     """Provides generic way to filter and display agent information.
 
     The agents will be filtered by the provided opts.pattern and the
@@ -1210,15 +1308,9 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     """
     if not agents:
         agents = _list_agents(opts.aip)
-    if opts.pattern:
-        filtered = set()
-        for pattern, match in filter_agents(agents, opts.pattern, opts):
-            if not match:
-                _stderr.write(
-                    '{}: error: agent not found: {}\n'.format(opts.command,
-                                                              pattern))
-            filtered |= match
-        agents = list(filtered)
+
+    agents = get_filtered_agents(opts, agents)
+
     if not agents:
         _stderr.write('No installed Agents found\n')
         return
@@ -1230,19 +1322,19 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     name_width = max(5, max(len(agent.name) for agent in agents))
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
     identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
+    fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
     _stderr.write(
         fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-            'TAG', tag_width, field_name))
+                   'TAG', tag_width, 'STATUS', 'HEALTH'))
+    fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
     for agent in agents:
         _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
                                  agent.vip_identity, identity_width,
                                  agent.tag or '', tag_width,
-                                 field_callback(agent)))
+                                 status_callback(agent), health_callback(agent)))
 
 
 def get_agent_publickey(opts):
-
     def get_key(agent):
         return opts.aip.get_agent_keystore(agent.uuid).public
 
@@ -1280,6 +1372,7 @@ def add_config_to_store(opts):
 
     call("manage_store", opts.identity, opts.name, file_contents, config_type=opts.config_type)
 
+
 def delete_config_from_store(opts):
     opts.connection.peer = CONFIGURATION_STORE
     call = opts.connection.call
@@ -1304,7 +1397,8 @@ def list_store(opts):
         results = call("manage_list_configs", opts.identity)
 
     for item in results:
-        _stdout.write(item+"\n")
+        _stdout.write(item + "\n")
+
 
 def get_config(opts):
     opts.connection.peer = CONFIGURATION_STORE
@@ -1339,8 +1433,8 @@ def edit_config(opts):
             config_type = opts.config_type
             raw_data = ''
 
-    #Write raw data to temp file
-    #This will not work on Windows, FYI
+    # Write raw data to temp file
+    # This will not work on Windows, FYI
     with tempfile.NamedTemporaryFile(suffix=".txt") as f:
         f.write(raw_data)
         f.flush()
@@ -1365,18 +1459,18 @@ def edit_config(opts):
         call("manage_store", opts.identity, opts.name, new_raw_data, config_type=config_type)
 
 
-
-
 class ControlConnection(object):
     def __init__(self, address, peer='control',
                  publickey=None, secretkey=None, serverkey=None):
         self.address = address
         self.peer = peer
+        message_bus = utils.get_messagebus()
         self._server = BaseAgent(address=self.address, publickey=publickey,
                                  secretkey=secretkey, serverkey=serverkey,
                                  enable_store=False,
                                  identity=CONTROL_CONNECTION,
-                                 enable_channel=False)
+                                 message_bus=message_bus,
+                                 enable_channel=True)
         self._greenlet = None
 
     @property
@@ -1421,12 +1515,20 @@ def get_keys(opts):
     return {'publickey': publickey, 'secretkey': secretkey,
             'serverkey': serverkey}
 
+
 # RabbitMQ management methods
 def add_vhost(opts):
-    create_vhost(opts.vhost)
+    try:
+        rmq_mgmt.create_vhost(opts.vhost)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("Error adding a Virtual Host: {} \n".format(opts.vhost))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def add_user(opts):
-    create_user(opts.user, opts.pwd)
+    rmq_mgmt.create_user(opts.user, opts.pwd)
     permissions = dict(configure="", read="", write="")
     read = _ask_yes_no("Do you want to set READ permission ")
     write = _ask_yes_no("Do you want to set WRITE permission ")
@@ -1438,7 +1540,14 @@ def add_user(opts):
         permissions['write'] = ".*"
     if configure:
         permissions['configure'] = ".*"
-    set_user_permissions(permissions, opts.user, opts.pwd)
+    try:
+        rmq_mgmt.set_user_permissions(permissions, opts.user)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("Error Setting User permissions : {} \n".format(opts.user))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def add_exchange(opts):
     if opts.type not in ['topic', 'fanout', 'direct']:
@@ -1449,65 +1558,141 @@ def add_exchange(opts):
     alternate = _ask_yes_no("Do you want alternate exchange ")
 
     properties = dict(durable=durable, type=opts.type, auto_delete=auto_delete)
-    if alternate:
-        alternate_exch = opts.name + 'alternate'
-        properties['alternate-exchange'] = alternate_exch
-        # create alternate exchange
-        new_props = dict(durable=durable, type='fanout', auto_delete=auto_delete)
-        create_exchange(alternate_exch, new_props)
-    create_exchange(opts.name, properties)
+    try:
+        if alternate:
+            alternate_exch = opts.name + 'alternate'
+            properties['alternate-exchange'] = alternate_exch
+            # create alternate exchange
+            new_props = dict(durable=durable, type='fanout', auto_delete=auto_delete)
+            rmq_mgmt.create_exchange(alternate_exch, new_props)
+        rmq_mgmt.create_exchange(opts.name, properties)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("Error Adding Exchange : {} \n".format(opts.name))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def add_queue(opts):
     durable = _ask_yes_no("Do you want queue to be durable ")
     auto_delete = _ask_yes_no("Do you want queue to be auto deleted ")
+
     properties = dict(durable=durable, auto_delete=auto_delete)
-    create_queue(opts.name, properties)
+    try:
+        rmq_mgmt.create_queue(opts.name, properties)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("Error Adding Queue : {} \n".format(opts.name))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
 
 
 def list_vhosts(opts):
-    vhosts = get_virtualhosts()
-    for item in vhosts:
-        _stdout.write(item+"\n")
+    try:
+        vhosts = rmq_mgmt.get_virtualhosts()
+        for item in vhosts:
+            _stdout.write(item + "\n")
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Virtual Hosts Found: {} \n")
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
+
+def list_users(opts):
+    try:
+        users = rmq_mgmt.get_users()
+        for item in users:
+            _stdout.write(item + "\n")
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Users Found: {} \n")
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def list_user_properties(opts):
-    props = get_user_props(opts.user)
-    for key, value in props.iteritems():
-        _stdout.write("{0}: {1} \n".format(key, value))
+    try:
+        props = rmq_mgmt.get_user_props(opts.user)
+        for key, value in props.iteritems():
+            _stdout.write("{0}: {1} \n".format(key, value))
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No User Found: {} \n".format(opts.user))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def list_exchanges(opts):
-    exchanges = get_exchanges()
-    for exch in exchanges:
-        _stdout.write(exch+"\n")
+    try:
+        exchanges = rmq_mgmt.get_exchanges()
+        for exch in exchanges:
+            _stdout.write(exch + "\n")
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No exchanges found \n")
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def list_exchanges_with_properties(opts):
-    exchanges = get_exchanges_with_props()
+    exchanges = None
+    try:
+        exchanges = rmq_mgmt.get_exchanges_with_props()
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No exchanges found \n")
+        return
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
     try:
         name_width = max(8, max(len(e['name']) for e in exchanges))
         dur_width = len('DURABLE')
         auto_width = len('AUTO-DELETE')
         type_width = max(6, max(len(e['type']) for e in exchanges))
-        #args_width = max(6, max(len(e['type']) for e in exchanges))
+        # args_width = max(6, max(len(e['type']) for e in exchanges))
         fmt = '{:{}} {:{}} {:{}} {:{}}\n'
         _stderr.write(
             fmt.format('EXCHANGE', name_width, 'TYPE', type_width, 'DURABLE', dur_width,
-                       'AUTO-DELETE', auto_width ))
+                       'AUTO-DELETE', auto_width))
         for exch in exchanges:
             _stdout.write(fmt.format(exch['name'], name_width,
                                      exch['type'], type_width,
                                      str(exch['durable']), dur_width,
                                      str(exch['auto_delete']), auto_width))
-                                     #exch['messages'], args_width))
+            # exch['messages'], args_width))
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in getting queue properties")
 
+
 def list_queues(opts):
-    queues = get_queues()
+    queues = None
+    try:
+        queues = rmq_mgmt.get_queues()
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No queues found \n")
+        return
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
     if queues:
         for q in queues:
-            _stdout.write(q+"\n")
+            _stdout.write(q + "\n")
+
 
 def list_queues_with_properties(opts):
-    queues = get_queues_with_props()
+    queues = None
+    try:
+        queues = rmq_mgmt.get_queues_with_props()
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No queues found \n")
+        return
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
     try:
         name_width = max(5, max(len(q['name']) for q in queues))
         dur_width = len('DURABLE')
@@ -1519,7 +1704,7 @@ def list_queues_with_properties(opts):
         _stderr.write(
             fmt.format('QUEUE', name_width, 'STATE', state_width, 'DURABLE', dur_width,
                        'EXCLUSIVE', excl_width, 'AUTO-DELETE', auto_width,
-                       'MESSAGES', unack_width ))
+                       'MESSAGES', unack_width))
         for q in queues:
             _stdout.write(fmt.format(q['name'], name_width,
                                      str(q['state']), state_width,
@@ -1530,11 +1715,30 @@ def list_queues_with_properties(opts):
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in getting queue properties")
 
+
 def list_connections(opts):
-    conn = get_connection()
+    try:
+        conn = rmq_mgmt.get_connection()
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No connections found \n")
+        return
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
+
 
 def list_fed_parameters(opts):
-    parameters = get_parameter('federation-upstream')
+    parameters = None
+    try:
+        parameters = rmq_mgmt.get_parameter('federation-upstream')
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Federation Parameters Found \n")
+        return
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
     try:
         if parameters:
             name_width = max(5, max(len(p['name']) for p in parameters))
@@ -1548,14 +1752,27 @@ def list_fed_parameters(opts):
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in federation parameters")
 
+
 def list_shovel_parameters(opts):
-    parameters = get_parameter('shovel')
+    parameters = None
+    try:
+        parameters = rmq_mgmt.get_parameter('shovel')
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Shovel Parameters Found \n")
+        return
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
     try:
         if parameters:
             name_width = max(5, max(len(p['name']) for p in parameters))
-            src_uri_width = max(len('SOURCE ADDRESS'), max(len(p['value']['src-uri']) for p in parameters))
-            dest_uri_width = max(len('DESTINATION ADDRESS'), max(len(p['value']['dest-uri']) for p in parameters))
-            binding_key = max(len('BINDING KEY'), max(len(p['value']['src-exchange-key']) for p in parameters))
+            src_uri_width = max(len('SOURCE ADDRESS'),
+                                max(len(p['value']['src-uri']) for p in parameters))
+            dest_uri_width = max(len('DESTINATION ADDRESS'),
+                                 max(len(p['value']['dest-uri']) for p in parameters))
+            binding_key = max(len('BINDING KEY'),
+                              max(len(p['value']['src-exchange-key']) for p in parameters))
             fmt = '{:{}}  {:{}}  {:{}}  {:{}}\n'
             _stderr.write(
                 fmt.format('NAME', name_width,
@@ -1570,8 +1787,18 @@ def list_shovel_parameters(opts):
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in getting shovel parameters")
 
+
 def list_bindings(opts):
-    bindings = get_bindings(opts.exchange)
+    bindings = None
+    try:
+        bindings = rmq_mgmt.get_bindings(opts.exchange)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Bindings Found \n")
+        return
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
 
     try:
         if bindings:
@@ -1590,8 +1817,18 @@ def list_bindings(opts):
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in getting bindings")
 
+
 def list_policies(opts):
-    policies = get_policies()
+    policies = None
+    try:
+        policies = rmq_mgmt.get_policies()
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Policies Found \n")
+        return
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
     try:
         if policies:
             name_width = max(5, max(len(p['name']) for p in policies))
@@ -1605,33 +1842,83 @@ def list_policies(opts):
     except (AttributeError, KeyError) as ex:
         _stdout.write("Error in getting policies")
 
+
 def remove_vhosts(opts):
-    for vhost in opts.vhost:
-        delete_vhost(vhost)
+    try:
+        for vhost in opts.vhost:
+            rmq_mgmt.delete_vhost(vhost)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Vhost Found {} \n".format(opts.vhost))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def remove_users(opts):
-    for user in opts.user:
-        delete_user(user)
+    try:
+        for user in opts.user:
+            rmq_mgmt.delete_user(user)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No User Found {} \n".format(opts.user))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def remove_exchanges(opts):
-    for e in opts.exchanges:
-        delete_exchange(e)
+    try:
+        for e in opts.exchanges:
+            rmq_mgmt.delete_exchange(e)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Exchange Found {} \n".format(opts.exchanges))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def remove_queues(opts):
-    for q in opts.queues:
-        delete_queue(q)
+    try:
+        for q in opts.queues:
+            rmq_mgmt.delete_queue(q)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Queues Found {} \n".format(opts.queues))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def remove_fed_parameters(opts):
-    for param in opts.parameters:
-        delete_multiplatform_parameter('federation-upstream', param)
+    try:
+        for param in opts.parameters:
+            rmq_mgmt.delete_multiplatform_parameter('federation-upstream', param)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Federation Parameters Found {} \n".format(opts.parameters))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def remove_shovel_parameters(opts):
-    for param in opts.parameters:
-        delete_multiplatform_parameter('shovel', param)
+    try:
+        for param in opts.parameters:
+            rmq_mgmt.delete_multiplatform_parameter('shovel', param)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Shovel Parameters Found {} \n".format(opts.parameters))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def remove_policies(opts):
-    for policy in opts.policies:
-        delete_policy(policy)
+    try:
+        for policy in opts.policies:
+            rmq_mgmt.delete_policy(policy)
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Policies Found {} \n".format(opts.policies))
+    except (ConnectionError, NewConnectionError) as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+
 
 def main(argv=sys.argv):
     # Refuse to run as root
@@ -1705,7 +1992,7 @@ def main(argv=sys.argv):
     )
 
     top_level_subparsers = parser.add_subparsers(title='commands', metavar='',
-                                       dest='command')
+                                                 dest='command')
 
     def add_parser(*args, **kwargs):
         parents = kwargs.get('parents', [])
@@ -1721,7 +2008,7 @@ def main(argv=sys.argv):
     install.add_argument('wheel', help='path to agent wheel')
     install.add_argument('--tag', help='tag for the installed agent')
     install.add_argument('--vip-identity', help='VIP IDENTITY for the installed agent. '
-                         'Overrides any previously configured VIP IDENTITY.')
+                                                'Overrides any previously configured VIP IDENTITY.')
     if HAVE_RESTRICTED:
         install.add_argument('--verify', action='store_true',
                              dest='verify_agents',
@@ -1762,6 +2049,11 @@ def main(argv=sys.argv):
     status.add_argument('-n', dest='min_uuid_len', type=int, metavar='N',
                         help='show at least N characters of UUID (0 to show all)')
     status.set_defaults(func=status_agents, min_uuid_len=1)
+
+    health = add_parser('health', parents=[filterable],
+                        help='show agent health as JSON')
+    health.add_argument('pattern', nargs=1, help='UUID or name of agent')
+    health.set_defaults(func=agent_health, min_uuid_len=1)
 
     clear = add_parser('clear', help='clear status of defunct agents')
     clear.add_argument('-a', '--all', dest='clear_all', action='store_true',
@@ -1819,7 +2111,7 @@ def main(argv=sys.argv):
                                 'agent during upgrade without requiring a separate call to '
                                 'the tag command. ')
     upgrade.add_argument('vip_identity', metavar='vip-identity',
-            help='VIP IDENTITY of agent to upgrade')
+                         help='VIP IDENTITY of agent to upgrade')
     upgrade.add_argument('wheel', help='path to new agent wheel')
     upgrade.add_argument('--tag', help='tag for the upgraded agent')
     if HAVE_RESTRICTED:
@@ -1832,141 +2124,141 @@ def main(argv=sys.argv):
     upgrade.set_defaults(func=upgrade_agent, verify_agents=True)
 
     auth_cmds = add_parser("auth",
-            help="manage authorization entries and encryption keys")
+                           help="manage authorization entries and encryption keys")
 
     auth_subparsers = auth_cmds.add_subparsers(title='subcommands',
-            metavar='', dest='store_commands')
+                                               metavar='', dest='store_commands')
 
     auth_add = add_parser('add',
-            help='add new authentication record',
-            subparser=auth_subparsers)
+                          help='add new authentication record',
+                          subparser=auth_subparsers)
     auth_add.add_argument('--domain', default=None)
     auth_add.add_argument('--address', default=None)
     auth_add.add_argument('--mechanism', default=None)
     auth_add.add_argument('--credentials', default=None)
     auth_add.add_argument('--user_id', default=None)
     auth_add.add_argument('--groups', default=None,
-            help='delimit multiple entries with comma')
+                          help='delimit multiple entries with comma')
     auth_add.add_argument('--roles', default=None,
-            help='delimit multiple entries with comma')
+                          help='delimit multiple entries with comma')
     auth_add.add_argument('--capabilities', default=None,
-            help='delimit multiple entries with comma')
+                          help='delimit multiple entries with comma')
     auth_add.add_argument('--comments', default=None)
     auth_add.add_argument('--disabled', action='store_true')
     auth_add.add_argument('--add-known-host', action='store_true',
-            help='adds entry in known host')
+                          help='adds entry in known host')
     auth_add.set_defaults(func=add_auth)
 
     auth_add_group = add_parser('add-group',
-            subparser=auth_subparsers,
-            help='associate a group name with a set of roles')
+                                subparser=auth_subparsers,
+                                help='associate a group name with a set of roles')
     auth_add_group.add_argument('group', metavar='GROUP', help='name of group')
     auth_add_group.add_argument('roles', metavar='ROLE',
-            nargs='*', help='roles to associate with the group')
+                                nargs='*', help='roles to associate with the group')
     auth_add_group.set_defaults(func=add_group)
 
     auth_add_known_host = add_parser('add-known-host',
-            subparser=auth_subparsers,
-            help='add server public key to known-hosts file')
+                                     subparser=auth_subparsers,
+                                     help='add server public key to known-hosts file')
     auth_add_known_host.add_argument('--host', required=True,
-            help='hostname or IP address with optional port')
+                                     help='hostname or IP address with optional port')
     auth_add_known_host.add_argument('--serverkey', required=True)
     auth_add_known_host.set_defaults(func=add_server_key)
 
     auth_add_role = add_parser('add-role',
-            subparser=auth_subparsers,
-            help='associate a role name with a set of capabilities')
+                               subparser=auth_subparsers,
+                               help='associate a role name with a set of capabilities')
     auth_add_role.add_argument('role', metavar='ROLE', help='name of role')
     auth_add_role.add_argument('capabilities', metavar='CAPABILITY',
-            nargs='*', help='capabilities to associate with the role')
+                               nargs='*', help='capabilities to associate with the role')
     auth_add_role.set_defaults(func=add_role)
 
     auth_keypair = add_parser('keypair', subparser=auth_subparsers,
-            help='generate CurveMQ keys for encrypting VIP connections')
+                              help='generate CurveMQ keys for encrypting VIP connections')
     auth_keypair.set_defaults(func=gen_keypair)
 
     auth_list = add_parser('list', help='list authentication records',
-            subparser=auth_subparsers)
+                           subparser=auth_subparsers)
     auth_list.set_defaults(func=list_auth)
 
     auth_list_groups = add_parser('list-groups',
-            subparser=auth_subparsers,
-            help='show list of group names and their sets of roles')
+                                  subparser=auth_subparsers,
+                                  help='show list of group names and their sets of roles')
     auth_list_groups.set_defaults(func=list_groups)
 
     auth_list_known_host = add_parser('list-known-hosts',
-            subparser=auth_subparsers,
-            help='list entries from known-hosts file')
+                                      subparser=auth_subparsers,
+                                      help='list entries from known-hosts file')
     auth_list_known_host.set_defaults(func=list_known_hosts)
 
     auth_list_roles = add_parser('list-roles',
-            subparser=auth_subparsers,
-            help='show list of role names and their sets of capabilities')
+                                 subparser=auth_subparsers,
+                                 help='show list of role names and their sets of capabilities')
     auth_list_roles.set_defaults(func=list_roles)
 
     auth_publickey = add_parser('publickey', parents=[filterable],
-            subparser=auth_subparsers, help='show public key for each agent')
+                                subparser=auth_subparsers, help='show public key for each agent')
     auth_publickey.add_argument('pattern', nargs='*',
-                       help='UUID or name of agent')
+                                help='UUID or name of agent')
     auth_publickey.add_argument('-n', dest='min_uuid_len', type=int, metavar='N',
-                       help='show at least N characters of UUID (0 to show all)')
+                                help='show at least N characters of UUID (0 to show all)')
     auth_publickey.set_defaults(func=get_agent_publickey, min_uuid_len=1)
 
     auth_remove = add_parser('remove', subparser=auth_subparsers,
-            help='removes one or more authentication records by indices')
+                             help='removes one or more authentication records by indices')
     auth_remove.add_argument('indices', nargs='+', type=int,
-            help='index or indices of record(s) to remove')
+                             help='index or indices of record(s) to remove')
     auth_remove.set_defaults(func=remove_auth)
 
     auth_remove_group = add_parser('remove-group',
-            subparser=auth_subparsers,
-            help='disassociate a group name from a set of roles')
+                                   subparser=auth_subparsers,
+                                   help='disassociate a group name from a set of roles')
     auth_remove_group.add_argument('group', help='name of group')
     auth_remove_group.set_defaults(func=remove_group)
 
     auth_remove_known_host = add_parser('remove-known-host',
-            subparser=auth_subparsers,
-            help='remove entry from known-hosts file')
+                                        subparser=auth_subparsers,
+                                        help='remove entry from known-hosts file')
     auth_remove_known_host.add_argument('host', metavar='HOST',
-            help='hostname or IP address with optional port')
+                                        help='hostname or IP address with optional port')
     auth_remove_known_host.set_defaults(func=remove_known_host)
 
     auth_remove_role = add_parser('remove-role',
-            subparser=auth_subparsers,
-            help='disassociate a role name from a set of capabilities')
+                                  subparser=auth_subparsers,
+                                  help='disassociate a role name from a set of capabilities')
     auth_remove_role.add_argument('role', help='name of role')
     auth_remove_role.set_defaults(func=remove_role)
 
     auth_serverkey = add_parser('serverkey', subparser=auth_subparsers,
-            help="show the serverkey for the instance")
+                                help="show the serverkey for the instance")
     auth_serverkey.set_defaults(func=show_serverkey)
 
     auth_update = add_parser('update', subparser=auth_subparsers,
-            help='updates one authentication record by index')
+                             help='updates one authentication record by index')
     auth_update.add_argument('index', type=int,
-            help='index of record to update')
+                             help='index of record to update')
     auth_update.set_defaults(func=update_auth)
 
     auth_update_group = add_parser('update-group',
-            subparser=auth_subparsers,
-            help='update group to include (or remove) given roles')
+                                   subparser=auth_subparsers,
+                                   help='update group to include (or remove) given roles')
     auth_update_group.add_argument('group', metavar='GROUP', help='name of group')
     auth_update_group.add_argument('roles', nargs='*',
-            metavar='ROLE',
-            help='roles to append to (or remove from) the group')
+                                   metavar='ROLE',
+                                   help='roles to append to (or remove from) the group')
     auth_update_group.add_argument('--remove', action='store_true',
-            help='remove (rather than append) given roles')
+                                   help='remove (rather than append) given roles')
     auth_update_group.set_defaults(func=update_group)
 
     auth_update_role = add_parser('update-role',
-            subparser=auth_subparsers,
-            help='update role to include (or remove) given capabilities')
+                                  subparser=auth_subparsers,
+                                  help='update role to include (or remove) given capabilities')
     auth_update_role.add_argument('role', metavar='ROLE', help='name of role')
     auth_update_role.add_argument('capabilities', nargs='*',
-            metavar='CAPABILITY',
-            help='capabilities to append to (or remove from) the role')
+                                  metavar='CAPABILITY',
+                                  help='capabilities to append to (or remove from) the role')
     auth_update_role.add_argument('--remove', action='store_true',
-            help='remove (rather than append) given capabilities')
+                                  help='remove (rather than append) given capabilities')
     auth_update_role.set_defaults(func=update_role)
 
     config_store = add_parser("config",
@@ -1985,7 +2277,7 @@ def main(argv=sys.argv):
                                     help='name used to reference the configuration by in the store')
     config_store_store.add_argument('infile', nargs='?', type=argparse.FileType('r'), default=sys.stdin,
                                     help='file containing the contents of the configuration')
-    config_store_store.add_argument('--raw', const="raw", dest="config_type" , action="store_const",
+    config_store_store.add_argument('--raw', const="raw", dest="config_type", action="store_const",
                                     help='interpret the input file as raw data')
     config_store_store.add_argument('--json', const="json", dest="config_type", action="store_const",
                                     help='interpret the input file as json')
@@ -1996,60 +2288,60 @@ def main(argv=sys.argv):
                                     config_type="json")
 
     config_store_edit = add_parser("edit",
-                                    help="edit a configuration. (nano by default, respects EDITOR env variable)",
-                                    subparser=config_store_subparsers)
+                                   help="edit a configuration. (nano by default, respects EDITOR env variable)",
+                                   subparser=config_store_subparsers)
 
     config_store_edit.add_argument('identity',
-                                    help='VIP IDENTITY of the store')
+                                   help='VIP IDENTITY of the store')
     config_store_edit.add_argument('name',
-                                    help='name used to reference the configuration by in the store')
+                                   help='name used to reference the configuration by in the store')
     config_store_edit.add_argument('--editor', dest="editor",
-                                    help='Set the editor to use to change the file. Defaults to nano if EDITOR is not set',
+                                   help='Set the editor to use to change the file. Defaults to nano if EDITOR is not set',
                                    default=os.getenv("EDITOR", "nano"))
     config_store_edit.add_argument('--raw', const="raw", dest="config_type", action="store_const",
-                                    help='Interpret the configuration as raw data. If the file already exists this is ignored.')
+                                   help='Interpret the configuration as raw data. If the file already exists this is ignored.')
     config_store_edit.add_argument('--json', const="json", dest="config_type", action="store_const",
-                                    help='Interpret the configuration as json. If the file already exists this is ignored.')
+                                   help='Interpret the configuration as json. If the file already exists this is ignored.')
     config_store_edit.add_argument('--csv', const="csv", dest="config_type", action="store_const",
-                                    help='Interpret the configuration as csv. If the file already exists this is ignored.')
+                                   help='Interpret the configuration as csv. If the file already exists this is ignored.')
     config_store_edit.add_argument('--new', dest="new_config", action="store_true",
-                                     help='Ignore any existing configuration and creates new empty file.'
-                                          ' Configuration is not written if left empty. Type defaults to JSON.')
+                                   help='Ignore any existing configuration and creates new empty file.'
+                                        ' Configuration is not written if left empty. Type defaults to JSON.')
 
     config_store_edit.set_defaults(func=edit_config,
-                                    config_type="json")
+                                   config_type="json")
 
     config_store_delete = add_parser("delete",
-                                    help="delete a configuration",
-                                    subparser=config_store_subparsers)
+                                     help="delete a configuration",
+                                     subparser=config_store_subparsers)
     config_store_delete.add_argument('identity',
-                                    help='VIP IDENTITY of the store')
+                                     help='VIP IDENTITY of the store')
     config_store_delete.add_argument('name', nargs='?',
-                                    help='name used to reference the configuration by in the store')
+                                     help='name used to reference the configuration by in the store')
     config_store_delete.add_argument('--all', dest="delete_store", action="store_true",
-                                    help='delete all configurations in the store')
+                                     help='delete all configurations in the store')
 
     config_store_delete.set_defaults(func=delete_config_from_store)
 
     config_store_list = add_parser("list",
-                                     help="list stores or configurations in a store",
-                                     subparser=config_store_subparsers)
+                                   help="list stores or configurations in a store",
+                                   subparser=config_store_subparsers)
 
     config_store_list.add_argument('identity', nargs='?',
-                                    help='VIP IDENTITY of the store to list')
+                                   help='VIP IDENTITY of the store to list')
 
     config_store_list.set_defaults(func=list_store)
 
     config_store_get = add_parser("get",
-                                    help="get the contents of a configuration",
-                                    subparser=config_store_subparsers)
+                                  help="get the contents of a configuration",
+                                  subparser=config_store_subparsers)
 
     config_store_get.add_argument('identity',
-                                    help='VIP IDENTITY of the store')
+                                  help='VIP IDENTITY of the store')
     config_store_get.add_argument('name',
-                                    help='name used to reference the configuration by in the store')
+                                  help='name used to reference the configuration by in the store')
     config_store_get.add_argument('--raw', action="store_true",
-                                    help='get the configuration as raw data')
+                                  help='get the configuration as raw data')
     config_store_get.set_defaults(func=get_config)
 
     shutdown = add_parser('shutdown',
@@ -2070,22 +2362,24 @@ def main(argv=sys.argv):
         nargs='?')
     stats.set_defaults(func=do_stats, op='status')
 
-#==============================================================================
-    message_bus = utils.get_messagebus()
+    # ==============================================================================
+    global message_bus, rmq_mgmt
+
     if message_bus == 'rmq':
+        rmq_mgmt = RabbitMQMgmt()
         # Add commands
         rabbitmq_cmds = add_parser("rabbitmq", help="manage rabbitmq")
         rabbitmq_subparsers = rabbitmq_cmds.add_subparsers(title='subcommands',
-                                                     metavar='',
-                                                     dest='store_commands')
+                                                           metavar='',
+                                                           dest='store_commands')
         rabbitmq_add_vhost = add_parser('add-vhost', help='add a new virtual host',
-                                  subparser=rabbitmq_subparsers)
+                                        subparser=rabbitmq_subparsers)
         rabbitmq_add_vhost.add_argument('vhost', help='Virtual host')
         rabbitmq_add_vhost.set_defaults(func=add_vhost)
 
         rabbitmq_add_user = add_parser('add-user',
                                        help='Add a new user. User will have admin privileges i.e,'
-                                                           'configure, read and write',
+                                            'configure, read and write',
                                        subparser=rabbitmq_subparsers)
         rabbitmq_add_user.add_argument('user', help='user id')
         rabbitmq_add_user.add_argument('pwd', help='password')
@@ -2098,71 +2392,76 @@ def main(argv=sys.argv):
         rabbitmq_add_exchange.add_argument('type', help='Type of the exchange - fanout/direct/topic')
         rabbitmq_add_exchange.set_defaults(func=add_exchange)
 
-        rabbitmq_add_queue = add_parser('add-queue', help='add a new queue',
-                                  subparser=rabbitmq_subparsers)
+        rabbitmq_add_queue = add_parser('add-queue',
+                                        help='add a new queue',
+                                        subparser=rabbitmq_subparsers)
         rabbitmq_add_queue.add_argument('name', help='Name of the queue')
         rabbitmq_add_queue.set_defaults(func=add_queue)
-    #=======================================================================
+        # =======================================================================
         # List commands
         rabbitmq_list_vhosts = add_parser('list-vhosts', help='List virtual hosts',
-                                  subparser=rabbitmq_subparsers)
+                                          subparser=rabbitmq_subparsers)
         rabbitmq_list_vhosts.set_defaults(func=list_vhosts)
 
+        rabbitmq_list_users = add_parser('list-users', help='List users',
+                                         subparser=rabbitmq_subparsers)
+        rabbitmq_list_users.set_defaults(func=list_users)
+
         rabbitmq_list_user_properties = add_parser('list-user-properties', help='List users',
-                                  subparser=rabbitmq_subparsers)
+                                                   subparser=rabbitmq_subparsers)
         rabbitmq_list_user_properties.add_argument('user', help='RabbitMQ user id')
         rabbitmq_list_user_properties.set_defaults(func=list_user_properties)
 
         rabbitmq_list_exchanges = add_parser('list-exchanges', help='add a new user',
-                                  subparser=rabbitmq_subparsers)
+                                             subparser=rabbitmq_subparsers)
         rabbitmq_list_exchanges.set_defaults(func=list_exchanges)
 
         rabbitmq_list_exchanges_props = add_parser('list-exchange-properties', help='list exchanges with properties',
-                                                subparser=rabbitmq_subparsers)
+                                                   subparser=rabbitmq_subparsers)
         rabbitmq_list_exchanges_props.set_defaults(func=list_exchanges_with_properties)
 
         rabbitmq_list_queues = add_parser('list-queues', help='list all queues',
-                                  subparser=rabbitmq_subparsers)
+                                          subparser=rabbitmq_subparsers)
         rabbitmq_list_queues.set_defaults(func=list_queues)
         rabbitmq_list_queues_props = add_parser('list-queue-properties', help='list queues with properties',
-                                  subparser=rabbitmq_subparsers)
+                                                subparser=rabbitmq_subparsers)
         rabbitmq_list_queues_props.set_defaults(func=list_queues_with_properties)
 
         rabbitmq_list_bindings = add_parser('list-bindings', help='list all bindings with exchange',
-                                          subparser=rabbitmq_subparsers)
+                                            subparser=rabbitmq_subparsers)
         rabbitmq_list_bindings.add_argument('exchange', help='Source exchange')
         rabbitmq_list_bindings.set_defaults(func=list_bindings)
 
         rabbitmq_list_fed_parameters = add_parser('list-federation-parameters', help='list all federation parameters',
-                                  subparser=rabbitmq_subparsers)
+                                                  subparser=rabbitmq_subparsers)
         rabbitmq_list_fed_parameters.set_defaults(func=list_fed_parameters)
 
         rabbitmq_list_shovel_parameters = add_parser('list-shovel-parameters', help='list all shovel parameters',
-                                  subparser=rabbitmq_subparsers)
+                                                     subparser=rabbitmq_subparsers)
         rabbitmq_list_shovel_parameters.set_defaults(func=list_shovel_parameters)
 
         rabbitmq_list_policies = add_parser('list-policies', help='list all policies',
-                                  subparser=rabbitmq_subparsers)
+                                            subparser=rabbitmq_subparsers)
         rabbitmq_list_policies.set_defaults(func=list_policies)
-    #==========================================================================================
+        # ==========================================================================================
         # Remove commands
         rabbitmq_remove_vhosts = add_parser('remove-vhosts', help='Remove virtual host/s',
-                                          subparser=rabbitmq_subparsers)
+                                            subparser=rabbitmq_subparsers)
         rabbitmq_remove_vhosts.add_argument('vhost', nargs='+', help='Virtual host')
         rabbitmq_remove_vhosts.set_defaults(func=remove_vhosts)
 
         rabbitmq_remove_users = add_parser('remove-users', help='Remove virtual user/s',
-                                         subparser=rabbitmq_subparsers)
+                                           subparser=rabbitmq_subparsers)
         rabbitmq_remove_users.add_argument('user', nargs='+', help='Virtual host')
         rabbitmq_remove_users.set_defaults(func=remove_users)
 
         rabbitmq_remove_exchanges = add_parser('remove-exchanges', help='Remove exchange/s',
-                                             subparser=rabbitmq_subparsers)
+                                               subparser=rabbitmq_subparsers)
         rabbitmq_remove_exchanges.add_argument('exchanges', nargs='+', help='Remove exchanges/s')
         rabbitmq_remove_exchanges.set_defaults(func=remove_exchanges)
 
         rabbitmq_remove_queues = add_parser('remove-queues', help='Remove queue/s',
-                                          subparser=rabbitmq_subparsers)
+                                            subparser=rabbitmq_subparsers)
         rabbitmq_remove_queues.add_argument('queues', nargs='+', help='Queue')
         rabbitmq_remove_queues.set_defaults(func=remove_queues)
 
@@ -2179,10 +2478,10 @@ def main(argv=sys.argv):
         rabbitmq_remove_shovel_parameters.set_defaults(func=remove_shovel_parameters)
 
         rabbitmq_remove_policies = add_parser('remove-policies', help='Remove policy',
-                                            subparser=rabbitmq_subparsers)
+                                              subparser=rabbitmq_subparsers)
         rabbitmq_remove_policies.add_argument('policies', nargs='+', help='policy name/s')
         rabbitmq_remove_policies.set_defaults(func=remove_policies)
-    #===============================================================================================
+    # ===============================================================================================
     if HAVE_RESTRICTED:
         cgroup = add_parser('create-cgroups',
                             help='setup VOLTTRON control group for restricted execution')

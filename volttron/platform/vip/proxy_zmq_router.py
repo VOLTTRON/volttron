@@ -45,7 +45,7 @@ from . import green as vip
 from volttron.platform.agent import json as jsonapi
 from .socket import Message
 from zmq import green as zmq
-from zmq import ZMQError
+from zmq.green import ZMQError, EAGAIN, ENOTSOCK, EADDRINUSE
 
 _log = logging.getLogger(__name__)
 
@@ -53,30 +53,30 @@ _log = logging.getLogger(__name__)
 class ZMQProxyRouter(Agent):
     """
     Proxy ZMQ based router agent is implemented for backward compatibility with ZeroMQ based message bus. In a single
-    instance setup, either ZeroMQ or RabbitMQ based message bus will be running. But in multi-platform setup, if some
-    instances are RabbitMQ message bus based and others are ZeroMQ message bus based, then the Proxy router agent will
-    manage the routing between local and external instances.
+    instance setup, either ZeroMQ or RabbitMQ based message bus will be running and all the agents will be using
+    the same message bus. But in multi-platform setup, some instances maybe running with RabbitMQ message bus and
+    others with ZeroMQ message bus. The Proxy router agent is implemented to manage the routing between local and
+    external instances in such cases.
 
-    Please note, if all instances in multi-platform setup are RabbitMQ based, then RabbitMQ federation/shovel have to
+    Please note, if all instances in multi-platform setup are RabbitMQ based, then RabbitMQ federation/shovel need to
     be used.
     """
+
     def __init__(self, address, identity, zmq_router, *args, **kwargs):
         super(ZMQProxyRouter, self).__init__(identity, address, **kwargs)
         self.zmq_router = zmq_router
         self._routing_key = self.core.instance_name + '.' + 'proxy'
-        self._outbound_proxy_queue = 'proxy_outbound'
-        self._external_pubsub_rpc_queue = 'proxy_inbound'
-        #
-        # def subscriptions():
-        #     return defaultdict(set)
-        # self._peer_subscriptions = defaultdict(subscriptions)
+        rmq_user = self.core.instance_name + '.' + identity
+        self._outbound_response_queue = "{user}.zmq.outbound.response".format(user=rmq_user)
+        self._outbound_request_queue = "{user}.zmq.outbound.request".format(user=rmq_user)
 
     @Core.receiver('onstart')
     def startup(self, sender, **kwargs):
         """
         On startup, it does the following:
          - Start ZMQ Router loop.
-         - Establish RMQ queue bindings to handle routing of messages between internal and external agents.
+         - Establish RMQ queue bindings to handle routing of messages
+         between internal and external agents.
         :param sender:
         :param kwargs:
         :return:
@@ -84,42 +84,44 @@ class ZMQProxyRouter(Agent):
         self.core.spawn(self.vip_loop)
         connection = self.core.connection
         channel = connection.channel
-        # Create a queue to receive messages from local platform (for example, response for RPC request etc)
-        result = channel.queue_declare(queue=self._outbound_proxy_queue,
+
+        # Create a queue to receive messages from local platform
+        # (for example, response for RPC request etc)
+        result = channel.queue_declare(queue=self._outbound_response_queue,
                                        durable=False,
                                        exclusive=True,
                                        auto_delete=True,
                                        callback=None)
         channel.queue_bind(exchange=connection.exchange,
-                                 queue=self._outbound_proxy_queue,
-                                 routing_key=self.core.instance_name + '.proxy.router.subsystems',
-                                 callback=None)
-        channel.basic_consume(self.zmq_outbound_handler,
-                                    queue=self._outbound_proxy_queue,
-                                    no_ack=True)
+                           queue=self._outbound_response_queue,
+                           routing_key=self.core.instance_name + '.proxy.router.subsystems',
+                           callback=None)
+        channel.basic_consume(self.outbound_response_handler,
+                              queue=self._outbound_response_queue,
+                              no_ack=True)
 
         # Create a queue to receive messages from local platform.
-        # For example, external platform pubsub/RPC subscribe/unsubscribe requests from internal agents
-        channel.queue_declare(queue=self._external_pubsub_rpc_queue,
+        # For example, external platform pubsub/RPC subscribe/unsubscribe
+        # requests from internal agents
+        channel.queue_declare(queue=self._outbound_request_queue,
                               durable=False,
                               exclusive=True,
                               auto_delete=True,
                               callback=None)
         # Binding for external platform pubsub message requests
         channel.queue_bind(exchange=connection.exchange,
-                                 queue=self._external_pubsub_rpc_queue,
-                                 routing_key=self.core.instance_name + '.proxy.router.pubsub',
-                                 callback=None)
+                           queue=self._outbound_request_queue,
+                           routing_key=self.core.instance_name + '.proxy.router.pubsub',
+                           callback=None)
 
         # Binding for external platform RPC message requests
-        channel.queue_bind(exchange=self.core.connection.exchange,
-                                 queue=self._external_pubsub_rpc_queue,
-                                 routing_key=self.core.instance_name + '.proxy.router.external_rpc',
-                                 callback=None)
-        channel.basic_consume(self.external_pubsub_rpc_handler,
-                                    queue=self._external_pubsub_rpc_queue,
-                                    no_ack=True)
-
+        channel.queue_bind(exchange=connection.exchange,
+                           queue=self._outbound_request_queue,
+                           routing_key=self.core.instance_name + '.proxy.router.external_rpc',
+                           callback=None)
+        channel.basic_consume(self.outbound_request_handler,
+                              queue=self._outbound_request_queue,
+                              no_ack=True)
 
     @Core.receiver('onstop')
     def on_stop(self, sender, **kwargs):
@@ -129,12 +131,14 @@ class ZMQProxyRouter(Agent):
         :param kwargs:
         :return:
         """
+        _log.debug("********************************************************************")
         _log.debug("Stopping ZMQ Router")
+        _log.debug("********************************************************************")
         self.zmq_router.stop()
 
-    def zmq_outbound_handler(self, ch, method, props, body):
+    def outbound_response_handler(self, ch, method, props, body):
         """
-        Message received from internal agent is sent to an external platform agent in ZMQ VIP message format.
+        Message received from internal agent to send to remote agent in ZMQ VIP message format.
         :param ch: channel
         :param method: contains routing key
         :param properties: message properties like VIP header information
@@ -149,10 +153,11 @@ class ZMQProxyRouter(Agent):
             args = json.loads(body)
             args = json.loads(args[0])
         except TypeError as e:
+            # TODO: to be fixed
             _log.error("Invalid json format {}".format(e))
             return
-        userid = props.headers.get('userid', b'')
-        #_log.debug("Proxy ZMQ Router Outbound handler {0}, {1}".format(to_identity, args))
+        userid = props.headers.get('user', b'')
+        # _log.debug("Proxy ZMQ Router Outbound handler {0}, {1}".format(to_identity, args))
         # Reformat message into ZMQ VIP format
         frames = [bytes(to_identity), bytes(from_identity), b'VIP1', bytes(userid),
                   bytes(props.message_id), bytes(props.type), json.dumps(args)]
@@ -160,12 +165,11 @@ class ZMQProxyRouter(Agent):
             self.zmq_router.socket.send_multipart(frames, copy=True)
         except ZMQError as ex:
             _log.debug("ZMQ Error {}".format(ex))
-        #self.zmq_router.socket.vip_send(frames, copy=False)
 
-    def external_pubsub_rpc_handler(self, ch, method, props, body):
+    def outbound_request_handler(self, ch, method, props, body):
         """
-        Handler for receiving external platform PubSub/RPC requests from internal agents. It then calls external
-        PubSub/RPC router handler to forward the request to external platform.
+        Handler for receiving external platform PubSub/RPC requests from internal agents.
+        It then calls external PubSub/RPC router handler to forward the request to external platform.
         :param ch: channel
         :param method: contains the routing key
         :param props: message properties
@@ -182,7 +186,7 @@ class ZMQProxyRouter(Agent):
                 # Forward the message to external RPC handler component of the router to take action
                 self.zmq_router.ext_rpc.handle_subsystem(frames)
 
-    def publish_callback(self, peer, sender, bus,  topic, headers, message):
+    def publish_callback(self, peer, sender, bus, topic, headers, message):
         """
         Callback method registered with local message bus to receive PubSub messages
         subscribed by external platform agents. PubSub component of router will route the message to
@@ -198,7 +202,7 @@ class ZMQProxyRouter(Agent):
 
     def vip_loop(self):
         """
-        Infinite ZMQ based VIP loop to receive and send messages over ZMQ message bus.
+        Infinite VIP loop to receive and send messages over ZMQ message bus.
         :return:
         """
         connection = self.core.connection
@@ -208,36 +212,40 @@ class ZMQProxyRouter(Agent):
         self.zmq_router.pubsub.add_rabbitmq_agent(self)
 
         while True:
-            frames = self.zmq_router.socket.recv_multipart(copy=False)
-            sender, recipient, proto, auth_token, msg_id, subsystem = frames[:6]
-            recipient = bytes(recipient)
-            # Check if router is the intended recipient or it has to route the message to an agent.
-            # for f in frames:
-            #     _log.debug("Proxy router message frames: {}".format(f))
-            if not recipient:
-                self.zmq_router.route(frames)
-            else:
-                self._handle_other_subsystems(frames)
+            try:
+                frames = self.zmq_router.socket.recv_multipart(copy=False)
+                sender, recipient, proto, auth_token, msg_id, subsystem = frames[:6]
+                recipient = bytes(recipient)
+                if not recipient:
+                    # Handle router specific messages
+                    self.zmq_router.route(frames)
+                else:
+                    # Route to RabbitMQ agent
+                    self._route_to_agent(frames)
+            except ZMQError as exc:
+                # _log.error("Error while receiving message: {}".format(exc))
+                if exc.errno == ENOTSOCK:
+                    break
 
-    def _handle_other_subsystems(self, frames):
+    def _route_to_agent(self, frames):
         """
         Send the message to local agent using internal RabbitMQ message bus
         :param frames: ZMQ message frames
         :return:
         """
         sender, recipient, proto, auth_token, msg_id, subsystem = frames[:6]
-        args = frames[6:]
-        args = [bytes(arg) for arg in args]
+        args = [bytes(arg) for arg in frames[6:]]
         # for f in frames:
         #     _log.debug("Frames:; {}".format(bytes(f)))
         connection = self.core.connection
 
-        app_id = "{0}.{1}".format(self.core.instance_name, bytes(sender))
+        app_id = "{instance}.{identity}".format(instance=self.core.instance_name,
+                                                identity=bytes(sender))
         # Change queue binding
         connection.channel.queue_bind(exchange=connection.exchange,
-                           queue=self._outbound_proxy_queue,
-                           routing_key=app_id,
-                           callback=None)
+                                      queue=self._outbound_response_queue,
+                                      routing_key=app_id,
+                                      callback=None)
 
         # Set the destination routing key to destination agent
         destination_routing_key = "{0}.{1}".format(self.core.instance_name, bytes(recipient))
@@ -245,19 +253,20 @@ class ZMQProxyRouter(Agent):
         # Fit VIP frames into the PIKA properties dictionary
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         dct = {
+            'user_id': self.core.instance_name + '.' + self.core.identity,
             'app_id': app_id,  # Routing key of SOURCE AGENT
             'headers': dict(sender=bytes(sender),  # SENDER
                             recipient=destination_routing_key,  # RECEIVER
                             proto=b'VIP',  # PROTO
-                            userid=bytes(auth_token),  # USER_ID
+                            user=bytes(auth_token),  # USER_ID
                             ),
             'message_id': bytes(msg_id),  # MSG_ID
             'type': bytes(subsystem),  # SUBSYS
             'content_type': 'application/json'
         }
         properties = pika.BasicProperties(**dct)
-        #_log.debug("PROXY PUBLISHING TO CHANNEL {0}, {1}, {2}".format(destination_routing_key, app_id, properties))
+        # _log.debug("PROXY PUBLISHING TO CHANNEL {0}, {1}, {2}".format(destination_routing_key, app_id, properties))
         connection.channel.basic_publish(connection.exchange,
-                                   destination_routing_key,
-                                   jsonapi.dumps(args, ensure_ascii=False),
-                                   properties)
+                                         destination_routing_key,
+                                         jsonapi.dumps(args, ensure_ascii=False),
+                                         properties)

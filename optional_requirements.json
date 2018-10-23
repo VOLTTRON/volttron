@@ -5,8 +5,7 @@
     },
     "--testing": {
         "help": "Installs testing infrastructure dependencies",
-        "packages": ["pytest==3.1.1", "pytest-timeout", "mock", "websocket-client",
-			"pytest-catchlog"]
+        "packages": ["pytest==3.6.4", "pytest-timeout", "mock", "websocket-client"]
     },
     "--crate": {
         "help": "Installs requirements for crate databases",
@@ -27,10 +26,15 @@
     "--documentation": {
         "help": "Installs requirements for building the documentation",
         "packages": ["sphinx==1.7.2", "mock", "psutil","pymongo",
-            "mysql-connector-python-rf"]
+            "mysql-connector-python-rf", "sphinx-rtd-theme==0.4.1", "recommonmark==0.4.0"]
     },
     "--market": {
         "help": "Installs requirements for the market service",
         "packages": ["numpy>1.13,<2", "transitions"]
+    },
+    "--rabbitmq": {
+        "help": "Installs requirements for the rabbitmq server",
+        "packages": ["wget==3.2", "cryptography==2.2.2",
+        "git+git://github.com/shwethanidd/pika.git@gevent_connection_adapter#egg=pika"]
     }
 }

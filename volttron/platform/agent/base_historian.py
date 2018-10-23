@@ -238,6 +238,14 @@ from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
 from volttron.platform.vip.agent.subsystems.query import Query
 
+from volttron.platform.async import AsyncCall
+
+from volttron.platform.messaging.health import (STATUS_BAD,
+                                                STATUS_UNKNOWN,
+                                                STATUS_GOOD,
+                                                STATUS_STARTING,
+                                                Status)
+
 try:
     import ujson
     from zmq.utils.jsonapi import dumps as _dumps, loads as _loads
@@ -292,6 +300,12 @@ def add_timing_data_to_header(headers, agent_id, phase):
     return abs((time1 - time2).total_seconds())
 
 
+STATUS_KEY_BACKLOGGED = "backlogged"
+STATUS_KEY_CACHE_COUNT = "cache_count"
+STATUS_KEY_PUBLISHING = "publishing"
+STATUS_KEY_CACHE_FULL = "cache_full"
+
+
 class BaseHistorianAgent(Agent):
     """
     This is the base agent for historian Agents.
@@ -326,6 +340,7 @@ class BaseHistorianAgent(Agent):
                  submit_size_limit=1000,
                  max_time_publishing=30.0,
                  backup_storage_limit_gb=None,
+                 backup_storage_report=0.9,
                  topic_replace_list=[],
                  gather_timing_data=False,
                  readonly=False,
@@ -337,6 +352,7 @@ class BaseHistorianAgent(Agent):
                  message_publish_count=10000,
                  history_limit_days=None,
                  storage_limit_gb=None,
+                 sync_timestamp=False,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -346,6 +362,8 @@ class BaseHistorianAgent(Agent):
         self._process_loop_in_greenlet = process_loop_in_greenlet
         self._topic_replace_list = topic_replace_list
 
+        self._async_call = AsyncCall()
+
         _log.info('Topic string replace list: {}'
                   .format(self._topic_replace_list))
 
@@ -353,6 +371,7 @@ class BaseHistorianAgent(Agent):
 
         self.volttron_table_defs = 'volttron_table_definitions'
         self._backup_storage_limit_gb = backup_storage_limit_gb
+        self._backup_storage_report = backup_storage_report
         self._retry_period = float(retry_period)
         self._submit_size_limit = int(submit_size_limit)
         self._max_time_publishing = float(max_time_publishing)
@@ -372,12 +391,21 @@ class BaseHistorianAgent(Agent):
         self.no_insert = False
         self.no_query = False
         self.instance_name = None
+        self._sync_timestamp = sync_timestamp
+
+        self._current_status_context = {
+            STATUS_KEY_CACHE_COUNT: 0,
+            STATUS_KEY_BACKLOGGED: False,
+            STATUS_KEY_PUBLISHING: True,
+            STATUS_KEY_CACHE_FULL: False
+        }
 
         self._default_config = {
                                 "retry_period":self._retry_period,
                                 "submit_size_limit": self._submit_size_limit,
                                 "max_time_publishing": self._max_time_publishing,
                                 "backup_storage_limit_gb": self._backup_storage_limit_gb,
+                                "backup_storage_report": self._backup_storage_report,
                                 "topic_replace_list": self._topic_replace_list,
                                 "gather_timing_data": self.gather_timing_data,
                                 "readonly": self._readonly,
@@ -456,8 +484,18 @@ class BaseHistorianAgent(Agent):
             topic_replace_list = list(config.get("topic_replace_list", []))
             gather_timing_data = bool(config.get("gather_timing_data", False))
             backup_storage_limit_gb = config.get("backup_storage_limit_gb")
-            if backup_storage_limit_gb:
+            if backup_storage_limit_gb is not None:
                 backup_storage_limit_gb = float(backup_storage_limit_gb)
+
+            backup_storage_report = config.get("backup_storage_report", 0.9)
+
+            if backup_storage_report:
+                backup_storage_report = float(backup_storage_report)
+                backup_storage_report = min(1.0, backup_storage_report)
+                backup_storage_report = max(0.0001, backup_storage_report)
+            else:
+                backup_storage_report = 0.9
+
             retry_period = float(config.get("retry_period", 300.0))
 
             storage_limit_gb = config.get("storage_limit_gb")
@@ -474,6 +512,7 @@ class BaseHistorianAgent(Agent):
             readonly = bool(config.get("readonly", False))
             message_publish_count = int(config.get("message_publish_count", 10000))
         except ValueError as e:
+            self._backup_storage_report = 0.9
             _log.error("Failed to load base historian settings. Settings not applied!")
             return
 
@@ -490,6 +529,7 @@ class BaseHistorianAgent(Agent):
 
         self.gather_timing_data = gather_timing_data
         self._backup_storage_limit_gb = backup_storage_limit_gb
+        self._backup_storage_report = backup_storage_report
         self._retry_period = retry_period
         self._submit_size_limit = submit_size_limit
         self._max_time_publishing = timedelta(seconds=max_time_publishing)
@@ -790,7 +830,8 @@ class BaseHistorianAgent(Agent):
                       device):
         # Anon the topic if necessary.
         topic = self.get_renamed_topic(topic)
-        timestamp_string = headers.get(headers_mod.DATE, None)
+        timestamp_string = headers.get(headers_mod.SYNC_TIMESTAMP if self._sync_timestamp else headers_mod.TIMESTAMP,
+                                       headers.get(headers_mod.DATE))
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
             timestamp, my_tz = process_timestamp(timestamp_string, topic)
@@ -888,6 +929,38 @@ class BaseHistorianAgent(Agent):
                                'meta': {},
                                'headers': headers})
 
+    @staticmethod
+    def _get_status_from_context(context):
+        status = STATUS_GOOD
+        if (context.get("backlogged") or
+                context.get("cache_full") or
+                not context.get("publishing")):
+            status = STATUS_BAD
+        return status
+
+    def _update_status_callback(self, status, context):
+        self.vip.health.set_status(status, context)
+
+    def _update_status(self, updates):
+        context_copy, new_status = self._update_and_get_context_status(updates)
+        self._async_call.send(None, self._update_status_callback, new_status, context_copy)
+
+    def _send_alert_callback(self, status, context, key):
+        self.vip.health.set_status(status, context)
+        alert_status = Status()
+        alert_status.update_status(status, context)
+        self.vip.health.send_alert(key, alert_status)
+
+    def _update_and_get_context_status(self, updates):
+        self._current_status_context.update(updates)
+        context_copy = self._current_status_context.copy()
+        new_status = self._get_status_from_context(context_copy)
+        return context_copy, new_status
+
+    def _send_alert(self, updates, key):
+        context_copy, new_status = self._update_and_get_context_status(updates)
+        self._async_call.send(None, self._send_alert_callback, new_status, context_copy, key)
+
     def _process_loop(self):
         """
         The process loop is called off of the main thread and will not exit
@@ -910,7 +983,9 @@ class BaseHistorianAgent(Agent):
 
         # Record the names of data, topics, meta tables in a metadata table
         self.record_table_definitions(self.volttron_table_defs)
-        backupdb = BackupDatabase(self, self._backup_storage_limit_gb)
+        backupdb = BackupDatabase(self, self._backup_storage_limit_gb,
+                                  self._backup_storage_report)
+        self._update_status({STATUS_KEY_CACHE_COUNT: backupdb.get_backlog_count()})
 
         # now that everything is setup we need to make sure that the topics
         # are synchronized between
@@ -919,12 +994,14 @@ class BaseHistorianAgent(Agent):
         # publishing is currently happening (and how long it's taking)
         # we may or may not want to wait on the event queue for more input
         # before proceeding with the rest of the loop.
-        wait_for_input = not bool(
-            backupdb.get_outstanding_to_publish(self._submit_size_limit))
+        wait_for_input = not bool(backupdb.get_outstanding_to_publish(1))
 
         while True:
+            if not wait_for_input:
+                self._update_status({STATUS_KEY_BACKLOGGED: True})
+
             try:
-                #_log.debug("Reading from/waiting for queue.")
+                # _log.debug("Reading from/waiting for queue.")
                 new_to_publish = [
                     self._event_queue.get(wait_for_input, self._retry_period)]
             except Empty:
@@ -932,7 +1009,7 @@ class BaseHistorianAgent(Agent):
                 new_to_publish = []
 
             if new_to_publish:
-                #_log.debug("Checking for queue build up.")
+                # _log.debug("Checking for queue build up.")
                 while True:
                     try:
                         new_to_publish.append(self._event_queue.get_nowait())
@@ -942,7 +1019,19 @@ class BaseHistorianAgent(Agent):
 
             # We wake the thread after a configuration change by passing a None to the queue.
             # Backup anything new before checking for a stop.
-            backupdb.backup_new_data((x for x in new_to_publish if x is not None))
+            cache_full = backupdb.backup_new_data((x for x in new_to_publish if x is not None))
+
+            if cache_full:
+                self._send_alert({STATUS_KEY_CACHE_FULL: cache_full,
+                                  STATUS_KEY_BACKLOGGED: True,
+                                  STATUS_KEY_CACHE_COUNT: backupdb.get_backlog_count()},
+                                 "historian_cache_full")
+            else:
+                old_backlog_state = self._current_status_context[STATUS_KEY_BACKLOGGED]
+                backlog_count = backupdb.get_backlog_count()
+                self._update_status({STATUS_KEY_CACHE_FULL: cache_full,
+                                     STATUS_KEY_BACKLOGGED: old_backlog_state and backlog_count > 0,
+                                     STATUS_KEY_CACHE_COUNT: backupdb.get_backlog_count()})
 
             # Check for a stop for reconfiguration.
             if self._stop_process_loop:
@@ -956,8 +1045,17 @@ class BaseHistorianAgent(Agent):
                 to_publish_list = backupdb.get_outstanding_to_publish(
                     self._submit_size_limit)
 
+                # Check to see if we are caught up.
+                if not to_publish_list:
+                    if self._message_publish_count > 0:
+                        _log.info("Historian processed {} total records.".format(current_published_count))
+                        next_report_count = current_published_count + self._message_publish_count
+                    self._update_status({STATUS_KEY_BACKLOGGED: False,
+                                         STATUS_KEY_CACHE_COUNT: backupdb.get_backlog_count()})
+                    break
+
                 # Check for a stop for reconfiguration.
-                if not to_publish_list or self._stop_process_loop:
+                if self._stop_process_loop:
                     break
 
                 history_limit_timestamp = None
@@ -973,18 +1071,33 @@ class BaseHistorianAgent(Agent):
                     _log.exception(
                         "An unhandled exception occurred while publishing.")
 
-                # if the successful queue is empty then we need not remove
-                # them from the database.
+                # if the success queue is empty then we need not remove
+                # them from the database and we are probably having connection problems.
+                # Update the status and send alert accordingly.
                 if not self._successful_published:
+                    self._send_alert({STATUS_KEY_PUBLISHING: False}, "historian_not_publishing")
                     break
+
 
                 backupdb.remove_successfully_published(
                     self._successful_published, self._submit_size_limit)
-                current_published_count += len(self._successful_published)
+
+                backlog_count = backupdb.get_backlog_count()
+                old_backlog_state = self._current_status_context[STATUS_KEY_BACKLOGGED]
+                self._update_status({STATUS_KEY_PUBLISHING: True,
+                                     STATUS_KEY_BACKLOGGED: old_backlog_state and backlog_count > 0,
+                                     STATUS_KEY_CACHE_COUNT: backlog_count})
+
+                if None in self._successful_published:
+                    current_published_count += len(to_publish_list)
+                else:
+                    current_published_count += len(self._successful_published)
+
                 if self._message_publish_count > 0:
                     if current_published_count >= next_report_count:
                         _log.info("Historian processed {} total records.".format(current_published_count))
                         next_report_count = current_published_count + self._message_publish_count
+
                 self._successful_published = set()
                 now = datetime.utcnow()
                 if now - start_time > self._max_time_publishing:
@@ -996,6 +1109,7 @@ class BaseHistorianAgent(Agent):
                     break
 
             _log.debug("Exiting publish loop.")
+
 
             # Check for a stop for reconfiguration.
             if self._stop_process_loop:
@@ -1046,7 +1160,6 @@ class BaseHistorianAgent(Agent):
 
             [
                 {
-                    '_id': 1,
                     'timestamp': timestamp1.replace(tzinfo=pytz.UTC),
                     'source': 'scrape',
                     'topic': "pnnl/isb1/hvac1/thermostat",
@@ -1054,7 +1167,6 @@ class BaseHistorianAgent(Agent):
                     'meta': {"units": "F", "tz": "UTC", "type": "float"}
                 },
                 {
-                    '_id': 2,
                     'timestamp': timestamp2.replace(tzinfo=pytz.UTC),
                     'source': 'scrape',
                     'topic': "pnnl/isb1/hvac1/temperature",
@@ -1073,7 +1185,7 @@ class BaseHistorianAgent(Agent):
         treats meta data.
 
         Once one or more records are published either
-        :py:meth:`BaseHistorianAgent.report_handled` or
+        :py:meth:`BaseHistorianAgent.report_all_handled` or
         :py:meth:`BaseHistorianAgent.report_handled` must be called to
         report records as being published.
         """
@@ -1177,13 +1289,17 @@ class BackupDatabase:
     use only.
     """
 
-    def __init__(self, owner, backup_storage_limit_gb, check_same_thread=True):
+    def __init__(self, owner, backup_storage_limit_gb, backup_storage_report,
+                 check_same_thread=True):
         # The topic cache is only meant as a local lookup and should not be
         # accessed via the implemented historians.
         self._backup_cache = {}
+        # Count of records in cache.
+        self._record_count = 0
         self._meta_data = defaultdict(dict)
         self._owner = weakref.ref(owner)
         self._backup_storage_limit_gb = backup_storage_limit_gb
+        self._backup_storage_report = backup_storage_report
         self._connection = None
         self._setupdb(check_same_thread)
 
@@ -1191,23 +1307,11 @@ class BackupDatabase:
         """
         :param new_publish_list: An iterable of records to cache to disk.
         :type new_publish_list: iterable
+        :returns: True if records the cache has reached a full state.
+        :rtype: bool
         """
         #_log.debug("Backing up unpublished values.")
         c = self._connection.cursor()
-
-        if self._backup_storage_limit_gb is not None:
-
-            def page_count():
-                c.execute("PRAGMA page_count")
-                return c.fetchone()[0]
-
-            while page_count() >= self.max_pages:
-                self._owner().vip.pubsub.publish('pubsub', 'backupdb/nomore')
-                c.execute(
-                    '''DELETE FROM outstanding
-                    WHERE ROWID IN
-                    (SELECT ROWID FROM outstanding
-                    ORDER BY ROWID ASC LIMIT 100)''')
 
         for item in new_publish_list:
             source = item['source']
@@ -1244,13 +1348,37 @@ class BackupDatabase:
                         '''INSERT INTO outstanding
                         values(NULL, ?, ?, ?, ?, ?)''',
                         (timestamp, source, topic_id, dumps(value), dumps(headers)))
+                    self._record_count += 1
                 except sqlite3.IntegrityError:
                     # In the case where we are upgrading an existing installed historian the
                     # unique constraint may still exist on the outstanding database.
                     # Ignore this case.
                     pass
 
+        cache_full = False
+        if self._backup_storage_limit_gb is not None:
+
+            def page_count():
+                c.execute("PRAGMA page_count")
+                return c.fetchone()[0]
+
+            while page_count() > self.max_pages:
+                c.execute(
+                    '''DELETE FROM outstanding
+                    WHERE ROWID IN
+                    (SELECT ROWID FROM outstanding
+                    ORDER BY ROWID ASC LIMIT 100)''')
+                self._record_count -= c.rowcount
+                cache_full = True
+
+            # Catch case where we are not adding fast enough to trigger the above
+            # every time we add more data.
+            if page_count() >= self.max_pages - int(self.max_pages*(1.0-self._backup_storage_report)):
+                cache_full = True
+
         self._connection.commit()
+
+        return cache_full
 
     def remove_successfully_published(self, successful_publishes,
                                       submit_size):
@@ -1276,6 +1404,7 @@ class BackupDatabase:
                         WHERE ROWID IN
                         (SELECT ROWID FROM outstanding
                           ORDER BY ts LIMIT ?)''', (submit_size,))
+            self._record_count -= c.rowcount
         else:
             temp = list(successful_publishes)
             temp.sort()
@@ -1283,6 +1412,7 @@ class BackupDatabase:
                             WHERE id = ?''',
                           ((_id,) for _id in
                            successful_publishes))
+            self._record_count -= len(temp)
 
         self._connection.commit()
 
@@ -1317,7 +1447,20 @@ class BackupDatabase:
                             'meta': meta})
 
         c.close()
+
+        # If we were backlogged at startup and our initial estimate was
+        # off this will correct it.
+        if len(results) < size_limit:
+            self._record_count = len(results)
+
         return results
+
+    def get_backlog_count(self):
+        """
+        Retrieve the current number of records in the cashe.
+        """
+        return self._record_count
+
 
     def close(self):
         self._connection.close()
@@ -1353,6 +1496,7 @@ class BackupDatabase:
                                          topic_id INTEGER NOT NULL,
                                          value_string TEXT NOT NULL,
                                          header_string TEXT)''')
+            self._record_count = 0
         else:
             # Check to see if we have a header_string column.
             c.execute("pragma table_info(outstanding);")
@@ -1371,6 +1515,25 @@ class BackupDatabase:
             if not found_header_column:
                 _log.info("Updating cache database to support storing header data.")
                 c.execute("ALTER TABLE outstanding ADD COLUMN header_string text;")
+
+            # Initialize record_count at startup.
+            # This is a (probably correct) estimate of the total records cached.
+            # We do not use count() as it can be very slow if the cache is quite large.
+            _log.info("Counting existing rows.")
+            self._connection.execute('''select
+                                        max(id)
+                                        from outstanding''')
+            max_id = c.fetchone()
+
+            self._connection.execute('''select
+                                        min(id)
+                                        from outstanding''')
+            min_id = c.fetchone()
+
+            if max_id is not None and min_id is not None:
+                self._record_count = max_id[0] - min_id[0] + 1
+            else:
+                self._record_count = 0
 
         c.execute('''CREATE INDEX IF NOT EXISTS outstanding_ts_index
                                            ON outstanding (ts)''')

@@ -1,0 +1,24 @@
+# Optional federate_name (defaults to vip identity)
+federate_name: federate1
+# Optional broker_location (defaults to tcp://localhost:5570
+broker_location: tcp://localhost:5570
+# Optional time_delta (defaults to 1s)
+time_delta: 1s
+# Optional sim_lenthg (defaults to 60s)
+sim_length: 60s
+# Optional stop_agent_when_sim_complete default False
+stop_agent_when_sim_complete: True
+# Optional subscription topic for the messages that contain the inputs for FNCS
+subscription_topic: pnnl/all
+
+# Required topic_mapping
+topic_mapping:
+  # fncs key
+  a:
+    # fncs_topic to be subscribed to
+    # because calling publish on fncs automatically prepends the federate name to the topic
+    # we need to include it as wwell when we are subscribing.
+    fncs_topic: federate1/devices/abcd
+    volttron_topic: fncs/abc
+  b:
+    fncs_topic: alpha/betagama

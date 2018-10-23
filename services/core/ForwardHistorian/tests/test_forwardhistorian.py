@@ -44,7 +44,7 @@ import gevent
 import pytest
 
 from volttron.platform import get_services_core
-from volttron.platform.agent import PublishMixin
+from volttron.platform.agent import PublishMixin, utils
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
 from volttron.platform.vip.agent import Agent
@@ -196,7 +196,7 @@ def test_devices_topic(publish_agent, query_agent):
                    {'OutsideAirTemperature': float_meta}]
 
     # Publish messages twice
-    time1 = datetime.utcnow().isoformat(' ')
+    time1 = utils.format_timestamp(datetime.utcnow())
     headers = {
         headers_mod.DATE: time1
     }
@@ -214,7 +214,7 @@ def test_devices_topic(publish_agent, query_agent):
         order="LAST_TO_FIRST").get(timeout=10)
 
     assert (len(result['values']) == 1)
-    (time1_date, time1_time) = time1.split(" ")
+    (time1_date, time1_time) = time1.split("T")
     assert (result['values'][0][0] == time1_date + 'T' + time1_time + '+00:00')
     assert (result['values'][0][1] == oat_reading)
     assert set(result['metadata'].items()) == set(float_meta.items())
@@ -260,10 +260,11 @@ def test_analysis_topic(publish_agent, query_agent):
                     }]
 
     # Create timestamp
-    now = datetime.utcnow().isoformat() + 'Z'
+    now = utils.format_timestamp(datetime.utcnow())
     print("now is ", now)
     headers = {
-        headers_mod.DATE: now
+        headers_mod.DATE: now,
+        headers_mod.TIMESTAMP: now
     }
     # Publish messages
     publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device',
@@ -388,11 +389,12 @@ def test_log_topic(publish_agent, query_agent):
                                        'type': 'float'}}
     # pytest.set_trace()
     # Create timestamp
-    current_time = datetime.utcnow().isoformat() + 'Z'
+    current_time = utils.format_timestamp(datetime.utcnow())
     print("current_time is ", current_time)
     future_time = '2017-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: future_time
+        headers_mod.DATE: future_time,
+        headers_mod.TIMESTAMP: future_time
     }
     print("time in header is ", future_time)
 
@@ -603,9 +605,10 @@ def test_nan_value(publish_agent, query_agent):
                    {'nan_value': float_meta}]
 
     # Publish messages twice
-    time1 = datetime.utcnow().isoformat(' ')
+    time1 = utils.format_timestamp(datetime.utcnow())
     headers = {
-        headers_mod.DATE: time1
+        headers_mod.DATE: time1,
+        headers_mod.TIMESTAMP: time1
     }
     publish(publish_agent, 'devices/PNNL/BUILDING_1/Device/all', headers, all_message)
     gevent.sleep(1)
@@ -621,7 +624,7 @@ def test_nan_value(publish_agent, query_agent):
         order="LAST_TO_FIRST").get(timeout=10)
 
     assert (len(result['values']) == 1)
-    (time1_date, time1_time) = time1.split(" ")
+    (time1_date, time1_time) = time1.split("T")
     assert (result['values'][0][0] == time1_date + 'T' + time1_time + '+00:00')
     assert (math.isnan(result['values'][0][1]))
     assert set(result['metadata'].items()) == set(float_meta.items())

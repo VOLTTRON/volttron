@@ -95,6 +95,8 @@ class DiscoveryInfo(object):
         self.vip_address = kwargs.pop('vip-address')
         self.serverkey = kwargs.pop('serverkey')
         self.instance_name = kwargs.pop('instance-name')
+        self.vc_rmq_address = kwargs.pop('vc-rmq-address')
+
         assert len(kwargs) == 0
 
     @staticmethod
@@ -142,7 +144,8 @@ class DiscoveryInfo(object):
             'discovery_address': self.discovery_address,
             'vip_address': self.vip_address,
             'serverkey': self.serverkey,
-            'instance_name': self.instance_name
+            'instance_name': self.instance_name,
+            'vc_rmq_address': self.vc_rmq_address
         }
 
         return jsonapi.dumps(dk)
@@ -361,7 +364,7 @@ class MasterWebService(Agent):
     """
 
     def __init__(self, serverkey, identity, address, bind_web_address, aip,
-                 volttron_central_address=None, **kwargs):
+                 volttron_central_address=None, volttron_central_rmq_address=None, **kwargs):
         """Initialize the discovery service with the serverkey
 
         serverkey is the public key in order to access this volttron's bus.
@@ -380,6 +383,7 @@ class MasterWebService(Agent):
         self.aip = aip
 
         self.volttron_central_address = volttron_central_address
+        self.volttron_central_rmq_address = volttron_central_rmq_address
 
         # If vc is this instance then make the vc address the same as
         # the web address.
@@ -582,7 +586,8 @@ class MasterWebService(Agent):
             return_dict['instance-name'] = self.instance_name
 
         return_dict['vip-address'] = external_vip
-
+        return_dict['vc-rmq-address'] = "amqp://volttron-VirtualBox/test1"#self.volttron_central_rmq_address
+        print("Discovery Info {}".format(return_dict))
         start_response('200 OK', [('Content-Type', 'application/json')])
         return jsonapi.dumps(return_dict)
 
@@ -690,6 +695,15 @@ class MasterWebService(Agent):
             start_response('200 OK',
                            [('Content-Type', 'application/json')])
             return jsonapi.dumps(res)
+        elif isinstance(res, list):
+            _log.debug('list implies [content, headers]')
+            if len(res) == 2:
+                start_response('200 OK',
+                               res[1])
+                return res[0]
+            elif len(res) == 3:
+                start_response(res[0], res[2])
+                return res[1]
 
         # If this is a tuple then we know we are going to have a response
         # and a headers portion of the data.

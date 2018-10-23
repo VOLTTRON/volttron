@@ -1,0 +1,266 @@
+---
+# MESA-ESS function data dictionary
+#
+# Values of optional:
+#   O = OPTIONAL
+#   M = MANDATORY
+#   C = CONDITIONAL
+#
+# Values of fcodes:
+#   "direct_operate"
+#   "select"
+#   "operate"
+#
+# Values of action:
+#   "echo"
+#   "publish"
+#   "echo_and_publish"
+#   "publish_and_respond"
+
+
+version: 1.0
+
+functions:
+  # *********** ACTIVE POWER MODES ***************
+  - id: "LN DCHD"
+    name: "charge_discharge_mode"
+    ref: "MESA-ESS spec section 6.4.1 (Table 23)"
+    support_point: "Supports Charge/Discharge Mode"
+    steps:
+      - step_number: 1
+        point_name: "DCHD.WinTms (out)"
+        optional: "O"
+        fcodes: []
+        response: "DCHD.WinTms (in)"
+        action: "echo"
+      - step_number: 2
+        point_name: "DCHD.RmpTms (out)"
+        optional: "M"
+        fcodes: []
+        response: "DCHD.RmpTms (in)"
+        action: "echo"
+      - step_number: 3
+        # Changed the name in the next line from DCHD.RvrtTms to DCHD.RevtTms to match point definitions
+        point_name: "DCHD.RevtTms (out)"
+        optional: "O"
+        fcodes: []
+        response: "DCHD.RevtTms (in)"
+        action: "echo"
+      - step_number: 4
+        point_name: "DCHD.WTgt (out)"
+        optional: "O"
+        fcodes: []
+        response: "DCHD.WTgt (in)"
+        action: "echo"
+      - step_number: 5
+        point_name: "DCHD.RmpUpRte (out)"
+        optional: "O"
+        fcodes: []
+        response: "DCHD.RmpUpRte (in)"
+        action: "echo"
+      - step_number: 6
+        point_name: "DCHD.RmpDnRte (out)"
+        optional: "O"
+        fcodes: []
+        response: "DCHD.RmpDnRte (in)"
+        action: "echo"
+      - step_number: 7
+        point_name: "DCHD.ChaRmpUpRte (out)"
+        optional: "O"
+        fcodes: []
+        response: "DCHD.ChaRmpUpRte (in)"
+        action: "echo"
+      - step_number: 8
+        point_name: "DCHD.ChaRmpDnRte (out)"
+        optional: "O"
+        fcodes: []
+        response: "DCHD.ChaRmpDnRte (in)"
+        action: "echo"
+      - step_number: 9
+        point_name: "DCHD.ModPrty (out)"
+        optional: "O"
+        fcodes: []
+        response: "DCHD.ModPrty (in)"
+        action: "echo"
+      - step_number: 10
+        point_name: "DCHD.VArAct (out)"
+        optional: "O"
+        fcodes: []
+        response: "DCHD.VArAct (in)"
+        action: "echo"
+      - step_number: 11
+        point_name: "DCHD.ModEna"
+        optional: "M"
+        fcodes: []
+        action: "publish"
+# The following functions are commented out for now because their steps reference missing point definitions.
+# They could be revived later as needed if points are defined for each point_name.
+# *********** REACTIVE POWER MODES ***************
+#  - id: "LN DVVC"
+#    name: "volt_var_control_mode"
+#    ref: "MESA-ESS spec section 6.5.2 (Table 34)"
+#    support_point: "Supports Volt-VAR Control Mode"
+#    steps:
+#      - step_number: 1
+#        point_name: "DVVC.ECPRef- id"
+#        optional: "M"
+#        fcodes: []
+#      - step_number: 2
+#        point_name: "DVVC.VRef"
+#        optional: "M"
+#        fcodes: []
+#      - step_number: 3
+#        point_name: "DVVC.WinTms"
+#        optional: "O"
+#        fcodes: []
+#      - step_number: 4
+#        point_name: "DVVC.RmpTms"
+#        optional: "O"
+#        fcodes: []
+#      - step_number: 5
+#        point_name: "DVVC.RvrtTms"
+#        optional: "O"
+#        fcodes: []
+#      - step_number: 6
+#        point_name: "DVVC.PairArrVVar"
+#        optional: "M"
+#        fcodes: []
+#      - step_number: 7
+#        point_name: "DVVC.ModEna"
+#        optional: "M"
+#        fcodes: []
+#      - step_number: 8
+#        point_name: "DVVC.ModPrty"
+#        optional: "O"
+#        fcodes: []
+#        action: "publish"
+  # Schedule functions
+#  - id: "sched1"
+#    name: "schedule_creation_function"
+#    ref: "MESA-ESS spec section 6.6 (Table 37)"
+#    steps:
+#      - step_number: 1
+#        point_name: "FSCHxx (the xx refers to the schedule number (index)"
+#        optional: "M"
+#        fcodes: []
+#      - step_number: 2
+#        point_name: "FSCHxx.ValASG (with FSCH.ClcIntvTyp set to seconds)"
+#        optional: "O"
+#        fcodes: []
+#      - step_number: 3
+#        point_name: "FSCHxx.ValASG"
+#        optional: "O"
+#        fcodes: []
+#      - step_number: 4
+#        point_name: "FSCHxx.ING (set to the operational mode - identity)"
+#        optional: "C"
+#        fcodes: []
+#      - step_number: 5
+#        point_name: "FSCHxx.RmpTms"
+#        optional: "O"
+#        fcodes: []
+#      - step_number: 6
+#        point_name: "FSCHxx.NumEntr"
+#        optional: "M"
+#        fcodes: []
+#        action: "publish"
+#      - step_number: 7
+#        point_name: "FSCHxx.SchdPrio"
+#        optional: "O"
+#        fcodes: []
+#        action: "publish"
+#      - step_number: 8
+#        point_name: "FSCHxx.ValMV (for power system values or pricing signals) or FSCH.ValINS (for operational modes)"
+#        optional: "O"
+#        fcodes: []
+#        action: "publish"
+  - id: "curve"
+    name: "curve_function"
+    ref: ""
+    steps:
+      - step_number: 1
+        point_name: "Curve Edit Selector"
+        optional: "M"
+      - step_number: 2
+        point_name: "Curve Mode Type"
+      - step_number: 3
+        point_name: "Curve Time Window"
+      - step_number: 4
+        point_name: "Curve Ramp Time"
+      - step_number: 5
+        point_name: "Curve Revert Time"
+      - step_number: 6
+        point_name: "Curve Maximum Number of Points"
+      - step_number: 7
+        point_name: "Independent (X-Value) Units for Curve"
+      - step_number: 8
+        point_name: "Dependent (Y-Value) Units for Curve"
+      - step_number: 9
+        point_name: "Curve Time Constant"
+      - step_number: 10
+        point_name: "Curve Decreasing Max Ramp Rate"
+      - step_number: 11
+        point_name: "Curve Increasing Ramp Rate"
+      - step_number: 12
+        point_name: "CurveStart-X"
+      - step_number: 13
+        point_name: "Curve Number of Points"
+        optional: "M"
+        action: "publish_and_respond"
+        response: "Response Point"
+#  - id: "sched2"
+#    name: "schedule_enable_function"
+#    ref: "MESA-ESS spec section 6.6 (Table 38)"
+#    steps:
+#      - step_number: 1
+#        point_name: "FSCC.Schd"
+#        optional: "M"
+#      - step_number: 2
+#        point_name: "FSCHxx.StrTm"
+#        optional: "M"
+#      - step_number: 3
+#        point_name: "FSCHxx.IntvPer"
+#      - step_number: 4
+#        point_name: "FSCHxx.ClcIntvTyp"
+#      - step_number: 5
+#        point_name: "FSCHxx.Enable"
+#        optional: "M"
+#        action: "publish"
+#      - step_number: 6
+#        point_name: "FSCH.SchdSt.2"
+#        action: "publish"
+#      - step_number: 7
+#        point_name: "FSCHxx.SchdReuse"
+#        action: "publish"
+#      - step_number: 8
+#        point_name: "FSCHxx.SchdReuse"
+#        action: "publish"
+#      - step_number: 9
+#        point_name: "FSCHxx.SchdReuse"
+#        action: "publish"
+#      - step_number: 10
+#        point_name: "FSCHxx.SchdReuse"
+#        action: "publish"
+#      - step_number: 11
+#        point_name: "FSCHxx.SchdReuse"
+#        action: "publish"
+#      - step_number: 12
+#        point_name: "FSCHxx.SchdReuse"
+#        action: "publish"
+#      - step_number: 13
+#        point_name: "FSCHxx.SchdReuse"
+#        action: "publish"
+#      - step_number: 14
+#        point_name: "FSCH.ActSchdRef"
+#        action: "publish"
+  - id: "array2"
+    name: "array_function"
+    ref: ""
+    steps:
+      - step_number: 1
+        point_name: "Inverter active power output - Present Active Power output level"
+      - step_number: 2
+        point_name: "Array Number of Points"
+        optional: "M"
+        action: "publish_and_respond"
+        response: "Response Point"

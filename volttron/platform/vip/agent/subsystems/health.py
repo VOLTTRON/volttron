@@ -40,8 +40,8 @@ import logging
 import os
 import weakref
 
-from volttron.platform.agent import utils
 from volttron.platform.messaging import topics
+from volttron.platform.messaging.headers import DATE
 from volttron.platform.messaging.health import *
 from .base import SubsystemBase
 
@@ -67,6 +67,7 @@ class Health(SubsystemBase):
         def onsetup(sender, **kwargs):
             rpc.export(self.set_status, 'health.set_status')
             rpc.export(self.get_status, 'health.get_status')
+            rpc.export(self.get_status, 'health.get_status_json')
             rpc.export(self.send_alert, 'health.send_alert')
 
         core.onsetup.connect(onsetup, self)
@@ -152,7 +153,11 @@ class Health(SubsystemBase):
         """
         return self._statusobj.as_dict() #.as_json()
 
-    def  get_status_json(self):
+    # TODO fetch status value from status object
+    def get_status_value(self):
+        return self._statusobj.status
+
+    def get_status_json(self):
         """"RPC method
 
         Returns the last updated status from the object with the context.
@@ -167,3 +172,13 @@ class Health(SubsystemBase):
 
         """
         return self._statusobj.as_json()
+
+    # TODO define publish for health messaging
+    # TODO fix topic
+    # TODO fix self.core
+    def publish(self):
+        topic = 'heartbeat/' + self.core().identity
+        headers = {DATE: format_timestamp(get_aware_utc_now())}
+        message = self.get_status()
+
+        self.pubsub().publish('pubsub', topic, headers, message)

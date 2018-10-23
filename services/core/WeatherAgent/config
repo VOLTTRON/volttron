@@ -1,0 +1,13 @@
+{
+    #1: request only, 2: polling & request. for polling specify poll_time also
+    "operation_mode": 2,
+
+    "wu_api_key": "<api_key>",
+
+    "locations": [
+        {"zip": "22212"},
+        {"zip": "99353"}
+    ],
+    "poll_time": 20 #seconds
+
+}

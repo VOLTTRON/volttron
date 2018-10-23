@@ -52,6 +52,8 @@ DATE = 'Date'
 
 TIMESTAMP = 'TimeStamp'
 
+SYNC_TIMESTAMP = 'SynchronizedTimeStamp'
+
 FROM = 'From'
 TO = 'To'
 

@@ -52,6 +52,8 @@ from volttron.platform.keystore import KnownHostsStore
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.messaging.health import STATUS_BAD, Status
 from volttron.platform.agent.known_identities import PLATFORM_HISTORIAN
+import os
+from urlparse import urlparse
 
 DATAMOVER_TIMEOUT_KEY = 'DATAMOVER_TIMEOUT_KEY'
 utils.setup_logging()
@@ -65,9 +67,9 @@ def historian(config_path, **kwargs):
     assert destination_vip is not None
 
     hosts = KnownHostsStore()
-    serverkey = hosts.serverkey(destination_vip)
-    if serverkey is not None:
-        config['destination-serverkey'] = serverkey
+    destination_serverkey = hosts.serverkey(destination_vip)
+    if destination_serverkey is not None:
+        config['destination-serverkey'] = destination_serverkey
     else:
         assert config.get('destination-serverkey') is not None
         _log.info("Destination serverkey not found in known hosts file, "
@@ -96,28 +98,36 @@ class DataMover(BaseHistorian):
         should subscribe to.
         :param destination_historian_identity: vip identity of the 
         destination historian. default is 'platform.historian'
+        :param destination_instance_name: instance name of destination server
         :param kwargs: additional arguments to be passed along to parent class
         """
         kwargs["process_loop_in_greenlet"] = True
+        self.destination_instance_name = kwargs.pop('destination_instance_name', None)
+        self.destination_message_bus = kwargs.pop('destination_message_bus', 'zmq')
         super(DataMover, self).__init__(**kwargs)
         self.destination_vip = destination_vip
         self.destination_serverkey = destination_serverkey
         self.destination_historian_identity = destination_historian_identity
-
+        self.local_message_bus = utils.get_messagebus()
+        self.rmq_to_rmq_comm = False
         config = {"destination_vip":self.destination_vip,
                   "destination_serverkey": self.destination_serverkey,
-                  "destination_historian_identity": self.destination_historian_identity}
+                  "destination_historian_identity": self.destination_historian_identity
+                  }
 
         self.update_default_config(config)
-
+        _log.debug("My idenity {}".format(self.core.identity))
         # will be available in both threads.
         self._last_timeout = 0
+        if self.local_message_bus == 'rmq' and self.destination_message_bus == 'rmq':
+            self.rmq_to_rmq_comm = True
 
     def configure(self, configuration):
         self.destination_vip = str(configuration.get('destination_vip', ""))
         self.destination_serverkey = str(configuration.get('destination_serverkey', ""))
-        self.destination_historian_identity = str(configuration.get('destination_historian_identity', PLATFORM_HISTORIAN))
-
+        self.destination_historian_identity = str(configuration.get('destination_historian_identity',
+                                                                    PLATFORM_HISTORIAN))
+        #self.destination_instance_name = str(configuration.get('destination_instance_name', ""))
 
     #Redirect the normal capture functions to capture_data.
     def _capture_device_data(self, peer, sender, bus, topic, headers, message):
@@ -189,11 +199,12 @@ class DataMover(BaseHistorian):
             if self.timestamp() < self._last_timeout + 60:
                 _log.debug('Not allowing send < 60 seconds from failure')
                 return
-        if not self._target_platform:
-            self.historian_setup()
-        if not self._target_platform:
-            _log.debug('Could not connect to target')
-            return
+        if not self.rmq_to_rmq_comm:
+            if not self._target_platform:
+                self.historian_setup()
+            if not self._target_platform:
+                _log.debug('Could not connect to target')
+                return
 
         to_send = []
         for x in to_publish_list:
@@ -214,34 +225,55 @@ class DataMover(BaseHistorian):
         with gevent.Timeout(30):
             try:
                 _log.debug("Sending to destination historian.")
-                self._target_platform.vip.rpc.call(
-                    self.destination_historian_identity, 'insert',
-                    to_send).get(timeout=10)
+
                 self.report_all_handled()
+                # If local and destination platforms are using RMQ message bus,
+                # then shovel will be used to setup the connection and forwarding
+                # of data. All we need to do is perform normal RPC and specify
+                # destination instance name
+                if self.rmq_to_rmq_comm:
+                    kwargs = {"external_platform": self.destination_instance_name}
+                    self.vip.rpc.call(
+                        self.destination_historian_identity, 'insert',
+                        to_send, **kwargs
+                    ).get(timeout=10)
+                else:
+                    self._target_platform.vip.rpc.call(
+                        self.destination_historian_identity, 'insert',
+                        to_send).get(timeout=10)
             except gevent.Timeout:
                 self._last_timeout = self.timestamp()
-                self._target_platform.core.stop()
+                if self._target_platform:
+                    self._target_platform.core.stop()
                 self._target_platform = None
                 _log.error("Timeout when attempting to publish to target.")
                 self.vip.health.set_status(
                     STATUS_BAD, "Timeout occurred")
 
     def historian_setup(self):
-        _log.debug("Setting up to forward to {}".format(self.destination_vip))
-        try:
-            agent = build_agent(address=self.destination_vip,
-                                serverkey=self.destination_serverkey,
-                                publickey=self.core.publickey,
-                                secretkey=self.core.secretkey,
-                                enable_store=False)
-        except gevent.Timeout:
-            self.vip.health.set_status(
-                STATUS_BAD, "Timeout in setup of agent")
-            status = Status.from_json(self.vip.health.get_status())
-            self.vip.health.send_alert(DATAMOVER_TIMEOUT_KEY,
-                                       status)
+        if self.rmq_to_rmq_comm:
+            _log.debug("Setting up to forward to {}".format(self.destination_instance_name))
+            self._target_platform = None
         else:
-            self._target_platform = agent
+            _log.debug("Setting up to forward to {}".format(self.destination_vip))
+            try:
+                agent = build_agent(address=self.destination_vip,
+                                    serverkey=self.destination_serverkey,
+                                    publickey=self.core.publickey,
+                                    secretkey=self.core.secretkey,
+                                    enable_store=False,
+                                    instance_name=self.destination_instance_name)
+            except gevent.Timeout:
+                self.vip.health.set_status(
+                    STATUS_BAD, "Timeout in setup of agent")
+                try:
+                    status = Status.from_json(self.vip.health.get_status())
+                    self.vip.health.send_alert(DATAMOVER_TIMEOUT_KEY,
+                                           status)
+                except KeyError:
+                    _log.error("Error getting the health status")
+            else:
+                self._target_platform = agent
 
     def historian_teardown(self):
         # Kill the forwarding agent if it is currently running.

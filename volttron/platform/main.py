@@ -37,7 +37,7 @@
 # }}}
 
 from __future__ import print_function, absolute_import
-
+import yaml
 import argparse
 import errno
 import logging
@@ -56,7 +56,8 @@ import uuid
 import gevent
 from gevent.fileobject import FileObject
 import zmq
-from zmq import green, ZMQError
+from zmq import ZMQError
+from zmq import green
 
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
@@ -67,7 +68,6 @@ from . import __version__
 from . import config
 from . import vip
 from .vip.agent import Agent, Core
-from .vip.agent.compat import CompatPubSub
 from .vip.router import *
 from .vip.socket import decode_key, encode_key, Address
 from .vip.tracking import Tracker
@@ -86,8 +86,11 @@ from .vip.keydiscovery import KeyDiscoveryAgent
 from .vip.pubsubwrapper import PubSubWrapper
 from ..utils.persistance import load_create_store
 from .vip.rmq_router import RMQRouter
+from volttron.platform.agent.utils import store_message_bus_config
 from zmq import green as _green
 from volttron.platform.vip.proxy_zmq_router import ZMQProxyRouter
+from volttron.utils.rmq_setup import start_rabbit
+from volttron.utils.rmq_config_params import RMQConfig
 
 try:
     import volttron.restricted
@@ -273,7 +276,7 @@ class Router(BaseRouter):
         if self._volttron_central_address:
             parsed = urlparse(self._volttron_central_address)
 
-            assert parsed.scheme in ('http', 'https', 'tcp'), \
+            assert parsed.scheme in ('http', 'https', 'tcp', 'amqp'), \
                 "volttron central address must begin with http(s) or tcp found"
             if parsed.scheme == 'tcp':
                 assert volttron_central_serverkey, \
@@ -328,10 +331,10 @@ class Router(BaseRouter):
                                            self._addr, self._instance_name)
 
         self.pubsub = PubSubService(self.socket,
-                                     self._protected_topics,
-                                     self._ext_routing)
+                                    self._protected_topics,
+                                    self._ext_routing)
         self.ext_rpc = ExternalRPCService(self.socket,
-                                           self._ext_routing)
+                                          self._ext_routing)
         self._poller.register(sock, zmq.POLLIN)
         _log.debug("ZMQ version: {}".format(zmq.zmq_version()))
 
@@ -406,6 +409,8 @@ class Router(BaseRouter):
                     value = self._bind_web_address
                 elif name == b'platform-version':
                     value = __version__
+                elif name == b'message-bus':
+                    value = os.environ.get('MESSAGEBUS', 'zmq')
                 else:
                     value = None
             frames[6:] = [b'', jsonapi.dumps(value)]
@@ -505,16 +510,17 @@ class Router(BaseRouter):
 
 class GreenRouter(Router):
     """
-
+    Greenlet friendly Router
     """
+
     def __init__(self, local_address, addresses=(),
                  context=None, secretkey=None, publickey=None,
                  default_user_id=None, monitor=False, tracker=None,
                  volttron_central_address=None, instance_name=None,
                  bind_web_address=None, volttron_central_serverkey=None,
                  protected_topics={}, external_address_file='',
-                 msgdebug=None):
-        self._context_class =_green.Context
+                 msgdebug=None, volttron_central_rmq_address=None):
+        self._context_class = _green.Context
         self._socket_class = _green.Socket
         self._poller_class = _green.Poller
         super(GreenRouter, self).__init__(
@@ -526,6 +532,20 @@ class GreenRouter(Router):
             protected_topics=protected_topics, external_address_file=external_address_file,
             msgdebug=msgdebug)
 
+    def start(self):
+        '''Create the socket and call setup().
+
+        The socket is save in the socket attribute. The setup() method
+        is called at the end of the method to perform additional setup.
+        '''
+        self.socket = sock = self._socket_class(self.context, zmq.ROUTER)
+        sock.router_mandatory = True
+        sock.tcp_keepalive = True
+        sock.tcp_keepalive_idle = 180
+        sock.tcp_keepalive_intvl = 20
+        sock.tcp_keepalive_cnt = 6
+        sock.set_hwm(6000)
+        self.setup()
 
 def start_volttron_process(opts):
     '''Start the main volttron process.
@@ -535,7 +555,6 @@ def start_volttron_process(opts):
     that case the dictionaries keys are mapped into a value that acts like the
     args options.
     '''
-
     if isinstance(opts, dict):
         opts = type('Options', (), opts)()
         # vip_address is meant to be a list so make it so.
@@ -576,10 +595,13 @@ def start_volttron_process(opts):
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
     opts.vip_local_address = config.expandall(opts.vip_local_address)
     opts.message_bus = config.expandall(opts.message_bus)
+
     os.environ['MESSAGEBUS'] = opts.message_bus
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
+    if opts.message_bus == 'rmq':
+        store_message_bus_config(opts.message_bus, opts.instance_name)
     import urlparse
 
     if opts.bind_web_address:
@@ -590,7 +612,7 @@ def start_volttron_process(opts):
         opts.bind_web_address = config.expandall(opts.bind_web_address)
     if opts.volttron_central_address:
         parsed = urlparse.urlparse(opts.volttron_central_address)
-        if parsed.scheme not in ('http', 'https', 'tcp'):
+        if parsed.scheme not in ('http', 'https', 'tcp', 'amqp'):
             raise StandardError(
                 'volttron-central-address must begin with tcp, http or https.')
         opts.volttron_central_address = config.expandall(
@@ -645,7 +667,7 @@ def start_volttron_process(opts):
         _log.warning('insecure mode on key file')
     publickey = decode_key(keystore.public)
     if publickey:
-        _log.info('public key: %s', encode_key(publickey))
+        #_log.info('public key: %s', encode_key(publickey))
         # Authorize the platform key:
         entry = AuthEntry(credentials=encode_key(publickey),
                           user_id='platform',
@@ -696,7 +718,11 @@ def start_volttron_process(opts):
     # RMQ router
     def rmq_router(stop):
         try:
-            RMQRouter(opts.vip_address, opts.instance_name).run()
+            RMQRouter(opts.vip_address, opts.vip_local_address, opts.instance_name, opts.vip_address,
+                      volttron_central_address=opts.volttron_central_address,
+                      volttron_central_serverkey=opts.volttron_central_serverkey,
+                      bind_web_address=opts.bind_web_address
+                      ).run()
         except Exception:
             _log.exception('Unhandled exception in rmq router loop')
         except KeyboardInterrupt:
@@ -713,10 +739,8 @@ def start_volttron_process(opts):
         auth_task = None
         protected_topics = {}
         config_store_task = None
-
-        zmqrouter = None
-        zmq_router_task = None
-        #messagebus = os.environ.get('MESSAGEBUS', 'zmq')
+        proxy_router = None
+        proxy_router_task = None
 
         _log.debug("********************************************************************")
         _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.message_bus))
@@ -755,23 +779,14 @@ def start_volttron_process(opts):
             if not thread.isAlive():
                 sys.exit()
         else:
+            # Start RabbitMQ server if not running
+            rmq_config = RMQConfig()
+            start_rabbit(rmq_config.rmq_home)
+
             # Start the config store before auth so we may one day have auth use it.
             config_store = ConfigStoreService(address=address,
                                               identity=CONFIGURATION_STORE,
                                               message_bus=opts.message_bus)
-
-            # Ensure auth service is running before router
-            auth_file = os.path.join(opts.volttron_home, 'auth.json')
-            auth = AuthService(
-                auth_file, protected_topics_file, opts.setup_mode, opts.aip, address=address, identity=AUTH,
-                enable_store=False, message_bus='zmq')
-
-            event = gevent.event.Event()
-            auth_task = gevent.spawn(auth.core.run, event)
-            event.wait()
-            del event
-
-            protected_topics = auth.get_protected_topics()
 
             thread = threading.Thread(target=rmq_router, args=(config_store.core.stop,))
             thread.daemon = True
@@ -787,25 +802,38 @@ def start_volttron_process(opts):
             event.wait()
             del event
 
+            # Ensure auth service is running before router
+            auth_file = os.path.join(opts.volttron_home, 'auth.json')
+            auth = AuthService(
+                auth_file, protected_topics_file, opts.setup_mode, opts.aip, address=address, identity=AUTH,
+                enable_store=False, message_bus='rmq')
+
+            event = gevent.event.Event()
+            auth_task = gevent.spawn(auth.core.run, event)
+            event.wait()
+            del event
+
+            protected_topics = auth.get_protected_topics()
+
             # Start router in separate thread to remain responsive
             green_router = GreenRouter(opts.vip_local_address, opts.vip_address,
-                   secretkey=secretkey, publickey=publickey,
-                   default_user_id=b'vip.service', monitor=opts.monitor,
-                   tracker=tracker,
-                   volttron_central_address=opts.volttron_central_address,
-                   volttron_central_serverkey=opts.volttron_central_serverkey,
-                   instance_name=opts.instance_name,
-                   bind_web_address=opts.bind_web_address,
-                   protected_topics=protected_topics,
-                   external_address_file=external_address_file,
-                   msgdebug=opts.msgdebug)
+                                       secretkey=secretkey, publickey=publickey,
+                                       default_user_id=b'vip.service', monitor=opts.monitor,
+                                       tracker=tracker,
+                                       volttron_central_address=opts.volttron_central_address,
+                                       volttron_central_serverkey=opts.volttron_central_serverkey,
+                                       instance_name=opts.instance_name,
+                                       bind_web_address=opts.bind_web_address,
+                                       protected_topics=protected_topics,
+                                       external_address_file=external_address_file,
+                                       msgdebug=opts.msgdebug)
 
-            zmqrouter = ZMQProxyRouter(address=address,
-                                       identity='proxy_router',
-                                       zmq_router=green_router,
-                                       message_bus=opts.message_bus)
+            proxy_router = ZMQProxyRouter(address=address,
+                                          identity='proxy_router',
+                                          zmq_router=green_router,
+                                          message_bus=opts.message_bus)
             event = gevent.event.Event()
-            router_task = gevent.spawn(zmqrouter.core.run, event)
+            proxy_router_task = gevent.spawn(proxy_router.core.run, event)
             event.wait()
             del event
         # The instance file is where we are going to record the instance and
@@ -837,29 +865,25 @@ def start_volttron_process(opts):
         services = [
             ControlService(opts.aip, address=address, identity='control',
                            tracker=tracker, heartbeat_autostart=True,
-                           enable_store=False, enable_channel=False,
+                           enable_store=False, enable_channel=True,
                            message_bus=opts.message_bus),
 
-            CompatPubSub(address=address, identity='pubsub.compat',
-                          publish_address=opts.publish_address,
-                          subscribe_address=opts.subscribe_address,
-                          message_bus='zmq'),
-
             MasterWebService(
-                 serverkey=publickey, identity=MASTER_WEB,
-                 address=address,
-                 bind_web_address=opts.bind_web_address,
-                 volttron_central_address=opts.volttron_central_address,
-                 aip=opts.aip, enable_store=False,
-                 message_bus=opts.message_bus),
+                serverkey=publickey, identity=MASTER_WEB,
+                address=address,
+                bind_web_address=opts.bind_web_address,
+                volttron_central_address=opts.volttron_central_address,
+                aip=opts.aip, enable_store=False,
+                message_bus=opts.message_bus,
+                volttron_central_rmq_address=opts.volttron_central_rmq_address),
 
             KeyDiscoveryAgent(address=address, serverkey=publickey,
-                               identity='keydiscovery',
-                               external_address_config=external_address_file,
-                               setup_mode=opts.setup_mode,
-                               bind_web_address=opts.bind_web_address,
-                               message_bus='zmq'),
-
+                              identity='keydiscovery',
+                              external_address_config=external_address_file,
+                              setup_mode=opts.setup_mode,
+                              bind_web_address=opts.bind_web_address,
+                              message_bus='zmq'),
+            # For Backward compatibility with VOLTTRON versions <= 4.1
             PubSubWrapper(address=address,
                           identity='pubsub', heartbeat_autostart=True,
                           enable_store=False,
@@ -886,9 +910,9 @@ def start_volttron_process(opts):
             _log.info('SIGINT received; shutting down')
         finally:
             sys.stderr.write('Shutting down.\n')
+            if proxy_router_task:
+                proxy_router.core.stop()
             _log.debug("Kill all tasks")
-            if zmq_router_task:
-                zmqrouter.stop()
             for task in tasks:
                 task.kill(block=False)
             gevent.wait(tasks)
@@ -989,9 +1013,12 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--setup-mode', action='store_true',
         help='Setup mode flag for setting up authorization of external platforms.')
+    parser.add_argument(
+        '--message-bus', action='store', default='zmq', dest='message_bus',
+        help='set message to be used. valid values are zmq and rmq')
     agents.add_argument(
-        '--message-bus', default='zmq',
-        help='Type of message bus')
+        '--volttron-central-rmq-address', default=None,
+        help='The AMQP address of a volttron central install instance')
     # XXX: re-implement control options
     # on
     # control.add_argument(
@@ -1076,14 +1103,17 @@ def main(argv=sys.argv):
         msgdebug=None,
         setup_mode=False,
         # Type of underlying message bus to use - ZeroMQ or RabbitMQ
-        message_bus='zmq'
+        message_bus='zmq',
+        # Volttron Central in AMQP address format is needed if running on RabbitMQ message bus
+        volttron_central_rmq_address=None,
     )
 
     # Parse and expand options
     args = argv[1:]
     conf = os.path.join(volttron_home, 'config')
     if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
-        args = ['--config', conf] + args
+        ## command line args get preference over same args in config file
+        args = args + ['--config', conf]
     logging.getLogger().setLevel(logging.NOTSET)
     opts = parser.parse_args(args)
     start_volttron_process(opts)
