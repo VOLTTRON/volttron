@@ -46,7 +46,7 @@ from itertools import chain, count, cycle
 import re
 
 
-__all__ = ['schedule']
+__all__ = ['cron']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
@@ -177,7 +177,7 @@ def parse_cron_string(cron_string):
             _coallesce_ranges('weekday', weekday, 0, 7, _translate_weekday))
 
 
-def schedule(cron_string, start=None, stop=None, second=0):
+def cron(cron_string, start=None, stop=None, second=0):
     '''Return a schedule generator from a cron-style string.
 
     cron_string is a cron-style time expression consisting of five
