@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-'''cron-like schedule generator.'''
+"""Schedule generators."""
 
 
 from bisect import bisect_left, bisect_right
@@ -46,7 +46,7 @@ from itertools import chain, count, cycle
 import re
 
 
-__all__ = ['cron']
+__all__ = ['cron', 'periodic']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
@@ -177,19 +177,35 @@ def parse_cron_string(cron_string):
             _coallesce_ranges('weekday', weekday, 0, 7, _translate_weekday))
 
 
+def _start_stop(start, stop):
+    # Default start date/time to current time
+    if start is None:
+        start = datetime.now()
+    elif isinstance(start, (int, long, float)):
+        start = datetime.fromtimestamp(start)
+    elif isinstance(start, timedelta):
+        start = datetime.now() + start
+    if isinstance(stop, (int, long, float)):
+        stop = datetime.fromtimestamp(stop)
+    elif isinstance(stop, timedelta):
+        stop = start + stop
+    return start, stop
+
+
 def cron(cron_string, start=None, stop=None, second=0):
     '''Return a schedule generator from a cron-style string.
 
     cron_string is a cron-style time expression consisting of five
     whitespace-separated fields explained in further detail below.
     start and stop are used to bound the schedule and can be None,
-    datetime.datetime objects or numeric values, such as is returned by
-    time.time().  stop may also be supplied as a datetime.timedelta
-    object, in which case the end time is start + stop.  If start is
-    None, the current time is used.  If stop is None, schedule will
-    generate values infinitely.  Each iteration yields a
-    datetime.datetime object. Since the smallest cron unit is a minute,
-    second may be passed in to offset the time within the minute.
+    datetime.datetime or datetime.timedelta objects or numeric values,
+    such as is returned by time.time(). If start is None, the current
+    time is used. If it is a timedelta, it will be added to the current
+    time. If stop is None, cron will generate values infinitely. If it
+    is a timedelta, the end time is the start time plus stop. Each
+    iteration yields a datetime.datetime object. Since the smallest cron
+    unit is a minute, second may be passed in to offset the time within
+    the minute.
 
     The following description of the cron fields is taken from the
     crontab(5) man page (with slight modifications).
@@ -249,15 +265,7 @@ def cron(cron_string, start=None, stop=None, second=0):
             raise ValueError('given months and days produce only '
                              'impossible combinations')
 
-    # Default start date/time to current time
-    if start is None:
-        start = datetime.now()
-    elif isinstance(start, (int, long, float)):
-        start = datetime.fromtimestamp(start)
-    if isinstance(stop, (int, long, float)):
-        stop = datetime.fromtimestamp(stop)
-    elif isinstance(stop, timedelta):
-        stop = start + stop
+    start, stop = _start_stop(start, stop)
 
     # Default fields to full range of values
     months = months or range(1, 13)
@@ -317,3 +325,24 @@ def cron(cron_string, start=None, stop=None, second=0):
                         yield dt
         except ValueError:
             pass
+
+
+def periodic(period, start=None, stop=None):
+    """Generate periodic datetime objects.
+
+    Yields datetime objects increasing by the given period, which
+    can be of type int, long, float, or datetime.timedelta.
+    start and stop are used to bound the schedule and can be None,
+    datetime.datetime or datetime.timedelta objects or numeric values,
+    such as is returned by time.time(). If start is None, the current
+    time is used. If it is a timedelta, it will be added to the current
+    time. If stop is None, cron will generate values infinitely. If it
+    is a timedelta, the end time is the start time plus stop. Each
+    iteration yields a datetime.datetime object.
+    """
+    if not isinstance(period, timedelta):
+        period = timedelta(seconds=period)
+    dt, stop = _start_stop(start, stop)
+    while stop is None or dt < stop:
+        yield dt
+        dt += period
