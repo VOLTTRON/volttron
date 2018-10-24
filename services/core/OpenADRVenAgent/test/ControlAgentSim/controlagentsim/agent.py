@@ -49,6 +49,7 @@ import sys
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.messaging import topics
+from volttron.platform.scheduling import periodic
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -141,7 +142,7 @@ class ControlAgentSim(Agent):
         self.vip.pubsub.subscribe(peer='pubsub', prefix=topics.OPENADR_EVENT, callback=self.receive_event)
         self.vip.pubsub.subscribe(peer='pubsub', prefix=topics.OPENADR_STATUS, callback=self.receive_status)
 
-        self.core.periodic(self.report_interval_secs, self.issue_rpcs)
+        self.core.schedule(periodic(self.report_interval_secs), self.issue_rpcs)
 
     def issue_rpcs(self):
         """Periodically issue RPCs, including report_sample_telemetry, to the VEN agent."""

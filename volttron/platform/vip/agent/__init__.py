@@ -100,7 +100,6 @@ class Agent(object):
         self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
                                     heartbeat_period, enable_store, enable_web,
                                     enable_channel, enable_fncs)
-        self.core.setup()
         self.vip.rpc.export(self.core.version, 'agent.version')
 
 

@@ -46,6 +46,7 @@ import sys
 from volttron.platform.vip.agent import Agent, Core, PubSub, compat
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.scheduling import periodic
 
 
 
@@ -139,7 +140,7 @@ def subscriber_agent(config_path, **kwargs):
             print(topic)
 #     
         # Demonstrate periodic decorator and settings access
-        @Core.periodic(10)
+        @Core.schedule(periodic(10))
         def lookup_data(self):
             '''
             This method demonstrates how to query the platform historian for data
@@ -168,7 +169,7 @@ def subscriber_agent(config_path, **kwargs):
                 print ("Could not contact historian. Is it running?")
                 print(e)
 
-        @Core.periodic(10)
+        @Core.schedule(periodic(10))
         def pub_fake_data(self):
             ''' This method publishes fake data for use by the rest of the agent.
             The format mimics the format used by VOLTTRON drivers.
