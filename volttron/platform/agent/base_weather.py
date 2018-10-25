@@ -127,6 +127,7 @@ class BaseWeatherAgent(Agent):
         self.poll_locations = poll_locations
         self.poll_interval = poll_interval
         self.poll_topic_suffixes = poll_topic_suffixes
+        self.point_name_mapping = None
 
         if self.poll_locations:
             if not self.poll_interval or not self.poll_topic_suffixes:
@@ -134,18 +135,17 @@ class BaseWeatherAgent(Agent):
                                  "poll_topic_suffixes are mandatory "
                                  "configurations when poll_locations are "
                                  "specified")
-            if (not isinstance(self.poll_topic_suffixes, str) and
-                not isinstance(self.poll_topic_suffixes, list)) or \
-                (isinstance(self.poll_interval, list) and
-                 len(self.poll_interval) < len(self.poll_locations)):
-                raise ValueError("poll_topic_suffixes can either be a string "
-                                 "or a list of string with the same length as "
-                                 "poll_locations. If it is a string results "
-                                 "for all locations will be published to a "
-                                 "single topic, "
-                                 "weather/poll/current/<given str>. If "
-                                 "it is a list, each location's result will "
-                                 "be published to the corresponding topic")
+            if (self.poll_topic_suffixes is not None and
+                    (not isinstance(self.poll_interval, list) or
+                     len(self.poll_interval) < len(self.poll_locations))):
+                raise ValueError("poll_topic_suffixes, if set, should be a "
+                                 "list of string with the same length as "
+                                 "poll_locations. If it is not set "
+                                 "results for all locations will be published "
+                                 "to a single topic(weather/poll/current/all). "
+                                 "If it is a list, each location's result will "
+                                 "be published to the corresponding topic ("
+                                 "weather/poll/current/<topic_suffix>)")
         self._default_config = {
                                 "service": self._service_name,
                                 "api_key": self._api_key,
@@ -154,18 +154,18 @@ class BaseWeatherAgent(Agent):
                                 "poll_interval": self.poll_interval
                                }
         self.unit_registry = pint.UnitRegistry()
-        self.point_name_mapping = self.parse_point_name_mapping()
+        self.parse_point_name_mapping()
         self._api_services = \
             {SERVICE_CURRENT_WEATHER: {"type": "current",
-                                     "update_interval": None,
-                                     "description": "Params: locations ([{"
-                                                    "type: "
-                                                    "value},...])"
+                                       "update_interval": None,
+                                       "description": "Params: locations ([{"
+                                                      "type: "
+                                                      "value},...])"
                                      },
              SERVICE_HOURLY_FORECAST: {"type": "forecast",
-                                     "update_interval": None,
-                                     "description": "Params: locations "
-                                                    "([{type: value},...])"
+                                       "update_interval": None,
+                                       "description": "Params: locations "
+                                                      "([{type: value},...])"
                                      },
              "get_hourly_historical": {"type": "history",
                                        "update_interval": None,
@@ -248,6 +248,19 @@ class BaseWeatherAgent(Agent):
         else:
             raise ValueError("service {} does not exist".format(service_function_name))
 
+    def validate_location_dict(self, service_name, location):
+        record_dict = None
+        if not isinstance(location, dict):
+            record_dict = {"location": location,
+                           "location_error": "Invalid location format. "
+                                             "Location should be  "
+                                             "specified as a dictionary"}
+
+        elif not self.validate_location(service_name, location):
+            record_dict = location.copy()
+            record_dict["location_error"] = "Invalid location"
+        return record_dict
+
     @abstractmethod
     def validate_location(self, service_name, location):
         pass
@@ -268,10 +281,12 @@ class BaseWeatherAgent(Agent):
         :param interval: datetime timedelta object specifying the length of time between api updates
         """
         if not isinstance(interval, datetime.timedelta):
-            raise ValueError("interval must be a valid datetime timedelta object.")
+            raise ValueError(
+                "interval must be a valid datetime timedelta object.")
         if service_name in self._api_services:
             if self._api_services[service_name]["type"] == "history":
-                raise ValueError("historical data does not utilize an update interval.")
+                raise ValueError(
+                    "historical data does not utilize an update interval.")
             self._api_services[service_name]["update_interval"] = interval
         else:
             raise ValueError("{} not found in api features.".format(service_name))
@@ -287,7 +302,8 @@ class BaseWeatherAgent(Agent):
         if service_name in self._api_services:
             self._api_services[service_name]["description"] = description
         else:
-            raise ValueError("{} not found in api features.".format(service_name))
+            raise ValueError(
+                "{} not found in api features.".format(service_name))
 
     def update_default_config(self, config):
         """
@@ -328,10 +344,11 @@ class BaseWeatherAgent(Agent):
                                  "Standardized_Units": standardized_units,
                                  "Service_Units": service_units}
             except IOError as error:
-                _log.error(error)
-                return None
-        else:
-            return None
+                _log.error("Error parsing standard point name mapping: "
+                           "{}".format(error))
+                raise ValueError("Error parsing point name mapping from file "
+                                 "{} : {}".format(point_name_defs_file, error))
+
 
     # TODO copy documentation?
     def _configure(self, config_name, actions, contents):
@@ -363,7 +380,7 @@ class BaseWeatherAgent(Agent):
         self.poll_interval = poll_interval
         try:
             self.configure(config)
-        except:
+        except Exception as e:
             _log.error("Failed to load weather agent settings.")
 
     def configure(self, configuration):
@@ -400,19 +417,11 @@ class BaseWeatherAgent(Agent):
     def get_current_weather(self, locations):
         result = []
         for location in locations:
-
-            if not isinstance(location, dict):
-                record_dict = {"location": location}
-                record_dict["location_error"] = "Invalid location format. " \
-                                                "Location should be  " \
-                                                "specified as a dictionary"
-                result.append(record_dict)  # to next location
-                continue
-            elif not self.validate_location(SERVICE_CURRENT_WEATHER, location):
-                record_dict = location.copy()
-                record_dict["location_error"] = "Invalid location"
+            record_dict = self.validate_location_dict(SERVICE_CURRENT_WEATHER,
+                                                      location)
+            if record_dict:
                 result.append(record_dict)
-                continue  # to next location
+                continue
 
             # Attempt getting from cache
             record_dict = self.get_cached_current_data(location)
@@ -508,21 +517,12 @@ class BaseWeatherAgent(Agent):
     @RPC.export
     def get_hourly_forecast(self, locations, hours=24):
         result = []
-
-
         for location in locations:
-            if not isinstance(location, dict):
-                record_dict = {"location": location,
-                               "location_error": "Invalid location format. " \
-                                                 "Location should be  " \
-                                                 "specified as a dictionary"}
-                result.append(record_dict)  # to next location
-                continue
-            elif not self.validate_location(SERVICE_HOURLY_FORECAST, location):
-                record_dict = location.copy()
-                record_dict["location_error"] = "Invalid location"
+            record_dict = self.validate_location_dict(SERVICE_HOURLY_FORECAST,
+                                                      location)
+            if record_dict:
                 result.append(record_dict)
-                continue  # to next location
+                continue
 
             # check if we have enough recent data in cache
             record_dict = self.get_cached_forecast_data(location, hours)
@@ -586,7 +586,7 @@ class BaseWeatherAgent(Agent):
                 generation_time, oldtz = process_timestamp(
                     generation_time)
 
-            if self.point_name_mapping:
+            if self.point_name_mapping and response:
                 mapped_data = []
                 for point, value in response:
                     if point in self.point_name_mapping:
@@ -653,7 +653,7 @@ class BaseWeatherAgent(Agent):
         service_name = "get_hourly_historical"
         start_datetime = datetime.datetime.combine(start_date, datetime.time())
         end_datetime = datetime.datetime.combine(end_date, datetime.time()) + \
-                       (datetime.timedelta(days=1) - datetime.timedelta(milliseconds=1))
+                       (datetime.timedelta(days=1))
         # TODO
         for location in locations:
             if not self.validate_location(service_name, location):
@@ -701,10 +701,9 @@ class BaseWeatherAgent(Agent):
         topic = "weather/poll/current/{}"
         _log.debug("polling for locations")
         results = self.get_current_weather(self.poll_locations)
-        if isinstance(self.poll_topic_suffixes, str):
+        if self.poll_topic_suffixes is None:
             _log.debug("publishing results to single topic")
-            self.publish_response(topic.format(self.poll_topic_suffixes),
-                                  results)
+            self.publish_response(topic.format("all"), results)
         else:
             for i in range(0,len(results)):
                 _log.debug("publishing results to location specific topic")
@@ -757,7 +756,8 @@ class BaseWeatherAgent(Agent):
 
     def _get_status_from_context(self, context):
         status = STATUS_GOOD
-        if context.get("cache_full") or (not context.get("publishing") and self.polling_locations):
+        if context.get("cache_full") or (not context.get("publishing")
+                                         and self.poll_locations):
             status = STATUS_BAD
         return status
 
