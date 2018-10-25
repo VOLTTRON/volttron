@@ -5,6 +5,7 @@ import tempfile
 
 import gevent
 import pytest
+from pytest import approx
 
 from volttron.platform import get_services_core
 from volttron.platform.agent import json as jsonapi
@@ -13,7 +14,7 @@ from volttron.platform.messaging import headers as headers_mod
 
 from volttrontesting.utils.platformwrapper import build_vip_address
 
-BASE_FORWARD_CONFIG = {
+BASE_FORWARD_CONqqqFIG = {
     "agentid": "forwarder1",
     "destination-vip": None
 }
@@ -114,4 +115,4 @@ def test_reconnect_forwarder(get_volttron_instances):
         do_publish(publisher)
 
     for i in range(len(publishedmessages)):
-        assert allforwardedmessage[i] == publishedmessages[i]
+        assert allforwardedmessage[i] == approx(publishedmessages[i])

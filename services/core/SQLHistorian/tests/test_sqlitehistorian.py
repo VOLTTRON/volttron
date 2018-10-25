@@ -48,6 +48,7 @@ import sys
 from tzlocal import get_localzone
 import gevent
 import pytest
+from pytest import approx
 import re
 import pytz
 
@@ -335,7 +336,7 @@ def test_sqlite_timeout(request, historian, publish_agent, query_agent,
         assert (len(result['values']) == 1)
         (now_date, now_time) = now.split(" ")
         assert result['values'][0][0] == now_date + 'T' + now_time + '+00:00'
-        assert (result['values'][0][1] == oat_reading)
+        assert (result['values'][0][1] == approx(oat_reading))
         assert set(result['metadata'].items()) == set(float_meta.items())
     finally:
         if agent_uuid:

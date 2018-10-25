@@ -57,6 +57,7 @@ import pytest
 import gevent
 import json
 import pytz
+from pytest import approx
 from datetime import datetime, timedelta
 from dateutil import parser
 
@@ -369,7 +370,7 @@ def test_publish_to_historian(volttron_instance, influxdb_client):
         for point in rs:
             ts = parser.parse(point['time'])
             ts = format_timestamp(ts)
-            assert point["value"] == expected['data'][ts][topic]
+            assert point["value"] == approx(expected['data'][ts][topic])
 
         # Check for measurement MixedAirTemperature
         query = 'SELECT value FROM mixedairtemperature ' \
@@ -383,7 +384,7 @@ def test_publish_to_historian(volttron_instance, influxdb_client):
         for point in rs:
             ts = parser.parse(point['time'])
             ts = format_timestamp(ts)
-            assert point["value"] == expected['data'][ts][topic]
+            assert point["value"] == approx(expected['data'][ts][topic])
 
         # Check for measurement DamperSignal
         query = 'SELECT value FROM dampersignal ' \
@@ -397,7 +398,7 @@ def test_publish_to_historian(volttron_instance, influxdb_client):
         for point in rs:
             ts = parser.parse(point['time'])
             ts = format_timestamp(ts)
-            assert point["value"] == expected['data'][ts][topic]
+            assert point["value"] == approx(expected['data'][ts][topic])
 
         # Check correctness of 'meta' measurement
         topic_id_map, meta_dicts = influxdbutils.get_all_topic_id_and_meta(influxdb_client)
@@ -527,7 +528,7 @@ def test_publish_with_changed_value_type(volttron_instance, influxdb_client):
         for point in rs:
             ts = parser.parse(point['time'])
             ts = format_timestamp(ts)
-            assert point["value"] == float(expected[ts][topic])
+            assert approx(point["value"]) == float(expected[ts][topic])
             assert point["value_string"] == str(expected[ts][topic])
 
         # Check for measurement MixedAirTemperature
@@ -542,7 +543,7 @@ def test_publish_with_changed_value_type(volttron_instance, influxdb_client):
         for point in rs:
             ts = parser.parse(point['time'])
             ts = format_timestamp(ts)
-            assert point["value"] == float(expected[ts][topic])
+            assert approx(point["value"]) == float(expected[ts][topic])
             assert point["value_string"] == str(expected[ts][topic])
 
         # Check for measurement DamperSignal
@@ -559,7 +560,7 @@ def test_publish_with_changed_value_type(volttron_instance, influxdb_client):
             ts = format_timestamp(ts)
             assert point["value_string"] == str(expected[ts][topic])
             try:
-                assert point["value"] == float(expected[ts][topic])
+                assert approx(point["value"]) == float(expected[ts][topic])
             except ValueError:
                 assert point["value"] is None
 
@@ -663,7 +664,7 @@ def test_query_historian_all_topics(volttron_instance, influxdb_client):
                 timestamp = pair[0]
                 value = float(pair[1])
                 assert timestamp in expected['data']
-                assert value == expected['data'][timestamp][topic]
+                assert approx(value) == expected['data'][timestamp][topic]
 
             # meta should be empty if topic argument is a list
             assert actual['metadata'] == {}
@@ -729,7 +730,7 @@ def test_query_historian_single_topic(volttron_instance, influxdb_client):
             timestamp = pair[0]
             value = float(pair[1])
             assert timestamp in expected['data']
-            assert value == expected['data'][timestamp][topic]
+            assert approx(value) == expected['data'][timestamp][topic]
 
         # Check for correctness of metadata
         assert actual['metadata'] == expected['meta'][topic]
@@ -833,7 +834,7 @@ def test_query_historian_all_topics_with_time(volttron_instance, influxdb_client
                 value = float(pair[1])
 
                 assert timestamp in expected['data']
-                assert value == expected['data'][timestamp][topic]
+                assert approx(value) == expected['data'][timestamp][topic]
 
                 dt = parse_timestamp_string(timestamp)
                 actual_time_list.append(dt)
@@ -1204,9 +1205,9 @@ def test_query_aggregate_without_calendar_period(volttron_instance, influxdb_cli
             elif first_ts + timedelta(hours=12) <= ts < first_ts + timedelta(hours=18) and value < min_3:
                 min_3 = value
 
-        assert min_1 == actual["values"][0][1]
-        assert min_2 == actual["values"][1][1]
-        assert min_3 == actual["values"][2][1]
+        assert min_1 == approx(actual["values"][0][1])
+        assert min_2 == approx(actual["values"][1][1])
+        assert min_3 == approx(actual["values"][2][1])
 
     finally:
         volttron_instance.stop_agent(agent_uuid)

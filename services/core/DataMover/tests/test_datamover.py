@@ -42,6 +42,7 @@ from datetime import datetime, timedelta
 
 import gevent
 import pytest
+from pytest import approx
 
 from volttron.platform import get_services_core
 from volttron.platform.agent import PublishMixin
@@ -219,7 +220,7 @@ def test_devices_topic(publish_agent, query_agent):
     assert (len(result['values']) == 1)
     (time1_date, time1_time) = time1.split(" ")
     assert (result['values'][0][0] == time1_date + 'T' + time1_time + '+00:00')
-    assert (result['values'][0][1] == oat_reading)
+    assert (result['values'][0][1] == approx(oat_reading))
     assert set(result['metadata'].items()) == set(float_meta.items())
 
 
@@ -388,7 +389,7 @@ def test_analysis_topic(publish_agent, query_agent):
     if now_time[-1:] == 'Z':
         now_time = now_time[:-1]
     assert (result['values'][0][0] == now_date + 'T' + now_time + '+00:00')
-    assert (result['values'][0][1] == mixed_reading)
+    assert (result['values'][0][1] == approx(mixed_reading))
 
 
 @pytest.mark.historian
@@ -450,7 +451,7 @@ def test_analysis_topic_no_header(publish_agent, query_agent):
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
-    assert (result['values'][0][1] == mixed_reading)
+    assert (result['values'][0][1] == approx(mixed_reading))
 
 
 @pytest.mark.historian
@@ -515,7 +516,7 @@ def test_log_topic(publish_agent, query_agent):
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
-    assert (result['values'][0][1] == mixed_reading)
+    assert (result['values'][0][1] == approx(mixed_reading))
 
 
 @pytest.mark.historian
@@ -566,7 +567,7 @@ def test_log_topic_no_header(publish_agent, query_agent):
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
-    assert (result['values'][0][1] == mixed_reading)
+    assert (result['values'][0][1] == approx(mixed_reading))
 
 
 @pytest.mark.historian
