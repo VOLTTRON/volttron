@@ -94,7 +94,7 @@ class BasicWeatherAgent(BaseWeatherAgent):
     def query_current_weather(self, location):
         current_time = datetime.datetime.utcnow()
         record = [
-                  current_time,
+                  format_timestamp(current_time),
                   {'points': FAKE_POINTS}
                  ]
         return record
@@ -103,11 +103,11 @@ class BasicWeatherAgent(BaseWeatherAgent):
         records = []
         current_time = datetime.datetime.utcnow()
         for x in range(0, 3):
-            record = [current_time + datetime.timedelta(hours=(x+1)),
+            record = [format_timestamp(current_time + datetime.timedelta(hours=(x+1))),
                       {'points': FAKE_POINTS}
                      ]
             records.append(record)
-        return current_time, records
+        return format_timestamp(current_time), records
 
     # TODO
     def query_hourly_historical(self, location, start_date, end_date):
@@ -128,10 +128,9 @@ class BasicWeatherAgent(BaseWeatherAgent):
             return "returns fake hourly historical data"
 
     def validate_location(self, service_name, location):
-        if service_name == "get_current_weather":
-            return location.get("location")
-        elif service_name == "get_hourly_forecast":
-            if isinstance(location, dict) and "location" in location:
+        if service_name == "get_current_weather" or service_name == "get_hourly_forecast":
+            if isinstance(location, dict) and "location" in location \
+                    and location["location"].startswith("fake_location"):
                 return True
         else:
             return location.get("location") == "fake_location"
@@ -330,8 +329,7 @@ def test_manage_unit_conversion_fail(weather, from_units, start, to_units, error
 @pytest.mark.parametrize("fake_locations", [
     [],
     [{"location": "fake_location"}],
-    [{"location": "fake_location1"}, {"location": "fake_location2"}],
-    [{"location": "fake_location"}, {"location": "fake_location"}]
+    [{"location": "fake_location1"}, {"location": "fake_location2"}]
 ])
 def test_get_current_valid_locations(weather, fake_locations):
     conn = weather._cache._sqlite_conn
@@ -353,23 +351,26 @@ def test_get_current_valid_locations(weather, fake_locations):
         assert not len(fake_locations)
     else:
         assert results1[0]["observation_time"]
-        test_points = results1[0]["points"]
+        test_points = results1[0]["weather_results"]["points"]
         assert test_points
         for initial_point in FAKE_POINTS:
             fake_point = EXPECTED_OUTPUT_VALUES[initial_point]
             test_value = test_points[fake_point["name"]]
             assert test_value
             if test_value:
-                assert test_value == fake_point["value"]
-        assert results1[0]["location"] == "fake_location"
+                assert str(test_value).startswith(str(fake_point["value"]))
+        assert results1[0]["location"].startswith("fake_location")
 
         # Check data got cached
         query = "SELECT * FROM 'get_current_weather';"
         cache_results = cursor.execute(query).fetchall()
-        print cache_results
-        assert len(cache_results) == 1
         assert ujson.loads(cache_results[0][1]) == fake_locations[0]
-        assert cache_results[0][2] == results1[0]["observation_time"]
+        time_in_cache = False
+        for x in range(0, len(cache_results)):
+            for result in results1:
+                if result["observation_time"] == format_timestamp(cache_results[x][2]):
+                    time_in_cache = True
+            assert time_in_cache
         # assert results1 and cached data are same
         assert ujson.loads(cache_results[0][3]) == results1[0]["weather_results"]
 
@@ -380,9 +381,9 @@ def test_get_current_valid_locations(weather, fake_locations):
 
         # second query - results should be from cache
         results2 = weather.get_current_weather(fake_locations)
-        assert len(results2) == 1
+        assert len(results2) == len(fake_locations)
         assert results2[0]["observation_time"] == results1[0]["observation_time"]
-        assert results2[0]["weather_results"]["points"] == test_points
+        assert results2[0]["weather_results"]["points"] == {'fake': 'updated cache'}
         assert results2[0]["location"] == results1[0]["location"]
 
         # third query  - set update interval so that cache would be marked old
@@ -390,21 +391,30 @@ def test_get_current_valid_locations(weather, fake_locations):
                                     datetime.timedelta(seconds=1))
         gevent.sleep(1)
         results3 = weather.get_current_weather(fake_locations)
-        assert len(results3) == 1
+        assert len(results3) == len(fake_locations)
         assert results3[0]["observation_time"] != results1[0]["observation_time"]
         for point in results3[0]["weather_results"]["points"]:
-            assert point in EXPECTED_OUTPUT_VALUES
-        assert results3[0]["location"] == "fake_location"
+            valid_point = False
+            for name, map_dict in EXPECTED_OUTPUT_VALUES.iteritems():
+                if point == map_dict["name"]:
+                    valid_point = True
+            assert valid_point
+        assert results3[0]["location"].startswith("fake_location")
 
         # check data got cached again
         query = "SELECT * FROM get_current_weather ORDER BY ID;"
         cache_results = cursor.execute(query).fetchall()
         print cache_results
-        assert len(cache_results) == 2
-        assert ujson.loads(cache_results[1][1]) == fake_locations[0]
-        assert cache_results[1][2] == results3[0]["observation_time"]
-        # assert results1 and cached data are same
-        assert ujson.loads(cache_results[1][3]) == results3[0]["weather_results"]
+        assert len(cache_results) == 2 * len(fake_locations)
+        assert ujson.loads(cache_results[1][1]) in fake_locations
+        for result in results3:
+            time_in_cache = False
+            for x in range(0, len(cache_results)):
+                if result["observation_time"] == format_timestamp(cache_results[x][2]):
+                    # assert results1 and cached data are same
+                    assert ujson.loads(cache_results[x][3]) == result["weather_results"]
+                    time_in_cache = True
+            assert time_in_cache
 
     cursor.close()
 
@@ -435,10 +445,9 @@ def test_get_current_invalid_locations(weather, fake_locations):
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("locations, expected_passing, expected_errors", [
-    ([{"location": None}], 0, 1),
-    ([{"location": "test"}], 1, 0),
-    ([{"location": "test"}, {"fail": "fail"}], 1, 1,),
-    ([{"location": "test"}, {"location": "test2"}], 2, 0,),
+    ([{"location": "fake_location"}], 1, 0),
+    ([{"location": "fake_location"}, {"fail": "fail"}], 1, 1,),
+    ([{"location": "fake_location1"}, {"location": "fake_location2"}], 2, 0,),
     ([{"loc": "thing"}, "string"], 0, 2)
 ])
 def test_get_current_mixed_locations(weather, locations, expected_passing, expected_errors):
@@ -457,8 +466,7 @@ def test_get_current_mixed_locations(weather, locations, expected_passing, expec
 @pytest.mark.parametrize("fake_locations", [
     [],
     [{"location": "fake_location"}],
-    [{"location": "fake_location1"}, {"location": "fake_location2"}],
-    [{"location": "fake_location"}, {"location": "fake_location"}]
+    [{"location": "fake_location1"}, {"location": "fake_location2"}]
 ])
 def test_get_forecast_valid_locations(weather, fake_locations):
     conn = weather._cache._sqlite_conn
@@ -473,85 +481,81 @@ def test_get_forecast_valid_locations(weather, fake_locations):
     # query_current
     result1 = weather.get_hourly_forecast(fake_locations)
     print result1
-    validate_basic_weather_forecast(fake_locations, result1)
+    if not len(fake_locations):
+        assert len(result1) == 0
+    else:
+        validate_basic_weather_forecast(fake_locations, result1)
 
-    # Check data got cached
-    query = "SELECT * FROM 'get_hourly_forecast';"
-    cache_result = cursor.execute(query).fetchall()
-    print cache_result
+        # Check data got cached
+        query = "SELECT * FROM 'get_hourly_forecast';"
+        cache_result = cursor.execute(query).fetchall()
+        print cache_result
 
-    # assert result1 and cached data are same
-    validate_cache_result_forecast(fake_locations, result1, cache_result)
+        # assert result1 and cached data are same
+        validate_cache_result_forecast(fake_locations, result1, cache_result)
 
-    # update cache before querying again.
-    cursor.execute("UPDATE get_hourly_forecast SET POINTS = ?",
-                   (ujson.dumps({"points": {"fake": "updated cache"}}),))
-    conn.commit()
+        # update cache before querying again.
+        cursor.execute("UPDATE get_hourly_forecast SET POINTS = ?",
+                       (ujson.dumps({"points": {"fake": "updated cache"}}),))
+        conn.commit()
 
-    # 2. second query - results should still be got from api since not enough
-    # rows are in cache
-    result2 = weather.get_hourly_forecast(fake_locations)
-    print result2
-    validate_basic_weather_forecast(fake_locations, result2)
+        # 2. second query - results should still be got from api since not enough
+        # rows are in cache
+        result2 = weather.get_hourly_forecast(fake_locations)
+        print result2
+        validate_basic_weather_forecast(fake_locations, result2)
 
-    # assert result2 and cached data are same
-    query = "SELECT * FROM 'get_hourly_forecast' ORDER BY GENERATION_TIME DESC;"
-    cache_result = cursor.execute(query).fetchall()
-    print cache_result
-    validate_cache_result_forecast(fake_locations, result2, cache_result)
+        # assert result2 and cached data are same
+        query = "SELECT * FROM 'get_hourly_forecast' ORDER BY GENERATION_TIME DESC;"
+        cache_result = cursor.execute(query).fetchall()
+        print cache_result
+        validate_cache_result_forecast(fake_locations, result2, cache_result)
 
-    # 3. third query - results should be from cache. update cache so we know
-    # we are getting from cache
-    cursor.execute("UPDATE get_hourly_forecast SET POINTS = ? WHERE "
-                   "GENERATION_TIME= ?",
-                   (ujson.dumps({"points": {"fake": "updated cache"}}),
-                    result2[0]["generation_time"]))
-    conn.commit()
-    # set hours to 2 so cached data is sufficient
-    result3 = weather.get_hourly_forecast(fake_locations, hours=2)
-    print result3
-    validate_basic_weather_forecast(fake_locations, result3, warn=False,
-                                    point_data={"fake": "updated cache"},
-                                    hours=2)
+        # 3. third query - results should be from cache. update cache so we know
+        # we are getting from cache
+        cursor.execute("UPDATE get_hourly_forecast SET POINTS = ? WHERE "
+                       "GENERATION_TIME= ?",
+                       (ujson.dumps({"points": {"fake": "updated cache"}}),
+                        result2[0]["generation_time"]))
+        conn.commit()
+        # set hours to 2 so cached data is sufficient
+        result3 = weather.get_hourly_forecast(fake_locations, hours=2)
+        print result3
+        validate_basic_weather_forecast(fake_locations, result3, warn=False,
+                                        hours=2)
 
-    # 4. fourth query  - set update interval so that cache would be marked old
-    # and
-    # set hours to 2 so cache has enough number of records but is out of date
+        # 4. fourth query  - set update interval so that cache would be marked old
+        # and
+        # set hours to 2 so cache has enough number of records but is out of date
 
-    weather.set_update_interval("get_hourly_forecast",
-                                datetime.timedelta(seconds=1))
-    gevent.sleep(1)
-    result4 = weather.get_hourly_forecast(fake_locations, hours=2)
-    validate_basic_weather_forecast(fake_locations, result4, warn=False,
-                                    hours=2)
-    # check data got cached again
-    query = "SELECT * FROM 'get_hourly_forecast' ORDER BY GENERATION_TIME DESC;"
-    cache_result = cursor.execute(query).fetchall()
-    print cache_result
-    validate_cache_result_forecast(fake_locations, result4, cache_result,
-                                   hours=2)
-
-
-def validate_cache_result_forecast(locations, api_result, cache_result,
-                                   hours=3):
-    j = 0
-    for location in locations:
-        assert len(cache_result) >= len(api_result[j]["weather_results"])
-        assert ujson.loads(cache_result[j][1]) == location
-        assert cache_result[j][2] == api_result[j]["generation_time"]
-        i = 0
-        while i < hours:
-            cr = cache_result[i]
-            assert ujson.loads(cr[1]) == locations[0]
-            assert cr[2] == api_result[j]["generation_time"]
-            api_weather_result = api_result[j]["weather_results"]
-            assert cr[3] == api_weather_result[i][0]
-            i = i + 1
-        j = j + 1
+        weather.set_update_interval("get_hourly_forecast",
+                                    datetime.timedelta(seconds=1))
+        gevent.sleep(1)
+        result4 = weather.get_hourly_forecast(fake_locations, hours=2)
+        validate_basic_weather_forecast(fake_locations, result4, warn=False,
+                                        hours=2)
+        # check data got cached again
+        query = "SELECT * FROM 'get_hourly_forecast' ORDER BY GENERATION_TIME DESC;"
+        cache_result = cursor.execute(query).fetchall()
+        print cache_result
+        validate_cache_result_forecast(fake_locations, result4, cache_result)
 
 
-def validate_basic_weather_forecast(locations, result, warn=True,
-                                    point_data=FAKE_POINTS, hours=3):
+def validate_cache_result_forecast(locations, api_result, cache_result):
+    for result in api_result:
+        time_in_results = False
+        for cr in cache_result:
+            if utils.format_timestamp(cr[2]) == result["generation_time"]:
+                for record in result["weather_results"]:
+                    if utils.format_timestamp(cr[3]).startswith(record[0]):
+                        time_in_results = True
+                        assert ujson.loads(cr[1]) in locations
+                        assert record[1] == ujson.loads(cr[4])
+                        break
+        assert time_in_results
+
+
+def validate_basic_weather_forecast(locations, result, warn=True, hours=3):
     assert len(result) == len(locations)
     i = 0
     for location in locations:
@@ -563,14 +567,18 @@ def validate_basic_weather_forecast(locations, result, warn=True,
         else:
             assert result[i].get("weather_warn") is None
 
-        assert result[i]["location"] == location["location"]
+        in_locations = False
+        for location_dict in locations:
+            if result[i]["location"] == location_dict["location"]:
+                in_locations = True
+        assert in_locations
         weather_result2 = result[i]["weather_results"]
         assert len(weather_result2) == hours
         assert len(weather_result2[0]) == 2
         for wr in weather_result2:
-            assert isinstance(wr[0], datetime.datetime)
+            assert isinstance(wr[0], str)
             assert isinstance(wr[1], dict)
-            assert wr[1]["points"] == point_data
+            assert wr[1] == weather_result2[0][1]
 
 
 @pytest.mark.weather2
@@ -592,12 +600,9 @@ def test_get_forecast_fail(weather, fake_locations):
     # [{location, "location_error": []}]
 
     fake_results = weather.get_hourly_forecast(fake_locations)
-    assert len(fake_results) == 3
+    assert len(fake_results) == len(fake_locations)
     for record_set in fake_results:
-        if "location" in record_set:
-            assert record_set.get("weather_results")
-        else:
-            assert record_set.get("location_error")
+        assert record_set.get("location_error")
     size_query = "SELECT COUNT(*) FROM 'get_hourly_forecast';"
     size = cursor.execute(size_query).fetchone()[0]
     assert size == 0
@@ -605,10 +610,10 @@ def test_get_forecast_fail(weather, fake_locations):
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("locations, expected_passing, expected_errors", [
-    ([{"location": "test"}], 1, 0),
+    ([{"location": "fake_location"}], 1, 0),
     ([{"fail": "fail"}], 0, 1),
-    ([{"location": "test"}, {"fail": "fail"}], 1, 1),
-    ([{"location": "test"}, {"location": "test2"}], 2, 0),
+    ([{"location": "fake_locationt"}, {"fail": "fail"}], 1, 1),
+    ([{"location": "fake_location1"}, {"location": "fake_location2"}], 2, 0),
     ([{"fail": "fail"}, {"fail": "fail2"}], 0, 2)
 ])
 def test_hourly_forecast_mixed_locations(weather, locations, expected_passing, expected_errors):

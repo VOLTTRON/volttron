@@ -218,7 +218,6 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             for period in periods:
                 forecast_time = period["startTime"]
                 record = [forecast_time, period]
-                # TODO unit conversions, properties name mapping
                 data.append(record)
             return generation_time, data
 
