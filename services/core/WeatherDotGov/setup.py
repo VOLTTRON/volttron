@@ -61,10 +61,11 @@ __version__ = _temp.__version__
 
 # Setup
 setup(
-    name=agent_package + 'agent',
+    name='weatherdotgov_agent',
     version=__version__,
     install_requires=['volttron'],
     packages=packages,
+    package_data={'agent': ['data/name_mapping.csv']},
     entry_points={
         'setuptools.installation': [
             'eggsecutable = ' + agent_module + ':main',

@@ -76,6 +76,8 @@ from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_STARTING,
                                                  Status)
 
+POLL_TOPIC = "weather/poll/current/{}"
+
 SERVICE_HOURLY_FORECAST = "get_hourly_forecast"
 
 SERVICE_CURRENT_WEATHER = "get_current_weather"
@@ -705,16 +707,15 @@ class BaseWeatherAgent(Agent):
 
     # TODO docs
     def poll_for_locations(self):
-        topic = "weather/poll/current/{}"
         _log.debug("polling for locations")
         results = self.get_current_weather(self.poll_locations)
         if self.poll_topic_suffixes is None:
             _log.debug("publishing results to single topic")
-            self.publish_response(topic.format("all"), results)
+            self.publish_response(POLL_TOPIC.format("all"), results)
         else:
             for i in range(0,len(results)):
                 _log.debug("publishing results to location specific topic")
-                poll_topic = topic.format(self.poll_topic_suffixes[i])
+                poll_topic = POLL_TOPIC.format(self.poll_topic_suffixes[i])
                 self.publish_response(poll_topic, results[i])
                 i = i + 1
 
