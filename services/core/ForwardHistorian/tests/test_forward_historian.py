@@ -5,6 +5,7 @@ import tempfile
 
 import gevent
 import pytest
+from pytest import approx
 
 from volttron.platform import get_services_core
 from volttron.platform.agent import json as jsonapi, utils
@@ -115,7 +116,4 @@ def test_reconnect_forwarder(get_volttron_instances):
         do_publish(publisher)
 
     for i in range(len(publishedmessages)):
-        # We need to compensate for float differences through the bus.
-        forwarded = "{{0:{0}f}}".format(allforwardedmessage[i])
-        published = "{{0:{0}f}}".format(publishedmessages[i])
-        assert forwarded[:8] == published[:8]
+        assert allforwardedmessage[i] == approx(publishedmessages[i])
