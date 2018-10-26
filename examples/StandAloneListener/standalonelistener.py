@@ -39,6 +39,7 @@ import logging
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.vip.agent import Agent, PubSub, Core
 from volttron.platform.agent import utils
+from volttron.platform.scheduling import periodic
 
 # These are the options that can be set from the settings module.
 from settings import remote_url, topics_prefixes_to_watch, heartbeat_period
@@ -75,18 +76,19 @@ class StandAloneListener(Agent):
                        callback=self.onmessage).get(timeout=5)
 
     # Demonstrate periodic decorator and settings access
-    @Core.periodic(heartbeat_period)
+    @Core.schedule(periodic(heartbeat_period))
     def publish_heartbeat(self):
         '''Send heartbeat message every heartbeat_period seconds.
 
         heartbeat_period is set and can be adjusted in the settings module.
         '''
         sys.stdout.write('publishing heartbeat.\n')
-        now = datetime.utcnow().isoformat(' ') + 'Z'
+        now = utils.format_timestamp(datetime.utcnow())
         headers = {
             #'AgentID': self._agent_id,
             headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.PLAIN_TEXT,
             headers_mod.DATE: now,
+            headers_mod.TIMESTAMP: now
         }
         self.vip.pubsub.publish(
             'pubsub', 'heartbeat/standalonelistener', headers,

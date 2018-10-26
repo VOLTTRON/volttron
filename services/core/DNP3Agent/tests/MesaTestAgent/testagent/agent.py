@@ -34,6 +34,7 @@ import sys
 
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.scheduling import periodic
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -147,7 +148,7 @@ class MesaTestAgent(Agent):
         self.vip.pubsub.subscribe(peer='pubsub', prefix=self.point_topic, callback=self.receive_point_value)
         self.vip.pubsub.subscribe(peer='pubsub', prefix=self.function_topic, callback=self.receive_function)
         self.vip.pubsub.subscribe(peer='pubsub', prefix=self.outstation_status_topic, callback=self.receive_status)
-        self.core.periodic(RPC_INTERVAL_SECS, self.issue_rpcs)
+        self.core.schedule(periodic(RPC_INTERVAL_SECS), self.issue_rpcs)
 
     @staticmethod
     def receive_point_value(peer, sender, bus, topic, headers, point_value):

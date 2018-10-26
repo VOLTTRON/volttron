@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2018, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,52 +36,31 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import logging
+from setuptools import setup, find_packages
 
-from volttron.platform.vip.agent import Agent, Core
-from volttron.platform.agent import utils
-from volttron.platform.messaging.health import Status, STATUS_BAD
-from volttron.platform.scheduling import periodic
+MAIN_MODULE = 'agent'
 
-utils.setup_logging()
-_log = logging.getLogger(__name__)
+# Find the agent package that contains the main module
+packages = find_packages('.')
+agent_package = 'obix_history'
 
-__version__ = '0.1'
+# Find the version number from the main module
+agent_module = agent_package + '.' + MAIN_MODULE
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
+__version__ = _temp.__version__
 
-
-class AgentWatcher(Agent):
-    def __init__(self, config_path, **kwargs):
-        super(AgentWatcher, self).__init__(**kwargs)
-        config = utils.load_config(config_path)
-        self.watchlist = config["watchlist"]
-        self.check_period = config.get("check-period", 10)
-
-    @Core.receiver('onstart')
-    def onstart(self, sender, **kwargs):
-        self.core.schedule(periodic(self.check_period), self.watch_agents)
-
-    def watch_agents(self):
-        peerlist = self.vip.peerlist().get()
-
-        missing_agents = []
-        for vip_id in self.watchlist:
-            if vip_id not in peerlist:
-                missing_agents.append(vip_id)
-
-        if missing_agents:
-            alert_key = "AgentWatcher"
-            context = "Agent(s) expected but but not running {}".format(missing_agents)
-            _log.warning(context)
-            status = Status.build(STATUS_BAD, context=context)
-            self.vip.health.send_alert(alert_key, status)
-
-
-def main():
-    utils.vip_main(AgentWatcher, version=__version__)
-
-
-if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        pass
+# Setup
+setup(
+    name=agent_package + 'agent',
+    version=__version__,
+    author_email="kyle.monson@pnnl.gov",
+    description="Retrieve and publish historical data from Obix service.",
+    author="Kyle Monson",
+    install_requires=['volttron'],
+    packages=packages,
+    entry_points={
+        'setuptools.installation': [
+            'eggsecutable = ' + agent_module + ':main',
+        ]
+    }
+)

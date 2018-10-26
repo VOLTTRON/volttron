@@ -256,10 +256,12 @@ class DriverAgent(BasicAgent):
 
         utcnow = utils.get_aware_utc_now()
         utcnow_string = utils.format_timestamp(utcnow)
+        sync_timestamp = utils.format_timestamp(now - datetime.timedelta(seconds=self.time_slot_offset))
 
         headers = {
             headers_mod.DATE: utcnow_string,
             headers_mod.TIMESTAMP: utcnow_string,
+            headers_mod.SYNC_TIMESTAMP: sync_timestamp
         }
 
 

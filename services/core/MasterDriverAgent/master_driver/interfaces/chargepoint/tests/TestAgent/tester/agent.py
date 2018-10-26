@@ -104,9 +104,13 @@ class TestAgent(Agent):
             result = self.get_chargepoint_point('Status')
             # result = self.get_chargepoint_point('stationRightsProfile')
 
+            now = utils.format_timestamp(datetime.datetime.now())
             # Also publish a test pub/sub message just for kicks.
             result = self.publish_message('test_topic/test_subtopic',
-                                          {headers_mod.DATE: datetime.datetime.now().isoformat()},
+                                          {
+                                              headers_mod.DATE: now,
+                                              headers_mod.TIMESTAMP: now
+                                          },
                                           [{'property_1': 1, 'property_2': 2}, {'property_3': 3, 'property_4': 4}])
 
             counter = 0
