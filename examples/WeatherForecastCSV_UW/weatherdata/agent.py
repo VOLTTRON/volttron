@@ -51,6 +51,7 @@ from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.async import AsyncCall
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import *
+from volttron.platform.scheduling import periodic
 
 import settings
 
@@ -134,7 +135,7 @@ class WeatherData(Agent):
                 while (now.minute % (poll_time/60) != 0):
                     now=datetime.datetime.now()
                 _log.debug("... Start periodic URL Request")   
-                self.weather = self.core.periodic(poll_time,self.weather_conditions,wait=0)       
+                self.weather = self.core.schedule(periodic(poll_time),self.weather_conditions)
                                     
         
         '''
