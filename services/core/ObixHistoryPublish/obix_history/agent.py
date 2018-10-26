@@ -42,6 +42,7 @@ import logging
 import sys
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.scheduling import periodic
 import grequests
 import gevent
 import xml.etree.ElementTree as ET
@@ -209,7 +210,7 @@ class ObixHistory(Agent):
         self.last_read = None
         self.default_last_read = default_last_read
 
-        self.update_greenlet = None
+        self.scheduled_update = None
         self.registers = list()
 
         self.default_config = {"url": url,
@@ -298,14 +299,14 @@ class ObixHistory(Agent):
 
 
     def restart_greenlet(self):
-        if self.update_greenlet is not None:
-            self.update_greenlet.kill()
-            self.update_greenlet = None
+        if self.scheduled_update is not None:
+            self.scheduled_update.cancel()
+            self.scheduled_update = None
 
         # Don't start (or restart) the greenlet if we haven't processed the registry config
         # or there are no registers processed.
         if self.registers:
-            self.update_greenlet = self.core.periodic(self.check_interval*60, self.update)
+            self.scheduled_update = self.core.schedule(periodic(self.check_interval*60), self.update)
 
     def configure_registers(self, register_config):
         if not register_config:
