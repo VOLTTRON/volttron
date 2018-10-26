@@ -197,9 +197,14 @@ def test_success_forecast(weather, query_agent, locations):
         if cache_location_data.get("weather_results"):
             query_weather_results = query_location_data.get("weather_results")
             cache_weather_results = cache_location_data.get("weather_results")
-            assert query_weather_results[0] == cache_weather_results[0]
-            for key in cache_weather_results[1]:
-                assert cache_weather_results[1][key] == query_weather_results[1][key]
+            for y in range(0, len(query_weather_results)):
+                result = query_weather_results[y]
+                cache_result = cache_weather_results[y]
+                query_time, oldtz = utils.process_timestamp(result[0])
+                query_time = utils.format_timestamp(query_time)
+                assert query_time == cache_result[0]
+                for key in cache_result[1]:
+                    assert cache_result[1][key] == result[1][key]
         else:
             assert cache_location_data.get("weather_error")
 

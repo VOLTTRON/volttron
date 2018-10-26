@@ -154,7 +154,7 @@ class BaseWeatherAgent(Agent):
                                 "poll_interval": self.poll_interval
                                }
         self.unit_registry = pint.UnitRegistry()
-        self.parse_point_name_mapping()
+        self.point_name_mapping = self.parse_point_name_mapping()
         self._api_services = \
             {SERVICE_CURRENT_WEATHER: {"type": "current",
                                        "update_interval": None,
@@ -328,6 +328,7 @@ class BaseWeatherAgent(Agent):
         Parses point name mapping, which should contain a mapping of service
         points to standardized points, with specified units.
         """
+        point_name_mapping = {}
         point_name_defs_file = self.get_point_name_defs_file()
         if point_name_defs_file:
             try:
@@ -339,7 +340,7 @@ class BaseWeatherAgent(Agent):
                             standard_point_name = map_item.get("Standard_Point_Name")
                             standardized_units = map_item.get("Standardized_Units")
                             service_units = map_item.get("Service_Units")
-                            self.point_name_mapping[service_point_name] = \
+                            point_name_mapping[service_point_name] = \
                                 {"Standard_Point_Name": standard_point_name,
                                  "Standardized_Units": standardized_units,
                                  "Service_Units": service_units}
@@ -348,7 +349,7 @@ class BaseWeatherAgent(Agent):
                            "{}".format(error))
                 raise ValueError("Error parsing point name mapping from file "
                                  "{} : {}".format(point_name_defs_file, error))
-
+        return point_name_mapping
 
     # TODO copy documentation?
     def _configure(self, config_name, actions, contents):
@@ -464,22 +465,22 @@ class BaseWeatherAgent(Agent):
                 location)
             observation_time, oldtz = process_timestamp(
                 observation_time)
-
             if self.point_name_mapping:
-                mapped_data = []
-                for point, value in data:
+                mapped_data = {}
+                for point, value in data["points"].iteritems():
                     if point in self.point_name_mapping:
-                        mapped_data[self.point_name_mapping["point"][
-                            "Standard_Point_Name"]] = value
+                        standard_point_name = self.point_name_mapping[point][
+                            "Standard_Point_Name"]
+                        mapped_data[standard_point_name] = value
                         if (self.point_name_mapping[point]["Service_Units"] and
                                 self.point_name_mapping[point][
                                     "Standardized_Units"]):
-                            mapped_data[point] = self.manage_unit_conversion(
+                            mapped_data[standard_point_name] = self.manage_unit_conversion(
                                 self.point_name_mapping[point]["Service_Units"],
                                 value,
                                 self.point_name_mapping[point][
                                     "Standardized_Units"])
-                data = mapped_data
+                data["points"] = mapped_data
             if observation_time is not None:
                 storage_record = [json.dumps(location),
                                   observation_time,
@@ -586,21 +587,8 @@ class BaseWeatherAgent(Agent):
                 generation_time, oldtz = process_timestamp(
                     generation_time)
 
-            if self.point_name_mapping and response:
-                mapped_data = []
-                for point, value in response:
-                    if point in self.point_name_mapping:
-                        mapped_data[self.point_name_mapping["point"][
-                            "Standard_Point_Name"]] = value
-                        if (self.point_name_mapping[point]["Service_Units"] and
-                                self.point_name_mapping[point][
-                                    "Standardized_Units"]):
-                            mapped_data[point] = self.manage_unit_conversion(
-                                self.point_name_mapping[point]["Service_Units"],
-                                value,
-                                self.point_name_mapping[point][
-                                    "Standardized_Units"])
-                response = mapped_data
+            if self.point_name_mapping:
+                response = [[item[0], self.apply_mapping(item[1])] for item in response]
 
             storage_records = []
             location_data = []
@@ -636,6 +624,25 @@ class BaseWeatherAgent(Agent):
             _log.error(error)
             result["weather_error"] = error
         return result
+
+    def apply_mapping(self, record_dict):
+        mapped_data = {"points": {}}
+        for point, value in record_dict["points"].iteritems():
+            if point in self.point_name_mapping:
+                point_name = self.point_name_mapping[point][
+                    "Standard_Point_Name"]
+                mapped_data['points'][point_name] = value
+                if (self.point_name_mapping[point]["Service_Units"] and
+                        self.point_name_mapping[point][
+                            "Standardized_Units"]):
+                    mapped_data["points"][point_name] = self.manage_unit_conversion(
+                        self.point_name_mapping[point]["Service_Units"],
+                        value,
+                        self.point_name_mapping[point][
+                            "Standardized_Units"])
+            else:
+                mapped_data["points"][point_name] = value
+        return mapped_data
 
     # TODO docs
     @abstractmethod
