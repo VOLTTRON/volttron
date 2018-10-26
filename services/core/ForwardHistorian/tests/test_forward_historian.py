@@ -14,7 +14,7 @@ from volttron.platform.messaging import headers as headers_mod
 
 from volttrontesting.utils.platformwrapper import build_vip_address
 
-BASE_FORWARD_CONqqqFIG = {
+BASE_FORWARD_CONFIG = {
     "agentid": "forwarder1",
     "destination-vip": None
 }
