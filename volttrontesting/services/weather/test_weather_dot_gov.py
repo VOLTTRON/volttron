@@ -164,7 +164,8 @@ def test_success_current(weather, query_agent, locations):
 def test_current_fail(weather, query_agent, locations):
     query_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
     for record in query_data:
-        assert record.get("location_error")
+        error = record.get("location_error")
+        assert error.startswith("Invalid location format.") or error.startswith("Invalid location")
         assert record.get("weather_results") is None
 
 
@@ -248,7 +249,8 @@ def test_hourly_forecast_fail(weather, query_agent, locations):
     query_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
                                              locations).get(timeout=30)
     for record in query_data:
-        assert record.get("location_error")
+        error = record.get("location_error")
+        assert error.startswith("Invalid location format.") or error.startswith("Invalid location")
         assert record.get("weather_results") is None
 
 @pytest.mark.weather2
