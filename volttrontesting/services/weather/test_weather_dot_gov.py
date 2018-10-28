@@ -70,6 +70,12 @@ polling_service = {
     'poll_interval': 5
 }
 
+httpErrors = ["API request success, no data returned (code",
+              "API redirected, but requests did not reach the intended location (code ",
+              "Client's API request failed (code ",
+              "API request to server failed (code ",
+              "API request failed with unexpected response code (code "]
+
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
     # 1: Start a fake agent to query the historian agent in volttron_instance2
@@ -110,7 +116,7 @@ def weather(request, volttron_instance):
     return request.param
 
 
-@pytest.mark.weather2
+@pytest.mark.dev
 @pytest.mark.parametrize("locations", [
     [{"station": "KLAX"}],
     [{"station": "KLAX"}, {"station": "KBOI"}],
@@ -125,12 +131,26 @@ def test_success_current(weather, query_agent, locations):
     query_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
     assert len(query_data) == len(locations)
     for record in query_data:
+        # check format here
         assert record.get("observation_time")
         assert record.get("station")
-        assert record.get("weather_results") or record.get("weather_error")
+        # check weather error message
+        results = record.get("weather_results")
+        if results:
+            assert results.get("points")
+        else:
+            results = record.get("weather_error")
+            # The given http errors are valid responses.
+            has_http_error = False
+            for error in httpErrors:
+                if results.startswith(error):
+                    _log.debug(error)
+                    has_http_error = True
+            assert has_http_error
 
     cache_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
 
+    # check names returned are valid
     assert len(cache_data) == len(cache_data)
     for x in range(0, len(cache_data)):
         assert len(cache_data[x]) == len(query_data[x])
@@ -206,7 +226,13 @@ def test_success_forecast(weather, query_agent, locations):
                 for key in cache_result[1]:
                     assert cache_result[1][key] == result[1][key]
         else:
-            assert cache_location_data.get("weather_error")
+            results = cache_location_data.get("weather_error")
+            has_http_error = False
+            for error in httpErrors:
+                if results.startswith(error):
+                    _log.debug(error)
+                    has_http_error = True
+            assert has_http_error
 
 # TODO compare failure condition messages
 @pytest.mark.weather2
