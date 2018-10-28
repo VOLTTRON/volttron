@@ -316,6 +316,7 @@ class BaseWeatherAgent(Agent):
         point_name_defs_file = self.get_point_name_defs_file()
         if point_name_defs_file:
             try:
+                _log.debug(point_name_defs_file)
                 with open(point_name_defs_file) as file:
                     config_dict = csv.DictReader(file)
                     for map_item in config_dict:
