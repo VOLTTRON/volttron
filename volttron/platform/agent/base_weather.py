@@ -334,23 +334,29 @@ class BaseWeatherAgent(Agent):
         point_name_defs_file = self.get_point_name_defs_file()
         if point_name_defs_file:
             try:
-                with open(point_name_defs_file) as file:
-                    config_dict = csv.DictReader(file)
-                    for map_item in config_dict:
-                        service_point_name = map_item.get("Service_Point_Name")
-                        if service_point_name:
-                            standard_point_name = map_item.get("Standard_Point_Name")
-                            standardized_units = map_item.get("Standardized_Units")
-                            service_units = map_item.get("Service_Units")
-                            point_name_mapping[service_point_name] = \
-                                {"Standard_Point_Name": standard_point_name,
-                                 "Standardized_Units": standardized_units,
-                                 "Service_Units": service_units}
+                if isinstance(point_name_defs_file, str):
+                    mapping_file = open(point_name_defs_file)
+                else:
+                    mapping_file = point_name_defs_file
+
+                config_dict = csv.DictReader(mapping_file)
+                for map_item in config_dict:
+                    service_point_name = map_item.get("Service_Point_Name")
+                    if service_point_name:
+                        standard_point_name = map_item.get("Standard_Point_Name")
+                        standardized_units = map_item.get("Standardized_Units")
+                        service_units = map_item.get("Service_Units")
+                        point_name_mapping[service_point_name] = \
+                            {"Standard_Point_Name": standard_point_name,
+                             "Standardized_Units": standardized_units,
+                             "Service_Units": service_units}
             except IOError as error:
                 _log.error("Error parsing standard point name mapping: "
                            "{}".format(error))
                 raise ValueError("Error parsing point name mapping from file "
-                                 "{} : {}".format(point_name_defs_file, error))
+                                 "{}".format(error))
+            finally:
+                mapping_file.close()
         return point_name_mapping
 
     # TODO copy documentation?

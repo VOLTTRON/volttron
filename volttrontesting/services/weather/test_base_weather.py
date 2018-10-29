@@ -92,9 +92,7 @@ class BasicWeatherAgent(BaseWeatherAgent):
 
     # TODO create a file to use, a path, and stick the string here
     def get_point_name_defs_file(self):
-
-        pkg_resources.resource_stream(__name__, "data/name_mapping.csv")
-        #"volttrontesting/services/weather/point_names_defs.csv"
+        return "volttrontesting/services/weather/point_names_defs.csv"
 
     def query_current_weather(self, location):
         current_time = datetime.datetime.utcnow()
@@ -633,51 +631,51 @@ def test_hourly_forecast_mixed_locations(weather, locations, expected_passing, e
     assert actual_failing == expected_errors
     assert actual_passing == expected_passing
 
+@pytest.mark.xfail
 @pytest.mark.weather2
 @pytest.mark.parametrize("fake_locations, start_date, end_date", [])
 def test_hourly_historical_success(weather, fake_locations, start_date, end_date):
-    pass
+    assert False
 
+@pytest.mark.xfail
 @pytest.mark.weather2
 @pytest.mark.parametrize("fake_locations, start_date, end_date", [])
 def test_hourly_historical_fail(weather, fake_locations, start_date, end_date):
-    pass
+    assert False
 
-# # TODO
-# @pytest.mark.dev
-# @pytest.mark.parametrize('config,result', [
-#     ({'poll_locations': [{"station": "KLAX"}], 'poll_interval': 2}, None),
-#     ({'poll_locations': [{"station": "KLAX"}], 'poll_interval': 2,
-#       'poll_topic_suffixes': ["result_klax"]}, None),
-#     ({'poll_locations': [{"station": "KLAX"}, {"station": "KABQ"}],
-#       'poll_interval': 2,
-#       'poll_topic_suffixes': ["result_klax"]},
-#      None),
-#
-# ])
-# def test_poll_locations(volttron_instance, weather, query_agent, config,
-#                         result):
-#     weather.poll_locations = [{"station": "KLAX"}, {"station": "KABQ"}]
-#     weather.poll_interval = 5
-#     try:
-#         agent = volttron_instance.build_agent(
-#             agent_class=BasicWeatherAgent,
-#             identity="platform.weatherpolling",
-#             service_name="BasicWeather"
-#         )
-#         # subscribe to weather poll results
-#         query_agent.vip.pubsub.subscribe(
-#             peer='pubsub',
-#             prefix="weather/poll/current",
-#             callback=query_agent.poll_callback).get()
-#
-#         volttron_instance.start_agent(agent)
-#         gevent.sleep(5)
-#         assert query_agent.vip.rpc.call("platform.weatherpolling", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
-#     finally:
-#         if agent:
-#             agent.core.stop()
-#             volttron_instance.remove_agent(agent)
+@pytest.mark.dev
+@pytest.mark.parametrize('config, result', [
+    ({'poll_locations': [{"station": "KLAX"}], 'poll_interval': 2}, None),
+    ({'poll_locations': [{"station": "KLAX"}], 'poll_interval': 2,
+      'poll_topic_suffixes': ["result_klax"]}, None),
+    ({'poll_locations': [{"station": "KLAX"}, {"station": "KABQ"}],
+      'poll_interval': 2,
+      'poll_topic_suffixes': ["result_klax"]},
+     None),
+
+])
+def test_poll_locations(volttron_instance, weather, query_agent, config,
+                        result):
+    weather.poll_interval = 5
+    try:
+        agent = volttron_instance.build_agent(
+            agent_class=BasicWeatherAgent,
+            identity="platform.weatherpolling",
+            service_name="BasicWeather"
+        )
+        # subscribe to weather poll results
+        query_agent.vip.pubsub.subscribe(
+            peer='pubsub',
+            prefix="weather/poll/current",
+            callback=query_agent.poll_callback).get()
+
+        volttron_instance.start_agent(agent)
+        gevent.sleep(5)
+        assert query_agent.vip.rpc.call("platform.weatherpolling", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
+    finally:
+        if agent:
+            agent.core.stop()
+            volttron_instance.remove_agent(agent)
 
 @pytest.mark.weather2
 @pytest.mark.xfail

@@ -56,6 +56,8 @@
 import logging
 import re
 import sys
+
+import pkg_resources
 import requests
 import datetime
 from volttron.platform.agent.base_weather import BaseWeatherAgent
@@ -99,6 +101,9 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             return datetime.timedelta(hours=1)
         else:
             return None
+
+    def get_point_name_defs_file(self):
+        return pkg_resources.resource_stream(__name__, "data/name_mapping.csv")
 
     def get_location_string(self, location):
         if location.get('lat') and location.get('long'):
