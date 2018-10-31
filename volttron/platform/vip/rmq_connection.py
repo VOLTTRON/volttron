@@ -429,14 +429,24 @@ class RMQRouterConnection(RMQConnection):
         errmsg = os.strerror(errnum).encode('ascii')
         recipient = props.headers.get('recipient', '')
         message = [errnum, errmsg, recipient, subsystem]
-        # _log.debug("Host Unreachable Error Message is: {0}, {1}, {2}".format(method.routing_key,
-        #                                                     sender,
-        #                                                     props))
-        self.channel.basic_publish(self.exchange,
-                                   sender,
-                                   json.dumps(message, ensure_ascii=False),
-                                   props)
+        
+        _log.error("Host Unreachable Error Message is: {0}, {1}, {2}, {3}".format(
+            message,
+            method.routing_key,
+            sender,
+            props))
 
+        # The below try/except protects the platform from someone who is not communicating
+        # via vip protocol.  If sender is not a string then the channel publish will throw
+        # an AssertionError and it will kill the platform.  
+        try:
+            self.channel.basic_publish(self.exchange,
+                                       sender,
+                                       json.dumps(message, ensure_ascii=False),
+                                       props)
+        except AssertionError:
+            pass
+        
     def loop(self):
         """
         Connect to RabbiMQ broker and run infinite loop to listen to incoming messages
