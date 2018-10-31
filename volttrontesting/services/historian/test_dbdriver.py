@@ -200,14 +200,13 @@ class AggregationSuite(Suite):
     @pytest.fixture
     def driver(self, state):
         driver = super(AggregationSuite, self).driver(state)
+        driver.record_table_definitions(
+            state.table_names, state.meta_table_name)
         driver.setup_aggregate_historian_tables(state.meta_table_name)
         return driver
 
     @pytest.mark.aggregator
     def test_create_agg_table(self, driver, state):
-        driver.record_table_definitions(
-            state.table_names, state.meta_table_name)
-        driver.setup_aggregate_historian_tables(state.meta_table_name)
         driver.create_aggregate_store('sum', '1m')
 
     @pytest.mark.aggregator
@@ -256,7 +255,7 @@ class AggregationSuite(Suite):
 
 
 @pytest.mark.skipif(not HAVE_POSTGRESQL, reason='missing psycopg2 package')
-class TestPostgreSql(Suite):
+class TestPostgreSql(AggregationSuite):
     @contextlib.contextmanager
     def _transact(self, params, truncate_tables, drop_tables):
         pg = psycopg2.sql
