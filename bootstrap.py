@@ -151,20 +151,21 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
         def get_version(self):
             """Return the latest version from virtualenv DOAP record."""
             _log.info('Downloading virtualenv package information')
-            default_version = "15.1.0"
+            default_version = "16.0.0"
             url = 'https://pypi.python.org/pypi/virtualenv/json'
-            with contextlib.closing(self._fetch(url)) as response:
-                result = json.load(response)
-                releases_dict = result.get("releases", {})
-                releases = sorted(
-                    [LooseVersion(x) for x in releases_dict.keys()])
-            if releases:
-                _log.info('latest release of virtualenv={}'.format(releases[-1]))
-                return str(releases[-1])
-            else:
-                _log.info("Returning default version of virtualenv "
-                          "({})".format(default_version))
-                return default_version
+            # with contextlib.closing(self._fetch(url)) as response:
+            #     result = json.load(response)
+            #     releases_dict = result.get("releases", {})
+            #     releases = sorted(
+            #         [LooseVersion(x) for x in releases_dict.keys()])
+            # if releases:
+            #     _log.info('latest release of virtualenv={}'.format(releases[-1]))
+            #     return str(releases[-1])
+            # else:
+            #     _log.info("Returning default version of virtualenv "
+            #               "({})".format(default_version))
+            #     return default_version
+            return default_version
 
         def download(self, directory):
             '''Download the virtualenv tarball into directory.'''
