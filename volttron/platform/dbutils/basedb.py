@@ -299,7 +299,7 @@ class DbDriver(object):
 
         :param ts: timestamp
         :param topic_id: topic id for which data is inserted
-        :param metadata: data values
+        :param data: data value
         :return: True if execution completes. raises Exception if unable to
         connect to database
         """
