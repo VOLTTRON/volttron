@@ -75,7 +75,7 @@ class RedshiftFuncts(DbDriver):
         """
         records = []
 
-        def insert_data(ts, topic_id, value):
+        def insert_data(ts, topic_id, data):
             """
             Inserts data records to the list
 
@@ -83,20 +83,21 @@ class RedshiftFuncts(DbDriver):
             :type string
             :param topic_id: topic ID
             :type string
-            :param value: the value string to be inserted
-            :type string
+            :param data: data value
+            :type any valid JSON serializable value
             :return: Returns True after insert
             :rtype: bool
             """
-            records.append((ts, topic_id, value))
+            value = jsonapi.dumps(data)
+            records.append(SQL('({}, {}, {})').format(Literal(ts), Literal(topic_id), Literal(value)))
             return True
 
         yield insert_data
 
-        query = SQL('INSERT INTO data VALUES ') + \
-                SQL(', ').join(SQL('({}, {}, {})').format(Literal(ts), Literal(topic_id), Literal(value_string))
-                               for ts, topic_id, value_string in records)
-        self.execute_stmt(query)
+        if records:
+            query = SQL('INSERT INTO {} VALUES {} ').format(
+                Identifier(self.data_table), SQL(', ').join(records))
+            self.execute_stmt(query)
 
     def rollback(self):
         try:
@@ -187,7 +188,7 @@ class RedshiftFuncts(DbDriver):
             table_name = self.data_table
         topic_id = Literal(0)
         query = [SQL(
-            '''SELECT to_char(ts, 'YYYY-MM-DD"T"HH24:MI:SS.USOF:00'), '''
+            '''SELECT DISTINCT to_char(ts, 'YYYY-MM-DD"T"HH24:MI:SS.USOF:00'), '''
             'value_string\n'
             'FROM {}\n'
             'WHERE topic_id = {}'

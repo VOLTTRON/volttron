@@ -17,6 +17,7 @@
 # }}}
 
 import ast
+import contextlib
 import logging
 
 import pytz
@@ -56,6 +57,42 @@ class PostgreSqlFuncts(DbDriver):
             return connection
         connect.__name__ = 'psycopg2'
         super(self.__class__, self).__init__(connect)
+
+    @contextlib.contextmanager
+    def bulk_insert(self):
+        """
+        This function implements the bulk insert requirements for Redshift historian by overriding the
+        DbDriver::bulk_insert() in basedb.py and yields nescessary data insertion method needed for bulk inserts
+
+        :yields: insert method
+        """
+        records = []
+
+        def insert_data(ts, topic_id, data):
+            """
+            Inserts data records to the list
+
+            :param ts: time stamp
+            :type string
+            :param topic_id: topic ID
+            :type string
+            :param data: data value
+            :type any valid JSON serializable value
+            :return: Returns True after insert
+            :rtype: bool
+            """
+            value = jsonapi.dumps(data)
+            records.append(SQL('({}, {}, {})').format(Literal(ts), Literal(topic_id), Literal(value)))
+            return True
+
+        yield insert_data
+
+        if records:
+            query = SQL('INSERT INTO {} VALUES {} '
+                        'ON CONFLICT (ts, topic_id) DO UPDATE '
+                        'SET value_string = EXCLUDED.value_string').format(
+                            Identifier(self.data_table), SQL(', ').join(records))
+            self.execute_stmt(query)
 
     def rollback(self):
         try:
