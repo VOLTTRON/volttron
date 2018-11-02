@@ -52,6 +52,11 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
+class MaskedString(str):
+    def __repr__(self):
+        return repr('********')
+
+
 def historian(config_path, **kwargs):
     """
     This method is called by the :py:func:`sqlhistorian.historian.main` to
@@ -75,6 +80,13 @@ def historian(config_path, **kwargs):
     assert database_type is not None
     params = connection.get('params', None)
     assert params is not None
+
+    # Avoid printing passwords in the debug message
+    for key in ['pass', 'passwd', 'password', 'pw']:
+        try:
+            params[key] = MaskedString(params[key])
+        except KeyError:
+            pass
 
     SQLHistorian.__name__ = 'SQLHistorian'
     utils.update_kwargs_with_config(kwargs, config_dict)
