@@ -1051,6 +1051,7 @@ def test_zero_timestamp(request, historian, publish_agent, query_agent,
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     now = '2015-12-17 00:00:00.000000Z'
+    state = random.getstate()  # Save state to ensure duplicate values below
     now, reading, meta = publish_devices_fake_data(publish_agent, now)
     gevent.sleep(0.5)
 
@@ -1070,6 +1071,7 @@ def test_zero_timestamp(request, historian, publish_agent, query_agent,
 
     # Create timestamp
     now = '2015-12-17 00:00:00.000000'
+    random.setstate(state)  # Ensure random values are the same as above
     now, reading, meta = publish_devices_fake_data(publish_agent, now)
     gevent.sleep(0.5)
 
