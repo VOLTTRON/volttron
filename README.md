@@ -58,15 +58,8 @@ http://ryanstutorials.net/linuxtutorial/
 
   **On Debian based systems:**
 
-  Easiest way to install Erlang version 21.x is to install from RabbitMQ's repository.
-
-  In order to use the repository, add a key used to sign RabbitMQ releases to apt-key
-
-  ```
-  wget -O - 'https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc' | sudo apt-key add -
-  ```
-
-  Add the below Apt (Debian) repository entry in /etc/apt/sources.list.d/bintray.erlang.list. Please note,
+  If you are running an Ubuntu system, you can install the RabbitMQ dependencies by running the rabbit dependencies
+  script, passing in the approriate distribution as a parameter. Please note,
   distribution parameter will vary according to the distribution used in your system. For example,
 
     bionic for Ubuntu 18.04
@@ -74,7 +67,20 @@ http://ryanstutorials.net/linuxtutorial/
     xenial for Linux Mint 18.04
     stretch for Debian Stretch
     jessie for Debian Jessie
+  
+  ``` 
+  ~/volttron/scripts/rabbit_dependencies.sh xenial
+  ```
+  
+  Otherwise, the easiest way to install Erlang version 21.x is to install from RabbitMQ's repository.
 
+  In order to use the repository, add a key used to sign RabbitMQ releases to apt-key
+
+  ```
+  wget -O - 'https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc' | sudo apt-key add -
+  ```
+
+  Add the below Apt (Debian) repository entry in /etc/apt/sources.list.d/bintray.erlang.list.
 
   ```
   echo 'deb https://dl.bintray.com/rabbitmq/debian xenial erlang-21.x'|sudo tee --append /etc/apt/sources.list.d/bintray.erlang.list
