@@ -10,7 +10,7 @@ of CZMQ that can be used with this version of ZMQ is version 4.1.1.  You can dow
 https://github.com/zeromq/czmq/releases/download/v4.1.1/czmq-4.1.1.tar.gz.
 
 Follow the fncs installation from https://github.com/FNCS/fncs substituding the above urls for 
-ZMQ and CZMQ respectively. Make sure to run `export LD_LIBRARY_PATH=$HOME/FNCS_install/lib` and `export PKG_CONFIG_PATH=$HOME/FNCS_install/lib/pkgconfig` before installing FNCS. 
+ZMQ and CZMQ respectively. Make sure to run `export PKG_CONFIG_PATH=$HOME/FNCS_install/lib/pkgconfig` before installing these.
 
 Also, fncs must be installed into the python environment.  This can be done by the following steps:
 
