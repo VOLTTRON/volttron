@@ -102,7 +102,6 @@ _log = logging.getLogger(__name__)
 HEADER_NAME_DATE = headers.DATE
 HEADER_NAME_CONTENT_TYPE = headers.CONTENT_TYPE
 
-STATUS_KEY_PUBLISHING = "publishing"
 STATUS_KEY_CACHE_FULL = "cache_full"
 
 # Register a better datetime parser in sqlite3.
@@ -120,93 +119,80 @@ class BaseWeatherAgent(Agent):
                  poll_interval=None,
                  poll_topic_suffixes=None,
                  **kwargs):
+        try:
+            super(BaseWeatherAgent, self).__init__(**kwargs)
+            self._service_name = service_name
+            self._async_call = AsyncCall()
+            self._api_key = api_key
+            self._max_size_gb = max_size_gb
+            self.poll_locations = poll_locations
+            self.poll_interval = poll_interval
+            self.poll_topic_suffixes = poll_topic_suffixes
+            self.do_polling = False
+            self.poll_greenlet = None
 
-        super(BaseWeatherAgent, self).__init__(**kwargs)
-        self._service_name = service_name
-        self._async_call = AsyncCall()
-        self._api_key = api_key
-        self._max_size_gb = max_size_gb
-        self.poll_locations = poll_locations
-        self.poll_interval = poll_interval
-        self.poll_topic_suffixes = poll_topic_suffixes
+            self._default_config = \
+                {
+                    "service": self._service_name,
+                    "api_key": self._api_key,
+                    "max_size_gb": self._max_size_gb,
+                    "poll_locations": self.poll_locations,
+                    "poll_interval": self.poll_interval,
+                    "poll_topic_suffixes": self.poll_topic_suffixes
+                }
+            self.unit_registry = pint.UnitRegistry()
+            self.point_name_mapping = self.parse_point_name_mapping()
+            self._api_services = {SERVICE_CURRENT_WEATHER:{"type": "current",
+                                           "update_interval": None,
+                                           "description": "Params: locations "
+                                                          "([{"
+                                                          "type: "
+                                                          "value},...])"
+                                         },
+                 SERVICE_HOURLY_FORECAST: {"type": "forecast",
+                                           "update_interval": None,
+                                           "description": "Params: locations "
+                                                          "([{type: value},"
+                                                          "...])"
+                                         },
+                 "get_hourly_historical":{"type": "history",
+                                           "update_interval": None,
+                                           "description": "Params: locations "
+                                                          "([{"
+                                                          "type: value},..]), "
+                                                          "start_date (date), "
+                                                          "end_date(date)"
+                                           }
+                 }
 
-        if self.poll_locations:
-            if not self.poll_interval or not self.poll_topic_suffixes:
-                raise ValueError("Both poll_interval and "
-                                 "poll_topic_suffixes are mandatory "
-                                 "configurations when poll_locations are "
-                                 "specified")
-            if (self.poll_topic_suffixes is not None and
-                    (not isinstance(self.poll_interval, list) or
-                     len(self.poll_interval) < len(self.poll_locations))):
-                raise ValueError("poll_topic_suffixes, if set, should be a "
-                                 "list of string with the same length as "
-                                 "poll_locations. If it is not set "
-                                 "results for all locations will be published "
-                                 "to a single topic(weather/poll/current/all). "
-                                 "If it is a list, each location's result will "
-                                 "be published to the corresponding topic ("
-                                 "weather/poll/current/<topic_suffix>)")
-        self._default_config = {
-                                "service": self._service_name,
-                                "api_key": self._api_key,
-                                "max_size_gb": self._max_size_gb,
-                                "poll_locations": self.poll_locations,
-                                "poll_interval": self.poll_interval
-                               }
-        self.unit_registry = pint.UnitRegistry()
-        self.point_name_mapping = self.parse_point_name_mapping()
-        self._api_services = \
-            {SERVICE_CURRENT_WEATHER: {"type": "current",
-                                       "update_interval": None,
-                                       "description": "Params: locations ([{"
-                                                      "type: "
-                                                      "value},...])"
-                                     },
-             SERVICE_HOURLY_FORECAST: {"type": "forecast",
-                                       "update_interval": None,
-                                       "description": "Params: locations "
-                                                      "([{type: value},...])"
-                                     },
-             "get_hourly_historical": {"type": "history",
-                                       "update_interval": None,
-                                       "description": "Params: locations "
-                                                      "([{type: value},...]), "
-                                                      "start_date (date), "
-                                                      "end_date(date)"
-                                       }
-             }
+            for service_name in self._api_services:
+                if not self._api_services[service_name]["type"] == "history":
+                    interval = self.get_update_interval(service_name)
+                    if interval:
+                        self.set_update_interval(service_name, interval)
+                description = self.get_api_description(service_name)
+                if description:
+                    self.set_api_description(service_name, description)
 
-        for service_name in self._api_services:
-            if not self._api_services[service_name]["type"] == "history":
-                interval = self.get_update_interval(service_name)
-                if interval:
-                    self.set_update_interval(service_name, interval)
-            description = self.get_api_description(service_name)
-            if description:
-                self.set_api_description(service_name, description)
-
-        # TODO finish status context
-        self._current_status_context = {
-            STATUS_KEY_CACHE_FULL: False
-        }
-
-        # TODO manage health with respect to these conditions
-        self.successfully_publishing = None
-        if self.poll_locations:
-            self._current_status_context[STATUS_KEY_PUBLISHING] = True
-            self.successfully_publishing = True
-
-        self._cache = WeatherCache(service_name=self._service_name,
-                                   api_services=self._api_services,
-                                   max_size_gb=self._max_size_gb)
-
-        self.vip.config.set_default("config", self._default_config)
-        self.vip.config.subscribe(self._configure, actions=["NEW", "UPDATE"],
-                                  pattern="config")
+            self.vip.config.set_default("config", self._default_config)
+            self.vip.config.subscribe(self._configure,
+                                      actions=["NEW", "UPDATE"],
+                                      pattern="config")
+        except Exception as e:
+            _log.error("Failed to load weather agent settings.")
+            self.vip.health.set_status(STATUS_BAD,
+                                       "Configuration of weather agent failed "
+                                       "with error: {}".format(e.message))
+        else:
+            self._cache = WeatherCache(service_name=self._service_name,
+                                       api_services=self._api_services,
+                                       max_size_gb=self._max_size_gb)
+            _log.error("Configuration successful")
+            self.vip.health.set_status(STATUS_GOOD,
+                                       "Configuration of weather agent "
+                                       "successful")
 
     # Configuration methods
-
     # TODO update documentation
     def register_service(self, service_function_name, interval, service_type,
                          description=None):
@@ -368,26 +354,60 @@ class BaseWeatherAgent(Agent):
         _log.info("Configuring weather agent.")
         config = self._default_config.copy()
         config.update(contents)
-        try:
-            api_key = config.get("api_key")
-            max_size_gb = config.get("max_size_gb")
-            poll_locations = config.get("poll_locations")
-            poll_interval = config.get("poll_interval")
-            if max_size_gb is not None:
-                max_size_gb = float(max_size_gb)
 
-        except ValueError:
-            _log.error("""Failed to load base weather agent settings. 
-                          Settings not applied!""")
-            return
-        self._api_key = api_key
-        self._max_size_gb = max_size_gb
-        self.poll_locations = poll_locations
-        self.poll_interval = poll_interval
+        max_size_gb = config.get("max_size_gb")
         try:
+            if max_size_gb is not None:
+                self._max_size_gb = float(max_size_gb)
+        except ValueError:
+            _log.warn("Invalid value for max_size_gb: {} "
+                             "defaulting to 1GB".format(max_size_gb))
+            self._max_size_gb = 1
+
+        self._api_key = config.get("api_key")
+        self.poll_locations = config.get("poll_locations")
+        self.poll_interval = config.get("poll_interval")
+        self.poll_topic_suffixes = config.get("poll_topic_suffixes")
+        try:
+            self.validate_poll_config()
             self.configure(config)
         except Exception as e:
             _log.error("Failed to load weather agent settings.")
+            self.vip.health.set_status(STATUS_BAD,
+                                       "Configuration of weather agent failed "
+                                       "with error: {}".format(e.message))
+        else:
+            _log.error("Configuration successful")
+            self.vip.health.set_status(STATUS_GOOD,
+                                       "Configuration of weather agent "
+                                       "successful")
+            if self.do_polling:
+                if self.poll_greenlet:
+                    self.poll_greenlet.kill()
+                self.poll_greenlet = self.core.periodic(self.poll_interval,
+                                                        self.poll_for_locations)
+
+
+    def validate_poll_config(self):
+        if self.poll_locations:
+            if not self.poll_interval:
+                err_msg = "poll_interval is mandatory configuration when " \
+                          "poll_locations are specified"
+                raise ValueError(err_msg)
+            if (self.poll_topic_suffixes is not None and
+                    (not isinstance(self.poll_locations, list) or
+                     len(self.poll_topic_suffixes) < len(self.poll_locations))):
+                err_msg = "poll_topic_suffixes, if set, should be a list of " \
+                          "string with the same length as poll_locations. If " \
+                          "it is not set results for all locations will be " \
+                          "published to a single topic(" \
+                          "weather/poll/current/all). If it is a list, " \
+                          "each location's result will be published to the " \
+                          "corresponding topic (" \
+                          "weather/poll/current/<topic_suffix>)"
+                raise ValueError(err_msg)
+            self.do_polling = True
+
 
     def configure(self, configuration):
         """Optional, may be implemented by a concrete implementation to add
@@ -468,24 +488,13 @@ class BaseWeatherAgent(Agent):
         try:
             observation_time, data = self.query_current_weather(
                 location)
+            _log.debug("Got data from remote as {}".format(data))
             observation_time, oldtz = process_timestamp(
                 observation_time)
             if self.point_name_mapping:
-                mapped_data = {}
-                for point, value in data["points"].iteritems():
-                    if point in self.point_name_mapping:
-                        standard_point_name = self.point_name_mapping[point][
-                            "Standard_Point_Name"]
-                        mapped_data[standard_point_name] = value
-                        if (self.point_name_mapping[point]["Service_Units"] and
-                                self.point_name_mapping[point][
-                                    "Standardized_Units"]):
-                            mapped_data[standard_point_name] = self.manage_unit_conversion(
-                                self.point_name_mapping[point]["Service_Units"],
-                                value,
-                                self.point_name_mapping[point][
-                                    "Standardized_Units"])
-                data["points"] = mapped_data
+                _log.debug("Got point name mapping")
+                data = self.apply_mapping(data)
+            _log.debug("data from api after mapping {}".format(data))
             if observation_time is not None:
                 storage_record = [json.dumps(location),
                                   observation_time,
@@ -531,20 +540,19 @@ class BaseWeatherAgent(Agent):
                 continue
 
             # check if we have enough recent data in cache
-            record_dict = self.get_cached_forecast_data(location, hours)
+            record_dict = self.get_cached_hourly_forecast(location, hours)
 
             # if cache didn't work out query remote api
             if not record_dict.get("weather_results"):
                 _log.debug("forecast weather from api")
-                record_dict = self.get_remote_forecast_data(location,
-                                                            hours)
-                _log.debug("api returned record with generation_time: "
-                           "{}".format(record_dict["generation_time"]))
+                record_dict = self.get_remote_hourly_forecast(location,
+                                                              hours)
+                _log.debug("record_dict from remote : {}".format(record_dict))
             result.append(record_dict)
 
         return result
 
-    def get_cached_forecast_data(self, location, hours):
+    def get_cached_hourly_forecast(self, location, hours):
         interval = \
             self._api_services[SERVICE_HOURLY_FORECAST]["update_interval"]
         most_recent_for_location = \
@@ -577,13 +585,17 @@ class BaseWeatherAgent(Agent):
                 record_dict["weather_results"] = location_data
         return record_dict
 
-    def get_remote_forecast_data(self, location, hours):
+    def get_remote_hourly_forecast(self, location, hours):
         result = location.copy()
         try:
             # query for maximum number of hours so that we can cache it
             # also makes retrieval from cache simpler
             generation_time, response = self.query_hourly_forecast(
                 location)
+            _log.debug("Current time {}".format(datetime.datetime.utcnow()))
+            _log.debug(" response from forecast generation_time : {}".format(
+                generation_time))
+            _log.debug(" response from forecast : {}".format(response[0]))
             if not generation_time:
                 # in case api does not return details on when this
                 # forecast data was generated
@@ -591,7 +603,8 @@ class BaseWeatherAgent(Agent):
             else:
                 generation_time, oldtz = process_timestamp(
                     generation_time)
-
+            _log.debug(" generation time after process : {}".format(
+                generation_time))
             if self.point_name_mapping:
                 response = [[item[0], self.apply_mapping(item[1])] for item in response]
 
@@ -608,7 +621,11 @@ class BaseWeatherAgent(Agent):
                                       forecast_time,
                                       json.dumps(item[1])]
                     storage_records.append(storage_record)
-                    if i < hours:
+                    if len(location_data) < hours and \
+                            forecast_time > get_aware_utc_now():
+                        # checking time because weather.gov returns fixed set
+                        # of data and some of the records might be older than
+                        # current time
                         location_data.append(item)
                 i = i + 1
             if location_data:
@@ -616,12 +633,15 @@ class BaseWeatherAgent(Agent):
                                            storage_records)
                 result["generation_time"] = \
                     format_timestamp(generation_time)
+                _log.debug(
+                    " generation_time in result obj : {}".format(
+                        result["generation_time"]))
                 result["weather_results"] = location_data
             else:
                 result["weather_error"] = \
                     "No records were returned by the weather query"
 
-            if len(location_data) < hours:
+            if location_data and len(location_data) < hours:
                 result["weather_warn"] = \
                     "Weather provider returned less than requested " \
                     "amount of data"
@@ -631,22 +651,23 @@ class BaseWeatherAgent(Agent):
         return result
 
     def apply_mapping(self, record_dict):
-        mapped_data = {"points": {}}
-        for point, value in record_dict["points"].iteritems():
+        mapped_data = {}
+        for point, value in record_dict.iteritems():
+            if isinstance(value, dict):
+                value = self.apply_mapping(value)
             if point in self.point_name_mapping:
                 point_name = self.point_name_mapping[point][
                     "Standard_Point_Name"]
-                mapped_data['points'][point_name] = value
+                mapped_data[point_name] = value
                 if (self.point_name_mapping[point]["Service_Units"] and
-                        self.point_name_mapping[point][
-                            "Standardized_Units"]):
-                    mapped_data["points"][point_name] = self.manage_unit_conversion(
+                        self.point_name_mapping[point]["Standardized_Units"]):
+                    mapped_data[point_name] = self.manage_unit_conversion(
                         self.point_name_mapping[point]["Service_Units"],
                         value,
                         self.point_name_mapping[point][
                             "Standardized_Units"])
             else:
-                mapped_data["points"][point_name] = value
+                mapped_data[point] = value
         return mapped_data
 
     # TODO docs
@@ -753,56 +774,14 @@ class BaseWeatherAgent(Agent):
 
     def store_weather_records(self, service_name, records):
         """
-
         :param service_name:
         :param records:
         """
         cache_full = self._cache.store_weather_records(service_name, records)
-        # TODO status alerts
-        self._current_status_context[STATUS_KEY_CACHE_FULL] = cache_full
-        return cache_full
-
-    # TODO
-    # Status management methods
-
-    def _get_status_from_context(self, context):
-        status = STATUS_GOOD
-        if context.get("cache_full") or (not context.get("publishing")
-                                         and self.poll_locations):
-            status = STATUS_BAD
-        return status
-
-    def _update_status_callback(self, status, context):
-        self.vip.health.set_status(status, context)
-
-    def _update_status(self, updates):
-        context_copy, new_status = self._update_and_get_context_status(updates)
-        self._async_call.send(None, self._update_status_callback, new_status, context_copy)
-
-    def _send_alert_callback(self, status, context, key):
-        self.vip.health.set_status(status, context)
-        alert_status = Status()
-        alert_status.update_status(status, context)
-        self.vip.health.send_alert(key, alert_status)
-
-    def _update_and_get_context_status(self, updates):
-        self._current_status_context.update(updates)
-        context_copy = self._current_status_context.copy()
-        new_status = self._get_status_from_context(context_copy)
-        return context_copy, new_status
-
-    def _send_alert(self, updates, key):
-        context_copy, new_status = self._update_and_get_context_status(updates)
-        self._async_call.send(None, self._send_alert_callback, new_status, context_copy, key)
-
-    # TODO docs
-    # Agent lifecycle methods
-
-    @Core.receiver("onstart")
-    def setup(self, sender, **kwargs):
-        if self.poll_locations:
-            _log.debug(" In onstart scheduling periodic poll for locations")
-            self.core.periodic(self.poll_interval, self.poll_for_locations)
+        if cache_full:
+            self.vip.health.set_status(STATUS_BAD, "Weather agent cache is full")
+            status = Status.from_json(self.vip.health.get_status_json())
+            self.vip.health.send_alert(STATUS_KEY_CACHE_FULL, status)
 
     @Core.receiver("onstop")
     def stopping(self, sender, **kwargs):
@@ -842,6 +821,7 @@ class WeatherCache:
         :param check_same_thread:
         """
         _log.debug("Setting up backup DB.")
+        _log.debug(self._db_file_path)
         self._sqlite_conn = sqlite3.connect(
             self._db_file_path,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
@@ -1002,8 +982,6 @@ class WeatherCache:
         :param records: expects a list of records (as lists) formatted to match tables
         :return: boolean value representing whether or not the cache is full
         """
-        if self._max_size_gb is not None:
-            self.manage_cache_size()
         cursor = self._sqlite_conn.cursor()
         request_type = self._api_services[service_name]["type"]
         if request_type == "forecast":
@@ -1025,8 +1003,10 @@ class WeatherCache:
             _log.info(query)
             _log.error("Failed to store data in the cache: {}".format(e))
         cache_full = False
-        if self._max_size_gb is not None:
-            cache_full = self.page_count(cursor) >= self.max_pages
+        if self._max_size_gb is not None and \
+                self.page_count(cursor) >= self.max_pages:
+            cache_full = True
+            self.manage_cache_size()
         cursor.close()
         return cache_full
 
