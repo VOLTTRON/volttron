@@ -174,7 +174,7 @@ def test_current_fail(weather, query_agent, locations):
         assert record.get("weather_results") is None
 
 
-@pytest.mark.dev
+@pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
     [{"lat": 39.7555, "long": -105.2211}],
      [{"wfo": 'BOU', 'x': 54, 'y': 62}],
