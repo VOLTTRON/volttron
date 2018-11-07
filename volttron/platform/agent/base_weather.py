@@ -833,8 +833,7 @@ class WeatherCache:
             cursor.execute("PRAGMA page_size")
             page_size = cursor.fetchone()[0]
             max_storage_bytes = self._max_size_gb * 1024 ** 3
-            _log.error(self._max_size_gb)
-            self.max_pages = max_storage_bytes / page_size
+            self.max_pages = int(max_storage_bytes / page_size)
             self.manage_cache_size()
         cursor.close()
 
@@ -1042,7 +1041,7 @@ class WeatherCache:
                                        WHERE OBSERVATION_TIME < ?;"""\
                                 .format(table=table_name)
                             cursor.execute(query,
-                                           (now-service["update_interval"]))
+                                           (now - service["update_interval"],))
                 elif attempt == 2:
                     for table_name, service in self._api_services.iteritems():
                         # Remove all data that is older than update interval
@@ -1051,7 +1050,7 @@ class WeatherCache:
                                        WHERE GENERATION_TIME < ?""".format(
                                 table=table_name)
                             cursor.execute(query,
-                                           (now - service["update_interval"]))
+                                           (now - service["update_interval"],))
                 elif attempt > 2:
                     records_deleted = 0
                     for table_name, service in self._api_services.iteritems():
