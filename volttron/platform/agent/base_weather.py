@@ -178,19 +178,12 @@ class BaseWeatherAgent(Agent):
             self.vip.config.subscribe(self._configure,
                                       actions=["NEW", "UPDATE"],
                                       pattern="config")
+            self._cache = None
         except Exception as e:
             _log.error("Failed to load weather agent settings.")
             self.vip.health.set_status(STATUS_BAD,
-                                       "Configuration of weather agent failed "
-                                       "with error: {}".format(e.message))
-        else:
-            self._cache = WeatherCache(service_name=self._service_name,
-                                       api_services=self._api_services,
-                                       max_size_gb=self._max_size_gb)
-            _log.error("Configuration successful")
-            self.vip.health.set_status(STATUS_GOOD,
-                                       "Configuration of weather agent "
-                                       "successful")
+                                       "Failed to load weather agent settings."
+                                       "Error: {}".format(e.message))
 
     # Configuration methods
     # TODO update documentation
@@ -377,7 +370,10 @@ class BaseWeatherAgent(Agent):
                                        "Configuration of weather agent failed "
                                        "with error: {}".format(e.message))
         else:
-            _log.error("Configuration successful")
+            _log.debug("Configuration successful")
+            self._cache = WeatherCache(service_name=self._service_name,
+                                       api_services=self._api_services,
+                                       max_size_gb=self._max_size_gb)
             self.vip.health.set_status(STATUS_GOOD,
                                        "Configuration of weather agent "
                                        "successful")

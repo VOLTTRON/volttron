@@ -148,6 +148,7 @@ def weather(request, volttron_instance):
         identity=identity,
         service_name="BasicWeather"
     )
+    gevent.sleep(2)
 
     yield agent
     agent.core.stop()
@@ -200,6 +201,7 @@ def test_manage_cache_size(volttron_instance):
         max_size_gb=0.00003
     )
 
+    gevent.sleep(3) #wait for agent to start and configure method to be called
     connection = weather._cache._sqlite_conn
     cursor = connection.cursor()
 
