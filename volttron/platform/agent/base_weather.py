@@ -129,7 +129,6 @@ class BaseWeatherAgent(Agent):
         self.poll_locations = poll_locations
         self.poll_interval = poll_interval
         self.poll_topic_suffixes = poll_topic_suffixes
-        self.point_name_mapping = None
 
         if self.poll_locations:
             if not self.poll_interval or not self.poll_topic_suffixes:
@@ -331,14 +330,12 @@ class BaseWeatherAgent(Agent):
         points to standardized points, with specified units.
         """
         point_name_mapping = {}
-        point_name_defs_file = self.get_point_name_defs_file()
-        if point_name_defs_file:
+        mapping_file = self.get_point_name_defs_file()
+        if mapping_file:
             try:
-                if isinstance(point_name_defs_file, str):
-                    mapping_file = open(point_name_defs_file)
-                else:
-                    mapping_file = point_name_defs_file
-
+                if isinstance(mapping_file, str):
+                    mapping_file = open(mapping_file)
+                    #else assume it is a file like object
                 config_dict = csv.DictReader(mapping_file)
                 for map_item in config_dict:
                     service_point_name = map_item.get("Service_Point_Name")

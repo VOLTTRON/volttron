@@ -36,22 +36,17 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import os
-import sys
-import ujson
-import copy
-import pint
-import pkg_resources
-import pytest
-import gevent
-import logging
-import sqlite3
 import datetime
-from volttron.utils.docs import doc_inherit
+import os
+import ujson
+
+import gevent
+import pytest
 from mock import MagicMock
+
 from volttron.platform.agent import utils
+from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.messaging.health import *
-from volttron.platform.agent.base_weather import BaseWeatherAgent, WeatherCache
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -74,8 +69,14 @@ EXPECTED_OUTPUT_VALUES = {"fake1": {"value": 2.54,
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
     agent = volttron_instance.build_agent()
-    agent.poll_callback = MagicMock(name="poll_result")
-    agent.poll_callback.reset_mock()
+    agent.poll_callback = MagicMock(name="poll_callback")
+    # subscribe to weather poll results
+    agent.vip.pubsub.subscribe(
+        peer='pubsub',
+        prefix="weather/poll/current",
+        callback=agent.poll_callback).get()
+
+    gevent.sleep(3)
     def stop_agent():
         print("In teardown method of query_agent")
         agent.core.stop()
@@ -637,52 +638,147 @@ def test_hourly_forecast_mixed_locations(weather, locations, expected_passing, e
 def test_hourly_historical_success(weather, fake_locations, start_date, end_date):
     assert False
 
+
 @pytest.mark.xfail
 @pytest.mark.weather2
 @pytest.mark.parametrize("fake_locations, start_date, end_date", [])
 def test_hourly_historical_fail(weather, fake_locations, start_date, end_date):
     assert False
 
-@pytest.mark.dev
-@pytest.mark.parametrize('config, result', [
-    ({'poll_locations': [{"station": "KLAX"}], 'poll_interval': 2}, None),
-    ({'poll_locations': [{"station": "KLAX"}], 'poll_interval': 2,
-      'poll_topic_suffixes': ["result_klax"]}, None),
-    ({'poll_locations': [{"station": "KLAX"}, {"station": "KABQ"}],
-      'poll_interval': 2,
-      'poll_topic_suffixes': ["result_klax"]},
-     None),
 
-])
-def test_poll_locations(volttron_instance, weather, query_agent, config,
-                        result):
-    weather.poll_interval = 5
+@pytest.mark.weather2
+def test_poll_location(volttron_instance, query_agent):
+    agent = None
+    query_agent.poll_callback.reset_mock()
     try:
         agent = volttron_instance.build_agent(
             agent_class=BasicWeatherAgent,
-            identity="platform.weatherpolling",
-            service_name="BasicWeather"
+            identity="test_poll_basic",
+            service_name="BasicWeather",
+            poll_locations=[{"location": "fake_location"}],
+            poll_interval=5,
+            should_spawn=True
         )
-        # subscribe to weather poll results
-        query_agent.vip.pubsub.subscribe(
-            peer='pubsub',
-            prefix="weather/poll/current",
-            callback=query_agent.poll_callback).get()
+        gevent.sleep(3)
+        assert 1 == query_agent.poll_callback.call_count
+        assert "test_poll_basic" == query_agent.poll_callback.call_args[0][1]
+        assert "weather/poll/current/all" == \
+                 query_agent.poll_callback.call_args[0][3]
+        #header
+        header = query_agent.poll_callback.call_args[0][4]
+        assert isinstance(header, dict)
+        results1 = query_agent.poll_callback.call_args[0][5]
+        assert isinstance(results1, list)
+        assert len(results1) == 1
+        assert results1[0]["observation_time"]
+        test_points = results1[0]["weather_results"]["points"]
+        assert test_points
+        for initial_point in FAKE_POINTS:
+            fake_point = EXPECTED_OUTPUT_VALUES[initial_point]
+            test_value = test_points[fake_point["name"]]
+            assert test_value
+            if test_value:
+                assert str(test_value).startswith(str(fake_point["value"]))
+        assert results1[0]["location"].startswith("fake_location")
 
-        volttron_instance.start_agent(agent)
-        gevent.sleep(5)
-        assert query_agent.vip.rpc.call("platform.weatherpolling", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
+        assert query_agent.vip.rpc.call(
+            "test_poll_basic","health.get_status").get(timeout=10).get(
+            'status') == STATUS_GOOD
     finally:
         if agent:
             agent.core.stop()
-            volttron_instance.remove_agent(agent)
+
 
 @pytest.mark.weather2
-@pytest.mark.xfail
-def test_update_and_get_status(volttron_instance, weather, query_agent):
-    assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
-    weather._update_status({"publishing": False})
-    assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10).get('status') == STATUS_BAD
-    weather.poll_locations = []
-    weather.poll_for_locations()
-    assert query_agent.vip.rpc.call(identity, "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
+@pytest.mark.parametrize('config, result_topics', [
+    ({'poll_locations': [{"location": "fake_location"},
+                         {"location": "fake_location2"}],
+      'poll_interval': 5,
+      },
+     ['weather/poll/current/all']),
+    ({'poll_locations': [{"location": "fake_location"},
+                         {"location": "fake_location2"}],
+      'poll_interval': 10,
+      'poll_topic_suffixes': ["1", "2"]},
+     ['weather/poll/current/1', 'weather/poll/current/2']),
+
+])
+def test_poll_multiple_locations(volttron_instance, query_agent, config,
+                                 result_topics):
+    agent = None
+    query_agent.poll_callback.reset_mock()
+    try:
+        listener = volttron_instance.install_agent(
+            agent_dir="examples/ListenerAgent", start=True)
+        agent = volttron_instance.build_agent(
+            agent_class=BasicWeatherAgent,
+            identity="test_poll_basic2",
+            service_name="BasicWeather",
+            should_spawn=True,
+            **config
+        )
+        gevent.sleep(3)
+        print(query_agent.poll_callback.call_args_list)
+        assert len(result_topics) == query_agent.poll_callback.call_count
+        assert "test_poll_basic2" == query_agent.poll_callback.call_args[0][1]
+        i = 0
+        for topic in result_topics:
+            arguments = query_agent.poll_callback.call_args_list[i][0]
+            assert topic == arguments[3]
+            # header
+            assert isinstance(arguments[4], dict)
+            results1 = arguments[5]
+            if len(result_topics) > 1:
+                assert isinstance(results1, dict)
+                assert results1['observation_time']
+                assert results1['weather_results']
+            else:
+                assert isinstance(results1, list)
+                assert len(results1) == len(config["poll_locations"])
+            i = i + 1
+        assert query_agent.vip.rpc.call(
+            "test_poll_basic2", "health.get_status").get(timeout=10).get(
+            'status') == STATUS_GOOD
+    finally:
+        if agent:
+            agent.core.stop()
+
+
+@pytest.mark.weather2
+@pytest.mark.parametrize('config, err_message', [
+    ({'poll_locations': [{"location": "fake_location"},
+                         {"location": "fake_location2"}],
+      'poll_interval': 5,
+      'poll_topic_suffixes': ["1"]
+     },
+     "poll_topic_suffixes, if set, should be a list of string with the "
+     "same length as poll_locations"),
+    ({'poll_locations': [{"location": "fake_location"},
+                         {"location": "fake_location2"}]
+      },
+     "poll_interval is mandatory configuration when poll_locations are "
+     "specified")
+])
+def test_poll_errors(volttron_instance, query_agent, config,
+                                 err_message):
+    agent = None
+    query_agent.poll_callback.reset_mock()
+    try:
+
+        agent = volttron_instance.build_agent(
+            agent_class=BasicWeatherAgent,
+            identity="test_poll_errors",
+            service_name="BasicWeather",
+            should_spawn=True,
+            **config
+        )
+        gevent.sleep(10)
+        assert query_agent.poll_callback.call_count == 0
+        status_result = query_agent.vip.rpc.call(
+            "test_poll_errors", "health.get_status").get(timeout=10)
+        assert status_result['status'] == STATUS_BAD
+        assert err_message in status_result['context']
+
+    finally:
+        if agent:
+            agent.core.stop()

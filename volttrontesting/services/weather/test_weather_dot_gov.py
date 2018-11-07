@@ -43,6 +43,7 @@ import copy
 import logging
 from volttron.platform.agent import utils
 from datetime import datetime, time, timedelta
+from volttron.platform.messaging.health import STATUS_BAD, STATUS_GOOD
 
 from volttron.platform import get_services_core
 
@@ -70,11 +71,22 @@ polling_service = {
     'poll_interval': 5
 }
 
+httpErrors = ["API request success, no data returned (code",
+              "API redirected, but requests did not reach the intended location (code ",
+              "Client's API request failed (code ",
+              "API request to server failed (code ",
+              "API request failed with unexpected response code (code "]
+
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
     # 1: Start a fake agent to query the historian agent in volttron_instance2
     agent = volttron_instance.build_agent()
-
+    agent.poll_callback = MagicMock(name="poll_callback")
+    # subscribe to weather poll results
+    agent.vip.pubsub.subscribe(
+        peer='pubsub',
+        prefix="weather/poll/current",
+        callback=agent.poll_callback).get()
     # 2: add a tear down method to stop the fake
     # agent that published to message bus
     def stop_agent():
@@ -104,7 +116,7 @@ def weather(request, volttron_instance):
         print("stopping weather service")
         if volttron_instance.is_running():
             volttron_instance.stop_agent(agent)
-        volttron_instance.remove_agent(agent)
+        #volttron_instance.remove_agent(agent)
 
     request.addfinalizer(stop_agent)
     return request.param
@@ -113,8 +125,7 @@ def weather(request, volttron_instance):
 @pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
     [{"station": "KLAX"}],
-    [{"station": "KLAX"}, {"station": "KBOI"}],
-    []
+    [{"station": "KLAX"}, {"station": "KBOI"}]
 ])
 def test_success_current(weather, query_agent, locations):
     """
@@ -123,14 +134,29 @@ def test_success_current(weather, query_agent, locations):
     :param query_agent: agent to leverage to use RPC calls
     """
     query_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
+    print(query_data)
     assert len(query_data) == len(locations)
     for record in query_data:
+        # check format here
         assert record.get("observation_time")
         assert record.get("station")
-        assert record.get("weather_results") or record.get("weather_error")
+        # check weather error message
+        results = record.get("weather_results")
+        if results:
+            assert isinstance(results, dict)
+        else:
+            results = record.get("weather_error")
+            # The given http errors are valid responses.
+            has_http_error = False
+            for error in httpErrors:
+                if results.startswith(error):
+                    _log.debug(error)
+                    has_http_error = True
+            assert has_http_error
 
     cache_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
 
+    # check names returned are valid
     assert len(cache_data) == len(cache_data)
     for x in range(0, len(cache_data)):
         assert len(cache_data[x]) == len(query_data[x])
@@ -139,21 +165,23 @@ def test_success_current(weather, query_agent, locations):
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
-    [{"lat": 39.7555, "long": -105.2211}, "fail"]
+    [{"lat": 39.7555, "long": -105.2211}, "fail"],
+    ()
 ])
 def test_current_fail(weather, query_agent, locations):
     query_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
     for record in query_data:
-        assert record.get("location_error")
+        error = record.get("location_error")
+        assert error.startswith("Invalid location format.") or error.startswith("Invalid location")
         assert record.get("weather_results") is None
 
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
     [{"lat": 39.7555, "long": -105.2211}],
-    [{"wfo": 'BOU', 'x': 54, 'y': 62}],
-    [{"wfo": 'BOU', 'x': 54, 'y': 62}, {"lat": 39.7555, "long": -105.2211}],
-    []
+     [{"wfo": 'BOU', 'x': 54, 'y': 62}],
+     [{"wfo": 'BOU', 'x': 54, 'y': 62}, {"lat": 39.7555, "long": -105.2211}],
+     []
 ])
 def test_success_forecast(weather, query_agent, locations):
     """
@@ -161,10 +189,9 @@ def test_success_forecast(weather, query_agent, locations):
     :param weather: instance of weather service to be tested
     :param query_agent: agent to leverage to use RPC calls
     """
-    locations = [{"lat": 39.7555, "long": -105.2211}]
-
+    print(datetime.utcnow())
     query_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
-                                             locations).get(timeout=30)
+                                          locations, hours=2).get(timeout=30)
     assert len(query_data) == len(locations)
     for x in range(0, len(query_data)):
         location_data = query_data[x]
@@ -179,7 +206,8 @@ def test_success_forecast(weather, query_agent, locations):
                 assert isinstance(forecast_time, datetime)
 
     cache_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
-                                          locations).get(timeout=30)
+                                          locations,
+                                          hours=2).get(timeout=30)
     assert len(cache_data) == len(query_data)
     for x in range(0, len(cache_data)):
         query_location_data = query_data[x]
@@ -195,8 +223,12 @@ def test_success_forecast(weather, query_agent, locations):
         else:
             assert False
         if cache_location_data.get("weather_results"):
+
             query_weather_results = query_location_data.get("weather_results")
             cache_weather_results = cache_location_data.get("weather_results")
+            # TODO There is some condition which results in the timestamp format here being bad
+            print(query_weather_results)
+            print(cache_weather_results)
             for y in range(0, len(query_weather_results)):
                 result = query_weather_results[y]
                 cache_result = cache_weather_results[y]
@@ -206,7 +238,13 @@ def test_success_forecast(weather, query_agent, locations):
                 for key in cache_result[1]:
                     assert cache_result[1][key] == result[1][key]
         else:
-            assert cache_location_data.get("weather_error")
+            results = cache_location_data.get("weather_error")
+            has_http_error = False
+            for error in httpErrors:
+                if results.startswith(error):
+                    _log.debug(error)
+                    has_http_error = True
+            assert has_http_error
 
 # TODO compare failure condition messages
 @pytest.mark.weather2
@@ -219,60 +257,55 @@ def test_hourly_forecast_fail(weather, query_agent, locations):
     query_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
                                              locations).get(timeout=30)
     for record in query_data:
-        assert record.get("location_error")
+        error = record.get("location_error")
+        assert error.startswith("Invalid location format.") or error.startswith("Invalid location")
         assert record.get("weather_results") is None
 
 @pytest.mark.weather2
-@pytest.mark.parametrize("locations", [
-    [{"station": "KLAX"}, {"station": "KABQ"}]
-])
-def test_polling_locations_valid_locations(volttron_instance, weather, query_agent, locations):
-    new_config = copy.copy(weather_dot_gov_service)
-    source = get_services_core('WeatherDotGov')
-    new_config["poll_locations"] = locations
-    new_config["poll_interval"] = 5
-    agent_uuid = None
-    try:
-        query_agent.callback = MagicMock(name="callback")
-        query_agent.callback.reset_mock()
-        agent_uuid = volttron_instance.install_agent(
-            vip_identity="poll.weather",
-            agent_dir=source,
-            start=False,
-            config_file=new_config)
-        volttron_instance.start_agent(agent_uuid)
-        query_agent.vip.pubsub.subscribe('pubsub', "weather/poll//all", query_agent.callback)
-        gevent.sleep(5)
-        assert query_agent.callback.call_count == len(locations)
-        print query_agent.callback.call_args
-    finally:
-        if agent_uuid:
-            volttron_instance.stop_agent(agent_uuid)
-            volttron_instance.remove_agent(agent_uuid)
+@pytest.mark.parametrize('config, result_topics', [
+    ({'poll_locations': [{"station": "KLAX"}, {"station": "KABQ"}],
+      'poll_interval': 5,
+      },
+     ['weather/poll/current/all']),
+    ({'poll_locations': [{"station": "KLAX"}, {"station": "KABQ"}],
+      'poll_interval': 5,
+      'poll_topic_suffixes': ["KLAX", "KABQ"]},
+     ['weather/poll/current/KLAX', 'weather/poll/current/KABQ']),
 
-@pytest.mark.weather2
-@pytest.mark.parametrize("locations", [
-    [{"lat": 39.7555, "long": -105.2211}],
-    [{"lat": 39.7555}, {"long": -105.2211}],
-    [{"wfo": 'BOU', 'x': 54, 'y': 62}],
-    ["fail"]
 ])
-def test_polling_locations_invalid_locations(volttron_instance, weather, query_agent, locations):
-    new_config = copy.copy(polling_service)
-    source = get_services_core('WeatherDotGov'),
-    new_config["polling_locations"] = locations
+def test_polling_locations_valid_config(volttron_instance, query_agent, config,
+                                        result_topics):
     agent_uuid = None
+    query_agent.poll_callback.reset_mock()
     try:
-        query_agent.callback = MagicMock(name="callback")
-        query_agent.callback.reset_mock()
         agent_uuid = volttron_instance.install_agent(
             vip_identity="poll.weather",
-            agent_dir=source,
+            agent_dir=get_services_core("WeatherDotGov"),
             start=False,
-            config_file=new_config)
+            config_file=config)
         volttron_instance.start_agent(agent_uuid)
-        query_agent.vip.pubsub.subscribe('pubsub', "weather/poll//all", query_agent.callback)
-        gevent.sleep(5)
+        gevent.sleep(3)
+        print(query_agent.poll_callback.call_args_list)
+        assert len(result_topics) == query_agent.poll_callback.call_count
+        assert "poll.weather" == query_agent.poll_callback.call_args[0][1]
+        i = 0
+        for topic in result_topics:
+            arguments = query_agent.poll_callback.call_args_list[i][0]
+            assert topic == arguments[3]
+            # header
+            assert isinstance(arguments[4], dict)
+            results1 = arguments[5]
+            if len(result_topics) > 1:
+                assert isinstance(results1, dict)
+                assert results1['observation_time']
+                assert results1['weather_results']
+            else:
+                assert isinstance(results1, list)
+                assert len(results1) == len(config["poll_locations"])
+            i = i + 1
+        assert query_agent.vip.rpc.call(
+            "poll.weather", "health.get_status").get(timeout=10).get(
+            'status') == STATUS_GOOD
     finally:
         if agent_uuid:
             volttron_instance.stop_agent(agent_uuid)

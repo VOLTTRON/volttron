@@ -93,6 +93,10 @@ class WeatherDotGovAgent(BaseWeatherAgent):
                         }
         self.remove_service("get_hourly_historical")
 
+    def get_point_name_defs_file(self):
+        # TODO "package" this with the agent so that it makes it into the agent's tmp directory
+        return "weatherdotgov_defs.csv"
+
     def get_update_interval(self, service_name):
         if service_name == "get_current_weather":
             return datetime.timedelta(hours=1)
@@ -211,6 +215,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             url = "https://api.weather.gov/gridpoints/{}/forecast/hourly".format(formatted_location)
         else:
             raise ValueError("Improperly formatted station ID was passed.")
+        _log.debug("Request Url: {}".format(url))
         request = requests.get(url, headers=self.headers, timeout=3)
         response = request.json()
         if request.status_code != 200:
