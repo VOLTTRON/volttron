@@ -70,11 +70,7 @@ polling_service = {
     'poll_interval': 5
 }
 
-httpErrors = ["API request success, no data returned (code",
-              "API redirected, but requests did not reach the intended location (code ",
-              "Client's API request failed (code ",
-              "API request to server failed (code ",
-              "API request failed with unexpected response code (code "]
+
 
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
@@ -140,13 +136,15 @@ def test_success_current(weather, query_agent, locations):
             assert isinstance(results, dict)
         else:
             results = record.get("weather_error")
-            # The given http errors are valid responses.
-            has_http_error = False
-            for error in httpErrors:
-                if results.startswith(error):
-                    _log.debug(error)
-                    has_http_error = True
-            assert has_http_error
+            if results.startswith("API request success, no data returned"):
+                assert results.startswith("API request success, no data returned")
+            elif results.startswith("API redirected, but requests did not reach the intended location"):
+                assert results.startswith("API redirected, but requests did not reach the intended location")
+            elif results.startswith("API request to server failed"):
+                assert results.startswith("API request to server failed")
+            else:
+                assert False
+
 
     cache_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
 
@@ -169,7 +167,7 @@ def test_current_fail(weather, query_agent, locations):
         assert record.get("weather_results") is None
 
 
-@pytest.mark.weather2
+@pytest.mark.dev
 @pytest.mark.parametrize("locations", [
     [{"lat": 39.7555, "long": -105.2211}],
     [{"wfo": 'BOU', 'x': 54, 'y': 62}],
@@ -230,13 +228,15 @@ def test_success_forecast(weather, query_agent, locations):
                 for key in cache_result[1]:
                     assert cache_result[1][key] == result[1][key]
         else:
-            results = cache_location_data.get("weather_error")
-            has_http_error = False
-            for error in httpErrors:
-                if results.startswith(error):
-                    _log.debug(error)
-                    has_http_error = True
-            assert has_http_error
+            results = record.get("weather_error")
+            if results.startswith("API request success, no data returned"):
+                assert results.startswith("API request success, no data returned")
+            elif results.startswith("API redirected, but requests did not reach the intended location"):
+                assert results.startswith("API redirected, but requests did not reach the intended location")
+            elif results.startswith("API request to server failed"):
+                assert results.startswith("API request to server failed")
+            else:
+                assert False
 
 # TODO compare failure condition messages
 @pytest.mark.weather2
@@ -250,7 +250,12 @@ def test_hourly_forecast_fail(weather, query_agent, locations):
                                              locations).get(timeout=30)
     for record in query_data:
         error = record.get("location_error")
-        assert error.startswith("Invalid location format.") or error.startswith("Invalid location")
+        if error.startswith("Invalid location format."):
+            assert error.startswith("Invalid location format.")
+        elif error.startswith("Invalid location"):
+            assert error.startswith("Invalid location")
+        else:
+            assert False
         assert record.get("weather_results") is None
 
 @pytest.mark.weather2

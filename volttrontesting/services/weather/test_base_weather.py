@@ -185,6 +185,59 @@ def test_create_tables(weather):
             for column in ["ID", "LOCATION", "OBSERVATION_TIME", "POINTS"]:
                 assert column in table_columns
 
+
+@pytest.mark.weather2
+def test_manage_cache_size(volttron_instance):
+
+    weather = volttron_instance.build_agent(
+        agent_class=BasicWeatherAgent,
+        identity="test_cache_basic_weather",
+        service_name="BasicWeather",
+        max_size_gb=0.00003
+    )
+
+    connection = weather._cache._sqlite_conn
+    cursor = connection.cursor()
+
+    assert os.path.isfile("BasicWeather.sqlite")
+
+    weather._cache.create_tables()
+
+    for service_name in weather._api_services:
+        query = "DELETE FROM {};".format(service_name)
+        cursor.execute(query)
+        _log.debug(query)
+        connection.commit()
+
+    fake_locations = [{"location": "fake_location1"},
+                      {"location": "fake_location2"},
+                      {"location": "fake_location3"}
+                      ]
+
+    weather.get_hourly_forecast(fake_locations, hours=3)
+
+    cursor.execute("PRAGMA page_size")
+    page_size = cursor.fetchone()[0]
+    cursor.execute("PRAGMA page_count")
+    num_pages = cursor.fetchone()[0]
+    total_size = page_size * num_pages
+    assert total_size < 25000
+
+    weather.get_hourly_forecast(fake_locations, hours=5)
+
+    cursor.execute("PRAGMA page_size")
+    page_size = cursor.fetchone()[0]
+    total_size = page_size * num_pages
+    assert total_size < 25000
+
+    weather.get_current_weather(fake_locations)
+
+    cursor.execute("PRAGMA page_size")
+    page_size = cursor.fetchone()[0]
+    total_size = page_size * num_pages
+    assert total_size < 25000
+
+
 @pytest.mark.weather2
 @pytest.mark.parametrize("service_name, interval, service_type", [
         ("test_register_current", datetime.timedelta(hours=1), "current"),
