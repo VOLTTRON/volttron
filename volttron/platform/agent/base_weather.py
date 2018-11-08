@@ -102,8 +102,6 @@ _log = logging.getLogger(__name__)
 HEADER_NAME_DATE = headers.DATE
 HEADER_NAME_CONTENT_TYPE = headers.CONTENT_TYPE
 
-STATUS_KEY_CACHE_FULL = "cache_full"
-
 # Register a better datetime parser in sqlite3.
 fix_sqlite3_datetime()
 
@@ -130,6 +128,7 @@ class BaseWeatherAgent(Agent):
             self.poll_topic_suffixes = poll_topic_suffixes
             self.do_polling = False
             self.poll_greenlet = None
+            self._cache = None
 
             self._default_config = \
                 {
@@ -178,7 +177,6 @@ class BaseWeatherAgent(Agent):
             self.vip.config.subscribe(self._configure,
                                       actions=["NEW", "UPDATE"],
                                       pattern="config")
-            self._cache = None
         except Exception as e:
             _log.error("Failed to load weather agent settings.")
             self.vip.health.set_status(STATUS_BAD,
@@ -226,7 +224,8 @@ class BaseWeatherAgent(Agent):
         if service_function_name in self._api_services:
             self._api_services.pop(service_function_name)
         else:
-            raise ValueError("service {} does not exist".format(service_function_name))
+            raise ValueError("service {} does not exist".format(
+                service_function_name))
 
     def validate_location_dict(self, service_name, location):
         record_dict = None
@@ -287,8 +286,8 @@ class BaseWeatherAgent(Agent):
 
     def update_default_config(self, config):
         """
-        May be called by historians to add to the default configuration for its
-        own use.
+        May be called by implementing classes to add to the default
+        configuration for its own use.
         :param config: configuration dictionary
         """
         self._default_config.update(config)
@@ -383,7 +382,6 @@ class BaseWeatherAgent(Agent):
                 self.poll_greenlet = self.core.periodic(self.poll_interval,
                                                         self.poll_for_locations)
 
-
     def validate_poll_config(self):
         if self.poll_locations:
             if not self.poll_interval:
@@ -433,7 +431,6 @@ class BaseWeatherAgent(Agent):
                 self._api_services[service_name]["description"]
         return features
 
-
     # TODO add doc
     @RPC.export
     def get_current_weather(self, locations):
@@ -469,9 +466,6 @@ class BaseWeatherAgent(Agent):
             # ts in cache is tz aware utc
             current_time = get_aware_utc_now()
             next_update_at = observation_time + interval
-            _log.debug("current_time {}".format(current_time))
-            _log.debug("next_update_at {}".format(next_update_at))
-            _log.debug("observation time {}".format(observation_time))
             # if observation time is within the update interval
             if current_time < next_update_at:
                 result["observation_time"] = \
@@ -508,14 +502,6 @@ class BaseWeatherAgent(Agent):
             result["weather_error"] = error
         return result
 
-    def get_utc_time(self, time):
-        if time.tzinfo:
-            time = time.astimezone(pytz.utc)
-        else:
-            time = time.replace(
-                tzinfo=pytz.UTC)
-        return time
-
     @abstractmethod
     def query_current_weather(self, location):
         """
@@ -527,6 +513,7 @@ class BaseWeatherAgent(Agent):
     # TODO add docs
     @RPC.export
     def get_hourly_forecast(self, locations, hours=24):
+        request_time = get_aware_utc_now()
         result = []
         for location in locations:
             record_dict = self.validate_location_dict(SERVICE_HOURLY_FORECAST,
@@ -536,38 +523,43 @@ class BaseWeatherAgent(Agent):
                 continue
 
             # check if we have enough recent data in cache
-            record_dict = self.get_cached_hourly_forecast(location, hours)
+            record_dict = self.get_cached_hourly_forecast(location, hours,
+                                                          request_time)
 
             # if cache didn't work out query remote api
             if not record_dict.get("weather_results"):
                 _log.debug("forecast weather from api")
                 record_dict = self.get_remote_hourly_forecast(location,
-                                                              hours)
+                                                              hours,
+                                                              request_time)
                 _log.debug("record_dict from remote : {}".format(record_dict))
             result.append(record_dict)
 
         return result
 
-    def get_cached_hourly_forecast(self, location, hours):
+    def get_cached_hourly_forecast(self, location, hours, request_time):
         interval = \
             self._api_services[SERVICE_HOURLY_FORECAST]["update_interval"]
+        # format [(generation_time, forecast_time, points), ...]
         most_recent_for_location = \
             self._cache.get_forecast_data(SERVICE_HOURLY_FORECAST,
-                                          json.dumps(location))
+                                          json.dumps(location),
+                                          hours, request_time)
         record_dict = location.copy()
         location_data = []
         if most_recent_for_location:
             _log.debug(" from cache")
-            current_time = get_aware_utc_now()
+
             generation_time = most_recent_for_location[0][0]
             next_update_at = generation_time + interval
-            _log.debug("current_time {}".format(current_time))
+            _log.debug("request_time {}".format(request_time))
             _log.debug("next_update_at {}".format(next_update_at))
             _log.debug("generation_time time {}".format(generation_time))
 
-            if current_time < next_update_at and \
+            if request_time < next_update_at and \
                     len(most_recent_for_location) >= hours:
-
+                # Enough to just check for length since cache is querying
+                # records between expected forecast start and end time
                 i = 0
                 while i < hours:
                     record = most_recent_for_location[i]
@@ -581,7 +573,7 @@ class BaseWeatherAgent(Agent):
                 record_dict["weather_results"] = location_data
         return record_dict
 
-    def get_remote_hourly_forecast(self, location, hours):
+    def get_remote_hourly_forecast(self, location, hours, request_time):
         result = location.copy()
         try:
             # query for maximum number of hours so that we can cache it
@@ -602,7 +594,8 @@ class BaseWeatherAgent(Agent):
             _log.debug(" generation time after process : {}".format(
                 generation_time))
             if self.point_name_mapping:
-                response = [[item[0], self.apply_mapping(item[1])] for item in response]
+                response = [[item[0],
+                             self.apply_mapping(item[1])] for item in response]
 
             storage_records = []
             location_data = []
@@ -618,7 +611,7 @@ class BaseWeatherAgent(Agent):
                                       json.dumps(item[1])]
                     storage_records.append(storage_record)
                     if len(location_data) < hours and \
-                            forecast_time > get_aware_utc_now():
+                            forecast_time > request_time:
                         # checking time because weather.gov returns fixed set
                         # of data and some of the records might be older than
                         # current time
@@ -777,7 +770,7 @@ class BaseWeatherAgent(Agent):
         if cache_full:
             self.vip.health.set_status(STATUS_BAD, "Weather agent cache is full")
             status = Status.from_json(self.vip.health.get_status_json())
-            self.vip.health.send_alert(STATUS_KEY_CACHE_FULL, status)
+            self.vip.health.send_alert("cache_full", status)
 
     @Core.receiver("onstop")
     def stopping(self, sender, **kwargs):
@@ -916,26 +909,38 @@ class WeatherCache:
             _log.error("Error fetching current data from cache: {}".format(e))
             return None
 
-    def get_forecast_data(self, service_name, location):
+    def get_forecast_data(self, service_name, location, hours, request_time):
         """
         Retrieves the most recent forecast record set (forecast should be a time-series) by location
         :param service_name:
         :param location:
+        :param hours:
+        :param request_time:
         :return: list of forecast records
         """
         try:
+            # get records that have forecast time between the hour immediately
+            # after when user requested the data and endtime < start+hours
+            # do this to avoid returning data for hours 4 to 10 instead of
+            # 2-8 when the request time is hour 1.
+            forecast_start = request_time + datetime.timedelta(hours=1)
+            forecast_start = forecast_start.replace(minute=0, second=0,
+                                                    microsecond=0)
+            forecast_end = forecast_start + datetime.timedelta(hours=hours)
+
             cursor = self._sqlite_conn.cursor()
             query = """SELECT GENERATION_TIME, FORECAST_TIME, POINTS 
                        FROM {table} 
                        WHERE LOCATION = ? 
-                       AND FORECAST_TIME > ?
-                       AND GENERATION_TIME =
+                       AND FORECAST_TIME >= ? 
+                       AND FORECAST_TIME < ? 
+                       AND GENERATION_TIME = 
                        (SELECT MAX(GENERATION_TIME) 
                         FROM {table}
                         WHERE LOCATION = ?) 
                        ORDER BY FORECAST_TIME ASC;""".format(table=service_name)
             _log.debug(query)
-            cursor.execute(query, (location, get_aware_utc_now(),
+            cursor.execute(query, (location, forecast_start, forecast_end,
                                    location))
             data = cursor.fetchall()
             cursor.close()
