@@ -417,6 +417,10 @@ class BaseWeatherAgent(Agent):
     # RPC, helper and abstract methods to be used by concrete
     # implementations of the weather agent
 
+    @RPC.export
+    def get_version(self):
+        return __version__
+
     # TODO update spec to match name
     # Add doc string
     @RPC.export

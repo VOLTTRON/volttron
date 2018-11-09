@@ -39,10 +39,10 @@
 import pytest
 import gevent
 from mock import MagicMock
-import copy
+import sqlite3
 import logging
 from volttron.platform.agent import utils
-from datetime import datetime, time, timedelta
+from datetime import datetime
 from volttron.platform.messaging.health import STATUS_BAD, STATUS_GOOD
 
 from volttron.platform import get_services_core
@@ -72,6 +72,21 @@ polling_service = {
 }
 
 
+@pytest.fixture(scope="function")
+def cleanup_cache(volttron_instance, query_agent, weather):
+    tables = ["get_current_weather", "get_hourly_forecast"]
+    cwd = volttron_instance.volttron_home
+    version = query_agent.vip.rpc.call(identity, 'get_version').get(timeout=3)
+    data_dir = cwd + "/agents/" + weather + "/weatherdotgov_agent-" + \
+               version + "/weatherdotgov-agent-" + version + ".agent-data/"
+    database_file = data_dir + "WeatherDotGov.sqlite"
+    sqlite_connection = sqlite3.connect(database_file)
+    cursor = sqlite_connection.cursor()
+    for table in tables:
+        query = "DELETE FROM {};".format(table)
+        _log.debug(query)
+        cursor.execute(query)
+        sqlite_connection.commit()
 
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
@@ -115,7 +130,7 @@ def weather(request, volttron_instance):
         #volttron_instance.remove_agent(agent)
 
     request.addfinalizer(stop_agent)
-    return request.param
+    return agent
 
 
 @pytest.mark.weather2
@@ -123,7 +138,7 @@ def weather(request, volttron_instance):
     [{"station": "KLAX"}],
     [{"station": "KLAX"}, {"station": "KBOI"}]
 ])
-def test_success_current(weather, query_agent, locations):
+def test_success_current(cleanup_cache, weather, query_agent, locations):
     """
     Tests the basic functionality of a weather agent under optimal conditions.
     :param weather: instance of weather service to be tested
@@ -181,7 +196,7 @@ def test_current_fail(weather, query_agent, locations):
      [{"wfo": 'BOU', 'x': 54, 'y': 62}, {"lat": 39.7555, "long": -105.2211}],
      []
 ])
-def test_success_forecast(weather, query_agent, locations):
+def test_success_forecast(cleanup_cache, weather, query_agent, locations):
     """
     Tests the basic functionality of a weather agent under optimal conditions.
     :param weather: instance of weather service to be tested
