@@ -82,6 +82,8 @@ SERVICE_HOURLY_FORECAST = "get_hourly_forecast"
 
 SERVICE_CURRENT_WEATHER = "get_current_weather"
 
+SERVICE_HOURLY_HISTORICAL = "get_hourly_historical"
+
 CREATE_STMT_CURRENT = """CREATE TABLE {table}
                         (ID INTEGER PRIMARY KEY ASC,
                          LOCATION TEXT NOT NULL,
@@ -104,6 +106,7 @@ HEADER_NAME_CONTENT_TYPE = headers.CONTENT_TYPE
 
 # Register a better datetime parser in sqlite3.
 fix_sqlite3_datetime()
+
 
 class BaseWeatherAgent(Agent):
     """Creates weather services based on the json objects from the config,
@@ -141,27 +144,24 @@ class BaseWeatherAgent(Agent):
                 }
             self.unit_registry = pint.UnitRegistry()
             self.point_name_mapping = self.parse_point_name_mapping()
-            self._api_services = {SERVICE_CURRENT_WEATHER:{"type": "current",
-                                           "update_interval": None,
-                                           "description": "Params: locations "
-                                                          "([{"
-                                                          "type: "
-                                                          "value},...])"
-                                         },
-                 SERVICE_HOURLY_FORECAST: {"type": "forecast",
-                                           "update_interval": None,
-                                           "description": "Params: locations "
-                                                          "([{type: value},"
-                                                          "...])"
-                                         },
-                 "get_hourly_historical":{"type": "history",
-                                           "update_interval": None,
-                                           "description": "Params: locations "
-                                                          "([{"
-                                                          "type: value},..]), "
-                                                          "start_date (date), "
-                                                          "end_date(date)"
-                                           }
+            self._api_services = {
+                SERVICE_CURRENT_WEATHER:
+                    {"type": "current",
+                     "update_interval": None,
+                     "description": "Params: locations ([{type: value},...])"
+                     },
+                SERVICE_HOURLY_FORECAST:
+                    {"type": "forecast",
+                     "update_interval": None,
+                     "description": "Params: locations ([{type: value},...])"
+                     },
+                SERVICE_HOURLY_HISTORICAL:
+                    {"type": "history",
+                     "update_interval": None,
+                     "description": "Params: locations "
+                                    "([{type: value},..]), "
+                                    "start_date (date), end_date(date)"
+                     }
                  }
 
             for service_name in self._api_services:
@@ -364,7 +364,8 @@ class BaseWeatherAgent(Agent):
             self.validate_poll_config()
             self.configure(config)
         except Exception as e:
-            _log.error("Failed to load weather agent settings.")
+            _log.error("Failed to load weather agent settings with error:"
+                       "{}".format(e.message))
             self.vip.health.set_status(STATUS_BAD,
                                        "Configuration of weather agent failed "
                                        "with error: {}".format(e.message))
@@ -389,7 +390,7 @@ class BaseWeatherAgent(Agent):
                           "poll_locations are specified"
                 raise ValueError(err_msg)
             if (self.poll_topic_suffixes is not None and
-                    (not isinstance(self.poll_locations, list) or
+                    (not isinstance(self.poll_topic_suffixes, list) or
                      len(self.poll_topic_suffixes) < len(self.poll_locations))):
                 err_msg = "poll_topic_suffixes, if set, should be a list of " \
                           "string with the same length as poll_locations. If " \
