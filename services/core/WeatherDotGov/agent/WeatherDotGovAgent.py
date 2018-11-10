@@ -56,9 +56,9 @@
 import logging
 import re
 import sys
-
+import json
 import pkg_resources
-import requests
+import grequests
 import datetime
 from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.agent import utils
@@ -187,10 +187,11 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             raise ValueError('Invalid location. Expected format is:'
                              '{"station":"station_id_value"}')
-        request = requests.get(url, headers=self.headers, timeout=3)
-        response = request.json()
-        if request.status_code != 200:
-            self.generate_response_error(request.status_code)
+        grequest = [grequests.get(url, headers=self.headers, timeout=3)]
+        gresponse = grequests.map(grequest)[0]
+        response = json.loads(gresponse.content)
+        if gresponse.status_code != 200:
+            self.generate_response_error(gresponse.status_code)
         else:
             properties = response["properties"]
             observation_time = properties["timestamp"]
@@ -212,10 +213,11 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             raise ValueError("Improperly formatted station ID was passed.")
         _log.debug("Request Url: {}".format(url))
-        request = requests.get(url, headers=self.headers, timeout=3)
-        response = request.json()
-        if request.status_code != 200:
-            self.generate_response_error(request.status_code)
+        grequest = [grequests.get(url, headers=self.headers, timeout=3)]
+        gresponse = grequests.map(grequest)[0]
+        response = json.loads(gresponse.content)
+        if gresponse.status_code != 200:
+            self.generate_response_error(gresponse.status_code)
         else:
             data = []
             properties = response["properties"]
