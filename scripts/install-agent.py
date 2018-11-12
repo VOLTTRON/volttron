@@ -264,6 +264,7 @@ if __name__ == '__main__':
                         help="skip a requirements.txt file if it exists.")
 
     opts = parser.parse_args()
+
     agent_source = opts.agent_source
     if not os.path.isdir(agent_source):
         if os.path.isdir(os.path.join(opts.volttron_root, agent_source)):

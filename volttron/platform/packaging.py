@@ -53,7 +53,7 @@ from wheel.install import WheelFile
 from .packages import *
 from . import config
 from .agent import utils
-from volttron.platform import get_volttron_data, get_address, get_home, get_volttron_root
+from volttron.platform import get_volttron_data
 from volttron.utils.prompt import prompt_response
 
 
@@ -719,62 +719,62 @@ def main(argv=sys.argv):
     whl_path = None
     user_type = None
 
-    #try:
+    try:
 
-    if opts.subparser_name == 'package':
-        whl_path = create_package(opts.agent_directory, wheelhouse=opts.dest, identity=opts.vip_identity)
-    elif opts.subparser_name == 'install-agent':
-        install_args = ['python', 'scripts/install-agent.py']
-        install_args.extend(sys.argv[2:])
-        subprocess.Popen(install_args)
-    elif opts.subparser_name == 'repackage':
-        whl_path = repackage(opts.directory, dest=opts.dest)
-    elif opts.subparser_name == 'configure' :
-        add_files_to_package(opts.package, {'config_file': opts.config_file})
-    elif opts.subparser_name == 'init' :
-        init_agent(opts.directory, opts.module_name, opts.template, opts.silent, opts.identity)
-    else:
-        if auth is not None:
-            try:
-                if opts.subparser_name == 'create_ca':
-                    _create_ca()
-                elif opts.subparser_name == 'verify':
-                    if not os.path.exists(opts.package):
-                        print('Invalid package name {}'.format(opts.package))
-                    verifier = auth.SignedZipPackageVerifier(opts.package)
-                    verifier.verify()
-                    print "Package is verified"
-                else:
-                    user_type = {'admin': opts.admin,
-                              'creator': opts.creator,
-                              'initiator': opts.initiator,
-                              'platform': opts.platform}
-                    if opts.subparser_name == 'sign':
-                        in_args = {
-                                'config_file': opts.config_file,
-                                'user_type': user_type,
-                                'contract': opts.contract,
-                                'certs_dir': opts.certs_dir
-                            }
-                        _sign_agent_package(opts.package, **in_args)
+        if opts.subparser_name == 'package':
+            whl_path = create_package(opts.agent_directory, wheelhouse=opts.dest, identity=opts.vip_identity)
+        elif opts.subparser_name == 'install-agent':
+            install_args = ['python', 'scripts/install-agent.py']
+            install_args.extend(sys.argv[2:])
+            subprocess.Popen(install_args)
+        elif opts.subparser_name == 'repackage':
+            whl_path = repackage(opts.directory, dest=opts.dest)
+        elif opts.subparser_name == 'configure' :
+            add_files_to_package(opts.package, {'config_file': opts.config_file})
+        elif opts.subparser_name == 'init' :
+            init_agent(opts.directory, opts.module_name, opts.template, opts.silent, opts.identity)
+        else:
+            if auth is not None:
+                try:
+                    if opts.subparser_name == 'create_ca':
+                        _create_ca()
+                    elif opts.subparser_name == 'verify':
+                        if not os.path.exists(opts.package):
+                            print('Invalid package name {}'.format(opts.package))
+                        verifier = auth.SignedZipPackageVerifier(opts.package)
+                        verifier.verify()
+                        print "Package is verified"
+                    else:
+                        user_type = {'admin': opts.admin,
+                                  'creator': opts.creator,
+                                  'initiator': opts.initiator,
+                                  'platform': opts.platform}
+                        if opts.subparser_name == 'sign':
+                            in_args = {
+                                    'config_file': opts.config_file,
+                                    'user_type': user_type,
+                                    'contract': opts.contract,
+                                    'certs_dir': opts.certs_dir
+                                }
+                            _sign_agent_package(opts.package, **in_args)
 
-                    elif opts.subparser_name == 'create_cert':
-                        _create_cert(name=opts.name, **user_type)
-            except auth.AuthError as e:
-                _log.error(e.message)
-                #print(e.message)
+                        elif opts.subparser_name == 'create_cert':
+                            _create_cert(name=opts.name, **user_type)
+                except auth.AuthError as e:
+                    _log.error(e.message)
+                    #print(e.message)
 
 
 #         elif opts.subparser_name == 'create_cert':
 #             _create_cert(name=opts.name, **)
-    '''
+
     except AgentPackageError as e:
         _log.error(e.message)
         #print(e.message)
     except Exception as e:
         _log.error(str(e))
         #print e
-    '''
+
 
     if whl_path:
         print("Package created at: {}".format(whl_path))
