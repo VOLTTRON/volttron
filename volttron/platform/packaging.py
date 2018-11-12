@@ -53,8 +53,9 @@ from wheel.install import WheelFile
 from .packages import *
 from . import config
 from .agent import utils
-from volttron.platform import get_volttron_data
+from volttron.platform import get_volttron_data, get_address, get_home, get_volttron_root
 from volttron.utils.prompt import prompt_response
+
 
 try:
      from volttron.restricted import (auth, certs)
@@ -555,7 +556,6 @@ def main(argv=sys.argv):
                                        dest='subparser_name')
     package_parser = subparsers.add_parser('package',
         help="Create agent package (whl) from a directory")
-
     package_parser.add_argument('agent_directory',
         help='Directory for packaging an agent for the first time (requires setup.py file).')
     package_parser.add_argument('--dest',
@@ -567,10 +567,45 @@ def main(argv=sys.argv):
              'the platform and the preferred identity of the agent (if any).')
     package_parser.set_defaults(identity=None)
 
+    install_parser = subparsers.add_parser('install-agent',
+                                           help="Install agent from a directory")
+    install_parser.add_argument("-a", "--vip-address",
+                                help="vip-address to connect to.")
+    install_parser.add_argument("-vh", "--volttron-home",
+                                help="local volttron-home for the instance.")
+    install_parser.add_argument("-vr", "--volttron-root",
+                                help="location of the volttron root on the filesystem.")
+    install_parser.add_argument("-s", "--agent-source", required=True,
+                                help="source directory of the agent which is to be installed.")
+    install_parser.add_argument("-i", "--vip-identity",
+                                help="identity of the agent to be installed (unique per instance)")
+    install_parser.add_argument("-c", "--config", type=file,
+                                help="agent configuration file that will be packaged with the agent.")
+    install_parser.add_argument("-wh", "--wheelhouse",
+                                help="location of agents after they have been built")
+    install_parser.add_argument("-t", "--tag",
+                                help="a tag is a means of identifying an agent.")
+    install_parser.add_argument("-f", "--force",
+                                help="agents are uninstalled by tag so force allows multiple agents to be removed at one go.")
+    install_parser.add_argument("--priority", type=int,
+                                help="priority of startup during instance startup")
+    install_parser.add_argument("--start", action='store_true',
+                                help="start the agent during the script execution")
+    install_parser.add_argument("--enable", action='store_true',
+                                help="enable the agent with default 50 priority unless --priority set")
+    install_parser.add_argument("-st", "--agent-start-time", type=int,
+                                help="the amount of time to wait and verify that the agent has started up.")
+    install_parser.add_argument("--csv", action='store_true',
+                                help="format the standard out output to csv")
+    install_parser.add_argument("--json", action="store_true",
+                                help="format the standard out output to json")
+    install_parser.add_argument("--skip-requirements", action="store_true",
+                                help="skip a requirements.txt file if it exists.")
+    install_parser.set_defaults(identity=None, template="common")
+
     init_parser = subparsers.add_parser('init',
                                            help="Create new agent code package from a template."
                                                 " Will prompt for additional metadata.")
-
     init_parser.add_argument('directory',
                                 help='Directory to create the new agent in (must not exist).')
     init_parser.add_argument('module_name',
@@ -684,56 +719,62 @@ def main(argv=sys.argv):
     whl_path = None
     user_type = None
 
-    try:
+    #try:
 
-        if opts.subparser_name == 'package':
-            whl_path = create_package(opts.agent_directory, wheelhouse=opts.dest, identity=opts.vip_identity)
-        elif opts.subparser_name == 'repackage':
-            whl_path = repackage(opts.directory, dest=opts.dest)
-        elif opts.subparser_name == 'configure' :
-            add_files_to_package(opts.package, {'config_file': opts.config_file})
-        elif opts.subparser_name == 'init' :
-            init_agent(opts.directory, opts.module_name, opts.template, opts.silent, opts.identity)
-        else:
-            if auth is not None:
-                try:
-                    if opts.subparser_name == 'create_ca':
-                        _create_ca()
-                    elif opts.subparser_name == 'verify':
-                        if not os.path.exists(opts.package):
-                            print('Invalid package name {}'.format(opts.package))
-                        verifier = auth.SignedZipPackageVerifier(opts.package)
-                        verifier.verify()
-                        print "Package is verified"
-                    else:
-                        user_type = {'admin': opts.admin,
-                                  'creator': opts.creator,
-                                  'initiator': opts.initiator,
-                                  'platform': opts.platform}
-                        if opts.subparser_name == 'sign':
-                            in_args = {
-                                    'config_file': opts.config_file,
-                                    'user_type': user_type,
-                                    'contract': opts.contract,
-                                    'certs_dir': opts.certs_dir
-                                }
-                            _sign_agent_package(opts.package, **in_args)
+    if opts.subparser_name == 'package':
+        whl_path = create_package(opts.agent_directory, wheelhouse=opts.dest, identity=opts.vip_identity)
+    elif opts.subparser_name == 'install-agent':
+        install_args = ['python', 'scripts/install-agent.py']
+        install_args.extend(sys.argv[2:])
+        subprocess.Popen(install_args)
+    elif opts.subparser_name == 'repackage':
+        whl_path = repackage(opts.directory, dest=opts.dest)
+    elif opts.subparser_name == 'configure' :
+        add_files_to_package(opts.package, {'config_file': opts.config_file})
+    elif opts.subparser_name == 'init' :
+        init_agent(opts.directory, opts.module_name, opts.template, opts.silent, opts.identity)
+    else:
+        if auth is not None:
+            try:
+                if opts.subparser_name == 'create_ca':
+                    _create_ca()
+                elif opts.subparser_name == 'verify':
+                    if not os.path.exists(opts.package):
+                        print('Invalid package name {}'.format(opts.package))
+                    verifier = auth.SignedZipPackageVerifier(opts.package)
+                    verifier.verify()
+                    print "Package is verified"
+                else:
+                    user_type = {'admin': opts.admin,
+                              'creator': opts.creator,
+                              'initiator': opts.initiator,
+                              'platform': opts.platform}
+                    if opts.subparser_name == 'sign':
+                        in_args = {
+                                'config_file': opts.config_file,
+                                'user_type': user_type,
+                                'contract': opts.contract,
+                                'certs_dir': opts.certs_dir
+                            }
+                        _sign_agent_package(opts.package, **in_args)
 
-                        elif opts.subparser_name == 'create_cert':
-                            _create_cert(name=opts.name, **user_type)
-                except auth.AuthError as e:
-                    _log.error(e.message)
-                    #print(e.message)
+                    elif opts.subparser_name == 'create_cert':
+                        _create_cert(name=opts.name, **user_type)
+            except auth.AuthError as e:
+                _log.error(e.message)
+                #print(e.message)
 
 
 #         elif opts.subparser_name == 'create_cert':
 #             _create_cert(name=opts.name, **)
+    '''
     except AgentPackageError as e:
         _log.error(e.message)
         #print(e.message)
     except Exception as e:
         _log.error(str(e))
         #print e
+    '''
 
     if whl_path:
         print("Package created at: {}".format(whl_path))

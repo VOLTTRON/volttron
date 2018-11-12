@@ -259,12 +259,11 @@ if __name__ == '__main__':
     parser.add_argument("--csv", action='store_true',
                         help="format the standard out output to csv")
     parser.add_argument("--json", action="store_true",
-                        help="format the standard out output to jso")
+                        help="format the standard out output to json")
     parser.add_argument("--skip-requirements", action="store_true",
                         help="skip a requirements.txt file if it exists.")
 
     opts = parser.parse_args()
-    
     agent_source = opts.agent_source
     if not os.path.isdir(agent_source):
         if os.path.isdir(os.path.join(opts.volttron_root, agent_source)):
