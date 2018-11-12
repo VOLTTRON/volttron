@@ -160,7 +160,7 @@ volttron-pkg Commands
 .. code-block:: console
 
     usage: volttron-pkg [-h] [-l FILE] [-L FILE] [-q] [-v] [--verboseness LEVEL]
-                        {package,repackage,configure} ...
+                        {install-agent,package,repackage,configure} ...
 
     optional arguments:
       -h, --help            show this help message and exit
@@ -168,8 +168,10 @@ volttron-pkg Commands
     subcommands:
       valid subcommands
 
-      {package,repackage,configure}
+      {install-agent,package,repackage,configure}
                         additional help
+        install-agent       Install an agent from a source file and other
+                        (optional) options.
         package             Create agent package (whl) from a directory or
                         installed agent name.
         repackage           Creates agent package from a currently installed
@@ -182,7 +184,7 @@ enabled):
 .. code-block:: console
 
     usage: volttron-pkg [-h] [-l FILE] [-L FILE] [-q] [-v] [--verboseness LEVEL]
-                        {package,repackage,configure,create_ca,create_cert,sign,verify}
+                        {install-agent,package,repackage,configure,create_ca,create_cert,sign,verify}
                         ...
 
     VOLTTRON packaging and signing utility
@@ -201,8 +203,10 @@ enabled):
     subcommands:
       valid subcommands
 
-      {package,repackage,configure,create_ca,create_cert,sign,verify}
+      {install-agent,package,repackage,configure,create_ca,create_cert,sign,verify}
                             additional help
+        install-agent       Install an agent from a source file and other
+                            (optional) options.
         package             Create agent package (whl) from a directory or
                             installed agent name.
         repackage           Creates agent package from a currently installed
