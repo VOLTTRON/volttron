@@ -212,7 +212,16 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
         assert (location_data.get("lat") and location_data.get("long")) or \
                (location_data.get("wfo") and location_data.get("x") and location_data.get("y"))
         results = location_data.get("weather_results")
-        assert (results or location_data.get("weather_error"))
+        error = location_data.get("weather_error")
+        if error and not results:
+            if error.startswith("API request success, no data returned"):
+                assert results.startswith("API request success, no data returned")
+            elif error.startswith("API redirected, but requests did not reach the intended location"):
+                assert results.startswith("API redirected, but requests did not reach the intended location")
+            elif error.startswith("API request to server failed"):
+                assert results.startswith("API request to server failed")
+            else:
+                assert False
         if results:
             for record in results:
                 forecast_time = utils.parse_timestamp_string(record[0])
@@ -239,9 +248,6 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
 
             query_weather_results = query_location_data.get("weather_results")
             cache_weather_results = cache_location_data.get("weather_results")
-            # TODO There is some condition which results in the timestamp format here being bad
-            print(query_weather_results)
-            print(cache_weather_results)
             for y in range(0, len(query_weather_results)):
                 result = query_weather_results[y]
                 cache_result = cache_weather_results[y]
