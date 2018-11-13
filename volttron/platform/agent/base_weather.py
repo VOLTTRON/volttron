@@ -55,8 +55,6 @@
 
 import logging
 import pint
-import pytz
-import copy
 import json
 import csv
 import sqlite3
@@ -71,10 +69,8 @@ from volttron.platform.vip.agent import *
 from volttron.platform.async import AsyncCall
 from volttron.platform.messaging import headers
 from volttron.platform.messaging.health import (STATUS_BAD,
-                                                STATUS_UNKNOWN,
                                                 STATUS_GOOD,
-                                                STATUS_STARTING,
-                                                 Status)
+                                                Status)
 
 POLL_TOPIC = "weather/poll/current/{}"
 
@@ -164,7 +160,7 @@ class BaseWeatherAgent(Agent):
                                     "([{type: value},..]), "
                                     "start_date (date), end_date(date)"
                      }
-                 }
+            }
 
             for service_name in self._api_services:
                 if not self._api_services[service_name]["type"] == "history":
@@ -336,7 +332,7 @@ class BaseWeatherAgent(Agent):
             try:
                 if isinstance(mapping_file, str):
                     mapping_file = open(mapping_file)
-                    #else assume it is a file like object
+                    # else assume it is a file like object
                 config_dict = csv.DictReader(mapping_file)
                 for map_item in config_dict:
                     service_point_name = map_item.get("Service_Point_Name")
@@ -376,7 +372,7 @@ class BaseWeatherAgent(Agent):
                 self._max_size_gb = float(max_size_gb)
         except ValueError:
             _log.warn("Invalid value for max_size_gb: {} "
-                             "defaulting to 1GB".format(max_size_gb))
+                      "defaulting to 1GB".format(max_size_gb))
             self._max_size_gb = 1
 
         self._api_key = config.get("api_key")
@@ -429,7 +425,6 @@ class BaseWeatherAgent(Agent):
                           "weather/poll/current/<topic_suffix>)"
                 raise ValueError(err_msg)
             self.do_polling = True
-
 
     def configure(self, configuration):
         """Optional, may be implemented by a concrete implementation to add
@@ -545,10 +540,10 @@ class BaseWeatherAgent(Agent):
                 result["weather_results"] = data
             else:
                 result["weather_error"] = "Weather api did not " \
-                                               "return any records"
+                                          "return any records"
         except Exception as error:
             _log.error(error)
-            result["weather_error"] = error
+            result["weather_error"] = error.message
         return result
 
     @abstractmethod
@@ -706,14 +701,14 @@ class BaseWeatherAgent(Agent):
                     "amount of data"
         except Exception as error:
             _log.error(error)
-            result["weather_error"] = error
+            result["weather_error"] = error.message
         return result
 
     def apply_mapping(self, record_dict):
         """
         Alters the weather dictionary returned by a provider to use standardized point names specified in the agent's
         registry configuration file.
-        (see http://cfconventions.org/Data/cf-standard-names/57/build/cf-standard-name-table.html for standarized
+        (see http://cfconventions.org/Data/cf-standard-names/57/build/cf-standard-name-table.html for standardized
         weather terminology)
         :param record_dict: dictionary of weather points
         :return: dictionary of weather points containing names updated to match the standard point names provided.
@@ -746,44 +741,44 @@ class BaseWeatherAgent(Agent):
         """
 
     # TODO
-    @RPC.export
-    def get_hourly_historical(self, locations, start_date, end_date):
-        data = []
-        service_name = "get_hourly_historical"
-        start_datetime = datetime.datetime.combine(start_date, datetime.time())
-        end_datetime = datetime.datetime.combine(end_date, datetime.time()) + \
-                       (datetime.timedelta(days=1))
-        # TODO
-        for location in locations:
-            if not self.validate_location(service_name, location):
-                raise ValueError("Invalid Location:{}".format(location))
-            current = start_datetime
-            while current <= end_datetime:
-                records = []
-                cached_history = self.get_cached_historical_data(service_name, location, current)
-                if cached_history:
-                    for item in cached_history:
-                        observation_time = format_timestamp(item[0])
-                        record = [location, observation_time,
-                                  json.loads(item[1])]
-                        records.append(record)
-                if not len(records):
-                    response = self.query_hourly_historical(location, current)
-                    storage_records = []
-                    for item in response:
-                        records.append(item)
-                        observation_time = parse_timestamp_string(item[0])
-                        s_record = [location, observation_time,
-                                    json.dumps(item[1])]
-                        storage_records.append(s_record)
-                        record = [location,
-                                  format_timestamp(observation_time),
-                                  json.dumps(item[1])]
-                    self.store_weather_records(service_name, storage_records)
-                for record in records:
-                    data.append(record)
-                current = current + datetime.timedelta(hours=1)
-        return data
+    # @RPC.export
+    # def get_hourly_historical(self, locations, start_date, end_date):
+    #     data = []
+    #     service_name = "get_hourly_historical"
+    #     start_datetime = datetime.datetime.combine(start_date, datetime.time())
+    #     end_datetime = datetime.datetime.combine(end_date, datetime.time()) + \
+    #                    (datetime.timedelta(days=1))
+    #     # TODO
+    #     for location in locations:
+    #         if not self.validate_location(service_name, location):
+    #             raise ValueError("Invalid Location:{}".format(location))
+    #         current = start_datetime
+    #         while current <= end_datetime:
+    #             records = []
+    #             cached_history = self.get_cached_historical_data(service_name, location, current)
+    #             if cached_history:
+    #                 for item in cached_history:
+    #                     observation_time = format_timestamp(item[0])
+    #                     record = [location, observation_time,
+    #                               json.loads(item[1])]
+    #                     records.append(record)
+    #             if not len(records):
+    #                 response = self.query_hourly_historical(location, current)
+    #                 storage_records = []
+    #                 for item in response:
+    #                     records.append(item)
+    #                     observation_time = parse_timestamp_string(item[0])
+    #                     s_record = [location, observation_time,
+    #                                 json.dumps(item[1])]
+    #                     storage_records.append(s_record)
+    #                     record = [location,
+    #                               format_timestamp(observation_time),
+    #                               json.dumps(item[1])]
+    #                 self.store_weather_records(service_name, storage_records)
+    #             for record in records:
+    #                 data.append(record)
+    #             current = current + datetime.timedelta(hours=1)
+    #     return data
 
     @abstractmethod
     def query_hourly_historical(self, location, start_date, end_date):
@@ -807,7 +802,7 @@ class BaseWeatherAgent(Agent):
             _log.debug("publishing results to single topic")
             self.publish_response(POLL_TOPIC.format("all"), results)
         else:
-            for i in range(0,len(results)):
+            for i in range(0, len(results)):
                 _log.debug("publishing results to location specific topic")
                 poll_topic = POLL_TOPIC.format(self.poll_topic_suffixes[i])
                 self.publish_response(poll_topic, results[i])
@@ -870,9 +865,11 @@ class BaseWeatherAgent(Agent):
     def stopping(self, sender, **kwargs):
         self._cache.close()
 
+
 # TODO docs
 class WeatherCache:
     """Caches data to help reduce the number of requests to the API"""
+
     def __init__(self,
                  service_name="default",
                  api_services=None,
@@ -975,15 +972,16 @@ class WeatherCache:
                 cursor.execute(delete_query)
                 self._sqlite_conn.commit()
                 _log.debug(delete_query)
+                create_table = ""
                 if table_type == "forecast":
                     create_table = CREATE_STMT_FORECAST.format(table=service_name)
                 elif table_type == "current" or table_type == "history":
                     create_table = CREATE_STMT_CURRENT.format(table=service_name)
-                _log.debug(create_table)
-                cursor.execute(create_table)
-                self._sqlite_conn.commit()
-                break
-
+                if len(create_table):
+                    _log.debug(create_table)
+                    cursor.execute(create_table)
+                    self._sqlite_conn.commit()
+                    break
 
     def get_current_data(self, service_name, location):
         """
@@ -1057,7 +1055,7 @@ class WeatherCache:
         :return: list of historical records for the provided date/location
         """
         start_timestamp = date_timestamp
-        end_timestamp = date_timestamp + (datetime.timedelta(days=1)-datetime.timedelta(milliseconds=1))
+        end_timestamp = date_timestamp + (datetime.timedelta(days=1) - datetime.timedelta(milliseconds=1))
         if service_name not in self._api_services:
             raise ValueError("service {} does not exist in the agent's services.".format(service_name))
         try:
@@ -1143,7 +1141,7 @@ class WeatherCache:
                         # Remove all data that is older than update interval
                         if service["type"] == "current":
                             query = """DELETE FROM {table} 
-                                       WHERE OBSERVATION_TIME < ?;"""\
+                                       WHERE OBSERVATION_TIME < ?;""" \
                                 .format(table=table_name)
                             cursor.execute(query,
                                            (now - service["update_interval"],))
@@ -1163,7 +1161,7 @@ class WeatherCache:
                             query = "DELETE FROM {table} WHERE ID IN " \
                                     "(SELECT ID FROM {table} " \
                                     "ORDER BY ID ASC LIMIT 100)".format(
-                                        table=table_name)
+                                table=table_name)
                             cursor.execute(query)
                             records_deleted += cursor.rowcount
                 if attempt > 2 and records_deleted == 0:
@@ -1182,7 +1180,6 @@ class WeatherCache:
                     cursor.execute(query)
                     page_count = self.page_count(cursor)
 
-
     def close(self):
         """Close the sqlite database connection when the agent stops"""
         self._sqlite_conn.close()
@@ -1192,14 +1189,17 @@ class WeatherCache:
 # Code reimplemented from https://github.com/gilesbrown/gsqlite3
 def _using_threadpool(method):
     """Used by agents for threading."""
+
     @wraps(method, ['__name__', '__doc__'])
     def apply(*args, **kwargs):
         return get_hub().threadpool.apply(method, args, kwargs)
+
     return apply
 
 
 class AsyncWeatherCache(WeatherCache):
     """Asynchronous weather cache wrapper for use with gevent"""
+
     def __init__(self, **kwargs):
         kwargs["check_same_thread"] = False
         super(AsyncWeatherCache, self).__init__(**kwargs)
@@ -1212,4 +1212,3 @@ for method in [WeatherCache.get_current_data,
                WeatherCache._setup_cache,
                WeatherCache.store_weather_records]:
     setattr(AsyncWeatherCache, method.__name__, _using_threadpool(method))
-

@@ -51,7 +51,7 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
+# }}}
 
 import logging
 import re
@@ -63,7 +63,6 @@ import datetime
 from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.agent import utils
 from volttron.utils.docs import doc_inherit
-from volttron.platform.vip.agent import *
 
 __version__ = "0.1.0"
 
@@ -73,6 +72,7 @@ _log = logging.getLogger(__name__)
 LAT_LONG_REGEX = re.compile("^-?[0-9]{1,3}(\.[0-9]{1,4})?,( |t?)-?[0-9]{1,3}(\.[0-9]{1,4})?$")
 STATION_REGEX = re.compile("^[Kk][a-zA-Z]{3}$")
 WFO_REGEX = re.compile("^[A-Z]{3}$")
+
 
 # TODO all documentation
 def weather_agent(config_path, **kwargs):
@@ -93,8 +93,9 @@ def weather_agent(config_path, **kwargs):
 
 class WeatherDotGovAgent(BaseWeatherAgent):
     """
-    Concrete implemenation of the base weather agent for querying the NOAA/weather.gov weather api.
+    Concrete implementation of the base weather agent for querying the NOAA/weather.gov weather api.
     """
+
     def __init__(self, **kwargs):
         super(WeatherDotGovAgent, self).__init__(**kwargs)
         self.headers = {"Accept": "application/json",
@@ -144,6 +145,16 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             raise ValueError("Invalid location {}".format(location))
 
+    def get_api_description(self, service_name):
+        if service_name is "get_current_weather":
+            return "Provides current weather observations by station via RPC (Requires {'station': <station id>}"
+        elif service_name is "get_hourly_forecast":
+            return "Provides <hours> (optional) hours of forecast predictions by lat/long or gridpoint location " \
+                   "via RPC (Requires {'wfo': <wfo string>, 'x': <x coordinate>, 'y': <y coordinate>} or" \
+                   "{'lat': <latitude>, 'long': <longitude>}"
+        else:
+            raise RuntimeError("Service {} is not implemented by weather.gov.".format(service_name))
+
     # TODO add docs
     def get_lat_long_str(self, location_dict):
         """
@@ -183,7 +194,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             return self.validate_location_formats(("station",), location)
         else:
             return self.validate_location_formats(("gridpoints", "lat/long"),
-                                            location)
+                                                  location)
 
     def validate_location_formats(self, accepted_formats, location):
         """
@@ -211,21 +222,25 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             return False
 
-    def generate_response_error(self, response_code):
+    def generate_response_error(self, url, response_code):
         """
         raises a descriptive runtime error based on the response code returned by a service.
         :param response_code: Http response code returned by a service following a request
         """
         code_x100 = int(response_code / 100)
         if code_x100 == 2:
-            raise RuntimeError("API request successful, however no weather data returned (code {})".format(response_code))
+            raise RuntimeError(
+                "Remote API returned no data(code {})".format(response_code))
         elif code_x100 == 3:
-            raise RuntimeError("API redirected request, but requests did not reach the intended final location (code {})"
-                               .format(response_code))
+            raise RuntimeError(
+                "Remote API redirected request, but redirect failed (code {})"
+                .format(response_code))
         elif code_x100 == 4:
-            raise RuntimeError("Client's API request by the weather service failed. The url may have changed, or may be malformed (code {})".format(response_code))
+            raise RuntimeError(
+                "Invalid request from agent to {} (Code {}".format(url, response_code))
         elif code_x100 == 5:
-            raise RuntimeError("API request reached server, server failed to return a valid response (code {})".format(response_code))
+            raise RuntimeError(
+                "Remote API request failed to return a valid response (code {})".format(response_code))
         else:
             raise RuntimeError("API request failed with unexpected response code (code {})"
                                .format(response_code))
@@ -249,7 +264,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         gresponse = grequests.map(grequest)[0]
         response = json.loads(gresponse.content)
         if gresponse.status_code != 200:
-            self.generate_response_error(gresponse.status_code)
+            self.generate_response_error(url, gresponse.status_code)
         else:
             properties = response["properties"]
             observation_time = properties["timestamp"]
@@ -258,7 +273,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
     @doc_inherit
     def query_hourly_forecast(self, location):
         """
-        Returns hourly forecasted weather data provided by the api via an http request.
+        Returns hourly forecast weather data provided by the api via an http request.
         :param location: currently accepts lat/long location dictionary format only
         :return: time of forecast prediction as a timestamp string, and a list of
         """
@@ -275,7 +290,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         gresponse = grequests.map(grequest)[0]
         response = json.loads(gresponse.content)
         if gresponse.status_code != 200:
-            self.generate_response_error(gresponse.status_code)
+            self.generate_response_error(url, gresponse.status_code)
         else:
             data = []
             properties = response["properties"]
@@ -298,13 +313,14 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         raise NotImplementedError
 
 
-def main(argv=sys.argv):
+def main():
     """" Main entry point for the agent."""
     try:
         utils.vip_main(weather_agent, version=__version__)
     except Exception as e:
         print(e)
         _log.exception('unhandled exception')
+
 
 if __name__ == '__main__':
     """Entry point for script"""

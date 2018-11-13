@@ -43,7 +43,7 @@ import sqlite3
 import logging
 from volttron.platform.agent import utils
 from datetime import datetime
-from volttron.platform.messaging.health import STATUS_BAD, STATUS_GOOD
+from volttron.platform.messaging.health import STATUS_GOOD
 
 from volttron.platform import get_services_core
 
@@ -77,8 +77,8 @@ def cleanup_cache(volttron_instance, query_agent, weather):
     tables = ["get_current_weather", "get_hourly_forecast"]
     cwd = volttron_instance.volttron_home
     version = query_agent.vip.rpc.call(identity, 'get_version').get(timeout=3)
-    data_dir = cwd + "/agents/" + weather + "/weatherdotgov_agent-" + \
-               version + "/weatherdotgov-agent-" + version + ".agent-data/"
+    data_dir = cwd + "/agents/" + weather + "/weatherdotgov_agent-" + version + \
+        "/weatherdotgov-agent-" + version + ".agent-data/"
     database_file = data_dir + "WeatherDotGov.sqlite"
     sqlite_connection = sqlite3.connect(database_file)
     cursor = sqlite_connection.cursor()
@@ -87,6 +87,7 @@ def cleanup_cache(volttron_instance, query_agent, weather):
         _log.debug(query)
         cursor.execute(query)
         sqlite_connection.commit()
+
 
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
@@ -98,6 +99,7 @@ def query_agent(request, volttron_instance):
         peer='pubsub',
         prefix="weather/poll/current",
         callback=agent.poll_callback).get()
+
     # 2: add a tear down method to stop the fake
     # agent that published to message bus
     def stop_agent():
@@ -106,6 +108,7 @@ def query_agent(request, volttron_instance):
 
     request.addfinalizer(stop_agent)
     return agent
+
 
 # TODO params
 @pytest.fixture(scope="module", params=[weather_dot_gov_service])
@@ -127,7 +130,7 @@ def weather(request, volttron_instance):
         print("stopping weather service")
         if volttron_instance.is_running():
             volttron_instance.stop_agent(agent)
-        #volttron_instance.remove_agent(agent)
+        # volttron_instance.remove_agent(agent)
 
     request.addfinalizer(stop_agent)
     return agent
@@ -157,15 +160,14 @@ def test_success_current(cleanup_cache, weather, query_agent, locations):
             assert isinstance(results, dict)
         else:
             results = record.get("weather_error")
-            if results.startswith("API request success, no data returned"):
-                assert results.startswith("API request success, no data returned")
-            elif results.startswith("API redirected, but requests did not reach the intended location"):
-                assert results.startswith("API redirected, but requests did not reach the intended location")
-            elif results.startswith("API request to server failed"):
-                assert results.startswith("API request to server failed")
+            if results.startswith("Remote API returned no data"):
+                assert True
+            elif results.startswith("Remote API redirected request, but redirect failed"):
+                assert True
+            elif results.startswith("Remote API request failed to return a valid response"):
+                assert True
             else:
                 assert False
-
 
     cache_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
 
@@ -175,6 +177,7 @@ def test_success_current(cleanup_cache, weather, query_agent, locations):
         assert len(cache_data[x]) == len(query_data[x])
         for key in query_data[x]:
             assert query_data[x].get(key) == cache_data[x].get(key)
+
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
@@ -192,9 +195,9 @@ def test_current_fail(weather, query_agent, locations):
 @pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
     [{"lat": 39.7555, "long": -105.2211}],
-     [{"wfo": 'BOU', 'x': 54, 'y': 62}],
-     [{"wfo": 'BOU', 'x': 54, 'y': 62}, {"lat": 39.7555, "long": -105.2211}],
-     []
+    [{"wfo": 'BOU', 'x': 54, 'y': 62}],
+    [{"wfo": 'BOU', 'x': 54, 'y': 62}, {"lat": 39.7555, "long": -105.2211}],
+    []
 ])
 def test_success_forecast(cleanup_cache, weather, query_agent, locations):
     """
@@ -257,7 +260,7 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
                 for key in cache_result[1]:
                     assert cache_result[1][key] == result[1][key]
         else:
-            results = record.get("weather_error")
+            results = cache_location_data.get("weather_error")
             if results.startswith("API request success, no data returned"):
                 assert results.startswith("API request success, no data returned")
             elif results.startswith("API redirected, but requests did not reach the intended location"):
@@ -266,6 +269,7 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
                 assert results.startswith("API request to server failed")
             else:
                 assert False
+
 
 # TODO compare failure condition messages
 @pytest.mark.weather2
@@ -276,7 +280,7 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
 ])
 def test_hourly_forecast_fail(weather, query_agent, locations):
     query_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
-                                             locations).get(timeout=30)
+                                          locations).get(timeout=30)
     for record in query_data:
         error = record.get("location_error")
         if error.startswith("Invalid location format."):
@@ -286,6 +290,7 @@ def test_hourly_forecast_fail(weather, query_agent, locations):
         else:
             assert False
         assert record.get("weather_results") is None
+
 
 @pytest.mark.weather2
 @pytest.mark.parametrize('config, result_topics', [
