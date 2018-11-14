@@ -13,10 +13,12 @@
 #    this list of conditions and the following disclaimer in the documentation
 #    and/or other materials provided with the distribution.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+#  FOR
 # ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 # (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
 # LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -69,7 +71,8 @@ __version__ = "0.1.0"
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-LAT_LONG_REGEX = re.compile("^-?[0-9]{1,3}(\.[0-9]{1,4})?,( |t?)-?[0-9]{1,3}(\.[0-9]{1,4})?$")
+LAT_LONG_REGEX = re.compile(
+    "^-?[0-9]{1,3}(\.[0-9]{1,4})?,( |t?)-?[0-9]{1,3}(\.[0-9]{1,4})?$")
 STATION_REGEX = re.compile("^[Kk][a-zA-Z]{3}$")
 WFO_REGEX = re.compile("^[A-Z]{3}$")
 
@@ -78,7 +81,8 @@ WFO_REGEX = re.compile("^[A-Z]{3}$")
 def weather_agent(config_path, **kwargs):
     """
     Used for instantiating the WeatherDotGov agent.
-    :param config_path: string formatted file path to use for configuring the agent.
+    :param config_path: string formatted file path to use for configuring the
+    agent.
     :param kwargs: keyword arguments passed during instantiation.
     :return: an instance of the WeatherDotGov Agent
     """
@@ -93,7 +97,8 @@ def weather_agent(config_path, **kwargs):
 
 class WeatherDotGovAgent(BaseWeatherAgent):
     """
-    Concrete implementation of the base weather agent for querying the NOAA/weather.gov weather api.
+    Concrete implementation of the base weather agent for querying the
+    NOAA/weather.gov weather api.
     """
 
     def __init__(self, **kwargs):
@@ -129,8 +134,10 @@ class WeatherDotGovAgent(BaseWeatherAgent):
 
     def get_location_string(self, location):
         """
-        Generic conversion of location dictionary into corresponding string format for request url.
-        :param location: location dictionary formatted as for a specific request.
+        Generic conversion of location dictionary into corresponding string
+        format for request url.
+        :param location: location dictionary formatted as for a specific
+        request.
         :return: string representation of location dictionary for request url.
         """
         if location.get('lat') and location.get('long'):
@@ -147,19 +154,26 @@ class WeatherDotGovAgent(BaseWeatherAgent):
 
     def get_api_description(self, service_name):
         if service_name is "get_current_weather":
-            return "Provides current weather observations by station via RPC (Requires {'station': <station id>}"
+            return "Provides current weather observations by station via RPC " \
+                   "(Requires {'station': <station id>}"
         elif service_name is "get_hourly_forecast":
-            return "Provides <hours> (optional) hours of forecast predictions by lat/long or gridpoint location " \
-                   "via RPC (Requires {'wfo': <wfo string>, 'x': <x coordinate>, 'y': <y coordinate>} or" \
+            return "Provides <hours> (optional) hours of forecast predictions " \
+                   "by lat/long or gridpoint location " \
+                   "via RPC (Requires {'wfo': <wfo string>, 'x': <x " \
+                   "coordinate>, 'y': <y coordinate>} or" \
                    "{'lat': <latitude>, 'long': <longitude>}"
         else:
-            raise RuntimeError("Service {} is not implemented by weather.gov.".format(service_name))
+            raise RuntimeError(
+                "Service {} is not implemented by weather.gov.".format(
+                    service_name))
 
     # TODO add docs
     def get_lat_long_str(self, location_dict):
         """
-        Converts a location dictionary using lat/long format into string format to be used in a request url.
-        :param location_dict: location dictionary for the upcoming request. Expects lat/long
+        Converts a location dictionary using lat/long format into string
+        format to be used in a request url.
+        :param location_dict: location dictionary for the upcoming request.
+        Expects lat/long
         :return: url formatted location string
         """
         return "{},{}".format(location_dict.get("lat"),
@@ -168,27 +182,35 @@ class WeatherDotGovAgent(BaseWeatherAgent):
     # TODO add docs
     def get_station_str(self, location_dict):
         """
-        Converts a location dictionary using station format into string format to be used in a request url.
-        :param location_dict: location dictionary for the upcoming request. Expects station id
+        Converts a location dictionary using station format into string
+        format to be used in a request url.
+        :param location_dict: location dictionary for the upcoming request.
+        Expects station id
         :return: url formatted location string
         """
         return location_dict.get("station")
 
     def get_gridpoints_str(self, location_dict):
         """
-        Converts a location dictionary using gridpoints format into string format to be used in a request url.
-        :param location_dict: location dictionary for the upcoming request. Expects gridpoint format
+        Converts a location dictionary using gridpoints format into string
+        format to be used in a request url.
+        :param location_dict: location dictionary for the upcoming request.
+        Expects gridpoint format
         :return: url formatted location string
         """
-        return "{}/{},{}".format(location_dict.get("wfo"), location_dict.get("x"), location_dict.get("y"))
+        return "{}/{},{}".format(location_dict.get("wfo"),
+                                 location_dict.get("x"), location_dict.get("y"))
 
     def validate_location(self, service_name, location):
         """
-        Intermediate method for validating location dicts passed by rpc calls. Validity depends on the service being
+        Intermediate method for validating location dicts passed by rpc
+        calls. Validity depends on the service being
         requested.
-        :param service_name: name of the api service which the location dictionary is intended to be used for.
+        :param service_name: name of the api service which the location
+        dictionary is intended to be used for.
         :param location: location dictionary to validate for the api service
-        :return: boolean indicating whether the location/service combination is valid for the weather api.
+        :return: boolean indicating whether the location/service combination
+        is valid for the weather api.
         """
         if service_name == "get_current_weather":
             return self.validate_location_formats(("station",), location)
@@ -198,12 +220,15 @@ class WeatherDotGovAgent(BaseWeatherAgent):
 
     def validate_location_formats(self, accepted_formats, location):
         """
-        Regular expression comparision to validate the various location dictionary formats
-        :param accepted_formats: string representations of the acceptable location formats for an api service
+        Regular expression comparision to validate the various location
+        dictionary formats
+        :param accepted_formats: string representations of the acceptable
+        location formats for an api service
         :param location: location dictionary to validate for the api service
         :return: boolean representing the validity of the location
         """
-        if ("lat/long" in accepted_formats) and (location.get('lat') and location.get('long')):
+        if ("lat/long" in accepted_formats) and (
+                location.get('lat') and location.get('long')):
             location_string = self.get_lat_long_str(location)
             if LAT_LONG_REGEX.match(location_string):
                 return True
@@ -215,8 +240,11 @@ class WeatherDotGovAgent(BaseWeatherAgent):
                 _log.debug("station did not matched regex")
                 return False
 
-        elif ("gridpoints" in accepted_formats) and (location.get("wfo") and location.get("x") and location.get("y")):
-            if WFO_REGEX.match(location.get("wfo")) and (1 <= len(str(location.get("x"))) <= 3) and \
+        elif ("gridpoints" in accepted_formats) and (
+                location.get("wfo") and location.get("x") and location.get(
+                "y")):
+            if WFO_REGEX.match(location.get("wfo")) and (
+                    1 <= len(str(location.get("x"))) <= 3) and \
                     (1 <= len(str(location.get("y"))) <= 3):
                 return True
         else:
@@ -224,8 +252,10 @@ class WeatherDotGovAgent(BaseWeatherAgent):
 
     def generate_response_error(self, url, response_code):
         """
-        raises a descriptive runtime error based on the response code returned by a service.
-        :param response_code: Http response code returned by a service following a request
+        raises a descriptive runtime error based on the response code
+        returned by a service.
+        :param response_code: Http response code returned by a service
+        following a request
         """
         code_x100 = int(response_code / 100)
         if code_x100 == 2:
@@ -234,24 +264,31 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         elif code_x100 == 3:
             raise RuntimeError(
                 "Remote API redirected request, but redirect failed (code {})"
-                .format(response_code))
+                    .format(response_code))
         elif code_x100 == 4:
             raise RuntimeError(
-                "Invalid request from agent to {} (Code {}".format(url, response_code))
+                "Invalid request from agent to {} (Code {}".format(url,
+                                                                   response_code))
         elif code_x100 == 5:
             raise RuntimeError(
-                "Remote API request failed to return a valid response (code {})".format(response_code))
+                "Remote API request failed to return a valid response (code {"
+                "})".format(
+                    response_code))
         else:
-            raise RuntimeError("API request failed with unexpected response code (code {})"
-                               .format(response_code))
+            raise RuntimeError(
+                "API request failed with unexpected response code (code {})"
+                .format(response_code))
 
     @doc_inherit
     def query_current_weather(self, location):
         """
-        Returns current hourly weather data provided by the api via an http request.
-        :param location: currently accepts station id (K followed by 3 letters, case insensitive) or
+        Returns current hourly weather data provided by the api via an http
+        request.
+        :param location: currently accepts station id (K followed by 3
+        letters, case insensitive) or
         lat/long (up to 4 decimals) location dictionary formats
-        :return: time of data observation as a timestamp string, data dictionary containing weather data points
+        :return: time of data observation as a timestamp string,
+        data dictionary containing weather data points
         """
         if location.get('station'):
             formatted_location = self.get_location_string(location)
@@ -273,16 +310,22 @@ class WeatherDotGovAgent(BaseWeatherAgent):
     @doc_inherit
     def query_hourly_forecast(self, location):
         """
-        Returns hourly forecast weather data provided by the api via an http request.
-        :param location: currently accepts lat/long location dictionary format only
-        :return: time of forecast prediction as a timestamp string, and a list of
+        Returns hourly forecast weather data provided by the api via an http
+        request.
+        :param location: currently accepts lat/long location dictionary
+        format only
+        :return: time of forecast prediction as a timestamp string,
+        and a list of
         """
         if location.get('lat') and location.get('long'):
             formatted_location = self.get_location_string(location)
-            url = "https://api.weather.gov/points/{}/forecast/hourly".format(formatted_location)
+            url = "https://api.weather.gov/points/{}/forecast/hourly".format(
+                formatted_location)
         elif location.get("wfo") and location.get("x") and location.get("y"):
             formatted_location = self.get_gridpoints_str(location)
-            url = "https://api.weather.gov/gridpoints/{}/forecast/hourly".format(formatted_location)
+            url = "https://api.weather.gov/gridpoints/{" \
+                  "}/forecast/hourly".format(
+                formatted_location)
         else:
             raise ValueError("Improperly formatted station ID was passed.")
         _log.debug("Request Url: {}".format(url))

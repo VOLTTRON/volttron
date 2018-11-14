@@ -13,10 +13,12 @@
 #    this list of conditions and the following disclaimer in the documentation
 #    and/or other materials provided with the distribution.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+#  FOR
 # ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 # (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
 # LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -162,15 +164,6 @@ class BaseWeatherAgent(Agent):
                      }
             }
 
-            for service_name in self._api_services:
-                if not self._api_services[service_name]["type"] == "history":
-                    interval = self.get_update_interval(service_name)
-                    if interval:
-                        self.set_update_interval(service_name, interval)
-                description = self.get_api_description(service_name)
-                if description:
-                    self.set_api_description(service_name, description)
-
             self.vip.config.set_default("config", self._default_config)
             self.vip.config.subscribe(self._configure,
                                       actions=["NEW", "UPDATE"],
@@ -190,7 +183,8 @@ class BaseWeatherAgent(Agent):
         :param service_function_name: function call name for an api feature
         :param interval: datetime timedelta object describing the length of
         time between api updates.
-        :param service_type: the string "history", "current", or "forecast". This
+        :param service_type: the string "history", "current", or "forecast".
+        This
                      determines the structure of the cached data.
         :param description: optional description string describing the method's
         usage.
@@ -215,7 +209,8 @@ class BaseWeatherAgent(Agent):
     # TODO docs
     def remove_service(self, service_function_name):
         """
-        Used to remove services from the api_services dictionary which aren't implemented in a concrete instance.
+        Used to remove services from the api_services dictionary which aren't
+        implemented in a concrete instance.
         :param service_function_name: a function call name for an api feature
         to be removed.
         """
@@ -227,10 +222,13 @@ class BaseWeatherAgent(Agent):
 
     def validate_location_dict(self, service_name, location):
         """
-        Error checking and format validation for a location dictionary corresponding to an api service call.
-        :param service_name: name of the api service the dictionary is intended to be used for.
+        Error checking and format validation for a location dictionary
+        corresponding to an api service call.
+        :param service_name: name of the api service the dictionary is
+        intended to be used for.
         :param location: location dictionary to be validated
-        :return: location dictionary, includes "location_error" if the location is somehow invalid.
+        :return: location dictionary, includes "location_error" if the
+        location is somehow invalid.
         """
         record_dict = None
         if not isinstance(location, dict):
@@ -248,7 +246,8 @@ class BaseWeatherAgent(Agent):
     def validate_location(self, service_name, location):
         """
         Abstract method for generic location validation
-        :param service_name: name of service the location dictionary is intended for.
+        :param service_name: name of service the location dictionary is
+        intended for.
         :param location: location dictionary to be validated for a service.
         :return: boolean representing whether the location is in fact valid.
         """
@@ -257,26 +256,33 @@ class BaseWeatherAgent(Agent):
     @abstractmethod
     def get_update_interval(self, service_name):
         """
-        Abstract method used by concrete agents to set the update intervals for the various api services.
+        Abstract method used by concrete agents to set the update intervals
+        for the various api services.
         :param service_name: name of service to retrieve the update interval for
-        :return: datetime.timestamp object representing the time between weather data updates from the weather api.
+        :return: datetime.timestamp object representing the time between
+        weather data updates from the weather api.
         """
         pass
 
     @abstractmethod
     def get_api_description(self, service_name):
         """
-        Abstract method used by concrete agents to set the description for the various api services.
-        :param service_name:service_name: name of service to retrieve the description for
+        Abstract method used by concrete agents to set the description for
+        the various api services.
+        :param service_name:service_name: name of service to retrieve the
+        description for
         :return: string description of the api service usage
         """
         pass
 
     def set_update_interval(self, service_name, interval):
         """
-        Updates the api service dictionary with the datetime.timedelta specifying the length of time between api updates
-        :param service_name: a function call name for an api feature to be updated
-        :param interval: datetime timedelta object specifying the length of time between api updates
+        Updates the api service dictionary with the datetime.timedelta
+        specifying the length of time between api updates
+        :param service_name: a function call name for an api feature to be
+        updated
+        :param interval: datetime timedelta object specifying the length of
+        time between api updates
         """
         if not isinstance(interval, datetime.timedelta):
             raise ValueError(
@@ -287,13 +293,17 @@ class BaseWeatherAgent(Agent):
                     "historical data does not utilize an update interval.")
             self._api_services[service_name]["update_interval"] = interval
         else:
-            raise ValueError("{} not found in api features.".format(service_name))
+            raise ValueError(
+                "{} not found in api features.".format(service_name))
 
     def set_api_description(self, service_name, description):
         """
-        Updates the api service dictionary with the api feature's string description
-        :param service_name: a function call name for an api feature to be updated
-        :param description: string description describing purpose and usage of an api feature
+        Updates the api service dictionary with the api feature's string
+        description
+        :param service_name: a function call name for an api feature to be
+        updated
+        :param description: string description describing purpose and usage
+        of an api feature
         """
         if not isinstance(description, str):
             raise ValueError("description expected as string")
@@ -315,10 +325,14 @@ class BaseWeatherAgent(Agent):
     @abstractmethod
     def get_point_name_defs_file(self):
         """
-        :return: file path of a csv containing a mapping of Service_Point_Name to an optional Standard_Point_Name.
-        May also optionally provide Service_Units (a Pint-parsable unit name for a point, provided by the service) to
-        Standardized_Units (units specified for the Standard_Point_Name by the CF standards). Should return None if
-        the concrete agent does not require point name mapping and/or unit conversion.
+        :return: file path of a csv containing a mapping of
+        Service_Point_Name to an optional Standard_Point_Name.
+        May also optionally provide Service_Units (a Pint-parsable unit name
+        for a point, provided by the service) to
+        Standardized_Units (units specified for the Standard_Point_Name by
+        the CF standards). Should return None if
+        the concrete agent does not require point name mapping and/or unit
+        conversion.
         """
 
     def parse_point_name_mapping(self):
@@ -327,7 +341,11 @@ class BaseWeatherAgent(Agent):
         points to standardized points, with specified units.
         """
         point_name_mapping = {}
-        mapping_file = self.get_point_name_defs_file()
+        try:
+            mapping_file = self.get_point_name_defs_file()
+        except Exception as e:
+            _log.warn("Error loading mapping file ({})".format(e))
+            return None
         if mapping_file:
             try:
                 if isinstance(mapping_file, str):
@@ -337,7 +355,8 @@ class BaseWeatherAgent(Agent):
                 for map_item in config_dict:
                     service_point_name = map_item.get("Service_Point_Name")
                     if service_point_name:
-                        standard_point_name = map_item.get("Standard_Point_Name")
+                        standard_point_name = map_item.get(
+                            "Standard_Point_Name")
                         standardized_units = map_item.get("Standardized_Units")
                         service_units = map_item.get("Service_Units")
                         point_name_mapping[service_point_name] = \
@@ -359,7 +378,8 @@ class BaseWeatherAgent(Agent):
         Handles most of the configuration of weather agent implementations
         :param config_name: unused parameter, required by config store
         :param actions: unused parameter, required by config store
-        :param contents: Configuration dictionary used to specify operational parameters for the agent.
+        :param contents: Configuration dictionary used to specify operational
+        parameters for the agent.
         """
         self.vip.heartbeat.start()
         _log.info("Configuring weather agent.")
@@ -405,7 +425,8 @@ class BaseWeatherAgent(Agent):
     def validate_poll_config(self):
         """
         Ensures that polling settings have been properly configured.
-        :return: boolean indicating whether the polling options provided were properly formatted.
+        :return: boolean indicating whether the polling options provided were
+        properly formatted.
         """
         if self.poll_locations:
             if not self.poll_interval:
@@ -451,7 +472,8 @@ class BaseWeatherAgent(Agent):
     @RPC.export
     def get_api_features(self):
         """
-        Provides api features and corresponding descriptions for users of the weather agent.
+        Provides api features and corresponding descriptions for users of the
+        weather agent.
         :return: dictionary formatted as {function call: description string}
         """
         features = {}
@@ -463,7 +485,8 @@ class BaseWeatherAgent(Agent):
     @RPC.export
     def get_current_weather(self, locations):
         """
-        RPC method returning current weather data for each location provided. Will provide cached data for efficiency if
+        RPC method returning current weather data for each location provided.
+        Will provide cached data for efficiency if
         available.
         :param locations: List of location dictionary objects.
         :return: list of dictionaries containing weather data for each location
@@ -489,7 +512,8 @@ class BaseWeatherAgent(Agent):
 
     def get_cached_current_data(self, location):
         """
-        Retrieves current weather data stored in cache if it exists and is current (the timestamp is within the update
+        Retrieves current weather data stored in cache if it exists and is
+        current (the timestamp is within the update
         interval) for the location
         :param location: location to retrieve current stored data for.
         :return: current weather data dictionary
@@ -514,9 +538,12 @@ class BaseWeatherAgent(Agent):
 
     def get_current_weather_remote(self, location):
         """
-        Retrieves current weather data for a location from the remote api service provider
-        :param location: location for which to retrieve current weather data from the api
-        :return: dictionary of weather data, or containing an error message if the api call failed.
+        Retrieves current weather data for a location from the remote api
+        service provider
+        :param location: location for which to retrieve current weather data
+        from the api
+        :return: dictionary of weather data, or containing an error message
+        if the api call failed. Example - input: output:
         """
         result = location.copy()
         try:
@@ -549,7 +576,8 @@ class BaseWeatherAgent(Agent):
     @abstractmethod
     def query_current_weather(self, location):
         """
-        Abstract method for sending/receiving requests for current weather data from an api service
+        Abstract method for sending/receiving requests for current weather
+        data from an api service
         :param location: location for which to query the remote api
         :return: dictionary containing a single record of current weather data
         """
@@ -557,11 +585,15 @@ class BaseWeatherAgent(Agent):
     @RPC.export
     def get_hourly_forecast(self, locations, hours=24):
         """
-        RPC method returning hourly forecast weather data for each location provided. Will provide cached data for
+        RPC method returning hourly forecast weather data for each location
+        provided. Will provide cached data for
         efficiency if available.
-        :param locations: list of location dictionaries for which to return weather data
-        :param hours: number of hours worth of weather data to return for the request
-        :return: list of dictionaries containing weather data for each corresponding location
+        :param locations: list of location dictionaries for which to return
+        weather data
+        :param hours: number of hours worth of weather data to return for the
+        request
+        :return: list of dictionaries containing weather data for each
+        corresponding location
         """
         request_time = get_aware_utc_now()
         result = []
@@ -589,11 +621,14 @@ class BaseWeatherAgent(Agent):
 
     def get_cached_hourly_forecast(self, location, hours, request_time):
         """
-        Retrieves forecast weather data stored in cache if it exists and is current (the generation timestamp is
+        Retrieves forecast weather data stored in cache if it exists and is
+        current (the generation timestamp is
         within the update interval) for the location
         :param location: location for which to retrieve forecast weather records
-        :param hours: number of hours worth of data to include with each location's records
-        :param request_time: time at which the request for data was made, used for checking if the data is current.
+        :param hours: number of hours worth of data to include with each
+        location's records
+        :param request_time: time at which the request for data was made,
+        used for checking if the data is current.
         :return: dictionary of forecast weather data for the location
         """
         interval = \
@@ -633,11 +668,15 @@ class BaseWeatherAgent(Agent):
 
     def get_remote_hourly_forecast(self, location, hours, request_time):
         """
-        Retrieves forecast weather data for a location from the remote api service provider
+        Retrieves forecast weather data for a location from the remote api
+        service provider
         :param location: location for which to retrieve forecast weather records
-        :param hours: number of hours worth of data to include with each location's records
-        :param request_time: time at which the request for data was made, used for checking if the data is current.
-        :return: dictionary containing forecast weather data, or an error message if the request failed.
+        :param hours: number of hours worth of data to include with each
+        location's records
+        :param request_time: time at which the request for data was made,
+        used for checking if the data is current.
+        :return: dictionary containing forecast weather data, or an error
+        message if the request failed.
         """
         result = location.copy()
         try:
@@ -706,12 +745,15 @@ class BaseWeatherAgent(Agent):
 
     def apply_mapping(self, record_dict):
         """
-        Alters the weather dictionary returned by a provider to use standardized point names specified in the agent's
+        Alters the weather dictionary returned by a provider to use
+        standardized point names specified in the agent's
         registry configuration file.
-        (see http://cfconventions.org/Data/cf-standard-names/57/build/cf-standard-name-table.html for standardized
+        (see http://cfconventions.org/Data/cf-standard-names/57/build/cf
+        -standard-name-table.html for standardized
         weather terminology)
         :param record_dict: dictionary of weather points
-        :return: dictionary of weather points containing names updated to match the standard point names provided.
+        :return: dictionary of weather points containing names updated to
+        match the standard point names provided.
         """
         mapped_data = {}
         for point, value in record_dict.iteritems():
@@ -735,9 +777,11 @@ class BaseWeatherAgent(Agent):
     @abstractmethod
     def query_hourly_forecast(self, location):
         """
-        Abstract method for sending/receiving requests for forecast weather data from an api service
+        Abstract method for sending/receiving requests for forecast weather
+        data from an api service
         :param location: location for which to query the remote api
-        :return: list of dictionaries containing weather data corresponding to forecast timestamp
+        :return: list of dictionaries containing weather data corresponding
+        to forecast timestamp
         """
 
     # TODO
@@ -745,8 +789,10 @@ class BaseWeatherAgent(Agent):
     # def get_hourly_historical(self, locations, start_date, end_date):
     #     data = []
     #     service_name = "get_hourly_historical"
-    #     start_datetime = datetime.datetime.combine(start_date, datetime.time())
-    #     end_datetime = datetime.datetime.combine(end_date, datetime.time()) + \
+    #     start_datetime = datetime.datetime.combine(start_date,
+    # datetime.time())
+    #     end_datetime = datetime.datetime.combine(end_date, datetime.time())
+    #  + \
     #                    (datetime.timedelta(days=1))
     #     # TODO
     #     for location in locations:
@@ -755,7 +801,8 @@ class BaseWeatherAgent(Agent):
     #         current = start_datetime
     #         while current <= end_datetime:
     #             records = []
-    #             cached_history = self.get_cached_historical_data(service_name, location, current)
+    #             cached_history = self.get_cached_historical_data(
+    # service_name, location, current)
     #             if cached_history:
     #                 for item in cached_history:
     #                     observation_time = format_timestamp(item[0])
@@ -783,17 +830,23 @@ class BaseWeatherAgent(Agent):
     @abstractmethod
     def query_hourly_historical(self, location, start_date, end_date):
         """
-        Abstract method for sending/receiving requests for forecast weather data from an api service
+        Abstract method for sending/receiving requests for forecast weather
+        data from an api service
         :param location: location for which to query the remote api
-        :param start_date: timestamp indicating the start of a historical period for which to query the api
-        :param end_date: timestamp indicating the end of a historical period for which to query the api
-        :return: list of dictionaries containing historical weather data corresponding to a historical timestamp
+        :param start_date: timestamp indicating the start of a historical
+        period for which to query the api
+        :param end_date: timestamp indicating the end of a historical period
+        for which to query the api
+        :return: list of dictionaries containing historical weather data
+        corresponding to a historical timestamp
         """
 
     def poll_for_locations(self):
         """
-        Called periodically by core.period to get_current_weather with the agent's polling_locations list as a
-        parameter. Publishes to the corresponding entry in the agent's poll_topic_suffixes, or to /all if none
+        Called periodically by core.period to get_current_weather with the
+        agent's polling_locations list as a
+        parameter. Publishes to the corresponding entry in the agent's
+        poll_topic_suffixes, or to /all if none
         are specified.
         """
         _log.debug("polling for locations")
@@ -809,9 +862,12 @@ class BaseWeatherAgent(Agent):
 
     def publish_response(self, topic, publish_item):
         """
-        Publishes a response with the correct headers and topic to the Volttron message bus.
-        :param topic: topic string to send with the message bus publish for the message
-        :param publish_item: message contents to be sent in the message bus publish.
+        Publishes a response with the correct headers and topic to the
+        Volttron message bus.
+        :param topic: topic string to send with the message bus publish for
+        the message
+        :param publish_item: message contents to be sent in the message bus
+        publish.
         """
         publish_headers = {
             HEADER_NAME_DATE: format_timestamp(get_aware_utc_now()),
@@ -822,13 +878,15 @@ class BaseWeatherAgent(Agent):
 
     def manage_unit_conversion(self, from_units, value, to_units):
         """
-        Used to convert units from a query response to the expected standardized units
+        Used to convert units from a query response to the expected
+        standardized units
         :param from_units: pint formatted unit string for the current value
         :param value: magnitude of a measurement prior to conversion
         :param to_units: pint formatted unit string for the output value
         :return: magnitude of measurement in the desired units
         """
-        if self.unit_registry.parse_expression(from_units) == self.unit_registry.parse_expression(to_units):
+        if self.unit_registry.parse_expression(
+                from_units) == self.unit_registry.parse_expression(to_units):
             return value
         else:
             starting_quantity = self.unit_registry.Quantity(value, from_units)
@@ -838,35 +896,52 @@ class BaseWeatherAgent(Agent):
     def get_cached_historical_data(self, request_name, location,
                                    date_timestamp):
         """
-        Utility method to retrieve cached historical data without direct interface with the cache.
-        :param request_name: name of the api service function for which to retrieve cached data.
+        Utility method to retrieve cached historical data without direct
+        interface with the cache.
+        :param request_name: name of the api service function for which to
+        retrieve cached data.
         :param location: location of the weather data to return
         :param date_timestamp: date for which to retrieve cached data.
-        :return: list of dictionaries of historical weather data for the date and location.
+        :return: list of dictionaries of historical weather data for the date
+        and location.
         """
-        return self._cache.get_historical_data(request_name, json.dumps(location),
+        return self._cache.get_historical_data(request_name,
+                                               json.dumps(location),
                                                date_timestamp)
 
     def store_weather_records(self, service_name, records):
         """
-        Generically stores weather records returned from the api into the corresponding service table in the cache
+        Generically stores weather records returned from the api into the
+        corresponding service table in the cache
         database.
-        :param service_name: name of the api service function, for which records will be put into the corresponding
+        :param service_name: name of the api service function, for which
+        records will be put into the corresponding
         table.
         :param records: list of records to put into the insert query.
         """
         cache_full = self._cache.store_weather_records(service_name, records)
         if cache_full:
-            self.vip.health.set_status(STATUS_BAD, "Weather agent cache is full")
+            self.vip.health.set_status(STATUS_BAD,
+                                       "Weather agent cache is full")
             status = Status.from_json(self.vip.health.get_status_json())
             self.vip.health.send_alert("cache_full", status)
+
+    @Core.receiver("onstart")
+    def starting(self, sender, **kwargs):
+        for service_name in self._api_services:
+            if not self._api_services[service_name]["type"] == "history":
+                interval = self.get_update_interval(service_name)
+                if interval:
+                    self.set_update_interval(service_name, interval)
+            description = self.get_api_description(service_name)
+            if description:
+                self.set_api_description(service_name, description)
 
     @Core.receiver("onstop")
     def stopping(self, sender, **kwargs):
         self._cache.close()
 
 
-# TODO docs
 class WeatherCache:
     """Caches data to help reduce the number of requests to the API"""
 
@@ -878,10 +953,13 @@ class WeatherCache:
         """
 
         :param service_name: Name of the weather service (i.e. weather.gov)
-        :param api_services: dictionary from BaseAgent, used to determine table names
-        :param max_size_gb: maximum size in gigabytes of the sqlite database file, useful for deployments with limited
+        :param api_services: dictionary from BaseAgent, used to determine
+        table names
+        :param max_size_gb: maximum size in gigabytes of the sqlite database
+        file, useful for deployments with limited
         storage capacity
-        :param check_same_thread: True to allow multiple threads to connect to the sqlite object, else false (see
+        :param check_same_thread: True to allow multiple threads to connect
+        to the sqlite object, else false (see
         https://docs.python.org/3/library/sqlite3.html)
         """
         self._service_name = service_name
@@ -898,7 +976,8 @@ class WeatherCache:
     def _setup_cache(self, check_same_thread):
         """
         Prepares the cache to begin processing weather data
-        :param check_same_thread: True to allow multiple threads to connect to the sqlite object, else false (see
+        :param check_same_thread: True to allow multiple threads to connect
+        to the sqlite object, else false (see
         https://docs.python.org/3/library/sqlite3.html)
         """
         _log.debug("Setting up backup DB.")
@@ -907,7 +986,8 @@ class WeatherCache:
             self._db_file_path,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
             check_same_thread=check_same_thread)
-        _log.info("connected to database {} sqlite version: {}".format(self._service_name, sqlite3.version))
+        _log.info("connected to database {} sqlite version: {}".format(
+            self._service_name, sqlite3.version))
         self.create_tables()
         cursor = self._sqlite_conn.cursor()
         if self._max_size_gb is not None:
@@ -920,7 +1000,8 @@ class WeatherCache:
 
     def create_tables(self):
         """
-        Creates the necessary tables for the weather agent's services and ensures proper structure.
+        Creates the necessary tables for the weather agent's services and
+        ensures proper structure.
         """
         cursor = self._sqlite_conn.cursor()
         for service_name in self._api_services:
@@ -929,9 +1010,11 @@ class WeatherCache:
             try:
                 table_type = self._api_services[service_name]["type"]
                 if table_type == "forecast":
-                    create_table = CREATE_STMT_FORECAST.format(table=service_name)
+                    create_table = CREATE_STMT_FORECAST.format(
+                        table=service_name)
                 elif table_type == "current" or table_type == "history":
-                    create_table = CREATE_STMT_CURRENT.format(table=service_name)
+                    create_table = CREATE_STMT_CURRENT.format(
+                        table=service_name)
                 else:
                     raise ValueError("Invalid table type {} "
                                      "for table {}.".format(table_type,
@@ -952,8 +1035,10 @@ class WeatherCache:
     def validate_and_fix_cache_tables(self, service_name, table_type):
         """
         Ensures that the proper columns are in the service's table.
-        :param service_name: api service function name to be used as the table name
-        :param table_type: indicates the expected columns for the service (must be forecast, history, or current)
+        :param service_name: api service function name to be used as the
+        table name
+        :param table_type: indicates the expected columns for the service (
+        must be forecast, history, or current)
         """
         if table_type == "forecast":
             expected_columns = ["ID", "LOCATION", "GENERATION_TIME",
@@ -974,9 +1059,11 @@ class WeatherCache:
                 _log.debug(delete_query)
                 create_table = ""
                 if table_type == "forecast":
-                    create_table = CREATE_STMT_FORECAST.format(table=service_name)
+                    create_table = CREATE_STMT_FORECAST.format(
+                        table=service_name)
                 elif table_type == "current" or table_type == "history":
-                    create_table = CREATE_STMT_CURRENT.format(table=service_name)
+                    create_table = CREATE_STMT_CURRENT.format(
+                        table=service_name)
                 if len(create_table):
                     _log.debug(create_table)
                     cursor.execute(create_table)
@@ -1009,11 +1096,13 @@ class WeatherCache:
 
     def get_forecast_data(self, service_name, location, hours, request_time):
         """
-        Retrieves the most recent forecast record set (forecast should be a time-series) by location
+        Retrieves the most recent forecast record set (forecast should be a
+        time-series) by location
         :param service_name: name of the api service for table lookup
         :param location: location to query by
         :param hours: number of hours (records) to query for
-        :param request_time: time at which the data was requested, used to compare with generation time.
+        :param request_time: time at which the data was requested, used to
+        compare with generation time.
         :return: list of up-to-date forecast records for the location
         """
         try:
@@ -1055,9 +1144,13 @@ class WeatherCache:
         :return: list of historical records for the provided date/location
         """
         start_timestamp = date_timestamp
-        end_timestamp = date_timestamp + (datetime.timedelta(days=1) - datetime.timedelta(milliseconds=1))
+        end_timestamp = date_timestamp + (
+                    datetime.timedelta(days=1) - datetime.timedelta(
+                milliseconds=1))
         if service_name not in self._api_services:
-            raise ValueError("service {} does not exist in the agent's services.".format(service_name))
+            raise ValueError(
+                "service {} does not exist in the agent's services.".format(
+                    service_name))
         try:
             cursor = self._sqlite_conn.cursor()
             query = """SELECT OBSERVATION_TIME, POINTS 
@@ -1071,13 +1164,16 @@ class WeatherCache:
             cursor.close()
             return data
         except sqlite3.Error as e:
-            _log.error("Error fetching historical data from cache: {}".format(e))
+            _log.error(
+                "Error fetching historical data from cache: {}".format(e))
 
     def store_weather_records(self, service_name, records):
         """
         Request agnostic method to store weather records in the cache.
-        :param service_name: name of the api service to use as a table name for record storage
-        :param records: expects a list of records (as lists) formatted to match tables
+        :param service_name: name of the api service to use as a table name
+        for record storage
+        :param records: expects a list of records (as lists) formatted to
+        match tables
         :return: boolean value representing whether or not the cache is full
         """
         cursor = self._sqlite_conn.cursor()
@@ -1112,7 +1208,8 @@ class WeatherCache:
 
     def page_count(self, cursor):
         """
-        Gets the number of pages written to in the database for memory management purposes.
+        Gets the number of pages written to in the database for memory
+        management purposes.
         :param cursor: Cache's cursor object used for querying
         :return: number of pages currently written to in the cache database
         """

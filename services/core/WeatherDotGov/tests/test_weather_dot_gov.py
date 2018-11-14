@@ -77,8 +77,10 @@ def cleanup_cache(volttron_instance, query_agent, weather):
     tables = ["get_current_weather", "get_hourly_forecast"]
     cwd = volttron_instance.volttron_home
     version = query_agent.vip.rpc.call(identity, 'get_version').get(timeout=3)
-    data_dir = cwd + "/agents/" + weather + "/weatherdotgov_agent-" + version + \
-        "/weatherdotgov-agent-" + version + ".agent-data/"
+    data_dir = cwd + "/agents/" + weather + "/weatherdotgov_agent-" + version\
+               + \
+               "/weatherdotgov-agent-" + version + ".agent-data/"
+    _log.debug(data_dir)
     database_file = data_dir + "WeatherDotGov.sqlite"
     sqlite_connection = sqlite3.connect(database_file)
     cursor = sqlite_connection.cursor()
@@ -125,6 +127,7 @@ def weather(request, volttron_instance):
         config_file=request.param)
 
     volttron_instance.start_agent(agent)
+    gevent.sleep(3)
 
     def stop_agent():
         print("stopping weather service")
@@ -147,7 +150,8 @@ def test_success_current(cleanup_cache, weather, query_agent, locations):
     :param weather: instance of weather service to be tested
     :param query_agent: agent to leverage to use RPC calls
     """
-    query_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
+    query_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
+                                          locations).get(timeout=30)
     print(query_data)
     assert len(query_data) == len(locations)
     for record in query_data:
@@ -160,16 +164,19 @@ def test_success_current(cleanup_cache, weather, query_agent, locations):
             assert isinstance(results, dict)
         else:
             results = record.get("weather_error")
-            if results.startswith("Remote API returned no data"):
-                assert True
-            elif results.startswith("Remote API redirected request, but redirect failed"):
-                assert True
-            elif results.startswith("Remote API request failed to return a valid response"):
+            if results.startswith("Remote API returned no data") or \
+                    results.startswith("Remote API redirected request, "
+                                       "but redirect failed") \
+                    or results.startswith("Remote API request "
+                                          "failed to return a valid response")\
+                    or results.startswith("API request failed with unexpected "
+                                          "response"):
                 assert True
             else:
                 assert False
 
-    cache_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
+    cache_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
+                                          locations).get(timeout=30)
 
     # check names returned are valid
     assert len(cache_data) == len(cache_data)
@@ -185,10 +192,12 @@ def test_success_current(cleanup_cache, weather, query_agent, locations):
     ()
 ])
 def test_current_fail(weather, query_agent, locations):
-    query_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
+    query_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
+                                          locations).get(timeout=30)
     for record in query_data:
         error = record.get("location_error")
-        assert error.startswith("Invalid location format.") or error.startswith("Invalid location")
+        assert error.startswith("Invalid location format.") or error.startswith(
+            "Invalid location")
         assert record.get("weather_results") is None
 
 
@@ -211,21 +220,24 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
     assert len(query_data) == len(locations)
     for x in range(0, len(query_data)):
         location_data = query_data[x]
-        assert location_data.get("generation_time")
         assert (location_data.get("lat") and location_data.get("long")) or \
-               (location_data.get("wfo") and location_data.get("x") and location_data.get("y"))
+               (location_data.get("wfo") and location_data.get(
+                   "x") and location_data.get("y"))
         results = location_data.get("weather_results")
         error = location_data.get("weather_error")
         if error and not results:
-            if error.startswith("API request success, no data returned"):
-                assert results.startswith("API request success, no data returned")
-            elif error.startswith("API redirected, but requests did not reach the intended location"):
-                assert results.startswith("API redirected, but requests did not reach the intended location")
-            elif error.startswith("API request to server failed"):
-                assert results.startswith("API request to server failed")
+            if error.startswith("Remote API returned no data") \
+                    or error.startswith("Remote API redirected request, but "
+                                        "redirect failed") \
+                    or error.startswith("Remote API request failed to return a "
+                                        "valid response") \
+                    or error.startswith("API request failed with "
+                                        "unexpected response"):
+                assert True
             else:
                 assert False
         if results:
+            assert location_data.get("generation_time")
             for record in results:
                 forecast_time = utils.parse_timestamp_string(record[0])
                 assert isinstance(forecast_time, datetime)
@@ -237,12 +249,17 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
     for x in range(0, len(cache_data)):
         query_location_data = query_data[x]
         cache_location_data = cache_data[x]
-        assert cache_location_data.get("generation_time") == query_location_data.get("generation_time")
+        assert cache_location_data.get(
+            "generation_time") == query_location_data.get("generation_time")
         if cache_location_data.get("lat") and cache_location_data.get("long"):
-            assert cache_location_data.get("lat") == query_location_data.get("lat")
-            assert cache_location_data.get("long") == query_location_data.get("long")
-        elif cache_location_data.get("wfo") and cache_location_data.get("x") and cache_location_data.get("y"):
-            assert cache_location_data.get("wfo") == query_location_data.get("wfo")
+            assert cache_location_data.get("lat") == query_location_data.get(
+                "lat")
+            assert cache_location_data.get("long") == query_location_data.get(
+                "long")
+        elif cache_location_data.get("wfo") and cache_location_data.get(
+                "x") and cache_location_data.get("y"):
+            assert cache_location_data.get("wfo") == query_location_data.get(
+                "wfo")
             assert cache_location_data.get("x") == query_location_data.get("x")
             assert cache_location_data.get("y") == query_location_data.get("y")
         else:
@@ -261,12 +278,14 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
                     assert cache_result[1][key] == result[1][key]
         else:
             results = cache_location_data.get("weather_error")
-            if results.startswith("API request success, no data returned"):
-                assert results.startswith("API request success, no data returned")
-            elif results.startswith("API redirected, but requests did not reach the intended location"):
-                assert results.startswith("API redirected, but requests did not reach the intended location")
-            elif results.startswith("API request to server failed"):
-                assert results.startswith("API request to server failed")
+            if results.startswith("Remote API returned no data") \
+                    or results.startswith("Remote API redirected request, but "
+                                          "redirect failed") \
+                    or results.startswith("Remote API request failed to "
+                                          "return a valid response") \
+                    or results.startswith("API request failed with unexpected "
+                                          "response"):
+                assert True
             else:
                 assert False
 
