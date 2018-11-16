@@ -36,9 +36,9 @@
          comments []:
          enabled [True]:
 
-    4. With a volttron activated shell this script can be run like:
+      4. With a volttron activated shell this script can be run like:
 
-       python standalonelistener.py
+         python standalonelistener.py
 
 
     Example output to standard out:
