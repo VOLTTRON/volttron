@@ -1,44 +1,45 @@
 '''
 
-    1. Make sure volttron instance is running using tcp address. use vcfg
-    command to configure volttron instance address,.
+    This python script will listen to the defined vip address for specific
+    topics. This script prints all output to standard  out rather than using the
+    logging facilities. This script will also publish a heart beat
+    (which will be returned if listening to the heartbeat topic).
 
-    2. Update settings.py
+    Setup:
+    ~~~~~
 
-    3. Add this standalone agent to volttron auth entry using vctl auth add
-    command. Provide ip of the volttron instance when prompted for address[]:
-    and  provide public key of standalone agent when prompted for
-    credentials[]:
-    For more details see
-    https://volttron.readthedocs.io/en/develop/devguides/walkthroughs/Agent-Authentication-Walkthrough.html
+      1. Make sure volttron instance is running using tcp address. use vcfg
+         command to configure volttron instance address,.
 
-    Example command:
+      2. Update settings.py
 
-    (volttron)[vdev@cs_cbox myvolttron]$ vctl auth add
-    domain []:
-    address []: 127.0.0.1
-    user_id []:
-    capabilities (delimit multiple entries with comma) []:
-    roles (delimit multiple entries with comma) []:
-    groups (delimit multiple entries with comma) []:
-    mechanism [CURVE]:
-    credentials []: GsEq7mIsU6mJ31TN44lQJeGwkJlb6_zbWgRxVo2gUUU
-    comments []:
-    enabled [True]:
+      3. Add this standalone agent to volttron auth entry using vctl auth add
+         command. Provide ip of the volttron instance when prompted for
+         address[]: and  provide public key of standalone agent when prompted
+         for credentials[]:
+         For more details see
+         https://volttron.readthedocs.io/en/develop/devguides/walkthroughs/Agent-Authentication-Walkthrough.html
+
+         Example command:
+
+         .. code-block:: console
+
+         (volttron)[vdev@cs_cbox myvolttron]$ vctl auth add
+         domain []:
+         address []: 127.0.0.1
+         user_id []:
+         capabilities (delimit multiple entries with comma) []:
+         roles (delimit multiple entries with comma) []:
+         groups (delimit multiple entries with comma) []:
+         mechanism [CURVE]:
+         credentials []: GsEq7mIsU6mJ31TN44lQJeGwkJlb6_zbWgRxVo2gUUU
+         comments []:
+         enabled [True]:
 
     4. With a volttron activated shell this script can be run like:
 
        python standalonelistener.py
 
-
-    This python script will listen to the defined vip address for specific
-    topics.
-
-    This script prints all output to standard  out rather than using the
-    logging facilities.
-
-    This script will also publish a heart beat (which will be returned if
-    listening to the heartbeat topic).
 
     Example output to standard out:
 
