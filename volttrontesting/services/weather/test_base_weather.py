@@ -88,8 +88,10 @@ def query_agent(request, volttron_instance):
 
 
 class BasicWeatherAgent(BaseWeatherAgent):
-    """An implementation of the BaseWeatherAgent to test basic method functionality.
-    Each RPC method will be tested by implementing them in a fashion that tests the expected behaviors, minus querying
+    """An implementation of the BaseWeatherAgent to test basic method
+    functionality.
+    Each RPC method will be tested by implementing them in a fashion that
+    tests the expected behaviors, minus querying
     a particular api (essentially testing the cache functionality)."""
 
     def __init__(self, **kwargs):
@@ -111,7 +113,8 @@ class BasicWeatherAgent(BaseWeatherAgent):
         records = []
         current_time = datetime.datetime.utcnow()
         for x in range(0, 3):
-            record = [format_timestamp(current_time + datetime.timedelta(hours=(x + 1))),
+            record = [format_timestamp(
+                current_time + datetime.timedelta(hours=(x + 1))),
                       {'points': FAKE_POINTS}
                       ]
             records.append(record)
@@ -136,7 +139,8 @@ class BasicWeatherAgent(BaseWeatherAgent):
             return "returns fake hourly historical data"
 
     def validate_location(self, service_name, location):
-        if service_name == "get_current_weather" or service_name == "get_hourly_forecast":
+        if service_name == "get_current_weather" or service_name == \
+                "get_hourly_forecast":
             if isinstance(location, dict) and "location" in location \
                     and location["location"].startswith("fake_location"):
                 return True
@@ -190,7 +194,8 @@ def test_create_tables(weather):
         for row in table_info:
             table_columns.append(row[1])
         if weather._api_services[table]["type"] == "forecast":
-            for column in ["ID", "LOCATION", "GENERATION_TIME", "FORECAST_TIME", "POINTS"]:
+            for column in ["ID", "LOCATION", "GENERATION_TIME", "FORECAST_TIME",
+                           "POINTS"]:
                 assert column in table_columns
         else:
             for column in ["ID", "LOCATION", "OBSERVATION_TIME", "POINTS"]:
@@ -255,32 +260,41 @@ def test_manage_cache_size(volttron_instance):
     ("test_register_forecast", datetime.timedelta(hours=1), "forecast"),
     ("test_register_history", None, "history"),
 ])
-def test_register_service_success(weather, service_name, interval, service_type):
+def test_register_service_success(weather, service_name, interval,
+                                  service_type):
     weather.register_service(service_name, interval, service_type)
     assert weather._api_services.get(service_name)
     if service_type == "history":
-        assert weather._api_services.get(service_name)["update_interval"] is None
+        assert weather._api_services.get(service_name)[
+                   "update_interval"] is None
     else:
-        assert isinstance(weather._api_services.get(service_name)["update_interval"], datetime.timedelta)
+        assert isinstance(
+            weather._api_services.get(service_name)["update_interval"],
+            datetime.timedelta)
     assert weather._api_services.get(service_name)["type"] == service_type
     assert weather._api_services.get(service_name)["description"] is None
 
 
 @pytest.mark.weather2
-@pytest.mark.parametrize("service_name, interval, service_type, description, failure_string", [
-    ("test_register_current", None, "current", None,
-     "Interval must be a valid datetime timedelta object."),
-    ("test_register_current", datetime.timedelta(hours=1), "bad_service_type", None,
-     "Invalid service type. It should be history, current, or forecast"),
-    ("test_register_history", datetime.timedelta(hours=1), "history", None,
-     "History object does not utilize an interval."),
-    ("test_register", datetime.timedelta(hours=1), "current", 1,
-     "description is expected as a string describing the service function's usage.")
-])
-def test_register_service_fail(weather, service_name, interval, service_type, description, failure_string):
+@pytest.mark.parametrize(
+    "service_name, interval, service_type, description, failure_string", [
+        ("test_register_current", None, "current", None,
+         "Interval must be a valid datetime timedelta object."),
+        ("test_register_current", datetime.timedelta(hours=1),
+         "bad_service_type", None,
+         "Invalid service type. It should be history, current, or forecast"),
+        ("test_register_history", datetime.timedelta(hours=1), "history", None,
+         "History object does not utilize an interval."),
+        ("test_register", datetime.timedelta(hours=1), "current", 1,
+         "description is expected as a string describing the service "
+         "function's usage.")
+    ])
+def test_register_service_fail(weather, service_name, interval, service_type,
+                               description, failure_string):
     passed = False
     try:
-        weather.register_service(service_name, interval, service_type, description)
+        weather.register_service(service_name, interval, service_type,
+                                 description)
         passed = True
     except ValueError as error:
         error_string = str(error)
@@ -291,12 +305,14 @@ def test_register_service_fail(weather, service_name, interval, service_type, de
 @pytest.mark.weather2
 def test_remove_service_success(weather):
     initial_length = len(weather._api_services)
-    weather.register_service("test", datetime.timedelta(hours=1), "current", None)
+    weather.register_service("test", datetime.timedelta(hours=1), "current",
+                             None)
     weather.remove_service("test")
     assert len(weather._api_services) == initial_length
     weather.remove_service("get_current_weather")
     assert len(weather._api_services) == initial_length - 1
-    weather.register_service("get_current_weather", datetime.timedelta(hours=1), "current", None)
+    weather.register_service("get_current_weather", datetime.timedelta(hours=1),
+                             "current", None)
 
 
 @pytest.mark.weather2
@@ -307,7 +323,8 @@ def test_remove_service_fail(weather, service_name):
         weather.remove_service(service_name)
         passed = True
     except ValueError as error:
-        assert str(error).startswith("service ") and str(error).endswith(" does not exist")
+        assert str(error).startswith("service ") and str(error).endswith(
+            " does not exist")
     assert not passed
 
 
@@ -315,9 +332,11 @@ def test_remove_service_fail(weather, service_name):
 def test_set_api_description_success(weather):
     default_description = weather.get_api_description("get_hourly_historical")
     weather.set_api_description("get_hourly_historical", "test_description")
-    assert weather._api_services["get_hourly_historical"]["description"] is "test_description"
+    assert weather._api_services["get_hourly_historical"][
+               "description"] is "test_description"
     weather.set_api_description("get_hourly_historical", default_description)
-    assert weather._api_services["get_hourly_historical"]["description"] is default_description
+    assert weather._api_services["get_hourly_historical"][
+               "description"] is default_description
 
 
 @pytest.mark.weather2
@@ -343,10 +362,13 @@ def test_set_api_description_fail(weather, service_name, description):
 
 @pytest.mark.weather2
 def test_set_update_interval_success(weather):
-    weather.set_update_interval("get_hourly_forecast", datetime.timedelta(days=1))
-    assert weather._api_services["get_hourly_forecast"]["update_interval"].total_seconds() == \
+    weather.set_update_interval("get_hourly_forecast",
+                                datetime.timedelta(days=1))
+    assert weather._api_services["get_hourly_forecast"][
+               "update_interval"].total_seconds() == \
         datetime.timedelta(days=1).total_seconds()
-    weather.set_update_interval("get_hourly_forecast", datetime.timedelta(hours=1))
+    weather.set_update_interval("get_hourly_forecast",
+                                datetime.timedelta(hours=1))
 
 
 @pytest.mark.weather2
@@ -365,9 +387,11 @@ def test_set_update_interval_fail(weather, service_name, interval):
             error_message = str(error)
             assert error_message.endswith(" not found in api features.")
         elif not isinstance(interval, datetime.timedelta):
-            assert str(error) == "interval must be a valid datetime timedelta object."
+            assert str(
+                error) == "interval must be a valid datetime timedelta object."
         elif weather._api_services[service_name]["type"] == "history":
-            assert str(error) == "historical data does not utilize an update interval."
+            assert str(
+                error) == "historical data does not utilize an update interval."
     assert not passed
 
 
@@ -377,7 +401,8 @@ def test_set_update_interval_fail(weather, service_name, interval):
     ("celsius", 100, "fahrenheit", 212),
     ("pint", 1, "milliliter", 473.176)
 ])
-def test_manage_unit_conversion_success(weather, from_units, start, to_units, end):
+def test_manage_unit_conversion_success(weather, from_units, start, to_units,
+                                        end):
     output = weather.manage_unit_conversion(from_units, start, to_units)
     assert str(output).startswith(str(end))
 
@@ -391,12 +416,14 @@ def test_manage_unit_conversion_success(weather, from_units, start, to_units, en
     ("inch", None, "millimeter", "Invalid magnitude for Quantity: "),
     ("inch", 1, None, "NoneType' object has no attribute 'items'")
 ])
-def test_manage_unit_conversion_fail(weather, from_units, start, to_units, error_string):
+def test_manage_unit_conversion_fail(weather, from_units, start, to_units,
+                                     error_string):
     try:
         weather.manage_unit_conversion(from_units, start, to_units)
     except Exception as error:
         actual_error = str(error)
-        assert actual_error.startswith(error_string) or actual_error.endswith(error_string)
+        assert actual_error.startswith(error_string) or actual_error.endswith(
+            error_string)
 
 
 @pytest.mark.weather2
@@ -442,11 +469,13 @@ def test_get_current_valid_locations(weather, fake_locations):
         time_in_cache = False
         for x in range(0, len(cache_results)):
             for result in results1:
-                if result["observation_time"] == format_timestamp(cache_results[x][2]):
+                if result["observation_time"] == format_timestamp(
+                        cache_results[x][2]):
                     time_in_cache = True
             assert time_in_cache
         # assert results1 and cached data are same
-        assert ujson.loads(cache_results[0][3]) == results1[0]["weather_results"]
+        assert ujson.loads(cache_results[0][3]) == results1[0][
+            "weather_results"]
 
         # update cache before querying again
         cursor.execute("UPDATE get_current_weather SET POINTS = ?",
@@ -456,8 +485,10 @@ def test_get_current_valid_locations(weather, fake_locations):
         # second query - results should be from cache
         results2 = weather.get_current_weather(fake_locations)
         assert len(results2) == len(fake_locations)
-        assert results2[0]["observation_time"] == results1[0]["observation_time"]
-        assert results2[0]["weather_results"]["points"] == {'fake': 'updated cache'}
+        assert results2[0]["observation_time"] == results1[0][
+            "observation_time"]
+        assert results2[0]["weather_results"]["points"] == {
+            'fake': 'updated cache'}
         assert results2[0]["location"] == results1[0]["location"]
 
         # third query  - set update interval so that cache would be marked old
@@ -466,7 +497,8 @@ def test_get_current_valid_locations(weather, fake_locations):
         gevent.sleep(1)
         results3 = weather.get_current_weather(fake_locations)
         assert len(results3) == len(fake_locations)
-        assert results3[0]["observation_time"] != results1[0]["observation_time"]
+        assert results3[0]["observation_time"] != results1[0][
+            "observation_time"]
         for point in results3[0]["weather_results"]["points"]:
             valid_point = False
             for name, map_dict in EXPECTED_OUTPUT_VALUES.iteritems():
@@ -484,9 +516,11 @@ def test_get_current_valid_locations(weather, fake_locations):
         for result in results3:
             time_in_cache = False
             for x in range(0, len(cache_results)):
-                if result["observation_time"] == format_timestamp(cache_results[x][2]):
+                if result["observation_time"] == format_timestamp(
+                        cache_results[x][2]):
                     # assert results1 and cached data are same
-                    assert ujson.loads(cache_results[x][3]) == result["weather_results"]
+                    assert ujson.loads(cache_results[x][3]) == result[
+                        "weather_results"]
                     time_in_cache = True
             assert time_in_cache
 
@@ -508,12 +542,9 @@ def test_get_current_invalid_locations(weather, fake_locations):
     cursor.execute(query)
     conn.commit()
 
-    # results should look like:
-    # [{location, "location_error": []}]
-
     fake_results = weather.get_current_weather(fake_locations)
     for record_set in fake_results:
-        assert record_set.get("location_error")
+        assert record_set.get("weather_error")
     size_query = "SELECT COUNT(*) FROM 'get_current_weather';"
     size = cursor.execute(size_query).fetchone()[0]
     assert size == 0
@@ -526,14 +557,16 @@ def test_get_current_invalid_locations(weather, fake_locations):
     ([{"location": "fake_location1"}, {"location": "fake_location2"}], 2, 0,),
     ([{"loc": "thing"}, "string"], 0, 2)
 ])
-def test_get_current_mixed_locations(weather, locations, expected_passing, expected_errors):
+def test_get_current_mixed_locations(weather, locations, expected_passing,
+                                     expected_errors):
     results = weather.get_current_weather(locations)
     actual_passing = 0
     actual_failing = 0
     for record in results:
-        if record.get("location_error"):
+        if record.get("weather_error") and \
+                record["weather_error"].startswith("Invalid location"):
             actual_failing += 1
-        if record.get("weather_results") or record.get("weather_error"):
+        elif record.get("weather_results") or record.get("weather_error"):
             actual_passing += 1
     assert actual_failing == expected_errors
     assert actual_passing == expected_passing
@@ -576,22 +609,25 @@ def test_get_forecast_valid_locations(weather, fake_locations):
                        (ujson.dumps({"points": {"fake": "updated cache"}}),))
         conn.commit()
 
-        # 2. second query - results should still be got from api since not enough
+        # 2. second query - results should still be got from api since not
+        # enough
         # rows are in cache
         result2 = weather.get_hourly_forecast(fake_locations)
         print result2
         validate_basic_weather_forecast(fake_locations, result2)
 
         # assert result2 and cached data are same
-        query = "SELECT * FROM 'get_hourly_forecast' ORDER BY GENERATION_TIME DESC;"
+        query = "SELECT * FROM 'get_hourly_forecast' " \
+                "ORDER BY GENERATION_TIME DESC;"
         cache_result = cursor.execute(query).fetchall()
         print cache_result
         validate_cache_result_forecast(fake_locations, result2, cache_result)
 
         # 3. third query - results should be from cache. update cache so we know
         # we are getting from cache
-        cursor.execute("UPDATE get_hourly_forecast SET POINTS = ? WHERE "
-                       "GENERATION_TIME= ?",
+        cursor.execute("UPDATE get_hourly_forecast "
+                       "SET POINTS = ? "
+                       "WHERE GENERATION_TIME= ?",
                        (ujson.dumps({"points": {"fake": "updated cache"}}),
                         result2[0]["generation_time"]))
         conn.commit()
@@ -601,9 +637,11 @@ def test_get_forecast_valid_locations(weather, fake_locations):
         validate_basic_weather_forecast(fake_locations, result3, warn=False,
                                         hours=2)
 
-        # 4. fourth query  - set update interval so that cache would be marked old
+        # 4. fourth query  - set update interval so that cache would be
+        # marked old
         # and
-        # set hours to 2 so cache has enough number of records but is out of date
+        # set hours to 2 so cache has enough number of records but is out of
+        # date
 
         weather.set_update_interval("get_hourly_forecast",
                                     datetime.timedelta(seconds=1))
@@ -612,7 +650,8 @@ def test_get_forecast_valid_locations(weather, fake_locations):
         validate_basic_weather_forecast(fake_locations, result4, warn=False,
                                         hours=2)
         # check data got cached again
-        query = "SELECT * FROM 'get_hourly_forecast' ORDER BY GENERATION_TIME DESC;"
+        query = "SELECT * FROM 'get_hourly_forecast' " \
+                "ORDER BY GENERATION_TIME DESC;"
         cache_result = cursor.execute(query).fetchall()
         print cache_result
         validate_cache_result_forecast(fake_locations, result4, cache_result)
@@ -644,11 +683,7 @@ def validate_basic_weather_forecast(locations, result, warn=True, hours=3):
         else:
             assert result[i].get("weather_warn") is None
 
-        in_locations = False
-        for location_dict in locations:
-            if result[i]["location"] == location_dict["location"]:
-                in_locations = True
-        assert in_locations
+        assert result[i]["location"] == location["location"]
         weather_result2 = result[i]["weather_results"]
         assert len(weather_result2) == hours
         assert len(weather_result2[0]) == 2
@@ -656,6 +691,7 @@ def validate_basic_weather_forecast(locations, result, warn=True, hours=3):
             assert isinstance(wr[0], str)
             assert isinstance(wr[1], dict)
             assert wr[1] == weather_result2[0][1]
+        i += 1
 
 
 @pytest.mark.weather2
@@ -673,13 +709,10 @@ def test_get_forecast_fail(weather, fake_locations):
     cursor.execute(query)
     conn.commit()
 
-    # results should look like:
-    # [{location, "location_error": []}]
-
     fake_results = weather.get_hourly_forecast(fake_locations)
     assert len(fake_results) == len(fake_locations)
     for record_set in fake_results:
-        assert record_set.get("location_error")
+        assert record_set.get("weather_error")
     size_query = "SELECT COUNT(*) FROM 'get_hourly_forecast';"
     size = cursor.execute(size_query).fetchone()[0]
     assert size == 0
@@ -693,14 +726,16 @@ def test_get_forecast_fail(weather, fake_locations):
     ([{"location": "fake_location1"}, {"location": "fake_location2"}], 2, 0),
     ([{"fail": "fail"}, {"fail": "fail2"}], 0, 2)
 ])
-def test_hourly_forecast_mixed_locations(weather, locations, expected_passing, expected_errors):
+def test_hourly_forecast_mixed_locations(weather, locations, expected_passing,
+                                         expected_errors):
     results = weather.get_current_weather(locations)
     actual_passing = 0
     actual_failing = 0
     for record in results:
-        if record.get("location_error"):
+        if record.get("weather_error") and \
+                record["weather_error"].startswith("Invalid location"):
             actual_failing += 1
-        if record.get("weather_results") or record.get("weather_error"):
+        elif record.get("weather_results") or record.get("weather_error"):
             actual_passing += 1
     assert actual_failing == expected_errors
     assert actual_passing == expected_passing
@@ -709,7 +744,8 @@ def test_hourly_forecast_mixed_locations(weather, locations, expected_passing, e
 @pytest.mark.xfail
 @pytest.mark.weather2
 @pytest.mark.parametrize("fake_locations, start_date, end_date", [])
-def test_hourly_historical_success(weather, fake_locations, start_date, end_date):
+def test_hourly_historical_success(weather, fake_locations, start_date,
+                                   end_date):
     assert False
 
 
@@ -782,8 +818,6 @@ def test_poll_multiple_locations(volttron_instance, query_agent, config,
     agent = None
     query_agent.poll_callback.reset_mock()
     try:
-        listener = volttron_instance.install_agent(
-            agent_dir="examples/ListenerAgent", start=True)
         agent = volttron_instance.build_agent(
             agent_class=BasicWeatherAgent,
             identity="test_poll_basic2",

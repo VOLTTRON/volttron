@@ -27,7 +27,7 @@
     "--documentation": {
         "help": "Installs requirements for building the documentation",
         "packages": ["sphinx==1.7.2", "mock", "psutil","pymongo",
-            "mysql-connector-python-rf"]
+            "mysql-connector-python-rf", "recommonmark", "sphinx_rtd_theme"]
     },
     "--market": {
         "help": "Installs requirements for the market service",

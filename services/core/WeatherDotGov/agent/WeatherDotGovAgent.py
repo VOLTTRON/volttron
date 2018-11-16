@@ -157,8 +157,8 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             return "Provides current weather observations by station via RPC " \
                    "(Requires {'station': <station id>}"
         elif service_name is "get_hourly_forecast":
-            return "Provides <hours> (optional) hours of forecast predictions " \
-                   "by lat/long or gridpoint location " \
+            return "Provides <hours> (optional) hours of forecast " \
+                   "predictions by lat/long or gridpoint location " \
                    "via RPC (Requires {'wfo': <wfo string>, 'x': <x " \
                    "coordinate>, 'y': <y coordinate>} or" \
                    "{'lat': <latitude>, 'long': <longitude>}"
@@ -167,8 +167,8 @@ class WeatherDotGovAgent(BaseWeatherAgent):
                 "Service {} is not implemented by weather.gov.".format(
                     service_name))
 
-    # TODO add docs
-    def get_lat_long_str(self, location_dict):
+    @staticmethod
+    def get_lat_long_str(location_dict):
         """
         Converts a location dictionary using lat/long format into string
         format to be used in a request url.
@@ -179,8 +179,8 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         return "{},{}".format(location_dict.get("lat"),
                               location_dict.get("long"))
 
-    # TODO add docs
-    def get_station_str(self, location_dict):
+    @staticmethod
+    def get_station_str(location_dict):
         """
         Converts a location dictionary using station format into string
         format to be used in a request url.
@@ -190,7 +190,8 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         """
         return location_dict.get("station")
 
-    def get_gridpoints_str(self, location_dict):
+    @staticmethod
+    def get_gridpoints_str(location_dict):
         """
         Converts a location dictionary using gridpoints format into string
         format to be used in a request url.
@@ -250,34 +251,37 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             return False
 
-    def generate_response_error(self, url, response_code):
+    @staticmethod
+    def generate_response_error(url, response_code):
         """
         raises a descriptive runtime error based on the response code
         returned by a service.
+        :param url: actual url used for requesting data from weather.gov
         :param response_code: Http response code returned by a service
         following a request
         """
         code_x100 = int(response_code / 100)
         if code_x100 == 2:
             raise RuntimeError(
-                "Remote API returned no data(code {})".format(response_code))
+                "Remote API returned no data(code:{}, url:{})".format(
+                    response_code, url))
         elif code_x100 == 3:
             raise RuntimeError(
-                "Remote API redirected request, but redirect failed (code {})"
-                    .format(response_code))
+                "Remote API redirected request, "
+                "but redirect failed (code:{}, url:{})".format(response_code,
+                                                               url))
         elif code_x100 == 4:
             raise RuntimeError(
-                "Invalid request from agent to {} (Code {}".format(url,
-                                                                   response_code))
+                "Invalid request ({}) Remote API returned "
+                " Code {}".format(url, response_code))
         elif code_x100 == 5:
             raise RuntimeError(
-                "Remote API request failed to return a valid response (code {"
-                "})".format(
-                    response_code))
+                "Remote API returned invalid response "
+                "(code:{}, url:{})".format(response_code, url))
         else:
             raise RuntimeError(
-                "API request failed with unexpected response code (code {})"
-                .format(response_code))
+                "API request failed with unexpected response "
+                "code (code:{}, url:{})".format(response_code, url))
 
     @doc_inherit
     def query_current_weather(self, location):
@@ -323,9 +327,8 @@ class WeatherDotGovAgent(BaseWeatherAgent):
                 formatted_location)
         elif location.get("wfo") and location.get("x") and location.get("y"):
             formatted_location = self.get_gridpoints_str(location)
-            url = "https://api.weather.gov/gridpoints/{" \
-                  "}/forecast/hourly".format(
-                formatted_location)
+            url = "https://api.weather.gov/" \
+                  "gridpoints/{}/forecast/hourly".format(formatted_location)
         else:
             raise ValueError("Improperly formatted station ID was passed.")
         _log.debug("Request Url: {}".format(url))

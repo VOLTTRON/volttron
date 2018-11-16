@@ -78,8 +78,7 @@ def cleanup_cache(volttron_instance, query_agent, weather):
     cwd = volttron_instance.volttron_home
     version = query_agent.vip.rpc.call(identity, 'get_version').get(timeout=3)
     data_dir = cwd + "/agents/" + weather + "/weatherdotgov_agent-" + version\
-               + \
-               "/weatherdotgov-agent-" + version + ".agent-data/"
+        + "/weatherdotgov-agent-" + version + ".agent-data/"
     _log.debug(data_dir)
     database_file = data_dir + "WeatherDotGov.sqlite"
     sqlite_connection = sqlite3.connect(database_file)
@@ -167,8 +166,8 @@ def test_success_current(cleanup_cache, weather, query_agent, locations):
             if results.startswith("Remote API returned no data") or \
                     results.startswith("Remote API redirected request, "
                                        "but redirect failed") \
-                    or results.startswith("Remote API request "
-                                          "failed to return a valid response")\
+                    or results.startswith("Remote API returned invalid "
+                                          "response")\
                     or results.startswith("API request failed with unexpected "
                                           "response"):
                 assert True
@@ -195,7 +194,7 @@ def test_current_fail(weather, query_agent, locations):
     query_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
                                           locations).get(timeout=30)
     for record in query_data:
-        error = record.get("location_error")
+        error = record.get("weather_error")
         assert error.startswith("Invalid location format.") or error.startswith(
             "Invalid location")
         assert record.get("weather_results") is None
@@ -204,6 +203,7 @@ def test_current_fail(weather, query_agent, locations):
 @pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
     [{"lat": 39.7555, "long": -105.2211}],
+    [{"lat": 39.0693, "long": -94.6716}],
     [{"wfo": 'BOU', 'x': 54, 'y': 62}],
     [{"wfo": 'BOU', 'x': 54, 'y': 62}, {"lat": 39.7555, "long": -105.2211}],
     []
@@ -217,6 +217,7 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
     print(datetime.utcnow())
     query_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
                                           locations, hours=2).get(timeout=30)
+    # print(query_data)
     assert len(query_data) == len(locations)
     for x in range(0, len(query_data)):
         location_data = query_data[x]
@@ -229,8 +230,8 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
             if error.startswith("Remote API returned no data") \
                     or error.startswith("Remote API redirected request, but "
                                         "redirect failed") \
-                    or error.startswith("Remote API request failed to return a "
-                                        "valid response") \
+                    or error.startswith("Remote API returned invalid "
+                                        "response") \
                     or error.startswith("API request failed with "
                                         "unexpected response"):
                 assert True
@@ -281,8 +282,8 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
             if results.startswith("Remote API returned no data") \
                     or results.startswith("Remote API redirected request, but "
                                           "redirect failed") \
-                    or results.startswith("Remote API request failed to "
-                                          "return a valid response") \
+                    or results.startswith("Remote API returned invalid "
+                                          "response") \
                     or results.startswith("API request failed with unexpected "
                                           "response"):
                 assert True
@@ -301,7 +302,7 @@ def test_hourly_forecast_fail(weather, query_agent, locations):
     query_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
                                           locations).get(timeout=30)
     for record in query_data:
-        error = record.get("location_error")
+        error = record.get("weather_error")
         if error.startswith("Invalid location format."):
             assert error.startswith("Invalid location format.")
         elif error.startswith("Invalid location"):

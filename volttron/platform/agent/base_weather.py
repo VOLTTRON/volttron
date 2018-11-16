@@ -227,19 +227,19 @@ class BaseWeatherAgent(Agent):
         :param service_name: name of the api service the dictionary is
         intended to be used for.
         :param location: location dictionary to be validated
-        :return: location dictionary, includes "location_error" if the
-        location is somehow invalid.
+        :return: location dictionary, includes "weather_error" if the
+        location is invalid.
         """
         record_dict = None
         if not isinstance(location, dict):
             record_dict = {"location": location,
-                           "location_error": "Invalid location format. "
+                           "weather_error": "Invalid location format. "
                                              "Location should be  "
                                              "specified as a dictionary"}
 
         elif not self.validate_location(service_name, location):
             record_dict = location.copy()
-            record_dict["location_error"] = "Invalid location"
+            record_dict["weather_error"] = "Invalid location"
         return record_dict
 
     @abstractmethod
@@ -489,7 +489,37 @@ class BaseWeatherAgent(Agent):
         Will provide cached data for efficiency if
         available.
         :param locations: List of location dictionary objects.
-        :return: list of dictionaries containing weather data for each location
+        :return: list of dictionaries containing weather data for each location.
+                 result dictionary would contain all location details passed
+                 as input. Weather data results  will be returned in the key
+                 'weather_results'. In case of errors, error message will be
+                 in the key 'weather_error'.
+
+                 For example:
+                 Input: [{"zipcode":"99353"}, {"zipcode":"invalid zipcode"},
+                         {"zipcode":"99354"}]
+                 Output:
+                 [{'observation_time': '2018-11-15T20:53:00.000000+00:00',
+                   'zipcode': '99353',
+                   'weather_results':
+                       { 'dew_point_temperature': -6.099999999999966,
+                         'wind_speed_of_gust': {'qualityControl': 'qc:Z',
+                                              'unitCode': 'unit:m_s-1',
+                                              'value': None
+                                              },
+                         'textDescription': 'Mostly Cloudy',
+                         'timestamp': '2018-11-15T20:53:00+00:00'
+                         }
+                   },
+                  {'zipcode': 'invalid zipcode',
+                    'weather_error': "Invalid location"
+                   },
+                  {'zipcode': '99354',
+                   'weather_error': 'Remote API returned
+                                     invalid response (code 500)'
+                   }
+                 ]
+
         """
         result = []
         for location in locations:
@@ -592,8 +622,63 @@ class BaseWeatherAgent(Agent):
         weather data
         :param hours: number of hours worth of weather data to return for the
         request
-        :return: list of dictionaries containing weather data for each
-        corresponding location
+        :return: list of dictionaries containing weather data for each location.
+                 result dictionary would contain all location details passed
+                 as input in addition to results. Weather data results  will be
+                 returned in the key  'weather_results'. value of
+                 'weather_results' will be in the format
+                 [[<forecast time>, <dictionary of data returned for
+                 that forecast time>], [<forecast time>, <dictionary of data
+                 returned for that forecast time],...]
+                 If the weather api did not return the requested number of
+                 records, in addition to 'weather_results' there will also be a
+                 'weather_warn' key.
+                 In case of errors, error message will be in the key
+                 'weather_error'.
+
+
+                 For example:
+                 Input: [{'lat': 39.0693, 'long': -94.6716},
+                         {"zipcode":"invalid location. say only lat/long
+                         allowed for forecast"}]
+                 Output:
+
+                 [
+                     #Result for first location
+                     {'lat': 39.0693,
+                       'generation_time': '2018-11-15T22:00:38.000000+00:00',
+                      'weather_results':
+                           [
+                               [ '2018-11-15T17:00:00-06:00',
+                                 {u'': None, 'wind_speed':'6 mph', 'name': u'',
+                                  'temperatureUnit': 'F', 'number': 2,
+                                  'detailedForecast': u'', 'isDaytime': True,
+                                  'air_temperature': 44,
+                                  'startTime': '2018-11-15T17:00:00-06:00',
+                                  'wind_from_direction': 'SW',
+                                  'endTime': '2018-11-15T18:00:00-06:00',
+                                  'shortForecast': 'Sunny',...
+                                  }
+                               ],
+                               ['2018-11-15T18:00:00-06:00',
+                                 {u'': None, 'wind_speed': '6 mph', 'name': u'',
+                                 'temperatureUnit': 'F', 'number': 3,
+                                 'detailedForecast': u'',
+                                 'startTime': '2018-11-15T18:00:00-06:00',
+                                 'endTime': '2018-11-15T19:00:00-06:00',..
+                                 }
+                               ], ... total = number of hours requested or
+                               defaults to 24 hours.
+                           ],
+                      'long': -94.6716
+                     },
+                     #Result for second location
+                     {"zipcode":"invalid location. say only lat/long
+                         allowed for forecast",
+                      "weather_error": "Invalid location"
+                     }
+                  ]
+
         """
         request_time = get_aware_utc_now()
         result = []
@@ -1146,7 +1231,7 @@ class WeatherCache:
         start_timestamp = date_timestamp
         end_timestamp = date_timestamp + (
                     datetime.timedelta(days=1) - datetime.timedelta(
-                milliseconds=1))
+                        milliseconds=1))
         if service_name not in self._api_services:
             raise ValueError(
                 "service {} does not exist in the agent's services.".format(
@@ -1206,7 +1291,8 @@ class WeatherCache:
 
     # cache management/ lifecycle methods
 
-    def page_count(self, cursor):
+    @staticmethod
+    def page_count(cursor):
         """
         Gets the number of pages written to in the database for memory
         management purposes.
@@ -1258,7 +1344,7 @@ class WeatherCache:
                             query = "DELETE FROM {table} WHERE ID IN " \
                                     "(SELECT ID FROM {table} " \
                                     "ORDER BY ID ASC LIMIT 100)".format(
-                                table=table_name)
+                                        table=table_name)
                             cursor.execute(query)
                             records_deleted += cursor.rowcount
                 if attempt > 2 and records_deleted == 0:
