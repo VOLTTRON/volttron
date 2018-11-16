@@ -39,7 +39,6 @@
 from __future__ import absolute_import, print_function
 
 from contextlib import contextmanager
-from datetime import datetime
 from errno import ENOENT
 import heapq
 import inspect
@@ -50,6 +49,7 @@ import threading
 import time
 import urlparse
 import uuid
+import warnings
 import weakref
 import signal
 
@@ -191,15 +191,12 @@ class BasicCore(object):
             periodics.extend(
                 periodic.get(member) for periodic in annotations(
                     member, list, 'core.periodics'))
-            self._schedule.extend(
-                (deadline, ScheduledEvent(member, args, kwargs))
-                for deadline, args, kwargs in
-                annotations(member, list, 'core.schedule'))
+            for deadline, args, kwargs in annotations(member, list, 'core.schedule'):
+                self.schedule(deadline, member, *args, **kwargs)
             for name in annotations(member, set, 'core.signals'):
                 findsignal(self, owner, name).connect(member, owner)
 
         inspect.getmembers(owner, setup)
-        heapq.heapify(self._schedule)
 
         def start_periodics(sender, **kwargs):  # pylint: disable=unused-argument
             for periodic in periodics:
@@ -227,6 +224,7 @@ class BasicCore(object):
     def run(self, running_event=None):  # pylint: disable=method-hidden
         '''Entry point for running agent.'''
 
+        self._schedule_event = gevent.event.Event()
         self.setup()
         self.greenlet = current = gevent.getcurrent()
 
@@ -264,7 +262,6 @@ class BasicCore(object):
                     cur.link(lambda glt: greenlet.kill())
 
         self._stop_event = stop = gevent.event.Event()
-        self._schedule_event = gevent.event.Event()
         self._async = gevent.get_hub().loop.async()
         self._async.start(handle_async)
         current.link(lambda glt: self._async.stop())
@@ -276,9 +273,10 @@ class BasicCore(object):
         loop = looper.next()
         if loop:
             self.spawned_greenlets.add(loop)
-        scheduler = gevent.spawn(schedule_loop)
+        scheduler = gevent.Greenlet(schedule_loop)
         if loop:
             loop.link(lambda glt: scheduler.kill())
+        self.onstart.connect(lambda *_, **__: scheduler.start())
         if not self.delay_onstart_signal:
             self.onstart.sendby(self.link_receiver, self)
         if not self.delay_running_event_set:
@@ -375,6 +373,11 @@ class BasicCore(object):
 
     @dualmethod
     def periodic(self, period, func, args=None, kwargs=None, wait=0):
+        warnings.warn(
+            'Use of the periodic() method is deprecated in favor of the '
+            'schedule() method with the periodic() generator. This '
+            'method will be removed in a future version.',
+            DeprecationWarning)
         greenlet = Periodic(period, args, kwargs, wait).get(func)
         self.spawned_greenlets.add(greenlet)
         greenlet.start()
@@ -382,6 +385,11 @@ class BasicCore(object):
 
     @periodic.classmethod
     def periodic(cls, period, args=None, kwargs=None, wait=0):  # pylint: disable=no-self-argument
+        warnings.warn(
+            'Use of the periodic() decorator is deprecated in favor of '
+            'the schedule() decorator with the periodic() generator. '
+            'This decorator will be removed in a future version.',
+            DeprecationWarning)
         return Periodic(period, args, kwargs, wait)
 
     @classmethod
@@ -394,11 +402,40 @@ class BasicCore(object):
 
     @dualmethod
     def schedule(self, deadline, func, *args, **kwargs):
-        deadline = utils.get_utc_seconds_from_epoch(deadline)
         event = ScheduledEvent(func, args, kwargs)
-        heapq.heappush(self._schedule, (deadline, event))
-        self._schedule_event.set()
+        try:
+            it = iter(deadline)
+        except TypeError:
+            self._schedule_callback(deadline, event)
+        else:
+            self._schedule_iter(it, event)
         return event
+
+    def _schedule_callback(self, deadline, callback):
+        deadline = utils.get_utc_seconds_from_epoch(deadline)
+        heapq.heappush(self._schedule, (deadline, callback))
+        self._schedule_event.set()
+
+    def _schedule_iter(self, it, event):
+        def wrapper():
+            if event.canceled:
+                event.finished = True
+                return
+            try:
+                deadline = next(it)
+            except StopIteration:
+                event.function(*event.args, **event.kwargs)
+                event.finished = True
+            else:
+                self._schedule_callback(deadline, wrapper)
+                event.function(*event.args, **event.kwargs)
+
+        try:
+            deadline = next(it)
+        except StopIteration:
+            event.finished = True
+        else:
+            self._schedule_callback(deadline, wrapper)
 
     @schedule.classmethod
     def schedule(cls, deadline, *args, **kwargs):  # pylint: disable=no-self-argument

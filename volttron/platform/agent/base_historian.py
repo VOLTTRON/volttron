@@ -352,6 +352,7 @@ class BaseHistorianAgent(Agent):
                  message_publish_count=10000,
                  history_limit_days=None,
                  storage_limit_gb=None,
+                 sync_timestamp=False,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -390,6 +391,7 @@ class BaseHistorianAgent(Agent):
         self.no_insert = False
         self.no_query = False
         self.instance_name = None
+        self._sync_timestamp = sync_timestamp
 
         self._current_status_context = {
             STATUS_KEY_CACHE_COUNT: 0,
@@ -828,7 +830,8 @@ class BaseHistorianAgent(Agent):
                       device):
         # Anon the topic if necessary.
         topic = self.get_renamed_topic(topic)
-        timestamp_string = headers.get(headers_mod.DATE, None)
+        timestamp_string = headers.get(headers_mod.SYNC_TIMESTAMP if self._sync_timestamp else headers_mod.TIMESTAMP,
+                                       headers.get(headers_mod.DATE))
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
             timestamp, my_tz = process_timestamp(timestamp_string, topic)
@@ -1017,17 +1020,17 @@ class BaseHistorianAgent(Agent):
             # We wake the thread after a configuration change by passing a None to the queue.
             # Backup anything new before checking for a stop.
             cache_full = backupdb.backup_new_data((x for x in new_to_publish if x is not None))
-
+            backlog_count = backupdb.get_backlog_count()
             if cache_full:
                 self._send_alert({STATUS_KEY_CACHE_FULL: cache_full,
                                   STATUS_KEY_BACKLOGGED: True,
-                                  STATUS_KEY_CACHE_COUNT: backupdb.get_backlog_count()},
+                                  STATUS_KEY_CACHE_COUNT: backlog_count},
                                  "historian_cache_full")
             else:
                 old_backlog_state = self._current_status_context[STATUS_KEY_BACKLOGGED]
                 self._update_status({STATUS_KEY_CACHE_FULL: cache_full,
                                      STATUS_KEY_BACKLOGGED: old_backlog_state and backlog_count > 0,
-                                     STATUS_KEY_CACHE_COUNT: backupdb.get_backlog_count()})
+                                     STATUS_KEY_CACHE_COUNT: backlog_count})
 
             # Check for a stop for reconfiguration.
             if self._stop_process_loop:
@@ -1043,7 +1046,7 @@ class BaseHistorianAgent(Agent):
 
                 # Check to see if we are caught up.
                 if not to_publish_list:
-                    if self._message_publish_count > 0:
+                    if self._message_publish_count > 0 and next_report_count < current_published_count:
                         _log.info("Historian processed {} total records.".format(current_published_count))
                         next_report_count = current_published_count + self._message_publish_count
                     self._update_status({STATUS_KEY_BACKLOGGED: False,

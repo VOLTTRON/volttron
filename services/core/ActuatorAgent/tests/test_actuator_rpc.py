@@ -44,6 +44,7 @@ from datetime import datetime, timedelta
 import gevent
 import gevent.subprocess as subprocess
 import pytest
+from pytest import approx
 from gevent.subprocess import Popen
 from mock import MagicMock
 
@@ -1321,7 +1322,7 @@ def test_revert_point(publish_agent, cancel_schedules):
         'fakedriver0/SampleWritableFloat1',  # Point to set
         test_value  # New value
     ).get(timeout=10)
-    assert result == test_value
+    assert result == approx(test_value)
 
     publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,  # Target agent
@@ -1336,7 +1337,7 @@ def test_revert_point(publish_agent, cancel_schedules):
         'fakedriver0/SampleWritableFloat1',  # Point to get
     ).get(timeout=10)
     # Value taken from fake_unit_testing.csv
-    assert result == initial_value
+    assert result == approx(initial_value)
 
 @pytest.mark.actuator
 def test_revert_point_with_point(publish_agent, cancel_schedules):
@@ -1385,7 +1386,7 @@ def test_revert_point_with_point(publish_agent, cancel_schedules):
         'fakedriver0',  # Point to set
         test_value, point='SampleWritableFloat1'  # New value
     ).get(timeout=10)
-    assert result == test_value
+    assert result == approx(test_value)
 
     publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,  # Target agent
@@ -1400,7 +1401,7 @@ def test_revert_point_with_point(publish_agent, cancel_schedules):
         'fakedriver0', point='SampleWritableFloat1',  # Point to get
     ).get(timeout=10)
     # Value taken from fake_unit_testing.csv
-    assert result == initial_value
+    assert result == approx(initial_value)
 
 @pytest.mark.actuator
 def test_revert_device(publish_agent, cancel_schedules):
@@ -1449,7 +1450,7 @@ def test_revert_device(publish_agent, cancel_schedules):
         'fakedriver0/SampleWritableFloat1',  # Point to set
         test_value  # New value
     ).get(timeout=10)
-    assert result == test_value
+    assert result == approx(test_value)
 
     publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,  # Target agent
@@ -1464,7 +1465,7 @@ def test_revert_device(publish_agent, cancel_schedules):
         'fakedriver0/SampleWritableFloat1',  # Point to get
     ).get(timeout=10)
     # Value taken from fake_unit_testing.csv
-    assert result == initial_value
+    assert result == approx(initial_value)
 
 
 @pytest.mark.actuator
@@ -1858,7 +1859,7 @@ def test_set_value_no_lock(publish_agent, volttron_instance1):
             'fakedriver0/SampleWritableFloat1',  # Point to set
             6.5  # New value
         ).get(timeout=10)
-        assert result == 6.5
+        assert result == approx(6.5)
 
     finally:
         publish_agent.vip.rpc.call(

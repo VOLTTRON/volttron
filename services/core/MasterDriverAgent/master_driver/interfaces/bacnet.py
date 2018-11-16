@@ -91,18 +91,13 @@ class Interface(BaseInterface):
         self.target_address = config_dict.get("device_address")
         self.device_id = int(config_dict.get("device_id"))
 
-        # Change of value configuration options
-        if 'cov_lifetime' in config_dict:
-            self.cov_lifetime = config_dict.get("cov_lifetime", DEFAULT_COV_LIFETIME)
-        if 'cov_scrape_all' in config_dict:
-            self.cov_scrape_all = config_dict.get("cov_scrape_all", False)
+        self.cov_lifetime = config_dict.get("cov_lifetime", DEFAULT_COV_LIFETIME)
 
         self.proxy_address = config_dict.get("proxy_address", "platform.bacnet_proxy")
 
         self.max_per_request = config_dict.get("max_per_request")
         self.use_read_multiple = config_dict.get("use_read_multiple", True)
         self.timeout = float(config_dict.get("timeout", 30.0))
-
 
         self.ping_retry_interval = timedelta(seconds=config_dict.get("ping_retry_interval", 5.0))
         self.scheduled_ping = None
@@ -181,10 +176,6 @@ class Interface(BaseInterface):
                                               register.property,
                                               register.index]
 
-        if not self.cov_scrape_all:
-            for cov_point in self.cov_points:
-                point_map.pop(cov_point)
-
         while True:
             try:
                 result = self.vip.rpc.call(self.proxy_address, 'read_properties',
@@ -239,7 +230,7 @@ class Interface(BaseInterface):
             point_name = regDef.get('Volttron Point Name')
 
             # checks if the point is flagged for change of value
-            is_cov = regDef.get("COV Flag", 'false').tolower() == "true"
+            is_cov = regDef.get("COV Flag", 'false').lower() == "true"
 
             index = int(regDef.get('Index'))
 
@@ -280,7 +271,6 @@ class Interface(BaseInterface):
 
             self.insert_register(register)
 
-            # populate the list of change of value points based on the flag
             if is_cov:
                 self.cov_points.append(point_name)
 
@@ -293,7 +283,7 @@ class Interface(BaseInterface):
         of the subscription."""
         register = self.get_register_by_name(point_name)
         try:
-            self.vip.rpc.call(self.proxy_address, 'generate_COV_sub', self.target_address,
+            self.vip.rpc.call(self.proxy_address, 'create_COV_subscription', self.target_address,
                               point_name, register.object_type, register.instance_number,
                               lifetime=lifetime)
         except errors.Unreachable:
@@ -301,6 +291,6 @@ class Interface(BaseInterface):
         # Schedule COV resubscribe
         if renew and (lifetime > COV_UPDATE_BUFFER):
             now = datetime.now()
-            next_sub_update = now + (lifetime - COV_UPDATE_BUFFER)
+            next_sub_update = now + timedelta(seconds=(lifetime - COV_UPDATE_BUFFER))
             self.core.schedule(next_sub_update, self.establish_cov_subscription, point_name, lifetime,
                                renew)

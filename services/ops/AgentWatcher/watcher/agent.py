@@ -41,6 +41,7 @@ import logging
 from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent import utils
 from volttron.platform.messaging.health import Status, STATUS_BAD
+from volttron.platform.scheduling import periodic
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -57,7 +58,7 @@ class AgentWatcher(Agent):
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
-        self.core.periodic(self.check_period, self.watch_agents)
+        self.core.schedule(periodic(self.check_period), self.watch_agents)
 
     def watch_agents(self):
         peerlist = self.vip.peerlist().get()

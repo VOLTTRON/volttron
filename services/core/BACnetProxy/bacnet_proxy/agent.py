@@ -114,7 +114,7 @@ task_manager = TaskManager()
 #     def set_exception(self, exception):
 #         self.ioCall.send(None, self.ioResult.set_exception, exception)
 
-class SubscriptionContext:
+class SubscriptionContext(object):
 
     def __init__(self, address, point_name, object_type, instance_number, sub_process_ID, lifetime=None):
 
@@ -128,7 +128,6 @@ class SubscriptionContext:
         self.lifetime = lifetime
 
 class BACnet_application(BIPSimpleApplication, RecurringTask):
-
     def __init__(self, i_am_callback, forward_cov_callback, request_check_interval, *args):
         BIPSimpleApplication.__init__(self, *args)
         RecurringTask.__init__(self, request_check_interval)
@@ -293,6 +292,8 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
 
         elif (isinstance(working_iocb.ioRequest, SubscribeCOVRequest) and
                 isinstance(apdu, SimpleAckPDU)):
+            _log.debug("COV subscription established for {} on {}"
+                       .format(working_iocb.ioRequest.monitoredObjectIdentifer, working_iocb.ioRequest.pduSource))
             working_iocb.set(apdu)
             return
         elif (isinstance(working_iocb.ioRequest, SubscribeCOVRequest) and
@@ -379,22 +380,39 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                                str(apdu.segmentationSupported),
                                apdu.vendorID)
 
+        elif isinstance(apdu, ConfirmedCOVNotificationRequest):
+            # Handling for ConfirmedCOVNotificationRequests. These requests are sent by the
+            # detection object for the point, created when the COV subscription is established
+            # (See COV_Detection class in Bacpypes: https://bacpypes.readthedocs.io/en/latest/modules/service/cov.html).
+            _log.debug("ConfirmedCOVNotificationRequest received from {}".format(apdu.pduSource))
+            point_name = None
+            address = None
+
+            result_dict = {}
+            for element in apdu.listOfValues:
+                property_id = element.propertyIdentifier
+                if not property_id == "statusFlags":
+                    values = []
+                    for tag in element.value.tagList:
+                        values.append(tag.app_to_object().value)
+                    if len(values) == 1:
+                        result_dict[property_id] = values[0]
+                    else:
+                        result_dict[property_id] = values
+
+            if result_dict:
+                context = self.sub_cov_contexts[apdu.subscriberProcessIdentifier]
+                point_name = context.point_name
+                address = context.address
+
+            if point_name and address:
+                self.forward_cov_callback(address, point_name, result_dict)
+            else:
+                _log.debug("Device {} does not have a subscription context.".format(apdu.monitoredObjectIdentifier))
+
         # forward it along
         BIPSimpleApplication.indication(self, apdu)
 
-    def do_ConfirmedCOVNotifcationRequest(self, apdu):
-        """Handler for ConfirmedCOVNoficationRequests. These requests are sent by the detection object for the point,
-        created when the COV subscription is established (See COV_Detection class in Bacpypes:
-        https://bacpypes.readthedocs.io/en/latest/modules/service/cov.html)."""
-        point_name = None
-        for sub in BACnet_application.sub_cov_contexts.itervalues():
-            if apdu.monitoredObjectIdentifier == sub.monitoredObjectIdentifier and apdu.pduSource == sub.address:
-                point_name = sub.point_name
-                break
-        if point_name:
-            self.forward_cov_callback(apdu.pduDestination, point_name, apdu.listOfValues)
-        else:
-            _log.debug("Device {} does not have a subscription context.".format(apdu.monitoredObjectIdentifier))
 
 write_debug_str = ("Writing: {target} {type} {instance} {property} (Priority: "
                    "{priority}, Index: {index}): {value}")
@@ -495,8 +513,8 @@ class BACnetProxyAgent(Agent):
             async_call.send(None, self.i_am, address, device_id, max_apdu_len,
                             seg_supported, vendor_id)
 
-        def forward_cov_callback(pduSource, point_name, point_values):
-            async_call.send(None, self.forward_cov, pduSource, point_name, point_values)
+        def forward_cov_callback(point_name, apdu, result_dict):
+            async_call.send(None, self.forward_cov, point_name, apdu, result_dict)
 
 
         #i_am_callback('foo', 'bar', 'baz', 'foobar', 'foobaz')
@@ -537,10 +555,10 @@ class BACnetProxyAgent(Agent):
         self.vip.pubsub.publish('pubsub', topics.BACNET_I_AM, header,
                                 message=value)
 
-    def forward_cov(self, pduSource, point_name, point_values):
+    def forward_cov(self, address, point_name, result_dict):
         """Called by the BACnet application when a ConfirmedCOVNotification Request is received.
         Publishes the COV to the pubsub through the device's driver agent"""
-        self.vip.rpc.call(PLATFORM_DRIVER, 'forward_bacnet_cov_value', pduSource, point_name, point_values)
+        self.vip.rpc.call(PLATFORM_DRIVER, 'forward_bacnet_cov_value', address, point_name, result_dict)
 
     @RPC.export
     def who_is(self, low_device_id=None, high_device_id=None,
@@ -775,20 +793,30 @@ class BACnetProxyAgent(Agent):
 
     # Called by the BACnet interface to establish a COV subscription with a BACnet device
     @RPC.export
-    def generate_COV_sub(self, target_address, point_name, object_type, instance_number, lifetime=None):
-
-        subscription = SubscriptionContext(target_address, point_name, object_type, instance_number,
-                                           self.this_application.cov_sub_process_ID, lifetime)
-        self.this_application.sub_cov_contexts[self.this_application.cov_sub_process_ID] = subscription
-        self.this_application.cov_sub_process_ID += 1
+    def create_COV_subscription(self, target_address, point_name, object_type, instance_number, lifetime=None):
+        # TODO check that the device supports cov
+        subscription = None
+        for sub in self.this_application.sub_cov_contexts:
+            check_sub = self.this_application.sub_cov_contexts[sub]
+            if check_sub.point_name == point_name and \
+                    check_sub.monitoredObjectIdentifier == (object_type, instance_number):
+                subscription = check_sub
+        if not subscription:
+            subscription = SubscriptionContext(target_address, point_name, object_type, instance_number,
+                                               self.this_application.cov_sub_process_ID, lifetime)
+            self.this_application.sub_cov_contexts[self.this_application.cov_sub_process_ID] = subscription
+            self.this_application.cov_sub_process_ID += 1
         cov_request = SubscribeCOVRequest(
-            subscriberProcessIdentifier=subscription.subscriberProcessIdentifier,
-            monitoredObjectIdentifier=subscription.monitoredObjectIdentifier,
-            issueConfirmedNotifications=True
+             subscriberProcessIdentifier=subscription.subscriberProcessIdentifier,
+             monitoredObjectIdentifier=subscription.monitoredObjectIdentifier,
+             issueConfirmedNotifications=True,
+             lifetime=subscription.lifetime
         )
-        cov_request.pduDestination = subscription.address
+        cov_request.pduDestination = Address(subscription.address)
         iocb = self.iocb_class(cov_request)
         self.this_application.submit_request(iocb)
+        _log.debug("COV subscription sent to device {} for {}".format(target_address, point_name))
+
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''

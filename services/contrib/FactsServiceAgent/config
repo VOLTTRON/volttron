@@ -1,0 +1,32 @@
+{
+  ## Facts Service Parameters
+  "facts_service_parameters": {
+    "base_api_url": "https://facts.prod.ecorithm.com/api/v1",
+    "username": "",
+    "password": "",
+    "unmapped_topics_database": "unmapped_topics.db"
+  },
+  ## Building Parameters
+  "building_parameters": {
+    "building_id": null, # Building ID if topic building mapping is not used.
+    # List of topic to building_id records in the form
+    # {"<topic>": <building_id>}
+    "topic_building_mapping": {}
+  },
+  ## Base Historian Parameters
+  # More info at https://volttron.readthedocs.io/en/latest/core_services/historians/index.html
+  "retry_period": 300.0,
+  "submit_size_limit": 1000,
+  "max_time_publishing": 30.0,
+  "backup_storage_limit_gb": null,
+  "topic_replace_list": [],
+  "gather_timing_data": false,
+  "readonly": false,
+  "capture_device_data": true,
+  "capture_log_data": false,
+  "capture_analysis_data": false,
+  "capture_record_data": false,
+  "message_publish_count": 10000,
+  "history_limit_days": null, # NotImplemented
+  "storage_limit_gb": null # NotImplemented
+}

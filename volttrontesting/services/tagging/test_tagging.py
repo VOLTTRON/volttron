@@ -50,6 +50,7 @@ from volttron.platform import get_services_core
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
+from volttron.platform.agent import utils
 
 try:
     import pymongo
@@ -283,7 +284,9 @@ def test_reinstall(volttron_instance, tagging_service,
             config_file=hist_config,
             start=True)
         gevent.sleep(2)
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
                     'message': [{'p1': 2, 'p2': 2}]}]
         query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
@@ -477,7 +480,9 @@ def test_insert_topic_tags(volttron_instance, tagging_service, query_agent,
                                        tagging_service,
                                        tag_table_prefix)
 
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send = [{'topic': 'devices/campus1/d1/all', 'headers': headers,
                     'message': [{'p1': 2, 'p2': 2}]}]
         query_agent.vip.rpc.call(historian_vip_identity, 'insert', to_send).get(
@@ -547,7 +552,9 @@ def test_insert_topic_pattern_tags(volttron_instance, tagging_service,
                                        tag_table_prefix)
 
         to_send = []
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send.append({'topic': 'devices/campus1/d1/all', 'headers': headers,
                         'message': [{'p1': 2, 'p2': 2}]})
         to_send.append({'topic': 'devices/campus2/d1/all', 'headers': headers,
@@ -665,7 +672,9 @@ def test_insert_topic_tags_update(volttron_instance, tagging_service,
                                        tagging_service,
                                        tag_table_prefix)
         to_send = []
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send.append({'topic': 'devices/campus1/d1/all', 'headers': headers,
                         'message': [{'p1': 2, 'p2': 2}]})
 
@@ -736,7 +745,9 @@ def test_update_topic_tags(volttron_instance, tagging_service, query_agent):
             config_file=hist_config,
             start=True)
         gevent.sleep(1)
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
                     'message': [{'p1': 2, 'p2': 2}]}]
         query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
@@ -856,7 +867,9 @@ def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
             config_file=hist_config,
             start=True)
         gevent.sleep(2)
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
                     'message': [{'p1': 2, 'p2': 2}]}]
         query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
@@ -962,7 +975,9 @@ def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
             config_file=hist_config,
             start=True)
         gevent.sleep(1)
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
                     'message': [{'p1': 2, 'p2': 2}]}]
         query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
@@ -1057,7 +1072,9 @@ def test_topic_by_tags_param_and_or(volttron_instance, tagging_service,
             config_file=hist_config,
             start=True)
         gevent.sleep(2)
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
                     'message': [
                         {'p1': 2, 'p2': 2, 'p3': 1, 'p4': 2, 'p5': 2}]}]
@@ -1192,7 +1209,9 @@ def test_topic_by_tags_custom_condition(volttron_instance, tagging_service,
             config_file=hist_config,
             start=True)
         gevent.sleep(2)
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
                     'message': [
                         {'p1': 2, 'p2': 2, 'p3': 1, 'p4': 2, 'p5': 2}]}]
@@ -1345,7 +1364,9 @@ def test_topic_by_tags_parent_topic_query(volttron_instance, tagging_service,
             config_file=hist_config,
             start=True)
         gevent.sleep(2)
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
                     'message': [
                         {'p1': 2, 'p2': 2, 'p3': 1, 'p4': 2, 'p5': 2}]}]

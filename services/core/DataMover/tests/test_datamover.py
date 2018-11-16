@@ -42,9 +42,10 @@ from datetime import datetime, timedelta
 
 import gevent
 import pytest
+from pytest import approx
 
 from volttron.platform import get_services_core
-from volttron.platform.agent import PublishMixin
+from volttron.platform.agent import PublishMixin, utils
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
 from volttron.platform.vip.agent import Agent
@@ -199,9 +200,10 @@ def test_devices_topic(publish_agent, query_agent):
                    {'OutsideAirTemperature': float_meta}]
 
     # Publish messages twice
-    time1 = datetime.utcnow().isoformat(' ')
+    time1 = utils.format_timestamp(datetime.utcnow())
     headers = {
-        headers_mod.DATE: time1
+        headers_mod.DATE: time1,
+        headers_mod.TIMESTAMP: time1
     }
     publish(publish_agent, 'devices/PNNL/BUILDING_1/Device/all', headers, all_message)
     gevent.sleep(3)
@@ -217,9 +219,9 @@ def test_devices_topic(publish_agent, query_agent):
         order="LAST_TO_FIRST").get(timeout=10)
 
     assert (len(result['values']) == 1)
-    (time1_date, time1_time) = time1.split(" ")
+    (time1_date, time1_time) = time1.split("T")
     assert (result['values'][0][0] == time1_date + 'T' + time1_time + '+00:00')
-    assert (result['values'][0][1] == oat_reading)
+    assert (result['values'][0][1] == approx(oat_reading))
     assert set(result['metadata'].items()) == set(float_meta.items())
 
 
@@ -242,28 +244,29 @@ def test_record_topic(publish_agent, query_agent):
     """
     # Create timestamp
     print("\n** test_record_topic **")
-    now = datetime.utcnow().isoformat() + 'Z'
+    now = utils.format_timestamp(datetime.utcnow())
     print("now is ", now)
     headers = {
-        headers_mod.DATE: now
+        headers_mod.DATE: now,
+        headers_mod.TIMESTAMP: now
     }
     # Publish messages
     publish(publish_agent, topics.RECORD, headers, 1)
 
     # sleep so that records gets inserted with unique timestamp
     gevent.sleep(0.5)
-    time2 = datetime.utcnow()
-    time2 = time2.isoformat()
+    time2 = utils.format_timestamp(datetime.utcnow())
     headers = {
-        headers_mod.DATE: time2
+        headers_mod.DATE: time2,
+        headers_mod.TIMESTAMP: time2
     }
     publish(publish_agent, topics.RECORD, headers, 'value0')
     # sleep so that records gets inserted with unique timestamp
     gevent.sleep(0.5)
-    time3 = datetime.utcnow()
-    time3 = time3.isoformat()
+    time3 = utils.format_timestamp(datetime.utcnow())
     headers = {
-        headers_mod.DATE: time3
+        headers_mod.DATE: time3,
+        headers_mod.TIMESTAMP: time3
     }
     publish(publish_agent, topics.RECORD, headers, {'key': 'value'})
     gevent.sleep(0.5)
@@ -364,10 +367,11 @@ def test_analysis_topic(publish_agent, query_agent):
                     }]
 
     # Create timestamp
-    now = datetime.utcnow().isoformat() + 'Z'
+    now = utils.format_timestamp(datetime.utcnow())
     print("now is ", now)
     headers = {
-        headers_mod.DATE: now
+        headers_mod.DATE: now,
+        headers_mod.TIMESTAMP: now
     }
     # Publish messages
     publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device',
@@ -388,7 +392,7 @@ def test_analysis_topic(publish_agent, query_agent):
     if now_time[-1:] == 'Z':
         now_time = now_time[:-1]
     assert (result['values'][0][0] == now_date + 'T' + now_time + '+00:00')
-    assert (result['values'][0][1] == mixed_reading)
+    assert (result['values'][0][1] == approx(mixed_reading))
 
 
 @pytest.mark.historian
@@ -450,7 +454,7 @@ def test_analysis_topic_no_header(publish_agent, query_agent):
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
-    assert (result['values'][0][1] == mixed_reading)
+    assert (result['values'][0][1] == approx(mixed_reading))
 
 
 @pytest.mark.historian
@@ -494,11 +498,12 @@ def test_log_topic(publish_agent, query_agent):
                                        'type': 'float'}}
     # pytest.set_trace()
     # Create timestamp
-    current_time = datetime.utcnow().isoformat() + 'Z'
+    current_time = utils.format_timestamp(datetime.utcnow())
     print("current_time is ", current_time)
     future_time = '2017-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: future_time
+        headers_mod.DATE: future_time,
+        headers_mod.TIMESTAMP: future_time
     }
     print("time in header is ", future_time)
 
@@ -515,7 +520,7 @@ def test_log_topic(publish_agent, query_agent):
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
-    assert (result['values'][0][1] == mixed_reading)
+    assert (result['values'][0][1] == approx(mixed_reading))
 
 
 @pytest.mark.historian
@@ -566,7 +571,7 @@ def test_log_topic_no_header(publish_agent, query_agent):
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
-    assert (result['values'][0][1] == mixed_reading)
+    assert (result['values'][0][1] == approx(mixed_reading))
 
 
 @pytest.mark.historian
