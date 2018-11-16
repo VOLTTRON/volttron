@@ -28,7 +28,7 @@
 
     4. With a volttron activated shell this script can be run like:
 
-       python test_weather2.py
+       python standalonelistener.py
 
 
     This python script will listen to the defined vip address for specific
