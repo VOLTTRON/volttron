@@ -135,19 +135,20 @@ class EmailerAgent(Agent):
 
         self.sent_alert_emails = defaultdict(int)
 
-    @Core.periodic(60)
-    def accessService(self):
-        headers = {
-            "something": 'something'
-            #"to-addresses": ['alpha.beta@foo.com', 'bob-and-joe@bar.com']
-        }
+#Add this function to test the emailer by publishing to the topic and passing messages and headers 
+#    @Core.periodic(60)
+#    def accessService(self):
+#        headers = {
+#            "something": 'something'
+#            #"to-addresses": ['alpha.beta@foo.com', 'bob-and-joe@bar.com']
+#        }
 
-        message = {
-            "subject": "Something is not right",
-            "message": "Somethign is down"
-        }
+#        message = {
+#            "subject": "Something is not right",
+#            "message": "Somethign is down"
+#        }
 
-        self.vip.pubsub.publish('pubsub', topic='platform/send_email',headers=headers ,message=message)
+#        self.vip.pubsub.publish('pubsub', topic='platform/send_email',headers=headers ,message=message)
 
 
     def _test_smtp_address(self, smtp_address,smtp_port,smtp_username,smtp_password):
@@ -189,7 +190,6 @@ class EmailerAgent(Agent):
                 with gevent.with_timeout(3, self._test_smtp_address, smtp_address,smtp_port,smtp_username,smtp_password):
                     pass
             except Exception as e:
-                print("HEREEEEEE")
                 self.vip.health.set_status(STATUS_BAD, "Invalid SMTP Address")
 
     def on_email_message(self, peer, sender, bus, topic, headers, message):
@@ -225,7 +225,6 @@ class EmailerAgent(Agent):
         :param headers:
         :param message:
         """
-        print("fuckkkkk")
         from_address = self.current_config.get('from_address')
         to_addresses = self.current_config.get('to_addresses')
         smtp_port = self.current_config.get('smtp_port')
