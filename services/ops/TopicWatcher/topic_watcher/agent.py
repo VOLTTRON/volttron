@@ -47,6 +47,7 @@ from volttron.platform.agent import utils
 from volttron.platform.messaging.health import Status, STATUS_BAD
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.agent.utils import get_aware_utc_now
+from volttron.platform.scheduling import periodic
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -387,7 +388,7 @@ class AlertGroup(Agent):
                              "alert agent configuration".format(parts))
 
 
-    @Core.periodic(1)
+    @Core.schedule(periodic(1))
     def decrement_ttl(self):
         """Periodic call
 

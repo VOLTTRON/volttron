@@ -55,6 +55,7 @@ from volttron.platform.messaging.utils import Topic
 from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.scheduling import periodic
 
 utils.setup_logging()
 __author__ = 'Kyle Monson'
@@ -89,7 +90,7 @@ class ExternalData(Agent):
         self.default_user = default_user
         self.default_password = default_password
 
-        self.periodic_greenlet = None
+        self.periodic = None
 
         self.default_config = {"interval": interval,
                                "global_topic_prefix": global_topic_prefix,
@@ -149,10 +150,10 @@ class ExternalData(Agent):
             _log.error("Error setting scrape interval, reverting to default of 300 seconds")
             interval = 300.0
 
-        if self.periodic_greenlet is not None:
-            self.periodic_greenlet.kill()
+        if self.periodic is not None:
+            self.periodic.cancel()
 
-        self.periodic_greenlet = self.core.periodic(interval, self._publish_data)
+        self.periodic = self.core.schedule(periodic(interval), self._publish_data)
 
 
     def _publish_data(self):
