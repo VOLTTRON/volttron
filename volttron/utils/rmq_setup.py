@@ -46,6 +46,7 @@ RabbitMQ setup script to
 import argparse
 import logging
 import os
+import shutil
 import subprocess
 import time
 from socket import getfqdn
@@ -335,7 +336,7 @@ trust_store.refresh_interval=0""".format(
     # Stop server, move new config file with ssl params, start server
     stop_rabbit(rmq_config.rmq_home)
 
-    os.rename(os.path.join(vhome, "rabbitmq.conf"),
+    shutil.move(os.path.join(vhome, "rabbitmq.conf"),
               os.path.join(rmq_config.rmq_home,
                            "etc/rabbitmq/rabbitmq.conf"))
     start_rabbit(rmq_config.rmq_home)
