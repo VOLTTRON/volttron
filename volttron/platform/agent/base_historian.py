@@ -396,7 +396,7 @@ class BaseHistorianAgent(Agent):
         self._current_status_context = {
             STATUS_KEY_CACHE_COUNT: 0,
             STATUS_KEY_BACKLOGGED: False,
-            STATUS_KEY_PUBLISHING: True,
+            STATUS_KEY_PUBLISHING: False,
             STATUS_KEY_CACHE_FULL: False
         }
 
@@ -961,12 +961,22 @@ class BaseHistorianAgent(Agent):
         context_copy, new_status = self._update_and_get_context_status(updates)
         self._async_call.send(None, self._send_alert_callback, new_status, context_copy, key)
 
+    def _alert_not_publishing(self):
+        self._send_alert({STATUS_KEY_PUBLISHING: False}, "historian_not_publishing")
+
     def _process_loop(self):
         """
         The process loop is called off of the main thread and will not exit
         unless the main agent is shutdown or the Agent is reconfigured.
         """
+        try:
+            self._do_process_loop()
+        except Exception:
+            self._alert_not_publishing()
+            raise
+        self._update_status({STATUS_KEY_PUBLISHING: self._readonly})
 
+    def _do_process_loop(self):
         _log.debug("Starting process loop.")
         current_published_count = 0
         next_report_count = current_published_count + self._message_publish_count
@@ -1074,7 +1084,7 @@ class BaseHistorianAgent(Agent):
                 # them from the database and we are probably having connection problems.
                 # Update the status and send alert accordingly.
                 if not self._successful_published:
-                    self._send_alert({STATUS_KEY_PUBLISHING: False}, "historian_not_publishing")
+                    self._alert_not_publishing()
                     break
 
 
