@@ -376,11 +376,14 @@ and should be running on machine/VM that has a unique host name.***__
    
        Note: If using VMs, in order to scp files between VM openssh should be installed and running.
 
-   b. Append the contents of the transferred root ca to the instance's root ca.
+   b. Append the contents of the transferred root ca to the instance's trusted-cas.crt file. Do this on both the instances. Now both     
+      the instances <instance_name>-trusted-cas.crt will have two certificates.
    
       For example:
+      
       On v1:
       cat /tmp/v2-root-ca.crt >> /home/vdev/  .my_volttron_home/certificates/v1-trusted-cas.crt
+      
       On v2:
       cat /tmp/v1-root-ca.crt >> /home/vdev/ .my_volttron_home/certificates/v2-trusted-cas.crt
 
