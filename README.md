@@ -58,15 +58,8 @@ http://ryanstutorials.net/linuxtutorial/
 
   **On Debian based systems:**
 
-  Easiest way to install Erlang version 21.x is to install from RabbitMQ's repository.
-
-  In order to use the repository, add a key used to sign RabbitMQ releases to apt-key
-
-  ```
-  wget -O - 'https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc' | sudo apt-key add -
-  ```
-
-  Add the below Apt (Debian) repository entry in /etc/apt/sources.list.d/bintray.erlang.list. Please note,
+  If you are running an Ubuntu system, you can install the RabbitMQ dependencies by running the rabbit dependencies
+  script, passing in the approriate distribution as a parameter. Please note,
   distribution parameter will vary according to the distribution used in your system. For example,
 
     bionic for Ubuntu 18.04
@@ -74,39 +67,9 @@ http://ryanstutorials.net/linuxtutorial/
     xenial for Linux Mint 18.04
     stretch for Debian Stretch
     jessie for Debian Jessie
-
-
-  ```
-  echo 'deb https://dl.bintray.com/rabbitmq/debian xenial erlang-21.x'|sudo tee --append /etc/apt/sources.list.d/bintray.erlang.list
-  ```
-
-  Install Erlang package
-
-  ```
-  sudo apt-get update
-  sudo apt-get install erlang-nox
-  ```
-
-  If above steps do not work then you will have to install all the dependent packages
-  individually. Follow the below steps ONLY if erlang 21.x does not get installed with previous
-  instructions.
-
-
-  Install pre-requisites for Erlang: libwxbase, libwxgtk, and libsctpl. Search
-  and download these packages using [Ubuntu package search](https://packages
-  .ubuntu.com) and install them using dpkg -i command. For example,
-
-  ```sh
-  sudo dpkg -i libwxbase3.0-0v5_3.0.4+dfsg-3_amd64.deb
-  ```
-
-  Install Erlang: Grab the right package for your OS version from
-  https://packages.erlang-solutions.com/erlang/#tabs-debian.
-  Example install commands for Ubuntu artful 64 bit is given below
- 
-  ```sh
-  wget https://packages.erlang-solutions.com/erlang/esl-erlang/FLAVOUR_1_general/esl-erlang_21.0-1~ubuntu~artful_amd64.deb
-  sudo dpkg -i esl-erlang_21.0-1~ubuntu~artful_amd64.deb
+  
+  ``` 
+  ~/volttron/scripts/rabbit_dependencies.sh xenial
   ```
 
   **On Redhat based systems:**
