@@ -97,7 +97,7 @@ class ListenerAgent(Agent):
             self.vip.heartbeat.start_with_period(self._heartbeat_period)
             self.vip.health.set_status(STATUS_GOOD, self._message)
 
-    @PubSub.subscribe('pubsub', '')
+    @PubSub.subscribe('pubsub', '', all_platforms=True)
     def on_match(self, peer, sender, bus,  topic, headers, message):
         """Use match_all to receive all messages and print them out."""
         if sender == 'pubsub.compat':
