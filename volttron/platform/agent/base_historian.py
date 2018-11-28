@@ -966,6 +966,13 @@ class BaseHistorianAgent(Agent):
         The process loop is called off of the main thread and will not exit
         unless the main agent is shutdown or the Agent is reconfigured.
         """
+        try:
+            self._do_process_loop()
+        except:
+            self._send_alert({STATUS_KEY_PUBLISHING: False}, "process_loop_failed")
+            raise
+
+    def _do_process_loop(self):
 
         _log.debug("Starting process loop.")
         current_published_count = 0
@@ -975,7 +982,10 @@ class BaseHistorianAgent(Agent):
         # call this method even in case of readonly mode in case historian
         # is setting up connections that are shared for both query and write
         # operations
-        self.historian_setup()
+        try:
+            self.historian_setup()
+        except:
+            _log.exception("Failed to setup historian!")
 
         if self._readonly:
             _log.info("Historian setup in readonly mode.")
@@ -1066,7 +1076,7 @@ class BaseHistorianAgent(Agent):
                 try:
                     self.publish_to_historian(to_publish_list)
                     self.manage_db_size(history_limit_timestamp, self._storage_limit_gb)
-                except (Exception, gevent.Timeout):
+                except:
                     _log.exception(
                         "An unhandled exception occurred while publishing.")
 
@@ -1115,7 +1125,11 @@ class BaseHistorianAgent(Agent):
                 break
 
         backupdb.close()
-        self.historian_teardown()
+
+        try:
+            self.historian_teardown()
+        except:
+            _log.exception("Historian teardown failed!")
 
         _log.debug("Process loop stopped.")
         self._stop_process_loop = False
