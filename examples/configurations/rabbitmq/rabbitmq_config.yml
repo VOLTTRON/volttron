@@ -11,10 +11,20 @@ certificate-data:
   organization-unit: 'VOLTTRON Team'
   # volttron_instance has to be replaced with actual instance name of the VOLTTRON
   common-name: 'volttron_instance_root_ca'
+# certificate data could also point to existing public and private key files
+# of a CA. In that case, use the below certificate-data parameters instead of
+# the above. Note. public and private should be pem encoded and use rsa
+#  encryption
+#
+#certificate-data:
+#  ca-public-key: /path/to/ca/public/key/ca_pub.crt
+#  ca-private-key: /path/to/ca/private/key/ca_private.pem
+
+
 #
 # optional parameters for single instance setup
 #
-virtual-host: 'volttron1' #defaults to volttron
+virtual-host: 'volttron' #defaults to volttron
 
 # use the below four port variables if using custom rabbitmq ports
 # defaults to 5672
@@ -32,6 +42,6 @@ mgmt-port-ssl: '15671'
 # defaults to true
 ssl: 'true'
 
-# defaults to user_home/rabbitmq_server/rabbbitmq_server-3.7.7
-rmq-home: "/home/volttron/rabbitmq_server/rabbitmq_server-3.7.7"
+# defaults to ~/rabbitmq_server/rabbbitmq_server-3.7.7
+rmq-home: "~/rabbitmq_server/rabbitmq_server-3.7.7"
 

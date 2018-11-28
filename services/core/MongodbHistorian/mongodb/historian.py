@@ -61,6 +61,7 @@ from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent.utils import get_aware_utc_now
 from volttron.platform.dbutils import mongoutils
 from volttron.platform.vip.agent import Core
+from volttron.platform.scheduling import periodic
 from volttron.utils.docs import doc_inherit
 
 try:
@@ -240,9 +241,10 @@ class MongodbHistorian(BaseHistorian):
         _log.debug("In on start method. scheduling periodic call to rollup "
                    "data")
         if not self._readonly:
-            self.core.periodic(self.periodic_rollup_frequency,
-                               self.periodic_rollup,
-                               wait=self.periodic_rollup_initial_wait)
+            delay = timedelta(seconds=self.periodic_rollup_initial_wait)
+            self.core.schedule(periodic(self.periodic_rollup_frequency,
+                                        start=delay),
+                               self.periodic_rollup)
 
     def periodic_rollup(self):
         _log.info("periodic attempt to do hourly and daily rollup.")

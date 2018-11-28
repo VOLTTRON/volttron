@@ -491,7 +491,7 @@ def _setup_for_ssl_auth(instance_name):
         crts = certs.Certs()
     print('\nChecking for CA certificate\n')
     instance_ca_name, server_name, admin_client_name = \
-        certs.Certs.get_cert_names(instance_name)
+        certs.Certs.get_admin_cert_names(instance_name)
 
     host = config_opts.get('host', 'localhost')
     prompt = 'What is the fully qualified domain name of the system?'

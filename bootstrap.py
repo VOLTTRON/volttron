@@ -80,6 +80,7 @@ import sys
 
 import os
 from distutils.version import LooseVersion
+import traceback
 
 _log = logging.getLogger(__name__)
 
@@ -150,20 +151,21 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
         def get_version(self):
             """Return the latest version from virtualenv DOAP record."""
             _log.info('Downloading virtualenv package information')
-            default_version = "15.1.0"
+            default_version = "16.0.0"
             url = 'https://pypi.python.org/pypi/virtualenv/json'
-            with contextlib.closing(self._fetch(url)) as response:
-                result = json.load(response)
-                releases_dict = result.get("releases", {})
-                releases = sorted(
-                    [LooseVersion(x) for x in releases_dict.keys()])
-            if releases:
-                _log.info('latest release of virtualenv={}'.format(releases[-1]))
-                return str(releases[-1])
-            else:
-                _log.info("Returning default version of virtualenv "
-                          "({})".format(default_version))
-                return default_version
+            # with contextlib.closing(self._fetch(url)) as response:
+            #     result = json.load(response)
+            #     releases_dict = result.get("releases", {})
+            #     releases = sorted(
+            #         [LooseVersion(x) for x in releases_dict.keys()])
+            # if releases:
+            #     _log.info('latest release of virtualenv={}'.format(releases[-1]))
+            #     return str(releases[-1])
+            # else:
+            #     _log.info("Returning default version of virtualenv "
+            #               "({})".format(default_version))
+            #     return default_version
+            return default_version
 
         def download(self, directory):
             '''Download the virtualenv tarball into directory.'''
@@ -265,16 +267,19 @@ def update(operation, verbose=None, upgrade=False, offline=False,
         args.extend(['--requirement', requirements_txt])
     pip(operation, args, verbose, upgrade, offline)
 
-    # Install rmq server if needed
-    if rmq_dir:
-        install_rabbit(rmq_dir)
+    try:
+        # Install rmq server if needed
+        if rmq_dir:
+            install_rabbit(rmq_dir)
+    except Exception as exc:
+        _log.error("Error installing RabbitMQ package {}".format(traceback.format_exc()))
 
 
 def install_rabbit(rmq_install_dir):
     import wget
     if rmq_install_dir == default_rmq_dir and not os.path.exists(
             default_rmq_dir):
-        os.mkdir(default_rmq_dir)
+        os.makedirs(default_rmq_dir)
         _log.info("\n\nInstalling Rabbitmq Server in default directory: " +
                   default_rmq_dir)
     else:
@@ -300,7 +305,7 @@ def install_rabbit(rmq_install_dir):
         cmd = ["tar",
                "-xf",
                filename,
-               "--directory="+rmq_install_dir]
+               "--directory=" + rmq_install_dir]
         subprocess.check_call(cmd)
         _log.info("Installed Rabbitmq server at " + rmq_home)
     # enable plugins
@@ -310,7 +315,8 @@ def install_rabbit(rmq_install_dir):
            "rabbitmq_federation_management",
            "rabbitmq_shovel",
            "rabbitmq_shovel_management",
-           "rabbitmq_auth_mechanism_ssl"]
+           "rabbitmq_auth_mechanism_ssl",
+           "rabbitmq_trust_store"]
     subprocess.check_call(cmd)
 
 def main(argv=sys.argv):

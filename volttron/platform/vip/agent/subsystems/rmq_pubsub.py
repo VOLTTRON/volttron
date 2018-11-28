@@ -53,7 +53,7 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 
 from __future__ import absolute_import
@@ -67,11 +67,9 @@ import uuid
 from volttron.platform.agent import json as jsonapi
 
 from ..decorators import annotate, annotations, dualmethod, spawn
-from .pubsub import BasePubSub
+from .base import BasePubSub
 from collections import defaultdict
 from ..results import ResultsDictionary
-#from gevent import monkey
-#monkey.patch_socket()
 
 __all__ = ['RMQPubSub']
 min_compatible_version = '5.0'
@@ -107,16 +105,20 @@ class RMQPubSub(BasePubSub):
             core.onconnected.connect(self._connected)
 
             def subscribe(member):  # pylint: disable=redefined-outer-name
-                #for peer, prefix, all_platforms, queue in annotations(
-                for peer, bus, prefix, all_platforms, queue in annotations(
+                for peer, bus, prefix, all_platforms, queue_name in annotations(
                         member, set, 'pubsub.subscriptions'):
                     self._logger.debug("peer: {0}, prefix:{1}".format(peer, prefix))
                     routing_key = self._form_routing_key(prefix, all_platforms=all_platforms)
-                    # If not named queue, add queue name
-                    if not queue:
-                        queue = "{user}.pubsub.{uid}".format(user=self.core().rmq_user, uid=bytes(uuid.uuid4()))
-                    self._add_subscription(routing_key, member, queue)
-                    # _log.debug("SYNC: all_platforms {}".format(self._my_subscriptions['internal'][bus][prefix]))
+                    # If named queue, add "persistent" in the queue name
+                    if queue_name:
+                        queue_name = "{user}.pubsub.persistent.{queue_name}".format(user=self.core().rmq_user,
+                                                                                    queue_name=queue_name)
+                    else:
+                        queue_name = "{user}.pubsub.{uid}".format(user=self.core().rmq_user,
+                                                                  uid=bytes(uuid.uuid4()))
+
+                    self._add_subscription(routing_key, member, queue_name)
+                    # self._logger.debug("SYNC RMQ: all_platforms {}")
 
             inspect.getmembers(owner, subscribe)
 
@@ -130,7 +132,7 @@ class RMQPubSub(BasePubSub):
         param kwargs: optional arguments
         type kwargs: pointer to arguments
         """
-        #self.core().connection.channel.confirm_delivery(self.on_delivery_confirmation,nowait=True)
+        # self.core().connection.channel.confirm_delivery(self.on_delivery_confirmation,nowait=True)
         self._isconnected = True
         self.synchronize()
 
@@ -140,96 +142,120 @@ class RMQPubSub(BasePubSub):
         :return:
         """
         connection = self.core().connection
-        #self._logger.debug("Synchronize {}".format(self._my_subscriptions))
+        # self._logger.debug("Synchronize {}".format(self._my_subscriptions))
         for prefix, subscriptions in self._my_subscriptions.iteritems():
-            for queue, callback in subscriptions.iteritems():
-                # Check if queue needs to be persistent
+            for queue_name, callback in subscriptions.iteritems():
                 durable = False
-                # if not queue.startswith('volttron'):
-                #     durable = True
-                connection.channel.queue_declare(queue=queue,
-                                                  durable=durable,
-                                                  exclusive=False,
-                                                  auto_delete=True,
-                                                  callback=None)
+                auto_delete = True
+                # Check if queue needs to be persistent
+                if 'persistent' in queue_name:
+                    durable = True
+                    auto_delete = False
+                connection.channel.queue_declare(queue=queue_name,
+                                                 durable=durable,
+                                                 exclusive=True,
+                                                 auto_delete=auto_delete,
+                                                 callback=None)
                 connection.channel.queue_bind(exchange=connection.exchange,
-                                              queue=queue,
+                                              queue=queue_name,
                                               routing_key=prefix,
                                               callback=None)
-                #
+
                 if prefix.startswith('__pubsub__.*.'):
                     original_prefix = self._get_original_topic(prefix)
                     self._send_proxy(original_prefix)
                 for cb in callback:
-                    self._add_callback(connection, queue, cb)
+                    self._add_callback(connection, queue_name, cb)
         return True
 
-    def _add_subscription(self, prefix, callback, queue):
+    def _add_subscription(self, prefix, callback, queue_name):
         """
-        Store subscriptions so that
-        :param prefix:
-        :param callback:
-        :param queue:
+        Store subscriptions so that it can used later
+        :param prefix: subscription prefix
+        :param callback: callback method
+        :param queue: queue name
         :return:
         """
         if not callable(callback):
             raise ValueError('callback %r is not callable' % (callback,))
         try:
-            self._my_subscriptions[prefix][queue].add(callback)
-            #_log.debug("SYNC: add subscriptions: {}".format(self._my_subscriptions['internal'][bus][prefix]))
+            self._my_subscriptions[prefix][queue_name].add(callback)
+            # _log.debug("SYNC: add subscriptions: {}".format(self._my_subscriptions['internal'][bus][prefix]))
         except KeyError:
-            self._logger.error("PUBSUB something went wrong in add subscriptions")
+            self._logger.error("PUBSUB something went wrong when adding subscriptions")
 
     @dualmethod
     @spawn
     def subscribe(self, peer, prefix, callback, bus='', all_platforms=False, persistent_queue=None):
-        """
+        """Subscribe to a prefix and register callback. If 'all_platforms' flag is set to True, then
+        agent subscribes to receive topic from all platforms. A named queue will set persistent
+        behavior to the topic subscriptions. That means even if the agent shutdowns and restarts, it
+        will receive all the messages during the shutdown/turn off period.
 
-        :param prefix:
-        :param callback:
-        :param bus:
-        :param all_platforms:
-        :param persistent_queue:
-        :return:
+        :param peer "pubsub" string
+        :type peer str
+        :param prefix prefix of the topic
+        :type prefix str
+        :param callback callback method
+        :type callback method
+        :param bus bus
+        :type bus str
+        :param all_platforms Flag indicating if type is 'local' or 'all'
+        :type all_platforms boolean
+        :param persistent_queue Name of the queue for persistent behavior
+        :type persistent_queue str
+        :returns: Subscribe is successful or not
+        :rtype: boolean
+
+        :Return Values:
+        Success or Failure
         """
         result = None
-        connection = self.core().connection # bytes(uuid.uuid4())
+        connection = self.core().connection  # bytes(uuid.uuid4())
         routing_key = self._form_routing_key(prefix, all_platforms=all_platforms)
         if all_platforms:
             # Send message to proxy agent in order to subscribe with zmq message bus
             self._send_proxy(prefix)
 
-        queue = ''
+        queue_name = ''
         durable = False
         auto_delete = True
+
         if persistent_queue:
-            queue = persistent_queue
             durable = True
             auto_delete = False
+            queue_name = "{user}.pubsub.persistent.{queue_name}".format(user=self.core().rmq_user,
+                                                                        queue_name=persistent_queue)
         else:
-            queue = "{user}.pubsub.{uid}".format(user=self.core().rmq_user, uid=str(uuid.uuid4()))
+            queue_name = "{user}.pubsub.{uid}".format(user=self.core().rmq_user, uid=str(uuid.uuid4()))
         # Store subscriptions for later use
-        self._add_subscription(routing_key, callback, queue)
+        self._add_subscription(routing_key, callback, queue_name)
 
         self._logger.debug("RMQ PUBSUB subscribing to {}".format(routing_key))
 
         try:
             connection.channel.queue_declare(callback=None,
-                                             queue=queue,
+                                             queue=queue_name,
                                              durable=durable,
                                              exclusive=False,
                                              auto_delete=auto_delete)
             connection.channel.queue_bind(callback=None,
                                           exchange=connection.exchange,
-                                          queue=queue,
+                                          queue=queue_name,
                                           routing_key=routing_key)
-            self._add_callback(connection, queue, callback)
+            self._add_callback(connection, queue_name, callback)
         except AttributeError as ex:
             self._logger.error("Subscription will be added when agent gets connected to messagebus."
                                .format(self.core().identity))
         return result
 
     def _send_proxy(self, prefix, bus=''):
+        """
+        Send the message to proxy router
+        :param prefix:
+        :param bus:
+        :return:
+        """
         connection = self.core().connection
         rkey = self.core().instance_name + '.proxy.router.pubsub'
         sub_msg = jsonapi.dumps(
@@ -237,18 +263,24 @@ class RMQPubSub(BasePubSub):
         )
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         frames = [self.core().identity, b'', b'VIP1', b'', b'', b'pubsub', b'subscribe', sub_msg]
-        self._logger.debug("Send to proxy: {}".format(prefix))
         connection.channel.basic_publish(exchange=connection.exchange,
                                          routing_key=rkey,
                                          body=jsonapi.dumps(frames, ensure_ascii=False))
 
     def _add_callback(self, connection, queue, callback):
+        """
+        Register agent's callback method with RabbitMQ broker
+        :param connection: RabbitMQ connection object
+        :param queue: queue name
+        :param callback: callback method
+        :return:
+        """
+
         def rmq_callback(ch, method, properties, body):
             # Strip prefix from routing key
             topic = self._get_original_topic(str(method.routing_key))
             try:
                 msg = jsonapi.loads(body)
-                #self._logger.debug("pub callback message {}".format(method.routing_key))
                 headers = msg['headers']
                 message = msg['message']
                 bus = msg['bus']
@@ -261,12 +293,22 @@ class RMQPubSub(BasePubSub):
                                          queue=queue,
                                          no_ack=True)
 
-
     @subscribe.classmethod
     def subscribe(cls, peer, prefix, bus='', all_platforms=False, persistent_queue=None):
+        """
+        Class method for subscribe
+        :param peer: "pubsub" string
+        :param prefix: prefix of the topic
+        :param bus: bus
+        :param all_platforms: Flag indicating if type is 'local' or 'all'
+        :param persistent_queue: Name of the queue for persistent behavior
+        :return:
+        """
+
         def decorate(method):
             annotate(method, set, 'pubsub.subscriptions', (peer, bus, prefix, all_platforms, persistent_queue))
             return method
+
         return decorate
 
     def list(self, peer, prefix='', bus='', subscribed=True, reverse=False, all_platforms=False):
@@ -325,10 +367,9 @@ class RMQPubSub(BasePubSub):
         result = next(self._results)
         self._pubcount[self._message_number] = result.ident
         self._message_number += 1
-        topicx = topic.replace("/", ".")
         routing_key = self._form_routing_key(topic)
         connection = self.core().connection
-        self.core().spawn_later(0.01, self.set_result, result.ident)
+        self.core().spawn_later(0.01, self.set_result, result.ident, 1)
         if headers is None:
             headers = {}
 
@@ -341,11 +382,11 @@ class RMQPubSub(BasePubSub):
 
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         dct = {
-            #'user_id': self.core().identity,
+            # 'user_id': self.core().identity,
             'app_id': connection.routing_key,  # SENDER
             'headers': dict(recipient=b'',  # RECEIVER
                             proto=b'VIP',  # PROTO
-                            user=self.core().identity,    # USER_ID
+                            user=self.core().identity,  # USER_ID
                             ),
             'message_id': result.ident,  # MSG_ID
             'type': 'pubsub',  # SUBSYS
@@ -359,11 +400,11 @@ class RMQPubSub(BasePubSub):
                                          body=jsonapi.dumps(json_msg, ensure_ascii=False))
         return result
 
-    def set_result(self, ident):
+    def set_result(self, ident, value=None):
         try:
             result = self._results.pop(bytes(ident))
             if result:
-                result.set(2)
+                result.set(value)
         except KeyError:
             pass
 
@@ -399,8 +440,9 @@ class RMQPubSub(BasePubSub):
     def unsubscribe(self, peer, prefix, callback, bus='', all_platforms=False):
         """Unsubscribe and remove callback(s).
 
-        Remove all handlers matching the given info - peer, callback and bus, which was used earlier to subscribe as
-        well. If all handlers for a topic prefix are removed, the topic is also unsubscribed.
+        Remove all handlers matching the given info - peer, callback and bus,
+        which was used earlier to subscribe as well. If all handlers for a
+        topic prefix are removed, the topic is also unsubscribed.
         param peer: peer
         type peer: str
         param prefix: prefix that needs to be unsubscribed
@@ -416,22 +458,31 @@ class RMQPubSub(BasePubSub):
         success or not
         """
         routing_key = None
-        if prefix is not None:
-           routing_key = self._form_routing_key(prefix, all_platforms=all_platforms)
-        topics = self._drop_subscription(routing_key, callback)
 
-        if all_platforms: # Send it proxy router to send it to external 'zmq' platforms
+        result = next(self._results)
+        if prefix is not None:
+            routing_key = self._form_routing_key(prefix, all_platforms=all_platforms)
+        topics = self._drop_subscription(routing_key, callback)
+        self.core().spawn_later(0.01, self.set_result, result.ident, topics)
+        # Send the message to proxy router to send it to external 'zmq' platforms
+        if all_platforms:
             subscriptions = dict()
             subscriptions['all'] = dict(prefix=topics, bus=bus)
             rkey = self.core().instance_name + '.proxy.router.pubsub'
             frames = [self.core().identity, b'', b'VIP1', b'', b'', b'pubsub',
                       b'unsubscribe', jsonapi.dumps(subscriptions)]
             self.core().connection.channel.basic_publish(exchange=self.core().connection.exchange,
-                                             routing_key=rkey,
-                                             body=frames)
-        return topics
+                                                         routing_key=rkey,
+                                                         body=frames)
+        return result
 
     def _drop_subscription(self, routing_key, callback):
+        """
+        Utility method to remove subscription
+        :param routing_key: routing key
+        :param callback: callback method
+        :return:
+        """
         self._logger.debug("DROP subscriptions: {}".format(routing_key))
         topics = []
         remove = []
@@ -445,7 +496,7 @@ class RMQPubSub(BasePubSub):
                 for prefix in self._my_subscriptions:
                     subscriptions = self._my_subscriptions[prefix]
                     self._logger.debug("prefix: {0}, {1}".format(prefix, subscriptions))
-                    for queue, callbacks in subscriptions.iteritems():
+                    for queue_name, callbacks in subscriptions.iteritems():
                         try:
                             callbacks.remove(callback)
                         except KeyError:
@@ -454,10 +505,10 @@ class RMQPubSub(BasePubSub):
                             topics.append(prefix)
                         if not callbacks:
                             # Delete queue
-                            self.core().connection.channel.queue_delete(callback=None, queue=queue)
-                            remove.append(queue)
-                    for queue in remove:
-                        del subscriptions[queue]
+                            self.core().connection.channel.queue_delete(callback=None, queue=queue_name)
+                            remove.append(queue_name)
+                    for que in remove:
+                        del subscriptions[que]
                     del remove[:]
                     if not subscriptions:
                         remove_topics.append(prefix)
@@ -469,25 +520,27 @@ class RMQPubSub(BasePubSub):
         else:
             # Search based on routing key
             if routing_key in self._my_subscriptions:
+                self._logger.debug("RMQ subscriptions {}".format(self._my_subscriptions))
                 topics.append(routing_key)
                 subscriptions = self._my_subscriptions[routing_key]
                 if callback is None:
-                    for queue, callbacks in subscriptions.iteritems():
-                        self.core().connection.channel.queue_delete(callback=None, queue=queue)
+                    for queue_name, callbacks in subscriptions.iteritems():
+                        self._logger.debug("RMQ queues {}".format(queue_name))
+                        self.core().connection.channel.queue_delete(callback=None, queue=queue_name)
                     del self._my_subscriptions[routing_key]
                 else:
                     self._logger.debug("topics: {0}".format(topics))
-                    for queue, callbacks in subscriptions.iteritems():
+                    for queue_name, callbacks in subscriptions.iteritems():
                         try:
                             callbacks.remove(callback)
                         except KeyError:
                             pass
                         if not callbacks:
                             # Delete queue
-                            self.core().connection.channel.queue_delete(callback=None, queue=queue)
-                            remove.append(queue)
-                    for queue in remove:
-                        del subscriptions[queue]
+                            self.core().connection.channel.queue_delete(callback=None, queue=queue_name)
+                            remove.append(queue_name)
+                    for que in remove:
+                        del subscriptions[que]
                     if not subscriptions:
                         del self._my_subscriptions[routing_key]
             self._logger.debug("my subscriptions: {0}".format(self._my_subscriptions))
@@ -495,23 +548,35 @@ class RMQPubSub(BasePubSub):
         # Strip '__pubsub__.<instance_name>' from the topic string
         for topic in topics:
             orig_topics.append(self._get_original_topic(topic))
+        # self._logger.debug("AFTER DROP topics: {}".format(orig_topics))
         return orig_topics
 
-    def _get_original_topic(self, topic):
+    def _get_original_topic(self, routing_key):
+        """
+        Replace '.' delimiter with '/'
+        :param routing_key: routing_key string
+        :return: return original topic string
+        """
         try:
-            original_topic = topic.split('.')[2:]
+            original_topic = routing_key.split('.')[2:]
             original_topic = original_topic[:-1]
             original_topic = '/'.join(original_topic)
             return original_topic
         except IndexError as exc:
-            return topic
+            return routing_key
 
     def _form_routing_key(self, topic, all_platforms=False):
+        """
+        Form routing key from the original topic
+        :param topic: Original topic
+        :param all_platforms: Flag indicating if it is intended for all platforms
+        :return: Routing key string
+        """
         routing_key = ''
         topic = '#' if topic == '' else topic + '.#'
 
         if all_platforms:
-            # '__pubsub__.*.<prefix>.#'
+            # Format is '__pubsub__.*.<prefix>.#'
             routing_key = "__pubsub__.*.{}".format(topic.replace("/", "."))
         else:
             routing_key = "__pubsub__.{0}.{1}".format(self.core().instance_name, topic.replace("/", "."))

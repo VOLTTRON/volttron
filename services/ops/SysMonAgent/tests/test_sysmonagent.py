@@ -50,6 +50,7 @@ import pytest
 import gevent
 
 from volttrontesting.utils.utils import poll_gevent_sleep
+from volttron.platform import get_ops
 
 _test_config = {
     "base_topic": "test1/sysmon",
