@@ -34,8 +34,8 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
-# There is a possible for race conditions if multiple clients
-# insert simultaneously. There should only be one historian
+# There is a possible race condition if multiple clients insert
+# topics simultaneously. There should only be one historian
 # writing to the database, so the risk is acceptably low.
 # Certian techniques are used to avoid issues with duplicate
 # data, like ordering queries by ID when being fed to
