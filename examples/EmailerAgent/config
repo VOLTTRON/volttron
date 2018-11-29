@@ -1,14 +1,14 @@
 {
-    "smtp-address": "<smtp-address>",
-    "smtp-username":"<smtp-username>",
-    "smtp-password":"<smtp-password>",
-    "smtp-port":<smtp-port>,
-    "from-address": "foo@foo.com",
+    "smtp-address": "email-smtp.us-east-1.amazonaws.com",
+    "smtp-username":"AKIAI7ON7SZRL6L5FRDQ",
+    "smtp-password":"Amj8QL/DB+pFPzNMyDoWuSIFszSvg30clktpQDhx5UGp",
+    "smtp-port":587,
+    "from-address": "rajveer.singh@pnnl.gov",
     "to-addresses": [
-        "foo1@foo.com",
-	"foo2@foo.com"
+        "cyrus19901@gmail.com"
     ],
 
     # Only send a certain alert-key message every 120 minutes.
     "allow-frequency-minutes": 120
 }
+
