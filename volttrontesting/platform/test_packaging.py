@@ -574,15 +574,36 @@ def test_extract_new_install_dir(test_package):
 @pytest.mark.packaging
 def test_vpkg_install_datapub_agent(volttron_instance):
     agent_dir = os.path.join(os.getcwd(), get_examples("DataPublisher"))
+    config_dir = agent_dir + '/test.config'
     volttron_env = volttron_instance.env
 
     assert(volttron_instance.is_running())
     cmd = ['vpkg', 'install-agent']
-    cmd.extend(['-s', agent_dir, '-t', 'test_datapub'])
+    cmd.extend(['-s', agent_dir, '-t', 'test_datapub', '-c', config_dir])
     proc = subprocess.Popen(cmd, env=volttron_env, stdout=subprocess.PIPE)
     proc.wait()
     stdout, stderr = proc.communicate()
+    assert(stdout != "")
     agents = volttron_instance.list_agents()
-    agent_uuid = [agent for agent in agents if agent['tag'] == 'test_datapub']
+    agent_obj = [agent for agent in agents if agent['tag'] == 'test_datapub']
+    agent_uuid = agent_obj[0]['uuid']
+    volttron_instance.start_agent(agent_uuid)
+    assert(volttron_instance.is_agent_running(agent_uuid))
+
+@pytest.mark.packaging
+def test_vpkg_install_listener_agent(volttron_instance):
+    agent_dir = os.path.join(os.getcwd(), get_examples("ListenerAgent"))
+    volttron_env = volttron_instance.env
+
+    assert(volttron_instance.is_running())
+    cmd = ['vpkg', 'install-agent']
+    cmd.extend(['-s', agent_dir, '-t', 'test_listener'])
+    proc = subprocess.Popen(cmd, env=volttron_env, stdout=subprocess.PIPE)
+    proc.wait()
+    stdout, stderr = proc.communicate()
+    assert(stdout != "")
+    agents = volttron_instance.list_agents()
+    agent_obj = [agent for agent in agents if agent['tag'] == 'test_listener']
+    agent_uuid = agent_obj[0]['uuid']
     volttron_instance.start_agent(agent_uuid)
     assert(volttron_instance.is_agent_running(agent_uuid))
