@@ -51,7 +51,9 @@ import os
 import pytest
 import stat
 
-from volttron.platform import get_examples
+from volttrontesting.fixtures.volttron_platform_fixtures import volttron_instance
+
+from volttron.platform import get_examples, is_instance_running
 from volttron.platform.packaging import AgentPackageError
 from volttron.platform.packaging import (create_package, repackage,
                                          extract_package)
@@ -568,3 +570,19 @@ def test_extract_new_install_dir(test_package):
     finally:
         if install_dir:
             shutil.rmtree(install_dir)
+
+@pytest.mark.packaging
+def test_vpkg_install_datapub_agent(volttron_instance):
+    agent_dir = os.path.join(os.getcwd(), get_examples("DataPublisher"))
+    volttron_env = volttron_instance.env
+
+    assert(volttron_instance.is_running())
+    cmd = ['vpkg', 'install-agent']
+    cmd.extend(['-s', agent_dir, '-t', 'test_datapub'])
+    proc = subprocess.Popen(cmd, env=volttron_env, stdout=subprocess.PIPE)
+    proc.wait()
+    stdout, stderr = proc.communicate()
+    agents = volttron_instance.list_agents()
+    agent_uuid = [agent for agent in agents if agent['tag'] == 'test_datapub']
+    volttron_instance.start_agent(agent_uuid)
+    assert(volttron_instance.is_agent_running(agent_uuid))
