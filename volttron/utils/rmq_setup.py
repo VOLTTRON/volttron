@@ -929,33 +929,55 @@ def start_rabbit(rmq_home):
     :return:
     """
 
-    status_cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "status"]
+    #status_cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "status"]
+    # rabbitmqctl status returns true as soon as the erlang vm and does not wait
+    # for all the plugins and database to be initialized and rmq is ready to
+    # accept incoming connection.
+    # Nor does rabbitmqctl wait, rabbitmqctl await_online_nodes work for this
+    #  purpose. shovel_status comes close...
+    status_cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "shovel_status"]
     start_cmd = [os.path.join(rmq_home, "sbin/rabbitmq-server"), "-detached"]
-    i = 5
+
+    i = 0
     started = False
     start = True
     while not started:
         try:
-            subprocess.check_call(status_cmd, stdout=subprocess.PIPE,
-                                  stderr=subprocess.PIPE)
+            p = subprocess.Popen(status_cmd, stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+            out, err = p.communicate()
+            rc = p.returncode
+            if rc != 0:
+                # _log.debug("out: {} #err: {}".format(out, err))
+                raise subprocess.CalledProcessError(cmd=status_cmd,
+                                                    returncode=rc)
             if not start:
                 # if we have attempted started already
-                gevent.sleep(25)  # give a few seconds for all plugins to start
+                gevent.sleep(1)  # give a second just to be sure
             started = True
-            _log.info("Rmq server at {} is running".format(rmq_home))
+            _log.info("Rmq server at {} is running at ".format(rmq_home))
         except subprocess.CalledProcessError as e:
+
             if start:
+                _log.debug("Rabbitmq is not running. Attempting to start")
                 # attempt to start once
-                subprocess.check_call(start_cmd)
-                gevent.sleep(25)  # give a few seconds for all plugins to start
+                p = subprocess.Popen(start_cmd)
+                out, err = p.communicate()
+                rc = p.returncode
+                if rc != 0:
+                    _log.error("Error starting rabbitmq at {} Command out: {} "
+                               "Command err: {}".format(rmq_home, out, err))
+                    raise subprocess.CalledProcessError(cmd=start_cmd,
+                                                        returncode=rc)
                 start = False
             else:
                 if i > 60:  # if more than a minute, may be something is wrong
                     raise e
                 else:
-                    # sleep for another 5 seconds and check status again
-                    gevent.sleep(5)
-                    i = i + 5
+                    # sleep for another 2 seconds and check status again
+                    gevent.sleep(2)
+                    i = i + 2
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
