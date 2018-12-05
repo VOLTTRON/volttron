@@ -579,13 +579,13 @@ def test_vpkg_install_datapub_agent(volttron_instance):
 
     assert(volttron_instance.is_running())
     cmd = ['vpkg', 'install-agent']
-    cmd.extend(['-s', agent_dir, '-t', 'test_datapub', '-c', config_dir])
+    cmd.extend(['-s', agent_dir, '-c', config_dir, '-i', 'test_datapub'])
     proc = subprocess.Popen(cmd, env=volttron_env, stdout=subprocess.PIPE)
     proc.wait()
     stdout, stderr = proc.communicate()
     assert(stdout != "")
     agents = volttron_instance.list_agents()
-    agent_obj = [agent for agent in agents if agent['tag'] == 'test_datapub']
+    agent_obj = [agent for agent in agents if agent['uuid'] == 'test_datapub']
     agent_uuid = agent_obj[0]['uuid']
     volttron_instance.start_agent(agent_uuid)
     assert(volttron_instance.is_agent_running(agent_uuid))
@@ -597,13 +597,13 @@ def test_vpkg_install_listener_agent(volttron_instance):
 
     assert(volttron_instance.is_running())
     cmd = ['vpkg', 'install-agent']
-    cmd.extend(['-s', agent_dir, '-t', 'test_listener'])
+    cmd.extend(['-s', agent_dir, '-i', 'test_listener'])
     proc = subprocess.Popen(cmd, env=volttron_env, stdout=subprocess.PIPE)
     proc.wait()
     stdout, stderr = proc.communicate()
     assert(stdout != "")
     agents = volttron_instance.list_agents()
-    agent_obj = [agent for agent in agents if agent['tag'] == 'test_listener']
+    agent_obj = [agent for agent in agents if agent['identity'] == 'test_listener']
     agent_uuid = agent_obj[0]['uuid']
     volttron_instance.start_agent(agent_uuid)
     assert(volttron_instance.is_agent_running(agent_uuid))
