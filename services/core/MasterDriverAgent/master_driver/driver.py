@@ -373,9 +373,9 @@ class DriverAgent(BasicAgent):
             headers_mod.DATE: utcnow_string,
             headers_mod.TIMESTAMP: utcnow_string,
         }
-        for value in point_values:
+        for point, value in point_values.iteritems():
             if self.publish_breadth_first_all or self.publish_depth_first_all:
-                results = {point_name: point_values[value]}
+                results = {point_name: value}
                 meta = {point_name: self.meta_data[point_name]}
                 message = [results, meta]
             else:
