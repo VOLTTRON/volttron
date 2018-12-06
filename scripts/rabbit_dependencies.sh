@@ -1,34 +1,99 @@
-sudo pwd
-DIST="$1"
-list=( artful bionic jessie precise rtful sid stretch trusty weezy xenial yakkety zesty ) 
+#!/usr/bin/env bash
+list=( artful bionic jessie precise rtful sid stretch trusty weezy xenial yakkety zesty )
 
-FOUND=0
-for item in ${list[@]}; do
-    if [ "$DIST" == "$item" ]; then
-	FOUND=1
-	break
+function exit_on_error {
+    rc=$?
+    if [[ $rc != 0 ]]
+    then
+        printf "\n## Script could not complete successfully because of above error## \n"
+        exit $rc
     fi
-done
 
-if [ "$FOUND" != "1" ]; then
-    echo "Invalid distribution found please pass one of these to the script"
-    echo ${list[@]}
-    echo
-    exit 0
+}
+
+function print_usage {
+ echo "
+Command Usage:
+<path>/rabbit_dependencies.sh <ubuntu or centos> <distribution name or centos version>
+Valid Ubuntu distributions: ${list[@]}
+Valid centos versions: 6, 7
+"
+ exit 0
+
+}
+
+
+function install_on_centos {
+
+   if [ "$DIST" == "6" ]; then
+       erlang_url='https://dl.bintray.com/rabbitmq-erlang/rpm/erlang/21/el/6'
+   elif [ "$DIST" == "7" ]; then
+       erlang_url='https://dl.bintray.com/rabbitmq-erlang/rpm/erlang/21/el/7'
+   else
+       printf "Invalid centos version. 6 and 7 are the only compatible versions\n"
+       print_usagec
+   fi
+
+   repo="## In /etc/yum.repos.d/rabbitmq-erlang.repo
+[rabbitmq-erlang]
+name=rabbitmq-erlang
+baseurl=$erlang_url
+gpgcheck=1
+gpgkey=https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc
+repo_gpgcheck=0
+enabled=1"
+
+    if [ ! -f "/etc/yum.repos.d/rabbitmq-erlang.repo" ]; then
+      echo "$repo" | sudo tee -a /etc/yum.repos.d/rabbitmq-erlang.repo
+      exit_on_error
+    else
+      echo "\nrepo file /etc/yum.repos.d/rabbitmq-erlang.repo already exists\n"
+    fi
+    sudo yum install erlang
+    exit_on_error
+}
+
+function install_on_ubuntu {
+    FOUND=0
+    for item in ${list[@]}; do
+        if [ "$DIST" == "$item" ]; then
+        FOUND=1
+        break
+        fi
+    done
+
+    if [ "$FOUND" != "1" ]; then
+        echo "Invalid distribution found"
+        print_usage
+    fi
+
+    echo "installing ERLANG"
+    sudo apt-get install apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
+    sudo apt-get purge -yf erlang*
+
+    wget -O - 'https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc' | sudo apt-key add -
+
+    if [ ! -f "/etc/apt/sources.list.d/bintray.erlang.list" ]; then
+      echo "deb https://dl.bintray.com/rabbitmq/debian $DIST erlang-21.x"|sudo tee --append /etc/apt/sources.list.d/bintray.erlang.list
+    fi
+    sudo apt-get update
+    sudo apt-get install -yf
+    sudo apt-get install -y erlang-base erlang-diameter erlang-eldap erlang-ssl erlang-crypto erlang-asn1 erlang-public-key
+    sudo apt-get install -y erlang-nox
+}
+
+sudo pwd > /dev/null
+os_name="$1"
+DIST="$2"
+if [ "$os_name" == "ubuntu" ]; then
+    install_on_ubuntu
+elif [ "$os_name" == "centos" ]; then
+    install_on_centos
+else
+    printf "ubuntu and centos are the only operating systems this script \
+supports. For other operating systems, please install Erlang manually with the \
+following components- ssl, publickey, asn1, and crypto.\n"
+    print_usage
 fi
-
-echo "installing ERLANG"
-sudo apt-get install apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
-sudo apt-get purge -yf erlang*
-
-wget -O - 'https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc' | sudo apt-key add -
-
-if [ ! -f "/etc/apt/sources.list.d/bintray.erlang.list" ]; then
-  echo "deb https://dl.bintray.com/rabbitmq/debian $DIST erlang-21.x"|sudo tee --append /etc/apt/sources.list.d/bintray.erlang.list
-fi
-sudo apt-get update
-sudo apt-get install -yf
-sudo apt-get install -y erlang-base erlang-diameter erlang-eldap erlang-ssl erlang-crypto erlang-asn1 erlang-public-key
-sudo apt-get install -y erlang-nox
 
 echo "Finished installing dependencies for rabbitmq"
