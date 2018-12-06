@@ -387,7 +387,7 @@ class DriverAgent(BasicAgent):
                                       message=message)
             #
             if self.publish_breadth_first:
-                self._publish_wrapper(self.breadth_first_topic,
+                self._publish_wrapper(breadth_first_topic,
                                       headers=headers,
                                       message=message)
 
