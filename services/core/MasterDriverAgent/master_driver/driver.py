@@ -153,7 +153,7 @@ class DriverAgent(BasicAgent):
         module = __import__(module_name,globals(),locals(),[], -1)
         sub_module = getattr(module, driver_type)
         klass = getattr(sub_module, "Interface")
-        interface = klass(vip=self.vip, core=self.core)
+        interface = klass(vip=self.vip, core=self.core, device_path=self.device_path)
         interface.configure(config_dict, config_string)
         return interface
 
