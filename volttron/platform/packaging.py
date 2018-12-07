@@ -373,7 +373,7 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
     except subprocess.CalledProcessError as ex:
         traceback.print_last()
     finally:
-        #shutil.rmtree(tmpdir, True)
+        shutil.rmtree(tmpdir, True)
         pass
 
 

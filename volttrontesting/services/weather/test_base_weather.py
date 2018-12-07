@@ -39,7 +39,7 @@
 import datetime
 import os
 import ujson
-
+import csv
 import gevent
 import pytest
 from mock import MagicMock
@@ -97,9 +97,29 @@ class BasicWeatherAgent(BaseWeatherAgent):
     def __init__(self, **kwargs):
         super(BasicWeatherAgent, self).__init__(**kwargs)
 
-    # TODO create a file to use, a path, and stick the string here
     def get_point_name_defs_file(self):
-        return "volttrontesting/services/weather/point_names_defs.csv"
+        point_name_defs = [{"Service_Point_Name":"fake1",
+                            "Standard_Point_Name":"FAKE1",
+                            "Service_Units":"inch",
+                            "Standardized_Units":"centimeter"},
+                           {"Service_Point_Name":"fake2",
+                            "Standard_Point_Name":"FAKE2",
+                            "Service_Units":"celsius",
+                            "Standardized_Units":"fahrenheit"},
+                           {"Service_Point_Name":"fake3",
+                            "Standard_Point_Name":"FAKE3",
+                            "Service_Units":"pint",
+                            "Standardized_Units":"milliliter"}
+                          ]
+        with open("temp.csv", 'wb') as csvfile:
+            fields = ["Service_Point_Name", "Standard_Point_Name",
+                      "Service_Units", "Standardized_Units"]
+            writer = csv.DictWriter(csvfile, fieldnames=fields)
+            writer.writeheader()
+            for row in point_name_defs:
+                writer.writerow(row)
+
+        return "temp.csv"
 
     def query_current_weather(self, location):
         current_time = datetime.datetime.utcnow()
@@ -120,7 +140,6 @@ class BasicWeatherAgent(BaseWeatherAgent):
             records.append(record)
         return format_timestamp(current_time), records
 
-    # TODO
     def query_hourly_historical(self, location, start_date, end_date):
         pass
 
@@ -147,6 +166,11 @@ class BasicWeatherAgent(BaseWeatherAgent):
         else:
             return location.get("location") == "fake_location"
 
+    @Core.receiver("onstop")
+    def stopping(self, sender, **kwargs):
+        self._cache.close()
+        
+        
 
 @pytest.fixture(scope="module")
 def weather(volttron_instance):

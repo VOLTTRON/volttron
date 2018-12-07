@@ -66,7 +66,7 @@ from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.agent import utils
 from volttron.utils.docs import doc_inherit
 
-__version__ = "0.1.0"
+__version__ = "2.0.0"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -77,7 +77,6 @@ STATION_REGEX = re.compile("^[Kk][a-zA-Z]{3}$")
 WFO_REGEX = re.compile("^[A-Z]{3}$")
 
 
-# TODO all documentation
 def weather_agent(config_path, **kwargs):
     """
     Used for instantiating the WeatherDotGov agent.
@@ -118,7 +117,6 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         if service_name == "get_current_weather":
             return datetime.timedelta(hours=1)
         elif service_name == "get_hourly_forecast":
-            # TODO get hourly may be a different interval
             return datetime.timedelta(hours=1)
         else:
             return None
