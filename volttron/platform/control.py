@@ -53,11 +53,13 @@ import uuid
 import hashlib
 import tarfile
 import subprocess
+from datetime import timedelta
 
 import gevent
 import gevent.event
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform import get_home, get_address
+from volttron.platform.messaging.health import Status, STATUS_BAD
 
 from .agent import utils
 from .agent.known_identities import CONTROL_CONNECTION, CONFIGURATION_STORE
@@ -68,6 +70,7 @@ from .jsonrpc import RemoteError
 from .vip.agent.errors import VIPError
 from .auth import AuthEntry, AuthFile, AuthException
 from .keystore import KeyStore, KnownHostsStore
+from volttron.platform.scheduling import periodic
 
 try:
     import volttron.restricted
@@ -94,6 +97,7 @@ class ControlService(BaseAgent):
         super(ControlService, self).__init__(*args, **kwargs)
         self._aip = aip
         self._tracker = tracker
+        self.crashed_agents = {}
 
     @Core.receiver('onsetup')
     def _setup(self, sender, **kwargs):
@@ -103,6 +107,68 @@ class ControlService(BaseAgent):
         self.vip.rpc.export(self._tracker.enable, 'stats.enable')
         self.vip.rpc.export(self._tracker.disable, 'stats.disable')
         self.vip.rpc.export(lambda: self._tracker.stats, 'stats.get')
+
+    @Core.schedule(periodic(300))
+    def _monitor_agents(self):
+        """
+        Periodically look for agents that crashed and schedule a restart
+        attempt. Attempts at most 5 times with increasing interval
+        between attempts. Sends alert if attempts fail.
+        """
+        # Get status for agents that have been started at least once.
+        stats = self._aip.status_agents()
+        for (uid, name, (pid, stat)) in stats:
+            if stat:
+                # stat=0 means stopped and stat=None means running
+                # will always have pid(current/crashed/stopped)
+                attempt = self.crashed_agents.get(uid, -1) + 1
+                if attempt < 5:
+                    self.crashed_agents[uid] = attempt
+                    next_restart = utils.get_aware_utc_now() + timedelta(
+                        minutes=attempt*5)
+                    _log.debug("{} stopped unexpectedly. Will attempt to "
+                               "restart at {}".format(name, next_restart))
+                    self.core.schedule(next_restart,
+                                       self._restart_agent,
+                                       uid, name)
+                else:
+                    self.send_alert(uid, name)
+                    self.crashed_agents.pop(uid)
+
+    def _restart_agent(self, agent_id, agent_name):
+        """
+        Checks if a given agent has crashed. If so attempts to restart it.
+        If successful removes the agent id from list of crashed agents
+        :param agent_id:
+        :param agent_name:
+        :return:
+        """
+        (id, stat) = self._aip.agent_status(agent_id)
+        if stat:
+            # if there is still some error status... attempt restart
+            # call self.stop to inform router but call aip start to get
+            # status back
+            self.stop_agent(agent_id)
+            (id,stat) = self._aip.start_agent(agent_id)
+            if stat is None:
+                # start successful
+                self.crashed_agents.pop(agent_id)
+                _log.info("Successfully restarted agent {}".format(agent_name))
+            else:
+                _log.info("Restart of {} failed".format(agent_name))
+
+    def send_alert(self, agent_id, agent_name):
+        """Send an alert for the group, summarizing missing topics.
+
+        :param unseen_topics: List of topics that were expected but not received
+        :type unseen_topics: list
+        """
+        alert_key = "Agent {}({}) stopped unexpectedly".format(agent_name,
+                                                               agent_id)
+        context = "Agent {}({}) stopped unexpectedly. Attempts to " \
+                    "restart failed".format(agent_name, agent_id)
+        status = Status.build(STATUS_BAD, context=context)
+        self.vip.health.send_alert(alert_key, status)
 
     @RPC.export
     def serverkey(self):
