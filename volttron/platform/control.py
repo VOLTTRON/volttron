@@ -108,7 +108,7 @@ class ControlService(BaseAgent):
         self.vip.rpc.export(self._tracker.disable, 'stats.disable')
         self.vip.rpc.export(lambda: self._tracker.stats, 'stats.get')
 
-    @Core.schedule(periodic(300))
+    @Core.schedule(periodic(30))
     def _monitor_agents(self):
         """
         Periodically look for agents that crashed and schedule a restart

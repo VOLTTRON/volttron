@@ -82,16 +82,6 @@ expected_table_list = [
 
 
 @pytest.fixture(scope="module")
-def volttron_instance(get_volttron_instances):
-
-    instance = get_volttron_instances(1)
-
-    yield instance
-
-    instance.shutdown_platform()
-
-
-@pytest.fixture(scope="module")
 def crate_connection1():
     host = crate_config_no_schema['connection']['params']['host']
     conn = client.connect(host, error_trace=True)
