@@ -50,6 +50,7 @@ from outstation import DNP3Outstation
 from points import DEFAULT_POINT_TOPIC, DEFAULT_OUTSTATION_STATUS_TOPIC
 from points import DEFAULT_LOCAL_IP, DEFAULT_PORT
 from points import POINT_TYPE_ANALOG_INPUT, POINT_TYPE_BINARY_INPUT
+from dnp3.points import PUBLISH_AND_RESPOND
 from points import PointDefinitions, PointDefinition, PointArray
 from points import DNP3Exception
 
@@ -465,10 +466,15 @@ class BaseDNP3Agent(Agent):
     def publish_point_value(self, point_value):
         """Publish a PointValue as it is received from the DNP3 Master."""
         _log.info('Publishing DNP3 {}'.format(point_value))
-        self.publish_points({point_value.name: (point_value.unwrapped_value() if point_value else None)})
+        msg = {
+            point_value.name: (point_value.unwrapped_value() if point_value else None)
+        }
 
-    def publish_points(self, msg):
-        """Publish point values to the message bus."""
+        if point_value.point_def.action == PUBLISH_AND_RESPOND:
+            msg.update({
+                'response': point_value.point_def.response
+            })
+
         self.publish_data(self.point_topic, msg)
 
     def publish_outstation_status(self, outstation_status):
