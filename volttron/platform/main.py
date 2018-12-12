@@ -642,6 +642,14 @@ def start_volttron_process(opts):
     external_address_file = os.path.join(opts.volttron_home, 'external_address.json')
     _log.debug('external_address_file file %s', external_address_file)
     protected_topics = {}
+    if opts.agent_monitor_frequency:
+        try:
+            int(opts.agent_monitor_frequency)
+        except ValueError as e:
+            raise ValueError("agent-monitor-frequency should be integer "
+                             "value. Units - seconds. This determines how "
+                             "often the platform checks for any crashed agent "
+                             "and attempts to restart. {}".format(e))
 
     # Main loops
     def router(stop):
@@ -744,7 +752,8 @@ def start_volttron_process(opts):
         services = [
             ControlService(opts.aip, address=address, identity='control',
                            tracker=tracker, heartbeat_autostart=True,
-                           enable_store=False, enable_channel=True),
+                           enable_store=False, enable_channel=True,
+                           agent_monitor_frequency=opts.agent_monitor_frequency),
 
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,

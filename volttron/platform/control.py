@@ -91,13 +91,15 @@ CHUNK_SIZE = 4096
 
 
 class ControlService(BaseAgent):
-    def __init__(self, aip, *args, **kwargs):
+    def __init__(self, aip, agent_monitor_frequency, *args, **kwargs):
+
         tracker = kwargs.pop('tracker', None)
         kwargs["enable_store"] = False
         super(ControlService, self).__init__(*args, **kwargs)
         self._aip = aip
         self._tracker = tracker
         self.crashed_agents = {}
+        self.agent_monitor_frequency = int(agent_monitor_frequency)
 
     @Core.receiver('onsetup')
     def _setup(self, sender, **kwargs):
@@ -108,7 +110,13 @@ class ControlService(BaseAgent):
         self.vip.rpc.export(self._tracker.disable, 'stats.disable')
         self.vip.rpc.export(lambda: self._tracker.stats, 'stats.get')
 
-    @Core.schedule(periodic(30))
+    @Core.receiver('onstart')
+    def onstart(self, sender, **kwargs):
+        _log.debug(" agent monitor frequency is... {}".format(
+            self.agent_monitor_frequency))
+        self.core.schedule(periodic(self.agent_monitor_frequency),
+                           self._monitor_agents)
+
     def _monitor_agents(self):
         """
         Periodically look for agents that crashed and schedule a restart

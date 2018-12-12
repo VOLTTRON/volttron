@@ -387,7 +387,7 @@ class PlatformWrapper:
                          msgdebug=False,
                          setupmode=False,
                          instance_name='',
-                         agent_monitor_frequency=300):
+                         agent_monitor_frequency=600):
 
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
@@ -529,7 +529,7 @@ class PlatformWrapper:
 
         if not has_control:
             self.shutdown_platform()
-            raise "Couldn't connect to core platform!"
+            raise Exception("Couldn't connect to core platform!")
 
         if bind_web_address:
             times = 0
@@ -545,7 +545,7 @@ class PlatformWrapper:
                     gevent.sleep(0.1)
                     self.logit("Connection error found {}".format(e))
             if not has_discovery:
-                raise "Couldn't connect to discovery platform."
+                raise Exception("Couldn't connect to discovery platform.")
 
         self.use_twistd = use_twistd
 
@@ -610,12 +610,11 @@ class PlatformWrapper:
         p = subprocess.Popen(cmd, env=env, stderr=subprocess.PIPE,
                              stdout=subprocess.PIPE)
         res, stderr = p.communicate()
-        assert p.returncode == 0, "failed to install wheel:{}".format(
-            wheel_file)
-        assert res, "failed to install wheel:{}".format(wheel_file)
+        if p.returncode != 0:
+            assert False, "failed to install wheel:{} \n cmd: {}\n " \
+                          "stdout: {}\n stderr: {}".format(wheel_file, cmd,
+                                                           res, stderr)
         agent_uuid = res.split(' ')[-2]
-        print("After install of wheel res={} agent id ={}".format(res,
-                                                                  agent_uuid))
         self.logit(agent_uuid)
 
         if start:
@@ -782,13 +781,8 @@ class PlatformWrapper:
         # Confirm agent running
         cmd = ['volttron-ctl']
         cmd.extend(['status', agent_uuid])
-        #res = subprocess.check_output(cmd, env=self.env)
-        p = subprocess.Popen(cmd, env=self.env, stderr=subprocess.PIPE,
-                             stdout=subprocess.PIPE)
-        res, stderr = p.communicate()
-        assert p.returncode == 0
-        print("stdout {}".format(res))
-        print("stderr {}".format(stderr))
+        res = subprocess.check_output(cmd, env=self.env)
+
         # 776 TODO: Timing issue where check fails
         time.sleep(.1)
         self.logit("Subprocess res is {}".format(res))

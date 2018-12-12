@@ -6,8 +6,8 @@ import pytest
 from gevent import subprocess
 
 from volttron.platform import get_examples
-from volttron.platform.vip.agent import Agent, Core
 import sys
+
 
 
 @pytest.mark.control
@@ -90,7 +90,6 @@ def test_can_get_publickey(volttron_instance):
     assert id_serverkey_map.get(listener_identity) is not None
 
 
-@pytest.mark.dev
 @pytest.mark.control
 def test_recover_from_crash(get_volttron_instances):
     """
@@ -99,7 +98,8 @@ def test_recover_from_crash(get_volttron_instances):
     :return:
     """
 
-    volttron_instance = get_volttron_instances(1, True)
+    volttron_instance = get_volttron_instances(1, True,
+                                               agent_monitor_frequency=10)
     tmpdir = tempfile.mkdtemp()
 
     os.chdir(tmpdir)
@@ -129,11 +129,11 @@ class CrashTestAgent(Agent):
         super(CrashTestAgent, self).__init__(**kwargs)
 
     @Core.receiver('onstart')
-    def crash_after_few_seconds(self, sender, **kwargs):
+    def crash_after_five_seconds(self, sender, **kwargs):
         print("crash test agent on start")
-        gevent.sleep(3)
+        gevent.sleep(5)
         print("crash test agent quitting")
-        sys.exit(3)
+        sys.exit(5)
         ''')
         with open(os.path.join('setup.py'), 'w') as file:
             file.write('''
@@ -170,16 +170,15 @@ setup(
     # wait till we detect a restart or 20 seconds.
     # have to do this since the test agent is hardcoded to crash 5
     # seconds after start
-    while not crashed or (not restarted and wait_time < 20):
+    while not crashed or (not restarted and wait_time < 30):
         status = query_agent.vip.rpc.call('control', 'agent_status',
                                           agent_uuid).get(timeout=2)
 
         print("agent status: {} ".format(status))
         if crashed and status[0] and status[1] is None:
             restarted = True
-        elif status[0] and status[1] == 3:
+        elif status[0] and status[1] == 5:
             crashed = True
-
         gevent.sleep(1)
         wait_time += 1
     assert crashed and restarted
