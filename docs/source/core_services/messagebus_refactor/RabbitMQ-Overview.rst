@@ -28,7 +28,7 @@ definitions that we need to know before we proceed.
 
     #. Direct - Here, the message is routed to a queue if the routing key of the message exactly matches the binding key of the queue.
 
-    #. Topic - Here, the message is routed to a queue based on pattern matching of the routing key with the binding key. The binding key and the routing key pattern must be a list of words delimited by dots, for example, "car.subaru.outback" or "car.subaru.*", "car.#". A message sent with a particular routing key will be delivered to all the queues that are bound with a matching binding key with some special rules as
+    #. Topic - Here, the message isbind the queue  routed to a queue based on pattern matching of the routing key with the binding key. The binding key and the routing key pattern must be a list of words delimited by dots, for example, "car.subaru.outback" or "car.subaru.*", "car.#". A message sent with a particular routing key will be delivered to all the queues that are bound with a matching binding key with some special rules as
 
         '*' (star) - can match exactly one word in that position.
         '#' (hash) - can match zero or more words
@@ -47,7 +47,7 @@ are four consumers (Consumer 1 - 4) interested in receiving messages matching th
 "green", "red" or "yellow". In this example, we are using a direct exchange that will route
 the messages to the queues only when there is an exact match of the routing key of the message
 with the binding key of the queues. Each of the consumers declare a queue and bind the queue
-with the exchange with a binding key of interest. Lastly, we have a producer that is continuously
+to the exchange with a binding key of interest. Lastly, we have a producer that is continuously
 sending messages to exchange with routing key "green". The exchange will check for an exact
 match and route the messages to only Consumer 1 and Consumer 3.
 
@@ -62,7 +62,9 @@ Distributed RabbitMQ Brokers
 ============================
 RabbitMQ allows multiple distributed RabbitMQ brokers to be connected in three different ways -
 with clustering, with federation and using shovel. We take advantage of these built-in plugins
-for multi-platform VOLTTRON communication.
+for multi-platform VOLTTRON communication. For more information about the differences between clustering,
+federation, and shovel, please refer to RabbitMQ documentation
+`Distributed RabbitMQ brokers <https://www.rabbitmq.com/distributed.html>`_.
 
 Clustering
 ----------
@@ -132,7 +134,7 @@ receives the messages for which it has subscribed for. An upstream queue is crea
 server with a binding key same as subscription made on the federated exchange. For example, if an upstream
 server is publishing messages with binding key "foo" and a client on the downstream server is interested
 in receiving messages of the binding key "foo", then it creates a queue and binds the queue to the federated
-with the same binding key. This binding s sent to the upstream and the upstream queue binds to the
+with the same binding key. This binding is sent to the upstream and the upstream queue binds to the
 upstream exchange with that key.
 
 
@@ -200,7 +202,7 @@ interface allows you to
 * Create, Monitor the status and delete resources such as virtual hosts, users, exchanges, queues etc.
 * Monitor queue length, message rates and connection information and more
 * Manage users and add permissions (read, write and configure) to use the resources
-* Manage policies and runtime [parameters
+* Manage policies and runtime parameters
 * Send and receive messages (for trouble shooting)
 
 For more detailed information about the management plugin, please refer to RabbitMQ documentation

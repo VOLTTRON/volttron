@@ -55,7 +55,7 @@ is 5671. The default management HTTP port without authentication is 15672 and
 with authentication is 15671. These needs to set appropriately if default ports are
 not used. The 'ssl' flag indicates if SSL based authentication is required or not.
 If set to True, information regarding SSL certificates needs to be also provided.
-SSL based authentication is described in detail in :ref:`Authentication And Authorization With RabbitMQ Message Bus <RabbitMQ-Auth>`.
+SSL based authentication is described in detail in `Authentication And Authorization With RabbitMQ Message Bus <RabbitMQ-Auth>`_.
 
 
 To configure the VOLTTRON instance to use RabbitMQ message bus, run the following command.
@@ -76,7 +76,7 @@ message bus, the RabbitMQ platform router is instantiated. The RabbitMQ platform
 * Disconnects from the broker when the platform shuts down.
 
 
-When any agent is installed and started, the Agent Core chedks for the type of message bus used.
+When any agent is installed and started, the Agent Core checks for the type of message bus used.
 If it is RabbitMQ message bus then
 
 * It creates a RabbitMQ user for the agent.

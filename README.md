@@ -382,10 +382,10 @@ and should be running on machine/VM that has a unique host name.***__
       For example:
       
       On v1:
-      cat /tmp/v2-root-ca.crt >> /home/vdev/  .my_volttron_home/certificates/v1-trusted-cas.crt
+      cat /tmp/v2-root-ca.crt >> /home/vdev/  .my_volttron_home/certificates/certs/v1-trusted-cas.crt
       
       On v2:
-      cat /tmp/v1-root-ca.crt >> /home/vdev/ .my_volttron_home/certificates/v2-trusted-cas.crt
+      cat /tmp/v1-root-ca.crt >> /home/vdev/ .my_volttron_home/certificates/certs/v2-trusted-cas.crt
 
 3. Stop volttron, stop rabbitmq server and start volttron on both the
 instances. This is required only when you update the root certificate and not
@@ -540,7 +540,7 @@ certain topics to remote instance "v2".
         bi-directional data flow, we will have to run the same script on both the nodes.
 
     b.  Create a user in the subscriber node with username set to publisher instance's
-        admin user name ( (instance-name)-admin ) and allow the shovel access to
+        agent name ( (instance-name)-PublisherAgent ) and allow the shovel access to
         the virtual host of the subscriber node.
 
         ```sh
