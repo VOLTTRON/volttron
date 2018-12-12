@@ -37,8 +37,28 @@
 # }}}
 
 import pytest
+import os
+import json
 import gevent
+import gevent.subprocess as subprocess
+from gevent.subprocess import Popen
 from mock import MagicMock
+from volttron.platform import get_services_core
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER, \
+    CONFIGURATION_STORE
+from volttron.platform.messaging.topics import DRIVER_TOPIC_ALL
+
+FAKE_DEVICE_CONFIG = {
+    "driver_config": {},
+    "registry_config": [],
+    "interval": 5,
+    "timezone": "US/Pacific",
+    "heart_beat_point": "Heartbeat",
+    "driver_type": "fakedriver",
+    "publish_breadth_first_all": False,
+    "publish_depth_first": False,
+    "publish_breadth_first": False
+}
 
 @pytest.fixture(scope="module")
 def test_agent(request, volttron_instance):
@@ -48,6 +68,7 @@ def test_agent(request, volttron_instance):
     # subscribe to weather poll results
     agent.vip.pubsub.subscribe(
         peer='pubsub',
+        # determine the fake device path
         prefix="",
         callback=agent.poll_callback).get()
 
@@ -59,3 +80,26 @@ def test_agent(request, volttron_instance):
 
     request.addfinalizer(stop_agent)
     return agent
+
+@pytest.mark.dev
+def test_cov_forwarding(test_agent, volttron_instance):
+    # Reset master driver config store
+    cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
+    process = Popen(cmd, env=volttron_instance.env, cwd=os.getcwd(),
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = process.wait()
+    print(result)
+    assert result == 0
+    test_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
+                            PLATFORM_DRIVER, "fake",
+                            json.dumps(FAKE_DEVICE_CONFIG),
+                            config_type='json',
+                            )
+    # install master driver
+    master_uuid = volttron_instance.install_agent(
+        agent_dir=get_services_core("MasterDriverAgent"),
+        config_file={},
+        start=True)
+    # send forward cov rpc call to master driver
+
+    # make magic mock asserts
