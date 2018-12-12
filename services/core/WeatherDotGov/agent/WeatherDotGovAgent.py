@@ -151,6 +151,13 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             raise ValueError("Invalid location {}".format(location))
 
     def get_api_description(self, service_name):
+        """
+        Provides the api description string for a given api service.
+        Primarily used during concrete agent startup.
+        :param service_name: name of the api service
+        :return: string describing the function of the api endpoint, along with
+        rpc call usage for the weather agent.
+        """
         if service_name is "get_current_weather":
             return "Provides current weather observations by station via RPC " \
                    "(Requires {'station': <station id>}"
@@ -301,6 +308,9 @@ class WeatherDotGovAgent(BaseWeatherAgent):
                              '{"station":"station_id_value"}')
         grequest = [grequests.get(url, headers=self.headers, timeout=3)]
         gresponse = grequests.map(grequest)[0]
+        if gresponse is None:
+            raise RuntimeError("get request did not return any "
+                               "response")
         response = json.loads(gresponse.content)
         if gresponse.status_code != 200:
             self.generate_response_error(url, gresponse.status_code)
@@ -332,6 +342,9 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         _log.debug("Request Url: {}".format(url))
         grequest = [grequests.get(url, headers=self.headers, timeout=3)]
         gresponse = grequests.map(grequest)[0]
+        if gresponse is None:
+            raise RuntimeError("get request did not return any "
+                               "response")
         response = json.loads(gresponse.content)
         if gresponse.status_code != 200:
             self.generate_response_error(url, gresponse.status_code)

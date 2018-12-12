@@ -1065,8 +1065,8 @@ class WeatherCache:
             self._db_file_path,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
             check_same_thread=check_same_thread)
-        _log.info("connected to database {} sqlite version: {}".format(
-            self._service_name, sqlite3.version))
+        _log.info("connected to database, sqlite version: {}".format(
+            sqlite3.version))
         self.create_tables()
         cursor = self._sqlite_conn.cursor()
         if self._max_size_gb is not None:

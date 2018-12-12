@@ -165,11 +165,6 @@ class BasicWeatherAgent(BaseWeatherAgent):
                 return True
         else:
             return location.get("location") == "fake_location"
-
-    @Core.receiver("onstop")
-    def stopping(self, sender, **kwargs):
-        self._cache.close()
-        
         
 
 @pytest.fixture(scope="module")
@@ -276,7 +271,6 @@ def test_manage_cache_size(volttron_instance):
     page_size = cursor.fetchone()[0]
     total_size = page_size * num_pages
     assert total_size < 25000
-
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("service_name, interval, service_type", [
@@ -914,3 +908,33 @@ def test_poll_errors(volttron_instance, query_agent, config,
     finally:
         if agent:
             agent.core.stop()
+
+def delete_database_file():
+    db_path = "weather.sqlite"
+    if os.path.isfile(db_path):
+        os.remove(db_path)
+
+
+@pytest.mark.dev
+def test_unhandled_cache_exception(weather):
+    location = {"location": "fake_location"}
+    current_time = datetime.datetime.utcnow()
+    test_records = [
+        ujson.dumps(location),
+        format_timestamp(current_time),
+        ujson.dumps({'points': FAKE_POINTS})
+    ]
+    try:
+        delete_database_file()
+        test_service_name = "get_current_weather"
+        weather.store_weather_records(test_service_name, test_records)
+        delete_database_file()
+        results = weather.get_cached_current_data(location)
+        assert results.get("weather_results") is None
+        delete_database_file()
+        results = weather.get_cached_hourly_forecast(location, 1, current_time)
+        assert results.get("weather_results") is None
+
+    except Exception as error:
+        _log.error(error)
+        pytest.fail("Unhandled exception from cache caused the agent to fail.")
