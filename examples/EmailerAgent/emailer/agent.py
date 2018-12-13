@@ -125,10 +125,10 @@ class EmailerAgent(Agent):
         try:
             server = smtplib.SMTP(self.current_config.get('smtp_address', None),self.current_config.get('smtp_port', None))
             #stmplib docs recommend calling ehlo() before & after starttls()
-	    server.ehlo()
+            server.ehlo()
             if self.current_config.get('smtp_username') is not None:
                 server.starttls()
-		server.ehlo()
+                server.ehlo()
                 server.login(self.current_config.get('smtp_username', None), self.current_config.get('smtp_password', None))
             server.close()
         except Exception as e:
