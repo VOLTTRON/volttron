@@ -897,7 +897,7 @@ def main(argv=sys.argv):
         help='Setup mode flag for setting up authorization of external platforms.')
     agents.add_argument(
         '--agent-monitor-frequency', default=600,
-        help='How often should we check for crashed agents and '
+        help='How often should the platform check for crashed agents and '
              'attempt to restart. Units=seconds. Default=600')
 
     # XXX: re-implement control options
