@@ -174,7 +174,6 @@ def weather(volttron_instance):
     agent = volttron_instance.build_agent(
         agent_class=BasicWeatherAgent,
         identity=identity,
-        service_name="BasicWeather"
     )
     gevent.sleep(2)
 
@@ -226,7 +225,6 @@ def test_manage_cache_size(volttron_instance):
     weather = volttron_instance.build_agent(
         agent_class=BasicWeatherAgent,
         identity="test_cache_basic_weather",
-        service_name="BasicWeather",
         max_size_gb=0.00003
     )
 
@@ -234,7 +232,7 @@ def test_manage_cache_size(volttron_instance):
     connection = weather._cache._sqlite_conn
     cursor = connection.cursor()
 
-    assert os.path.isfile("BasicWeather.sqlite")
+    assert os.path.isfile("weather.sqlite")
 
     weather._cache.create_tables()
 
@@ -782,7 +780,6 @@ def test_poll_location(volttron_instance, query_agent):
         agent = volttron_instance.build_agent(
             agent_class=BasicWeatherAgent,
             identity="test_poll_basic",
-            service_name="BasicWeather",
             poll_locations=[{"location": "fake_location"}],
             poll_interval=5,
             should_spawn=True
@@ -839,7 +836,6 @@ def test_poll_multiple_locations(volttron_instance, query_agent, config,
         agent = volttron_instance.build_agent(
             agent_class=BasicWeatherAgent,
             identity="test_poll_basic2",
-            service_name="BasicWeather",
             should_spawn=True,
             **config
         )
@@ -894,7 +890,6 @@ def test_poll_errors(volttron_instance, query_agent, config,
         agent = volttron_instance.build_agent(
             agent_class=BasicWeatherAgent,
             identity="test_poll_errors",
-            service_name="BasicWeather",
             should_spawn=True,
             **config
         )
@@ -916,25 +911,33 @@ def delete_database_file():
 
 
 @pytest.mark.dev
-def test_unhandled_cache_exception(weather):
-    location = {"location": "fake_location"}
-    current_time = datetime.datetime.utcnow()
-    test_records = [
-        ujson.dumps(location),
-        format_timestamp(current_time),
-        ujson.dumps({'points': FAKE_POINTS})
-    ]
-    try:
-        delete_database_file()
-        test_service_name = "get_current_weather"
-        weather.store_weather_records(test_service_name, test_records)
-        delete_database_file()
-        results = weather.get_cached_current_data(location)
-        assert results.get("weather_results") is None
-        delete_database_file()
-        results = weather.get_cached_hourly_forecast(location, 1, current_time)
-        assert results.get("weather_results") is None
+def test_unhandled_cache_exception(volttron_instance):
+    # build a temporary weather agent to use
+    temp_weather_agent = volttron_instance.build_agent(
+        agent_class=BasicWeatherAgent,
+        identity="test_cache_weather"
+    )
+    gevent.sleep(2)
+    query_agent = volttron_instance.build_agent()
+    gevent.sleep(2)
+    # delete temp weather agent's cache
+    version = query_agent.vip.rpc.call("test_cache_weather", 'get_version')\
+        .get(timeout=3)
+    cwd = volttron_instance.volttron_home
+    # database_file = "/".join([cwd, "agents", temp_weather_agent, "agents",
+    #                           "weather.sqlite"])
+    # os.remove(database_file)
+    # location = {"location": "fake_location"}
+    # query the agent - this should return weather from remote as well as
+    # a warning
+    # query_agent.vip.rpc.call()
+    # query -  expects weather_reults + weather_warning AND an alert (
+    # look up send_alert
+    # tear down the agent
 
-    except Exception as error:
-        _log.error(error)
-        pytest.fail("Unhandled exception from cache caused the agent to fail.")
+    #2nd test:
+    # using weather fixture
+    # set cache file to read only
+    # query the agent
+    # expects weather_results + weather_warning AND an alert
+    # set the cache to read/write

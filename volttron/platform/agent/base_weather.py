@@ -112,7 +112,7 @@ class BaseWeatherAgent(Agent):
     """
 
     def __init__(self,
-                 service_name=None,
+                 database_file="weather.sqlite",
                  api_key=None,
                  max_size_gb=None,
                  poll_locations=None,
@@ -122,7 +122,7 @@ class BaseWeatherAgent(Agent):
         # Initial agent configuration
         try:
             super(BaseWeatherAgent, self).__init__(**kwargs)
-            self._service_name = service_name
+            self._database_file = database_file
             self._async_call = AsyncCall()
             self._api_key = api_key
             self._max_size_gb = max_size_gb
@@ -135,7 +135,7 @@ class BaseWeatherAgent(Agent):
 
             self._default_config = \
                 {
-                    "service": self._service_name,
+                    "database_file": "weather.sqlite",
                     "api_key": self._api_key,
                     "max_size_gb": self._max_size_gb,
                     "poll_locations": self.poll_locations,
@@ -408,7 +408,7 @@ class BaseWeatherAgent(Agent):
                                        "with error: {}".format(e.message))
         else:
             _log.debug("Configuration successful")
-            self._cache = WeatherCache(service_name=self._service_name,
+            self._cache = WeatherCache(self._database_file,
                                        api_services=self._api_services,
                                        max_size_gb=self._max_size_gb)
             self.vip.health.set_status(STATUS_GOOD,
@@ -1027,13 +1027,13 @@ class WeatherCache:
     """Caches data to help reduce the number of requests to the API"""
 
     def __init__(self,
-                 service_name="default",
+                 database_file,
                  api_services=None,
                  max_size_gb=1,
                  check_same_thread=True):
         """
 
-        :param service_name: Name of the weather service (i.e. weather.gov)
+        :param database_file: path sqlite file to use for cache
         :param api_services: dictionary from BaseAgent, used to determine
         table names
         :param max_size_gb: maximum size in gigabytes of the sqlite database
@@ -1043,7 +1043,7 @@ class WeatherCache:
         to the sqlite object, else false (see
         https://docs.python.org/3/library/sqlite3.html)
         """
-        self._db_file_path = "weather.sqlite"
+        self._db_file_path = database_file
         self._api_services = api_services
         self._max_size_gb = max_size_gb
         self._sqlite_conn = None

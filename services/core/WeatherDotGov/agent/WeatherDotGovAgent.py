@@ -91,7 +91,7 @@ def weather_agent(config_path, **kwargs):
         config_dict = utils.load_config(config_path)
     _log.debug("config_dict before init: {}".format(config_dict))
     utils.update_kwargs_with_config(kwargs, config_dict)
-    return WeatherDotGovAgent(service_name="WeatherDotGov", **kwargs)
+    return WeatherDotGovAgent(**kwargs)
 
 
 class WeatherDotGovAgent(BaseWeatherAgent):
