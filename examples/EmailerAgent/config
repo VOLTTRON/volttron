@@ -1,0 +1,16 @@
+{
+     "smtp-address": "<smtp-address>",
+     "smtp-username":"<smtp-username>",
+     "smtp-password":"<smtp-password>",
+     "smtp-port":<smtp-port>,
+     "smtp-tls":<true/false>,
+     "from-address": "foo@foo.com",
+     "to-addresses": [
+         "foo1@foo.com",
+         "foo2@foo.com"
+     ],
+
+     # Only send a certain alert-key message every 120 minutes.
+     "allow-frequency-minutes": 120
+ }
+
