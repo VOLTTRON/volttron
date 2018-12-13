@@ -56,8 +56,6 @@ _log = logging.getLogger(__name__)
 # how do we handle the registry config
 weather_dot_gov_service = {
     'weather_service': get_services_core('WeatherDotGov'),
-    # TODO change max size when memory error has been resolved
-    # 'max_size_gb': 0.00002,
     'max_size_gb': None,
     'api_key': None,
     'poll_locations': [],
@@ -75,12 +73,12 @@ polling_service = {
 @pytest.fixture(scope="function")
 def cleanup_cache(volttron_instance, query_agent, weather):
     tables = ["get_current_weather", "get_hourly_forecast"]
-    cwd = volttron_instance.volttron_home
     version = query_agent.vip.rpc.call(identity, 'get_version').get(timeout=3)
-    data_dir = cwd + "/agents/" + weather + "/weatherdotgov_agent-" + version\
-        + "/weatherdotgov-agent-" + version + ".agent-data/"
-    _log.debug(data_dir)
-    database_file = data_dir + "WeatherDotGov.sqlite"
+    cwd = volttron_instance.volttron_home
+    database_file = "/".join([cwd, "agents", weather, "weatherdotgov_agent-" +
+                         version, "weatherdotgov-agent-" + version +
+                         ".agent-data", "weather.sqlite"])
+    _log.debug(database_file)
     sqlite_connection = sqlite3.connect(database_file)
     cursor = sqlite_connection.cursor()
     for table in tables:
@@ -111,7 +109,6 @@ def query_agent(request, volttron_instance):
     return agent
 
 
-# TODO params
 @pytest.fixture(scope="module", params=[weather_dot_gov_service])
 def weather(request, volttron_instance):
     print("** Setting up weather agent module **")
@@ -291,7 +288,6 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
                 assert False
 
 
-# TODO compare failure condition messages
 @pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
     ["fail"],

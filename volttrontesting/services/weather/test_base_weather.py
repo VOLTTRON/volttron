@@ -39,7 +39,7 @@
 import datetime
 import os
 import ujson
-
+import csv
 import gevent
 import pytest
 from mock import MagicMock
@@ -97,9 +97,29 @@ class BasicWeatherAgent(BaseWeatherAgent):
     def __init__(self, **kwargs):
         super(BasicWeatherAgent, self).__init__(**kwargs)
 
-    # TODO create a file to use, a path, and stick the string here
     def get_point_name_defs_file(self):
-        return "volttrontesting/services/weather/point_names_defs.csv"
+        point_name_defs = [{"Service_Point_Name":"fake1",
+                            "Standard_Point_Name":"FAKE1",
+                            "Service_Units":"inch",
+                            "Standardized_Units":"centimeter"},
+                           {"Service_Point_Name":"fake2",
+                            "Standard_Point_Name":"FAKE2",
+                            "Service_Units":"celsius",
+                            "Standardized_Units":"fahrenheit"},
+                           {"Service_Point_Name":"fake3",
+                            "Standard_Point_Name":"FAKE3",
+                            "Service_Units":"pint",
+                            "Standardized_Units":"milliliter"}
+                          ]
+        with open("temp.csv", 'wb') as csvfile:
+            fields = ["Service_Point_Name", "Standard_Point_Name",
+                      "Service_Units", "Standardized_Units"]
+            writer = csv.DictWriter(csvfile, fieldnames=fields)
+            writer.writeheader()
+            for row in point_name_defs:
+                writer.writerow(row)
+
+        return "temp.csv"
 
     def query_current_weather(self, location):
         current_time = datetime.datetime.utcnow()
@@ -120,7 +140,6 @@ class BasicWeatherAgent(BaseWeatherAgent):
             records.append(record)
         return format_timestamp(current_time), records
 
-    # TODO
     def query_hourly_historical(self, location, start_date, end_date):
         pass
 
@@ -146,7 +165,7 @@ class BasicWeatherAgent(BaseWeatherAgent):
                 return True
         else:
             return location.get("location") == "fake_location"
-
+        
 
 @pytest.fixture(scope="module")
 def weather(volttron_instance):
@@ -155,7 +174,6 @@ def weather(volttron_instance):
     agent = volttron_instance.build_agent(
         agent_class=BasicWeatherAgent,
         identity=identity,
-        service_name="BasicWeather"
     )
     gevent.sleep(2)
 
@@ -207,7 +225,6 @@ def test_manage_cache_size(volttron_instance):
     weather = volttron_instance.build_agent(
         agent_class=BasicWeatherAgent,
         identity="test_cache_basic_weather",
-        service_name="BasicWeather",
         max_size_gb=0.00003
     )
 
@@ -215,7 +232,7 @@ def test_manage_cache_size(volttron_instance):
     connection = weather._cache._sqlite_conn
     cursor = connection.cursor()
 
-    assert os.path.isfile("BasicWeather.sqlite")
+    assert os.path.isfile("weather.sqlite")
 
     weather._cache.create_tables()
 
@@ -252,7 +269,6 @@ def test_manage_cache_size(volttron_instance):
     page_size = cursor.fetchone()[0]
     total_size = page_size * num_pages
     assert total_size < 25000
-
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("service_name, interval, service_type", [
@@ -764,7 +780,6 @@ def test_poll_location(volttron_instance, query_agent):
         agent = volttron_instance.build_agent(
             agent_class=BasicWeatherAgent,
             identity="test_poll_basic",
-            service_name="BasicWeather",
             poll_locations=[{"location": "fake_location"}],
             poll_interval=5,
             should_spawn=True
@@ -821,7 +836,6 @@ def test_poll_multiple_locations(volttron_instance, query_agent, config,
         agent = volttron_instance.build_agent(
             agent_class=BasicWeatherAgent,
             identity="test_poll_basic2",
-            service_name="BasicWeather",
             should_spawn=True,
             **config
         )
@@ -876,7 +890,6 @@ def test_poll_errors(volttron_instance, query_agent, config,
         agent = volttron_instance.build_agent(
             agent_class=BasicWeatherAgent,
             identity="test_poll_errors",
-            service_name="BasicWeather",
             should_spawn=True,
             **config
         )
@@ -890,3 +903,41 @@ def test_poll_errors(volttron_instance, query_agent, config,
     finally:
         if agent:
             agent.core.stop()
+
+def delete_database_file():
+    db_path = "weather.sqlite"
+    if os.path.isfile(db_path):
+        os.remove(db_path)
+
+
+@pytest.mark.dev
+def test_unhandled_cache_exception(volttron_instance):
+    # build a temporary weather agent to use
+    temp_weather_agent = volttron_instance.build_agent(
+        agent_class=BasicWeatherAgent,
+        identity="test_cache_weather"
+    )
+    gevent.sleep(2)
+    query_agent = volttron_instance.build_agent()
+    gevent.sleep(2)
+    # delete temp weather agent's cache
+    version = query_agent.vip.rpc.call("test_cache_weather", 'get_version')\
+        .get(timeout=3)
+    cwd = volttron_instance.volttron_home
+    # database_file = "/".join([cwd, "agents", temp_weather_agent, "agents",
+    #                           "weather.sqlite"])
+    # os.remove(database_file)
+    # location = {"location": "fake_location"}
+    # query the agent - this should return weather from remote as well as
+    # a warning
+    # query_agent.vip.rpc.call()
+    # query -  expects weather_reults + weather_warning AND an alert (
+    # look up send_alert
+    # tear down the agent
+
+    #2nd test:
+    # using weather fixture
+    # set cache file to read only
+    # query the agent
+    # expects weather_results + weather_warning AND an alert
+    # set the cache to read/write

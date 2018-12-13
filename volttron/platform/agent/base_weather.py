@@ -95,7 +95,7 @@ CREATE_STMT_FORECAST = """CREATE TABLE {table}
                          FORECAST_TIME TIMESTAMP NOT NULL,
                          POINTS TEXT NOT NULL);"""
 
-__version__ = "0.1.0"
+__version__ = "2.0.0"
 
 _log = logging.getLogger(__name__)
 
@@ -112,7 +112,7 @@ class BaseWeatherAgent(Agent):
     """
 
     def __init__(self,
-                 service_name=None,
+                 database_file="weather.sqlite",
                  api_key=None,
                  max_size_gb=None,
                  poll_locations=None,
@@ -122,7 +122,7 @@ class BaseWeatherAgent(Agent):
         # Initial agent configuration
         try:
             super(BaseWeatherAgent, self).__init__(**kwargs)
-            self._service_name = service_name
+            self._database_file = database_file
             self._async_call = AsyncCall()
             self._api_key = api_key
             self._max_size_gb = max_size_gb
@@ -135,7 +135,7 @@ class BaseWeatherAgent(Agent):
 
             self._default_config = \
                 {
-                    "service": self._service_name,
+                    "database_file": "weather.sqlite",
                     "api_key": self._api_key,
                     "max_size_gb": self._max_size_gb,
                     "poll_locations": self.poll_locations,
@@ -206,7 +206,6 @@ class BaseWeatherAgent(Agent):
              "type": service_type,
              "description": description}
 
-    # TODO docs
     def remove_service(self, service_function_name):
         """
         Used to remove services from the api_services dictionary which aren't
@@ -372,7 +371,6 @@ class BaseWeatherAgent(Agent):
                 mapping_file.close()
         return point_name_mapping
 
-    # TODO copy documentation?
     def _configure(self, config_name, actions, contents):
         """
         Handles most of the configuration of weather agent implementations
@@ -410,7 +408,7 @@ class BaseWeatherAgent(Agent):
                                        "with error: {}".format(e.message))
         else:
             _log.debug("Configuration successful")
-            self._cache = WeatherCache(service_name=self._service_name,
+            self._cache = WeatherCache(self._database_file,
                                        api_services=self._api_services,
                                        max_size_gb=self._max_size_gb)
             self.vip.health.set_status(STATUS_GOOD,
@@ -869,7 +867,6 @@ class BaseWeatherAgent(Agent):
         to forecast timestamp
         """
 
-    # TODO
     # @RPC.export
     # def get_hourly_historical(self, locations, start_date, end_date):
     #     data = []
@@ -879,7 +876,6 @@ class BaseWeatherAgent(Agent):
     #     end_datetime = datetime.datetime.combine(end_date, datetime.time())
     #  + \
     #                    (datetime.timedelta(days=1))
-    #     # TODO
     #     for location in locations:
     #         if not self.validate_location(service_name, location):
     #             raise ValueError("Invalid Location:{}".format(location))
@@ -1031,13 +1027,13 @@ class WeatherCache:
     """Caches data to help reduce the number of requests to the API"""
 
     def __init__(self,
-                 service_name="default",
+                 database_file,
                  api_services=None,
                  max_size_gb=1,
                  check_same_thread=True):
         """
 
-        :param service_name: Name of the weather service (i.e. weather.gov)
+        :param database_file: path sqlite file to use for cache
         :param api_services: dictionary from BaseAgent, used to determine
         table names
         :param max_size_gb: maximum size in gigabytes of the sqlite database
@@ -1047,9 +1043,7 @@ class WeatherCache:
         to the sqlite object, else false (see
         https://docs.python.org/3/library/sqlite3.html)
         """
-        self._service_name = service_name
-        # TODO need to alter the file path for the database
-        self._db_file_path = self._service_name + ".sqlite"
+        self._db_file_path = database_file
         self._api_services = api_services
         self._max_size_gb = max_size_gb
         self._sqlite_conn = None
@@ -1071,8 +1065,8 @@ class WeatherCache:
             self._db_file_path,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
             check_same_thread=check_same_thread)
-        _log.info("connected to database {} sqlite version: {}".format(
-            self._service_name, sqlite3.version))
+        _log.info("connected to database, sqlite version: {}".format(
+            sqlite3.version))
         self.create_tables()
         cursor = self._sqlite_conn.cursor()
         if self._max_size_gb is not None:

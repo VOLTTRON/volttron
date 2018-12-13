@@ -66,7 +66,7 @@ from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.agent import utils
 from volttron.utils.docs import doc_inherit
 
-__version__ = "0.1.0"
+__version__ = "2.0.0"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -77,7 +77,6 @@ STATION_REGEX = re.compile("^[Kk][a-zA-Z]{3}$")
 WFO_REGEX = re.compile("^[A-Z]{3}$")
 
 
-# TODO all documentation
 def weather_agent(config_path, **kwargs):
     """
     Used for instantiating the WeatherDotGov agent.
@@ -92,7 +91,7 @@ def weather_agent(config_path, **kwargs):
         config_dict = utils.load_config(config_path)
     _log.debug("config_dict before init: {}".format(config_dict))
     utils.update_kwargs_with_config(kwargs, config_dict)
-    return WeatherDotGovAgent(service_name="WeatherDotGov", **kwargs)
+    return WeatherDotGovAgent(**kwargs)
 
 
 class WeatherDotGovAgent(BaseWeatherAgent):
@@ -118,7 +117,6 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         if service_name == "get_current_weather":
             return datetime.timedelta(hours=1)
         elif service_name == "get_hourly_forecast":
-            # TODO get hourly may be a different interval
             return datetime.timedelta(hours=1)
         else:
             return None
@@ -153,6 +151,13 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             raise ValueError("Invalid location {}".format(location))
 
     def get_api_description(self, service_name):
+        """
+        Provides the api description string for a given api service.
+        Primarily used during concrete agent startup.
+        :param service_name: name of the api service
+        :return: string describing the function of the api endpoint, along with
+        rpc call usage for the weather agent.
+        """
         if service_name is "get_current_weather":
             return "Provides current weather observations by station via RPC " \
                    "(Requires {'station': <station id>}"
@@ -303,6 +308,9 @@ class WeatherDotGovAgent(BaseWeatherAgent):
                              '{"station":"station_id_value"}')
         grequest = [grequests.get(url, headers=self.headers, timeout=3)]
         gresponse = grequests.map(grequest)[0]
+        if gresponse is None:
+            raise RuntimeError("get request did not return any "
+                               "response")
         response = json.loads(gresponse.content)
         if gresponse.status_code != 200:
             self.generate_response_error(url, gresponse.status_code)
@@ -334,6 +342,9 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         _log.debug("Request Url: {}".format(url))
         grequest = [grequests.get(url, headers=self.headers, timeout=3)]
         gresponse = grequests.map(grequest)[0]
+        if gresponse is None:
+            raise RuntimeError("get request did not return any "
+                               "response")
         response = json.loads(gresponse.content)
         if gresponse.status_code != 200:
             self.generate_response_error(url, gresponse.status_code)
