@@ -96,7 +96,7 @@ class EmailerAgent(Agent):
         self.smtp_port = self.config.get("smtp-port", None)
         self.smtp_username = self.config.get("smtp-username", None)
         self.smtp_password = self.config.get("smtp-password", None)
-        self.smtp_tls = self.config.get("smtp-tls")
+        self.smtp_tls = self.config.get("smtp-tls",None)
         self.allow_frequency_minutes = self.config.get("allow-frequency-minutes", 60)
         self._allow_frequency_seconds = self.allow_frequency_minutes * 60
         self.smtp_tls = self.config.get("smtp-tls",None)
@@ -121,40 +121,10 @@ class EmailerAgent(Agent):
         # Keep track of keys that have been added to send with.
         self.tosend = {}
 
-        def onstart(sender, **kwargs):
-            self.vip.pubsub.subscribe('pubsub', topics.PLATFORM_SEND_EMAIL,
-                                      self.on_email_message)
-
-            self.vip.pubsub.subscribe('pubsub', topics.ALERTS_BASE,
-                                      self.on_alert_message)
-            self.vip.pubsub.subscribe('pubsub',
-                                      prefix=topics.ALERTS.format(agent_class='',
-                                                                  agent_uuid=''),
-                                      callback=self.on_alert_message)
-
-        self.core.onstart.connect(onstart, self)
-        self.sent_alert_emails = defaultdict(int)
-
-#    @Core.periodic(10)
-#    def accessService(self):
-#       headers = {
-#           "something": 'something'
-           #"to-addresses": ['alpha.beta@foo.com', 'bob-and-joe@bar.com']
-#       }
-
-#       message = {
-#           "subject": "Something is not right",
-#           "message": "Somethign is down"
-#       }
-
-       self.vip.pubsub.publish('pubsub', topic='platform/send_email',headers=headers ,message=message)
-
-
     def _test_smtp_address(self, smtp_address,smtp_port,smtp_username,smtp_password):
         try:
             server = smtplib.SMTP(self.current_config.get('smtp_address', None),self.current_config.get('smtp_port', None))
             server.ehlo()
-
             #stmplib docs recommend calling ehlo() before & after starttls()
             server.ehlo()
             if self.current_config.get('smtp_username') is not None:
@@ -174,6 +144,11 @@ class EmailerAgent(Agent):
         :param action:
         :param contents:
         """
+
+        self.vip.pubsub.subscribe('pubsub', topics.PLATFORM_SEND_EMAIL, self.on_email_message)
+
+        self.vip.pubsub.subscribe('pubsub', topics.ALERTS_BASE,self.on_alert_message)
+        self.vip.pubsub.subscribe('pubsub',prefix=topics.ALERTS.format(agent_class='',agent_uuid=''),callback=self.on_alert_message)
         self.current_config = self.default_config.copy()
         self.current_config.update(contents)
 
@@ -276,11 +251,12 @@ class EmailerAgent(Agent):
             smtp_port = cfg['smtp_port']
             smtp_username = cfg['smtp_username']
             smtp_password = cfg['smtp_password']
+	    smtp_tls = cfg['smtp_tls']
             server = smtplib.SMTP(smtp_address,smtp_port)
             server.ehlo()
 
             if smtp_username is not None:
-                server.starttls()
+       	        server.starttls()
                 server.ehlo()
                 server.login(smtp_username, smtp_password)
             server.sendmail(from_address, to_addresses, mime_message.as_string())
