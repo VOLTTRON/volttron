@@ -60,7 +60,7 @@ from volttron.platform.vip.agent import Agent
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '1.4.1'
+__version__ = '1.4.2'
 
 """
 The `pyclass:EmailAgent` is responsible for sending emails for an instance.  It
@@ -334,7 +334,7 @@ class EmailerAgent(Agent):
 
         self.tosend[last_sent_key] = 1
 
-        last_sent_time = self.sent_alert_emails[last_sent_key]
+        last_sent_time = self.sent_alert_emails.get(last_sent_key)
 
         should_send = False
         # python sets this to 0 if it hasn't ever been sent.
