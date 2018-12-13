@@ -43,7 +43,7 @@ import csv
 import gevent
 import pytest
 from mock import MagicMock
-
+from stat import S_IREAD, S_IRGRP, S_IROTH
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.messaging.health import *
@@ -98,19 +98,19 @@ class BasicWeatherAgent(BaseWeatherAgent):
         super(BasicWeatherAgent, self).__init__(**kwargs)
 
     def get_point_name_defs_file(self):
-        point_name_defs = [{"Service_Point_Name":"fake1",
-                            "Standard_Point_Name":"FAKE1",
-                            "Service_Units":"inch",
-                            "Standardized_Units":"centimeter"},
-                           {"Service_Point_Name":"fake2",
-                            "Standard_Point_Name":"FAKE2",
-                            "Service_Units":"celsius",
-                            "Standardized_Units":"fahrenheit"},
-                           {"Service_Point_Name":"fake3",
-                            "Standard_Point_Name":"FAKE3",
-                            "Service_Units":"pint",
-                            "Standardized_Units":"milliliter"}
-                          ]
+        point_name_defs = [{"Service_Point_Name": "fake1",
+                            "Standard_Point_Name": "FAKE1",
+                            "Service_Units": "inch",
+                            "Standardized_Units": "centimeter"},
+                           {"Service_Point_Name": "fake2",
+                            "Standard_Point_Name": "FAKE2",
+                            "Service_Units": "celsius",
+                            "Standardized_Units": "fahrenheit"},
+                           {"Service_Point_Name": "fake3",
+                            "Standard_Point_Name": "FAKE3",
+                            "Service_Units": "pint",
+                            "Standardized_Units": "milliliter"}
+                           ]
         with open("temp.csv", 'wb') as csvfile:
             fields = ["Service_Point_Name", "Standard_Point_Name",
                       "Service_Units", "Standardized_Units"]
@@ -135,8 +135,8 @@ class BasicWeatherAgent(BaseWeatherAgent):
         for x in range(0, 3):
             record = [format_timestamp(
                 current_time + datetime.timedelta(hours=(x + 1))),
-                      {'points': FAKE_POINTS}
-                      ]
+                {'points': FAKE_POINTS}
+            ]
             records.append(record)
         return format_timestamp(current_time), records
 
@@ -165,7 +165,7 @@ class BasicWeatherAgent(BaseWeatherAgent):
                 return True
         else:
             return location.get("location") == "fake_location"
-        
+
 
 @pytest.fixture(scope="module")
 def weather(volttron_instance):
@@ -269,6 +269,7 @@ def test_manage_cache_size(volttron_instance):
     page_size = cursor.fetchone()[0]
     total_size = page_size * num_pages
     assert total_size < 25000
+
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("service_name, interval, service_type", [
@@ -382,7 +383,7 @@ def test_set_update_interval_success(weather):
                                 datetime.timedelta(days=1))
     assert weather._api_services["get_hourly_forecast"][
                "update_interval"].total_seconds() == \
-        datetime.timedelta(days=1).total_seconds()
+           datetime.timedelta(days=1).total_seconds()
     weather.set_update_interval("get_hourly_forecast",
                                 datetime.timedelta(hours=1))
 
@@ -904,10 +905,12 @@ def test_poll_errors(volttron_instance, query_agent, config,
         if agent:
             agent.core.stop()
 
+
 def delete_database_file():
     db_path = "weather.sqlite"
     if os.path.isfile(db_path):
         os.remove(db_path)
+
 
 @pytest.mark.dev
 def test_unhandled_cache_read_exception(volttron_instance):
@@ -921,28 +924,32 @@ def test_unhandled_cache_read_exception(volttron_instance):
     query_agent = volttron_instance.build_agent()
     gevent.sleep(2)
     location = {"location": "fake_location"}
-    # make sure the cache has been populated
-    query_agent.vip.rpc.call("test_cache_weather",
-                             "get_current_weather",
-                             [location]).get(timeout=10)
     # delete temp weather agent's cache
     os.remove("test_unhandled_cache.sqlite")
     results = query_agent.vip.rpc.call("test_cache_weather",
                                        "get_current_weather",
-                                       [location]).get(timeout=10)
+                                       [location]).get(timeout=10)[0]
     # results should be retrieved from the remote api
     assert len(results["weather_results"]["points"]) == 3
-    # ensure the
-    assert results["weather_error"] == ""
-    # query -  expects weather_reults + weather_warning AND an alert (
-    # look up send_alert
+    # ensure the correct warning has been given
+    assert results["weather_warn"] == ""
     # tear down the agent
 
-# @pytest.mark.dev
-# def test_unhandled_cache_store_exception(volttron_instance, weather):
-    #2nd test:
-    # using weather fixture
+
+@pytest.mark.dev
+def test_unhandled_cache_store_exception(volttron_instance, weather,
+                                         query_agent):
     # set cache file to read only
+    database_file = weather._database_file
+    os.chmod(database_file, S_IREAD|S_IRGRP|S_IROTH)
     # query the agent
-    # expects weather_results + weather_warning AND an alert
+    location = {"location": "fake_location"}
+    results = query_agent.vip.rpc.call("test_cache_weather",
+                                       "get_current_weather",
+                                       [location]).get(timeout=10)[0]
+    # results should be retrieved from the remote api
+    assert len(results["weather_results"]["points"]) == 3
+    # ensure the correct warning has been given
+    assert results["weather_warn"] == ""
     # set the cache to read/write
+    os.chmod(database_file, S_IWUSR | S_IREAD)

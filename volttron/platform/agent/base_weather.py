@@ -528,13 +528,13 @@ class BaseWeatherAgent(Agent):
                 continue
             # Attempt getting from cache
             record_dict = self.get_cached_current_data(location)
+            cache_warning = record_dict.get("weather_warn")
             # if there was no data in cache or if data is old, query api
-            cache_error = record_dict.get("weather_error")
             if not record_dict.get("weather_results"):
                 _log.debug("Current weather data from api")
                 record_dict = self.get_current_weather_remote(location)
-                if cache_error:
-                    record_dict["weather_error"] = cache_error
+                if cache_warning:
+                    record_dict["weather_warn"] = cache_warning
 
             result.append(record_dict)
         return result
@@ -564,8 +564,12 @@ class BaseWeatherAgent(Agent):
                     result["observation_time"] = \
                         format_timestamp(observation_time)
                     result["weather_results"] = json.loads(data)
-        except Exception as error:
-            result["weather_error"] = error.message
+        except RuntimeError as error:
+            self.vip.health.set_status(STATUS_BAD,
+                                       "Weather agent cache failed to read")
+            status = Status.from_json(self.vip.health.get_status_json())
+            self.vip.health.send_alert("cache_no_read", status)
+            result["weather_warn"] = error.message
         return result
 
     def get_current_weather_remote(self, location):
@@ -595,8 +599,8 @@ class BaseWeatherAgent(Agent):
                 try:
                     self.store_weather_records(SERVICE_CURRENT_WEATHER,
                                                storage_record)
-                except Exception as error:
-                    result["weather_error"] = error.message
+                except RuntimeError as error:
+                    result["weather_warn"] = error.message
                 result["observation_time"] = \
                     format_timestamp(observation_time)
                 result["weather_results"] = data
@@ -697,13 +701,15 @@ class BaseWeatherAgent(Agent):
             # check if we have enough recent data in cache
             record_dict = self.get_cached_hourly_forecast(location, hours,
                                                           request_time)
-
+            cache_warn = record_dict.get("weather_warn")
             # if cache didn't work out query remote api
             if not record_dict.get("weather_results"):
                 _log.debug("forecast weather from api")
                 record_dict = self.get_remote_hourly_forecast(location,
                                                               hours,
                                                               request_time)
+                if cache_warn:
+                    record_dict["weather_warn"] = cache_warn
                 _log.debug("record_dict from remote : {}".format(record_dict))
             result.append(record_dict)
 
@@ -755,8 +761,12 @@ class BaseWeatherAgent(Agent):
                     record_dict["generation_time"] = format_timestamp(
                         generation_time)
                     record_dict["weather_results"] = location_data
-        except Exception as error:
-            record_dict["weather_error"] = error.message
+        except RuntimeError as error:
+            self.vip.health.set_status(STATUS_BAD,
+                                       "Weather agent cache failed to read")
+            status = Status.from_json(self.vip.health.get_status_json())
+            self.vip.health.send_alert("cache_no_read", status)
+            record_dict["weather_warn"] = error.message
         return record_dict
 
     def get_remote_hourly_forecast(self, location, hours, request_time):
@@ -818,8 +828,8 @@ class BaseWeatherAgent(Agent):
                 try:
                     self.store_weather_records(SERVICE_HOURLY_FORECAST,
                                                storage_records)
-                except Exception as error:
-                    result["weather_error"] = error.message
+                except RuntimeError as error:
+                    result["weather_warn"] = error.message
                 result["generation_time"] = \
                     format_timestamp(generation_time)
                 _log.debug(
@@ -1013,12 +1023,20 @@ class BaseWeatherAgent(Agent):
         table.
         :param records: list of records to put into the insert query.
         """
-        cache_full = self._cache.store_weather_records(service_name, records)
-        if cache_full:
+        try:
+            cache_full = self._cache.store_weather_records(service_name, records)
+            if cache_full:
+                self.vip.health.set_status(STATUS_BAD,
+                                           "Weather agent cache is full")
+                status = Status.from_json(self.vip.health.get_status_json())
+                self.vip.health.send_alert("cache_full", status)
+        except RuntimeError as error:
             self.vip.health.set_status(STATUS_BAD,
-                                       "Weather agent cache is full")
+                                       "Weather agent cache failed to store "
+                                       "data")
             status = Status.from_json(self.vip.health.get_status_json())
-            self.vip.health.send_alert("cache_full", status)
+            self.vip.health.send_alert("cache_no_write", status)
+            raise RuntimeError(error.message)
 
     @Core.receiver("onstart")
     def starting(self, sender, **kwargs):
@@ -1296,8 +1314,8 @@ class WeatherCache:
         except sqlite3.Error as e:
             _log.info(query)
             _log.error(e)
-            raise RuntimeError("Failed to store data in the cache: {"
-                                     "}".format(e))
+            raise RuntimeError("Failed to store data in the cache: {}"
+                               .format(e))
         cache_full = False
         if self._max_size_gb is not None and \
                 self.page_count(cursor) >= self.max_pages:
