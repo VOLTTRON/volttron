@@ -186,7 +186,7 @@ def test_create_tables(weather):
     connection = weather._cache._sqlite_conn
     cursor = connection.cursor()
 
-    assert os.path.isfile("BasicWeather.sqlite")
+    assert os.path.isfile(weather._database_file)
 
     weather._cache.create_tables()
 
@@ -909,32 +909,37 @@ def delete_database_file():
     if os.path.isfile(db_path):
         os.remove(db_path)
 
-
 @pytest.mark.dev
-def test_unhandled_cache_exception(volttron_instance):
+def test_unhandled_cache_read_exception(volttron_instance):
     # build a temporary weather agent to use
     temp_weather_agent = volttron_instance.build_agent(
         agent_class=BasicWeatherAgent,
-        identity="test_cache_weather"
+        identity="test_cache_weather",
+        database_file="test_unhandled_cache.sqlite"
     )
     gevent.sleep(2)
     query_agent = volttron_instance.build_agent()
     gevent.sleep(2)
+    location = {"location": "fake_location"}
+    # make sure the cache has been populated
+    query_agent.vip.rpc.call("test_cache_weather",
+                             "get_current_weather",
+                             [location]).get(timeout=10)
     # delete temp weather agent's cache
-    version = query_agent.vip.rpc.call("test_cache_weather", 'get_version')\
-        .get(timeout=3)
-    cwd = volttron_instance.volttron_home
-    # database_file = "/".join([cwd, "agents", temp_weather_agent, "agents",
-    #                           "weather.sqlite"])
-    # os.remove(database_file)
-    # location = {"location": "fake_location"}
-    # query the agent - this should return weather from remote as well as
-    # a warning
-    # query_agent.vip.rpc.call()
+    os.remove("test_unhandled_cache.sqlite")
+    results = query_agent.vip.rpc.call("test_cache_weather",
+                                       "get_current_weather",
+                                       [location]).get(timeout=10)
+    # results should be retrieved from the remote api
+    assert len(results["weather_results"]["points"]) == 3
+    # ensure the
+    assert results["weather_error"] == ""
     # query -  expects weather_reults + weather_warning AND an alert (
     # look up send_alert
     # tear down the agent
 
+# @pytest.mark.dev
+# def test_unhandled_cache_store_exception(volttron_instance, weather):
     #2nd test:
     # using weather fixture
     # set cache file to read only

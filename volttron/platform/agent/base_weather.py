@@ -526,14 +526,15 @@ class BaseWeatherAgent(Agent):
             if record_dict:
                 result.append(record_dict)
                 continue
-
             # Attempt getting from cache
             record_dict = self.get_cached_current_data(location)
-
             # if there was no data in cache or if data is old, query api
+            cache_error = record_dict.get("weather_error")
             if not record_dict.get("weather_results"):
                 _log.debug("Current weather data from api")
                 record_dict = self.get_current_weather_remote(location)
+                if cache_error:
+                    record_dict["weather_error"] = cache_error
 
             result.append(record_dict)
         return result
@@ -546,22 +547,25 @@ class BaseWeatherAgent(Agent):
         :param location: location to retrieve current stored data for.
         :return: current weather data dictionary
         """
-        observation_time, data = \
-            self._cache.get_current_data(SERVICE_CURRENT_WEATHER,
-                                         json.dumps(location))
         result = location.copy()
-        if observation_time and data:
-            interval = self._api_services[SERVICE_CURRENT_WEATHER][
-                "update_interval"]
-            _log.debug("update interval is {}".format(interval))
-            # ts in cache is tz aware utc
-            current_time = get_aware_utc_now()
-            next_update_at = observation_time + interval
-            # if observation time is within the update interval
-            if current_time < next_update_at:
-                result["observation_time"] = \
-                    format_timestamp(observation_time)
-                result["weather_results"] = json.loads(data)
+        try:
+            observation_time, data = \
+                self._cache.get_current_data(SERVICE_CURRENT_WEATHER,
+                                             json.dumps(location))
+            if observation_time and data:
+                interval = self._api_services[SERVICE_CURRENT_WEATHER][
+                    "update_interval"]
+                _log.debug("update interval is {}".format(interval))
+                # ts in cache is tz aware utc
+                current_time = get_aware_utc_now()
+                next_update_at = observation_time + interval
+                # if observation time is within the update interval
+                if current_time < next_update_at:
+                    result["observation_time"] = \
+                        format_timestamp(observation_time)
+                    result["weather_results"] = json.loads(data)
+        except Exception as error:
+            result["weather_error"] = error.message
         return result
 
     def get_current_weather_remote(self, location):
@@ -588,8 +592,11 @@ class BaseWeatherAgent(Agent):
                 storage_record = [json.dumps(location),
                                   observation_time,
                                   json.dumps(data)]
-                self.store_weather_records(SERVICE_CURRENT_WEATHER,
-                                           storage_record)
+                try:
+                    self.store_weather_records(SERVICE_CURRENT_WEATHER,
+                                               storage_record)
+                except Exception as error:
+                    result["weather_error"] = error.message
                 result["observation_time"] = \
                     format_timestamp(observation_time)
                 result["weather_results"] = data
@@ -714,39 +721,42 @@ class BaseWeatherAgent(Agent):
         used for checking if the data is current.
         :return: dictionary of forecast weather data for the location
         """
+        record_dict = location.copy()
         interval = \
             self._api_services[SERVICE_HOURLY_FORECAST]["update_interval"]
         # format [(generation_time, forecast_time, points), ...]
-        most_recent_for_location = \
-            self._cache.get_forecast_data(SERVICE_HOURLY_FORECAST,
-                                          json.dumps(location),
-                                          hours, request_time)
-        record_dict = location.copy()
-        location_data = []
-        if most_recent_for_location:
-            _log.debug(" from cache")
+        try:
+            most_recent_for_location = \
+                self._cache.get_forecast_data(SERVICE_HOURLY_FORECAST,
+                                              json.dumps(location),
+                                              hours, request_time)
+            location_data = []
+            if most_recent_for_location:
+                _log.debug(" from cache")
 
-            generation_time = most_recent_for_location[0][0]
-            next_update_at = generation_time + interval
-            _log.debug("request_time {}".format(request_time))
-            _log.debug("next_update_at {}".format(next_update_at))
-            _log.debug("generation_time time {}".format(generation_time))
+                generation_time = most_recent_for_location[0][0]
+                next_update_at = generation_time + interval
+                _log.debug("request_time {}".format(request_time))
+                _log.debug("next_update_at {}".format(next_update_at))
+                _log.debug("generation_time time {}".format(generation_time))
 
-            if request_time < next_update_at and \
-                    len(most_recent_for_location) >= hours:
-                # Enough to just check for length since cache is querying
-                # records between expected forecast start and end time
-                i = 0
-                while i < hours:
-                    record = most_recent_for_location[i]
-                    # record = (forecast time, points)
-                    entry = [format_timestamp(record[1]),
-                             json.loads(record[2])]
-                    location_data.append(entry)
-                    i = i + 1
-                record_dict["generation_time"] = format_timestamp(
-                    generation_time)
-                record_dict["weather_results"] = location_data
+                if request_time < next_update_at and \
+                        len(most_recent_for_location) >= hours:
+                    # Enough to just check for length since cache is querying
+                    # records between expected forecast start and end time
+                    i = 0
+                    while i < hours:
+                        record = most_recent_for_location[i]
+                        # record = (forecast time, points)
+                        entry = [format_timestamp(record[1]),
+                                 json.loads(record[2])]
+                        location_data.append(entry)
+                        i = i + 1
+                    record_dict["generation_time"] = format_timestamp(
+                        generation_time)
+                    record_dict["weather_results"] = location_data
+        except Exception as error:
+            record_dict["weather_error"] = error.message
         return record_dict
 
     def get_remote_hourly_forecast(self, location, hours, request_time):
@@ -805,8 +815,11 @@ class BaseWeatherAgent(Agent):
                         location_data.append(item)
                 i = i + 1
             if location_data:
-                self.store_weather_records(SERVICE_HOURLY_FORECAST,
-                                           storage_records)
+                try:
+                    self.store_weather_records(SERVICE_HOURLY_FORECAST,
+                                               storage_records)
+                except Exception as error:
+                    result["weather_error"] = error.message
                 result["generation_time"] = \
                     format_timestamp(generation_time)
                 _log.debug(
@@ -1156,6 +1169,7 @@ class WeatherCache:
         :param location: location to query by
         :return: a single current weather observation record
         """
+        query = ""
         try:
             cursor = self._sqlite_conn.cursor()
             query = """SELECT max(OBSERVATION_TIME), POINTS 
@@ -1170,7 +1184,10 @@ class WeatherCache:
             else:
                 return None, None
         except sqlite3.Error as e:
-            _log.error("Error fetching current data from cache: {}".format(e))
+            _log.info(query)
+            _log.error(e)
+            raise RuntimeError("Error fetching current data from cache: {}"
+                               .format(e))
             return None
 
     def get_forecast_data(self, service_name, location, hours, request_time):
@@ -1184,6 +1201,7 @@ class WeatherCache:
         compare with generation time.
         :return: list of up-to-date forecast records for the location
         """
+        query = ""
         try:
             # get records that have forecast time between the hour immediately
             # after when user requested the data and endtime < start+hours
@@ -1212,7 +1230,10 @@ class WeatherCache:
             cursor.close()
             return data
         except sqlite3.Error as e:
-            _log.error("Error fetching forecast data from cache: {}".format(e))
+            _log.info(query)
+            _log.error(e)
+            raise RuntimeError("Error fetching forecast data from cache: {}"
+                               .format(e))
 
     def get_historical_data(self, service_name, location, date_timestamp):
         """
@@ -1274,7 +1295,9 @@ class WeatherCache:
             self._sqlite_conn.commit()
         except sqlite3.Error as e:
             _log.info(query)
-            _log.error("Failed to store data in the cache: {}".format(e))
+            _log.error(e)
+            raise RuntimeError("Failed to store data in the cache: {"
+                                     "}".format(e))
         cache_full = False
         if self._max_size_gb is not None and \
                 self.page_count(cursor) >= self.max_pages:
