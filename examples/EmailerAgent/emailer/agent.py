@@ -60,7 +60,7 @@ from volttron.platform.vip.agent import Agent
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '1.4.0'
+__version__ = '1.4.1'
 
 """
 The `pyclass:EmailAgent` is responsible for sending emails for an instance.  It
@@ -117,9 +117,12 @@ class EmailerAgent(Agent):
 
         self.vip.config.subscribe(self.configure_main,
                                   actions=["NEW", "UPDATE"], pattern="*")
-
+	
         # Keep track of keys that have been added to send with.
         self.tosend = {}
+	
+	# Keep track of how often we send an email out based on key so we don't overload admins.
+	self.sent_alert_emails = {}
 
     def _test_smtp_address(self, smtp_address,smtp_port,smtp_username,smtp_password):
         try:
