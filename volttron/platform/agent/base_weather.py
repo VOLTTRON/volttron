@@ -406,14 +406,22 @@ class BaseWeatherAgent(Agent):
             self.vip.health.set_status(STATUS_BAD,
                                        "Configuration of weather agent failed "
                                        "with error: {}".format(e.message))
+            status = Status.from_json(self.vip.health.get_status_json())
+            self.vip.health.send_alert("cache_failed", status)
         else:
             _log.debug("Configuration successful")
-            self._cache = WeatherCache(self._database_file,
-                                       api_services=self._api_services,
-                                       max_size_gb=self._max_size_gb)
-            self.vip.health.set_status(STATUS_GOOD,
-                                       "Configuration of weather agent "
-                                       "successful")
+            try:
+                self._cache = WeatherCache(self._database_file,
+                                           api_services=self._api_services,
+                                           max_size_gb=self._max_size_gb)
+                self.vip.health.set_status(STATUS_GOOD,
+                                           "Configuration of weather agent "
+                                           "successful")
+            except sqlite3.OperationalError as error:
+                _log.error(error.message)
+                self.vip.health.set_status(STATUS_BAD, "Cache failed to start "
+                                                       "during configuration")
+
             if self.do_polling:
                 if self.poll_greenlet:
                     self.poll_greenlet.kill()
@@ -534,7 +542,9 @@ class BaseWeatherAgent(Agent):
                 _log.debug("Current weather data from api")
                 record_dict = self.get_current_weather_remote(location)
                 if cache_warning:
-                    record_dict["weather_warn"] = cache_warning
+                    warnings = record_dict.get("weather_warn", [])
+                    warnings.extend(cache_warning)
+                    record_dict["weather_warn"] = warnings
 
             result.append(record_dict)
         return result
@@ -564,12 +574,15 @@ class BaseWeatherAgent(Agent):
                     result["observation_time"] = \
                         format_timestamp(observation_time)
                     result["weather_results"] = json.loads(data)
-        except RuntimeError as error:
+        except Exception as error:
+            bad_cache_message = "Weather agent failed to read from " \
+                                "cache"
             self.vip.health.set_status(STATUS_BAD,
-                                       "Weather agent cache failed to read")
+                                       bad_cache_message)
             status = Status.from_json(self.vip.health.get_status_json())
             self.vip.health.send_alert("cache_no_read", status)
-            result["weather_warn"] = error.message
+            _log.error(error.message)
+            result["weather_warn"] = [bad_cache_message]
         return result
 
     def get_current_weather_remote(self, location):
@@ -599,8 +612,15 @@ class BaseWeatherAgent(Agent):
                 try:
                     self.store_weather_records(SERVICE_CURRENT_WEATHER,
                                                storage_record)
-                except RuntimeError as error:
-                    result["weather_warn"] = error.message
+                except Exception as error:
+                    bad_cache_message = "Weather agent failed to write to " \
+                                        "cache"
+                    self.vip.health.set_status(STATUS_BAD,
+                                               bad_cache_message)
+                    status = Status.from_json(self.vip.health.get_status_json())
+                    self.vip.health.send_alert("cache_no_read", status)
+                    _log.error(error.message)
+                    result["weather_warn"] = [bad_cache_message]
                 result["observation_time"] = \
                     format_timestamp(observation_time)
                 result["weather_results"] = data
@@ -701,15 +721,17 @@ class BaseWeatherAgent(Agent):
             # check if we have enough recent data in cache
             record_dict = self.get_cached_hourly_forecast(location, hours,
                                                           request_time)
-            cache_warn = record_dict.get("weather_warn")
+            cache_warning = record_dict.get("weather_warn")
             # if cache didn't work out query remote api
             if not record_dict.get("weather_results"):
                 _log.debug("forecast weather from api")
                 record_dict = self.get_remote_hourly_forecast(location,
                                                               hours,
                                                               request_time)
-                if cache_warn:
-                    record_dict["weather_warn"] = cache_warn
+                if cache_warning:
+                    warnings = record_dict.get("weather_warn", [])
+                    warnings.extend(cache_warning)
+                    record_dict["weather_warn"] = warnings
                 _log.debug("record_dict from remote : {}".format(record_dict))
             result.append(record_dict)
 
@@ -761,12 +783,14 @@ class BaseWeatherAgent(Agent):
                     record_dict["generation_time"] = format_timestamp(
                         generation_time)
                     record_dict["weather_results"] = location_data
-        except RuntimeError as error:
+        except Exception as error:
+            bad_read_message = "Weather agent failed to read from cache"
             self.vip.health.set_status(STATUS_BAD,
-                                       "Weather agent cache failed to read")
+                                       bad_read_message)
             status = Status.from_json(self.vip.health.get_status_json())
             self.vip.health.send_alert("cache_no_read", status)
-            record_dict["weather_warn"] = error.message
+            _log.error(error.message)
+            record_dict["weather_warn"] = [bad_read_message]
         return record_dict
 
     def get_remote_hourly_forecast(self, location, hours, request_time):
@@ -828,8 +852,14 @@ class BaseWeatherAgent(Agent):
                 try:
                     self.store_weather_records(SERVICE_HOURLY_FORECAST,
                                                storage_records)
-                except RuntimeError as error:
-                    result["weather_warn"] = error.message
+                except Exception as error:
+                    bad_read_message = "Weather agent failed to write to cache"
+                    self.vip.health.set_status(STATUS_BAD,
+                                               bad_read_message)
+                    status = Status.from_json(self.vip.health.get_status_json())
+                    self.vip.health.send_alert("cache_no_read", status)
+                    _log.error(error.message)
+                    result["weather_warn"] = [bad_read_message]
                 result["generation_time"] = \
                     format_timestamp(generation_time)
                 _log.debug(
@@ -841,9 +871,10 @@ class BaseWeatherAgent(Agent):
                     "No records were returned by the weather query"
 
             if location_data and len(location_data) < hours:
-                result["weather_warn"] = \
-                    "Weather provider returned less than requested " \
-                    "amount of data"
+                warnings = result.get("weather_warn", [])
+                warnings.append("Weather provider returned less than requested "
+                                "amount of data")
+                result["weather_warn"] = warnings
         except Exception as error:
             _log.error(error)
             result["weather_error"] = error.message

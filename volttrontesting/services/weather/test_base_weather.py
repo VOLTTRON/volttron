@@ -42,11 +42,13 @@ import ujson
 import csv
 import gevent
 import pytest
+import sqlite3
 from mock import MagicMock
-from stat import S_IREAD, S_IRGRP, S_IROTH
+from stat import S_IRGRP, S_IROTH, S_IREAD
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.messaging.health import *
+from volttron.platform.messaging import topics
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -694,9 +696,15 @@ def validate_basic_weather_forecast(locations, result, warn=True, hours=3):
     for location in locations:
         assert result[i]["generation_time"]
         if warn:
-            assert result[i]["weather_warn"] == \
+            returned_less = False
+            warnings = result[i]["weather_warn"]
+            for warning in warnings:
+                if warning == \
                    "Weather provider returned less than requested amount " \
-                   "of data"
+                   "of data":
+                    returned_less = True
+                    break
+            assert returned_less is True
         else:
             assert result[i].get("weather_warn") is None
 
@@ -911,45 +919,107 @@ def delete_database_file():
     if os.path.isfile(db_path):
         os.remove(db_path)
 
-
+# TODO magic mock alerts
 @pytest.mark.dev
 def test_unhandled_cache_read_exception(volttron_instance):
-    # build a temporary weather agent to use
-    temp_weather_agent = volttron_instance.build_agent(
-        agent_class=BasicWeatherAgent,
-        identity="test_cache_weather",
-        database_file="test_unhandled_cache.sqlite"
-    )
-    gevent.sleep(2)
-    query_agent = volttron_instance.build_agent()
-    gevent.sleep(2)
-    location = {"location": "fake_location"}
-    # delete temp weather agent's cache
-    os.remove("test_unhandled_cache.sqlite")
-    results = query_agent.vip.rpc.call("test_cache_weather",
-                                       "get_current_weather",
-                                       [location]).get(timeout=10)[0]
-    # results should be retrieved from the remote api
-    assert len(results["weather_results"]["points"]) == 3
-    # ensure the correct warning has been given
-    assert results["weather_warn"] == ""
-    # tear down the agent
+    # create an agent to listen to alerts
+    temp_weather_agent = None
+    try:
+        query_agent = volttron_instance.build_agent()
+        query_agent.poll_callback = MagicMock(name="poll_callback")
+        alert_topic = topics.ALERTS(agent_class=BasicWeatherAgent,
+                                    agent_uuid=query_agent)
+        query_agent.vip.pubsub.subscribe(
+            peer='pubsub',
+            prefix=alert_topic,
+            callback=query_agent.poll_callback).get()
+        # build a temporary weather agent to use
+        temp_weather_agent = volttron_instance.build_agent(
+            agent_class=BasicWeatherAgent,
+            identity="test_read_cache_weather",
+            database_file="test_read_cache.sqlite"
+        )
+        gevent.sleep(2)
+        location = {"location": "fake_location"}
+        results1 = query_agent.vip.rpc.call("test_read_cache_weather",
+                                            "get_current_weather",
+                                            [location]).get(timeout=10)[0]
+        os.chmod("test_read_cache.sqlite", 0000)
+        results2 = query_agent.vip.rpc.call("test_read_cache_weather",
+                                            "get_current_weather",
+                                            [location]).get(timeout=10)[0]
+        # results should be retrieved from the remote api
+        assert len(results2["weather_results"]["points"]) == 3
+        # results should not have the same timestamps
+        assert results1["observation_time"] != results2["observation_time"]
+        # ensure the correct warning has been given
+        read_warning = False
+        for warning in results2["weather_warn"]:
+            if warning == "Weather agent failed to read from cache":
+                read_warning = True
+                break
+        assert read_warning
+    finally:
+        # tear down the agent
+        if temp_weather_agent:
+            volttron_instance.remove_agent("test_read_cache_weather")
+        os.remove("test_read_cache.sqlite")
 
 
+# TODO magic mock alerts
 @pytest.mark.dev
-def test_unhandled_cache_store_exception(volttron_instance, weather,
-                                         query_agent):
-    # set cache file to read only
-    database_file = weather._database_file
-    os.chmod(database_file, S_IREAD|S_IRGRP|S_IROTH)
-    # query the agent
-    location = {"location": "fake_location"}
-    results = query_agent.vip.rpc.call("test_cache_weather",
-                                       "get_current_weather",
-                                       [location]).get(timeout=10)[0]
-    # results should be retrieved from the remote api
-    assert len(results["weather_results"]["points"]) == 3
-    # ensure the correct warning has been given
-    assert results["weather_warn"] == ""
-    # set the cache to read/write
-    os.chmod(database_file, S_IWUSR | S_IREAD)
+def test_unhandled_cache_store_exception(volttron_instance):
+    # create an agent to listen to alerts
+    temp_weather_agent = None
+    try:
+        query_agent = volttron_instance.build_agent()
+        query_agent.poll_callback = MagicMock(name="poll_callback")
+        alert_topic = topics.ALERTS(agent_class=BasicWeatherAgent,
+                                    agent_uuid=query_agent)
+        query_agent.vip.pubsub.subscribe(
+            peer='pubsub',
+            prefix=alert_topic,
+            callback=query_agent.poll_callback).get()
+        # build a temporary weather agent to use
+        temp_weather_agent = volttron_instance.build_agent(
+            agent_class=BasicWeatherAgent,
+            identity="test_write_cache_weather",
+            database_file="test_write_cache.sqlite"
+        )
+        gevent.sleep(2)
+        location = {"location": "fake_location"}
+        os.chmod("test_write_cache.sqlite", 0444)
+
+        conn = sqlite3.connect("test_write_cache.sqlite")
+        with conn:
+            # we expect an error here.
+            results1 = query_agent.vip.rpc.call("test_write_cache_weather",
+                                                "get_current_weather",
+                                                [location]).get(timeout=10)[0]
+            # ensure the correct warning has been given
+            read_warning = False
+            write_warning = False
+            for warning in results1["weather_warn"]:
+                print(warning)
+                if warning == "Weather agent failed to read from cache":
+                    read_warning = True
+                    break
+                elif warning == "Weather agent failed to write to cache":
+                    read_warning = True
+                    break
+            assert not read_warning
+            assert write_warning
+            # we would expect the same to be true for subsequent calls
+            results2 = query_agent.vip.rpc.call("test_write_cache_weather",
+                                                "get_current_weather",
+                                                [location]).get(timeout=10)[0]
+            write_warning = False
+            for warning in results2["weather_warn"]:
+                print(warning)
+            assert write_warning
+            assert results1["observation_time"] != results2["observation_time"]
+    finally:
+        os.remove("test_write_cache.sqlite")
+        # tear down the agent
+        if temp_weather_agent:
+            volttron_instance.remove_agent("test_write_cache_weather")
