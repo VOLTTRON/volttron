@@ -386,7 +386,8 @@ class PlatformWrapper:
                          volttron_central_serverkey=None,
                          msgdebug=False,
                          setupmode=False,
-                         instance_name=''):
+                         instance_name='',
+                         agent_monitor_frequency=600):
 
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
@@ -471,6 +472,8 @@ class PlatformWrapper:
         if instance_name:
             parser.set('volttron', 'instance-name',
                        instance_name)
+        parser.set('volttron', 'agent-monitor-frequency',
+                   agent_monitor_frequency)
         if self.mode == UNRESTRICTED:
             with open(pconfig, 'wb') as cfg:
                 parser.write(cfg)
@@ -526,7 +529,7 @@ class PlatformWrapper:
 
         if not has_control:
             self.shutdown_platform()
-            raise "Couldn't connect to core platform!"
+            raise Exception("Couldn't connect to core platform!")
 
         if bind_web_address:
             times = 0
@@ -542,7 +545,7 @@ class PlatformWrapper:
                     gevent.sleep(0.1)
                     self.logit("Connection error found {}".format(e))
             if not has_discovery:
-                raise "Couldn't connect to discovery platform."
+                raise Exception("Couldn't connect to discovery platform.")
 
         self.use_twistd = use_twistd
 
@@ -603,8 +606,14 @@ class PlatformWrapper:
         if vip_identity:
             cmd.extend(['--vip-identity', vip_identity])
 
-        res = subprocess.check_output(cmd, env=env)
-        assert res, "failed to install wheel:{}".format(wheel_file)
+        #res = subprocess.check_output(cmd, env=env)
+        p = subprocess.Popen(cmd, env=env, stderr=subprocess.PIPE,
+                             stdout=subprocess.PIPE)
+        res, stderr = p.communicate()
+        if p.returncode != 0:
+            assert False, "failed to install wheel:{} \n cmd: {}\n " \
+                          "stdout: {}\n stderr: {}".format(wheel_file, cmd,
+                                                           res, stderr)
         agent_uuid = res.split(' ')[-2]
         self.logit(agent_uuid)
 
@@ -773,6 +782,7 @@ class PlatformWrapper:
         cmd = ['volttron-ctl']
         cmd.extend(['status', agent_uuid])
         res = subprocess.check_output(cmd, env=self.env)
+
         # 776 TODO: Timing issue where check fails
         time.sleep(.1)
         self.logit("Subprocess res is {}".format(res))
@@ -803,6 +813,7 @@ class PlatformWrapper:
         print('PEER LIST: {}'.format(agent.vip.peerlist().get(timeout=10)))
         agent_list = agent.vip.rpc('control', 'list_agents').get(timeout=10)
         agent.core.stop(timeout=3)
+        print("Agent list: {}".format(agent_list))
         return agent_list
 
     def remove_agent(self, agent_uuid):
