@@ -63,11 +63,14 @@ from datetime import datetime
 import gevent
 import pytest
 
-from volttron.platform.agent import utils
-from volttron.platform.agent.base_market_agent import MarketAgent
-from volttron.platform.agent.base_market_agent.poly_line import PolyLine
-from volttron.platform.agent.base_market_agent.point import Point
-from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
+try:
+    from volttron.platform.agent import utils
+    from volttron.platform.agent.base_market_agent import MarketAgent
+    from volttron.platform.agent.base_market_agent.poly_line import PolyLine
+    from volttron.platform.agent.base_market_agent.point import Point
+    from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
+except ImportError:
+    pytest.skip("Market service requirements not installed.", allow_module_level=True)
 
 STANDARD_GET_TIMEOUT = 5
 BASE_DELAY = 6

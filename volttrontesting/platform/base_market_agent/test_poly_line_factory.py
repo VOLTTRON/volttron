@@ -37,9 +37,13 @@
 # }}}
 
 import pytest
-from volttron.platform.agent.base_market_agent.point import Point
-from volttron.platform.agent.base_market_agent.poly_line import PolyLine
-from volttron.platform.agent.base_market_agent.poly_line_factory import PolyLineFactory
+
+try:
+    from volttron.platform.agent.base_market_agent.point import Point
+    from volttron.platform.agent.base_market_agent.poly_line import PolyLine
+    from volttron.platform.agent.base_market_agent.poly_line_factory import PolyLineFactory
+except ImportError:
+    pytest.skip("Market service requirements not installed.", allow_module_level=True)
 
 @pytest.mark.market
 def test_poly_line_combine_supply():

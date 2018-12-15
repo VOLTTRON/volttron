@@ -37,7 +37,11 @@
 # }}}
 
 import pytest
-from volttron.platform.agent.base_market_agent.point import Point
+
+try:
+    from volttron.platform.agent.base_market_agent.point import Point
+except ImportError:
+    pytest.skip("Market service requirements not installed.", allow_module_level=True)
 
 @pytest.mark.market
 def test_point_init():

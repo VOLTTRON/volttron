@@ -40,7 +40,8 @@ import pytest
 try:
     from market_service.market_participant import MarketParticipant
     from market_service.market import Market, ACCEPT_RESERVATIONS
-    from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
+    import volttron.platform.agent.base_market_agent as basemarketagent
+    from basemarketagent.buy_sell import BUYER, SELLER
 except ImportError:
     pytest.skip("Market service requirements not installed.", allow_module_level=True)
 
