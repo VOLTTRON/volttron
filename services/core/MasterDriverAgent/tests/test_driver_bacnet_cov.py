@@ -38,7 +38,9 @@
 
 import pytest
 import gevent
+import gevent.subprocess as subprocess
 from mock import MagicMock
+from gevent.subprocess import Popen
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 @pytest.fixture(scope="module")
@@ -65,3 +67,24 @@ def query_agent(request, volttron_instance):
 
     request.addfinalizer(stop_agent)
     return agent
+
+def test_cov_update_published(volttron_instance, query_agent):
+    # Reset master driver config store
+    cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
+    process = Popen(cmd, env=volttron_instance.env,
+                    cwd='scripts/scalability-testing',
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = process.wait()
+    print(result)
+    assert result == 0
+
+    # TODO modify the configs
+    # Add master driver configuration files to config store.
+    cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
+           'fake.csv', 'fake_unit_testing.csv', '--csv']
+    process = Popen(cmd, env=volttron_instance.env,
+                    cwd='scripts/scalability-testing',
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = process.wait()
+    print(result)
+    assert result == 0
