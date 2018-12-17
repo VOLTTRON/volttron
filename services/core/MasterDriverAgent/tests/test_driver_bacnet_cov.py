@@ -41,25 +41,22 @@ import gevent
 import gevent.subprocess as subprocess
 from mock import MagicMock
 from gevent.subprocess import Popen
+from volttron.platform import get_services_core
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
     agent = volttron_instance.build_agent()
-    agent.poll_callback = MagicMock(name="poll_callback")
+    agent.cov_callback = MagicMock(name="cov_callback")
     # subscribe to fake driver's point publish
+    # TODO get poll topic for the device
+    poll_topic = "alerts"
     agent.vip.pubsub.subscribe(
         peer='pubsub',
-        prefix="",
-        callback=agent.poll_callback).get()
+        prefix=poll_topic,
+        callback=agent.cov_callback).get()
 
     gevent.sleep(3)
-
-    def send_fake_cov_publish():
-        point_name = ""
-        point_values = {"fake1": 0, "fake2": 1, "fake3": False}
-        agent.vip.rpc.call(PLATFORM_DRIVER, 'forward_cov_value', point_name,
-                           point_values)
 
     def stop_agent():
         print("In teardown method of query_agent")
@@ -68,23 +65,49 @@ def query_agent(request, volttron_instance):
     request.addfinalizer(stop_agent)
     return agent
 
+@pytest.mark.dev
 def test_cov_update_published(volttron_instance, query_agent):
     # Reset master driver config store
     cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
     process = Popen(cmd, env=volttron_instance.env,
-                    cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
-    print(result)
     assert result == 0
 
-    # TODO modify the configs
-    # Add master driver configuration files to config store.
+    # Add registry configuration for the fake driver to the config store
     cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
-           'fake.csv', 'fake_unit_testing.csv', '--csv']
+           'fake.csv', 'examples/configurations/drivers/fake.csv',
+           '--csv']
     process = Popen(cmd, env=volttron_instance.env,
-                    cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
-    print(result)
     assert result == 0
+
+    # Add driver configuration to the config store
+    cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
+           "devices/fakedriver", 'examples/configurations/drivers/fake.config',
+           '--json']
+    process = Popen(cmd, env=volttron_instance.env,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = process.wait()
+    assert result == 0
+
+    # Start the master driver agent which would in turn start the fake driver
+    # using the configs created above
+    master_uuid = volttron_instance.install_agent(
+        agent_dir=get_services_core("MasterDriverAgent"),
+        config_file={},
+        start=True)
+    print("agent id: ", master_uuid)
+    gevent.sleep(2)  # wait for the agent to start and start the devices
+
+    # tell the master driver to forward the value
+    point_name = "PowerState"
+    point_values = {"fake1": 0, "fake2": 1, "fake3": False}
+    query_agent.vip.rpc.call(PLATFORM_DRIVER, 'forward_cov_value', point_name,
+                             point_values)
+    # wait for the publishes to make it to the bus
+    gevent.sleep(2)
+    # check mock
+    print query_agent.cov_callback.call_count
+    print query_agent.cov_callback.call_args

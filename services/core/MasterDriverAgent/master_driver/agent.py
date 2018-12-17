@@ -771,6 +771,7 @@ class MasterDriverAgent(Agent):
     @RPC.export
     def forward_bacnet_cov_value(self, source_address, point_name, point_values):
         """Called by the BACnet Proxy to pass the COV value to the driver agent for publishing"""
+        _log.debug("Im publishing one")
         for driver in self.instances.itervalues():
             if driver.interface.target_address == source_address:
                 driver.publish_cov_value(point_name, point_values)

@@ -393,6 +393,7 @@ class DriverAgent(BasicAgent):
                                       message=individual_point_message)
 
             if self.publish_depth_first_all:
+                _log.debug(self.all_path_depth)
                 self._publish_wrapper(self.all_path_depth,
                                       headers=headers,
                                       message=all_message)
