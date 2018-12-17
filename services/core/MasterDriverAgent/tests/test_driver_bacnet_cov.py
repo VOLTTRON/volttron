@@ -36,27 +36,45 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+import logging
 import pytest
+import json
 import gevent
 import gevent.subprocess as subprocess
-from mock import MagicMock
 from gevent.subprocess import Popen
+from mock import MagicMock
+from volttron.platform.agent import utils
 from volttron.platform import get_services_core
-from volttron.platform.agent.known_identities import PLATFORM_DRIVER
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER, \
+    CONFIGURATION_STORE
+
+utils.setup_logging()
+_log = logging.getLogger(__name__)
+
+FAKE_DEVICE_CONFIG = {
+    "driver_config": {},
+    "registry_config": [],
+    "interval": 5,
+    "timezone": "US/Pacific",
+    "heart_beat_point": "Heartbeat",
+    "driver_type": "fakedriver",
+    "publish_breadth_first_all": False,
+    "publish_depth_first": False,
+    "publish_breadth_first": False
+}
 
 @pytest.fixture(scope="module")
-def query_agent(request, volttron_instance):
+def test_agent(request, volttron_instance):
+    # Start a fake agent for sending rpc calls and listening to the bus
     agent = volttron_instance.build_agent()
     agent.cov_callback = MagicMock(name="cov_callback")
-    # subscribe to fake driver's point publish
-    # TODO get poll topic for the device
-    poll_topic = "alerts"
+    # subscribe to cov publishes
+    # TODO update cov prefix
     agent.vip.pubsub.subscribe(
         peer='pubsub',
-        prefix=poll_topic,
+        # determine the fake device path
+        prefix="",
         callback=agent.cov_callback).get()
-
-    gevent.sleep(3)
 
     def stop_agent():
         print("In teardown method of query_agent")
@@ -66,7 +84,7 @@ def query_agent(request, volttron_instance):
     return agent
 
 @pytest.mark.dev
-def test_cov_update_published(volttron_instance, query_agent):
+def test_cov_update_published(volttron_instance, test_agent):
     # Reset master driver config store
     cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
     process = Popen(cmd, env=volttron_instance.env,
@@ -74,40 +92,35 @@ def test_cov_update_published(volttron_instance, query_agent):
     result = process.wait()
     assert result == 0
 
-    # Add registry configuration for the fake driver to the config store
-    cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
-           'fake.csv', 'examples/configurations/drivers/fake.csv',
-           '--csv']
-    process = Popen(cmd, env=volttron_instance.env,
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    result = process.wait()
-    assert result == 0
-
-    # Add driver configuration to the config store
-    cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
-           "devices/fakedriver", 'examples/configurations/drivers/fake.config',
-           '--json']
-    process = Popen(cmd, env=volttron_instance.env,
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    result = process.wait()
-    assert result == 0
-
-    # Start the master driver agent which would in turn start the fake driver
-    # using the configs created above
+    test_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
+                            PLATFORM_DRIVER, "fake",
+                            json.dumps(FAKE_DEVICE_CONFIG),
+                            config_type='json',
+                            )
+    # install master driver, start the master driver, which starts the device
     master_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
         start=True)
     print("agent id: ", master_uuid)
-    gevent.sleep(2)  # wait for the agent to start and start the devices
+    gevent.sleep(3)  # wait for the agent to start and start the devices
+
+    _log.error("made it past installing master driver")
 
     # tell the master driver to forward the value
     point_name = "PowerState"
-    point_values = {"fake1": 0, "fake2": 1, "fake3": False}
-    query_agent.vip.rpc.call(PLATFORM_DRIVER, 'forward_cov_value', point_name,
-                             point_values)
+    device_path = "devices/fakedriver"
+    result_dict = {"fake1": 0, "fake2": 1, "fake3": False}
+    test_agent.vip.rpc.call(PLATFORM_DRIVER, 'forward_bacnet_cov_value',
+                            device_path, point_name, result_dict)
     # wait for the publishes to make it to the bus
     gevent.sleep(2)
+
+    _log.error("made it past call to forward cov")
+
     # check mock
-    print query_agent.cov_callback.call_count
-    print query_agent.cov_callback.call_args
+    print test_agent.cov_callback.call_count
+    print test_agent.cov_callback.call_args_list
+    # remove the master driver
+    volttron_instance.remove_agent(master_uuid)
+    pytest.fail()
