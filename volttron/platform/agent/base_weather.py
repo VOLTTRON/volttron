@@ -615,10 +615,6 @@ class BaseWeatherAgent(Agent):
                 except Exception as error:
                     bad_cache_message = "Weather agent failed to write to " \
                                         "cache"
-                    self.vip.health.set_status(STATUS_BAD,
-                                               bad_cache_message)
-                    status = Status.from_json(self.vip.health.get_status_json())
-                    self.vip.health.send_alert("cache_no_read", status)
                     _log.error(error.message)
                     result["weather_warn"] = [bad_cache_message]
                 result["observation_time"] = \
@@ -854,10 +850,6 @@ class BaseWeatherAgent(Agent):
                                                storage_records)
                 except Exception as error:
                     bad_read_message = "Weather agent failed to write to cache"
-                    self.vip.health.set_status(STATUS_BAD,
-                                               bad_read_message)
-                    status = Status.from_json(self.vip.health.get_status_json())
-                    self.vip.health.send_alert("cache_no_read", status)
                     _log.error(error.message)
                     result["weather_warn"] = [bad_read_message]
                 result["generation_time"] = \
