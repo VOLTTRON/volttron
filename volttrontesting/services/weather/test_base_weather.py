@@ -170,7 +170,7 @@ class BasicWeatherAgent(BaseWeatherAgent):
 
 
 @pytest.fixture(scope="module")
-def weather(volttron_instance):
+def weather(request, volttron_instance):
     print("** Setting up weather agent module **")
 
     agent = volttron_instance.build_agent(
@@ -181,6 +181,11 @@ def weather(volttron_instance):
 
     yield agent
     agent.core.stop()
+    request.addfinalizer(remove_temp_file)
+
+
+def remove_temp_file():
+    os.remove("temp.csv")
 
 
 @pytest.mark.weather2
