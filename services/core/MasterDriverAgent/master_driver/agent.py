@@ -314,8 +314,6 @@ class MasterDriverAgent(Agent):
             self.freed_time_slots.clear()
             self.group_counts.clear()
             for driver in self.instances.itervalues():
-                _log.error("DEVICES!!!!")
-                _log.error(driver.device_path)
                 time_slot = self.group_counts[driver.group]
                 driver.update_scrape_schedule(time_slot, self.driver_scrape_interval,
                                               driver.group, self.group_offset_interval)
@@ -772,8 +770,13 @@ class MasterDriverAgent(Agent):
 
     @RPC.export
     def forward_bacnet_cov_value(self, device_path, point_name, point_values):
-        """Called by the BACnet Proxy to pass the COV value to the driver agent
-        for publishing"""
+        """
+        Called by the BACnet Proxy to pass the COV value to the driver agent
+        for publishing
+        :param device_path: path of the device used for publish topic
+        :param point_name: name of the point in the COV notification
+        :param point_values: dictionary of updated values sent by the device
+        """
         for driver in self.instances.itervalues():
             if driver.device_path == device_path:
                 driver.publish_cov_value(point_name, point_values)

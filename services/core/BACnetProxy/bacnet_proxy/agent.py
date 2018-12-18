@@ -115,6 +115,8 @@ task_manager = TaskManager()
 #         self.ioCall.send(None, self.ioResult.set_exception, exception)
 
 class SubscriptionContext(object):
+    """Object for maintaining BACnet change of value subscriptions with
+    points on a device"""
 
     def __init__(self, device_path, point_name, object_type, instance_number,
                  sub_process_ID, lifetime=None):
@@ -291,6 +293,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
             working_iocb.set(apdu)
             return
 
+        # Simple record-keeping for subscription request responses
         elif (isinstance(working_iocb.ioRequest, SubscribeCOVRequest) and
                 isinstance(apdu, SimpleAckPDU)):
             _log.debug("COV subscription established for {} on {}"
@@ -384,7 +387,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         elif isinstance(apdu, ConfirmedCOVNotificationRequest):
             # Handling for ConfirmedCOVNotificationRequests. These requests are sent by the
             # detection object for the point, created when the COV subscription is established
-            # (See COV_Detection class in Bacpypes: https://bacpypes.readthedocs.io/en/latest/modules/service/cov.html).
+            # (See COV_Detection class in Bacpypes: https://bacpypes.readthedocs.io/en/latest/modules/service/cov.html)
             _log.debug("ConfirmedCOVNotificationRequest received from {}".format(apdu.pduSource))
             point_name = None
             device_path = None
@@ -557,8 +560,13 @@ class BACnetProxyAgent(Agent):
                                 message=value)
 
     def forward_cov(self, device_path, point_name, result_dict):
-        """Called by the BACnet application when a ConfirmedCOVNotification Request is received.
-        Publishes the COV to the pubsub through the device's driver agent"""
+        """
+        Called by the BACnet application when a ConfirmedCOVNotification Request is received.
+        Publishes the COV to the pubsub through the device's driver agent
+        :param device_path: path of the device for use in publish topic
+        :param point_name: COV notification contains values for this point
+        :param result_dict: dictionary of values from the point
+        """
         self.vip.rpc.call(PLATFORM_DRIVER, 'forward_bacnet_cov_value',
                           device_path, point_name, result_dict)
 
@@ -793,11 +801,25 @@ class BACnetProxyAgent(Agent):
 
         return result_dict
 
-    # Called by the BACnet interface to establish a COV subscription with a BACnet device
+    #
     @RPC.export
     def create_COV_subscription(self, address, device_path, point_name,
                                 object_type,
                                 instance_number, lifetime=None):
+        """
+        Called by the BACnet interface to establish a COV subscription with a
+        BACnet device
+        :param address: address of the device to which the subscription
+        request will be sent
+        :param device_path: path of the device used for the publishing topic
+        :param point_name: point name for which we would like to establish the
+        subscription
+        :param object_type:
+        :param instance_number: Arbitrarily assigned value for tracking in the
+        subscription context
+        :param lifetime: lifetime in seconds for the device to maintain the
+        subscription
+        """
         # TODO check that the device supports cov
         subscription = None
         for sub in self.this_application.sub_cov_contexts:

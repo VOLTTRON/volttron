@@ -366,7 +366,11 @@ class DriverAgent(BasicAgent):
         self.interface.revert_all(**kwargs)
 
     def publish_cov_value(self, point_name, point_values):
-        """Called in the master driver agent to publish a cov from a point"""
+        """
+        Called in the master driver agent to publish a cov from a point
+        :param point_name: point which sent COV notifications
+        :param point_values: COV point values
+        """
         utcnow = utils.get_aware_utc_now()
         utcnow_string = utils.format_timestamp(utcnow)
         headers = {
@@ -393,8 +397,6 @@ class DriverAgent(BasicAgent):
                                       message=individual_point_message)
 
             if self.publish_depth_first_all:
-                _log.debug("PUBLISHING FROM DRIVER")
-                _log.debug(self.all_path_depth)
                 self._publish_wrapper(self.all_path_depth,
                                       headers=headers,
                                       message=all_message)
