@@ -69,7 +69,7 @@ def test_agent(request, volttron_instance):
     return agent
 
 
-@pytest.mark.dev
+@pytest.mark.driver
 def test_cov_update_published(volttron_instance, test_agent):
     """Tests the functionality of BACnet change of value forwarding in the
     Master Driver and driver.py"""
