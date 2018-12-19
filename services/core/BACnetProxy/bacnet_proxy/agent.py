@@ -574,11 +574,14 @@ class BACnetProxyAgent(Agent):
                                            subscriberProcessIdentifier,
                                            monitoredObjectIdentifier, lifetime,
                                            point_name):
+            """Asynchronus cov subscription callback for gevent"""
             async_call.send(None, self.send_cov_subscription, device_address,
                             subscriberProcessIdentifier,
                             monitoredObjectIdentifier, lifetime, point_name)
 
         def forward_cov_callback(point_name, apdu, result_dict):
+            """Asynchronus callback to forward cov values to the master driver
+            for gevent"""
             async_call.send(None, self.forward_cov, point_name, apdu, result_dict)
 
 
