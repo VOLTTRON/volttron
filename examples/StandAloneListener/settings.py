@@ -23,8 +23,7 @@ _params = {
 	# configuration to enable standalone agent access to volttron instance. Use
 	# command 'vctl auth add' Provide this agent's public key when prompted
 	# for credential.
-	# For more details see
-	# https://volttron.readthedocs.io/en/develop/devguides/walkthroughs/Agent-Authentication-Walkthrough.html
+
 	'agent_public': 'dpu13XKPvGB3XJNVUusCNn2U0kIWcuyDIP5J8mAgBQ0',
 	'agent_secret': 'Hlya-6BvfUot5USdeDHZ8eksDkWgEEHABs1SELmQhMs',
 	

@@ -35,26 +35,40 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-import inspect
-import logging
-
-from volttron.platform.agent import utils
-from volttron.platform.dbutils.basedb import DbDriver
-
-utils.setup_logging()
-_log = logging.getLogger(__name__)
 
 
-def get_dbfuncts_class(database_type):
-    mod_name = database_type + "functs"
-    mod_name_path = "volttron.platform.dbutils.{}".format(mod_name)
-    loaded_mod = __import__(mod_name_path, fromlist=[mod_name])
-    for _, cls in inspect.getmembers(loaded_mod):
-        # Ensure class is not the root dbdriver
-        if (inspect.isclass(cls) and issubclass(cls, DbDriver)
-                and cls is not DbDriver):
-            break
-    else:
-        raise Exception('Invalid module named {}'.format(mod_name_path))
-    _log.debug('Historian using module: {}'.format(cls.__name__))
-    return cls
+from os import path
+from setuptools import setup, find_packages
+
+MAIN_MODULE = 'WeatherDotGovAgent'
+
+# Find the agent package that contains the main module
+packages = find_packages('.')
+agent_package = ''
+for package in find_packages():
+    # Because there could be other packages such as tests
+    if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
+        agent_package = package
+if not agent_package:
+    raise RuntimeError('None of the packages under {dir} contain the file '
+                       '{main_module}'.format(main_module=MAIN_MODULE + '.py',
+                                              dir=path.abspath('.')))
+
+# Find the version number from the main module
+agent_module = agent_package + '.' + MAIN_MODULE
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
+__version__ = _temp.__version__
+
+# Setup
+setup(
+    name='weatherdotgov_agent',
+    version=__version__,
+    install_requires=['volttron'],
+    packages=packages,
+    package_data={'agent': ['data/name_mapping.csv']},
+    entry_points={
+        'setuptools.installation': [
+            'eggsecutable = ' + agent_module + ':main',
+        ]
+    }
+)

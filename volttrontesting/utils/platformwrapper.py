@@ -387,7 +387,8 @@ class PlatformWrapper:
                          volttron_central_serverkey=None,
                          msgdebug=False,
                          setupmode=False,
-                         instance_name=''):
+                         instance_name='',
+                         agent_monitor_frequency=600):
 
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
@@ -472,6 +473,8 @@ class PlatformWrapper:
         if instance_name:
             parser.set('volttron', 'instance-name',
                        instance_name)
+        parser.set('volttron', 'agent-monitor-frequency',
+                   agent_monitor_frequency)
         if self.mode == UNRESTRICTED:
             with open(pconfig, 'wb') as cfg:
                 parser.write(cfg)

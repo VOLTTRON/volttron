@@ -372,6 +372,7 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
         traceback.print_last()
     finally:
         shutil.rmtree(tmpdir, True)
+        pass
 
 
 def _files_from_kwargs(**kwargs):
@@ -504,8 +505,7 @@ def _create_cert_ui(cn):
     sys.stdout.write("Please enter the following for certificate creation:\n")
     # TODO Add country code verification. cryptography package doesn't do it
     for item in input_order:
-        cmd = '\t{} - {}({}): '.format(item, input_help[item],
-                                              input_defaults[item])
+        cmd = '\t{} - {}({}): '.format(item, input_help[item], input_defaults[item])
         output_items[item] = raw_input(cmd)
         if len(output_items[item].strip()) == 0:
             output_items[item] = input_defaults[item]
