@@ -30,6 +30,7 @@ from volttron.platform.vip.agent.connection import Connection
 from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttron.platform.agent import json as jsonapi
+from volttron.platform.agent.utils import execute_command
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -182,7 +183,7 @@ class PlatformWrapper:
         }
         self.volttron_root = VOLTTRON_ROOT
 
-        volttron_exe = subprocess.check_output(['which', 'volttron']).strip()
+        volttron_exe = execute_command(['which', 'volttron']).strip()
 
         assert os.path.exists(volttron_exe)
         self.python = os.path.join(os.path.dirname(volttron_exe), 'python')
@@ -526,7 +527,7 @@ class PlatformWrapper:
 
         if not has_control:
             self.shutdown_platform()
-            raise "Couldn't connect to core platform!"
+            raise Exception("Couldn't connect to core platform!")
 
         if bind_web_address:
             times = 0
@@ -542,7 +543,7 @@ class PlatformWrapper:
                     gevent.sleep(0.1)
                     self.logit("Connection error found {}".format(e))
             if not has_discovery:
-                raise "Couldn't connect to discovery platform."
+                raise Exception("Couldn't connect to discovery platform.")
 
         self.use_twistd = use_twistd
 
@@ -603,7 +604,7 @@ class PlatformWrapper:
         if vip_identity:
             cmd.extend(['--vip-identity', vip_identity])
 
-        res = subprocess.check_output(cmd, env=env)
+        res = execute_command(cmd, env=env, logger=_log)
         assert res, "failed to install wheel:{}".format(wheel_file)
         agent_uuid = res.split(' ')[-2]
         self.logit(agent_uuid)
@@ -715,19 +716,17 @@ class PlatformWrapper:
                 cmd.extend(["--vip-identity", vip_identity])
             if start:
                 cmd.extend(["--start"])
-            try:
-                response = subprocess.check_output(cmd)
-            except Exception as e:
-                _log.error(repr(e))
-                raise e
 
-            self.logit(response)
+            stdout = execute_command(cmd, logger=_log,
+                                     err_prefix="Error installing agent")
+
+            self.logit(stdout)
             # Because we are no longer silencing output from the install, the
             # the results object is now much more verbose.  Our assumption is
             # that the result we are looking for is the only JSON block in
             # the output
 
-            match = re.search(r'^({.*})', response, flags=re.M | re.S)
+            match = re.search(r'^({.*})', stdout, flags=re.M | re.S)
             if match:
                 results = match.group(0)
             else:
@@ -772,7 +771,7 @@ class PlatformWrapper:
         # Confirm agent running
         cmd = ['volttron-ctl']
         cmd.extend(['status', agent_uuid])
-        res = subprocess.check_output(cmd, env=self.env)
+        res = execute_command(cmd, env=self.env)
         # 776 TODO: Timing issue where check fails
         time.sleep(.1)
         self.logit("Subprocess res is {}".format(res))
@@ -790,12 +789,11 @@ class PlatformWrapper:
     def stop_agent(self, agent_uuid):
         # Confirm agent running
         _log.debug("STOPPING AGENT: {}".format(agent_uuid))
-        try:
-            cmd = ['volttron-ctl']
-            cmd.extend(['stop', agent_uuid])
-            res = subprocess.check_output(cmd, env=self.env)
-        except CalledProcessError as ex:
-            _log.error("Exception: {}".format(ex))
+
+        cmd = ['volttron-ctl']
+        cmd.extend(['stop', agent_uuid])
+        res = execute_command(cmd, env=self.env, logger=_log,
+                              err_prefix="Error stopping agent")
         return self.agent_pid(agent_uuid)
 
     def list_agents(self):
@@ -808,12 +806,11 @@ class PlatformWrapper:
     def remove_agent(self, agent_uuid):
         """Remove the agent specified by agent_uuid"""
         _log.debug("REMOVING AGENT: {}".format(agent_uuid))
-        try:
-            cmd = ['volttron-ctl']
-            cmd.extend(['remove', agent_uuid])
-            res = subprocess.check_output(cmd, env=self.env)
-        except CalledProcessError as ex:
-            _log.error("Exception: {}".format(ex))
+
+        cmd = ['volttron-ctl']
+        cmd.extend(['remove', agent_uuid])
+        res = execute_command(cmd, env=self.env, logger=_log,
+                              err_prefix="Error removing agent")
         return self.agent_pid(agent_uuid)
 
     def remove_all_agents(self):
@@ -839,7 +836,8 @@ class PlatformWrapper:
         cmd.extend(['status', agent_uuid])
         pid = None
         try:
-            res = subprocess.check_output(cmd, env=self.env)
+            res = execute_command(cmd, env=self.env, logger=_log,
+                                  err_prefix="Error getting agent status")
             try:
                 pidpos = res.index('[') + 1
                 pidend = res.index(']')
@@ -925,8 +923,9 @@ class PlatformWrapper:
         cmd = ['volttron-ctl']
         cmd.extend(['shutdown', '--platform'])
         try:
-            res = subprocess.check_output(cmd, env=self.env)
-        except CalledProcessError:
+            execute_command(cmd, env=self.env, logger=_log,
+                            err_prefix="Error shutting down platform")
+        except RuntimeError:
             if self.p_process is not None:
                 try:
                     gevent.sleep(0.2)
@@ -961,8 +960,9 @@ class PlatformWrapper:
         cmd = ['volttron-ctl']
         cmd.extend(['shutdown', '--platform'])
         try:
-            res = subprocess.check_output(cmd, env=self.env)
-        except CalledProcessError:
+            execute_command(cmd, env=self.env, logger=_log,
+                            err_prefix="Error shutting down platform")
+        except RuntimeError:
             if self.p_process is not None:
                 try:
                     gevent.sleep(0.2)

@@ -1421,6 +1421,8 @@ def edit_config(opts):
 
         success = True
         try:
+            # do not use utils.execute_command as we don't want set stdout to
+            #  subprocess.PIPE
             subprocess.check_call([opts.editor, f.name])
         except subprocess.CalledProcessError as e:
             _stderr.write("Editor returned with code {}. Changes not committed.\n".format(e.returncode))

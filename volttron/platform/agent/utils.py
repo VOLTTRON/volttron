@@ -59,6 +59,8 @@ from dateutil.parser import parse
 from dateutil.tz import tzutc, tzoffset
 from tzlocal import get_localzone
 from volttron.platform.agent import json as jsonapi
+import subprocess
+from subprocess import Popen
 
 try:
     from ..lib.inotify.green import inotify, IN_MODIFY
@@ -69,7 +71,7 @@ except AttributeError:
     IN_MODIFY = None
 
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
-           'is_valid_identity']
+           'is_valid_identity', 'execute_command']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
@@ -598,3 +600,24 @@ def fix_sqlite3_datetime(sql=None):
         import sqlite3 as sql
     sql.register_adapter(datetime, format_timestamp)
     sql.register_converter("timestamp", parse_timestamp_string)
+
+
+def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None):
+    """ Executes a given command. If commands return code is 0 return stdout.
+    If not logs stderr and raises RuntimeException"""
+    process = Popen(cmds, env=env, cwd=cwd, stderr=subprocess.PIPE,
+                    stdout=subprocess.PIPE)
+    (output, error) = process.communicate()
+    if not err_prefix:
+        err_prefix = "Error executing command"
+    if process.returncode != 0:
+        err_message = "\n{}: Below Command failed with non zero exit code.\n" \
+                      "Command:{} \nStderr:\n{}\n".format(err_prefix,
+                                                          " ".join(cmds),
+                                                          error)
+        if logger:
+            logger.exception(err_message)
+            raise RuntimeError()
+        else:
+            raise RuntimeError(err_message)
+    return output
