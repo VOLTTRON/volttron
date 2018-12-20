@@ -10,11 +10,13 @@ from sqlalchemy import Column, String, Integer
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+from volttron.platform import get_home
+
 ORMBase = declarative_base()
 
 
 def sqlite_helloworld():
-    path = os.path.expandvars('$VOLTTRON_HOME/data/test_db.sqlite')
+    path = os.path.join(get_home(), 'data/test_db.sqlite')
     engine = create_engine('sqlite:///' + path).connect()
     ORMBase.metadata.create_all(engine)
     db_session = sessionmaker(bind=engine)()

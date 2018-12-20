@@ -18,7 +18,7 @@ import requests
 from agent_additions import add_volttron_central
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
-from volttron.platform import packaging
+from volttron.platform import packaging, get_home
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import strip_comments
 from volttron.platform.aip import AIPplatform
@@ -600,7 +600,7 @@ class PlatformWrapper:
         gevent.sleep(0.3)
         self.logit('calling control install agent.')
         self.logit("VOLTTRON_HOME SETTING: {}".format(
-            self.env['VOLTTRON_HOME']))
+            get_home()))
         env = self.env.copy()
         cmd = ['volttron-ctl', '-vv', 'install', wheel_file]
         if vip_identity:
@@ -771,7 +771,7 @@ class PlatformWrapper:
     def start_agent(self, agent_uuid):
         self.logit('Starting agent {}'.format(agent_uuid))
         self.logit("VOLTTRON_HOME SETTING: {}".format(
-            self.env['VOLTTRON_HOME']))
+            get_home()))
         cmd = ['volttron-ctl']
         cmd.extend(['start', agent_uuid])
         p = Popen(cmd, env=self.env,

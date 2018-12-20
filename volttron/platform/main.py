@@ -63,6 +63,7 @@ from zmq import green, ZMQError
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
 from volttron.platform.agent import json as jsonapi
 
+from . import get_home, set_home
 from . import aip
 from . import __version__
 from . import config
@@ -347,7 +348,7 @@ class Router(BaseRouter):
         if self._msgdebug:
             if not self._message_debugger_socket:
                 # Initialize a ZMQ IPC socket on which to publish all messages to MessageDebuggerAgent.
-                socket_path = os.path.expandvars('$VOLTTRON_HOME/run/messagedebug')
+                socket_path = os.path.join(get_home(), 'run/messagedebug')
                 socket_path = os.path.expanduser(socket_path)
                 socket_path = 'ipc://{}'.format('@' if sys.platform.startswith('linux') else '') + socket_path
                 self._message_debugger_socket = zmq.Context().socket(zmq.PUB)
@@ -809,9 +810,8 @@ def main(argv=sys.argv):
                          'potential damage.\n' % os.path.basename(argv[0]))
         sys.exit(77)
 
-    volttron_home = os.path.normpath(config.expandall(
-        os.environ.get('VOLTTRON_HOME', '~/.volttron')))
-    os.environ['VOLTTRON_HOME'] = volttron_home
+    volttron_home = get_home()
+    set_home(volttron_home)
 
     # Setup option parser
     parser = config.ArgumentParser(
