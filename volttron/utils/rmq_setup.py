@@ -946,7 +946,7 @@ def start_rabbit(rmq_home):
             if start:
                 # attempt to start once
                 subprocess.check_call(start_cmd)
-                gevent.sleep(25)  # give a few seconds for all plugins to start
+                gevent.sleep(15)  # give a few seconds for all plugins to start
                 start = False
             else:
                 if i > 60:  # if more than a minute, may be something is wrong
