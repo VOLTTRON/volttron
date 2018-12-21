@@ -37,7 +37,7 @@ def test_publickey_retrieval(vc_instance, pa_instance):
     ----------
     :vc_instance:
         A dictionary featuring a wrapper and ...
-    :vc_insttest_no_groupsance:
+    :vc_instance:
         A dictionary featuring a wrapper and ...
     """
     vc_wrapper, vc_uuid, jsonrpc = vc_instance

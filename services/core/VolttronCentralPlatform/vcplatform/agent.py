@@ -62,7 +62,7 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 from volttron.platform import jsonrpc
-from volttron.platform import get_home
+
 from volttron.platform.agent.bacnet_proxy_reader import BACnetReader
 from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, CONTROL, CONFIGURATION_STORE)
@@ -1164,8 +1164,7 @@ volttron-central-serverkey."""
         config_changed = False
         found_a_platform_driver = False
         for platform_driver_id in self._platform_driver_ids:
-            fname = os.path.join(get_home(), "configuration_store/{}.store"
-                                 .format(platform_driver_id))
+            fname = os.path.join(os.environ['VOLTTRON_HOME'], "configuration_store/{}.store".format(platform_driver_id))
             stat_time = os.stat(fname).st_mtime if os.path.exists(fname) else None
             if self._master_driver_stat_times.get(platform_driver_id, None) != stat_time:
                 config_changed = True
