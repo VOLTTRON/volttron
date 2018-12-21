@@ -38,15 +38,10 @@ at ``/home/vdev/ .my_volttron_home/certificates/private``
 There is also a trusted-cas.crt file that is only created once, but can be updated.
 Initially, the trusted-ca.crt is a copy of the the CA file <rmq-instance-name>-root-ca.crt.
 
-However, suppose there are two VMs (v1 amd v2) running single instances of RabbitMQ, and v1 wants to talk to v2. In
-order for this to occur, one would have to transfer (scp/sftp/similar) v1-root.ca.crt from v1 to v2 and append the
-transferred v1-root.ca.crt to v2-trusted-ca.crt:
+.. image:: files/multiplatform_ssl.png
 
-For example:
+However, suppose there are two VMs (VOLTTRON1 and VOLTTRON2) running single instances of RabbitMQ, and VOLTTRON1 and VOLTTRON2 want to talk to each other via either the federation or shovel plugins. In order for VOLTTRON1 to talk to VOLTTRON2, VOLTTRON1 must present it's root certificate, and have it appended to VOLTTRON2's trusted ca. VOLTTRON2 must in turn present its root certificate to VOLTTRON1's trusted ca, so that VOLTTRON1 will know it is safe to talk to VOLTTRON2. 
 
-On v1: cat /tmp/rmq2-root-ca.crt >> /home/vdev/ .my_volttron_home/certificates/v1-trusted-cas.crt
-
-On v2: cat /tmp/rmq1-root-ca.crt >> /home/vdev/ .my_volttron_home/certificates/v2-trusted-cas.crt
 
 
 For more detailed information about SSL based authentication control, please refer to
