@@ -74,7 +74,7 @@ class Connection(object):
         self.volttron_home = volttron_home
 
         if self.volttron_home is None:
-            self.volttron_home = os.path.abspath(platform.get_home())
+            self.volttron_home = get_home()
 
         if address.startswith('ipc'):
             full_address = address

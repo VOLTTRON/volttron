@@ -107,9 +107,9 @@ class SQLAggregateHistorian(AggregateHistorian):
         agg_id = self.dbfuncts_class.insert_agg_topic(aggregation_topic_name,
                                                       agg_type,
                                                       agg_time_period)
-        self.dbfuncts_class.insert_agg_meta(agg_id[0], topics_meta)
+        self.dbfuncts_class.insert_agg_meta(agg_id, topics_meta)
         self.dbfuncts_class.commit()
-        return agg_id[0]
+        return agg_id
 
     def update_aggregate_metadata(self, agg_id, aggregation_topic_name,
                                   topic_meta):

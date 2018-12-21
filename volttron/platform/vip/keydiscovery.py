@@ -48,6 +48,7 @@ from zmq import ZMQError
 from zmq.utils import jsonapi
 from gevent.lock import Semaphore
 
+from volttron.platform import get_home
 from volttron.platform.agent import utils
 from .agent import Agent, Core, RPC
 from requests.packages.urllib3.connection import (ConnectionError,
@@ -85,7 +86,7 @@ class KeyDiscoveryAgent(Agent):
         if self._setup_mode:
             _log.debug("RUNNING IN MULTI-PLATFORM SETUP MODE")
 
-        self._store_path = os.path.join(os.environ['VOLTTRON_HOME'],
+        self._store_path = os.path.join(get_home(),
                                         'external_platform_discovery.json')
         self._ext_addresses_store = dict()
         self._ext_addresses_store_lock = Semaphore()

@@ -106,7 +106,7 @@ class Interface(BaseInterface):
 
         # list of points to establish change of value subscriptions with, generated from the registry config
         for point_name in self.cov_points:
-            self.establish_cov_subscription(point_name, DEFAULT_COV_LIFETIME, True)
+            self.establish_cov_subscription(point_name, self.cov_lifetime, True)
 
     def schedule_ping(self):
         if self.scheduled_ping is None:

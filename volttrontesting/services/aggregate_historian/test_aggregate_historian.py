@@ -4,6 +4,8 @@
 # 2. test database and test user should exist
 # 3. Test user should have all privileges on test database
 # 4. Refer to the dictionary object mysql_platform for the server configuration
+
+import ast
 import sqlite3
 from datetime import datetime, timedelta
 
@@ -34,10 +36,32 @@ try:
 except:
     HAS_PYMONGO = False
 
+try:
+    import psycopg2
+    import psycopg2.errorcodes
+    from psycopg2 import sql as pgsql
+
+    HAS_POSTGRESQL = True
+except:
+    HAS_POSTGRESQL = False
+
+redshift_params = {}
+if HAS_POSTGRESQL:
+    try:
+        with open('redshift.params') as file:
+            redshift_params = ast.literal_eval(file.read(4096))
+    except (IOError, OSError):
+        pass
+
 mysql_skipif = pytest.mark.skipif(not HAS_MYSQL_CONNECTOR,
                                   reason='No mysql connector available')
 pymongo_skipif = pytest.mark.skipif(not HAS_PYMONGO,
                                     reason='No pymongo client available.')
+postgresql_skipif = pytest.mark.skipif(not HAS_POSTGRESQL,
+                                       reason='No psycopg2 client available')
+redshift_skipif = pytest.mark.skipif(
+    not redshift_params, reason='No {} available'.format(
+        'redshift params' if HAS_POSTGRESQL else 'psycopg2 client'))
 
 # table_defs with prefix
 sqlite_aggregator = {
@@ -93,6 +117,26 @@ mongo_aggregator = {
     }
 }
 
+postgresql_aggregator = {
+    'source_historian': get_services_core('SQLHistorian'),
+    "source_agg_historian": get_services_core("SQLAggregateHistorian"),
+    'connection': {
+        'type': 'postgresql',
+        'params': {
+            'dbname': 'historian_test',
+        },
+    },
+}
+
+redshift_aggregator = {
+    'source_historian': get_services_core('SQLHistorian'),
+    "source_agg_historian": get_services_core("SQLAggregateHistorian"),
+    'connection': {
+        'type': 'postgresql',
+        'params': redshift_params,
+    },
+}
+
 offset = timedelta(seconds=3)
 db_connection = None
 table_names = dict()
@@ -142,6 +186,22 @@ def setup_mongodb(connection_params, table_names):
     db[table_names['agg_meta_table']].remove()
     return db
 
+def setup_postgresql(connection_params, table_names):
+    print("setup postgresql", connection_params, table_names)
+    connection = psycopg2.connect(**connection_params)
+    connection.autocommit = True
+    prefix = table_names.get('table_prefix')
+    fmt = (prefix + '_{}' if prefix else '{}').format
+    truncate_tables = [fmt(name) for id_, name in table_names.items()
+                       if id_ != 'table_prefix' and name]
+    truncate_tables.append(fmt('volttron_table_definitions'))
+    try:
+        cleanup_postgresql(connection, truncate_tables)
+    except Exception as exc:
+        print('Error truncating existing tables: {}'.format(exc))
+    return connection
+
+setup_redshift = setup_postgresql
 
 def cleanup_sql(db_connection, truncate_tables):
     cursor = db_connection.cursor()
@@ -162,6 +222,20 @@ def cleanup_mysql(db_connection, truncate_tables):
 def cleanup_mongodb(db_connection, truncate_tables):
     for collection in truncate_tables:
         db_connection[collection].remove()
+
+def cleanup_postgresql(connection, truncate_tables):
+    print('cleanup_postgreql({!r}, {!r})'.format(connection, truncate_tables))
+    for table in truncate_tables:
+        with connection.cursor() as cursor:
+            try:
+                cursor.execute(pgsql.SQL('TRUNCATE TABLE {}').format(
+                    pgsql.Identifier(table)))
+            except psycopg2.ProgrammingError as exc:
+                if exc.pgcode != psycopg2.errorcodes.UNDEFINED_TABLE:
+                    raise
+                print("Error truncating {!r} table: {}".format(table, exc))
+
+cleanup_redshift = cleanup_postgresql
 
 
 def get_table_names(config):
@@ -265,7 +339,9 @@ def query_agent(request, volttron_instance):
                 params=[
                     mysql_skipif(mysql_aggregator),
                     sqlite_aggregator,
-                    pymongo_skipif(mongo_aggregator)
+                    pymongo_skipif(mongo_aggregator),
+                    postgresql_skipif(postgresql_aggregator),
+                    redshift_skipif(redshift_aggregator),
                 ])
 def aggregate_agent(request, volttron_instance):
     global db_connection, table_names, connection_type

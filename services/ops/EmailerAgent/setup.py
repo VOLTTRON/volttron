@@ -62,6 +62,9 @@ __version__ = _temp.__version__
 setup(
     name=agent_package + 'agent',
     version=__version__,
+    author_email="rajveer.singh@pnnl.gov",
+    description="Sends email on failover",
+    author="Raj",
     install_requires=['volttron'],
     packages=packages,
     entry_points={

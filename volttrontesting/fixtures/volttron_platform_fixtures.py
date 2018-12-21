@@ -164,15 +164,15 @@ def volttron_instance_module_web(request):
 # Use this fixture when you want a single instance of volttron platform for
 # test
 @pytest.fixture(scope="module")
-def volttron_instance(request):
+def volttron_instance(request, **kwargs):
     """Fixture that returns a single instance of volttron platform for testing
 
     @param request: pytest request object
     @return: volttron platform instance
     """
     wrapper = None
-    address = get_rand_vip()
-    wrapper = build_wrapper(address)
+    address = kwargs.pop("vip_address", get_rand_vip())
+    wrapper = build_wrapper(vip_address=address, **kwargs)
 
 
     def cleanup():
@@ -206,14 +206,14 @@ def get_volttron_instances(request):
     """
     all_instances = []
 
-    def get_n_volttron_instances(n, should_start=True):
+    def get_n_volttron_instances(n, should_start=True, **kwargs):
         get_n_volttron_instances.count = n
         instances = []
         for i in range(0, n):
-            address = get_rand_vip()
+            address = kwargs.pop("vip_address", get_rand_vip())
             wrapper = None
             if should_start:
-                wrapper = build_wrapper(address)
+                wrapper = build_wrapper(address, **kwargs)
             else:
                 wrapper = PlatformWrapper()
             instances.append(wrapper)

@@ -3,6 +3,7 @@ import os
 import uuid
 from copy import deepcopy
 
+from volttron.platform import get_home
 from volttron.platform.agent import json as jsonapi
 
 class SessionHandler:
@@ -89,10 +90,10 @@ class SessionHandler:
         #     pass
 
     def _get_auth_storage(self):
-        if not os.environ.get('VOLTTRON_HOME', None):
+        if not get_home():
             raise ValueError('VOLTTRON_HOME environment must be set!')
 
-        db_path = os.path.join(os.environ.get('VOLTTRON_HOME'),
+        db_path = os.path.join(get_home(),
                                'data/volttron.central.sessions')
         db_dir  = os.path.dirname(db_path)
         try:
