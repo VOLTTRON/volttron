@@ -496,6 +496,7 @@ also have to provide list of topics that we want to forward to remote instance. 
 can also be used for remote RPC communication in which case we would have to create shovel
 in both the instances, one to send the RPC request and other to send the response back.
 
+*Pubsub Communication*
 Following are the steps to create Shovel for multi-platform pubsub communication.
 
 1. Setup two VOLTTRON instances using the steps described in installation section.
@@ -584,7 +585,155 @@ certain topics to remote instance "v2".
    vctl rabbitmq remove-shovel-parameters shovel-rabbit-3-devices
    ```
 
+*RPC Communication*
 
+Following are the steps to create Shovel for multi-platform RPC communication.
+
+1. Setup two VOLTTRON instances using the steps described in installation section.
+Please note that each instance should have a unique instance name.
+
+2. In a multi platform setup that need to communicate with each other with
+RabbitMQ over SSL, each VOLTTRON instance should should trust the ROOT CA of
+the other instance(RabbitMQ root ca)
+
+    a.  Transfer (scp/sftp/similar)
+   voltttron_home/certificates/certs/<instance_name>-root-ca.crt to a temporary
+   location on the other volttron instance machine. For example, if you have two
+   instance v1 and v2, scp v1's v1-root-ca.crt to v2 and
+   v2-root-ca.crt to v1.
+
+    b. Append the contents of the transferred root ca to the instance's root ca.
+   For example:
+
+   On v1:
+   cat /tmp/v2-root-ca.crt >> /home/vdev/.my_volttron_home/certificates/v1-root-ca.crt
+   On v2:
+   cat /tmp/v1-root-ca.crt >> /home/vdev/.my_volttron_home/certificates/v2-root-ca.crt
+
+3. In RPC calls there are two instances of shovel. One serving as the client (makes RPC request) and the
+other acting as a server (replies to RPC request). Identify the instance is the "client" and which is the "server."
+Suppose "v1" instance is the "client" instance and "v2" instance is the "server" instance.
+
+a. On both the client and server nodes, shovel instances need to be created. In this example, v1's shovel would request
+messages to the shovel instance on v2, and v2 would reply to v1's requests.
+
+
+
+     vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml containing the details of the
+     **remote** hostname, port, vhost, volttron instance name (so in v1's yml file parameters would point to v2
+     and vice versa), and list of agent pair identities (local caller, remote callee). Example configuration for shovel
+     is available in examples/configurations/rabbitmq/rabbitmq_shovel_config.yml.]
+
+     For this example, let's say that we are using the schedule-example and acutator agents.
+
+     For v1, the agent pair identities would be:
+     - [Scheduler, platform.actuator]
+
+     For v2, they would be:
+     - [platform.actuator, Scheduler]
+
+     Indicating the flow from local agent to remote agent.
+
+     If no config file is provided, the script will prompt for hostname (or IP address), port, vhost and
+     list of agent pairs for each remote instance you would like to add.
+
+
+b. On the client node create a user with username set to server instance's
+        agent name ( (instance-name)-ServerAgent ) and allow the shovel access to
+        the virtual host of the server node. Similarly, on the server node, create a user with username set to
+        client instance's agent name ( (instance-name)-ClientAgent) and allow the shovel access to
+        the virtual host of the client node.
+
+        ```sh
+        cd $RABBITMQ_HOME
+        vctl add-user <username> <password>
+        ```
+
+4. Test the shovel setup ****Needs to Read 4 on Markdown******
+
+a. On client node:
+
+
+   Make necessary changes to RPC methods of  client agent.
+
+    For this example, in volttron/examples/SchedulerExample/schedule_example/agent.py:
+    * Search for 'campus/building/unit' in publish_schedule method. Replace with
+    'devices/fake-campus/fake-building/fake-device'
+    * Search for ['campus/building/unit3',start,end] in the use_rpc method, replace with:                 msg = [
+                   ['fake-campus/fake-building/fake-device',start,end].
+    * Add: kwargs = {"external_platform": 'v2'} on the line below
+    * On the result = self.vip.rpc.call method below, replace "msg).get(timeout=10)" with msg, **kwargs).get(timeout=10),
+    * In the second try clause of the use_rpc method:
+        * Replace result['result'] with result[0]['result']
+        * Add kwargs = {"external_platform": 'v2'} as the first line of the if statement
+        * Replace 'campus/building/unit3/some_point' with 'fake-campus/fake-building/fake-device/PowerState'
+        * Below 'fake-campus/fake-building/fake-device/PowerState' add: 0,
+        * Replace '0.0').get(timeout=10) with **kwargs).get(timeout=10)
+
+
+   Next, install an example scheduler agent:
+
+    scripts/core/upgrade_scheduler.sh
+
+   and start it using vctl start firstCharacterOfAgentID
+
+   firstCharacterOfAgentID can be found by running vctl status.
+
+
+b. On the server node:
+
+   Run upgrade script to install actuator agent and listener agent.
+
+    scripts/core/upgrade_actuator.sh
+    scripts/core/upgrade-listener
+
+
+   Install master driver, configure fake device on upstream server and start volttron and master driver.
+   vcfg --agent master_driver command can install master driver and setup a fake device.
+
+    ./stop-volttron
+    vcfg --agent master_driver
+    ./start-volttron
+    vctl start --tag master_driver
+
+  Start actuator agent and listener agents.
+
+  The output for the server node with a successful shovel run should look similar to:
+   ```
+2018-12-19 15:38:00,009 (listeneragent-3.2 13039) listener.agent INFO: Peer: pubsub, Sender: platform.driver:, Bus: , Topic: devices/fake-campus/fake-building/fake-device/all, Headers: {'Date': '2018-12-19T20:38:00.001684+00:00', 'TimeStamp': '2018-12-19T20:38:00.001684+00:00', 'min_compatible_version': '5.0', 'max_compatible_version': u'', 'SynchronizedTimeStamp': '2018-12-19T20:38:00.000000+00:00'}, Message:
+    [{'Heartbeat': True, 'PowerState': 0, 'ValveState': 0, 'temperature': 50.0},
+     {'Heartbeat': {'type': 'integer', 'tz': 'US/Pacific', 'units': 'On/Off'},
+      'PowerState': {'type': 'integer', 'tz': 'US/Pacific', 'units': '1/0'},
+      'ValveState': {'type': 'integer', 'tz': 'US/Pacific', 'units': '1/0'},
+      'temperature': {'type': 'integer',
+                      'tz': 'US/Pacific',
+                      'units': 'Fahrenheit'}}]
+
+   ```
+
+
+
+5. How to remove the shovel setup.
+
+   a. Using the management web interface
+
+   Log into management web interface using publisher instance's admin username.
+   Navigate to admin tab and then to shovel management page. The status of the
+   shovel will be displayed on the page. Click on the shovel name and delete
+   the shovel.
+
+   b. Using "volttron-ctl" command on the publisher node.
+   ```
+   vctl rabbitmq list-shovel-parameters
+   NAME                     SOURCE ADDRESS                                                 DESTINATION ADDRESS                                            BINDING KEY
+   shovel-rabbit-3-devices  amqps://rabbit-1:5671/volttron1?cacertfile=/home/nidd494/.volttron1/certificates/certs/volttron1-root-ca.crt&certfile=/home/nidd494/.volttron1/certificates/certs/volttron1-admin.crt&keyfile=/home/nidd494/.volttron1/certificates/private/volttron1-admin.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-1  amqps://rabbit-3:5671/volttron3?cacertfile=/home/nidd494/.volttron1/certificates/certs/volttron1-root-ca.crt&certfile=/home/nidd494/.volttron1/certificates/certs/volttron1-admin.crt&keyfile=/home/nidd494/.volttron1/certificates/private/volttron1-admin.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-3  __pubsub__.volttron1.devices.#
+   ```
+
+   Grab the shovel name and run the below command to remove it.
+
+   ```
+   vctl rabbitmq remove-shovel-parameters shovel-rabbit-3-devices
+   ```
 
 ** RabbitMQ Trouble Shooting **
 
