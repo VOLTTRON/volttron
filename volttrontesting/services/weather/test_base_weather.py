@@ -77,6 +77,12 @@ def query_agent(request, volttron_instance):
         peer='pubsub',
         prefix="weather/poll/current",
         callback=agent.poll_callback).get()
+    agent.alert_callback = MagicMock(name="alert_callback")
+    # subscribe to weather poll results
+    agent.vip.pubsub.subscribe(
+        peer='pubsub',
+        prefix="alerts",
+        callback=agent.alert_callback).get()
 
     gevent.sleep(3)
 
@@ -923,17 +929,11 @@ def delete_database_file():
     if os.path.isfile(db_path):
         os.remove(db_path)
 
+
 @pytest.mark.weather2
-def test_unhandled_cache_store_exception(volttron_instance, weather):
-    # create an agent to listen to alerts
+def test_unhandled_cache_store_exception(volttron_instance, weather,
+                                         query_agent):
     try:
-        query_agent = volttron_instance.build_agent()
-        query_agent.poll_callback = MagicMock(name="poll_callback")
-        query_agent.vip.pubsub.subscribe(
-            peer='pubsub',
-            prefix='alerts',
-            callback=query_agent.poll_callback).get()
-        gevent.sleep(2)
         location = {"location": "fake_location"}
         # clear out the database so that nothing can be read
         conn = weather._cache._sqlite_conn
@@ -945,19 +945,19 @@ def test_unhandled_cache_store_exception(volttron_instance, weather):
         weather._cache._sqlite_conn.close()
         os.chmod(weather._database_file, 0444)
         weather._cache._sqlite_conn = sqlite3.connect(weather._database_file)
-        # we expect errors here
+        query_agent.alert_callback.reset_mock()
         results1 = query_agent.vip.rpc.call(identity,
                                             "get_current_weather",
                                             [location]).get(timeout=10)[0]
         gevent.sleep(2)
         # results should be got from remote
         assert results1['weather_results']
-        assert query_agent.poll_callback.call_count == 1
-        assert query_agent.poll_callback.call_args[0][4]['alert_key'] == \
+        assert query_agent.alert_callback.call_count == 1
+        assert query_agent.alert_callback.call_args[0][4]['alert_key'] == \
             "Cache write failed"
-        assert ujson.loads(query_agent.poll_callback.call_args[0][5])[
+        assert ujson.loads(query_agent.alert_callback.call_args[0][5])[
             'context'] == "Weather agent failed to write to cache"
-        query_agent.poll_callback.reset_mock()
+
         # ensure the correct warning has been given
         read_warning = False
         write_warning = False
@@ -970,16 +970,17 @@ def test_unhandled_cache_store_exception(volttron_instance, weather):
                 break
         assert not read_warning
         assert write_warning
+        query_agent.alert_callback.reset_mock()
         # we would expect the same to be true for subsequent calls
         results2 = query_agent.vip.rpc.call(identity,
                                             "get_current_weather",
                                             [location]).get(timeout=10)[0]
         # results should be got from remote
         assert results2['weather_results']
-        assert query_agent.poll_callback.call_count == 1
-        assert query_agent.poll_callback.call_args[0][4]['alert_key'] == \
+        assert query_agent.alert_callback.call_count == 1
+        assert query_agent.alert_callback.call_args[0][4]['alert_key'] == \
             "Cache write failed"
-        assert ujson.loads(query_agent.poll_callback.call_args[0][5])[
+        assert ujson.loads(query_agent.alert_callback.call_args[0][5])[
                    'context'] == "Weather agent failed to write to cache"
         write_warning = False
         for warning in results2["weather_warnings"]:
@@ -993,37 +994,38 @@ def test_unhandled_cache_store_exception(volttron_instance, weather):
         os.chmod(weather._database_file, 0666)
         weather._cache._sqlite_conn = sqlite3.connect(weather._database_file)
 
+
 @pytest.mark.weather2
-def test_unhandled_cache_read_exception(volttron_instance, weather):
-    # create an agent to listen to alerts
+def test_unhandled_cache_read_exception(volttron_instance, weather,
+                                        query_agent):
     try:
-        query_agent = volttron_instance.build_agent()
-        query_agent.poll_callback = MagicMock(name="poll_callback")
-        query_agent.vip.pubsub.subscribe(
-            peer='pubsub',
-            prefix='alerts',
-            callback=query_agent.poll_callback).get()
-        gevent.sleep(2)
         location = {"location": "fake_location"}
+        query_agent.alert_callback.reset_mock()
         results1 = query_agent.vip.rpc.call(identity,
                                             "get_current_weather",
                                             [location]).get(timeout=10)[0]
         # results should be got from remote
         assert results1['weather_results']
-        gevent.sleep(2)
         # cache should be working
-        assert query_agent.poll_callback.call_count == 0
-        query_agent.poll_callback.reset_mock()
+        assert query_agent.alert_callback.call_count == 0
         # closing the sqlite connection will force reads and writes to fail
         weather._cache.close()
+        gevent.sleep(1)
         results2 = query_agent.vip.rpc.call(identity,
                                             "get_current_weather",
                                             [location]).get(timeout=10)[0]
-        assert query_agent.poll_callback.call_count == 1
-        assert query_agent.poll_callback.call_args[0][4]['alert_key'] == \
+        gevent.sleep(1)
+        assert query_agent.alert_callback.call_count == 2
+        first_call = query_agent.alert_callback.call_args_list[0][0]
+        second_call = query_agent.alert_callback.call_args_list[1][0]
+        assert first_call[3] == second_call[3] == "alerts/BasicWeatherAgent"
+        assert first_call[4]['alert_key'] == \
             "Cache read failed"
-        assert ujson.loads(query_agent.poll_callback.call_args[0][5])[
-                   'context'] == "Weather agent failed to read from cache"
+        assert ujson.loads(first_call[5])['context'] == \
+            "Weather agent failed to read from cache"
+        assert second_call[4]['alert_key'] == "Cache write failed"
+        assert ujson.loads(second_call[5])['context'] == \
+            "Weather agent failed to write to cache"
         # results should be retrieved from the remote api
         assert len(results2["weather_results"]["points"]) == 3
         # results should not have the same timestamps
