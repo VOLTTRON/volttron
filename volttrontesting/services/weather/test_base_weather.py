@@ -701,7 +701,7 @@ def validate_basic_weather_forecast(locations, result, warn=True, hours=3):
         assert result[i]["generation_time"]
         if warn:
             returned_less = False
-            warnings = result[i]["weather_warn"]
+            warnings = result[i]["weather_warnings"]
             for warning in warnings:
                 if warning == \
                    "Weather provider returned less than requested amount " \
@@ -710,7 +710,7 @@ def validate_basic_weather_forecast(locations, result, warn=True, hours=3):
                     break
             assert returned_less is True
         else:
-            assert result[i].get("weather_warn") is None
+            assert result[i].get("weather_warnings") is None
 
         assert result[i]["location"] == location["location"]
         weather_result2 = result[i]["weather_results"]
@@ -950,17 +950,18 @@ def test_unhandled_cache_store_exception(volttron_instance, weather):
                                             "get_current_weather",
                                             [location]).get(timeout=10)[0]
         gevent.sleep(2)
-
+        # results should be got from remote
+        assert results1['weather_results']
         assert query_agent.poll_callback.call_count == 1
         assert query_agent.poll_callback.call_args[0][4]['alert_key'] == \
-              'cache_no_write'
+            "Cache write failed"
         assert ujson.loads(query_agent.poll_callback.call_args[0][5])[
-            'context'] == "Weather agent cache failed to store data"
+            'context'] == "Weather agent failed to write to cache"
         query_agent.poll_callback.reset_mock()
         # ensure the correct warning has been given
         read_warning = False
         write_warning = False
-        for warning in results1["weather_warn"]:
+        for warning in results1["weather_warnings"]:
             if warning == "Weather agent failed to read from cache":
                 read_warning = True
                 break
@@ -973,14 +974,15 @@ def test_unhandled_cache_store_exception(volttron_instance, weather):
         results2 = query_agent.vip.rpc.call(identity,
                                             "get_current_weather",
                                             [location]).get(timeout=10)[0]
-
+        # results should be got from remote
+        assert results2['weather_results']
         assert query_agent.poll_callback.call_count == 1
         assert query_agent.poll_callback.call_args[0][4]['alert_key'] == \
-              'cache_no_write'
+            "Cache write failed"
         assert ujson.loads(query_agent.poll_callback.call_args[0][5])[
-                   'context'] == "Weather agent cache failed to store data"
+                   'context'] == "Weather agent failed to write to cache"
         write_warning = False
-        for warning in results2["weather_warn"]:
+        for warning in results2["weather_warnings"]:
             if warning == "Weather agent failed to write to cache":
                 write_warning = True
                 break
@@ -1006,6 +1008,8 @@ def test_unhandled_cache_read_exception(volttron_instance, weather):
         results1 = query_agent.vip.rpc.call(identity,
                                             "get_current_weather",
                                             [location]).get(timeout=10)[0]
+        # results should be got from remote
+        assert results1['weather_results']
         gevent.sleep(2)
         # cache should be working
         assert query_agent.poll_callback.call_count == 0
@@ -1017,7 +1021,7 @@ def test_unhandled_cache_read_exception(volttron_instance, weather):
                                             [location]).get(timeout=10)[0]
         assert query_agent.poll_callback.call_count == 1
         assert query_agent.poll_callback.call_args[0][4]['alert_key'] == \
-               'cache_no_read'
+            "Cache read failed"
         assert ujson.loads(query_agent.poll_callback.call_args[0][5])[
                    'context'] == "Weather agent failed to read from cache"
         # results should be retrieved from the remote api
@@ -1026,7 +1030,7 @@ def test_unhandled_cache_read_exception(volttron_instance, weather):
         assert results1["observation_time"] != results2["observation_time"]
         # ensure the correct warning has been given
         read_warning = False
-        for warning in results2["weather_warn"]:
+        for warning in results2["weather_warnings"]:
             if warning == "Weather agent failed to read from cache":
                 read_warning = True
                 break
