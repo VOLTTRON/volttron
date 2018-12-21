@@ -183,7 +183,12 @@ class PlatformWrapper:
             'PACKAGED_DIR': self.packaged_dir,
             'DEBUG_MODE': os.environ.get('DEBUG_MODE', ''),
             'DEBUG': os.environ.get('DEBUG', ''),
-            'PATH': VOLTTRON_ROOT + ':' + os.environ['PATH']
+            'PATH': VOLTTRON_ROOT + ':' + os.environ['PATH'],
+            # RABBITMQ requires HOME env set
+            'HOME': os.environ.get('HOME'),
+            # Elixir (rmq pre-req) requires locale to be utf-8
+            'LANG': "en_US.UTF-8",
+            'LC_ALL': "en_US.UTF-8"
         }
         self.volttron_root = VOLTTRON_ROOT
 
@@ -537,7 +542,9 @@ class PlatformWrapper:
         # A None value means that the process is still running.
         # A negative means that the process exited with an error.
         assert self.p_process.poll() is None
-
+        if self.message_bus == 'rmq':
+            # give some extra time for volttron process to startup
+            gevent.sleep(4)
         self.serverkey = self.keystore.public
         assert self.serverkey
         agent = self.build_agent()
@@ -554,7 +561,7 @@ class PlatformWrapper:
 
         if not has_control:
             self.shutdown_platform()
-            raise "Couldn't connect to core platform!"
+            raise Exception("Couldn't connect to core platform!")
 
         if bind_web_address:
             times = 0
@@ -570,7 +577,7 @@ class PlatformWrapper:
                     gevent.sleep(0.1)
                     self.logit("Connection error found {}".format(e))
             if not has_discovery:
-                raise "Couldn't connect to discovery platform."
+                raise Exception("Couldn't connect to discovery platform.")
 
         self.use_twistd = use_twistd
 
