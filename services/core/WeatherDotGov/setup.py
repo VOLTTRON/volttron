@@ -36,10 +36,11 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from setuptools import setup, find_packages
-from os import path
 
-MAIN_MODULE = 'agent'
+from os import path
+from setuptools import setup, find_packages
+
+MAIN_MODULE = 'WeatherDotGovAgent'
 
 # Find the agent package that contains the main module
 packages = find_packages('.')
@@ -60,13 +61,11 @@ __version__ = _temp.__version__
 
 # Setup
 setup(
-    name=agent_package + 'agent',
+    name='weatherdotgov_agent',
     version=__version__,
-    author_email="rajveer.singh@pnnl.gov",
-    description="Sends email on failover",
-    author="Raj",
     install_requires=['volttron'],
     packages=packages,
+    package_data={'agent': ['data/name_mapping.csv']},
     entry_points={
         'setuptools.installation': [
             'eggsecutable = ' + agent_module + ':main',
