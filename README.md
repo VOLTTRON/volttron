@@ -497,6 +497,7 @@ can also be used for remote RPC communication in which case we would have to cre
 in both the instances, one to send the RPC request and other to send the response back.
 
 *Pubsub Communication*
+
 Following are the steps to create Shovel for multi-platform pubsub communication.
 
 1. Setup two VOLTTRON instances using the steps described in installation section.
@@ -618,12 +619,12 @@ a. On both the client and server nodes, shovel instances need to be created. In 
 messages to the shovel instance on v2, and v2 would reply to v1's requests.
 
 
-
+     ```
      vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml containing the details of the
      **remote** hostname, port, vhost, volttron instance name (so in v1's yml file parameters would point to v2
      and vice versa), and list of agent pair identities (local caller, remote callee). Example configuration for shovel
      is available in examples/configurations/rabbitmq/rabbitmq_shovel_config.yml.]
-
+     ```
      For this example, let's say that we are using the schedule-example and acutator agents.
 
      For v1, the agent pair identities would be:
@@ -649,26 +650,27 @@ b. On the client node create a user with username set to server instance's
         vctl add-user <username> <password>
         ```
 
-4. Test the shovel setup ****Needs to Read 4 on Markdown******
+4. Test the shovel setup 
 
-a. On client node:
+   a. On client node:
 
 
-   Make necessary changes to RPC methods of  client agent.
+	   Make necessary changes to RPC methods of  client agent.
 
-    For this example, in volttron/examples/SchedulerExample/schedule_example/agent.py:
-    * Search for 'campus/building/unit' in publish_schedule method. Replace with
-    'devices/fake-campus/fake-building/fake-device'
-    * Search for ['campus/building/unit3',start,end] in the use_rpc method, replace with:                 msg = [
-                   ['fake-campus/fake-building/fake-device',start,end].
-    * Add: kwargs = {"external_platform": 'v2'} on the line below
-    * On the result = self.vip.rpc.call method below, replace "msg).get(timeout=10)" with msg, **kwargs).get(timeout=10),
-    * In the second try clause of the use_rpc method:
-        * Replace result['result'] with result[0]['result']
-        * Add kwargs = {"external_platform": 'v2'} as the first line of the if statement
-        * Replace 'campus/building/unit3/some_point' with 'fake-campus/fake-building/fake-device/PowerState'
-        * Below 'fake-campus/fake-building/fake-device/PowerState' add: 0,
-        * Replace '0.0').get(timeout=10) with **kwargs).get(timeout=10)
+	    For this example, in volttron/examples/SchedulerExample/schedule_example/agent.py:
+	    * Search for 'campus/building/unit' in publish_schedule method. Replace with
+	    'devices/fake-campus/fake-building/fake-device'
+	    * Search for ['campus/building/unit3',start,end] in the use_rpc method, replace with:                 msg = [
+			   ['fake-campus/fake-building/fake-device',start,end].
+	    * Add: kwargs = {"external_platform": 'v2'} on the line below
+	    * On the result = self.vip.rpc.call method below, replace "msg).get(timeout=10)" with:
+		  msg, **kwargs).get(timeout=10),
+	    * In the second try clause of the use_rpc method:
+		* Replace result['result'] with result[0]['result']
+		* Add kwargs = {"external_platform": 'v2'} as the first line of the if statement
+		* Replace 'campus/building/unit3/some_point' with 'fake-campus/fake-building/fake-device/PowerState'
+		* Below 'fake-campus/fake-building/fake-device/PowerState' add: 0,
+		* Replace '0.0').get(timeout=10) with **kwargs).get(timeout=10)
 
 
    Next, install an example scheduler agent:
@@ -680,7 +682,7 @@ a. On client node:
    firstCharacterOfAgentID can be found by running vctl status.
 
 
-b. On the server node:
+   b. On the server node:
 
    Run upgrade script to install actuator agent and listener agent.
 
@@ -696,9 +698,9 @@ b. On the server node:
     ./start-volttron
     vctl start --tag master_driver
 
-  Start actuator agent and listener agents.
+   Start actuator agent and listener agents.
 
-  The output for the server node with a successful shovel run should look similar to:
+   The output for the server node with a successful shovel run should look similar to:
    ```
 2018-12-19 15:38:00,009 (listeneragent-3.2 13039) listener.agent INFO: Peer: pubsub, Sender: platform.driver:, Bus: , Topic: devices/fake-campus/fake-building/fake-device/all, Headers: {'Date': '2018-12-19T20:38:00.001684+00:00', 'TimeStamp': '2018-12-19T20:38:00.001684+00:00', 'min_compatible_version': '5.0', 'max_compatible_version': u'', 'SynchronizedTimeStamp': '2018-12-19T20:38:00.000000+00:00'}, Message:
     [{'Heartbeat': True, 'PowerState': 0, 'ValveState': 0, 'temperature': 50.0},
