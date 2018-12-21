@@ -38,11 +38,14 @@
 
 import pytest
 
-from volttron.platform.agent.base_market_agent.market_registration import MarketRegistration
-from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
-from volttron.platform.agent.utils import get_aware_utc_now
-from volttron.platform.agent.base_market_agent.point import Point
-from volttron.platform.agent.base_market_agent.poly_line import PolyLine
+try:
+    from volttron.platform.agent.base_market_agent.market_registration import MarketRegistration
+    from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
+    from volttron.platform.agent.utils import get_aware_utc_now
+    from volttron.platform.agent.base_market_agent.point import Point
+    from volttron.platform.agent.base_market_agent.poly_line import PolyLine
+except ImportError:
+    pytest.skip("Market service requirements not installed.", allow_module_level=True)
 
 @pytest.mark.market
 def test_market_registration_no_reservation_callback():

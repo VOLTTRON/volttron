@@ -47,7 +47,7 @@ import requests
 import sqlite3
 import time
 
-from volttron.platform import get_services_core
+from volttron.platform import get_services_core, get_home
 from volttron.platform.agent import utils
 from volttrontesting.platform.test_platform_web import _build_web_agent
 from volttrontesting.utils.platformwrapper import start_wrapper_platform
@@ -55,7 +55,7 @@ from volttrontesting.utils.platformwrapper import start_wrapper_platform
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-DB_PATH = '$VOLTTRON_HOME/data/test_openadr.sqlite'
+DB_PATH = os.path.join(get_home(), 'data/test_openadr.sqlite')
 VEN_AGENT_ID = 'venagent'
 CONTROL_AGENT_ID = 'vencontrolagent'
 POLL_INTERVAL_SECS = 5

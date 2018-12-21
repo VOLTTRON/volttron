@@ -322,7 +322,7 @@ class ObixHistory(Agent):
                 _log.warning("Column missing from configuration file line: {}".format(register_line))
                 continue
             device_topic = self.path_prefix + register_line['Device Name']
-            point_name = register_line["Point Name"]
+            point_name = register_line["Volttron Point Name"]
             obix_name = register_line["Obix Name"]
             _log.info("Adding register: {} {} {} {}".format(device_topic, point_name, obix_name, self.last_read))
             register = Register(self.url, device_topic, point_name, obix_name, self.last_read)

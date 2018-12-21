@@ -373,17 +373,31 @@ class DriverAgent(BasicAgent):
             headers_mod.DATE: utcnow_string,
             headers_mod.TIMESTAMP: utcnow_string,
         }
-        for value in point_values:
-            results = {point_name: point_values[value]}
+        for point, value in point_values.iteritems():
+            results = {point_name: value}
             meta = {point_name: self.meta_data[point_name]}
-            message = [results, meta]
+            all_message = [results, meta]
+            individual_point_message = [value, self.meta_data[point_name]]
+
+            depth_first_topic, breadth_first_topic = self.get_paths_for_point(
+                point_name)
 
             if self.publish_depth_first:
-                self._publish_wrapper(self.all_path_depth,
+                self._publish_wrapper(depth_first_topic,
                                       headers=headers,
-                                      message=message)
+                                      message=individual_point_message)
             #
             if self.publish_breadth_first:
+                self._publish_wrapper(breadth_first_topic,
+                                      headers=headers,
+                                      message=individual_point_message)
+
+            if self.publish_depth_first_all:
+                self._publish_wrapper(self.all_path_depth,
+                                      headers=headers,
+                                      message=all_message)
+
+            if self.publish_breadth_first_all:
                 self._publish_wrapper(self.all_path_breadth,
                                       headers=headers,
-                                      message=message)
+                                      message=all_message)

@@ -59,7 +59,7 @@ from zmq.green import ZMQError, EAGAIN, ENOTSOCK, EADDRINUSE
 from volttron.platform.agent import json
 from zmq.utils.monitor import recv_monitor_message
 
-from volttron.platform import get_address
+from volttron.platform import get_address, get_home
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
 from .errors import VIPError
@@ -462,7 +462,7 @@ class Core(BasicCore):
 
     def __init__(self, owner, address=None, identity=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,
-                 volttron_home=os.path.abspath(platform.get_home()),
+                 volttron_home=get_home(),
                  agent_uuid=None, reconnect_interval=None,
                  version='0.1', enable_fncs=False):
 

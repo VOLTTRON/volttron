@@ -61,6 +61,7 @@ import sys
 import time
 import zmq
 
+from volttron.platform import get_services_core, get_home
 from volttrontesting.fixtures.volttron_platform_fixtures import build_wrapper, get_rand_vip, cleanup_wrapper
 
 DEBUGGER_CONFIG = {
@@ -68,14 +69,15 @@ DEBUGGER_CONFIG = {
         "exec": "messagedebuggeragent-1.0-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
     },
     "agentid": "messagedebugger",
-    "router_path": "$VOLTTRON_HOME/run/messagedebug",
-    "monitor_path": "$VOLTTRON_HOME/run/messageviewer",
-    "db_path": "$VOLTTRON_HOME/data/messagedebugger.sqlite"
+    "router_path": os.path.join(get_home(), "run/messagedebug"),
+    "monitor_path": os.path.join(get_home(), "run/messageviewer"),
+    "db_path": os.path.join(get_home(), "data/messagedebugger.sqlite")
 }
 
 
 @pytest.fixture(scope='module')
 def agent(request, volttron_instance_msgdebug):
+    print(DEBUGGER_CONFIG)
     master_uuid = volttron_instance_msgdebug.install_agent(agent_dir=get_services_core("MessageDebuggerAgent"),
                                                            config_file=DEBUGGER_CONFIG,
                                                            start=True)
@@ -97,7 +99,7 @@ class TestMessageDebugger:
         Regression tests for the MessageDebuggerAgent.
     """
 
-    @pytest.mark.skip(reason="Dependency on SQLAlchemy library")
+    # @pytest.mark.skip(reason="Dependency on SQLAlchemy library")
     def test_rpc_calls(self, agent):
         """Test the full range of RPC calls to the MessageDebuggerAgent, except those related to streaming."""
 
@@ -228,7 +230,7 @@ class TestMessageDebugger:
 
     @staticmethod
     def subscribe_to_monitor_socket():
-        monitor_path = os.path.expandvars('$VOLTTRON_HOME/run/messageviewer')
+        monitor_path = os.path.join(get_home(), 'run/messageviewer')
         monitor_socket = zmq.Context().socket(zmq.SUB)
         monitor_socket_address = 'ipc://{}'.format('@' if sys.platform.startswith('linux') else '') + monitor_path
         monitor_socket.bind(monitor_socket_address)
