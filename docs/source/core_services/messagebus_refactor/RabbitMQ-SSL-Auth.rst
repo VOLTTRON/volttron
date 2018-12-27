@@ -27,8 +27,8 @@ re-created from rabbitmq.conf:
 
 - Admin certificate for the RabbitMQ instance
 
-The public files can be found at ``/home/vdev/ .my_volttron_home/certificates/certs`` and the private files can be found
-at ``/home/vdev/ .my_volttron_home/certificates/private``
+The public files can be found at ``VOLTTRON_HOME/certificates/certs`` and the private files can be found
+at ``/VOLTTRON_HOME/certificates/private``
 
 There is also a trusted-cas.crt file that is only created once, but can be updated.
 Initially, the trusted-ca.crt is a copy of the the CA file <rmq-instance-name>-root-ca.crt, but as more agents and more instances of the RabbitMQServer are added to the trusted certificate, this changes.
