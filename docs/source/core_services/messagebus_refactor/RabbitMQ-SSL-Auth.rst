@@ -14,13 +14,12 @@ The configurations required to enable SSL:
 
 .. code-block:: shell
 
-    listeners.ssl.default = 5671 (port for listening for SSL connections)
-    ssl_options.cacertfile = VOLTTRON_HOME/certificates/certs/volttron1-trusted-cas.crt Certificate Authority (CA) 
+    listeners.ssl.default = 5671
+    ssl_options.cacertfile = VOLTTRON_HOME/certificates/certs/volttron1-trusted-cas.crt
     ssl_options.certfile = VOLTTRON_HOME/certificates/certs/volttron1-server.crt
     ssl_options.keyfile = VOLTTRON_HOME/certificates/private/volttron1-server.pem
     ssl_options.verify = verify_peer
-    ssl_options.fail_if_no_peer_cert = true (if client fails to provide certificate: true = SSL connection rejected, false = accepted)
-    auth_mechanisms.1 = EXTERNAL
+    ssl_options.fail_if_no_peer_cert = true
 
 **Parameter explanations**
 
