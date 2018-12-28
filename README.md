@@ -968,19 +968,21 @@ the other instance (RabbitMQ root ca)
       iii. "no_suitable_auth_mechanism" - Check if the AMPQ/S ports are correctly
            configured.
 
-   2. Check the RabbitMQ logs for any errors.
+   3. Check the RabbitMQ logs for any errors.
 
        ```
        tail -f <volttron source dir>/rabbitmq.log
        ```
 
 
-   3. If rabbitmq startup hangs
+   4. If rabbitmq startup hangs
+      
       a. Check for errors in rabbitmq log. There is a rabbitmq.log file in your
       volttron source directory that is a symbolic link to the rabbitmq server
       logs.
 
       b. Check for errors in syslog (/var/log/syslog or /var/log/messages)
+      
       c. If there are no errors in either of the logs, stop rabbitmq and
          starting rabbitmq server in foreground and see if there are any errors
          written on the console. Once you find the error you can kill the
@@ -993,15 +995,17 @@ the other instance (RabbitMQ root ca)
          @RABBITMQ_HOME/sbin/rabbitmq-server
          ```
 
-   4. ssl trouble shooting.
+   5. ssl trouble shooting.
       There are few things that are essential for SSL certificates to work
       right.
+      
       a. Please use a unique common-name for CA certificate for each volttron
          instance. This is configured under certificate-data in the
          rabbitmq_config.yml or if no yml file is used while configuring a
          volttron single instance (using vcfg --rabbitmq single). Certificate
          generated for agent will automatically get agent's vip identity as the
          certificate's common-name
+	 
       b. host name in ssl certificate should match hostname used to access the
       server. For example, if the fully qualified domain name was configured in
       the certificate-data, you should use the fully qualified domain name to
@@ -1011,7 +1015,7 @@ the other instance (RabbitMQ root ca)
       virtual machines. If the system clock is not right, it could lead to
       ssl certificate errors
    
-   5. DataMover troubleshooting. 
+   6. DataMover troubleshooting. 
       a. If output from volttron.log is not as expected check for  ``{'alert_key': 'historian_not_publishing'}`` in the server node's volttron.log. Most likely cause is the historian is not running properly or credentials between client and server nodes was not set properly.  
       
       
