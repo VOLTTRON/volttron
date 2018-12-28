@@ -670,7 +670,7 @@ the other instance(RabbitMQ root ca)
 
    Next, install an example scheduler agent:
    
-   ```
+   ```sh
    #!/bin/bash
    python /home/username/volttron/scripts/install-agent.py -c /home/username/volttron/examples/SchedulerExample/schedule-example.agent -s examples/SchedulerExample --start --force -i Scheduler
    ```
@@ -682,7 +682,7 @@ the other instance(RabbitMQ root ca)
 
    Run upgrade script to install actuator agent.
 
-   ```
+   ```sh
      #!/bin/bash
      python /home/username/volttron/scripts/install-agent.py -s services/core/ActuatorAgent --start --force -i platform.actuator
    ```
@@ -696,6 +696,7 @@ the other instance(RabbitMQ root ca)
 
    Install master driver, configure fake device on upstream server and start volttron and master driver.
    vcfg --agent master_driver command can install master driver and setup a fake device.
+   
     ```sh
     
     ./stop-volttron
@@ -707,7 +708,7 @@ the other instance(RabbitMQ root ca)
    Start actuator agent and listener agents.
 
    The output for the server node with a successful shovel run should look similar to:
-   ```
+   ```sh
    2018-12-19 15:38:00,009 (listeneragent-3.2 13039) listener.agent INFO: Peer: pubsub, Sender: platform.driver:, Bus: , Topic: devices/fake-campus/fake-building/fake-device/all, Headers: {'Date': '2018-12-19T20:38:00.001684+00:00', 'TimeStamp': '2018-12-19T20:38:00.001684+00:00', 'min_compatible_version': '5.0', 'max_compatible_version': u'', 'SynchronizedTimeStamp': '2018-12-19T20:38:00.000000+00:00'}, Message:
     [{'Heartbeat': True, 'PowerState': 0, 'ValveState': 0, 'temperature': 50.0},
      {'Heartbeat': {'type': 'integer', 'tz': 'US/Pacific', 'units': 'On/Off'},
@@ -720,6 +721,191 @@ the other instance(RabbitMQ root ca)
    ```
 
 
+
+5. How to remove the shovel setup.
+
+   a. Using the management web interface
+
+   Log into management web interface using publisher instance's admin username.
+   Navigate to admin tab and then to shovel management page. The status of the
+   shovel will be displayed on the page. Click on the shovel name and delete
+   the shovel.
+
+   b. Using "volttron-ctl" command on the publisher node.
+   ```sh
+   vctl rabbitmq list-shovel-parameters
+   NAME                     SOURCE ADDRESS                                                 DESTINATION ADDRESS                                            BINDING KEY
+   shovel-rabbit-3-devices  amqps://rabbit-1:5671/volttron1?cacertfile=/home/nidd494/.volttron1/certificates/certs/volttron1-root-ca.crt&certfile=/home/nidd494/.volttron1/certificates/certs/volttron1-admin.crt&keyfile=/home/nidd494/.volttron1/certificates/private/volttron1-admin.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-1  amqps://rabbit-3:5671/volttron3?cacertfile=/home/nidd494/.volttron1/certificates/certs/volttron1-root-ca.crt&certfile=/home/nidd494/.volttron1/certificates/certs/volttron1-admin.crt&keyfile=/home/nidd494/.volttron1/certificates/private/volttron1-admin.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-3  __pubsub__.volttron1.devices.#
+   ```
+
+   Grab the shovel name and run the below command to remove it.
+
+   ```
+   vctl rabbitmq remove-shovel-parameters shovel-rabbit-3-devices
+   ```
+
+*DataMover Communication*
+
+The DataMover Historian is used to send data from one instance of VOLTTRON to another, using RPC shovel. Messages are inserted into the backup queue of the remote historian to help ensure that the messages are recorded.
+
+Following are the steps to create Shovel for multi-platform DataMover communication.
+
+1. Setup two VOLTTRON instances using the steps described in installation section.
+Please note that each instance should have a unique instance name.
+
+2. In a multi platform setup that need to communicate with each other with
+RabbitMQ over SSL, each VOLTTRON instance should should trust the ROOT CA of
+the other instance (RabbitMQ root ca)
+
+    a.  Transfer (scp/sftp/similar)
+   voltttron_home/certificates/certs/<instance_name>-root-ca.crt to a temporary
+   location on the other volttron instance machine. For example, if you have two
+   instance v1 and v2, scp v1's v1-root-ca.crt to v2 and
+   v2-root-ca.crt to v1.
+
+    b. Append the contents of the transferred root ca to the instance's root ca.
+   For example:
+
+   On v1:
+   cat /tmp/v2-root-ca.crt >> VOLTTRON_HOME/certificates/v1-root-ca.crt
+   On v2:
+   cat /tmp/v1-root-ca.crt >> VOLTTRON_HOME/certificates/v2-root-ca.crt
+
+
+3. Typically RPC communication is 2 way communication so we will to setup shovel in both the VOLTTRON instances. In RPC calls there are two instances of shovel. One serving as the caller (makes RPC request) and the other acting as a callee (replies to RPC request). Identify the instance is the "caller" and which is the "callee." Suppose "v1" instance is the "caller" instance and "v2" instance is the "callee" instance.
+
+   a. On both the client and server nodes, shovel instances need to be created. In this example, v1’s shovel would forward the RPC call    request from an agent on v1 to v2 and similarly v2’s shovel will forward the RPC reply from agent on v2 back to v1.
+
+
+     ```
+     vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml containing the details of the
+     **remote** hostname, port, vhost, volttron instance name (so in v1's yml file parameters would point to v2
+     and vice versa), and list of agent pair identities (local caller, remote callee). Example configuration for shovel
+     is available in examples/configurations/rabbitmq/rabbitmq_shovel_config.yml.]
+     
+     For this example, let's say that we are using the schedule-example and acutator agents.
+
+     For v1, the agent pair identities would be:
+     - [platform.historian, data.mover]
+
+     For v2, they would be:
+     - [data.mover, platform.historian]
+
+     Indicating the flow from local agent to remote agent.
+     ```
+
+     If no config file is provided, the script will prompt for hostname (or IP address), port, vhost and
+     list of agent pairs for each remote instance you would like to add.
+
+
+   b. On the client node create a user with username set to server instance's agent name ( (instance-name)-RPCCallee ) and allow the      shovel access to the virtual host of the server node. Similarly, on the server node, create a user with username set to client       instance's agent name ( (instance-name)-RPCCaller ) and allow the shovel access to the virtual host of the client node.
+
+        ```sh
+        cd $RABBITMQ_HOME
+        vctl add-user <username> <password>
+        ```
+
+4. Test the shovel / DataMover setup 
+
+   a. On client node:
+   Start SQLHistorian (identiy is platform.historian). Easiest way to accomplish this is to stop VOLTTRON, reconfigure to have RabbitMQ message bus and install platform.historian already installed, and start VOLTTRON again. 
+   
+   ```sh
+   
+   vcfg
+
+   Your VOLTTRON_HOME currently set to: /home/vdev/new_vhome2
+
+   Is this the volttron you are attempting to setup?  [Y]: 
+   What is the external instance ipv4 address? [tcp://127.0.0.1]: 
+   What is the instance port for the vip address? [22916]: 
+   What is type of message bus? [zmq]: rmq
+   Is this instance a volttron central? [N]: N
+   Will this instance be controlled by volttron central? [Y]: N
+   Would you like to install a platform historian? [N]: Y
+   Configuring /home/kirsten/volttron/services/core/SQLHistorian
+   Should agent autostart? [N]: N
+   Would you like to install a master driver? [N]: N
+   Would you like to install a listener agent? [N]: N
+   Finished configuration
+
+   You can now start the volttron instance.
+
+   If you need to change the instance configuration you can edit
+   the config file at /home/kirsten/.volttron1/config
+
+   ./start-volttron
+   ```
+   
+   
+   Start platform.historian
+   
+   b. On server node:
+   
+      Install master driver, configure fake device on upstream server and start volttron and master driver. vcfg --agent master_driver command can install master driver and setup a fake device.
+
+   ```sh
+   
+   ./stop-volttron
+   vcfg --agent master_driver
+   ./start-volttron
+   vctl start --tag master_driver
+   ```
+   
+   Install DataMover agent
+   
+   ```sh
+   
+   #!/bin/bash
+   export CONFIG=$(mktemp /tmp/abc-script.XXXXXX)
+   cat > $CONFIG <<EOL
+   {
+       "destination-vip": "amqp://test2:test2@localhost:5672/test2",
+       "destination-serverkey": "1yEUcpIcQTJzpvEwl-7KNCxe_f5rhhoShv9f3A8wdUg",
+       "destination-instance-name": "RPCCaller",
+       "destination-message-bus": "rmq"
+   }
+   EOL
+   python /home/vdev/volttron/scripts/install-agent.py -c $CONFIG -s services/core/DataMover --start --force -i data.mover
+   # Finally remove the temporary config file
+   rm $CONFIG
+   ```
+   
+   
+   and start it. 
+   
+   
+   To confirm that the DataMover agent is working, run the ``tail -f volttron.log`` from the volttron directory to look for output similar to the following.
+   
+   On the client:
+   
+   ```sh
+   
+   DEBUG: insert called by data.mover with 1 records
+   2018-12-28 14:39:45,148 (sqlhistorianagent-3.6.1 13416) volttron.platform.agent.base_historian DEBUG: Beginning publish loop.
+   2018-12-28 14:39:45,159 (sqlhistorianagent-3.6.1 13416) volttron.platform.dbutils.sqlitefuncts DEBUG: Managing store - timestamp limit: None  GB size limit: None
+   2018-12-28 14:39:45,169 (sqlhistorianagent-3.6.1 13416) volttron.platform.agent.base_historian INFO: Historian processed 13156 total records.
+   2018-12-28 14:39:45,169 (sqlhistorianagent-3.6.1 13416) volttron.platform.agent.base_historian DEBUG: Exiting publish loop.
+
+   ```
+   On the server:
+   
+   ```sh
+   
+   2018-12-28 17:57:35,001 (master_driveragent-3.2 11848) master_driver.driver DEBUG: fake-campus/fake-building/fake-device next scrape scheduled: 2018-12-28 22:57:40+00:00
+   2018-12-28 17:57:35,002 (master_driveragent-3.2 11848) master_driver.driver DEBUG: scraping device: fake-campus/fake-building/fake-device
+   2018-12-28 17:57:35,002 (master_driveragent-3.2 11848) master_driver.driver DEBUG: publishing: devices/fake-campus/fake-building/fake-device/all
+   2018-12-28 17:57:35,007 (datamoveragent-0.1 17502) datamover.agent DEBUG: In capture data
+   2018-12-28 17:57:35,007 (datamoveragent-0.1 17502) datamover.agent DEBUG: message in capture_data [{'Heartbeat': False, 'PowerState': 0, 'temperature': 50.0, 'ValveState': 0}, {'Heartbeat': {'units': 'On/Off', 'type': 'integer', 'tz': 'US/Pacific'}, 'PowerState': {'units': '1/0', 'type': 'integer', 'tz': 'US/Pacific'}, 'temperature': {'units': 'Fahrenheit', 'type': 'integer', 'tz': 'US/Pacific'}, 'ValveState': {'units': '1/0', 'type': 'integer', 'tz': 'US/Pacific'}}]
+   2018-12-28 17:57:35,017 (datamoveragent-0.1 17502) volttron.platform.agent.base_historian DEBUG: Beginning publish loop.
+   2018-12-28 17:57:35,017 (datamoveragent-0.1 17502) datamover.agent DEBUG: publish_to_historian number of items: 1
+   2018-12-28 17:57:35,017 (datamoveragent-0.1 17502) datamover.agent DEBUG: Last timeout: 1546037766.0 current time: 1546037855.0
+   2018-12-28 17:57:35,017 (datamoveragent-0.1 17502) datamover.agent DEBUG: Sending to destination historian.
+   2018-12-28 17:57:35,037 (datamoveragent-0.1 17502) volttron.platform.agent.base_historian INFO: Historian processed 1905 total records.
+   2018-12-28 17:57:35,037 (datamoveragent-0.1 17502) volttron.platform.agent.base_historian DEBUG: Exiting publish loop.
+   2018-12-28 17:57:35,013 (master_driveragent-3.2 11848) master_driver.driver DEBUG: finish publishing: devices/fake-campus/fake-building/fake-device/all
+   ```
+   
 
 5. How to remove the shovel setup.
 
@@ -824,7 +1010,11 @@ the other instance(RabbitMQ root ca)
       c. Check if your system time is correct especially if you are running
       virtual machines. If the system clock is not right, it could lead to
       ssl certificate errors
-
+   
+   5. DataMover troubleshooting. 
+      a. If output from volttron.log is not as expected check for  ``{'alert_key': 'historian_not_publishing'}`` in the server node's volttron.log. Most likely cause is the historian is not running properly or credentials between client and server nodes was not set properly.  
+      
+      
 
 ## Next Steps
 We request you to explore and contribute towards development of VOLTTRON message
