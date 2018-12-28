@@ -611,12 +611,10 @@ the other instance(RabbitMQ root ca)
    On v2:
    cat /tmp/v1-root-ca.crt >> /home/vdev/.my_volttron_home/certificates/v2-root-ca.crt
 
-3. In RPC calls there are two instances of shovel. One serving as the client (makes RPC request) and the
-other acting as a server (replies to RPC request). Identify the instance is the "client" and which is the "server."
-Suppose "v1" instance is the "client" instance and "v2" instance is the "server" instance.
 
-a. On both the client and server nodes, shovel instances need to be created. In this example, v1's shovel would request
-messages to the shovel instance on v2, and v2 would reply to v1's requests.
+3. Typically RPC communication is 2 way communication so we will to setup shovel in both the VOLTTRON instances. In RPC calls there are two instances of shovel. One serving as the caller (makes RPC request) and the other acting as a callee (replies to RPC request). Identify the instance is the "caller" and which is the "callee." Suppose "v1" instance is the "caller" instance and "v2" instance is the "callee" instance.
+
+   a. On both the client and server nodes, shovel instances need to be created. In this example, v1’s shovel would forward the RPC call    request from an agent on v1 to v2 and similarly v2’s shovel will forward the RPC reply from agent on v2 back to v1.
 
 
      ```
@@ -624,7 +622,7 @@ messages to the shovel instance on v2, and v2 would reply to v1's requests.
      **remote** hostname, port, vhost, volttron instance name (so in v1's yml file parameters would point to v2
      and vice versa), and list of agent pair identities (local caller, remote callee). Example configuration for shovel
      is available in examples/configurations/rabbitmq/rabbitmq_shovel_config.yml.]
-     ```
+     
      For this example, let's say that we are using the schedule-example and acutator agents.
 
      For v1, the agent pair identities would be:
@@ -634,16 +632,13 @@ messages to the shovel instance on v2, and v2 would reply to v1's requests.
      - [platform.actuator, Scheduler]
 
      Indicating the flow from local agent to remote agent.
+     ```
 
      If no config file is provided, the script will prompt for hostname (or IP address), port, vhost and
      list of agent pairs for each remote instance you would like to add.
 
 
-b. On the client node create a user with username set to server instance's
-        agent name ( (instance-name)-ServerAgent ) and allow the shovel access to
-        the virtual host of the server node. Similarly, on the server node, create a user with username set to
-        client instance's agent name ( (instance-name)-ClientAgent) and allow the shovel access to
-        the virtual host of the client node.
+   b. On the client node create a user with username set to server instance's agent name ( (instance-name)-RPCCallee ) and allow the      shovel access to the virtual host of the server node. Similarly, on the server node, create a user with username set to client       instance's agent name ( (instance-name)-RPCCaller ) and allow the shovel access to the virtual host of the client node.
 
         ```sh
         cd $RABBITMQ_HOME
@@ -674,35 +669,46 @@ b. On the client node create a user with username set to server instance's
 
 
    Next, install an example scheduler agent:
+   
+   ```
+   #!/bin/bash
+   python /home/username/volttron/scripts/install-agent.py -c /home/username/volttron/examples/SchedulerExample/schedule-example.agent -s examples/SchedulerExample --start --force -i Scheduler
+   ```
 
-    scripts/core/upgrade_scheduler.sh
-
-   and start it using vctl start firstCharacterOfAgentID
-
-   firstCharacterOfAgentID can be found by running vctl status.
+   and start it.
 
 
    b. On the server node:
 
-   Run upgrade script to install actuator agent and listener agent.
+   Run upgrade script to install actuator agent.
 
-    scripts/core/upgrade_actuator.sh
-    scripts/core/upgrade-listener
+   ```
+     #!/bin/bash
+     python /home/username/volttron/scripts/install-agent.py -s services/core/ActuatorAgent --start --force -i platform.actuator
+   ```
+    
+   Run the upgrade script to install the listener agent.
+   
+   ```sh
+   scripts/core/upgrade-listener
+   ```   
 
 
    Install master driver, configure fake device on upstream server and start volttron and master driver.
    vcfg --agent master_driver command can install master driver and setup a fake device.
-
+    ```sh
+    
     ./stop-volttron
     vcfg --agent master_driver
     ./start-volttron
     vctl start --tag master_driver
+    ```
 
    Start actuator agent and listener agents.
 
    The output for the server node with a successful shovel run should look similar to:
    ```
-2018-12-19 15:38:00,009 (listeneragent-3.2 13039) listener.agent INFO: Peer: pubsub, Sender: platform.driver:, Bus: , Topic: devices/fake-campus/fake-building/fake-device/all, Headers: {'Date': '2018-12-19T20:38:00.001684+00:00', 'TimeStamp': '2018-12-19T20:38:00.001684+00:00', 'min_compatible_version': '5.0', 'max_compatible_version': u'', 'SynchronizedTimeStamp': '2018-12-19T20:38:00.000000+00:00'}, Message:
+   2018-12-19 15:38:00,009 (listeneragent-3.2 13039) listener.agent INFO: Peer: pubsub, Sender: platform.driver:, Bus: , Topic: devices/fake-campus/fake-building/fake-device/all, Headers: {'Date': '2018-12-19T20:38:00.001684+00:00', 'TimeStamp': '2018-12-19T20:38:00.001684+00:00', 'min_compatible_version': '5.0', 'max_compatible_version': u'', 'SynchronizedTimeStamp': '2018-12-19T20:38:00.000000+00:00'}, Message:
     [{'Heartbeat': True, 'PowerState': 0, 'ValveState': 0, 'temperature': 50.0},
      {'Heartbeat': {'type': 'integer', 'tz': 'US/Pacific', 'units': 'On/Off'},
       'PowerState': {'type': 'integer', 'tz': 'US/Pacific', 'units': '1/0'},
@@ -725,7 +731,7 @@ b. On the client node create a user with username set to server instance's
    the shovel.
 
    b. Using "volttron-ctl" command on the publisher node.
-   ```
+   ```sh
    vctl rabbitmq list-shovel-parameters
    NAME                     SOURCE ADDRESS                                                 DESTINATION ADDRESS                                            BINDING KEY
    shovel-rabbit-3-devices  amqps://rabbit-1:5671/volttron1?cacertfile=/home/nidd494/.volttron1/certificates/certs/volttron1-root-ca.crt&certfile=/home/nidd494/.volttron1/certificates/certs/volttron1-admin.crt&keyfile=/home/nidd494/.volttron1/certificates/private/volttron1-admin.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-1  amqps://rabbit-3:5671/volttron3?cacertfile=/home/nidd494/.volttron1/certificates/certs/volttron1-root-ca.crt&certfile=/home/nidd494/.volttron1/certificates/certs/volttron1-admin.crt&keyfile=/home/nidd494/.volttron1/certificates/private/volttron1-admin.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-3  __pubsub__.volttron1.devices.#
