@@ -13,6 +13,7 @@ RabbitMQ VOLTTRON uses SSL based authentication, rather than the default usernam
 The configurations required to enable SSL:
 
 .. code-block:: shell
+
     listeners.ssl.default = 5671 (port for listening for SSL connections)
     ssl_options.cacertfile = VOLTTRON_HOME/certificates/certs/volttron1-trusted-cas.crt Certificate Authority (CA) 
     ssl_options.certfile = VOLTTRON_HOME/certificates/certs/volttron1-server.crt
