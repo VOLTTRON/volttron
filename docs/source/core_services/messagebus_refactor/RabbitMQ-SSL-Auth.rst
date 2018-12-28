@@ -53,7 +53,7 @@ When one creates a single instance of RabbitMQ using the command, the following 
 
 When one creates a single instance of RabbitMQ, the following is created / re-created from rabbitmq.conf:
 
-- Public and private Certificate Authority (CA) files
+- Public and private CA files
 
 - Public (automatically signed by the CA) and private server certificates
 
