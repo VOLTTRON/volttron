@@ -614,7 +614,7 @@ the other instance(RabbitMQ root ca)
 
 3. Typically RPC communication is 2 way communication so we will to setup shovel in both the VOLTTRON instances. In RPC calls there are two instances of shovel. One serving as the caller (makes RPC request) and the other acting as a callee (replies to RPC request). Identify the instance is the "caller" and which is the "callee." Suppose "v1" instance is the "caller" instance and "v2" instance is the "callee" instance.
 
-   a. On both the client and server nodes, shovel instances need to be created. In this example, v1’s shovel would forward the RPC call    request from an agent on v1 to v2 and similarly v2’s shovel will forward the RPC reply from agent on v2 back to v1.
+   a. On both the caller and callee nodes, shovel instances need to be created. In this example, v1’s shovel would forward the RPC call    request from an agent on v1 to v2 and similarly v2’s shovel will forward the RPC reply from agent on v2 back to v1.
 
 
      ```
@@ -638,7 +638,7 @@ the other instance(RabbitMQ root ca)
      list of agent pairs for each remote instance you would like to add.
 
 
-   b. On the client node create a user with username set to server instance's agent name ( (instance-name)-RPCCallee ) and allow the      shovel access to the virtual host of the server node. Similarly, on the server node, create a user with username set to client       instance's agent name ( (instance-name)-RPCCaller ) and allow the shovel access to the virtual host of the client node.
+   b. On the caller node create a user with username set to callee instance's agent name ( (instance-name)-RPCCallee ) and allow the      shovel access to the virtual host of the callee node. Similarly, on the callee node, create a user with username set to caller       instance's agent name ( (instance-name)-RPCCaller ) and allow the shovel access to the virtual host of the caller node.
 
         ```sh
         cd $RABBITMQ_HOME
@@ -647,10 +647,10 @@ the other instance(RabbitMQ root ca)
 
 4. Test the shovel setup 
 
-   a. On client node:
+   a. On caller node:
 
 
-	   Make necessary changes to RPC methods of  client agent.
+	   Make necessary changes to RPC methods of  caller agent.
 
 	    For this example, in volttron/examples/SchedulerExample/schedule_example/agent.py:
 	    * Search for 'campus/building/unit' in publish_schedule method. Replace with
@@ -678,7 +678,7 @@ the other instance(RabbitMQ root ca)
    and start it.
 
 
-   b. On the server node:
+   b. On the callee node:
 
    Run upgrade script to install actuator agent.
 
@@ -694,7 +694,7 @@ the other instance(RabbitMQ root ca)
    ```   
 
 
-   Install master driver, configure fake device on upstream server and start volttron and master driver.
+   Install master driver, configure fake device on upstream callee and start volttron and master driver.
    vcfg --agent master_driver command can install master driver and setup a fake device.
    
     ```sh
@@ -707,7 +707,7 @@ the other instance(RabbitMQ root ca)
 
    Start actuator agent and listener agents.
 
-   The output for the server node with a successful shovel run should look similar to:
+   The output for the callee node with a successful shovel run should look similar to:
    ```sh
    2018-12-19 15:38:00,009 (listeneragent-3.2 13039) listener.agent INFO: Peer: pubsub, Sender: platform.driver:, Bus: , Topic: devices/fake-campus/fake-building/fake-device/all, Headers: {'Date': '2018-12-19T20:38:00.001684+00:00', 'TimeStamp': '2018-12-19T20:38:00.001684+00:00', 'min_compatible_version': '5.0', 'max_compatible_version': u'', 'SynchronizedTimeStamp': '2018-12-19T20:38:00.000000+00:00'}, Message:
     [{'Heartbeat': True, 'PowerState': 0, 'ValveState': 0, 'temperature': 50.0},
@@ -774,7 +774,7 @@ the other instance (RabbitMQ root ca)
 
 3. Typically RPC communication is 2 way communication so we will to setup shovel in both the VOLTTRON instances. In RPC calls there are two instances of shovel. One serving as the caller (makes RPC request) and the other acting as a callee (replies to RPC request). Identify the instance is the "caller" and which is the "callee." Suppose "v1" instance is the "caller" instance and "v2" instance is the "callee" instance.
 
-   a. On both the client and server nodes, shovel instances need to be created. In this example, v1’s shovel would forward the RPC call    request from an agent on v1 to v2 and similarly v2’s shovel will forward the RPC reply from agent on v2 back to v1.
+   a. On both the caller and callee nodes, shovel instances need to be created. In this example, v1’s shovel would forward the RPC call    request from an agent on v1 to v2 and similarly v2’s shovel will forward the RPC reply from agent on v2 back to v1.
 
 
      ```
@@ -798,7 +798,7 @@ the other instance (RabbitMQ root ca)
      list of agent pairs for each remote instance you would like to add.
 
 
-   b. On the client node create a user with username set to server instance's agent name ( (instance-name)-RPCCallee ) and allow the      shovel access to the virtual host of the server node. Similarly, on the server node, create a user with username set to client       instance's agent name ( (instance-name)-RPCCaller ) and allow the shovel access to the virtual host of the client node.
+   b. On the caller node create a user with username set to callee instance's agent name ( (instance-name)-RPCCallee ) and allow the      shovel access to the virtual host of the callee node. Similarly, on the callee node, create a user with username set to caller       instance's agent name ( (instance-name)-RPCCaller ) and allow the shovel access to the virtual host of the caller node.
 
         ```sh
         cd $RABBITMQ_HOME
@@ -807,7 +807,7 @@ the other instance (RabbitMQ root ca)
 
 4. Test the shovel / DataMover setup 
 
-   a. On client node:
+   a. On caller node:
    Start SQLHistorian (identiy is platform.historian). Easiest way to accomplish this is to stop VOLTTRON, reconfigure to have RabbitMQ message bus and install platform.historian already installed, and start VOLTTRON again. 
    
    ```sh
@@ -840,9 +840,9 @@ the other instance (RabbitMQ root ca)
    
    Start platform.historian
    
-   b. On server node:
+   b. On callee node:
    
-      Install master driver, configure fake device on upstream server and start volttron and master driver. vcfg --agent master_driver command can install master driver and setup a fake device.
+      Install master driver, configure fake device on upstream callee and start volttron and master driver. vcfg --agent master_driver command can install master driver and setup a fake device.
 
    ```sh
    
@@ -877,7 +877,7 @@ the other instance (RabbitMQ root ca)
    
    To confirm that the DataMover agent is working, run the ``tail -f volttron.log`` from the volttron directory to look for output similar to the following.
    
-   On the client:
+   On the caller:
    
    ```sh
    
@@ -888,7 +888,7 @@ the other instance (RabbitMQ root ca)
    2018-12-28 14:39:45,169 (sqlhistorianagent-3.6.1 13416) volttron.platform.agent.base_historian DEBUG: Exiting publish loop.
 
    ```
-   On the server:
+   On the callee:
    
    ```sh
    
@@ -1016,7 +1016,7 @@ the other instance (RabbitMQ root ca)
       ssl certificate errors
    
    6. DataMover troubleshooting. 
-      a. If output from volttron.log is not as expected check for  ``{'alert_key': 'historian_not_publishing'}`` in the server node's volttron.log. Most likely cause is the historian is not running properly or credentials between client and server nodes was not set properly.  
+      a. If output from volttron.log is not as expected check for  ``{'alert_key': 'historian_not_publishing'}`` in the callee node's volttron.log. Most likely cause is the historian is not running properly or credentials between caller and callee nodes was not set properly.  
       
       
 
