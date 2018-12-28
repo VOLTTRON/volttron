@@ -6,12 +6,31 @@ Authentication And Authorization With RabbitMQ Message Bus
 
 Authentication In RabbitMQ VOLTTRON
 ***********************************
-RabbitMQ VOLTTRON uses SSL based authentication, rather than the default username and password authentication. You can
-see this by running the command:
+RabbitMQ VOLTTRON uses SSL based authentication, rather than the default username and password authentication. The necessary SSL configurations can be seen by running the following command:
 
 ``cat ~/rabbitmq_server/rabbitmq_server-3.7.7/etc/rabbitmq/rabbitmq.conf``
 
-Note that auth_mechanisms.1 is set to EXTERNAL.
+The configurations required to enable SSL:
+
+.. code-block:: shell
+    listeners.ssl.default = 5671 (port for listening for SSL connections)
+    ssl_options.cacertfile = VOLTTRON_HOME/certificates/certs/volttron1-trusted-cas.crt Certificate Authority (CA) 
+    ssl_options.certfile = VOLTTRON_HOME/certificates/certs/volttron1-server.crt
+    ssl_options.keyfile = VOLTTRON_HOME/certificates/private/volttron1-server.pem
+    ssl_options.verify = verify_peer
+    ssl_options.fail_if_no_peer_cert = true (if client fails to provide certificate: true = SSL connection rejected, false = accepted)
+    auth_mechanisms.1 = EXTERNAL
+
+**Parameter explanations**
+
+- listeners.ssl.default: port for listening for SSL connections  
+- ssl_options.cacertfile: path to trusted Certificate Authorities (CA)  
+- ssl_options.certfile: path to server public certificate  
+- ssl_options.keyfile: path to server's private key
+- ssl_options.verify: whether verification is enabled
+- ssl_options.fail_if_no_peer_cert: upon client's failure to provide certificate, SSL connection either rejected (true) or accepted (false)
+- auth_mechanisms.1: type of authentication mechanism. EXTERNAL means SSL authentication is used
+
 
 SSL uses the `Public Key Infrastructure <https://en.wikipedia.org/wiki/Public_key_infrastructure>`_ where public and
 private certificates are used to construct / verify ones digital identity.
