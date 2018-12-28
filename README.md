@@ -382,10 +382,10 @@ and should be running on machine/VM that has a unique host name.***__
       For example:
       
       On v1:
-      cat /tmp/v2-root-ca.crt >> /home/vdev/  .my_volttron_home/certificates/certs/v1-trusted-cas.crt
+      cat /tmp/v2-root-ca.crt >> VOLTTRON_HOME/certificates/certs/v1-trusted-cas.crt
       
       On v2:
-      cat /tmp/v1-root-ca.crt >> /home/vdev/ .my_volttron_home/certificates/certs/v2-trusted-cas.crt
+      cat /tmp/v1-root-ca.crt >> VOLTTRON_HOME/certificates/certs/v2-trusted-cas.crt
 
 3. Stop volttron, stop rabbitmq server and start volttron on both the
 instances. This is required only when you update the root certificate and not
@@ -516,9 +516,9 @@ Please note that each instance should have a unique instance name.
    b. Append the contents of the transferred root ca to the instance's root ca.
    For example:
    On v1:
-   cat /tmp/v2-root-ca.crt >> /home/vdev/.my_volttron_home/certificates/v1-root-ca.crt
+   cat /tmp/v2-root-ca.crt >> VOLTTRON_HOME/certificates/v1-root-ca.crt
    On v2:
-   cat /tmp/v1-root-ca.crt >> /home/vdev/.my_volttron_home/certificates/v2-root-ca.crt
+   cat /tmp/v1-root-ca.crt >> VOLTTRON_HOME/certificates/v2-root-ca.crt
 
 3. Identify the instance that is going to act as the "publisher" instance. Suppose
 "v1" instance is the "publisher" instance and "v2" instance is the "subscriber"
@@ -607,9 +607,9 @@ the other instance(RabbitMQ root ca)
    For example:
 
    On v1:
-   cat /tmp/v2-root-ca.crt >> /home/vdev/.my_volttron_home/certificates/v1-root-ca.crt
+   cat /tmp/v2-root-ca.crt >> VOLTTRON_HOME/certificates/v1-root-ca.crt
    On v2:
-   cat /tmp/v1-root-ca.crt >> /home/vdev/.my_volttron_home/certificates/v2-root-ca.crt
+   cat /tmp/v1-root-ca.crt >> VOLTTRON_HOME/certificates/v2-root-ca.crt
 
 
 3. Typically RPC communication is 2 way communication so we will to setup shovel in both the VOLTTRON instances. In RPC calls there are two instances of shovel. One serving as the caller (makes RPC request) and the other acting as a callee (replies to RPC request). Identify the instance is the "caller" and which is the "callee." Suppose "v1" instance is the "caller" instance and "v2" instance is the "callee" instance.
