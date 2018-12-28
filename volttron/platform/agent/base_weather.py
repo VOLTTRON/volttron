@@ -95,6 +95,12 @@ CREATE_STMT_FORECAST = """CREATE TABLE {table}
                          FORECAST_TIME TIMESTAMP NOT NULL,
                          POINTS TEXT NOT NULL);"""
 
+CACHE_READ_ERROR = "Cache read failed"
+CACHE_WRITE_ERROR = "Cache write failed"
+CACHE_FULL = "cache_full"
+WEATHER_WARN = "weather_warnings"
+WEATHER_RESULTS = "weather_results"
+WEATHER_ERROR = "weather_error"
 __version__ = "2.0.0"
 
 _log = logging.getLogger(__name__)
@@ -132,6 +138,8 @@ class BaseWeatherAgent(Agent):
             self.do_polling = False
             self.poll_greenlet = None
             self._cache = None
+            self.cache_read_error = False
+            self.cache_write_error = False
 
             self._default_config = \
                 {
@@ -232,13 +240,13 @@ class BaseWeatherAgent(Agent):
         record_dict = None
         if not isinstance(location, dict):
             record_dict = {"location": location,
-                           "weather_error": "Invalid location format. "
+                           WEATHER_ERROR: "Invalid location format. "
                                              "Location should be  "
                                              "specified as a dictionary"}
 
         elif not self.validate_location(service_name, location):
             record_dict = location.copy()
-            record_dict["weather_error"] = "Invalid location"
+            record_dict[WEATHER_ERROR] = "Invalid location"
         return record_dict
 
     @abstractmethod
@@ -408,12 +416,18 @@ class BaseWeatherAgent(Agent):
                                        "with error: {}".format(e.message))
         else:
             _log.debug("Configuration successful")
-            self._cache = WeatherCache(self._database_file,
-                                       api_services=self._api_services,
-                                       max_size_gb=self._max_size_gb)
-            self.vip.health.set_status(STATUS_GOOD,
-                                       "Configuration of weather agent "
-                                       "successful")
+            try:
+                self._cache = WeatherCache(self._database_file,
+                                           api_services=self._api_services,
+                                           max_size_gb=self._max_size_gb)
+                self.vip.health.set_status(STATUS_GOOD,
+                                           "Configuration of weather agent "
+                                           "successful")
+            except sqlite3.OperationalError as error:
+                _log.error(error.message)
+                self.vip.health.set_status(STATUS_BAD, "Cache failed to start "
+                                                       "during configuration")
+
             if self.do_polling:
                 if self.poll_greenlet:
                     self.poll_greenlet.kill()
@@ -526,14 +540,17 @@ class BaseWeatherAgent(Agent):
             if record_dict:
                 result.append(record_dict)
                 continue
-
             # Attempt getting from cache
             record_dict = self.get_cached_current_data(location)
-
+            cache_warning = record_dict.get(WEATHER_WARN)
             # if there was no data in cache or if data is old, query api
-            if not record_dict.get("weather_results"):
+            if not record_dict.get(WEATHER_RESULTS):
                 _log.debug("Current weather data from api")
                 record_dict = self.get_current_weather_remote(location)
+                if cache_warning:
+                    warnings = record_dict.get(WEATHER_WARN, [])
+                    warnings.extend(cache_warning)
+                    record_dict[WEATHER_WARN] = warnings
 
             result.append(record_dict)
         return result
@@ -546,22 +563,38 @@ class BaseWeatherAgent(Agent):
         :param location: location to retrieve current stored data for.
         :return: current weather data dictionary
         """
-        observation_time, data = \
-            self._cache.get_current_data(SERVICE_CURRENT_WEATHER,
-                                         json.dumps(location))
         result = location.copy()
-        if observation_time and data:
-            interval = self._api_services[SERVICE_CURRENT_WEATHER][
-                "update_interval"]
-            _log.debug("update interval is {}".format(interval))
-            # ts in cache is tz aware utc
-            current_time = get_aware_utc_now()
-            next_update_at = observation_time + interval
-            # if observation time is within the update interval
-            if current_time < next_update_at:
-                result["observation_time"] = \
-                    format_timestamp(observation_time)
-                result["weather_results"] = json.loads(data)
+        try:
+            observation_time, data = \
+                self._cache.get_current_data(SERVICE_CURRENT_WEATHER,
+                                             json.dumps(location))
+            if observation_time and data:
+                interval = self._api_services[SERVICE_CURRENT_WEATHER][
+                    "update_interval"]
+                _log.debug("update interval is {}".format(interval))
+                # ts in cache is tz aware utc
+                current_time = get_aware_utc_now()
+                next_update_at = observation_time + interval
+                # if observation time is within the update interval
+                if current_time < next_update_at:
+                    result["observation_time"] = \
+                        format_timestamp(observation_time)
+                    result[WEATHER_RESULTS] = json.loads(data)
+        except Exception as error:
+            bad_cache_message = "Weather agent failed to read from " \
+                                "cache"
+            self.vip.health.set_status(STATUS_BAD,
+                                       bad_cache_message)
+            status = Status.from_json(self.vip.health.get_status_json())
+            self.vip.health.send_alert(CACHE_READ_ERROR, status)
+            _log.error("{}. Exception:{}".format(bad_cache_message,
+                                                 error.message))
+            self.cache_read_error = True
+            result[WEATHER_WARN] = [bad_cache_message]
+        else:
+            if self.cache_read_error:
+                self.vip.health.set_status(STATUS_GOOD)
+                self.cache_read_error = False
         return result
 
     def get_current_weather_remote(self, location):
@@ -577,28 +610,31 @@ class BaseWeatherAgent(Agent):
         try:
             observation_time, data = self.query_current_weather(
                 location)
-            _log.debug("Got data from remote as {}".format(data))
             observation_time, oldtz = process_timestamp(
                 observation_time)
             if self.point_name_mapping:
                 _log.debug("Got point name mapping")
                 data = self.apply_mapping(data)
-            _log.debug("data from api after mapping {}".format(data))
             if observation_time is not None:
                 storage_record = [json.dumps(location),
                                   observation_time,
                                   json.dumps(data)]
-                self.store_weather_records(SERVICE_CURRENT_WEATHER,
-                                           storage_record)
+                try:
+                    self.store_weather_records(SERVICE_CURRENT_WEATHER,
+                                               storage_record)
+                except Exception:
+                    bad_cache_message = "Weather agent failed to write to " \
+                                        "cache"
+                    result[WEATHER_WARN] = [bad_cache_message]
                 result["observation_time"] = \
                     format_timestamp(observation_time)
-                result["weather_results"] = data
+                result[WEATHER_RESULTS] = data
             else:
-                result["weather_error"] = "Weather api did not " \
+                result[WEATHER_ERROR] = "Weather api did not " \
                                           "return any records"
         except Exception as error:
             _log.error(error)
-            result["weather_error"] = error.message
+            result[WEATHER_ERROR] = error.message
         return result
 
     @abstractmethod
@@ -673,7 +709,7 @@ class BaseWeatherAgent(Agent):
                      #Result for second location
                      {"zipcode":"invalid location. say only lat/long
                          allowed for forecast",
-                      "weather_error": "Invalid location"
+                      WEATHER_ERROR: "Invalid location"
                      }
                   ]
 
@@ -690,13 +726,17 @@ class BaseWeatherAgent(Agent):
             # check if we have enough recent data in cache
             record_dict = self.get_cached_hourly_forecast(location, hours,
                                                           request_time)
-
+            cache_warning = record_dict.get(WEATHER_WARN)
             # if cache didn't work out query remote api
-            if not record_dict.get("weather_results"):
+            if not record_dict.get(WEATHER_RESULTS):
                 _log.debug("forecast weather from api")
                 record_dict = self.get_remote_hourly_forecast(location,
                                                               hours,
                                                               request_time)
+                if cache_warning:
+                    warnings = record_dict.get(WEATHER_WARN, [])
+                    warnings.extend(cache_warning)
+                    record_dict[WEATHER_WARN] = warnings
                 _log.debug("record_dict from remote : {}".format(record_dict))
             result.append(record_dict)
 
@@ -714,39 +754,55 @@ class BaseWeatherAgent(Agent):
         used for checking if the data is current.
         :return: dictionary of forecast weather data for the location
         """
+        record_dict = location.copy()
         interval = \
             self._api_services[SERVICE_HOURLY_FORECAST]["update_interval"]
         # format [(generation_time, forecast_time, points), ...]
-        most_recent_for_location = \
-            self._cache.get_forecast_data(SERVICE_HOURLY_FORECAST,
-                                          json.dumps(location),
-                                          hours, request_time)
-        record_dict = location.copy()
-        location_data = []
-        if most_recent_for_location:
-            _log.debug(" from cache")
+        try:
+            most_recent_for_location = \
+                self._cache.get_forecast_data(SERVICE_HOURLY_FORECAST,
+                                              json.dumps(location),
+                                              hours, request_time)
+            location_data = []
+            if most_recent_for_location:
+                _log.debug(" from cache")
 
-            generation_time = most_recent_for_location[0][0]
-            next_update_at = generation_time + interval
-            _log.debug("request_time {}".format(request_time))
-            _log.debug("next_update_at {}".format(next_update_at))
-            _log.debug("generation_time time {}".format(generation_time))
+                generation_time = most_recent_for_location[0][0]
+                next_update_at = generation_time + interval
+                _log.debug("request_time {}".format(request_time))
+                _log.debug("next_update_at {}".format(next_update_at))
+                _log.debug("generation_time time {}".format(generation_time))
 
-            if request_time < next_update_at and \
-                    len(most_recent_for_location) >= hours:
-                # Enough to just check for length since cache is querying
-                # records between expected forecast start and end time
-                i = 0
-                while i < hours:
-                    record = most_recent_for_location[i]
-                    # record = (forecast time, points)
-                    entry = [format_timestamp(record[1]),
-                             json.loads(record[2])]
-                    location_data.append(entry)
-                    i = i + 1
-                record_dict["generation_time"] = format_timestamp(
-                    generation_time)
-                record_dict["weather_results"] = location_data
+                if request_time < next_update_at and \
+                        len(most_recent_for_location) >= hours:
+                    # Enough to just check for length since cache is querying
+                    # records between expected forecast start and end time
+                    i = 0
+                    while i < hours:
+                        record = most_recent_for_location[i]
+                        # record = (forecast time, points)
+                        entry = [format_timestamp(record[1]),
+                                 json.loads(record[2])]
+                        location_data.append(entry)
+                        i = i + 1
+                    record_dict["generation_time"] = format_timestamp(
+                        generation_time)
+                    record_dict[WEATHER_RESULTS] = location_data
+        except Exception as error:
+            bad_read_message = "Weather agent failed to read from cache"
+            self.vip.health.set_status(STATUS_BAD,
+                                       bad_read_message)
+            status = Status.from_json(self.vip.health.get_status_json())
+            self.vip.health.send_alert(CACHE_READ_ERROR, status)
+            _log.error("{}. Exception:{}".format(bad_read_message,
+                                                 error.message))
+            record_dict[WEATHER_WARN] = [bad_read_message]
+            self.cache_read_error = True
+        else:
+            if self.cache_read_error:
+                self.vip.health.set_status(STATUS_GOOD)
+                self.cache_read_error = False
+                
         return record_dict
 
     def get_remote_hourly_forecast(self, location, hours, request_time):
@@ -805,25 +861,30 @@ class BaseWeatherAgent(Agent):
                         location_data.append(item)
                 i = i + 1
             if location_data:
-                self.store_weather_records(SERVICE_HOURLY_FORECAST,
-                                           storage_records)
+                try:
+                    self.store_weather_records(SERVICE_HOURLY_FORECAST,
+                                               storage_records)
+                except Exception:
+                    err_message = "Weather agent failed to write to cache"
+                    result[WEATHER_WARN] = [err_message]
                 result["generation_time"] = \
                     format_timestamp(generation_time)
                 _log.debug(
                     " generation_time in result obj : {}".format(
                         result["generation_time"]))
-                result["weather_results"] = location_data
+                result[WEATHER_RESULTS] = location_data
             else:
-                result["weather_error"] = \
+                result[WEATHER_ERROR] = \
                     "No records were returned by the weather query"
 
             if location_data and len(location_data) < hours:
-                result["weather_warn"] = \
-                    "Weather provider returned less than requested " \
-                    "amount of data"
+                warnings = result.get(WEATHER_WARN, [])
+                warnings.append("Weather provider returned less than requested "
+                                "amount of data")
+                result[WEATHER_WARN] = warnings
         except Exception as error:
             _log.error(error)
-            result["weather_error"] = error.message
+            result[WEATHER_ERROR] = error.message
         return result
 
     def apply_mapping(self, record_dict):
@@ -1000,12 +1061,27 @@ class BaseWeatherAgent(Agent):
         table.
         :param records: list of records to put into the insert query.
         """
-        cache_full = self._cache.store_weather_records(service_name, records)
-        if cache_full:
-            self.vip.health.set_status(STATUS_BAD,
-                                       "Weather agent cache is full")
+        try:
+            cache_full = self._cache.store_weather_records(service_name,
+                                                           records)
+            if cache_full:
+                self.vip.health.set_status(STATUS_BAD,
+                                           "Weather agent cache is full")
+                status = Status.from_json(self.vip.health.get_status_json())
+                self.vip.health.send_alert(CACHE_FULL, status)
+        except Exception as error:
+            err_msg = "Weather agent failed to write to cache"
+            _log.error("{}. Exception:{}".format(err_msg, error))
+            self.vip.health.set_status(STATUS_BAD, err_msg)
             status = Status.from_json(self.vip.health.get_status_json())
-            self.vip.health.send_alert("cache_full", status)
+            self.vip.health.send_alert(CACHE_WRITE_ERROR, status)
+            self.cache_write_error = True
+            raise error
+        else:
+            if self.cache_write_error:
+                self.vip.health.set_status(STATUS_GOOD)
+                self.cache_write_error = False
+
 
     @Core.receiver("onstart")
     def starting(self, sender, **kwargs):
@@ -1156,22 +1232,20 @@ class WeatherCache:
         :param location: location to query by
         :return: a single current weather observation record
         """
-        try:
-            cursor = self._sqlite_conn.cursor()
-            query = """SELECT max(OBSERVATION_TIME), POINTS 
-                       FROM {table}
-                       WHERE LOCATION = ?;""".format(table=service_name)
-            _log.debug(query)
-            cursor.execute(query, (location,))
-            data = cursor.fetchone()
-            cursor.close()
-            if data and data[0]:
-                return parse_timestamp_string(data[0]), data[1]
-            else:
-                return None, None
-        except sqlite3.Error as e:
-            _log.error("Error fetching current data from cache: {}".format(e))
-            return None
+        query = ""
+
+        cursor = self._sqlite_conn.cursor()
+        query = """SELECT max(OBSERVATION_TIME), POINTS 
+                   FROM {table}
+                   WHERE LOCATION = ?;""".format(table=service_name)
+        _log.debug(query)
+        cursor.execute(query, (location,))
+        data = cursor.fetchone()
+        cursor.close()
+        if data and data[0]:
+            return parse_timestamp_string(data[0]), data[1]
+        else:
+            return None, None
 
     def get_forecast_data(self, service_name, location, hours, request_time):
         """
@@ -1184,35 +1258,34 @@ class WeatherCache:
         compare with generation time.
         :return: list of up-to-date forecast records for the location
         """
-        try:
-            # get records that have forecast time between the hour immediately
-            # after when user requested the data and endtime < start+hours
-            # do this to avoid returning data for hours 4 to 10 instead of
-            # 2-8 when the request time is hour 1.
-            forecast_start = request_time + datetime.timedelta(hours=1)
-            forecast_start = forecast_start.replace(minute=0, second=0,
-                                                    microsecond=0)
-            forecast_end = forecast_start + datetime.timedelta(hours=hours)
+        query = ""
 
-            cursor = self._sqlite_conn.cursor()
-            query = """SELECT GENERATION_TIME, FORECAST_TIME, POINTS 
-                       FROM {table} 
-                       WHERE LOCATION = ? 
-                       AND FORECAST_TIME >= ? 
-                       AND FORECAST_TIME < ? 
-                       AND GENERATION_TIME = 
-                       (SELECT MAX(GENERATION_TIME) 
-                        FROM {table}
-                        WHERE LOCATION = ?) 
-                       ORDER BY FORECAST_TIME ASC;""".format(table=service_name)
-            _log.debug(query)
-            cursor.execute(query, (location, forecast_start, forecast_end,
-                                   location))
-            data = cursor.fetchall()
-            cursor.close()
-            return data
-        except sqlite3.Error as e:
-            _log.error("Error fetching forecast data from cache: {}".format(e))
+        # get records that have forecast time between the hour immediately
+        # after when user requested the data and endtime < start+hours
+        # do this to avoid returning data for hours 4 to 10 instead of
+        # 2-8 when the request time is hour 1.
+        forecast_start = request_time + datetime.timedelta(hours=1)
+        forecast_start = forecast_start.replace(minute=0, second=0,
+                                                microsecond=0)
+        forecast_end = forecast_start + datetime.timedelta(hours=hours)
+
+        cursor = self._sqlite_conn.cursor()
+        query = """SELECT GENERATION_TIME, FORECAST_TIME, POINTS 
+                   FROM {table} 
+                   WHERE LOCATION = ? 
+                   AND FORECAST_TIME >= ? 
+                   AND FORECAST_TIME < ? 
+                   AND GENERATION_TIME = 
+                   (SELECT MAX(GENERATION_TIME) 
+                    FROM {table}
+                    WHERE LOCATION = ?) 
+                   ORDER BY FORECAST_TIME ASC;""".format(table=service_name)
+        _log.debug(query)
+        cursor.execute(query, (location, forecast_start, forecast_end,
+                               location))
+        data = cursor.fetchall()
+        cursor.close()
+        return data
 
     def get_historical_data(self, service_name, location, date_timestamp):
         """
@@ -1230,21 +1303,18 @@ class WeatherCache:
             raise ValueError(
                 "service {} does not exist in the agent's services.".format(
                     service_name))
-        try:
-            cursor = self._sqlite_conn.cursor()
-            query = """SELECT OBSERVATION_TIME, POINTS 
-                       FROM {table} WHERE LOCATION = ? 
-                       AND OBSERVATION_TIME BETWEEN ? AND ? 
-                       ORDER BY OBSERVATION_TIME ASC;""".format(
-                table=service_name)
-            _log.debug(query)
-            cursor.execute(query, (location, start_timestamp, end_timestamp))
-            data = cursor.fetchall()
-            cursor.close()
-            return data
-        except sqlite3.Error as e:
-            _log.error(
-                "Error fetching historical data from cache: {}".format(e))
+
+        cursor = self._sqlite_conn.cursor()
+        query = """SELECT OBSERVATION_TIME, POINTS 
+                   FROM {table} WHERE LOCATION = ? 
+                   AND OBSERVATION_TIME BETWEEN ? AND ? 
+                   ORDER BY OBSERVATION_TIME ASC;""".format(
+            table=service_name)
+        _log.debug(query)
+        cursor.execute(query, (location, start_timestamp, end_timestamp))
+        data = cursor.fetchall()
+        cursor.close()
+        return data
 
     def store_weather_records(self, service_name, records):
         """
@@ -1266,15 +1336,13 @@ class WeatherCache:
                        (LOCATION, OBSERVATION_TIME, POINTS) 
                        VALUES (?, ?, ?)""".format(service_name)
         _log.debug(query)
-        try:
-            if request_type == "current":
-                cursor.execute(query, records)
-            else:
-                cursor.executemany(query, records)
-            self._sqlite_conn.commit()
-        except sqlite3.Error as e:
-            _log.info(query)
-            _log.error("Failed to store data in the cache: {}".format(e))
+
+        if request_type == "current":
+            cursor.execute(query, records)
+        else:
+            cursor.executemany(query, records)
+        self._sqlite_conn.commit()
+
         cache_full = False
         if self._max_size_gb is not None and \
                 self.page_count(cursor) >= self.max_pages:
