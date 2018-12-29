@@ -748,62 +748,15 @@ the other instance(RabbitMQ root ca)
 
 The DataMover Historian is used to send data from one instance of VOLTTRON to another, using RPC shovel. Messages are inserted into the backup queue of the remote historian to help ensure that the messages are recorded.
 
-Following are the steps to create Shovel for multi-platform DataMover communication.
-
-1. Setup two VOLTTRON instances using the steps described in installation section.
-Please note that each instance should have a unique instance name.
-
-2. In a multi platform setup that need to communicate with each other with
-RabbitMQ over SSL, each VOLTTRON instance should should trust the ROOT CA of
-the other instance (RabbitMQ root ca)
-
-    a.  Transfer (scp/sftp/similar)
-   voltttron_home/certificates/certs/<instance_name>-root-ca.crt to a temporary
-   location on the other volttron instance machine. For example, if you have two
-   instance v1 and v2, scp v1's v1-root-ca.crt to v2 and
-   v2-root-ca.crt to v1.
-
-    b. Append the contents of the transferred root ca to the instance's root ca.
-   For example:
-
-   On v1:
-   cat /tmp/v2-root-ca.crt >> VOLTTRON_HOME/certificates/v1-root-ca.crt
-   On v2:
-   cat /tmp/v1-root-ca.crt >> VOLTTRON_HOME/certificates/v2-root-ca.crt
-
-
-3. Typically RPC communication is 2 way communication so we will to setup shovel in both the VOLTTRON instances. In RPC calls there are two instances of shovel. One serving as the caller (makes RPC request) and the other acting as a callee (replies to RPC request). Identify the instance is the "caller" and which is the "callee." Suppose "v1" instance is the "caller" instance and "v2" instance is the "callee" instance.
-
-   a. On both the caller and callee nodes, shovel instances need to be created. In this example, v1’s shovel would forward the RPC call    request from an agent on v1 to v2 and similarly v2’s shovel will forward the RPC reply from agent on v2 back to v1.
-
-
-     ```
-     vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml containing the details of the
-     **remote** hostname, port, vhost, volttron instance name (so in v1's yml file parameters would point to v2
-     and vice versa), and list of agent pair identities (local caller, remote callee). Example configuration for shovel
-     is available in examples/configurations/rabbitmq/rabbitmq_shovel_config.yml.]
+Refer to steps 1-3 in previous section for configuring the RPC shovel instances required for using DataMover. But for step 3a, we are using the SQLHistorian (identity is platform.historian) and DataMover. As such the shovel configuration files for v1 and v2 are as follows:
      
-     For this example, let's say that we are using the schedule-example and acutator agents.
-
+     ```
      For v1, the agent pair identities would be:
      - [platform.historian, data.mover]
 
      For v2, they would be:
      - [data.mover, platform.historian]
-
-     Indicating the flow from local agent to remote agent.
      ```
-
-     If no config file is provided, the script will prompt for hostname (or IP address), port, vhost and
-     list of agent pairs for each remote instance you would like to add.
-
-
-   b. On the caller node create a user with username set to callee instance's agent name ( (instance-name)-RPCCallee ) and allow the      shovel access to the virtual host of the callee node. Similarly, on the callee node, create a user with username set to caller       instance's agent name ( (instance-name)-RPCCaller ) and allow the shovel access to the virtual host of the caller node.
-
-        ```sh
-        cd $RABBITMQ_HOME
-        vctl add-user <username> <password>
-        ```
 
 4. Test the shovel / DataMover setup 
 
@@ -860,9 +813,9 @@ the other instance (RabbitMQ root ca)
    export CONFIG=$(mktemp /tmp/abc-script.XXXXXX)
    cat > $CONFIG <<EOL
    {
-       "destination-vip": "amqp://test2:test2@localhost:5672/test2",
-       "destination-serverkey": "1yEUcpIcQTJzpvEwl-7KNCxe_f5rhhoShv9f3A8wdUg",
-       "destination-instance-name": "RPCCaller",
+       "destination-vip": "", 
+       "destination-serverkey": "",
+       "destination-instance-name": "volttron1",
        "destination-message-bus": "rmq"
    }
    EOL
