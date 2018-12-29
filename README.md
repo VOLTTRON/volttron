@@ -758,7 +758,7 @@ Refer to steps 1-3 in previous section for configuring the RPC shovel instances 
      - [data.mover, platform.historian]
      ```
 
-4. Test the shovel / DataMover setup 
+1. Test the shovel / DataMover setup 
 
    a. On caller node:
    Start SQLHistorian (identiy is platform.historian). Easiest way to accomplish this is to stop VOLTTRON, reconfigure to have RabbitMQ message bus and install platform.historian already installed, and start VOLTTRON again. 
