@@ -881,6 +881,112 @@ Refer to steps 1-3 in previous section for configuring the RPC shovel instances 
    ```
    vctl rabbitmq remove-shovel-parameters shovel-rabbit-3-devices
    ```
+   
+**ZeroMQ Backward Compatibility**
+
+The following steps are to demonstrate how RabbitMQ is backward compatible with ZeroMQ, using the Forward Historian as an example.
+
+1. In order for RabbitMQ and ZeroMQ to communicate with each other, one needs two instances of VOLTTRON_HOME on the same VM. To create a new instance of VOLTTRON_HOME use the command.
+
+   ``export VOLTTRON_HOME=~/.new_volttron_home``
+
+   It is recommended that one uses multiple terminals to keep track of both instances.
+
+2. Start volttron on both instances. Note: since the start-volttron script uses the volttron.log by default, the second instance will need be started manually in the background, using a separate log. For example:
+
+   ``volttron -vv -l volttron-two.log&``
+
+3. Modify the configuration file for both instances. The config file is located at ``$VOLTTRON_HOME/config``
+
+For RabbitMQ, the config file should look similar to:
+
+```sh
+[volttron]  
+message-bus = rmq  
+vip-address = tcp://127.0.0.1:22916  
+instance-name = volttron_rmq  
+```
+
+The ZeroMQ config file should look similar, with all references to RMQ being replaced with ZMQ, and a slightly different vip-address (e.g. tcp://127.0.0.2:22916).
+
+4. On the instance running ZeroMQ:
+
+   a. Install the Forward Historian agent using an upgrade script similar to:
+
+   ```python
+   #!/bin/bash
+   export CONFIG=$(mktemp /tmp/abc-script.XXXXXX)
+   cat > $CONFIG <<EOL
+   {
+       "destination-vip": "tcp://127.0.0.1:22916",
+       "destination-serverkey": "key"
+   }
+   EOL
+   python /home/username/volttron/scripts/install-agent.py -c $CONFIG -s services/core/ForwardHistorian --start --force -i forward.historian
+   # Finally remove the temporary config file
+   rm $CONFIG
+   ```
+   
+   Since we are attempting to push date from the local (ZeroMQ in this example) to the remote (RabbitMQ) instance, the we would need the RabbitMQ serverkey, which can be obtained by running ``vctl auth serverkey`` on the RabbitMQ instance. Start the Forward Historian.
+
+   b. Install master driver, configure fake device on upstream server and start volttron and master driver. vcfg --agent master_driver command can install master driver and setup a fake device.
+
+   ```sh
+   ./stop-volttron
+   vcfg --agent master_driver
+   ./start-volttron
+   vctl start --tag master_driver
+   ```
+
+5. On the instance running RabbitMQ:
+
+   a. On run a listener agent which subscribes to messages from all platforms
+   
+     - Open the file examples/ListenerAgent/listener/agent.py. Search for @PubSub.subscribe('pubsub', '') and replace that         line with @PubSub.subscribe('pubsub', 'devices', all_platforms=True)
+     - updgrade the listener
+     ```sh
+        scripts/core/upgrade-listener
+     ```   
+     
+   b. Tail the log being used for the RabbitMQ instance. For example ``tail -f volttron.log`` and look for the following error:
+   
+      ```sh
+      2018-12-31 13:07:45,272 () volttron.platform.auth INFO: authentication failure: domain='vip', address='127.0.0.1', mechanism='CURVE', credentials=['forward historian public key']
+      ```
+      
+      In order to fix this error, one needs to add the public key of the Forward Historian of the ZeroMQ instance to the auth.config file of the RabbitMQ instance. 
+      
+      In order to confirm the public key of the Forward Historian, run ``vctl auth public key`` on the ZeroMQ instance and copy the output.
+      
+      In the RabbitMQ instance, run ``vctl auth add`` and use the defaults except for user_id and credentials. For example:
+      
+      ```sh
+      
+      vctl auth add
+      domain []: 
+      address []: 
+      user_id []: forward
+      capabilities (delimit multiple entries with comma) []: 
+      roles (delimit multiple entries with comma) []: 
+      groups (delimit multiple entries with comma) []: 
+      mechanism [CURVE]: 
+      credentials []: key
+      comments []: 
+      enabled [True]: 
+      ```
+      
+      Once that is completed you should be able to see data similar to below in the log of the volttron instance running RabbitMQ:
+      
+      ```sh
+         2018-12-31 14:48:10,043 (listeneragent-3.2 7175) listener.agent INFO: Peer: pubsub, Sender: forward.historian:, Bus: , Topic: devices/fake-campus/fake-building/fake-device/all, Headers: {'X-Forwarded': True, 'SynchronizedTimeStamp': '2018-12-31T19:48:10.000000+00:00', 'TimeStamp': '2018-12-31T19:48:10.001966+00:00', 'max_compatible_version': u'', 'min_compatible_version': '3.0', 'Date': '2018-12-31T19:48:10.001966+00:00'}, Message: 
+   [{'Heartbeat': True, 'PowerState': 0, 'ValveState': 0, 'temperature': 50.0},
+    {'Heartbeat': {'type': 'integer', 'tz': 'US/Pacific', 'units': 'On/Off'},
+     'PowerState': {'type': 'integer', 'tz': 'US/Pacific', 'units': '1/0'},
+     'ValveState': {'type': 'integer', 'tz': 'US/Pacific', 'units': '1/0'},
+     'temperature': {'type': 'integer',
+                     'tz': 'US/Pacific',
+                     'units': 'Fahrenheit'}}]
+      ```
 
 ** RabbitMQ Trouble Shooting **
 
