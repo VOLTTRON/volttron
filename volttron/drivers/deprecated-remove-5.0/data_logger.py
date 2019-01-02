@@ -47,7 +47,6 @@ from smap import driver
 from smap.core import SmapException
 from smap.util import periodicSequentialCall
 
-from volttron.platform import get_home
 from volttron.platform.messaging import headers as headers_mod, topics
 
 import zmq
@@ -57,8 +56,8 @@ import zmq
 CAN_PUBLISH = False
 CAN_SUBSCRIBE = False
 
-publish_address = 'ipc://' + get_home() + '/run/no-publisher'
-subscribe_address = 'ipc://' + get_home() + '/run/no-subscriber'
+publish_address = 'ipc://$VOLTTRON_HOME/run/no-publisher'
+subscribe_address = 'ipc://$VOLTTRON_HOME/run/no-subscriber'
 if 'AGENT_PUB_ADDR' in os.environ:
     publish_address = os.environ['AGENT_PUB_ADDR']
     CAN_PUBLISH = True

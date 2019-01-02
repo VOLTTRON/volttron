@@ -53,7 +53,7 @@ from wheel.install import WheelFile
 from .packages import *
 from . import config
 from .agent import utils
-from volttron.platform import get_volttron_data, get_home, set_home
+from volttron.platform import get_volttron_data
 from volttron.utils.prompt import prompt_response
 
 try:
@@ -66,7 +66,7 @@ except ImportError:
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
-DEFAULT_CERTS_DIR = os.path.join(get_home(), 'certificates')
+DEFAULT_CERTS_DIR = '~/.volttron/certificates'
 
 AGENT_TEMPLATE_PATH_TEMPLATE = "agent_templates/{name}/{file}"
 AGENT_TEMPLATE_PATH = "agent_templates/"
@@ -523,8 +523,11 @@ def add_files_to_package(package, files=None):
 
 def main(argv=sys.argv):
 
-    set_home()
-    default_wheelhouse = get_home() + '/packaged'
+    expandall = lambda string: os.path.expanduser(os.path.expandvars(string))
+    home = expandall(os.environ.get('VOLTTRON_HOME', '~/.volttron'))
+
+    os.environ['VOLTTRON_HOME'] = home
+    default_wheelhouse = os.environ['VOLTTRON_HOME']+'/packaged'
 
     # Setup option parser
     progname = os.path.basename(argv[0])

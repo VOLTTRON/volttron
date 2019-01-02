@@ -45,7 +45,6 @@ import errno
 from csv import DictReader
 from StringIO import StringIO
 
-from volttron.platform import get_home
 from volttron.platform.agent import json as jsonapi
 from gevent.lock import Semaphore
 
@@ -120,7 +119,7 @@ class ConfigStoreService(Agent):
         self.core.delay_running_event_set = False
 
         self.store = {}
-        self.store_path = os.path.join(get_home(), 'configuration_store')
+        self.store_path = os.path.join(os.environ['VOLTTRON_HOME'], 'configuration_store')
 
     @Core.receiver('onsetup')
     def _setup(self, sender, **kwargs):

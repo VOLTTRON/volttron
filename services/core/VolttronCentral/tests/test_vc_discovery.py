@@ -105,3 +105,4 @@ def test_autoregister_local(both_with_vc_vcp):
     assert p['name'] == both_with_vc_vcp.vip_address
     assert isinstance(p['health'], dict)
     assert STATUS_GOOD == p['health']['status']
+

@@ -63,7 +63,7 @@ import sys
 import time
 import zmq
 
-from volttron.platform import get_address, get_home
+from volttron.platform import get_address
 from volttron.platform.agent.utils import setup_logging
 from volttron.platform.control import KnownHostsStore, KeyStore
 from volttron.platform.vip.agent import Agent
@@ -547,7 +547,7 @@ class MessageViewerCmd(Cmd):
 
     def initialize_monitor_socket(self):
         """Initialize and return the monitor socket used by the MessageDebuggerAgent to stream messages."""
-        monitor_path = os.path.join(get_home(), 'run/messageviewer')
+        monitor_path = os.path.expandvars('$VOLTTRON_HOME/run/messageviewer')
         monitor_socket = zmq.Context().socket(zmq.SUB)
         monitor_socket_address = 'ipc://{}'.format('@' if sys.platform.startswith('linux') else '') + monitor_path
         monitor_socket.bind(monitor_socket_address)
@@ -606,7 +606,7 @@ class MessageViewer(object):
     @classmethod
     def display_message_stream(cls):
         """Display the stream of DebugMessage strings as they arrive on the monitor socket."""
-        monitor_path = os.path.join(get_home(), 'run/messageviewer')
+        monitor_path = os.path.expandvars('$VOLTTRON_HOME/run/messageviewer')
         monitor_socket = zmq.Context().socket(zmq.SUB)
         monitor_socket_address = 'ipc://{}'.format('@' if sys.platform.startswith('linux') else '') + monitor_path
         monitor_socket.bind(monitor_socket_address)

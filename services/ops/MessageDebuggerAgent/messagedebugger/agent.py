@@ -68,7 +68,6 @@ from sqlalchemy import Column, String, Integer, DateTime, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 
-from volttron.platform import get_home
 from volttron.platform.agent import utils
 from volttron.platform.control import ControlConnection, KnownHostsStore, KeyStore
 from volttron.platform.vip.agent import Agent, RPC, Core
@@ -117,20 +116,10 @@ class MessageDebuggerAgent(Agent):
     def __init__(self, config_path, **kwargs):
         super(self.__class__, self).__init__(**kwargs)
         config = utils.load_config(config_path)
-        self.default_config = dict(router_path=config.get('router_path',
-                                                          os.path.join(
-                                                              get_home(),
-                                                          'run/messagedebug')),
-                                   monitor_path=config.get('monitor_path',
-                                                           os.path.join(
-                                                               get_home(),
-                                                           'run/messageviewer')),
-                                   db_path=config.get('db_path',
-                                                      os.path.join(
-                                                          get_home(),
-                                                      'data/volttron_messages.sqlite')),
-                                   agentid=config.get('agentid',
-                                                      'messagedebugger'))
+        self.default_config = dict(router_path=config.get('router_path', '$VOLTTRON_HOME/run/messagedebug'),
+                                   monitor_path=config.get('monitor_path', '$VOLTTRON_HOME/run/messageviewer'),
+                                   db_path=config.get('db_path', '$VOLTTRON_HOME/data/volttron_messages.sqlite'),
+                                   agentid=config.get('agentid', 'messagedebugger'))
         self.current_config = None
         _log.debug('Initializing agent config, default config = {}'.format(self.default_config))
         self.vip.config.set_default("config", self.default_config)

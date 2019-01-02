@@ -51,7 +51,6 @@ import uuid
 import gevent
 from gevent.fileobject import FileObject
 from zmq import green as zmq
-from volttron.platform import get_home
 from volttron.platform.agent import json as jsonapi
 
 from .agent.utils import strip_comments, create_file_if_missing, watch_file
@@ -555,7 +554,7 @@ class AuthFile(object):
     def __init__(self, auth_file=None):
         if auth_file is None:
             auth_file_dir = os.path.expanduser(
-                get_home())
+                os.environ.get('VOLTTRON_HOME', '~/.volttron'))
             auth_file = os.path.join(auth_file_dir, 'auth.json')
         self.auth_file = auth_file
         self._check_for_upgrade()

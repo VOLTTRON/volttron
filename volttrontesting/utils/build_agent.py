@@ -2,7 +2,6 @@ import os
 
 import gevent
 
-from volttron.platform import get_home, set_home
 from volttron.platform.keystore import KeyStore
 
 
@@ -12,7 +11,7 @@ def build_agent(platform, identity=None):
     The agent identity will be set.  If the identity is set to None
     then a random identity will be created.
     """
-    set_home()
+    os.environ['VOLTTRON_HOME'] = platform.volttron_home
     agent = platform.build_agent(identity)
     gevent.sleep(0.1) # switch context for a bit
     os.environ.pop('VOLTTRON_HOME')
@@ -26,8 +25,8 @@ def build_agent_with_key(platform, identity=None):
      identity will be set.  If the identity is set to None then a random
      identity will be created.
     """
-    set_home()
-    keys = KeyStore(os.path.join(get_home(),
+    os.environ['VOLTTRON_HOME'] = platform.volttron_home
+    keys = KeyStore(os.path.join(platform.volttron_home,
                                           identity + '.keys'))
     keys.generate()
     agent = platform.build_agent(identity=identity,
