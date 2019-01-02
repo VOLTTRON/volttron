@@ -948,17 +948,9 @@ The ZeroMQ config file should look similar, with all references to RMQ being rep
         scripts/core/upgrade-listener
      ```   
      
-   b. Tail the log being used for the RabbitMQ instance. For example ``tail -f volttron.log`` and look for the following error:
+   b. Provide the RabbitMQ instance with the public key of the Forward Historian running on ZeroMQ instance. 
    
-      ```sh
-      2018-12-31 13:07:45,272 () volttron.platform.auth INFO: authentication failure: domain='vip', address='127.0.0.1', mechanism='CURVE', credentials=['forward historian public key']
-      ```
-      
-      In order to fix this error, one needs to add the public key of the Forward Historian of the ZeroMQ instance to the auth.config file of the RabbitMQ instance. 
-      
-      In order to confirm the public key of the Forward Historian, run ``vctl auth public key`` on the ZeroMQ instance and copy the output.
-      
-      In the RabbitMQ instance, run ``vctl auth add`` and use the defaults except for user_id and credentials. For example:
+      Run ``vctl auth public key`` on the ZeroMQ instance. Copy the output and add the public key to the RabbitMQ instance's auth.config file, using the defaults except for the user_id and credentials.
       
       ```sh
       
@@ -987,6 +979,7 @@ The ZeroMQ config file should look similar, with all references to RMQ being rep
                      'tz': 'US/Pacific',
                      'units': 'Fahrenheit'}}]
       ```
+      
 
 ** RabbitMQ Trouble Shooting **
 
