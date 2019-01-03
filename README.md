@@ -720,33 +720,9 @@ the other instance(RabbitMQ root ca)
 
    ```
 
-
-
-5. How to remove the shovel setup.
-
-   a. Using the management web interface
-
-   Log into management web interface using publisher instance's admin username.
-   Navigate to admin tab and then to shovel management page. The status of the
-   shovel will be displayed on the page. Click on the shovel name and delete
-   the shovel.
-
-   b. Using "volttron-ctl" command on the publisher node.
-   ```sh
-   vctl rabbitmq list-shovel-parameters
-   NAME                     SOURCE ADDRESS                                                 DESTINATION ADDRESS                                            BINDING KEY
-   shovel-rabbit-3-devices  amqps://rabbit-1:5671/volttron1?cacertfile=/home/nidd494/.volttron1/certificates/certs/volttron1-root-ca.crt&certfile=/home/nidd494/.volttron1/certificates/certs/volttron1-admin.crt&keyfile=/home/nidd494/.volttron1/certificates/private/volttron1-admin.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-1  amqps://rabbit-3:5671/volttron3?cacertfile=/home/nidd494/.volttron1/certificates/certs/volttron1-root-ca.crt&certfile=/home/nidd494/.volttron1/certificates/certs/volttron1-admin.crt&keyfile=/home/nidd494/.volttron1/certificates/private/volttron1-admin.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-3  __pubsub__.volttron1.devices.#
-   ```
-
-   Grab the shovel name and run the below command to remove it.
-
-   ```
-   vctl rabbitmq remove-shovel-parameters shovel-rabbit-3-devices
-   ```
-
 *DataMover Communication*
 
-The DataMover Historian is used to send data from one instance of VOLTTRON to another, using RPC shovel. Messages are inserted into the backup queue of the remote historian to help ensure that the messages are recorded.
+The DataMover Historian is used to send data from one instance of VOLTTRON to another, over RPC to store in the remote historian database. The next steps describe how to configure DataMover Historian to use shovels.
 
 Refer to steps 1-3 in previous section for configuring the RPC shovel instances required for using DataMover. But for step 3a, we are using the SQLHistorian (identity is platform.historian) and DataMover. As such the shovel configuration files for v1 and v2 are as follows:
      
@@ -760,11 +736,13 @@ Refer to steps 1-3 in previous section for configuring the RPC shovel instances 
 
 1. Test the shovel / DataMover setup 
 
-   a. On caller node:
-   Start SQLHistorian (identiy is platform.historian). Easiest way to accomplish this is to stop VOLTTRON, reconfigure to have RabbitMQ message bus and install platform.historian already installed, and start VOLTTRON again. 
+   a. On v1 node:
+   Start SQLHistorian (identity is platform.historian). Easiest way to accomplish this is to stop VOLTTRON, reconfigure to have RabbitMQ message bus and install SQL historian and start VOLTTRON again.
    
    ```sh
-   
+
+   ./stop-volttron
+
    vcfg
 
    Your VOLTTRON_HOME currently set to: /home/vdev/new_vhome2
@@ -793,9 +771,9 @@ Refer to steps 1-3 in previous section for configuring the RPC shovel instances 
    
    Start platform.historian
    
-   b. On callee node:
+   b. On v2 node:
    
-      Install master driver, configure fake device on upstream callee and start volttron and master driver. vcfg --agent master_driver command can install master driver and setup a fake device.
+      Install master driver. 'vcfg --agent master_driver' command will setup a fake device and install master driver.
 
    ```sh
    
@@ -830,7 +808,7 @@ Refer to steps 1-3 in previous section for configuring the RPC shovel instances 
    
    To confirm that the DataMover agent is working, run the ``tail -f volttron.log`` from the volttron directory to look for output similar to the following.
    
-   On the caller:
+   On the v1 node:
    
    ```sh
    
@@ -841,7 +819,7 @@ Refer to steps 1-3 in previous section for configuring the RPC shovel instances 
    2018-12-28 14:39:45,169 (sqlhistorianagent-3.6.1 13416) volttron.platform.agent.base_historian DEBUG: Exiting publish loop.
 
    ```
-   On the callee:
+   On the v2 node:
    
    ```sh
    
@@ -858,51 +836,29 @@ Refer to steps 1-3 in previous section for configuring the RPC shovel instances 
    2018-12-28 17:57:35,037 (datamoveragent-0.1 17502) volttron.platform.agent.base_historian DEBUG: Exiting publish loop.
    2018-12-28 17:57:35,013 (master_driveragent-3.2 11848) master_driver.driver DEBUG: finish publishing: devices/fake-campus/fake-building/fake-device/all
    ```
+
    
+**Backward Compatibility With ZeroMQ Message Based VOLTTRON**
 
-5. How to remove the shovel setup.
-
-   a. Using the management web interface
-
-   Log into management web interface using publisher instance's admin username.
-   Navigate to admin tab and then to shovel management page. The status of the
-   shovel will be displayed on the page. Click on the shovel name and delete
-   the shovel.
-
-   b. Using "volttron-ctl" command on the publisher node.
-   ```sh
-   vctl rabbitmq list-shovel-parameters
-   NAME                     SOURCE ADDRESS                                                 DESTINATION ADDRESS                                            BINDING KEY
-   shovel-rabbit-3-devices  amqps://rabbit-1:5671/volttron1?cacertfile=/home/nidd494/.volttron1/certificates/certs/volttron1-root-ca.crt&certfile=/home/nidd494/.volttron1/certificates/certs/volttron1-admin.crt&keyfile=/home/nidd494/.volttron1/certificates/private/volttron1-admin.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-1  amqps://rabbit-3:5671/volttron3?cacertfile=/home/nidd494/.volttron1/certificates/certs/volttron1-root-ca.crt&certfile=/home/nidd494/.volttron1/certificates/certs/volttron1-admin.crt&keyfile=/home/nidd494/.volttron1/certificates/private/volttron1-admin.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-3  __pubsub__.volttron1.devices.#
-   ```
-
-   Grab the shovel name and run the below command to remove it.
-
-   ```
-   vctl rabbitmq remove-shovel-parameters shovel-rabbit-3-devices
-   ```
-   
-**ZeroMQ Backward Compatibility**
-
-There are multiple ways for an instance with a RabbitMQ message bus, and an instance with ZeroMQ message bus to be backward compatible. For example, an agent from one instance can directly connect to the remote instance to publish or pull data from it. Another way is through multi-platform communication, where the volttron platform is responsible for connecting to the remote instance. For more information on multi-platform communication, see https://volttron.readthedocs.io/en/develop/core_services/multiplatform/Multiplatform-Communication.html.  
+RabbitMQ VOLTTRON supports backward compatibility with ZeroMQ based VOLTTRON. RabbitMQ VOLTTRON has a ZeroMQ router running internally to accept incoming ZeroMQ connections and to route ZeroMQ messages coming in/going out of it's instance. There are multiple ways for an instance with a RabbitMQ message bus, and an instance with ZeroMQ message bus to connect with each other. For example, an agent from one instance can directly connect to the remote instance to publish or pull data from it. Another way is through multi-platform communication, where the VOLTTRON platform is responsible for connecting to the remote instance. For more information on multi-platform communication, see https://volttron.readthedocs.io/en/develop/core_services/multiplatform/Multiplatform-Communication.html.
 
 *Agent Connecting Directly to Remote Instance*
 
-The following steps are to demonstrate how RabbitMQ is backward compatible with ZeroMQ, using the Forward Historian as an example.
+The following steps are to demonstrate how RabbitMQ VOLTTRON is backward compatible with ZeroMQ VOLTTRON, using the Forward Historian as an example.
 
-1. In order for RabbitMQ and ZeroMQ to communicate with each other, one needs two instances of VOLTTRON_HOME on the same VM. To create a new instance of VOLTTRON_HOME use the command.
+1. In order for RabbitMQ and ZeroMQ VOLTTRONs to communicate with each other, one needs two instances of VOLTTRON_HOME on the same VM. To create a new instance of VOLTTRON_HOME use the command.
 
    ``export VOLTTRON_HOME=~/.new_volttron_home``
 
    It is recommended that one uses multiple terminals to keep track of both instances.
 
-2. Start volttron on both instances. Note: since the start-volttron script uses the volttron.log by default, the second instance will need be started manually in the background, using a separate log. For example:
+2. Start VOLTTRON on both instances. Note: since the start-volttron script uses the volttron.log by default, the second instance will need be started manually in the background, using a separate log. For example:
 
    ``volttron -vv -l volttron-two.log&``
 
 3. Modify the configuration file for both instances. The config file is located at ``$VOLTTRON_HOME/config``
 
-For RabbitMQ, the config file should look similar to:
+For RabbitMQ VOLTTRON, the config file should look similar to:
 
 ```sh
 [volttron]  
@@ -911,7 +867,7 @@ vip-address = tcp://127.0.0.1:22916
 instance-name = volttron_rmq  
 ```
 
-The ZeroMQ config file should look similar, with all references to RMQ being replaced with ZMQ, and a slightly different vip-address (e.g. tcp://127.0.0.2:22916).
+The ZeroMQ config file should look similar, with all references to RMQ being replaced with ZMQ, and a different vip-address (e.g. tcp://127.0.0.2:22916).
 
 4. On the instance running ZeroMQ:
 
@@ -931,7 +887,7 @@ The ZeroMQ config file should look similar, with all references to RMQ being rep
    rm $CONFIG
    ```
    
-   Since we are attempting to push date from the local (ZeroMQ in this example) to the remote (RabbitMQ) instance, the we would need the RabbitMQ serverkey, which can be obtained by running ``vctl auth serverkey`` on the RabbitMQ instance. Start the Forward Historian.
+   Since we are attempting to push data from the local (ZeroMQ in this example) to the remote (RabbitMQ) instance, the we would need the RabbitMQ serverkey, which can be obtained by running ``vctl auth serverkey`` on the RabbitMQ instance. Start the Forward Historian.
 
    b. Install master driver, configure fake device on upstream server and start volttron and master driver. vcfg --agent master_driver command can install master driver and setup a fake device.
 
@@ -994,12 +950,12 @@ Currently, multi-platform connection works if the two platforms are the same (i.
    [volttron]
    message-bus = rmq
    vip-address = tcp://127.0.0.1:22916
-   instance-name = volttron2
+   instance-name = volttron_rmq
    bind-web-address = http://127.0.0.1:8080
    ```
 
 
-2. Create an external_address.json file for both instances, with the IP address and port of the remote instance(s) it will need to connect to. In this example, the RabbitMQ would have the address of the ZeroMQ instance, and vice versa. Below is an example for one instance:
+2. Create an external_address.json file in the VOLTTRON_HOME directory for both instances, with the IP address and port of the remote instance(s) it will need to connect to. In this example, the RabbitMQ would have the address of the ZeroMQ instance, and vice versa. Below is an example for one instance:
 
    ```json
    [
@@ -1019,7 +975,7 @@ Currently, multi-platform connection works if the two platforms are the same (i.
    {
        "destination-vip": "tcp://127.0.0.1:22916",
        "destination-serverkey": "rmq server key", 
-       "destination-instance-name": "volttron2",
+       "destination-instance-name": "volttron_rmq",
        "destination-message-bus": "zmq"
    }
    EOL
@@ -1030,7 +986,7 @@ Currently, multi-platform connection works if the two platforms are the same (i.
    
    In this example the DataMover will be running on the ZeroMQ instance, which means that the destination vip, serverkey, and instance name are configured to the RabbitMQ instance. However, destination-message-bus should be set to zmq. Start DataMover agent.
    
-   b. Install master driver, configure fake device on upstream server and start volttron and master driver. vcfg --agent master_driver command can install master driver and setup a fake device.
+   b. Install master driver, configure fake device on upstream server and start volttron and master driver. 'vcfg --agent master_driver' command can install master driver and setup a fake device.
 
    ```sh
    ./stop-volttron
@@ -1041,10 +997,12 @@ Currently, multi-platform connection works if the two platforms are the same (i.
    
 4. On the instance running RabbitMQ:
 
-    a. Start SQLHistorian (identiy is platform.historian). Easiest way to accomplish this is to stop VOLTTRON, reconfigure to have RabbitMQ message bus and install platform.historian already installed, and start VOLTTRON again. 
+    a. Start SQLHistorian. Easiest way to accomplish this is to stop VOLTTRON, reconfigure to have RabbitMQ message bus and install platform.historian already installed, and start VOLTTRON again.
    
    ```sh
-   
+
+   ./stop-volttron
+
    vcfg
 
    Your VOLTTRON_HOME currently set to: /home/vdev/new_vhome2
