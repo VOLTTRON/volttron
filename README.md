@@ -988,7 +988,7 @@ The ZeroMQ config file should look similar, with all references to RMQ being rep
 
 Currently, multi-platform connection works if the two platforms are the same (i.e. both instances are RabbitMQ or both instances are ZeroMQ), and if ZeroMQ runs the DataMover agent while RabbitMQ runs the SQLHistorian. RabbitMQ running DataMover and ZeroMQ running the SQLHistorian currently does **not** work. The below example demonstrates backward compatibility with the ZeroMQ instance running DataMover, and the RabbitMQ instance running SQLHistorian.
 
-1. Refer to steps 1 -3 in the previous section for configuring two VOLTTRON instances (one with RabbitMQ and one with ZeroMQ). For step 3, the VOLTTRON config files should look similar to the following: 
+1. Refer to steps 1 -3 in the previous section for configuring two VOLTTRON instances (one with RabbitMQ and one with ZeroMQ). For step 3, the VOLTTRON config files need to account for a web-server, which is necessary for multi-platform communication. As such, the config files should look similar to the following: 
 
    ```sh
    [volttron]
@@ -997,6 +997,7 @@ Currently, multi-platform connection works if the two platforms are the same (i.
    instance-name = volttron2
    bind-web-address = http://127.0.0.1:8080
    ```
+
 
 2. Create an external_address.json file for both instances, with the IP address and port of the remote instance(s) it will need to connect to. In this example, the RabbitMQ would have the address of the ZeroMQ instance, and vice versa. Below is an example for one instance:
 
@@ -1105,6 +1106,25 @@ Currently, multi-platform connection works if the two platforms are the same (i.
    ```
    
    If you tail the logs of both instances, there should be a message indicating that starting with setup mode was complete upon success.
+   
+   After a successful start, a new file called external_platform_discovery.json should be located in the $VOLTTRON_HOME directory of both instances. The file will contain the platform discovery information ( ), of all external platforms the respective VOLTTRON instance is aware of. The file will look something like:
+   
+   ```sh
+   {"<platform1 name>": {"vip-address":"tcp://<ip1>:<vip port1>",
+                     "instance-name":"<platform1 nam>",
+                     "serverkey":"<serverkey1>"
+                     },
+    "<platform2 name>": {"vip-address":"tcp://<ip2>:<vip port2>",
+                     "instance-name":"<platform2 name>",
+                     "serverkey":"<serverkey2>"
+                     },
+    "<platform3 name>": {"vip-address":"tcp://<ip3>:<vip port3>",
+                     "instance-name":"<platform3 name>",
+                     "serverkey":"<serverkey3>"
+                     },
+    ......
+   }
+   ```
 
 ** RabbitMQ Trouble Shooting **
 
