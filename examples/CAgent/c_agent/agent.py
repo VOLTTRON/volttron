@@ -47,6 +47,7 @@ import os
 from volttron.platform.vip.agent import Agent, Core, PubSub, compat
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.scheduling import periodic
 
 __docformat__ = 'reStructuredText'
 __version__ = '1.0'
@@ -73,7 +74,7 @@ class CAgent(Agent):
         self.get_water_temperature = self.shared_object.get_water_temperature
         self.get_water_temperature.restype = c_float
 
-    @Core.periodic(PUBLISH_PERIOD)
+    @Core.schedule(periodic(PUBLISH_PERIOD))
     def publish_water_temperature(self):
         """Call the function from the shared object.
         """

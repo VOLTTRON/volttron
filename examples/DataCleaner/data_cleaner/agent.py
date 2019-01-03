@@ -43,6 +43,7 @@ import sys
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers
 from volttron.platform.vip.agent import Agent
+from volttron.platform.scheduling import periodic
 from datetime import datetime, timedelta
 
 _log = logging.getLogger(__name__)
@@ -124,9 +125,9 @@ class DataCleaner(Agent):
         self.points = points
 
         if self.periodic is not None:
-            self.periodic.kill()
+            self.periodic.cancel()
 
-        self.periodic = self.core.periodic(self.period, self.process_points)
+        self.periodic = self.core.schedule(periodic(self.period), self.process_points)
 
     def process_points(self):
         now = utils.get_aware_utc_now()

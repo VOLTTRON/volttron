@@ -63,6 +63,7 @@ from volttron.platform.agent import utils
 from volttron.platform.agent.utils import format_timestamp
 from volttron.platform.messaging import topics, headers
 from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.scheduling import periodic
 
 from oadr_builder import *
 from oadr_extractor import *
@@ -352,7 +353,7 @@ class OpenADRVenAgent(Agent):
             self.send_oadr_create_party_registration()
         else:
             # Schedule an hourly database-cleanup task.
-            self.core.periodic(60 * 60, self.telemetry_cleanup)
+            self.core.schedule(periodic(60 * 60), self.telemetry_cleanup)
 
             # Populate the caches with all of the database's events and reports that are active.
             for event in self._get_events():
@@ -373,7 +374,7 @@ class OpenADRVenAgent(Agent):
                     self.send_oadr_register_report()
             except Exception, err:
                 _log.error('Error in agent startup: {}'.format(err), exc_info=True)
-            self.core.periodic(PROCESS_LOOP_FREQUENCY_SECS, self.main_process_loop)
+            self.core.schedule(periodic(PROCESS_LOOP_FREQUENCY_SECS), self.main_process_loop)
 
     def main_process_loop(self):
         """
