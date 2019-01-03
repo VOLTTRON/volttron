@@ -47,9 +47,7 @@ except ImportError:
 from volttron.platform import certs
 from volttron.platform import get_home
 from volttron.platform.agent.utils import get_platform_instance_name
-from volttron.platform.agent.utils import setup_logging
 
-setup_logging()
 _log = logging.getLogger(__name__)
 
 
