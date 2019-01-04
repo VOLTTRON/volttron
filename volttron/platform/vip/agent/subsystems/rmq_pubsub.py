@@ -65,11 +65,14 @@ import weakref
 import pika
 import uuid
 from volttron.platform.agent import json as jsonapi
+import requests
 
 from ..decorators import annotate, annotations, dualmethod, spawn
 from .base import BasePubSub
 from collections import defaultdict
 from ..results import ResultsDictionary
+from requests.packages.urllib3.connection import (ConnectionError,
+                                                  NewConnectionError)
 
 __all__ = ['RMQPubSub']
 min_compatible_version = '5.0'
@@ -330,16 +333,33 @@ class RMQPubSub(BasePubSub):
         :Return Values:
         List of tuples [(bus, topic, flag to indicate if peer is a subscriber or not)]
         """
+        async_result = next(self._results)
         results = []
         if reverse:
             test = prefix.startswith
         else:
             test = lambda t: t.startswith(prefix)
-        member = True
-        for topic, subscriptions in self._my_subscriptions.iteritems():
-            if test(topic):
-                results.append((bus, topic, member))
-        return results
+
+        try:
+            bindings = self.core().rmq_mgmt.get_bindings('volttron')
+        except (requests.exceptions.HTTPError, ConnectionError, NewConnectionError) as e:
+            self._logger.error("Error making request to RabbitMQ Management interface.\n"
+                          "Check Connection Parameters: {} \n".format(e))
+        else:
+            try:
+                items = [(b['destination'], self._get_original_topic(b['routing_key']))
+                     for b in bindings if b['routing_key'].startswith('__pubsub__')]
+            except KeyError as e:
+                return async_result
+
+            for item in items:
+                peer = item[0]
+                topic = item[1]
+                if test(topic):
+                    member = self.core().identity in peer
+                    results.append(('', topic, member))
+        self.core().spawn_later(0.01, self.set_result, async_result.ident, results)
+        return async_result
 
     def publish(self, peer, topic, headers=None, message=None, bus=''):
         """Publish a message to a given topic via a peer.

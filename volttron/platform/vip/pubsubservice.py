@@ -368,6 +368,7 @@ class PubSubService(object):
                         member = peer in subscribers
                         if not subscribed or member:
                             results.append((bus, topic, member))
+            results = jsonapi.dumps(results)
         return results
 
     def _distribute(self, frames, user_id):
@@ -643,6 +644,11 @@ class PubSubService(object):
                 result = self._peer_unsubscribe(frames)
             elif op == b'list':
                 result = self._peer_list(frames)
+                # Form response frame
+                response = [sender, recipient, proto, user_id, msg_id, subsystem]
+                response.append(zmq.Frame(b'list_response'))
+                response.append(zmq.Frame(bytes(result)))
+                result = None
             elif op == b'synchronize':
                 self._peer_sync(frames)
             elif op == b'auth_update':

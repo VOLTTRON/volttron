@@ -53,6 +53,7 @@ message_count3 = 0
 message_count4 = 0
 message_count5 = 0
 
+
 @pytest.mark.rmq_pubsub
 def test_granularity(volttron_instance, request):
     global message_count1, message_count2, message_count3
@@ -207,11 +208,16 @@ def test_irrelevant_unsubscribe(volttron_instance, request):
 
     # Agent has never subscribed to this topic but is attempting to unsubscribe anyway
     # Nothing should happen as a result
-    new_agent1.vip.pubsub.unsubscribe(peer='pubsub', prefix=not_subscribed_topic, callback=onmessage)
+    new_agent1.vip.pubsub.unsubscribe(peer='pubsub',
+                                      prefix=not_subscribed_topic,
+                                      callback=onmessage)
     gevent.sleep(0.01)
 
     for i in range(0, 5):
-        new_agent2.vip.pubsub.publish(peer="pubsub", topic=not_subscribed_topic, headers=None, message="Test message")
+        new_agent2.vip.pubsub.publish(peer="pubsub",
+                                      topic=not_subscribed_topic,
+                                      headers=None,
+                                      message="Test message")
         gevent.sleep(0.01)
 
     # Confirm that no messages were ever recieved from the not_subscribed_topic
@@ -302,12 +308,11 @@ def test_regex(volttron_instance, request):
     assert message_count4 == 1
     assert message_count5 == 1
 
+
 @pytest.mark.rmq_pubsub
 def test_regex_incorrect_word_count(volttron_instance, request):
     global message_count1
     message_count1 = 0
-
-    ### Test currently fails ###
 
     prefix1 = "testtopic.test.test1.*"
     test_topic1 = "testtopic.test.test1.foo.bar"
@@ -330,7 +335,6 @@ def test_regex_incorrect_word_count(volttron_instance, request):
     new_agent1.vip.pubsub.subscribe(peer='pubsub', prefix=prefix1, callback=onmessage1)
 
     new_agent2.vip.pubsub.publish(peer="pubsub", topic=test_topic1, headers=None, message="Test message")
-    new_agent2.vip.pubsub.publish(peer="pubsub", topic=test_topic2, headers=None, message="Test message")
     new_agent2.vip.pubsub.publish(peer="pubsub", topic=test_topic3, headers=None, message="Test message")
 
     # Since test_topic1 is the only one with the exact amount of words (test_topic 2 having too many and
@@ -343,8 +347,6 @@ def test_callback(volttron_instance, request):
     global message_count1, message_count2
     message_count1 = 0
     message_count2 = 0
-
-    ### Test failed. Cause currently unknown ###
 
     test_topic = "testtopic1/test/foo/bar"
 
@@ -372,10 +374,8 @@ def test_callback(volttron_instance, request):
     new_agent1.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic, callback=onmessage2)
     gevent.sleep(0.01)
 
-
     new_agent2.vip.pubsub.publish(peer="pubsub", topic=test_topic, headers=None, message="Test message")
     gevent.sleep(0.01)
-
 
     new_agent1.vip.pubsub.unsubscribe(peer='pubsub', prefix=test_topic, callback=onmessage1)
     gevent.sleep(0.01)
@@ -383,14 +383,12 @@ def test_callback(volttron_instance, request):
     new_agent2.vip.pubsub.publish(peer="pubsub", topic=test_topic, headers=None, message="Test message")
     gevent.sleep(0.01)
 
-
-
     assert message_count1 == 1
     assert message_count2 == 2
 
 
 @pytest.mark.rmq_pubsub
-def test_list(volttron_instance, request):
+def test_list_subscribed(volttron_instance, request):
     global message_count1
     message_count1 = 0
 
@@ -399,75 +397,77 @@ def test_list(volttron_instance, request):
     test_topic2 = "testtopic1/test/foo/bar/two"
     test_topic3 = "testtopic1/test/foo/bar/three"
 
-    tup_topic = ""
-    topic_result_index = 2
-    member_result_index = 3
+    topic_result_index = 1
+    member_result_index = 2
 
     def onmessage1(peer, sender, bus, topic, headers, message):
         global message_count1
         if topic.startswith(prefix0):
             message_count1 += 1
 
-
     new_agent1 = volttron_instance.build_agent(identity='agent1')
-    new_agent2 = volttron_instance.build_agent(identity='agent2')
 
     def stop():
         new_agent1.core.stop()
-        new_agent2.core.stop()
+
+    request.addfinalizer(stop)
 
     new_agent1.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic1, callback=onmessage1)
     new_agent1.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic2, callback=onmessage1)
     new_agent1.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic3, callback=onmessage1)
 
-    list_results = new_agent1.vip.pubsub.list(peer='pubsub', prefix=prefix0, bus='', subscribed=True, reverse=False,
-                               all_platforms=False)
+    list_results = new_agent1.vip.pubsub.list(peer='pubsub',
+                                              prefix=prefix0,
+                                              bus='',
+                                              subscribed=True,
+                                              reverse=False,
+                                              all_platforms=False).get()
 
     for result in list_results:
         tup_topic = result[topic_result_index]
         assert tup_topic in [test_topic1, test_topic2, test_topic3]
-        assert result[member_result_index] == True
+        assert result[member_result_index]
+
 
 @pytest.mark.rmq_pubsub
-def test_list_reverse(volttron_instance, request):
+def test_list_subscribed_reverse(volttron_instance, request):
     global message_count1
     message_count1 = 0
 
-    ### Test currently fails ###
+    topic_to_check = "testtopic1/test/foo/bar/one"
+    test_topic1 = "testtopic1/test/foo/bar"
+    test_topic2 = "testtopic1/test/foo"
+    test_topic3 = "testtopic1"
 
-    prefix0 = "testtopic1/test/foo/bar"
-    test_topic1 = "testtopic1/test/foo/bar/one"
-    test_topic2 = "testtopic1/test/foo/bar/two"
-    test_topic3 = "testtopic1/test/foo/bar/three"
-
-    tup_topic = ""
-    topic_result_index = 2
-    member_result_index = 3
+    topic_result_index = 1
+    member_result_index = 2
 
     def onmessage1(peer, sender, bus, topic, headers, message):
         global message_count1
-        if topic.startswith(prefix0):
+        if topic.startswith(topic_to_check):
             message_count1 += 1
 
-    new_agent1 = volttron_instance.build_agent(identity='agent1')
-    new_agent2 = volttron_instance.build_agent(identity='agent2')
+    new_agent1 = volttron_instance.build_agent(identity='agent_reverse')
 
     def stop():
         new_agent1.core.stop()
-        new_agent2.core.stop()
+
+    request.addfinalizer(stop)
 
     new_agent1.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic1, callback=onmessage1)
     new_agent1.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic2, callback=onmessage1)
     new_agent1.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic3, callback=onmessage1)
 
-    list_results = new_agent1.vip.pubsub.list(peer='pubsub', prefix=prefix0, bus='', subscribed=True, reverse=False,
-                                              all_platforms=False)
-
+    list_results = new_agent1.vip.pubsub.list(peer='pubsub',
+                                              prefix=topic_to_check,
+                                              bus='',
+                                              subscribed=True,
+                                              reverse=True,
+                                              all_platforms=False).get()
 
     for result in list_results:
-        tup_topic = result[topic_result_index]
-        assert tup_topic in [prefix0]
-        # assert tup_topic in [test_topic1, test_topic2, test_topic3]
+        topic = result[topic_result_index]
+        assert topic in [test_topic1, test_topic2, test_topic3]
         assert result[member_result_index] == True
 
 

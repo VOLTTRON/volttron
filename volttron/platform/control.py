@@ -2412,7 +2412,7 @@ def main(argv=sys.argv):
         rabbitmq_list_user_properties.add_argument('user', help='RabbitMQ user id')
         rabbitmq_list_user_properties.set_defaults(func=list_user_properties)
 
-        rabbitmq_list_exchanges = add_parser('list-exchanges', help='add a new user',
+        rabbitmq_list_exchanges = add_parser('list-exchanges', help='List exhanges',
                                              subparser=rabbitmq_subparsers)
         rabbitmq_list_exchanges.set_defaults(func=list_exchanges)
 
