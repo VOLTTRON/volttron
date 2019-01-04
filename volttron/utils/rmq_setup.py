@@ -961,10 +961,14 @@ def start_rabbit(rmq_home):
             if start:
                 _log.debug("Rabbitmq is not running. Attempting to start")
                 # attempt to start once
-                
-                subprocess.check_call(start_cmd)
-                gevent.sleep(15)  # give a few seconds for all plugins to start
-
+                p = subprocess.Popen(start_cmd)
+                out, err = p.communicate()
+                rc = p.returncode
+                if rc != 0:
+                    _log.error("Error starting rabbitmq at {} Command out: {} "
+                               "Command err: {}".format(rmq_home, out, err))
+                    raise subprocess.CalledProcessError(cmd=start_cmd,
+                                                        returncode=rc)
                 start = False
             else:
                 if i > 60:  # if more than a minute, may be something is wrong

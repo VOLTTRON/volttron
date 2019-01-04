@@ -32,7 +32,7 @@ definitions that we need to know before we proceed.
 
     #. Direct - Here, the message is routed to a queue if the routing key of the message exactly matches the binding key of the queue.
 
-    #. Topic - Here, the message isbind the queue  routed to a queue based on pattern matching of the routing key with the binding key. The binding key and the routing key pattern must be a list of words delimited by dots, for example, "car.subaru.outback" or "car.subaru.*", "car.#". A message sent with a particular routing key will be delivered to all the queues that are bound with a matching binding key with some special rules as
+    #. Topic - Here, the message is routed to a queue based on pattern matching of the routing key with the binding key. The binding key and the routing key pattern must be a list of words delimited by dots, for example, "car.subaru.outback" or "car.subaru.*", "car.#". A message sent with a particular routing key will be delivered to all the queues that are bound with a matching binding key with some special rules as
 
         '*' (star) - can match exactly one word in that position.
         '#' (hash) - can match zero or more words
