@@ -722,121 +722,104 @@ the other instance(RabbitMQ root ca)
 
 *DataMover Communication*
 
-The DataMover Historian is used to send data from one instance of VOLTTRON to another, over RPC to store in the remote historian database. The next steps describe how to configure DataMover Historian to use shovels.
+The DataMover historian running on one instance makes RPC call to platform historian running on remote
+instance to store data on remote instance. Platform historian agent returns response back to DataMover
+agent. For such a request-response behavior, shovels need to be created on both instances.
 
-Refer to steps 1-3 in previous section for configuring the RPC shovel instances required for using DataMover. But for step 3a, we are using the SQLHistorian (identity is platform.historian) and DataMover. As such the shovel configuration files for v1 and v2 are as follows:
-     
-     ```
-     For v1, the agent pair identities would be:
-     - [platform.historian, data.mover]
+1. Please ensure that preliminary steps for multi-platform communication are completed (namely,
+steps 1-3 described above) .
 
-     For v2, they would be:
-     - [data.mover, platform.historian]
-     ```
+2. To setup a data mover to send messages from local instance (say v1) to remote instance (say v2)
+and back, we would need to setup shovels on both instances.
+Example of RabbitMQ shovel configuration on v1
+```json
+shovel:
+  # hostname of remote machine
+  rabbit-2:
+    port: 5671
+    rpc:
+      # Remote instance name
+      v2:
+      # List of pair of agent identities (local caller, remote callee)
+      - [data.mover, platform.historian]
+    virtual-host: v1
+```
 
-1. Test the shovel / DataMover setup 
+This says that DataMover agent on v1 wants to make RPC call to platform historian on v2.
 
-   a. On v1 node:
-   Start SQLHistorian (identity is platform.historian). Easiest way to accomplish this is to stop VOLTTRON, reconfigure to have RabbitMQ message bus and install SQL historian and start VOLTTRON again.
-   
+```
+    vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
+```
+
+Example of RabbitMQ shovel configuration on v2
+```json
+shovel:
+  # hostname of remote machine
+  rabbit-1:
+    port: 5671
+    rpc:
+      # Remote instance name
+      v1:
+      # List of pair of agent identities (local caller, remote callee)
+      - [platform.historian, data.mover]
+    virtual-host: v2
+```
+This says that Hplatform historian on v2 wants to make RPC call to DataMover agent on v1.
+
+a. On v1, run below command to setup a shovel from v1 to v2.
+```
+vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
+```
+b. Create a user on v2 with username set to remote agent's username
+( for example, v1.data.mover i.e., <instance_name>.<agent_identity>) and allow
+the shovel access to the virtual host of v2.
+```sh
+cd $RABBITMQ_HOME
+vctl add-user <username> <password>
+```
+c. On v2, run below command to setup a shovel from v2 to v1
+```
+vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
+```
+d. Create a user on v1 with username set to remote agent's username
+( for example, v2.patform.historian i.e., <instance_name>.<agent_identity>) and allow
+the shovel access to the virtual host of the v1.
+```sh
+cd $RABBITMQ_HOME
+vctl add-user <username> <password>
+```
+3. Start Master driver agent on v1
    ```sh
-
-   ./stop-volttron
-
-   vcfg
-
-   Your VOLTTRON_HOME currently set to: /home/vdev/new_vhome2
-
-   Is this the volttron you are attempting to setup?  [Y]: 
-   What is the external instance ipv4 address? [tcp://127.0.0.1]: 
-   What is the instance port for the vip address? [22916]: 
-   What is type of message bus? [zmq]: rmq
-   Is this instance a volttron central? [N]: N
-   Will this instance be controlled by volttron central? [Y]: N
-   Would you like to install a platform historian? [N]: Y
-   Configuring /home/kirsten/volttron/services/core/SQLHistorian
-   Should agent autostart? [N]: N
-   Would you like to install a master driver? [N]: N
-   Would you like to install a listener agent? [N]: N
-   Finished configuration
-
-   You can now start the volttron instance.
-
-   If you need to change the instance configuration you can edit
-   the config file at /home/kirsten/.volttron1/config
-
-   ./start-volttron
-   ```
-   
-   
-   Start platform.historian
-   
-   b. On v2 node:
-   
-      Install master driver. 'vcfg --agent master_driver' command will setup a fake device and install master driver.
-
-   ```sh
-   
    ./stop-volttron
    vcfg --agent master_driver
    ./start-volttron
    vctl start --tag master_driver
    ```
-   
-   Install DataMover agent
-   
+4. Install DataMover agent on v1. Contents of the install script can look like below.
    ```sh
-   
-   #!/bin/bash
-   export CONFIG=$(mktemp /tmp/abc-script.XXXXXX)
-   cat > $CONFIG <<EOL
-   {
-       "destination-vip": "", 
-       "destination-serverkey": "",
-       "destination-instance-name": "volttron1",
-       "destination-message-bus": "rmq"
-   }
-   EOL
-   python /home/vdev/volttron/scripts/install-agent.py -c $CONFIG -s services/core/DataMover --start --force -i data.mover
-   # Finally remove the temporary config file
-   rm $CONFIG
-   ```
-   
-   
-   and start it. 
-   
-   
-   To confirm that the DataMover agent is working, run the ``tail -f volttron.log`` from the volttron directory to look for output similar to the following.
-   
-   On the v1 node:
-   
-   ```sh
-   
-   DEBUG: insert called by data.mover with 1 records
-   2018-12-28 14:39:45,148 (sqlhistorianagent-3.6.1 13416) volttron.platform.agent.base_historian DEBUG: Beginning publish loop.
-   2018-12-28 14:39:45,159 (sqlhistorianagent-3.6.1 13416) volttron.platform.dbutils.sqlitefuncts DEBUG: Managing store - timestamp limit: None  GB size limit: None
-   2018-12-28 14:39:45,169 (sqlhistorianagent-3.6.1 13416) volttron.platform.agent.base_historian INFO: Historian processed 13156 total records.
-   2018-12-28 14:39:45,169 (sqlhistorianagent-3.6.1 13416) volttron.platform.agent.base_historian DEBUG: Exiting publish loop.
+    #!/bin/bash
+    export CONFIG=$(mktemp /tmp/abc-script.XXXXXX)
+    cat > $CONFIG <<EOL
+    {
+        "destination-vip": "",
+        "destination-serverkey": "",
+        "destination-instance-name": "volttron2",
+        "destination-message-bus": "rmq"
+    }
+    EOL
+    python scripts/install-agent.py -s services/core/DataMover -c $CONFIG --start --force -i data.mover
+    ```
+Execute the install script.
 
-   ```
-   On the v2 node:
-   
-   ```sh
-   
-   2018-12-28 17:57:35,001 (master_driveragent-3.2 11848) master_driver.driver DEBUG: fake-campus/fake-building/fake-device next scrape scheduled: 2018-12-28 22:57:40+00:00
-   2018-12-28 17:57:35,002 (master_driveragent-3.2 11848) master_driver.driver DEBUG: scraping device: fake-campus/fake-building/fake-device
-   2018-12-28 17:57:35,002 (master_driveragent-3.2 11848) master_driver.driver DEBUG: publishing: devices/fake-campus/fake-building/fake-device/all
-   2018-12-28 17:57:35,007 (datamoveragent-0.1 17502) datamover.agent DEBUG: In capture data
-   2018-12-28 17:57:35,007 (datamoveragent-0.1 17502) datamover.agent DEBUG: message in capture_data [{'Heartbeat': False, 'PowerState': 0, 'temperature': 50.0, 'ValveState': 0}, {'Heartbeat': {'units': 'On/Off', 'type': 'integer', 'tz': 'US/Pacific'}, 'PowerState': {'units': '1/0', 'type': 'integer', 'tz': 'US/Pacific'}, 'temperature': {'units': 'Fahrenheit', 'type': 'integer', 'tz': 'US/Pacific'}, 'ValveState': {'units': '1/0', 'type': 'integer', 'tz': 'US/Pacific'}}]
-   2018-12-28 17:57:35,017 (datamoveragent-0.1 17502) volttron.platform.agent.base_historian DEBUG: Beginning publish loop.
-   2018-12-28 17:57:35,017 (datamoveragent-0.1 17502) datamover.agent DEBUG: publish_to_historian number of items: 1
-   2018-12-28 17:57:35,017 (datamoveragent-0.1 17502) datamover.agent DEBUG: Last timeout: 1546037766.0 current time: 1546037855.0
-   2018-12-28 17:57:35,017 (datamoveragent-0.1 17502) datamover.agent DEBUG: Sending to destination historian.
-   2018-12-28 17:57:35,037 (datamoveragent-0.1 17502) volttron.platform.agent.base_historian INFO: Historian processed 1905 total records.
-   2018-12-28 17:57:35,037 (datamoveragent-0.1 17502) volttron.platform.agent.base_historian DEBUG: Exiting publish loop.
-   2018-12-28 17:57:35,013 (master_driveragent-3.2 11848) master_driver.driver DEBUG: finish publishing: devices/fake-campus/fake-building/fake-device/all
-   ```
 
+5. Start platform historian of your choice on v2. Example shows starting SQLiteHistorian
+   ```sh
+   ./stop-volttron
+   vcfg --agent platform_historian
+   ./start-volttron
+   vctl start --tag platform_historian
+   ```
+6. Observe data getting stored in sqlite historian on v2.
    
 **Backward Compatibility With ZeroMQ Message Based VOLTTRON**
 
@@ -942,7 +925,7 @@ The ZeroMQ config file should look similar, with all references to RMQ being rep
 
 *Multi-Platform Connection*
 
-Currently, multi-platform connection works if the two platforms are the same (i.e. both instances are RabbitMQ or both instances are ZeroMQ), and if ZeroMQ runs the DataMover agent while RabbitMQ runs the SQLHistorian. RabbitMQ running DataMover and ZeroMQ running the SQLHistorian currently does **not** work. The below example demonstrates backward compatibility with the ZeroMQ instance running DataMover, and the RabbitMQ instance running SQLHistorian.
+The below example demonstrates backward compatibility using multi-platform connection method.
 
 1. Refer to steps 1 -3 in the previous section for configuring two VOLTTRON instances (one with RabbitMQ and one with ZeroMQ). For step 3, the VOLTTRON config files need to account for a web-server, which is necessary for multi-platform communication. As such, the config files should look similar to the following: 
 
@@ -984,6 +967,8 @@ Currently, multi-platform connection works if the two platforms are the same (i.
    rm $CONFIG
    ```
    
+   Replace "rmq server key" with the RabbitMQ server key.
+   
    In this example the DataMover will be running on the ZeroMQ instance, which means that the destination vip, serverkey, and instance name are configured to the RabbitMQ instance. However, destination-message-bus should be set to zmq. Start DataMover agent.
    
    b. Install master driver, configure fake device on upstream server and start volttron and master driver. 'vcfg --agent master_driver' command can install master driver and setup a fake device.
@@ -1000,36 +985,13 @@ Currently, multi-platform connection works if the two platforms are the same (i.
     a. Start SQLHistorian. Easiest way to accomplish this is to stop VOLTTRON, reconfigure to have RabbitMQ message bus and install platform.historian already installed, and start VOLTTRON again.
    
    ```sh
-
-   ./stop-volttron
-
-   vcfg
-
-   Your VOLTTRON_HOME currently set to: /home/vdev/new_vhome2
-
-   Is this the volttron you are attempting to setup?  [Y]: 
-   What is the external instance ipv4 address? [tcp://127.0.0.1]: 
-   What is the instance port for the vip address? [22916]: 
-   What is type of message bus? [zmq]: rmq
-   Is this instance a volttron central? [N]: N
-   Will this instance be controlled by volttron central? [Y]: N
-   Would you like to install a platform historian? [N]: Y
-   Configuring /home/kirsten/volttron/services/core/SQLHistorian
-   Should agent autostart? [N]: N
-   Would you like to install a master driver? [N]: N
-   Would you like to install a listener agent? [N]: N
-   Finished configuration
-
-   You can now start the volttron instance.
-
-   If you need to change the instance configuration you can edit
-   the config file at /home/kirsten/.volttron1/config
-
-   ./start-volttron
+   
+      ./stop-volttron
+      vcfg --agent platform_historian
+      ./start-volttron
+      vctl start --tag platform_historian
+   
    ```
-   
-   
-   Start platform.historian
    
    b.  Run a listener agent which subscribes to messages from all platforms
    
