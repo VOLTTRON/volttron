@@ -53,6 +53,7 @@
 # under Contract DE-AC05-76RL01830
 
 # }}}
+from collections import namedtuple
 import datetime
 import json
 import logging
@@ -89,6 +90,31 @@ PROMPT_PASSPHRASE = False
 
 class CertError(Exception):
     pass
+
+
+SubjectObj = namedtuple("SubjectObj",
+                        ('country', 'state', 'location',
+                         'organization', 'organization_unit', 'common_name'))
+
+
+class Subject(SubjectObj):
+    @staticmethod
+    def create_from_x509_subject(subject):
+        mapping = {
+            'common_name': subject.get_attributes_for_oid(
+                NameOID.COMMON_NAME)[0].value,
+            'country': subject.get_attributes_for_oid(
+                NameOID.COUNTRY_NAME)[0].value,
+            'state': subject.get_attributes_for_oid(
+                NameOID.STATE_OR_PROVINCE_NAME)[0].value,
+            'location': subject.get_attributes_for_oid(
+                NameOID.LOCALITY_NAME)[0].value,
+            'organization': subject.get_attributes_for_oid(
+                NameOID.ORGANIZATION_NAME)[0].value,
+            'organization_unit': subject.get_attributes_for_oid(
+                NameOID.ORGANIZATIONAL_UNIT_NAME)[0].value
+        }
+        return Subject(**mapping)
 
 
 def _create_subject(**kwargs):
@@ -344,6 +370,13 @@ class Certs(object):
                 self.cert_file(name)))
         return _load_cert(self.cert_file(name))
 
+    def get_subjects(self):
+        subjects = []
+        for fname in os.listdir(self.cert_dir):
+            cert = _load_cert(self.cert_file(fname[:-4]))
+            subjects.append(Subject.create_from_x509_subject(cert.subject))
+        return subjects
+
     def cert_exists(self, cert_name):
         """
         Verifies that the cert exists by filename.
@@ -373,6 +406,7 @@ class Certs(object):
             'common-name':value
         }
         """
+
         subject = self.cert(name).subject
         return {
             'common-name': subject.get_attributes_for_oid(
