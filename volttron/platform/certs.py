@@ -340,13 +340,16 @@ class Certs(object):
                                         'private')
         self.ca_db_dir = os.path.join(os.path.expanduser(certificate_dir),
                                       'ca_db')
+        self.csr_pending_dir = os.path.join(os.path.expanduser(certificate_dir),
+                                            'pending_csr')
+        self.csr_created_dir = os.path.join(os.path.expanduser(certificate_dir),
+                                            'created_csr')
 
-        if not os.path.exists(self.cert_dir):
-            os.makedirs(self.cert_dir, 0o755)
-        if not os.path.exists(self.private_dir):
-            os.makedirs(self.private_dir, 0o755)
-        if not os.path.exists(self.ca_db_dir):
-            os.makedirs(self.ca_db_dir, 0o755)
+        required_paths = (self.cert_dir, self.private_dir, self.ca_db_dir,
+                          self.csr_pending_dir, self.csr_created_dir)
+        for p in required_paths:
+            if not os.path.exists(p):
+                os.makedirs(p, 0o755)
 
     def ca_cert(self):
         """
