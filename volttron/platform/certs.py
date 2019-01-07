@@ -92,12 +92,9 @@ class CertError(Exception):
     pass
 
 
-SubjectObj = namedtuple("SubjectObj",
-                        ('country', 'state', 'location',
-                         'organization', 'organization_unit', 'common_name'))
-
-
-class Subject(SubjectObj):
+class Subject(namedtuple("SubjectObj",
+                         ('country', 'state', 'location',
+                          'organization', 'organization_unit', 'common_name'))):
     @staticmethod
     def create_from_x509_subject(subject):
         mapping = {
