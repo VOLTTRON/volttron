@@ -517,6 +517,11 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False):
     # Load either the newly created config or config passed
     try:
         rmq_config.load_rmq_config()
+
+    except (yaml.parser.ParserError, yaml.scanner.ScannerError) as exc:
+        _log.error("Error: YAML file cannot parsed properly. Check the contents of the file")
+        return exc
+
     except (IOError, yaml.YAMLError) as exc:
         _log.error("Error opening {}. Please create a rabbitmq_config.yml "
                    "file in your volttron home. If you want to point to a "
@@ -529,6 +534,7 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False):
                    "volttron instance with which communication needs "
                    "to be established. Please refer to example config file "
                    "at examples/configurations/rabbitmq/rabbitmq_config.yml")
+        raise
         return exc
 
     invalid = True
@@ -937,6 +943,7 @@ def start_rabbit(rmq_home):
     #  purpose. shovel_status comes close...
     status_cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "shovel_status"]
     start_cmd = [os.path.join(rmq_home, "sbin/rabbitmq-server"), "-detached"]
+
 
     i = 0
     started = False

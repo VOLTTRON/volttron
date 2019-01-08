@@ -86,8 +86,13 @@ class RMQConfig(object):
                         self.config_opts['rmq-home'])
         except IOError as exc:
             raise
+        except (yaml.parser.ParserError, yaml.scanner.ScannerError) as exc:
+            _log.error("The rabbitmq config file contain invalid syntax. Fix and restart platform. {}.".format(exc))
+            raise
         except yaml.YAMLError as exc:
-            print("The rabbitmq config file contain invalid syntax. Fix and restart platform.")
+           # _log.error("The rabbitmq config file contain invalid syntax. Fix and restart platform {}.".format(exc))
+            raise
+
 
     def write_rmq_config(self, volttron_home=None):
         """
