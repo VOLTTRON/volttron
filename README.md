@@ -382,10 +382,10 @@ and should be running on machine/VM that has a unique host name.***__
       For example:
       
       On v1:
-      cat /tmp/v2-root-ca.crt >> /home/vdev/  .my_volttron_home/certificates/v1-trusted-cas.crt
+      cat /tmp/v2-root-ca.crt >> VOLTTRON_HOME/certificates/certs/v1-trusted-cas.crt
       
       On v2:
-      cat /tmp/v1-root-ca.crt >> /home/vdev/ .my_volttron_home/certificates/v2-trusted-cas.crt
+      cat /tmp/v1-root-ca.crt >> VOLTTRON_HOME/certificates/certs/v2-trusted-cas.crt
 
 3. Stop volttron, stop rabbitmq server and start volttron on both the
 instances. This is required only when you update the root certificate and not
@@ -486,16 +486,17 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
 **Using Shovel Plugin**
 
-In RabbitMQ based VOLTTRON, forwarder and data puller agents will be replaced by shovels
+In RabbitMQ based VOLTTRON, forwarder and data mover agents will be replaced by shovels
 to send or receive remote pubsub messages.
 Shovel behaves like a well written client application that connects to its source
 ( can be local or remote ) and destination ( can be local or remote instance ),
 reads and writes messages, and copes with connection failures. In case of shovel, apart
 from configuring the hostname, port and virtual host of the remote instance, we will
-also have to provide list of topics that we want to forward to remote instance and associated
-publisher agent identities. Shovels can also be used for remote RPC communication in which
-case we would have to create shovel in both the instances, one to send the RPC request and
-other to send the response back.
+also have to provide list of topics that we want to forward to remote instance. Shovels
+can also be used for remote RPC communication in which case we would have to create shovel
+in both the instances, one to send the RPC request and other to send the response back.
+
+*Pubsub Communication*
 
 Following are the steps to create Shovel for multi-platform pubsub communication.
 
@@ -515,9 +516,9 @@ Please note that each instance should have a unique instance name.
    b. Append the contents of the transferred root ca to the instance's root ca.
    For example:
    On v1:
-   cat /tmp/v2-root-ca.crt >> /home/vdev/.my_volttron_home/certificates/v1-root-ca.crt
+   cat /tmp/v2-root-ca.crt >> VOLTTRON_HOME/certificates/v1-root-ca.crt
    On v2:
-   cat /tmp/v1-root-ca.crt >> /home/vdev/.my_volttron_home/certificates/v2-root-ca.crt
+   cat /tmp/v1-root-ca.crt >> VOLTTRON_HOME/certificates/v2-root-ca.crt
 
 3. Identify the instance that is going to act as the "publisher" instance. Suppose
 "v1" instance is the "publisher" instance and "v2" instance is the "subscriber"
@@ -537,12 +538,12 @@ certain topics to remote instance "v2".
 
         If no config file is provided, the script will prompt for
         hostname (or IP address), port, vhost and list of topics for each
-        remote instance you would like to add. For bi-directional data flow,
-        we will have to run the same script on both the nodes.
+        remote instance you would like to add. For
+        bi-directional data flow, we will have to run the same script on both the nodes.
 
-    b.  Create a user in the subscriber node with username set to publisher agent's username
-        ( for example, v1.platform.driver i.e., <instance_name>.<agent_identity>) and allow
-        the shovel access to the virtual host of the subscriber node.
+    b.  Create a user in the subscriber node with username set to publisher instance's
+        agent name ( (instance-name)-PublisherAgent ) and allow the shovel access to
+        the virtual host of the subscriber node.
 
         ```sh
         cd $RABBITMQ_HOME
@@ -585,16 +586,148 @@ certain topics to remote instance "v2".
    vctl rabbitmq remove-shovel-parameters shovel-rabbit-3-devices
    ```
 
-Following are the steps to create Shovel for multi-platform RPC communication. Example
-configuration can be found in examples/configurations/rabbitmq/rabbitmq_shovel_config.yml. We
-shall explain remote RPC communication using DataMover agent as an example but same principle
-needs to be applied to any agent that wants to make RPC call to an agent running on remote instance.
-DataMover agent running on one instance makes RPC call to platform historian running on remote
+*RPC Communication*
+
+Following are the steps to create Shovel for multi-platform RPC communication.
+
+1. Setup two VOLTTRON instances using the steps described in installation section.
+Please note that each instance should have a unique instance name.
+
+2. In a multi platform setup that need to communicate with each other with
+RabbitMQ over SSL, each VOLTTRON instance should should trust the ROOT CA of
+the other instance(RabbitMQ root ca)
+
+    a.  Transfer (scp/sftp/similar)
+   voltttron_home/certificates/certs/<instance_name>-root-ca.crt to a temporary
+   location on the other volttron instance machine. For example, if you have two
+   instance v1 and v2, scp v1's v1-root-ca.crt to v2 and
+   v2-root-ca.crt to v1.
+
+    b. Append the contents of the transferred root ca to the instance's root ca.
+   For example:
+
+   On v1:
+   cat /tmp/v2-root-ca.crt >> VOLTTRON_HOME/certificates/v1-root-ca.crt
+   On v2:
+   cat /tmp/v1-root-ca.crt >> VOLTTRON_HOME/certificates/v2-root-ca.crt
+
+
+3. Typically RPC communication is 2 way communication so we will to setup shovel in both the VOLTTRON instances. In RPC calls there are two instances of shovel. One serving as the caller (makes RPC request) and the other acting as a callee (replies to RPC request). Identify the instance is the "caller" and which is the "callee." Suppose "v1" instance is the "caller" instance and "v2" instance is the "callee" instance.
+
+   a. On both the caller and callee nodes, shovel instances need to be created. In this example, v1’s shovel would forward the RPC call    request from an agent on v1 to v2 and similarly v2’s shovel will forward the RPC reply from agent on v2 back to v1.
+
+
+     ```
+     vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml containing the details of the
+     **remote** hostname, port, vhost, volttron instance name (so in v1's yml file parameters would point to v2
+     and vice versa), and list of agent pair identities (local caller, remote callee). Example configuration for shovel
+     is available in examples/configurations/rabbitmq/rabbitmq_shovel_config.yml.]
+     
+     For this example, let's say that we are using the schedule-example and acutator agents.
+
+     For v1, the agent pair identities would be:
+     - [Scheduler, platform.actuator]
+
+     For v2, they would be:
+     - [platform.actuator, Scheduler]
+
+     Indicating the flow from local agent to remote agent.
+     ```
+
+     If no config file is provided, the script will prompt for hostname (or IP address), port, vhost and
+     list of agent pairs for each remote instance you would like to add.
+
+
+   b. On the caller node create a user with username set to callee instance's agent name ( (instance-name)-RPCCallee ) and allow the      shovel access to the virtual host of the callee node. Similarly, on the callee node, create a user with username set to caller       instance's agent name ( (instance-name)-RPCCaller ) and allow the shovel access to the virtual host of the caller node.
+
+        ```sh
+        cd $RABBITMQ_HOME
+        vctl add-user <username> <password>
+        ```
+
+4. Test the shovel setup 
+
+   a. On caller node:
+
+
+	   Make necessary changes to RPC methods of  caller agent.
+
+	    For this example, in volttron/examples/SchedulerExample/schedule_example/agent.py:
+	    * Search for 'campus/building/unit' in publish_schedule method. Replace with
+	    'devices/fake-campus/fake-building/fake-device'
+	    * Search for ['campus/building/unit3',start,end] in the use_rpc method, replace with:                 msg = [
+			   ['fake-campus/fake-building/fake-device',start,end].
+	    * Add: kwargs = {"external_platform": 'v2'} on the line below
+	    * On the result = self.vip.rpc.call method below, replace "msg).get(timeout=10)" with:
+		  msg, **kwargs).get(timeout=10),
+	    * In the second try clause of the use_rpc method:
+		* Replace result['result'] with result[0]['result']
+		* Add kwargs = {"external_platform": 'v2'} as the first line of the if statement
+		* Replace 'campus/building/unit3/some_point' with 'fake-campus/fake-building/fake-device/PowerState'
+		* Below 'fake-campus/fake-building/fake-device/PowerState' add: 0,
+		* Replace '0.0').get(timeout=10) with **kwargs).get(timeout=10)
+
+
+   Next, install an example scheduler agent:
+   
+   ```sh
+   #!/bin/bash
+   python /home/username/volttron/scripts/install-agent.py -c /home/username/volttron/examples/SchedulerExample/schedule-example.agent -s examples/SchedulerExample --start --force -i Scheduler
+   ```
+
+   and start it.
+
+
+   b. On the callee node:
+
+   Run upgrade script to install actuator agent.
+
+   ```sh
+     #!/bin/bash
+     python /home/username/volttron/scripts/install-agent.py -s services/core/ActuatorAgent --start --force -i platform.actuator
+   ```
+    
+   Run the upgrade script to install the listener agent.
+   
+   ```sh
+   scripts/core/upgrade-listener
+   ```   
+
+
+   Install master driver, configure fake device on upstream callee and start volttron and master driver.
+   vcfg --agent master_driver command can install master driver and setup a fake device.
+   
+    ```sh
+    
+    ./stop-volttron
+    vcfg --agent master_driver
+    ./start-volttron
+    vctl start --tag master_driver
+    ```
+
+   Start actuator agent and listener agents.
+
+   The output for the callee node with a successful shovel run should look similar to:
+   ```sh
+   2018-12-19 15:38:00,009 (listeneragent-3.2 13039) listener.agent INFO: Peer: pubsub, Sender: platform.driver:, Bus: , Topic: devices/fake-campus/fake-building/fake-device/all, Headers: {'Date': '2018-12-19T20:38:00.001684+00:00', 'TimeStamp': '2018-12-19T20:38:00.001684+00:00', 'min_compatible_version': '5.0', 'max_compatible_version': u'', 'SynchronizedTimeStamp': '2018-12-19T20:38:00.000000+00:00'}, Message:
+    [{'Heartbeat': True, 'PowerState': 0, 'ValveState': 0, 'temperature': 50.0},
+     {'Heartbeat': {'type': 'integer', 'tz': 'US/Pacific', 'units': 'On/Off'},
+      'PowerState': {'type': 'integer', 'tz': 'US/Pacific', 'units': '1/0'},
+      'ValveState': {'type': 'integer', 'tz': 'US/Pacific', 'units': '1/0'},
+      'temperature': {'type': 'integer',
+                      'tz': 'US/Pacific',
+                      'units': 'Fahrenheit'}}]
+
+   ```
+
+*DataMover Communication*
+
+The DataMover historian running on one instance makes RPC call to platform historian running on remote
 instance to store data on remote instance. Platform historian agent returns response back to DataMover
 agent. For such a request-response behavior, shovels need to be created on both instances.
 
 1. Please ensure that preliminary steps for multi-platform communication are completed (namely,
-steps 1 and 2 described above) .
+steps 1-3 described above) .
 
 2. To setup a data mover to send messages from local instance (say v1) to remote instance (say v2)
 and back, we would need to setup shovels on both instances.
@@ -612,7 +745,7 @@ shovel:
     virtual-host: v1
 ```
 
-This says that DataMover agent on v1 wants to make RPC call to Historian agent on v2.
+This says that DataMover agent on v1 wants to make RPC call to platform historian on v2.
 
 ```
     vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
@@ -631,7 +764,7 @@ shovel:
       - [platform.historian, data.mover]
     virtual-host: v2
 ```
-This says that Historian agent on v2 wants to make RPC call to DataMover agent on v1.
+This says that Hplatform historian on v2 wants to make RPC call to DataMover agent on v1.
 
 a. On v1, run below command to setup a shovel from v1 to v2.
 ```
@@ -668,8 +801,8 @@ vctl add-user <username> <password>
     export CONFIG=$(mktemp /tmp/abc-script.XXXXXX)
     cat > $CONFIG <<EOL
     {
-        "destination-vip": "amqp://test2:test2@localhost:5672/test2",
-        "destination-serverkey": "1yEUcpIcQTJzpvEwl-7KNCxe_f5rhhoShv9f3A8wdUg",
+        "destination-vip": "",
+        "destination-serverkey": "",
         "destination-instance-name": "volttron2",
         "destination-message-bus": "rmq"
     }
@@ -687,7 +820,231 @@ Execute the install script.
    vctl start --tag platform_historian
    ```
 6. Observe data getting stored in sqlite historian on v2.
+   
+**Backward Compatibility With ZeroMQ Message Based VOLTTRON**
 
+RabbitMQ VOLTTRON supports backward compatibility with ZeroMQ based VOLTTRON. RabbitMQ VOLTTRON has a ZeroMQ router running internally to accept incoming ZeroMQ connections and to route ZeroMQ messages coming in/going out of it's instance. There are multiple ways for an instance with a RabbitMQ message bus, and an instance with ZeroMQ message bus to connect with each other. For example, an agent from one instance can directly connect to the remote instance to publish or pull data from it. Another way is through multi-platform communication, where the VOLTTRON platform is responsible for connecting to the remote instance. For more information on multi-platform communication, see https://volttron.readthedocs.io/en/develop/core_services/multiplatform/Multiplatform-Communication.html.
+
+*Agent Connecting Directly to Remote Instance*
+
+The following steps are to demonstrate how RabbitMQ VOLTTRON is backward compatible with ZeroMQ VOLTTRON, using the Forward Historian as an example.
+
+1. In order for RabbitMQ and ZeroMQ VOLTTRONs to communicate with each other, one needs two instances of VOLTTRON_HOME on the same VM. To create a new instance of VOLTTRON_HOME use the command.
+
+   ``export VOLTTRON_HOME=~/.new_volttron_home``
+
+   It is recommended that one uses multiple terminals to keep track of both instances.
+
+2. Start VOLTTRON on both instances. Note: since the start-volttron script uses the volttron.log by default, the second instance will need be started manually in the background, using a separate log. For example:
+
+   ``volttron -vv -l volttron-two.log&``
+
+3. Modify the configuration file for both instances. The config file is located at ``$VOLTTRON_HOME/config``
+
+For RabbitMQ VOLTTRON, the config file should look similar to:
+
+```sh
+[volttron]  
+message-bus = rmq  
+vip-address = tcp://127.0.0.1:22916  
+instance-name = volttron_rmq  
+```
+
+The ZeroMQ config file should look similar, with all references to RMQ being replaced with ZMQ, and a different vip-address (e.g. tcp://127.0.0.2:22916).
+
+4. On the instance running ZeroMQ:
+
+   a. Install the Forward Historian agent using an upgrade script similar to:
+
+   ```python
+   #!/bin/bash
+   export CONFIG=$(mktemp /tmp/abc-script.XXXXXX)
+   cat > $CONFIG <<EOL
+   {
+       "destination-vip": "tcp://127.0.0.1:22916",
+       "destination-serverkey": "key"
+   }
+   EOL
+   python /home/username/volttron/scripts/install-agent.py -c $CONFIG -s services/core/ForwardHistorian --start --force -i forward.historian
+   # Finally remove the temporary config file
+   rm $CONFIG
+   ```
+   
+   Since we are attempting to push data from the local (ZeroMQ in this example) to the remote (RabbitMQ) instance, the we would need the RabbitMQ serverkey, which can be obtained by running ``vctl auth serverkey`` on the RabbitMQ instance. Start the Forward Historian.
+
+   b. Install master driver, configure fake device on upstream server and start volttron and master driver. vcfg --agent master_driver command can install master driver and setup a fake device.
+
+   ```sh
+   ./stop-volttron
+   vcfg --agent master_driver
+   ./start-volttron
+   vctl start --tag master_driver
+   ```
+
+5. On the instance running RabbitMQ:
+
+   a. Run a listener agent which subscribes to messages from all platforms
+   
+     - Open the file examples/ListenerAgent/listener/agent.py. Search for @PubSub.subscribe('pubsub', '') and replace that         line with @PubSub.subscribe('pubsub', 'devices', all_platforms=True)
+     - updgrade the listener
+     ```sh
+        scripts/core/upgrade-listener
+     ```   
+     
+   b. Provide the RabbitMQ instance with the public key of the Forward Historian running on ZeroMQ instance. 
+   
+      Run ``vctl auth public key`` on the ZeroMQ instance. Copy the output and add the public key to the RabbitMQ instance's auth.config file, using the defaults except for the user_id and credentials.
+      
+      ```sh
+      
+      vctl auth add
+      domain []: 
+      address []: 
+      user_id []: forward
+      capabilities (delimit multiple entries with comma) []: 
+      roles (delimit multiple entries with comma) []: 
+      groups (delimit multiple entries with comma) []: 
+      mechanism [CURVE]: 
+      credentials []: key
+      comments []: 
+      enabled [True]: 
+      ```
+      
+      Once that is completed you should be able to see data similar to below in the log of the volttron instance running RabbitMQ:
+      
+      ```sh
+         2018-12-31 14:48:10,043 (listeneragent-3.2 7175) listener.agent INFO: Peer: pubsub, Sender: forward.historian:, Bus: , Topic: devices/fake-campus/fake-building/fake-device/all, Headers: {'X-Forwarded': True, 'SynchronizedTimeStamp': '2018-12-31T19:48:10.000000+00:00', 'TimeStamp': '2018-12-31T19:48:10.001966+00:00', 'max_compatible_version': u'', 'min_compatible_version': '3.0', 'Date': '2018-12-31T19:48:10.001966+00:00'}, Message: 
+   [{'Heartbeat': True, 'PowerState': 0, 'ValveState': 0, 'temperature': 50.0},
+    {'Heartbeat': {'type': 'integer', 'tz': 'US/Pacific', 'units': 'On/Off'},
+     'PowerState': {'type': 'integer', 'tz': 'US/Pacific', 'units': '1/0'},
+     'ValveState': {'type': 'integer', 'tz': 'US/Pacific', 'units': '1/0'},
+     'temperature': {'type': 'integer',
+                     'tz': 'US/Pacific',
+                     'units': 'Fahrenheit'}}]
+      ```
+
+*Multi-Platform Connection*
+
+The below example demonstrates backward compatibility using multi-platform connection method.
+
+1. Refer to steps 1 -3 in the previous section for configuring two VOLTTRON instances (one with RabbitMQ and one with ZeroMQ). For step 3, the VOLTTRON config files need to account for a web-server, which is necessary for multi-platform communication. As such, the config files should look similar to the following: 
+
+   ```sh
+   [volttron]
+   message-bus = rmq
+   vip-address = tcp://127.0.0.1:22916
+   instance-name = volttron_rmq
+   bind-web-address = http://127.0.0.1:8080
+   ```
+
+
+2. Create an external_address.json file in the VOLTTRON_HOME directory for both instances, with the IP address and port of the remote instance(s) it will need to connect to. In this example, the RabbitMQ would have the address of the ZeroMQ instance, and vice versa. Below is an example for one instance:
+
+   ```json
+   [
+      "http://127.0.0.2:8080"
+   ]
+   ```
+
+3. On the instance running ZeroMQ:
+
+   a. Install the DataMover agent using an upgrade script similar to:
+
+  
+   ```python
+   #!/bin/bash
+   export CONFIG=$(mktemp /tmp/abc-script.XXXXXX)
+   cat > $CONFIG <<EOL
+   {
+       "destination-vip": "tcp://127.0.0.1:22916",
+       "destination-serverkey": "rmq server key", 
+       "destination-instance-name": "volttron_rmq",
+       "destination-message-bus": "zmq"
+   }
+   EOL
+   python /home/osboxes/volttron/scripts/install-agent.py -c $CONFIG -s services/core/DataMover --start --force -i data.mover
+   # Finally remove the temporary config file
+   rm $CONFIG
+   ```
+   
+   Replace "rmq server key" with the RabbitMQ server key.
+   
+   In this example the DataMover will be running on the ZeroMQ instance, which means that the destination vip, serverkey, and instance name are configured to the RabbitMQ instance. However, destination-message-bus should be set to zmq. Start DataMover agent.
+   
+   b. Install master driver, configure fake device on upstream server and start volttron and master driver. 'vcfg --agent master_driver' command can install master driver and setup a fake device.
+
+   ```sh
+   ./stop-volttron
+   vcfg --agent master_driver
+   ./start-volttron
+   vctl start --tag master_driver
+   ``` 
+   
+4. On the instance running RabbitMQ:
+
+    a. Start SQLHistorian. Easiest way to accomplish this is to stop VOLTTRON, reconfigure to have RabbitMQ message bus and install platform.historian already installed, and start VOLTTRON again.
+   
+   ```sh
+   
+      ./stop-volttron
+      vcfg --agent platform_historian
+      ./start-volttron
+      vctl start --tag platform_historian
+   
+   ```
+   
+   b.  Run a listener agent which subscribes to messages from all platforms
+   
+     - Open the file examples/ListenerAgent/listener/agent.py. Search for @PubSub.subscribe('pubsub', '') and replace that line with @PubSub.subscribe('pubsub', 'devices', all_platforms=True)
+     - updgrade the listener
+     ```sh
+        scripts/core/upgrade-listener
+     ``` 
+     
+   c. Provide the RabbitMQ instance with the public key of the DataMover running on ZeroMQ instance. 
+   
+      Run ``vctl auth public key`` on the ZeroMQ instance. Copy the output and add the public key to the RabbitMQ instance's auth.config file, using the defaults except for the user_id and credentials.
+      
+      ```sh
+      
+      vctl auth add
+      domain []: 
+      address []: 
+      user_id []: forward
+      capabilities (delimit multiple entries with comma) []: 
+      roles (delimit multiple entries with comma) []: 
+      groups (delimit multiple entries with comma) []: 
+      mechanism [CURVE]: 
+      credentials []: key
+      comments []: 
+      enabled [True]: 
+      ```
+      
+5. Stop VOLTTRON on both instances, and restart using setup mode. 
+   ```sh
+   volttron -vv -l volttron.log --setup-mode&
+   ```
+   
+   If you tail the logs of both instances, there should be a message indicating that starting with setup mode was complete upon success.
+   
+   After a successful start, a new file called external_platform_discovery.json should be located in the $VOLTTRON_HOME directory of both instances. The file will contain the platform discovery information ( ), of all external platforms the respective VOLTTRON instance is aware of. The file will look something like:
+   
+   ```sh
+   {"<platform1 name>": {"vip-address":"tcp://<ip1>:<vip port1>",
+                     "instance-name":"<platform1 nam>",
+                     "serverkey":"<serverkey1>"
+                     },
+    "<platform2 name>": {"vip-address":"tcp://<ip2>:<vip port2>",
+                     "instance-name":"<platform2 name>",
+                     "serverkey":"<serverkey2>"
+                     },
+    "<platform3 name>": {"vip-address":"tcp://<ip3>:<vip port3>",
+                     "instance-name":"<platform3 name>",
+                     "serverkey":"<serverkey3>"
+                     },
+    ......
+   }
+   ```
 
 ** RabbitMQ Trouble Shooting **
 
@@ -728,19 +1085,21 @@ Execute the install script.
       iii. "no_suitable_auth_mechanism" - Check if the AMPQ/S ports are correctly
            configured.
 
-   2. Check the RabbitMQ logs for any errors.
+   3. Check the RabbitMQ logs for any errors.
 
        ```
        tail -f <volttron source dir>/rabbitmq.log
        ```
 
 
-   3. If rabbitmq startup hangs
+   4. If rabbitmq startup hangs
+      
       a. Check for errors in rabbitmq log. There is a rabbitmq.log file in your
       volttron source directory that is a symbolic link to the rabbitmq server
       logs.
 
       b. Check for errors in syslog (/var/log/syslog or /var/log/messages)
+      
       c. If there are no errors in either of the logs, stop rabbitmq and
          starting rabbitmq server in foreground and see if there are any errors
          written on the console. Once you find the error you can kill the
@@ -753,15 +1112,17 @@ Execute the install script.
          @RABBITMQ_HOME/sbin/rabbitmq-server
          ```
 
-   4. ssl trouble shooting.
+   5. ssl trouble shooting.
       There are few things that are essential for SSL certificates to work
       right.
+      
       a. Please use a unique common-name for CA certificate for each volttron
          instance. This is configured under certificate-data in the
          rabbitmq_config.yml or if no yml file is used while configuring a
          volttron single instance (using vcfg --rabbitmq single). Certificate
          generated for agent will automatically get agent's vip identity as the
          certificate's common-name
+	 
       b. host name in ssl certificate should match hostname used to access the
       server. For example, if the fully qualified domain name was configured in
       the certificate-data, you should use the fully qualified domain name to
@@ -770,7 +1131,11 @@ Execute the install script.
       c. Check if your system time is correct especially if you are running
       virtual machines. If the system clock is not right, it could lead to
       ssl certificate errors
-
+   
+   6. DataMover troubleshooting. 
+      a. If output from volttron.log is not as expected check for  ``{'alert_key': 'historian_not_publishing'}`` in the callee node's volttron.log. Most likely cause is the historian is not running properly or credentials between caller and callee nodes was not set properly.  
+      
+      
 
 ## Next Steps
 We request you to explore and contribute towards development of VOLTTRON message
