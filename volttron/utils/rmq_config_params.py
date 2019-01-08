@@ -39,6 +39,7 @@
 import os
 import logging
 
+
 try:
     import yaml
 except ImportError:
@@ -86,7 +87,7 @@ class RMQConfig(object):
         except IOError as exc:
             raise
         except yaml.YAMLError as exc:
-            raise
+            print("The rabbitmq config file contain invalid syntax. Fix and restart platform.")
 
     def write_rmq_config(self, volttron_home=None):
         """
