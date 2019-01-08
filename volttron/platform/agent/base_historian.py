@@ -114,7 +114,7 @@ publishing thread as soon as possible.
 At startup the publishing thread calls two methods:
 
 - :py:meth:`BaseHistorianAgent.historian_setup` to give the implemented
-Historian a chance to setup any connections in the thread. This method can
+historian a chance to setup any connections in the thread. This method can
 also be used to load an initial data into memory
 - :py:meth:`BaseQueryHistorianAgent.record_table_definitions` to give the
 implemented Historian a chance to record the table/collection names into a
