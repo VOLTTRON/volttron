@@ -114,7 +114,8 @@ publishing thread as soon as possible.
 At startup the publishing thread calls two methods:
 
 - :py:meth:`BaseHistorianAgent.historian_setup` to give the implemented
-Historian a chance to setup any connections in the thread.
+Historian a chance to setup any connections in the thread. This method can
+also be used to load an initial data into memory
 - :py:meth:`BaseQueryHistorianAgent.record_table_definitions` to give the
 implemented Historian a chance to record the table/collection names into a
 meta table/collection with the named passed as parameter. The implemented
@@ -138,7 +139,14 @@ The process thread then enters the following logic loop:
 
 The logic will also forgo waiting the `retry_period` for new data to appear
 when checking for new data if publishing has been successful and there is
-still data in the cache to be publish.
+still data in the cache to be publish. If
+:py:meth:`BaseHistorianAgent.historian_setup` or
+:py:meth:`BaseQueryHistorianAgent.record_table_definitions` throw exception
+and alert is raised but the process loop continues to wait for data and
+caches it. The process loop will periodically try to call the two methods
+again until successful. Exception thrown by
+:py:meth:`BaseHistorianAgent.publish_to_historian` would also raise alerts
+and process loop will continue to back up data.
 
 Storing Data
 ------------
