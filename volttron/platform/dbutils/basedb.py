@@ -303,8 +303,6 @@ class DbDriver(object):
         :return: True if execution completes. raises Exception if unable to
         connect to database
         """
-        _log.debug("INSERTING DATA {} {} {}".format(ts, topic_id,
-                                                    jsonapi.dumps(data)))
         self.execute_stmt(self.insert_data_query(),
                           (ts, topic_id, jsonapi.dumps(data)), commit=False)
         return True
@@ -318,7 +316,6 @@ class DbDriver(object):
                  Raises exception if unable to connect to database
         """
         with closing(self.cursor()) as cursor:
-            _log.debug("INSERTING TOPIC: {}".format(topic))
             cursor.execute(self.insert_topic_query(), (topic,))
             return cursor.lastrowid
 

@@ -430,6 +430,7 @@ def test_tags_by_category_no_metadata(tagging_service, query_agent):
     assert isinstance(result2[0], str)
     assert result1[2] == result2[0]  # verify skip
 
+
 @pytest.mark.tagging
 def test_tags_by_category_with_metadata(tagging_service, query_agent):
     result1 = query_agent.vip.rpc.call(

@@ -279,17 +279,14 @@ def setup_mysql(connection_params, table_names):
     version_nums = p.match(version[0]).groups()
 
     print (version)
-    if "MariaDB" in version[0]:
-        MICROSECOND_PRECISION = 6
+    if int(version_nums[0]) < 5:
+        MICROSECOND_PRECISION = 0
+    elif int(version_nums[1]) < 6:
+        MICROSECOND_PRECISION = 0
+    elif int(version_nums[2]) < 4:
+        MICROSECOND_PRECISION = 0
     else:
-        if int(version_nums[0]) < 5:
-            MICROSECOND_PRECISION = 0
-        elif int(version_nums[1]) < 6:
-            MICROSECOND_PRECISION = 0
-        elif int(version_nums[2]) < 4:
-            MICROSECOND_PRECISION = 0
-        else:
-            MICROSECOND_PRECISION = 6
+        MICROSECOND_PRECISION = 6
 
     return db_connection, MICROSECOND_PRECISION
 
@@ -743,7 +740,6 @@ def test_basic_function_optional_config(request, historian, publish_agent,
             volttron_instance.remove_agent(agent_uuid)
 
 
-#@pytest.mark.dev
 @pytest.mark.historian
 def test_exact_timestamp(request, historian, publish_agent, query_agent,
                          clean_db_rows):
@@ -786,7 +782,7 @@ def test_exact_timestamp(request, historian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == reading)
 
-@pytest.mark.dev
+
 @pytest.mark.historian
 def test_exact_timestamp_with_z(request, historian, publish_agent,
                                 query_agent,
@@ -2013,7 +2009,6 @@ def test_insert_duplicate(request, historian, publish_agent, query_agent,
     assert (result['values'][0][1] == oat_reading)
     assert set(result['metadata'].items()) == set(float_meta.items())
 
-@pytest.mark.dev
 @pytest.mark.historian
 def test_multi_topic_query(request, historian, publish_agent, query_agent,
                            clean_db_rows):
@@ -2080,7 +2075,7 @@ def test_multi_topic_query(request, historian, publish_agent, query_agent,
         assert (result["values"][query_points['oat_point']][i][1] ==
                 expected_result["values"][query_points['oat_point']][i][1])
 
-@pytest.mark.dev
+
 @pytest.mark.historian
 def test_multi_topic_query_single_result(request, historian, publish_agent,
                                          query_agent, clean_db_rows):
