@@ -20,7 +20,7 @@ def index():
 @app.route('/certs')
 def list_certs():
     certs = Certs()
-    subjects = certs.get_subjects()
+    subjects = certs.get_all_cert_subjects()
     return render_template('list_certs.html', certs=subjects)
 
 

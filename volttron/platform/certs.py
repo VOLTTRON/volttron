@@ -326,10 +326,10 @@ class Certs(object):
 
         if not certificate_dir:
             certificate_dir = self.default_certs_dir
-        # If user provided explicit directory then it should exist
-        if not os.path.exists(certificate_dir):
-            if certificate_dir != self.default_certs_dir:
-                raise ValueError('Invalid cert_dir {}'.format(self.cert_dir))
+            # If user provided explicit directory then it should exist
+            if not os.path.exists(certificate_dir):
+                if certificate_dir != self.default_certs_dir:
+                    raise ValueError('Invalid cert_dir {}'.format(self.cert_dir))
 
         self.cert_dir = os.path.join(os.path.expanduser(certificate_dir),
                                      'certs')
@@ -341,9 +341,13 @@ class Certs(object):
                                             'pending_csr')
         self.csr_created_dir = os.path.join(os.path.expanduser(certificate_dir),
                                             'created_csr')
+        self.certs_pending_dir = os.path.join(os.path.expanduser(certificate_dir),
+                                              'pending_certs')
+        self.rejected_dir = os.path.join(os.path.expanduser(certificate_dir),
+                                         'rejected')
 
         required_paths = (self.cert_dir, self.private_dir, self.ca_db_dir,
-                          self.csr_pending_dir, self.csr_created_dir)
+                          self.csr_pending_dir, self.csr_created_dir, self.certs_pending_dir)
         for p in required_paths:
             if not os.path.exists(p):
                 os.makedirs(p, 0o755)
@@ -370,7 +374,7 @@ class Certs(object):
                 self.cert_file(name)))
         return _load_cert(self.cert_file(name))
 
-    def get_subjects(self):
+    def get_all_cert_subjects(self):
         subjects = []
         for fname in os.listdir(self.cert_dir):
             cert = _load_cert(self.cert_file(fname[:-4]))
@@ -457,7 +461,6 @@ class Certs(object):
             return False
 
         return mod_pub == mod_key
-
 
     def create_instance_ca(self, name):
         self.create_ca_signed_cert(name, type='CA')
@@ -692,7 +695,6 @@ class Certs(object):
 
         with open(self.ca_serial_file(ca_name), "w+") as f:
             f.write(str(serial+1))  # next available serial is current + 1
-
 
 
     def verify_cert(self, cert_name):
