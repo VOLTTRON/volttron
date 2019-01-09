@@ -36,10 +36,7 @@ import logging
 import sys
 
 from volttron.platform.agent import utils
-from volttron.platform.vip.agent import Core
-
 from base_dnp3_agent import BaseDNP3Agent
-from points import DNP3Exception
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -74,11 +71,6 @@ class DNP3Agent(BaseDNP3Agent):
         point_val = super(DNP3Agent, self)._process_point_value(point_value)
         if point_val:
             self.publish_point_value(point_value)
-
-    @Core.receiver('onstart')
-    def onstart(self, sender, **kwargs):
-        """Start the DNP3Outstation instance, kicking off communication with the DNP3 Master."""
-        super(DNP3Agent, self).onstart(sender, **kwargs)
 
 
 def dnp3_agent(config_path, **kwargs):
