@@ -283,8 +283,9 @@ class Interface(BaseInterface):
         of the subscription."""
         register = self.get_register_by_name(point_name)
         try:
-            self.vip.rpc.call(self.proxy_address, 'create_COV_subscription', self.target_address,
-                              point_name, register.object_type, register.instance_number,
+            self.vip.rpc.call(self.proxy_address, 'create_COV_subscription',
+                              self.target_address ,self.device_path, point_name,
+                              register.object_type, register.instance_number,
                               lifetime=lifetime)
         except errors.Unreachable:
             _log.warning("Unable to establish a subscription via the bacnet proxy as it was unreachable.")
