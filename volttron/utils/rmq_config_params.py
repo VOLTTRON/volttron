@@ -78,21 +78,12 @@ class RMQConfig(object):
         :return:
         """
         """Loads the config file if the path exists."""
-        try:
-            with open(self.volttron_rmq_config, 'r') as yaml_file:
-                self.config_opts = yaml.load(yaml_file)
-                if self.config_opts.get('rmq-home'):
-                    self.config_opts['rmq-home'] = os.path.expanduser(
-                        self.config_opts['rmq-home'])
-        except IOError as exc:
-            raise
-        except (yaml.parser.ParserError, yaml.scanner.ScannerError) as exc:
-            _log.error("The rabbitmq config file contain invalid syntax. Fix and restart platform. {}.".format(exc))
-            raise
-        except yaml.YAMLError as exc:
-           # _log.error("The rabbitmq config file contain invalid syntax. Fix and restart platform {}.".format(exc))
-            raise
-
+        
+        with open(self.volttron_rmq_config, 'r') as yaml_file:
+            self.config_opts = yaml.load(yaml_file)
+            if self.config_opts.get('rmq-home'):
+                self.config_opts['rmq-home'] = os.path.expanduser(
+                    self.config_opts['rmq-home'])
 
     def write_rmq_config(self, volttron_home=None):
         """
