@@ -49,11 +49,14 @@ the order encountered.
 '''
 
 import argparse as _argparse
+import logging
 import os as _os
 import re as _re
 import shlex as _shlex
 import sys as _sys
-from . instance_setup import main
+from volttron.platform.instance_setup import main
+from volttron.platform.agent import utils
+
 
 
 def expandall(string):
@@ -585,6 +588,8 @@ _patch_argparse()
 
 def _main():
     try:
+        # Protect against configuration of base logger when not the "main entry point"
+        utils.setup_logging()
         main()
     except KeyboardInterrupt:
         print('\n')
