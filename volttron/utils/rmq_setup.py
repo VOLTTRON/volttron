@@ -518,11 +518,11 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False):
     try:
         rmq_config.load_rmq_config()
 
-    except (yaml.parser.ParserError, yaml.scanner.ScannerError) as exc:
+    except (yaml.parser.ParserError, yaml.scanner.ScannerError, yaml.YAMLError) as exc:
         _log.error("Error: YAML file cannot parsed properly. Check the contents of the file")
         return exc
 
-    except (IOError, yaml.YAMLError) as exc:
+    except IOError as exc:
         _log.error("Error opening {}. Please create a rabbitmq_config.yml "
                    "file in your volttron home. If you want to point to a "
                    "volttron home other than {} please set it as the "
