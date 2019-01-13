@@ -57,7 +57,6 @@ import datetime
 import json
 import logging
 import os
-import subprocess
 import time
 from shutil import copyfile
 from socket import gethostname, getfqdn
@@ -72,7 +71,8 @@ from cryptography.x509.name import RelativeDistinguishedName
 from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
 
 from volttron.platform import get_home
-from volttron.platform.agent.utils import get_platform_instance_name
+from volttron.platform.agent.utils import get_platform_instance_name, \
+    execute_command
 
 _log = logging.getLogger(__name__)
 
@@ -410,12 +410,16 @@ class Certs(object):
         :return True if the pair is valid, False otherwise
         """
         try:
-            mod_pub = subprocess.check_output(['openssl', 'x509', '-noout',
-                                                  '-modulus', '-in',
-                                                  public_key_file])
-            mod_key = subprocess.check_output(['openssl', 'rsa', '-noout',
-                                                  '-modulus', '-in',
-                                                  private_key_file])
+            cmd = ['openssl', 'x509', '-noout', '-modulus', '-in',
+                   public_key_file]
+            mod_pub = execute_command(cmd,
+                                      err_prefix="Error getting modulus of "
+                                                 "public key")
+            cmd = ['openssl', 'rsa', '-noout', '-modulus', '-in',
+                   private_key_file]
+            mod_key = execute_command(cmd,
+                                      err_prefix="Error getting modulus of "
+                                                 "private key")
         except Exception as e:
             _log.info("Error validating {} and {}: {}".format(public_key_file,
                                                               private_key_file,
@@ -423,7 +427,6 @@ class Certs(object):
             return False
 
         return mod_pub == mod_key
-
 
     def create_instance_ca(self, name):
         self.create_ca_signed_cert(name, type='CA')
