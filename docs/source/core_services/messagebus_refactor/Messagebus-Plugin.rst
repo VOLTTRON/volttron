@@ -75,10 +75,10 @@ bridge between the local message bus and remote message bus. The role of the pro
 
 .. image:: files/proxy_router.png
 
-Consider three VOLTTRON instances with V1 connected to ZMQ message bus, V2 connected to RMQ
-message bus and V3 connected to XYZ (some message bus of the future) that want to connect to
-each other. Then V2 and V3 will have proxy agents that get connected to the local bus and to
-the remote bus and forward messages from one to another.
+The above figure shows three VOLTTRON instances with V1 connected to ZMQ message bus, V2 connected
+to RMQ message bus and V3 connected to XYZ (some message bus of the future) and all three want to
+connect to each other. Then V2 and V3 will have proxy agents that get connected to the local bus
+and to the remote bus and forward messages from one to another.
 
 Authentication Related Changes
 ==============================

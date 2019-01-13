@@ -2,10 +2,14 @@
 =================
 RabbitMQ Overview
 =================
+
+# NOTE: Some of the RabbitMQ summary/overview documentation and supporting images added here are taken from `RabbitMQ official documentation <https://www.rabbitmq.com/documentation.html>`_. 
+
 RabbitMQ is the most popular messaging library with over 35,000 production deployments.
 It is highly scalable, easy to deploy, runs on many operating systems and cloud
 environments. It supports many kinds of distributed deployment methodologies such as
 clusters, federation and shovels.
+
 
 RabbitMQ uses Advanced Message Queueing Protocol (AMQP) and works on the basic
 producer consumer model. A consumer is a program that consumes/receives messages and
@@ -47,7 +51,7 @@ are four consumers (Consumer 1 - 4) interested in receiving messages matching th
 "green", "red" or "yellow". In this example, we are using a direct exchange that will route
 the messages to the queues only when there is an exact match of the routing key of the message
 with the binding key of the queues. Each of the consumers declare a queue and bind the queue
-with the exchange with a binding key of interest. Lastly, we have a producer that is continuously
+to the exchange with a binding key of interest. Lastly, we have a producer that is continuously
 sending messages to exchange with routing key "green". The exchange will check for an exact
 match and route the messages to only Consumer 1 and Consumer 3.
 
@@ -62,7 +66,9 @@ Distributed RabbitMQ Brokers
 ============================
 RabbitMQ allows multiple distributed RabbitMQ brokers to be connected in three different ways -
 with clustering, with federation and using shovel. We take advantage of these built-in plugins
-for multi-platform VOLTTRON communication.
+for multi-platform VOLTTRON communication. For more information about the differences between clustering,
+federation, and shovel, please refer to RabbitMQ documentation
+`Distributed RabbitMQ brokers <https://www.rabbitmq.com/distributed.html>`_.
 
 Clustering
 ----------
@@ -132,7 +138,7 @@ receives the messages for which it has subscribed for. An upstream queue is crea
 server with a binding key same as subscription made on the federated exchange. For example, if an upstream
 server is publishing messages with binding key "foo" and a client on the downstream server is interested
 in receiving messages of the binding key "foo", then it creates a queue and binds the queue to the federated
-with the same binding key. This binding s sent to the upstream and the upstream queue binds to the
+with the same binding key. This binding is sent to the upstream and the upstream queue binds to the
 upstream exchange with that key.
 
 
@@ -187,9 +193,18 @@ For more detailed information about shovel, please refer to RabbitMQ documentati
 `Shovel plugin <https://www.rabbitmq.com/shovel.html>`_.
 
 
-Authentication and Authorization in RabbitMQ
-============================================
+Authentication in RabbitMQ
+==========================
 
+By default RabbitMQ supports SASL PLAIN authentication with user name and password. RabbitMQ supports other SASL authentication mechanism using plugins. In VOLTTRON we use one such external plugin based on x509 certifcates(`<https://github.com/rabbitmq/rabbitmq-auth-mechanism-ssl>`_). This authentication is based on a techique called public key cryptography which consists of a key pair - a public key and a private key. Data that has been encrypted with a public key can only be decrypted with the corresponding private key and vice versa. The owner of key pair makes the public key available and keeps the private confidential. To send a secure data to a receiver, a sender encrypts the data with the receiver's public key. Since only the receiver has access to his own private key only the receiver can decrypted. This ensures that others, even if they can get access to the encrypted data, cannot decrypt it. This is how public key cryptography achieves confidentiality. 
+
+
+Digital certificate is a digital file that is used to prove ownership of a public key. Certificates act like identification cards for it owner/entity. Certificates are hence crucial to determine that a sender is using the right public key to encrypt the data in the first place. Digital Certificates are issued by Certification Authorities(CA). Certification Authorities fulfil the role of the Trusted Third Party by accepting Certificate applications from entities, authenticating applications, issuing Certificates and maintaining status information about the Certificates issued. Each CA has its own public private key pair and its public key certificate is called a root CA certificate. The CA attests to the identity of a Certificate applicant when it signs the Digital Certificate using its private key. In x509 based authentication, a signed certificate is presented instead of username/password for authentication and if the server recognizes the the signer of the certificate as a trusted CA, accepts and allows the connection. Each server/system can maintain its own list of trusted CAs (i.e. list of public certificates of CAs). Certificates signed by any of the trusted CA would be considered trusted. Certificates can also be signed by intermediate CAs that are in turn signed by a trusted. 
+
+This section only provides a breif overview about the SSL based authentication. Please refer to the vast material available online for detailed description. Some useful links to start: 
+
+ * `<https://en.wikipedia.org/wiki/Public-key_cryptography>`_
+ * `<https://robertheaton.com/2014/03/27/how-does-https-actually-work/>`_
 
 Management Plugin
 =================
@@ -200,7 +215,7 @@ interface allows you to
 * Create, Monitor the status and delete resources such as virtual hosts, users, exchanges, queues etc.
 * Monitor queue length, message rates and connection information and more
 * Manage users and add permissions (read, write and configure) to use the resources
-* Manage policies and runtime [parameters
+* Manage policies and runtime parameters
 * Send and receive messages (for trouble shooting)
 
 For more detailed information about the management plugin, please refer to RabbitMQ documentation
