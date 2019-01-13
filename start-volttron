@@ -1,5 +1,20 @@
 #!/usr/bin/env bash
 
+if [ -z $VOLTTRON_HOME ]
+then
+    vhome="$HOME/.volttron"
+    echo $vhome
+else
+    vhome="$VOLTTRON_HOME"
+    echo $VOLTTRON_HOME
+fi
+echo "Checking pid file"
+
+FILE="$vhome/VOLTTRON_PID"
+if [ -f $FILE ]; then
+   rm $FILE
+fi
+
 SCRIPT_DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
 
 # Check to make sure the script is executed from the correct
@@ -27,3 +42,9 @@ else
     disown
 fi
 
+echo "Waiting for VOLTTRON to startup.."
+while [ ! -f $FILE ]
+do
+  sleep 1
+done
+echo "VOLTTRON startup complete"
