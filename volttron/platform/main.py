@@ -781,7 +781,15 @@ def start_volttron_process(opts):
         else:
             # Start RabbitMQ server if not running
             rmq_config = RMQConfig()
-            start_rabbit(rmq_config.rmq_home)
+            if rmq_config is None:
+                _log.error("DEBUG: Exiting due to error in rabbitmq config file. Please check.")
+                sys.exit()
+
+            try:
+                start_rabbit(rmq_config.rmq_home)
+            except AttributeError as exc:
+                _log.error("Exception while starting RabbitMQ. Check the path in the config file.")
+                sys.exit()
 
             # Start the config store before auth so we may one day have auth use it.
             config_store = ConfigStoreService(address=address,
