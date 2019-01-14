@@ -63,7 +63,7 @@ import pika
 import errno
 from volttron.platform.vip.socket import Message
 from volttron.platform.vip import BaseConnection
-
+from volttron.platform.vip.agent.errors import Unreachable
 
 _log = logging.getLogger(__name__)
 # reduce pika log level
@@ -105,7 +105,7 @@ class RMQConnection(BaseConnection):
         self._connection = pika.GeventConnection(self._connection_param,
                                                  on_open_callback=self.on_connection_open,
                                                  on_open_error_callback=self.on_open_error,
-                                                 #on_close_callback=self.on_connection_closed,
+                                                 on_close_callback=self.on_connection_closed,
                                                  )
 
     def on_connection_open(self, unused_connection):
@@ -138,9 +138,10 @@ class RMQConnection(BaseConnection):
         :param reply_text: Connection reply message
         :return:
         """
-        _log.debug("Connection closed unexpectedly, reopening in 5 seconds. {}"
-                   .format(self._identity))
-        self._connection.add_timeout(5, self._reconnect)
+        timeout = 30
+        _log.error("Connection closed unexpectedly, reopening in {timeout} seconds. {identity}"
+                   .format(timeout=timeout, identity=self._identity))
+        self._connection.add_timeout(timeout, self._reconnect)
 
     def _reconnect(self):
         """
@@ -288,10 +289,15 @@ class RMQConnection(BaseConnection):
         #                                                              msg,
         #                                                              properties,
         #                                                              self.routing_key))
-        self.channel.basic_publish(self.exchange,
+        try:
+            self.channel.basic_publish(self.exchange,
                                    destination_routing_key,
                                    json.dumps(msg, ensure_ascii=False),
                                    properties)
+        except (pika.exceptions.AMQPConnectionErro,
+                pika.exceptions.AMQPChannelError) as exc:
+            raise Unreachable(errno.EHOSTUNREACH, "Connection to RabbitMQ is lost",
+                              'rabbitmq broker', 'rmq_connection')
 
     def disconnect(self):
         """

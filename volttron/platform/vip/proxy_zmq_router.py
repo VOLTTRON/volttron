@@ -69,6 +69,7 @@ class ZMQProxyRouter(Agent):
         rmq_user = self.core.instance_name + '.' + identity
         self._outbound_response_queue = "{user}.zmq.outbound.response".format(user=rmq_user)
         self._outbound_request_queue = "{user}.zmq.outbound.request".format(user=rmq_user)
+        self._vip_loop_running = False
 
     @Core.receiver('onstart')
     def startup(self, sender, **kwargs):
@@ -81,7 +82,9 @@ class ZMQProxyRouter(Agent):
         :param kwargs:
         :return:
         """
-        self.core.spawn(self.vip_loop)
+        if not self._vip_loop_running:
+            self.core.spawn(self.vip_loop)
+
         connection = self.core.connection
         channel = connection.channel
 
@@ -210,6 +213,7 @@ class ZMQProxyRouter(Agent):
         self.zmq_router.start()
         # Register proxy agent handle
         self.zmq_router.pubsub.add_rabbitmq_agent(self)
+        self._vip_loop_running = True
 
         while True:
             try:
@@ -226,6 +230,7 @@ class ZMQProxyRouter(Agent):
                 # _log.error("Error while receiving message: {}".format(exc))
                 if exc.errno == ENOTSOCK:
                     break
+        self._vip_loop_running = False
 
     def _route_to_agent(self, frames):
         """
