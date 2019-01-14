@@ -3,11 +3,11 @@
 if [ -z $VOLTTRON_HOME ]
 then
     vhome="$HOME/.volttron"
-    echo $vhome
 else
     vhome="$VOLTTRON_HOME"
-    echo $VOLTTRON_HOME
+
 fi
+echo "VOLTTRON_HOME is $VOLTTRON_HOME"
 echo "Checking pid file"
 
 FILE="$vhome/VOLTTRON_PID"
