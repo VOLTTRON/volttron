@@ -26,25 +26,21 @@
 # does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by 8minutenergy or Kisensum.
 # }}}
-import json
 import logging
 import sys
 
-from pydnp3 import opendnp3
-
 from volttron.platform.agent import utils
-from volttron.platform.vip.agent import RPC, Core
+from volttron.platform.vip.agent import RPC
 
 from dnp3.base_dnp3_agent import BaseDNP3Agent
-from dnp3.outstation import DNP3Outstation
 
 from dnp3.points import DNP3Exception
 from dnp3.points import DEFAULT_LOCAL_IP, DEFAULT_PORT
 from dnp3.points import DEFAULT_POINT_TOPIC, DEFAULT_OUTSTATION_STATUS_TOPIC
+from dnp3.points import PUBLISH, PUBLISH_AND_RESPOND
 
 from dnp3.mesa.functions import DEFAULT_FUNCTION_TOPIC, ACTION_PUBLISH_AND_RESPOND
-from dnp3.mesa.functions import FunctionDefinitions, Function
-from dnp3.mesa.functions import validate_definitions
+from dnp3.mesa.functions import FunctionDefinitions, Function, FunctionException
 
 __version__ = '1.1'
 
@@ -72,14 +68,15 @@ class MesaAgent(BaseDNP3Agent):
     def __init__(self, points=None, functions=None,
                  point_topic='', local_ip=None, port=None, outstation_config=None,
                  function_topic='', outstation_status_topic='',
-                 all_functions_supported_by_default='',
-                 local_function_definitions_path=None, **kwargs):
+                 all_functions_supported_by_default=False,
+                 local_function_definitions_path=None, function_validation=False, **kwargs):
         """Initialize the MESA agent."""
         super(MesaAgent, self).__init__(**kwargs)
         self.functions = functions
         self.function_topic = function_topic
         self.outstation_status_topic = outstation_status_topic
         self.all_functions_supported_by_default = all_functions_supported_by_default
+        self.function_validation = function_validation
         self.default_config = {
             'points': points,
             'functions': functions,
@@ -89,7 +86,8 @@ class MesaAgent(BaseDNP3Agent):
             'outstation_config': outstation_config,
             'function_topic': function_topic,
             'outstation_status_topic': outstation_status_topic,
-            'all_functions_supported_by_default': all_functions_supported_by_default
+            'all_functions_supported_by_default': all_functions_supported_by_default,
+            'function_validation': function_validation
         }
         self.vip.config.set_default('config', self.default_config)
         self.vip.config.subscribe(self._configure, actions=['NEW', 'UPDATE'], pattern='config')
@@ -116,25 +114,17 @@ class MesaAgent(BaseDNP3Agent):
         config = super(MesaAgent, self)._configure_parameters(contents)
         self.functions = config.get('functions', {})
         self.function_topic = config.get('function_topic', DEFAULT_FUNCTION_TOPIC)
-        self.all_functions_supported_by_default = config.get('all_functions_supported_by_default', "False")
+        self.all_functions_supported_by_default = config.get('all_functions_supported_by_default', False)
+        self.function_validation = config.get('function_validation', False)
         _log.debug('MesaAgent configuration parameters:')
         _log.debug('\tfunctions type={}'.format(type(self.functions)))
         _log.debug('\tfunction_topic={}'.format(self.function_topic))
-        _log.debug('\tall_functions_supported_by_default={}'.format(self.all_functions_supported_by_default))
+        _log.debug('\tall_functions_supported_by_default={}'.format(bool(self.all_functions_supported_by_default)))
+        _log.debug('\tfuntion_validation={}'.format(bool(self.function_validation)))
         self.load_function_definitions()
         self.supported_functions = []
         # Un-comment the next line to do more detailed validation and print definition statistics.
         # validate_definitions(self.point_definitions, self.function_definitions)
-
-    @Core.receiver('onstart')
-    def onstart(self, sender, **kwargs):
-        """Start the DNP3Outstation instance, kicking off communication with the DNP3 Master."""
-        self._configure_parameters(self.default_config)
-        _log.info('Starting DNP3Outstation')
-        self.publish_outstation_status('starting')
-        self.application = DNP3Outstation(self.local_ip, self.port, self.outstation_config)
-        self.application.start()
-        self.publish_outstation_status('running')
 
     def load_function_definitions(self):
         """Populate the FunctionDefinitions repository from JSON in the config store."""
@@ -170,20 +160,25 @@ class MesaAgent(BaseDNP3Agent):
         try:
             point_val = super(MesaAgent, self)._process_point_value(point_value)
             if point_val:
+                # Publish mesa/point if the point action is PUBLISH or PUBLISH_AND_RESPOND
+                if point_val.point_def.action in (PUBLISH, PUBLISH_AND_RESPOND):
+                    self.publish_point_value(point_value)
                 self.update_function_for_point_value(point_val)
-                # If we don't have a function, we don't care.
                 if self.current_function:
+                    # if step action is ACTION_ECHO or ACTION_ECHO_AND_PUBLISH
                     if self.current_function.has_input_point():
                         self.update_input_point(
                             self.get_point_named(self.current_function.input_point_name()),
                             point_val.unwrapped_value()
                         )
+                    # if step action is ACTION_PUBLISH, ACTION_ECHO_AND_PUBLISH, or ACTION_PUBLISH_AND_RESPOND
                     if self.current_function.publish_now():
                         self.publish_function_step(self.current_function.last_step)
 
-        except Exception as err:
+        except (DNP3Exception, FunctionException) as err:
             self.set_current_function(None)             # Discard the current function
-            raise DNP3Exception('Error processing point value: {}'.format(err))
+            if type(err) == DNP3Exception:
+                raise DNP3Exception('Error processing point value: {}'.format(err))
 
     def update_function_for_point_value(self, point_value):
         """Add point_value to the current Function if appropriate."""
@@ -193,7 +188,9 @@ class MesaAgent(BaseDNP3Agent):
                 return None
             if point_value.point_def.is_array_point:
                 self.update_array_for_point(point_value)
-            current_function.add_point_value(point_value, current_array=self._current_array)
+            current_function.add_point_value(point_value,
+                                             current_array=self._current_array,
+                                             function_validation=self.function_validation)
         except DNP3Exception as err:
             raise DNP3Exception('Error updating function: {}'.format(err))
 
@@ -234,7 +231,7 @@ class MesaAgent(BaseDNP3Agent):
     def set_current_function(self, func):
         """Set the Function being accumulated by the Outstation to the supplied value, which might be None."""
         if func:
-            if self.all_functions_supported_by_default != "True":
+            if not self.all_functions_supported_by_default:
                 if not func.definition.supported:
                     raise DNP3Exception('Received a point for unsupported {}'.format(func))
         self._current_func = func
@@ -273,7 +270,8 @@ def mesa_agent(config_path, **kwargs):
                      local_ip=config.get('local_ip', DEFAULT_LOCAL_IP),
                      port=config.get('port', DEFAULT_PORT),
                      outstation_config=config.get('outstation_config', {}),
-                     all_functions_supported_by_default=config.get('all_functions_supported_by_default', "False"),
+                     all_functions_supported_by_default=config.get('all_functions_supported_by_default', False),
+                     function_validation=config.get('function_validation', False),
                      **kwargs)
 
 

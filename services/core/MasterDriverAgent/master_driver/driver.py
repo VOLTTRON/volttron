@@ -153,7 +153,7 @@ class DriverAgent(BasicAgent):
         module = __import__(module_name,globals(),locals(),[], -1)
         sub_module = getattr(module, driver_type)
         klass = getattr(sub_module, "Interface")
-        interface = klass(vip=self.vip, core=self.core)
+        interface = klass(vip=self.vip, core=self.core, device_path=self.device_path)
         interface.configure(config_dict, config_string)
         return interface
 
@@ -366,7 +366,11 @@ class DriverAgent(BasicAgent):
         self.interface.revert_all(**kwargs)
 
     def publish_cov_value(self, point_name, point_values):
-        """Called in the master driver agent to publish a cov from a point"""
+        """
+        Called in the master driver agent to publish a cov from a point
+        :param point_name: point which sent COV notifications
+        :param point_values: COV point values
+        """
         utcnow = utils.get_aware_utc_now()
         utcnow_string = utils.format_timestamp(utcnow)
         headers = {

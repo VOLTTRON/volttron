@@ -60,6 +60,9 @@ input_group_map = {
 MESA_AGENT_CONFIG = {
     "points": "config://mesa_points.config",
     "functions": "config://mesa_functions.config",
+    "point_topic": "mesa/point",
+    "function_topic": "mesa/function",
+    "outstation_status_topic": "mesa/outstation_status",
     "outstation_config": {
         "database_sizes": 700,
         "log_levels": ["NORMAL"]
@@ -117,6 +120,10 @@ def agent(request, volttron_instance):
     # Subscribe to MESA functions
     test_agent.vip.pubsub.subscribe(peer='pubsub',
                                     prefix='mesa/function',
+                                    callback=onmessage)
+
+    test_agent.vip.pubsub.subscribe(peer='pubsub',
+                                    prefix='mesa/point',
                                     callback=onmessage)
 
     def stop():
@@ -260,17 +267,35 @@ class TestMesaAgent:
     # ********** OUTPUT TESTS (send data from Master to Agent to ControlAgent) ************
     # **********
 
+    def test_send_single_point_publish(self, run_master, agent, reset):
+        """Test send a single point with publish action."""
+        test_point_name = "Publish Test Point (AO)"
+        run_master.send_single_point(pdefs, test_point_name, 10)
+        assert self.get_point(agent, test_point_name) == 10
+        assert messages['mesa/point']['message'] == {test_point_name: 10}
+
+    def test_send_single_point_publish_and_respond(self, run_master, agent, reset):
+        """Test send a single point with publish_and_respond action."""
+        test_point_name = "Publish and Respond Test Point (AO)"
+        run_master.send_single_point(pdefs, test_point_name, 20)
+        assert self.get_point(agent, test_point_name) == 20
+        assert messages['mesa/point']['message'] == {test_point_name: 20,
+                                                     'response': 'Respond Test Point (AI)'}
+
     def test_simple_function(self, run_master, agent, reset):
         """Test a simple function (not array or selector block)."""
 
         # Set the function support point to True
         self.set_point(agent, 'Supports Charge/Discharge Mode', True)
-
         self.send_function_and_confirm(run_master, agent, 'charge_discharge.json')
+        assert messages['mesa/point']['message'] == {"DCHD.ModEna": True}
+
+    def test_curve(self, run_master, agent, reset):
+        """Test curve function."""
+        self.send_function_and_confirm(run_master, agent, 'curve.json')
 
     def test_array(self, run_master, agent, reset):
         """Test array function."""
-        self.send_function_and_confirm(run_master, agent, 'curve.json')
         self.send_function_and_confirm(run_master, agent, 'inverter.json')
 
     def test_selector_blocks(self, run_master, agent, reset):
@@ -407,7 +432,8 @@ class TestMesaAgent:
                 err_msg = "Expected no {} value due to unsupported function, but received {}"
                 assert received_val is None, err_msg.format(point_name, received_val)
 
-        assert messages == {}
+        assert messages.get('mesa/function', {}) == {}
+        assert messages['mesa/point']['message'] == {"DCHD.ModEna": True}
         assert exceptions == {}
 
     def test_wrong_step_order(self, run_master, agent, reset):
