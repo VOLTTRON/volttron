@@ -65,9 +65,7 @@ class MesaAgent(BaseDNP3Agent):
         That file specifies a default agent configuration, which can be overridden as needed.
     """
 
-    def __init__(self, points=None, functions=None,
-                 point_topic='', local_ip=None, port=None, outstation_config=None,
-                 function_topic='', outstation_status_topic='',
+    def __init__(self, functions=None, function_topic='', outstation_status_topic='',
                  all_functions_supported_by_default=False,
                  local_function_definitions_path=None, function_validation=False, **kwargs):
         """Initialize the MESA agent."""
@@ -77,20 +75,18 @@ class MesaAgent(BaseDNP3Agent):
         self.outstation_status_topic = outstation_status_topic
         self.all_functions_supported_by_default = all_functions_supported_by_default
         self.function_validation = function_validation
-        self.default_config = {
-            'points': points,
+
+        # Update default config
+        self.default_config.update({
             'functions': functions,
-            'point_topic': point_topic,
-            'local_ip': local_ip,
-            'port': port,
-            'outstation_config': outstation_config,
             'function_topic': function_topic,
             'outstation_status_topic': outstation_status_topic,
             'all_functions_supported_by_default': all_functions_supported_by_default,
             'function_validation': function_validation
-        }
+        })
+
+        # Update default config in config store.
         self.vip.config.set_default('config', self.default_config)
-        self.vip.config.subscribe(self._configure, actions=['NEW', 'UPDATE'], pattern='config')
 
         self.function_definitions = None
         self._current_func = None
