@@ -8,12 +8,21 @@ else
 
 fi
 echo "VOLTTRON_HOME is $VOLTTRON_HOME"
-echo "Checking pid file"
 
 FILE="$vhome/VOLTTRON_PID"
+pid=`cat $FILE`
 if [ -f $FILE ]; then
-   rm $FILE
+   if ps -p $pid > /dev/null 2>&1
+   then
+       echo "VOLTTRON with process id $pid is already running"
+       exit 1
+   else
+       echo "PID file exists but process is not running. Removing old
+       VOLTTRON_PID file"
+       rm $FILE
+   fi
 fi
+
 
 SCRIPT_DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
 
