@@ -763,6 +763,7 @@ class RabbitMQMgmt(object):
         """
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
         crt = self.rmq_config.crts
+        heartbeat_interval = 20 #sec
         try:
             if ssl_auth:
                 ssl_options = dict(
@@ -777,6 +778,7 @@ class RabbitMQMgmt(object):
                     virtual_host=self.rmq_config.virtual_host,
                     connection_attempts=retry_attempt,
                     retry_delay=retry_delay,
+                    heartbeat=heartbeat_interval,
                     ssl=True,
                     ssl_options=ssl_options,
                     credentials=pika.credentials.ExternalCredentials())
@@ -785,6 +787,7 @@ class RabbitMQMgmt(object):
                     host=self.rmq_config.hostname,
                     port=int(self.rmq_config.amqp_port),
                     virtual_host=self.rmq_config.virtual_host,
+                    heartbeat=heartbeat_interval,
                     credentials=pika.credentials.PlainCredentials(
                         rmq_user, rmq_user))
         except KeyError:
