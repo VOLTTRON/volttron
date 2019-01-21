@@ -60,12 +60,6 @@ class DNP3Agent(BaseDNP3Agent):
             $ source services/core/DNP3Agent/install_dnp3_agent.sh
     """
 
-    def __init__(self, **kwargs):
-        """Initialize the DNP3 agent."""
-        super(DNP3Agent, self).__init__(**kwargs)
-        self.vip.config.set_default('config', self.default_config)
-        self.vip.config.subscribe(self._configure, actions=['NEW', 'UPDATE'], pattern='config')
-
     def _process_point_value(self, point_value):
         """DNP3Agent publishes each point value to the message bus as the value is received from the master."""
         point_val = super(DNP3Agent, self)._process_point_value(point_value)
