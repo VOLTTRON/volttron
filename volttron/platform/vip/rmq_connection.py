@@ -107,7 +107,7 @@ class RMQConnection(BaseConnection):
         self._connection = pika.GeventConnection(self._connection_param,
                                                  on_open_callback=self.on_connection_open,
                                                  on_open_error_callback=self.on_open_error,
-                                                 on_close_callback=self.on_connection_closed,
+                                                 on_close_callback=self.on_connection_closed
                                                  )
 
     def on_connection_open(self, unused_connection):
@@ -150,14 +150,16 @@ class RMQConnection(BaseConnection):
         self._connection.add_timeout(timeout, self._reconnect)
 
     def add_on_channel_close_callback(self):
-        """This method tells pika to call the on_channel_closed method if
+        """
+        This method tells pika to call the on_channel_closed method if
         RabbitMQ unexpectedly closes the channel.
 
         """
         self.channel.add_on_close_callback(self.on_channel_closed)
 
     def on_channel_closed(self, channel, reply_code, reply_text):
-        """Invoked by pika when RabbitMQ unexpectedly closes the channel.
+        """
+        Invoked by pika when RabbitMQ unexpectedly closes the channel.
         Channels are usually closed if you attempt to do something that
         violates the protocol, such as re-declare an exchange or queue with
         different parameters. In this case, we'll close the connection
