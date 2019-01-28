@@ -40,7 +40,6 @@ def test_can_cleanup_installed_listener():
     gevent.sleep(0.1)
     assert not psutil.pid_exists(started)
 
-@pytest.mark.dev
 @pytest.mark.wrapper
 def test_pid_file():
     try:
