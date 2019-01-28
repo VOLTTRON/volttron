@@ -2,14 +2,13 @@ import argparse
 import json
 import logging
 import os
-import subprocess
-from subprocess import Popen
+import sys
 import tempfile
 from time import sleep
-import sys
 
 import yaml
 
+from volttron.platform.agent.utils import execute_command
 
 logging.basicConfig(level=logging.WARN)
 log = logging.getLogger(os.path.basename(__file__))
@@ -33,7 +32,8 @@ if not inenv and not corrected:
     # Travis-CI puts the python in a little bit different location than
     # we do.
     if os.environ.get('CI') is not None:
-        correct_python =subprocess.check_output(['which', 'python']).strip()
+        correct_python = execute_command(['which', 'python'],
+                                         logger=log).strip()
     else:
         correct_python = os.path.abspath(
             os.path.join(mypath, '../env/bin/python'))
@@ -45,9 +45,11 @@ if not inenv and not corrected:
     # Call this script in a subprocess with the correct python interpreter.
     cmds = [correct_python, __file__]
     cmds.extend(sys.argv[1:])
-    process = subprocess.Popen(cmds, env=os.environ)
-    process.wait()
-    sys.exit(process.returncode)
+    try:
+        output = execute_command(cmds, env=os.environ, logger=log)
+        sys.exit(0)
+    except RuntimeError:
+        sys.exit(1)
 
 from zmq.utils import jsonapi
 from volttron.platform import get_address, get_home, get_volttron_root, \
@@ -68,12 +70,9 @@ def identity_exists(opts, identity):
     env = _build_copy_env(opts)
     cmds = [opts.volttron_control, "status"]
 
-    process = subprocess.Popen(cmds, env=env, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
-
-    (stdoutdata, stderrdata) = process.communicate()
-
-    for x in stdoutdata.split("\n"):
+    data = execute_command(cmds, env=env, logger=log,
+                           err_prefix="Error checking identity")
+    for x in data.split("\n"):
         if x:
             line_split = x.split()
             if identity == line_split[2]:
@@ -85,9 +84,8 @@ def remove_agent(opts, agent_uuid):
     env = _build_copy_env(opts)
     cmds = [opts.volttron_control, "remove", agent_uuid]
 
-    process = subprocess.Popen(cmds, env=env, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
-    process.wait()
+    execute_command(cmds, env=env, logger=log,
+                    err_prefix="Error removing agent")
 
 
 def install_requirements(agent_source):
@@ -96,10 +94,10 @@ def install_requirements(agent_source):
         log.info("Installing requirements for agent.")
         cmds = ["pip", "install", "-r", req_file]
         try:
-            subprocess.check_call(cmds)
-        except subprocess.CalledProcessError:
+            execute_command(cmds, logger=log,
+                            err_prefix="Error installing requirements")
+        except RuntimeError:
             sys.exit(1)
-
 
 def install_agent(opts, package, config):
     """
@@ -141,11 +139,10 @@ def install_agent(opts, package, config):
     if opts.tag:
         cmds.extend(["--tag", opts.tag])
 
-    process = Popen(cmds, env=env, stderr=subprocess.PIPE,
-                    stdout=subprocess.PIPE)
-    (output, errorout) = process.communicate()
+    out = execute_command(cmds, env=env, logger=log,
+                          err_prefix="Error installing agent")
 
-    parsed = output.split("\n")
+    parsed = out.split("\n")
 
     # If there is not an agent with that identity:
     # 'Could not find agent with VIP IDENTITY "BOO". Installing as new agent
@@ -169,9 +166,8 @@ def install_agent(opts, package, config):
 
     if opts.start:
         cmds = [opts.volttron_control, "start", agent_uuid]
-        process = Popen(cmds, env=env, stderr=subprocess.PIPE,
-                        stdout=subprocess.PIPE)
-        (outputdata, errordata) = process.communicate()
+        outputdata = execute_command(cmds, env=env, logger=log,
+                                     err_prefix="Error starting agent")
 
         # Expected output on standard out
         # Starting 83856b74-76dc-4bd9-8480-f62bd508aa9c listeneragent-3.2
@@ -184,9 +180,8 @@ def install_agent(opts, package, config):
         if opts.priority != -1:
             cmds.extend(["--priority", str(opts.priority)])
 
-        process = Popen(cmds, env=env, stderr=subprocess.PIPE,
-                        stdout=subprocess.PIPE)
-        (outputdata, errordata) = process.communicate()
+        outputdata = execute_command(cmds, env=env, logger=log,
+                                     err_prefix="Error enabling agent")
         # Expected output from standard out
         # Enabling 6bcee29b-7af3-4361-a67f-7d3c9e986419 listeneragent-3.2 with priority 50
         if "Enabling" in outputdata:
@@ -198,9 +193,8 @@ def install_agent(opts, package, config):
         sleep(opts.agent_start_time)
 
         cmds = [opts.volttron_control, "status", agent_uuid]
-        process = Popen(cmds, env=env, stderr=subprocess.PIPE,
-                        stdout=subprocess.PIPE)
-        (outputdata, errordata) = process.communicate()
+        outputdata = execute_command(cmds, env=env, logger=log,
+                                     err_prefix="Error finding agent status")
 
         # 5 listeneragent-3.2 foo     running [10737]
         output_dict["started"] = "running" in outputdata

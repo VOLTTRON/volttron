@@ -55,7 +55,7 @@ from . import config
 from .agent import utils
 from volttron.platform import get_volttron_data
 from volttron.utils.prompt import prompt_response
-
+from volttron.platform.agent.utils import execute_command
 try:
      from volttron.restricted import (auth, certs)
 except ImportError:
@@ -347,10 +347,8 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
         builddir = os.path.join(tmpdir, 'pkg')
         distdir = os.path.join(builddir, 'dist')
         shutil.copytree(agent_dir_to_package, builddir)
-        subprocess.check_call([sys.executable, 'setup.py', '--no-user-cfg',
-                               'bdist_wheel'], cwd=builddir,
-                              stderr=subprocess.STDOUT)
-
+        cmd = [sys.executable, 'setup.py', '--no-user-cfg', 'bdist_wheel']
+        execute_command(cmd, cwd=builddir, logger=_log)
         wheel_name = os.listdir(distdir)[0]
         wheel_path = os.path.join(distdir, wheel_name)
 
