@@ -2503,7 +2503,6 @@ def main(argv=sys.argv):
     # volttron need to be up.
     if args[0] not in ('list', 'tag', 'auth', 'rabbitmq'):
         # check pid file
-        # TODO: is there a platform level constant file to save 'VOLTTRON_PID'
         pid_file = os.path.join(volttron_home, 'VOLTTRON_PID')
         if not (os.path.exists(pid_file) and check_process(pid_file)):
                 _stderr.write("VOLTTRON is not running. This command "
