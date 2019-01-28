@@ -28,13 +28,11 @@ Setup
     AGENT                    IDENTITY                   TAG                STATUS          HEALTH
     685 csv_historianagent-1.0.1 csv_historianagent-1.0.1_2 csvhistorian       running [8565]  GOOD
 
-The begining of the agent's ID can be found in the leftmost column (685 in the
+The begining of the agent's UUID can be found in the leftmost column (685 in the
 example above).
 
 **Verify the data:**
 
 The data files can be found at "<volttron home
 directory>/agents/<id>/csv_historianagent-1.0.1/csv-historianagent-1.0.1
-.agent-data/", where <id> is is the ID of the agent
-For convenience, you can use the tab key to autocomplete the id when you are
-putting it in.
+.agent-data/", where <id> is is the UUID of the agent.
