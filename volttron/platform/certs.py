@@ -58,6 +58,7 @@ import datetime
 import json
 import logging
 import os
+import six
 import subprocess
 import time
 from shutil import copyfile
@@ -275,16 +276,20 @@ class Certs(object):
 
     """
 
-    def cert_file(self, name):
+    def cert_file(self, name, remote=False):
         """
         Returns path to the certificate with passed name. .crt extension is
         added to the passed name be
         :param name: Name of the certificate file
+        :param remote: Toggle between local and remote cert connections.
         :return: Full path the <name>.crt file
         :rtype: str
         """
         """"""
-        return '/'.join((self.cert_dir, name + '.crt'))
+        if remote:
+            return '/'.join((self.remote_cert_dir, name + '.crt'))
+        else:
+            return '/'.join((self.cert_dir, name + '.crt'))
 
     def private_key_file(self, name):
         """
@@ -315,6 +320,15 @@ class Certs(object):
         """
         return '/'.join((self.ca_db_dir, name + '-serial'))
 
+    def csr_create_file(self, name, target=None):
+        if target:
+            return '/'.join((self.remote_cert_dir, target + "-" + name + ".csr"))
+
+        return '/'.join((self.remote_cert_dir, name + ".csr"))
+
+    def remote_certs_file(self, name):
+        return '/'.join((self.remote_cert_dir, name + '.crt'))
+
     def __init__(self, certificate_dir=None):
         """Creates a Certs instance"""
 
@@ -339,15 +353,15 @@ class Certs(object):
                                       'ca_db')
         self.csr_pending_dir = os.path.join(os.path.expanduser(certificate_dir),
                                             'pending_csr')
-        self.csr_created_dir = os.path.join(os.path.expanduser(certificate_dir),
-                                            'created_csr')
+        self.remote_cert_dir = os.path.join(os.path.expanduser(certificate_dir),
+                                            'remote_certs')
         self.certs_pending_dir = os.path.join(os.path.expanduser(certificate_dir),
                                               'pending_certs')
         self.rejected_dir = os.path.join(os.path.expanduser(certificate_dir),
                                          'rejected')
 
         required_paths = (self.cert_dir, self.private_dir, self.ca_db_dir,
-                          self.csr_pending_dir, self.csr_created_dir, self.certs_pending_dir)
+                          self.csr_pending_dir, self.remote_cert_dir, self.certs_pending_dir)
         for p in required_paths:
             if not os.path.exists(p):
                 os.makedirs(p, 0o755)
@@ -362,17 +376,24 @@ class Certs(object):
 
         return self.cert(self.root_ca_name)
 
-    def cert(self, name):
+    def cert(self, name, remote=False):
         """
         Get the X509 certificate based upon the name
         :param name: name of the certificate to be loaded
+        :param remote: determines correct path to search for the cert.
         :return: The certificate object by the given name
         :rtype: :class: `x509._Certificate`
         """
-        if not os.path.exists(self.cert_file(name)):
+
+        if remote:
+            cert_file = self.remote_certs_file(name)
+        else:
+            cert_file = self.cert_file(name)
+
+        if not os.path.exists(cert_file):
             raise CertError("invalid certificate path {}".format(
-                self.cert_file(name)))
-        return _load_cert(self.cert_file(name))
+                cert_file))
+        return _load_cert(cert_file)
 
     def get_all_cert_subjects(self):
         subjects = []
@@ -381,13 +402,119 @@ class Certs(object):
             subjects.append(Subject.create_from_x509_subject(cert.subject))
         return subjects
 
-    def cert_exists(self, cert_name):
+    def append_external_certificate(self, certificate_str):
+        return False
+
+    def get_pending_csr_requests(self):
+        return []
+
+    def get_pending_certs(self):
+        return []
+
+    def get_rejected_certs(self):
+        return []
+
+    def create_csr(self, name, remote_instance_name):
+        """
+        Create a csr with name as the common name.
+
+        The key that is used to sign the csr is <instance_name>.name.
+
+        :param name:
+        :param target_volttron:
+        :return:
+        """
+        assert name
+        full_name = "{}.{}.{}".format(remote_instance_name,
+                                      get_platform_instance_name(), name)
+        xname = x509.Name([
+            x509.NameAttribute(NameOID.COMMON_NAME,  six.u(full_name)),
+        ])
+        key = _load_key(self.private_key_file(get_platform_instance_name()+"."+name))
+        csr = x509.CertificateSigningRequestBuilder().subject_name(
+            xname).sign(key, hashes.SHA256(), default_backend())
+        # with open(self.csr_create_file(name, target_volttron), "wb") as fw:
+        #     fw.write(csr.public_bytes(serialization.Encoding.PEM))
+        return csr.public_bytes(serialization.Encoding.PEM)
+    #
+    #
+    # def create_csr(self, key, domains, must_staple=False):
+    #     """
+    #     Creates a CSR in DER format for the specified key and domain names.
+    #     """
+    #     assert domains
+    #     name = x509.Name([
+    #         x509.NameAttribute(NameOID.COMMON_NAME, domains[0]),
+    #     ])
+    #     san = x509.SubjectAlternativeName([x509.DNSName(domain) for domain in domains])
+    #     csr = x509.CertificateSigningRequestBuilder().subject_name(name) \
+    #         .add_extension(san, critical=False)
+    #     if must_staple:
+    #         ocsp_must_staple = x509.TLSFeature(features=[x509.TLSFeatureType.status_request])
+    #         csr = csr.add_extension(ocsp_must_staple, critical=False)
+    #     csr = csr.sign(key, hashes.SHA256(), default_backend())
+    #     return csr  # export_csr_for_acme(csr)
+
+    def sign_csr(self, csr_file):
+
+        ca_crt = self.ca_cert()
+        ca_pkey = _load_key(self.private_key_file(self.root_ca_name))
+        with open(csr_file, 'rb') as f:
+            csr = x509.load_pem_x509_csr(data=f.read(), backend=default_backend())
+
+        subject_common_name = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+
+        if self.cert_exists(subject_common_name):
+            crt = self.cert(subject_common_name)
+            return crt.public_bytes(encoding=serialization.Encoding.PEM)
+
+        crt = x509.CertificateBuilder().subject_name(
+            csr.subject
+        ).issuer_name(
+            ca_crt.subject
+        ).public_key(
+            csr.public_key()
+        ).serial_number(
+            int(time.time())  # pylint: disable=no-member
+        ).not_valid_before(
+            datetime.datetime.utcnow()
+        ).not_valid_after(
+            datetime.datetime.utcnow() + datetime.timedelta(days=365 * 10)
+        ).add_extension(
+            extension=x509.KeyUsage(
+                digital_signature=True, key_encipherment=True, content_commitment=True,
+                data_encipherment=False, key_agreement=False, encipher_only=False, decipher_only=False,
+                key_cert_sign=False, crl_sign=False
+            ),
+            critical=True
+        ).add_extension(
+            extension=x509.BasicConstraints(ca=False, path_length=None),
+            critical=True
+        ).add_extension(
+            extension=x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_pkey.public_key()),
+            critical=False
+        ).sign(
+            private_key=ca_pkey,
+            algorithm=hashes.SHA256(),
+            backend=default_backend()
+        )
+
+        crt_file = self.cert_file(
+            csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value)
+        with open(crt_file, 'wb') as f:
+            f.write(crt.public_bytes(encoding=serialization.Encoding.PEM))
+        return crt.public_bytes(encoding=serialization.Encoding.PEM)
+
+    def cert_exists(self, cert_name, remote=False):
         """
         Verifies that the cert exists by filename.
         :param cert_name: name of the cert to look up
         :return: True if cert exists, False otherwise
         """
-        return os.path.exists(self.cert_file(cert_name))
+        if remote:
+            return os.path.exists(self.remote_certs_file(cert_name))
+        else:
+            return os.path.exists(self.cert_file(cert_name))
 
     def ca_exists(self):
         """
@@ -470,6 +597,12 @@ class Certs(object):
                 s = source.read()
                 destination.write(s)
         os.chmod(self.cert_file(name), 0644)
+
+    def save_remote_cert(self, name, certdata):
+        cert_file = self.remote_certs_file(name)
+        with open(cert_file, 'wb') as wf:
+            wf.write(certdata)
+        os.chmod(cert_file, 0644)
 
     def save_cert(self, file_path):
         cert_file = self.cert_file(os.path.splitext(os.path.basename(
@@ -695,7 +828,6 @@ class Certs(object):
 
         with open(self.ca_serial_file(ca_name), "w+") as f:
             f.write(str(serial+1))  # next available serial is current + 1
-
 
     def verify_cert(self, cert_name):
         """

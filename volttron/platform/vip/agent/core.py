@@ -73,6 +73,7 @@ from ..rmq_connection import RMQConnection
 from ..socket import Message
 from ..zmq_connection import ZMQConnection
 from .... import platform
+import pika
 
 __all__ = ['BasicCore', 'Core', 'RMQCore', 'ZMQCore', 'killing']
 
@@ -488,7 +489,7 @@ class Core(BasicCore):
         self.serverkey = serverkey
         self.reconnect_interval = reconnect_interval
         self._reconnect_attempt = 0
-        self.instance_name = None
+        self.instance_name = instance_name
         self.connection = None
         self.messagebus = messagebus
         self.subsystems = {'error': self.handle_error}
@@ -859,7 +860,8 @@ class RMQCore(Core):
                  agent_uuid=agent_uuid, reconnect_interval=reconnect_interval,
                  version=version, instance_name=instance_name, messagebus=messagebus)
         self.volttron_central_address = volttron_central_address
-        if not self.instance_name:
+
+        if not instance_name:
             config_opts = load_platform_config()
             self.instance_name = config_opts.get('instance-name', 'volttron1')
         if volttron_central_instance_name:
@@ -867,11 +869,15 @@ class RMQCore(Core):
 
         #self._event_queue = gevent.queue.Queue
         self._event_queue = Queue()
-        self.rmq_user = self.instance_name + '.' + self.identity
+        if isinstance(self.address, pika.ConnectionParameters):
+            self.rmq_user = self.identity
+        else:
+            self.rmq_user = self.instance_name + '.' + self.identity
         _log.debug("AGENT RUNNING on RMQ Core {}".format(self.identity))
 
         self.messagebus = messagebus
         self.rmq_mgmt = RabbitMQMgmt()
+        self.rmq_address = address
 
     def _build_connection_parameters(self):
         param = None
@@ -884,9 +890,10 @@ class RMQCore(Core):
         return param
 
     def loop(self, running_event):
-        param = self._build_connection_parameters()
+        if not isinstance(self.rmq_address, pika.ConnectionParameters):
+            self.rmq_address = self._build_connection_parameters()
         # pre-setup
-        self.connection = RMQConnection(param,
+        self.connection = RMQConnection(self.rmq_address,
                                         self.identity,
                                         self.instance_name,
                                         vc_url=self.volttron_central_address)

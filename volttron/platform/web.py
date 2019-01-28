@@ -37,6 +37,7 @@
 # }}}
 
 from collections import defaultdict
+import json
 import logging
 import os
 import re
@@ -57,13 +58,15 @@ import mimetypes
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 from volttron.platform.agent import json as jsonapi
-
+from volttron.platform.agent.utils import get_platform_instance_name
+from volttron.platform.certs import Certs
 from .auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
 from .vip.agent import Agent, Core, RPC
 from .vip.agent.subsystems import query
 from .jsonrpc import (
     json_result, json_validate_request, UNAUTHORIZED)
 from .vip.socket import encode_key
+from cryptography.hazmat.primitives import serialization
 
 _log = logging.getLogger(__name__)
 
@@ -96,6 +99,8 @@ class DiscoveryInfo(object):
         self.serverkey = kwargs.pop('serverkey')
         self.instance_name = kwargs.pop('instance-name')
         self.vc_rmq_address = kwargs.pop('vc-rmq-address')
+        self.rmq_ca_cert = kwargs.pop('rmq-ca-cert')
+        self.certs = Certs()
 
         assert len(kwargs) == 0
 
@@ -145,7 +150,8 @@ class DiscoveryInfo(object):
             'vip_address': self.vip_address,
             'serverkey': self.serverkey,
             'instance_name': self.instance_name,
-            'vc_rmq_address': self.vc_rmq_address
+            'vc_rmq_address': self.vc_rmq_address,
+            'rmq_ca_cert': self.rmq_ca_cert
         }
 
         return jsonapi.dumps(dk)
@@ -393,6 +399,7 @@ class MasterWebService(Agent):
         if not mimetypes.inited:
             mimetypes.init()
 
+        self._certs = Certs()
         self.appContainer = None
         self._server_greenlet = None
 
@@ -576,7 +583,6 @@ class MasterWebService(Agent):
 
         return_dict = {}
 
-
         if self.serverkey:
             return_dict['serverkey'] = encode_key(self.serverkey)
         else:
@@ -586,7 +592,8 @@ class MasterWebService(Agent):
             return_dict['instance-name'] = self.instance_name
 
         return_dict['vip-address'] = external_vip
-        return_dict['vc-rmq-address'] = "amqp://volttron-VirtualBox/test1"#self.volttron_central_rmq_address
+        return_dict['vc-rmq-address'] = self.volttron_central_rmq_address
+        return_dict['rmq-ca-cert'] = self._certs.cert(self._certs.root_ca_name).public_bytes(serialization.Encoding.PEM)
         print("Discovery Info {}".format(return_dict))
         start_response('200 OK', [('Content-Type', 'application/json')])
         return jsonapi.dumps(return_dict)
@@ -754,15 +761,15 @@ class MasterWebService(Agent):
     def startupagent(self, sender, **kwargs):
 
         if not self.bind_web_address:
-            _log.info('Web server not started.')
+            # _log.info('Web server not started.')
             return
         import urlparse
         parsed = urlparse.urlparse(self.bind_web_address)
         hostname = parsed.hostname
         port = parsed.port
 
-        _log.info('Starting web server binding to {}:{}.' \
-                   .format(hostname, port))
+        _log.info('Starting web server binding to {}:{}.'.format(hostname, port))
+
         self.registeredroutes.append((re.compile('^/discovery/$'), 'callable',
                                       self._get_discovery))
         self.registeredroutes.append((re.compile('^/discovery/allow$'),
@@ -770,6 +777,8 @@ class MasterWebService(Agent):
                                       self._allow))
         self.registeredroutes.append((re.compile('^/$'), 'callable',
                                       self._redirect_index))
+        self.registeredroutes.append((re.compile('^/csr/request_new$'), 'callable',
+                                      self._csr_request_new))
         port = int(port)
         vhome = os.environ.get('VOLTTRON_HOME')
         logdir = os.path.join(vhome, "log")
@@ -780,25 +789,35 @@ class MasterWebService(Agent):
         svr = WSGIServer((hostname, port), self.appContainer)
         self._server_greenlet = gevent.spawn(svr.serve_forever)
 
-        # with open(os.path.join(logdir, 'web.access.log'), 'wb') as accesslog:
-        #     with open(os.path.join(logdir, 'web.error.log'), 'wb') as errlog:
-        #         server = pywsgi.WSGIServer((hostname, port), self.app_routing,
-        #                                    log=accesslog, error_log=errlog)
-        #         try:
-        #             server.serve_forever()
-        #         except Exception as e:
-        #             message = 'bind-web-address {} is not available, stopping'
-        #             message = message.format(self.bind_web_address)
-        #             _log.error(message)
-        #             print message
-        #             sys.exit(1)
+    def _csr_request_new(self, env, start_response, data):
 
-                    # svr = WSGIServer((host, port))
-        # with open(os.path.join(logdir, 'web.access.log'), 'wb') as accesslog:
-        #     with open(os.path.join(logdir, 'web.error.log'), 'wb') as errlog:
-        #         server = pywsgi.WSGIServer((hostname, port), self.app_routing,
-        #                                log=accesslog, error_log=errlog)
-        #         server.serve_forever()
+        request_data = json.loads(json.loads(data))
+        csr = request_data.get('csr')
+        identity = request_data.get('identity')
+        instance_name = get_platform_instance_name()
+
+        instance_new_name = "{}.{}".format(instance_name, identity)
+        csr_file = self._certs.csr_create_file(instance_new_name)
+        if csr:
+            with open(csr_file, "wb") as fw:
+                fw.write(csr)
+
+        auto_accept = True
+        if auto_accept:
+            cert = self._certs.sign_csr(csr_file)
+            json_response = dict(
+                status="SUCCESSFUL",
+                cert=cert
+            )
+        else:
+            json_response = dict(status="PENDING")
+
+        start_response('200 OK', [('Content-type', 'application/json')])
+        return jsonapi.dumps(json_response)
+
+    def _crs_admin(self, env, start_response):
+        pass
+
 
 
 def build_vip_address_string(vip_root, serverkey, publickey, secretkey):

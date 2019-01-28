@@ -80,7 +80,7 @@ def temp_volttron_home(request):
 def test_certificate_directories(temp_volttron_home):
     certs = Certs()
     paths = (certs.certs_pending_dir, certs.private_dir, certs.cert_dir,
-             certs.csr_created_dir, certs.csr_pending_dir, certs.ca_db_dir)
+             certs.remote_cert_dir, certs.csr_pending_dir, certs.ca_db_dir)
 
     for p in paths:
         assert os.path.exists(p)

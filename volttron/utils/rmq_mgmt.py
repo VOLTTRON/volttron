@@ -80,6 +80,7 @@ class RabbitMQMgmt(object):
     def __init__(self):
         self.rmq_config = RMQConfig()
         self.is_ssl = self.rmq_config.is_ssl
+        self.certs = self.rmq_config.crts
 
     def _call_grequest(self, method_name, url_suffix, ssl_auth=True, **kwargs):
         """
@@ -783,6 +784,46 @@ class RabbitMQMgmt(object):
                     host=self.rmq_config.hostname,
                     port=int(self.rmq_config.amqp_port),
                     virtual_host=self.rmq_config.virtual_host,
+                    credentials=pika.credentials.PlainCredentials(
+                        rmq_user, rmq_user))
+        except KeyError:
+            return None
+        return conn_params
+
+    def build_remote_connection_param(self, rmq_user, rmq_address, ssl_auth=None):
+        """
+        Build Pika Connection parameters
+        :param rmq_user: RabbitMQ user
+        :param ssl_auth: If SSL based connection or not
+        :return:
+        """
+
+        from urlparse import urlparse
+
+        parsed_addr = urlparse(rmq_address)
+        ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
+
+        try:
+            if ssl_auth:
+                ssl_options = dict(
+                    ssl_version=ssl.PROTOCOL_TLSv1,
+                    ca_certs="/home/osboxes/other_certs/v2-root-ca.crt",
+                    #ca_certs=self.certs.cert_file(self.certs.trusted_ca_name),
+                    keyfile=self.certs.private_key_file('vfoo.remote.agent'),
+                    certfile=self.certs.cert_file('v2.vfoo.remote.agent', True),
+                    cert_reqs=ssl.CERT_REQUIRED)
+                conn_params = pika.ConnectionParameters(
+                    host= parsed_addr.hostname,
+                    port= parsed_addr.port,
+                    virtual_host='volttron',
+                    ssl=True,
+                    ssl_options=ssl_options,
+                    credentials=pika.credentials.ExternalCredentials())
+            else:
+                conn_params = pika.ConnectionParameters(
+                    host=parsed_addr.hostname,
+                    port=parsed_addr.port,
+                    virtual_host='volttron',
                     credentials=pika.credentials.PlainCredentials(
                         rmq_user, rmq_user))
         except KeyError:
