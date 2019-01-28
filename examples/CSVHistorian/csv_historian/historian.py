@@ -67,7 +67,7 @@ def historian(config_path, **kwargs):
     else:
         config_dict = utils.load_config(config_path)
 
-    output_path = config_dict.get("output", "~/historian_output.csv")
+    output_path = config_dict.get("output", "historian_output.csv")
 
     return CSVHistorian(output_path = output_path, **kwargs)
 
