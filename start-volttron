@@ -1,5 +1,29 @@
 #!/usr/bin/env bash
 
+if [ -z $VOLTTRON_HOME ]
+then
+    vhome="$HOME/.volttron"
+else
+    vhome="$VOLTTRON_HOME"
+
+fi
+echo "VOLTTRON_HOME is $VOLTTRON_HOME"
+
+FILE="$vhome/VOLTTRON_PID"
+pid=`cat $FILE`
+if [ -f $FILE ]; then
+   if ps -p $pid > /dev/null 2>&1
+   then
+       echo "VOLTTRON with process id $pid is already running"
+       exit 1
+   else
+       echo "PID file exists but process is not running. Removing old
+       VOLTTRON_PID file"
+       rm $FILE
+   fi
+fi
+
+
 SCRIPT_DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
 
 # Check to make sure the script is executed from the correct
@@ -27,3 +51,9 @@ else
     disown
 fi
 
+echo "Waiting for VOLTTRON to startup.."
+while [ ! -f $FILE ]
+do
+  sleep 1
+done
+echo "VOLTTRON startup complete"
