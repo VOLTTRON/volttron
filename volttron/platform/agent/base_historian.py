@@ -114,7 +114,8 @@ publishing thread as soon as possible.
 At startup the publishing thread calls two methods:
 
 - :py:meth:`BaseHistorianAgent.historian_setup` to give the implemented
-Historian a chance to setup any connections in the thread.
+historian a chance to setup any connections in the thread. This method can
+also be used to load an initial data into memory
 - :py:meth:`BaseQueryHistorianAgent.record_table_definitions` to give the
 implemented Historian a chance to record the table/collection names into a
 meta table/collection with the named passed as parameter. The implemented
@@ -138,7 +139,14 @@ The process thread then enters the following logic loop:
 
 The logic will also forgo waiting the `retry_period` for new data to appear
 when checking for new data if publishing has been successful and there is
-still data in the cache to be publish.
+still data in the cache to be publish. If
+:py:meth:`BaseHistorianAgent.historian_setup` or
+:py:meth:`BaseQueryHistorianAgent.record_table_definitions` throw exception
+and alert is raised but the process loop continues to wait for data and
+caches it. The process loop will periodically try to call the two methods
+again until successful. Exception thrown by
+:py:meth:`BaseHistorianAgent.publish_to_historian` would also raise alerts
+and process loop will continue to back up data.
 
 Storing Data
 ------------
@@ -385,6 +393,7 @@ class BaseHistorianAgent(Agent):
         self._event_queue = gevent.queue.Queue() if self._process_loop_in_greenlet else Queue()
         self._readonly = bool(readonly)
         self._stop_process_loop = False
+        self._setup_failed = False
         self._process_thread = None
         self._message_publish_count = int(message_publish_count)
 
@@ -982,17 +991,14 @@ class BaseHistorianAgent(Agent):
         # call this method even in case of readonly mode in case historian
         # is setting up connections that are shared for both query and write
         # operations
-        try:
-            self.historian_setup()
-        except:
-            _log.exception("Failed to setup historian!")
+
+        self._historian_setup() # should be called even for readonly as this
+        # might load the topic id name map
 
         if self._readonly:
             _log.info("Historian setup in readonly mode.")
             return
 
-        # Record the names of data, topics, meta tables in a metadata table
-        self.record_table_definitions(self.volttron_table_defs)
         backupdb = BackupDatabase(self, self._backup_storage_limit_gb,
                                   self._backup_storage_report)
         self._update_status({STATUS_KEY_CACHE_COUNT: backupdb.get_backlog_count()})
@@ -1046,79 +1052,84 @@ class BaseHistorianAgent(Agent):
             if self._stop_process_loop:
                 break
 
-            wait_for_input = True
-            start_time = datetime.utcnow()
-            _log.debug("Beginning publish loop.")
+            if self._setup_failed:
+                # if setup failed earlier, try again.
+                self._historian_setup()
 
-            while True:
-                to_publish_list = backupdb.get_outstanding_to_publish(
-                    self._submit_size_limit)
+            # if setup was successful proceed to publish loop
+            if not self._setup_failed:
+                wait_for_input = True
+                start_time = datetime.utcnow()
+                _log.debug("Beginning publish loop.")
 
-                # Check to see if we are caught up.
-                if not to_publish_list:
-                    if self._message_publish_count > 0 and next_report_count < current_published_count:
-                        _log.info("Historian processed {} total records.".format(current_published_count))
-                        next_report_count = current_published_count + self._message_publish_count
-                    self._update_status({STATUS_KEY_BACKLOGGED: False,
-                                         STATUS_KEY_CACHE_COUNT: backupdb.get_backlog_count()})
-                    break
+                while True:
+                    to_publish_list = backupdb.get_outstanding_to_publish(
+                        self._submit_size_limit)
 
-                # Check for a stop for reconfiguration.
-                if self._stop_process_loop:
-                    break
+                    # Check to see if we are caught up.
+                    if not to_publish_list:
+                        if self._message_publish_count > 0 and next_report_count < current_published_count:
+                            _log.info("Historian processed {} total records.".format(current_published_count))
+                            next_report_count = current_published_count + self._message_publish_count
+                        self._update_status({STATUS_KEY_BACKLOGGED: False,
+                                             STATUS_KEY_CACHE_COUNT: backupdb.get_backlog_count()})
+                        break
 
-                history_limit_timestamp = None
-                if self._history_limit_days is not None:
-                    last_element = to_publish_list[-1]
-                    last_time_stamp = last_element["timestamp"]
-                    history_limit_timestamp = last_time_stamp - self._history_limit_days
+                    # Check for a stop for reconfiguration.
+                    if self._stop_process_loop:
+                        break
 
-                try:
-                    self.publish_to_historian(to_publish_list)
-                    self.manage_db_size(history_limit_timestamp, self._storage_limit_gb)
-                except:
-                    _log.exception(
-                        "An unhandled exception occurred while publishing.")
+                    history_limit_timestamp = None
+                    if self._history_limit_days is not None:
+                        last_element = to_publish_list[-1]
+                        last_time_stamp = last_element["timestamp"]
+                        history_limit_timestamp = last_time_stamp - self._history_limit_days
 
-                # if the success queue is empty then we need not remove
-                # them from the database and we are probably having connection problems.
-                # Update the status and send alert accordingly.
-                if not self._successful_published:
-                    self._send_alert({STATUS_KEY_PUBLISHING: False}, "historian_not_publishing")
-                    break
+                    try:
+                        self.publish_to_historian(to_publish_list)
+                        self.manage_db_size(history_limit_timestamp, self._storage_limit_gb)
+                    except:
+                        _log.exception(
+                            "An unhandled exception occurred while publishing.")
+
+                    # if the success queue is empty then we need not remove
+                    # them from the database and we are probably having connection problems.
+                    # Update the status and send alert accordingly.
+                    if not self._successful_published:
+                        self._send_alert({STATUS_KEY_PUBLISHING: False}, "historian_not_publishing")
+                        break
 
 
-                backupdb.remove_successfully_published(
-                    self._successful_published, self._submit_size_limit)
+                    backupdb.remove_successfully_published(
+                        self._successful_published, self._submit_size_limit)
 
-                backlog_count = backupdb.get_backlog_count()
-                old_backlog_state = self._current_status_context[STATUS_KEY_BACKLOGGED]
-                self._update_status({STATUS_KEY_PUBLISHING: True,
-                                     STATUS_KEY_BACKLOGGED: old_backlog_state and backlog_count > 0,
-                                     STATUS_KEY_CACHE_COUNT: backlog_count})
+                    backlog_count = backupdb.get_backlog_count()
+                    old_backlog_state = self._current_status_context[STATUS_KEY_BACKLOGGED]
+                    self._update_status({STATUS_KEY_PUBLISHING: True,
+                                         STATUS_KEY_BACKLOGGED: old_backlog_state and backlog_count > 0,
+                                         STATUS_KEY_CACHE_COUNT: backlog_count})
 
-                if None in self._successful_published:
-                    current_published_count += len(to_publish_list)
-                else:
-                    current_published_count += len(self._successful_published)
+                    if None in self._successful_published:
+                        current_published_count += len(to_publish_list)
+                    else:
+                        current_published_count += len(self._successful_published)
 
-                if self._message_publish_count > 0:
-                    if current_published_count >= next_report_count:
-                        _log.info("Historian processed {} total records.".format(current_published_count))
-                        next_report_count = current_published_count + self._message_publish_count
+                    if self._message_publish_count > 0:
+                        if current_published_count >= next_report_count:
+                            _log.info("Historian processed {} total records.".format(current_published_count))
+                            next_report_count = current_published_count + self._message_publish_count
 
-                self._successful_published = set()
-                now = datetime.utcnow()
-                if now - start_time > self._max_time_publishing:
-                    wait_for_input = False
-                    break
+                    self._successful_published = set()
+                    now = datetime.utcnow()
+                    if now - start_time > self._max_time_publishing:
+                        wait_for_input = False
+                        break
 
-                # Check for a stop for reconfiguration.
-                if self._stop_process_loop:
-                    break
+                    # Check for a stop for reconfiguration.
+                    if self._stop_process_loop:
+                        break
 
-            _log.debug("Exiting publish loop.")
-
+                _log.debug("Exiting publish loop.")
 
             # Check for a stop for reconfiguration.
             if self._stop_process_loop:
@@ -1133,6 +1144,22 @@ class BaseHistorianAgent(Agent):
 
         _log.debug("Process loop stopped.")
         self._stop_process_loop = False
+
+    def _historian_setup(self):
+        try:
+            _log.exception("Trying to setup historian")
+            self.historian_setup()
+            if not self._readonly:
+                # Record the names of data, topics, meta tables in a metadata table
+                self.record_table_definitions(self.volttron_table_defs)
+            if self._setup_failed:
+                self._setup_failed = False
+                self._update_status({STATUS_KEY_PUBLISHING: True})
+        except:
+            _log.exception("Failed to setup historian!")
+            self._setup_failed = True
+            self._send_alert({STATUS_KEY_PUBLISHING: False},
+                             "historian_not_publishing")
 
     def report_handled(self, record):
         """

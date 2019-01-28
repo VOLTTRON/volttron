@@ -56,6 +56,7 @@ from time import sleep
 from datetime import datetime
 import random
 import gevent
+import os
 
 class Historian(BaseHistorian):
     def publish_to_historian(self,_):
@@ -92,7 +93,8 @@ def listener(peer, sender, bus, topic, headers, message):
     foundtopic = True
 
 
-@pytest.mark.xfail(reason="This won't work on all machines because of hardcoded paths.")
+@pytest.mark.xfail(reason="This won't work on all machines because of "
+                          "hardcoded paths.")
 def test_base_historian(volttron_instance):
     global foundtopic
     v1 = volttron_instance
@@ -302,8 +304,10 @@ class FailureHistorian(BaseHistorian):
         super(FailureHistorian, self).__init__(**kwargs)
         self.publish_fail = False
         self.setup_fail = False
+        self.record_fail = False
         self.teardown_fail = False
         self.setup_run = False
+        self.record_run = False
         self.teardown_run = False
         self.seen = []
 
@@ -323,8 +327,10 @@ class FailureHistorian(BaseHistorian):
     def reset(self):
         self.seen = []
         self.setup_run = False
+        self.record_run = False
         self.teardown_run = False
         self.setup_fail = False
+        self.record_fail = False
         self.teardown_fail = False
         self.publish_fail = False
 
@@ -333,6 +339,11 @@ class FailureHistorian(BaseHistorian):
             raise StandardError("Failed to setup.")
 
         self.setup_run = True
+
+    def record_table_definitions(self, meta_table_name):
+        if self.record_fail:
+            raise StandardError("Failed to record table definitions")
+        self.record_run = True
 
     def historian_teardown(self):
         if self.teardown_fail:
@@ -352,6 +363,7 @@ def fail_historian(request, volttron_instance):
     yield agent
     agent.core.stop()
 
+
 @pytest.mark.historian
 def test_failing_historian(request, fail_historian, client_agent):
     """
@@ -367,13 +379,12 @@ def test_failing_historian(request, fail_historian, client_agent):
     assert fail_historian.teardown_run
     assert fail_historian.setup_run
     assert fail_historian._process_thread is None
-
+    ###
+    # Test setup failure case
+    ###
     fail_historian.reset()
-
     fail_historian.setup_fail = True
-
     fail_historian.start_process_thread()
-
     gevent.sleep(0.2)
 
     assert fail_historian._process_thread.is_alive()
@@ -385,11 +396,31 @@ def test_failing_historian(request, fail_historian, client_agent):
     assert fail_historian.teardown_run
     assert not fail_historian.setup_run
     assert fail_historian._process_thread is None
-
+    ###
+    # Test failure to record intial table names in db
+    ###
     fail_historian.reset()
+    fail_historian.record_fail = True
+    fail_historian.start_process_thread()
 
+    gevent.sleep(0.2)
+
+    assert fail_historian._process_thread.is_alive()
+    assert fail_historian.setup_run
+    assert not fail_historian.record_run
+    assert not fail_historian.teardown_run
+
+    fail_historian.stop_process_thread()
+
+    assert fail_historian.teardown_run
+    assert fail_historian.setup_run
+    assert not fail_historian.record_run
+    assert fail_historian._process_thread is None
+    ###
+    # Test failure during teardown
+    ###
+    fail_historian.reset()
     fail_historian.teardown_fail = True
-
     fail_historian.start_process_thread()
 
     gevent.sleep(0.2)
@@ -440,4 +471,71 @@ def test_failing_historian(request, fail_historian, client_agent):
     gevent.sleep(2.0)
     assert fail_historian._process_thread.is_alive()
     assert not fail_historian.seen
-    
+    ###
+    # Test if historian recovers when setup fails initially but is successful
+    # after sometime. This is to test case where db is down when historian
+    # is first started and db is brought back up. Historian should recover
+    # without restart.
+    ###
+    fail_historian.stop_process_thread()
+    fail_historian.reset()
+    fail_historian.setup_fail = True
+    fail_historian.start_process_thread()
+
+    gevent.sleep(0.2)
+
+    DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+
+    print("\n** test_basic_function for {}**".format(
+        request.keywords.node.name))
+
+    float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+
+    # Create a message for all points.
+    all_message = [{'OutsideAirTemperature': 32},
+                   {'OutsideAirTemperature': float_meta}]
+
+    # Create timestamp
+    now = utils.format_timestamp(datetime.utcnow())
+
+    # now = '2015-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+    }
+    print("Published time in header: " + now)
+
+    client_agent.vip.pubsub.publish('pubsub',
+                                    DEVICES_ALL_TOPIC,
+                                    headers=headers,
+                                    message=all_message).get(timeout=10)
+
+    gevent.sleep(6.0)
+    assert fail_historian._process_thread.is_alive()
+    assert not fail_historian.seen
+
+    # now setup fail is false. publish again and see if we recover
+    fail_historian.setup_fail = False
+
+    # Create timestamp
+    now = utils.format_timestamp(datetime.utcnow())
+
+    # now = '2015-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+    }
+    print("Published time in header: " + now)
+
+    client_agent.vip.pubsub.publish('pubsub',
+                                    DEVICES_ALL_TOPIC,
+                                    headers=headers,
+                                    message=all_message).get(timeout=10)
+
+    gevent.sleep(2.0)
+    assert fail_historian._process_thread.is_alive()
+    assert fail_historian.setup_run
+    assert fail_historian.record_run
+    assert len(fail_historian.seen)
+    print(fail_historian.seen)
+
+
+

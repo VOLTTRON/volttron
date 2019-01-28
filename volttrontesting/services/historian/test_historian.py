@@ -338,7 +338,6 @@ def cleanup_sql(db_connection, truncate_tables):
     db_connection.commit()
     cursor.close()
 
-
 def cleanup_sqlite(db_connection, truncate_tables):
     cleanup_sql(db_connection, truncate_tables)
 
@@ -549,6 +548,7 @@ def assert_timestamp(result, expected_date, expected_time):
         assert (result == expected_date + 'T' + expected_time[:-7] +
                 '.000000+00:00')
 
+
 @pytest.mark.historian
 def test_basic_function(request, historian, publish_agent, query_agent,
                         clean_db_rows):
@@ -738,7 +738,6 @@ def test_basic_function_optional_config(request, historian, publish_agent,
                               'prefix_topics_table', 'prefix_meta_table'])
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
-
 
 
 @pytest.mark.historian
