@@ -413,14 +413,14 @@ class CrateHistorian(BaseHistorian):
         args = [topic]
         if start and end and start == end:
             where_clauses.append("ts = ?")
-            args.append(start)
+            args.append(start.replace(tzinfo=None))
         else:
             if start:
                 where_clauses.append("ts >= ?")
-                args.append(start)
+                args.append(start.replace(tzinfo=None))
             if end:
                 where_clauses.append("ts < ?")
-                args.append(end)
+                args.append(end.replace(tzinfo=None))
 
         where_statement = ' AND '.join(where_clauses)
 
