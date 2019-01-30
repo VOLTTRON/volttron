@@ -104,6 +104,7 @@ else:
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
+VOLTTRON_INSTANCES = '~/.volttron_instances'
 
 def log_to_file(file_, level=logging.WARNING,
                 handler_class=logging.StreamHandler):
@@ -732,6 +733,7 @@ def start_volttron_process(opts):
             stop()
 
     address = 'inproc://vip'
+    pid_file = os.path.join(opts.volttron_home, "VOLTTRON_PID")
     try:
 
         stop_event = None
@@ -846,7 +848,7 @@ def start_volttron_process(opts):
             del event
         # The instance file is where we are going to record the instance and
         # its details according to
-        instance_file = os.path.expanduser('~/.volttron_instances')
+        instance_file = os.path.expanduser(VOLTTRON_INSTANCES)
         try:
             instances = load_create_store(instance_file)
         except ValueError:
@@ -911,6 +913,12 @@ def start_volttron_process(opts):
         if opts.autostart:
             for name, error in opts.aip.autostart():
                 _log.error('error starting {!r}: {}\n'.format(name, error))
+
+        # Done with all start up process write a PID file
+
+        with open(pid_file, 'w+') as f:
+            f.write(str(os.getpid()))
+
         # Wait for any service to stop, signaling exit
         try:
             gevent.wait(tasks, count=1)
@@ -927,6 +935,15 @@ def start_volttron_process(opts):
     finally:
         _log.debug("AIP finally")
         opts.aip.finish()
+        instance_file = os.path.expanduser(VOLTTRON_INSTANCES)
+        try:
+            instances = load_create_store(instance_file)
+            instances.pop(opts.volttron_home, None)
+            instances.sync()
+            if os.path.exists(pid_file):
+                os.remove(pid_file)
+        except Exception:
+            _log.warn("Unable to load {}".format(VOLTTRON_INSTANCES))
 
 
 def main(argv=sys.argv):
