@@ -53,6 +53,8 @@ import uuid
 import hashlib
 import tarfile
 import subprocess
+
+import psutil
 import requests
 import gevent
 import gevent.event
@@ -2493,6 +2495,20 @@ def main(argv=sys.argv):
 
     # Parse and expand options
     args = argv[1:]
+
+    # TODO: for auth some of the commands will work when volttron is down and
+    # some will error (example vctl auth serverkey). Do check inside auth
+    # function
+    # Below vctl commands can work even when volttron is not up. For others
+    # volttron need to be up.
+    if args[0] not in ('list', 'tag', 'auth', 'rabbitmq'):
+        # check pid file
+        pid_file = os.path.join(volttron_home, 'VOLTTRON_PID')
+        if not (os.path.exists(pid_file) and check_process(pid_file)):
+                _stderr.write("VOLTTRON is not running. This command "
+                              "requires VOLTTRON platform to be running\n")
+                return 10
+
     conf = os.path.join(volttron_home, 'config')
     if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
         args = ['--config', conf] + args
@@ -2546,6 +2562,14 @@ def main(argv=sys.argv):
         print_tb()
     _stderr.write('{}: error: {}\n'.format(opts.command, error))
     return 20
+
+
+def check_process(pid_file):
+    running = False
+    with open(pid_file, 'r') as pf:
+        pid = int(pf.read().strip())
+        running = psutil.pid_exists(pid)
+    return running
 
 
 def _main():
