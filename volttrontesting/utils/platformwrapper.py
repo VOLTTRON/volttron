@@ -20,7 +20,8 @@ from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging
 from volttron.platform.agent import utils
-from volttron.platform.agent.utils import strip_comments, load_platform_config
+from volttron.platform.agent.utils import strip_comments, \
+    load_platform_config, store_message_bus_config
 from volttron.platform.aip import AIPplatform
 from volttron.platform.auth import (AuthFile, AuthEntry,
                                     AuthFileEntryAlreadyExists)
@@ -235,7 +236,18 @@ class PlatformWrapper:
         self.keystore.generate()
         self.message_bus = message_bus if message_bus else 'zmq'
         self.ssl_auth = ssl_auth
-
+        if self.message_bus == 'rmq':
+            self.logit("Setting up volttron test environemnt"
+                       " {}".format(self.volttron_home))
+            create_rmq_volttron_setup(vhome=self.volttron_home,
+                                      ssl_auth=self.ssl_auth)
+            platform_config = load_platform_config()
+            instance_name = platform_config.get('instance-name', '').strip('"')
+            if not instance_name:
+                self.instance_name = instance_name = 'volttron_test'
+                store_message_bus_config('rmq', instance_name)
+            else:
+                self.instance_name = instance_name
 
     def logit(self, message):
         print('{}: {}'.format(self.volttron_home, message))
@@ -415,7 +427,8 @@ class PlatformWrapper:
         self.mode = mode
         self.volttron_central_address=volttron_central_address
         self.volttron_central_serverkey=volttron_central_serverkey
-        self.instance_name = instance_name
+        if instance_name:
+            self.instance_name = instance_name
         self.bind_web_address = bind_web_address
         if self.bind_web_address:
             self.discovery_address = "{}/discovery/".format(
@@ -431,14 +444,6 @@ class PlatformWrapper:
         if not debug_mode:
             debug_mode = self.env.get('DEBUG', False)
         self.skip_cleanup = self.env.get('SKIP_CLEANUP', False)
-        if self.message_bus == 'rmq':
-            self.logit("Setting up volttron test environemnt {}".format(self.volttron_home))
-            create_rmq_volttron_setup(vhome=self.volttron_home,
-                                      ssl_auth=self.ssl_auth)
-            platform_config = load_platform_config()
-            instance_name = platform_config.get('instance-name', '').strip('"')
-            if not instance_name:
-                self.instance_name = instance_name = 'volttron_test'
 
         if debug_mode:
             self.skip_cleanup = True
@@ -495,9 +500,9 @@ class PlatformWrapper:
         if volttron_central_serverkey:
             parser.set('volttron', 'volttron-central-serverkey',
                        volttron_central_serverkey)
-        if instance_name:
+        if self.instance_name:
             parser.set('volttron', 'instance-name',
-                       instance_name)
+                       self.instance_name)
         if self.message_bus:
             parser.set('volttron', 'message-bus',
                        self.message_bus)

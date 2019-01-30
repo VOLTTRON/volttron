@@ -155,21 +155,12 @@ def _create_federation_setup(admin_user, admin_password, is_ssl, vhost, vhome):
                                                         host=host)
                 _log.debug("Upstream Server: {name} ".format(name=name))
 
-                if is_ssl:
-                    address = "amqps://{host}:{port}/{vhost}?" \
-                              "{ssl_params}&server_name_indication={host}".format(
-                        host=host,
-                        port=upstream['port'],
-                        vhost=upstream['virtual-host'],
-                        ssl_params=ssl_params)
-                else:
-                    address = "amqp://{user}:{pwd}@{host}:{port}/" \
-                              "{vhost}".format(
-                        user=admin_user,
-                        pwd=admin_password,
-                        host=host,
-                        port=upstream['port'],
-                        vhost=upstream['virtual-host'])
+                address = rmq_mgmt.build_rmq_address(admin_user,
+                                                     admin_password, host,
+                                                     upstream['port'],
+                                                     upstream['virtual-host'],
+                                                     is_ssl,
+                                                     ssl_params)
                 prop = dict(vhost=vhost,
                             component="federation-upstream",
                             name=name,

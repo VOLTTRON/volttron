@@ -134,7 +134,7 @@ def _create_fingerprint(public_key):
     return h.finalize()
 
 
-def _mk_cacert(**kwargs):
+def _mk_cacert(valid_days=DEFAULT_DAYS, **kwargs):
     key = rsa.generate_private_key(
         public_exponent=65537,
         key_size=2048,
@@ -152,7 +152,7 @@ def _mk_cacert(**kwargs):
         datetime.datetime.utcnow()
     ).not_valid_after(
         # Our certificate will be valid for 365 days
-        datetime.datetime.utcnow() + datetime.timedelta(days=DEFAULT_DAYS)
+        datetime.datetime.utcnow() + datetime.timedelta(days=valid_days)
     ).add_extension(
         # set CA to true
         x509.BasicConstraints(ca=True, path_length=1),
@@ -428,15 +428,6 @@ class Certs(object):
 
         return mod_pub == mod_key
 
-    def create_instance_ca(self, name):
-        self.create_ca_signed_cert(name, type='CA')
-        with open(self.cert_file(name), 'a') as destination:
-            with open(self.cert_file(self.root_ca_name), 'rb') as source:
-                destination.write(os.linesep)
-                s = source.read()
-                destination.write(s)
-        os.chmod(self.cert_file(name), 0644)
-
     def save_cert(self, file_path):
         cert_file = self.cert_file(os.path.splitext(os.path.basename(
             file_path))[0])
@@ -458,11 +449,17 @@ class Certs(object):
             os.chmod(key_file, 0600)
 
     def create_ca_signed_cert(self, name, type='client', ca_name=None,
-                              overwrite=True, **kwargs):
+                              overwrite=True, valid_days=DEFAULT_DAYS,
+                              **kwargs):
         """
         Create a new certificate and sign it with the volttron instance's
         CA certificate. Save the created certificate and the private key of
         the certificate with the given name
+        :param valid_days: number of days for which cert should be valid
+        :param ca_name: name of the ca to sign this cert
+        :param type: client or server
+        :param overwrite: boolean to denote if existing cert should be
+         overwritten
         :param name: name used to save the newly created certificate and
          private key. Files are saved as <name>.crt and <name>.pem
         :param kwargs: dictionary object containing various details about who we
@@ -530,7 +527,7 @@ class Certs(object):
             datetime.datetime.utcnow()
         ).not_valid_after(
             # Our certificate will be valid for 365 days
-            datetime.datetime.utcnow() + datetime.timedelta(days=365)
+            datetime.datetime.utcnow() + datetime.timedelta(days=valid_days)
         ).add_extension(
             x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(ski),
             critical=False
@@ -675,11 +672,14 @@ class Certs(object):
         cert = self.cert(cert_name)
         return cert.verify(cacert.get_pubkey())
 
-    def create_root_ca(self, overwrite=True, **kwargs):
+    def create_root_ca(self, overwrite=True, valid_days=DEFAULT_DAYS, **kwargs):
         """
         Create a CA certificate with the given args and save it with the given
         name
-        :param name: name of the CA certificate
+        :param overwrite: boolan to indicate if we should overwrite
+         any existing CA
+        :param valid_days: Number of days for which the certificate should be
+         valid. Defaults to 365 days
         :param kwargs: Details about the certificate.
          Possible arguments:
             C  - Country
@@ -697,6 +697,6 @@ class Certs(object):
         if 'CN' not in kwargs.keys() or kwargs['CN'] is None:
             kwargs['CN'] = self.default_root_ca_cn
 
-        cert, pk = _mk_cacert(**kwargs)
+        cert, pk = _mk_cacert(valid_days=valid_days, **kwargs)
 
         self._save_cert(self.root_ca_name, cert, pk)
