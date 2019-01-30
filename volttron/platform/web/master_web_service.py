@@ -508,7 +508,12 @@ class MasterWebService(Agent):
             # _log.info('Web server not started.')
             return
         import urlparse
+        ssl_cert = None
+        ssl_key = None
         parsed = urlparse.urlparse(self.bind_web_address)
+        if parsed.scheme == 'https':
+            ssl_cert = self._certs.cert_file(self._certs.root_ca_name)
+            ssl_key = self._certs.private_key_file(self._certs.root_ca_name)
         hostname = parsed.hostname
         port = parsed.port
 
