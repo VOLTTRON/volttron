@@ -58,6 +58,7 @@ from gevent.fileobject import FileObject
 import zmq
 from zmq import ZMQError
 from zmq import green
+import subprocess
 
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
@@ -789,6 +790,10 @@ def start_volttron_process(opts):
                 start_rabbit(rmq_config.rmq_home)
             except AttributeError as exc:
                 _log.error("Exception while starting RabbitMQ. Check the path in the config file.")
+                sys.exit()
+            except subprocess.CalledProcessError as exc:
+                _log.error("Unable to start rabbitmq server. "
+                           "Possible solution is to regenerate the certificates and start volttron again")
                 sys.exit()
 
             # Start the config store before auth so we may one day have auth use it.

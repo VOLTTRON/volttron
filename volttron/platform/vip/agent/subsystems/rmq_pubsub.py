@@ -104,9 +104,6 @@ class RMQPubSub(BasePubSub):
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
-            self._connection = self.core().connection
-            self._channel = self.core().connection.channel
-
             core.onconnected.connect(self._connected)
 
             def subscribe(member):  # pylint: disable=redefined-outer-name

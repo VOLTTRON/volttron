@@ -294,10 +294,13 @@ class BasicCore(object):
             stop.wait()
         except (gevent.GreenletExit, KeyboardInterrupt):
             pass
+        print("Out of gevent wait")
         scheduler.kill()
         looper.next()
+        print("prestop done")
         receivers = self.onstop.sendby(self.link_receiver, self)
         gevent.wait(receivers)
+        print("prefinish done")
         looper.next()
         self.onfinish.send(self)
 
@@ -530,7 +533,7 @@ class Core(BasicCore):
             # shut down.
             if hello_response_event.wait(10.0):
                 return
-            _log.error("No response to hello message after 10 seconds.")
+            _log.error("No response to hello message after 10 seconds.{}".format(self.messagebus))
             _log.error("A common reason for this is a conflicting VIP IDENTITY.")
             _log.error("Another common reason is not having an auth entry on"
                        "the target instance.")
@@ -590,7 +593,6 @@ class ZMQCore(Core):
         _log.debug("AGENT RUNNING on ZMQ Core {}".format(self.identity))
 
         self.socket = None
-        self._fncs_enabled = enable_fncs
 
     def _set_keys(self):
         """Implements logic for setting encryption keys and putting
@@ -878,6 +880,7 @@ class RMQCore(Core):
 
         if self.identity is None:
             raise ValueError("Agent's VIP identity is not set")
+            return param
         else:
             param = self.rmq_mgmt.build_agent_connection(self.identity,
                                                          self.instance_name)
@@ -895,9 +898,10 @@ class RMQCore(Core):
 
         # pre-start
         flags = dict(durable=False, exclusive=True, auto_delete=True)
-        self.connection.set_properties(flags)
-        # Register callback handler for VIP messages
-        self.connection.register(self.vip_message_handler)
+        if self.connection:
+            self.connection.set_properties(flags)
+            # Register callback handler for VIP messages
+            self.connection.register(self.vip_message_handler)
 
         state = type('HelloState', (), {'count': 0, 'ident': None})
         hello_response_event = gevent.event.Event()
@@ -926,61 +930,64 @@ class RMQCore(Core):
             if router_connected:
                 hello()
             else:
-                _log.debug("Router not bound to RabbitMQ yet, waiting for 5 seconds before sending hello".
+                _log.debug("Router not bound to RabbitMQ yet, waiting for 5 seconds before sending hello {}".
                            format(self.identity))
-                self.spawn_later(5, hello)
+                self.spawn_later(2, hello)
 
         # Connect to RMQ broker. Register a callback to get notified when
         # connection is confirmed
-        self.connection.connect(connect_callback, connection_error)
+        if param:
+            self.connection.connect(connect_callback, connection_error)
 
         self.onconnected.connect(hello_response)
         self.ondisconnected.connect(self.connection.close_connection)
 
         def vip_loop():
-            wait_period = 1  # 1 second
-            while True:
-                message = None
-                try:
-                    message = self._event_queue.get(wait_period)
-                except gevent.Timeout:
-                    pass
-                except Exception as exc:
-                    _log.error(exc.args)
-                    raise
-                if message:
-                    subsystem = bytes(message.subsystem)
-
-                    if subsystem == b'hello':
-                        if (subsystem == b'hello' and
-                                    bytes(message.id) == state.ident and
-                                    len(message.args) > 3 and
-                                    bytes(message.args[0]) == b'welcome'):
-                            version, server, identity = [
-                                bytes(x) for x in message.args[1:4]]
-                            self.__connected = True
-                            self.onconnected.send(self, version=version,
-                                                  router=server,
-                                                  identity=identity)
-                            continue
+            if param:
+                wait_period = 1  # 1 second
+                while True:
+                    message = None
                     try:
-                        handle = self.subsystems[subsystem]
-                    except KeyError:
-                        _log.error('peer %r requested unknown subsystem %r',
-                                   bytes(message.peer), subsystem)
-                        message.user = b''
-                        message.args = list(router._INVALID_SUBSYSTEM)
-                        message.args.append(message.subsystem)
-                        message.subsystem = b'error'
-                        self.connection.send_vip_object(message)
-                    else:
-                        handle(message)
+                        message = self._event_queue.get(wait_period)
+                    except gevent.Timeout:
+                        pass
+                    except Exception as exc:
+                        _log.error(exc.args)
+                        raise
+                    if message:
+                        subsystem = bytes(message.subsystem)
+
+                        if subsystem == b'hello':
+                            if (subsystem == b'hello' and
+                                        bytes(message.id) == state.ident and
+                                        len(message.args) > 3 and
+                                        bytes(message.args[0]) == b'welcome'):
+                                version, server, identity = [
+                                    bytes(x) for x in message.args[1:4]]
+                                self.__connected = True
+                                self.onconnected.send(self, version=version,
+                                                      router=server,
+                                                      identity=identity)
+                                continue
+                        try:
+                            handle = self.subsystems[subsystem]
+                        except KeyError:
+                            _log.error('peer %r requested unknown subsystem %r',
+                                       bytes(message.peer), subsystem)
+                            message.user = b''
+                            message.args = list(router._INVALID_SUBSYSTEM)
+                            message.args.append(message.subsystem)
+                            message.subsystem = b'error'
+                            self.connection.send_vip_object(message)
+                        else:
+                            handle(message)
 
         yield gevent.spawn(vip_loop)
         # pre-stop
         yield
         # pre-finish
-        self.connection.close_connection()
+        if param:
+            self.connection.close_connection()
         yield
 
     def vip_message_handler(self, message):

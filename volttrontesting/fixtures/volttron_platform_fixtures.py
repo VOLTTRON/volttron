@@ -67,7 +67,8 @@ def cleanup_wrappers(platforms):
     for p in platforms:
         cleanup_wrapper(p)
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module",
+                params=[('zmq', False), ('rmq', True)])
 def volttron_instance1(request):
     print("building instance 1")
     wrapper = build_wrapper(get_rand_vip())
@@ -79,7 +80,8 @@ def volttron_instance1(request):
     return wrapper
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module",
+                params=[('zmq', False), ('rmq', True)])
 def volttron_instance2(request):
     print("building instance 2")
     wrapper = build_wrapper(get_rand_vip())
@@ -176,6 +178,7 @@ def volttron_instance_module_web(request):
 # Use this fixture when you want a single instance of volttron platform for
 # test
 @pytest.fixture(scope="module",
+                #params=[('zmq', False)])
                 params=[('zmq', False), ('rmq', True)])
 def volttron_instance(request):
     """Fixture that returns a single instance of volttron platform for testing
