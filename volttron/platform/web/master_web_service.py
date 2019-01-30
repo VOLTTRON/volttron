@@ -80,7 +80,6 @@ class DuplicateEndpointError(StandardError):
     pass
 
 
-
 class WebResponse(object):
     """ The WebResponse object is a serializable representation of
     a response to an http(s) client request that can be transmitted
@@ -153,8 +152,6 @@ class MasterWebService(Agent):
         for p in self.peerroutes:
             if p not in peers:
                 del self.peerroutes[p]
-
-
 
     @RPC.export
     def websocket_send(self, endpoint, message):
@@ -535,7 +532,9 @@ class MasterWebService(Agent):
             os.makedirs(logdir)
 
         self.appContainer = WebApplicationWrapper(self, hostname, port)
-        svr = WSGIServer((hostname, port), self.appContainer)
+        svr = WSGIServer((hostname, port), self.appContainer,
+                         certfile=ssl_cert,
+                         keyfile=ssl_key)
         self._server_greenlet = gevent.spawn(svr.serve_forever)
 
     def _csr_request_new(self, env, start_response, data):
