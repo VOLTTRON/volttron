@@ -56,10 +56,11 @@ import uuid
 import gevent
 from gevent.fileobject import FileObject
 import zmq
-from zmq import ZMQError
-from zmq import green
+from zmq import ZMQError, green, NOBLOCK
 
 # Create a context common to the green and non-green zmq modules.
+from volttron.platform.vip.agent.compat import CompatPubSub
+
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
 from volttron.platform.agent import json as jsonapi
 
@@ -370,7 +371,7 @@ class Router(BaseRouter):
         subsystem = bytes(frames[5])
         if subsystem == b'quit':
             sender = bytes(frames[0])
-            if sender == b'control' and user_id == self.default_user_id:
+            if sender == b'control' or b'platform.auth' and user_id == self.default_user_id:
                 if self._ext_routing:
                     self._ext_routing.close_external_connections()
                 self.stop()
@@ -559,6 +560,7 @@ def start_volttron_process(opts):
     that case the dictionaries keys are mapped into a value that acts like the
     args options.
     '''
+
     if isinstance(opts, dict):
         opts = type('Options', (), opts)()
         # vip_address is meant to be a list so make it so.
@@ -884,11 +886,12 @@ def start_volttron_process(opts):
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
-            ControlService(opts.aip, address=address, identity='control',
-                           tracker=tracker, heartbeat_autostart=True,
-                           enable_store=False, enable_channel=True,
-                           message_bus=opts.message_bus,
-                           agent_monitor_frequency=opts.agent_monitor_frequency)
+            ControlService(
+                opts.aip, address=address, identity='control',
+                tracker=tracker, heartbeat_autostart=True,
+                enable_store=False, enable_channel=True,
+                message_bus=opts.message_bus,
+                agent_monitor_frequency=opts.agent_monitor_frequency),
 
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
