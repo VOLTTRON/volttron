@@ -37,57 +37,39 @@
 # }}}
 
 import pytest
-from volttron.platform.agent.base_market_agent.point import Point
-from volttron.platform.agent.base_market_agent.poly_line import PolyLine
-from volttron.platform.agent.base_market_agent.poly_line_factory import PolyLineFactory
+
+try:
+    from volttron.platform.agent.base_market_agent.point import Point
+except ImportError:
+    pytest.skip("Market service requirements not installed.", allow_module_level=True)
 
 @pytest.mark.market
-def test_poly_line_combine_supply():
-    supply_curve = create_supply_curve()
-    curves = [supply_curve, supply_curve]
-    combined_curves = PolyLineFactory.combine(curves, 100)
-    assert combined_curves.min_x() == 0
-    assert combined_curves.max_x() == 2000
-    assert combined_curves.min_y() == 0
-    assert combined_curves.max_y() == 1000
+def test_point_init():
+    p = Point(4,8)
+    assert p.x == 4.0
+    assert p.y == 8.0
 
 @pytest.mark.market
-def test_poly_line_combine_demand():
-    demand_curve = create_demand_curve()
-    curves = [demand_curve, demand_curve]
-    combined_curves = PolyLineFactory.combine(curves, 100)
-    assert combined_curves.min_x() == 0
-    assert combined_curves.max_x() == 2000
-    assert combined_curves.min_y() == 0
-    assert combined_curves.max_y() == 1000
+def test_point_x_none():
+    with pytest.raises(ValueError):
+        p = Point(None,8)
 
 @pytest.mark.market
-def test_poly_line_from_tupples():
-    demand_curve = create_demand_curve()
-    tupples = demand_curve.points
-    new_curve = PolyLineFactory.fromTupples(tupples)
-    expected_length = len(demand_curve.points)
-    actual_length = len(new_curve.points)
-    assert actual_length == expected_length
+def test_point_x_negative():
+    with pytest.raises(ValueError):
+        p = Point(-8,8)
 
 @pytest.mark.market
-def create_supply_curve():
-    supply_curve = PolyLine()
-    price = 0
-    quantity = 0
-    supply_curve.add(Point(price,quantity))
-    price = 1000
-    quantity = 1000
-    supply_curve.add(Point(price,quantity))
-    return supply_curve
+def test_point_y_none():
+    with pytest.raises(ValueError):
+        p = Point(4,None)
+
+def test_point_y_negative():
+    with pytest.raises(ValueError):
+        p = Point(4,-4)
 
 @pytest.mark.market
-def create_demand_curve():
-    demand_curve = PolyLine()
-    price = 0
-    quantity = 1000
-    demand_curve.add(Point(price,quantity))
-    price = 1000
-    quantity = 0
-    demand_curve.add(Point(price,quantity))
-    return demand_curve
+def test_point_tuppleize():
+    p = Point(4,8)
+    assert p == (4.0,8.0)
+

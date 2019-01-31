@@ -388,12 +388,17 @@ class MyLogger(openpal.ILogHandler):
 
     def __init__(self):
         super(MyLogger, self).__init__()
+        self.tcp_client = None
 
     def Log(self, entry):
         """Write a DNP3 log entry to the logger (debug level)."""
         location = entry.location.rsplit('/')[-1] if entry.location else ''
         filters = entry.filters.GetBitfield()
         message = entry.message
+
+        if "Accepted connection from" in message:
+            self.tcp_client = message.split(": ")[1]
+
         _log.debug('DNP3Log {0}\t(filters={1}) {2}'.format(location, filters, message))
         # This is here as an example of how to send a specific log entry to the message bus as outstation status.
         # if 'Accepted connection' in message or 'Listening on' in message:

@@ -53,6 +53,7 @@ import uuid
 import hashlib
 import tarfile
 import subprocess
+from datetime import timedelta
 
 import psutil
 import requests
@@ -61,6 +62,7 @@ import gevent.event
 
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform import get_home, get_address
+from volttron.platform.messaging.health import Status, STATUS_BAD
 
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
@@ -74,6 +76,9 @@ from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.socket import Message
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from .vip.agent.errors import VIPError
+from .auth import AuthEntry, AuthFile, AuthException
+from .keystore import KeyStore, KnownHostsStore
+from volttron.platform.scheduling import periodic
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
@@ -100,12 +105,15 @@ CHUNK_SIZE = 4096
 
 
 class ControlService(BaseAgent):
-    def __init__(self, aip, *args, **kwargs):
+    def __init__(self, aip, agent_monitor_frequency, *args, **kwargs):
+
         tracker = kwargs.pop('tracker', None)
         kwargs["enable_store"] = False
         super(ControlService, self).__init__(*args, **kwargs)
         self._aip = aip
         self._tracker = tracker
+        self.crashed_agents = {}
+        self.agent_monitor_frequency = int(agent_monitor_frequency)
 
     @Core.receiver('onsetup')
     def _setup(self, sender, **kwargs):
@@ -115,6 +123,74 @@ class ControlService(BaseAgent):
         self.vip.rpc.export(self._tracker.enable, 'stats.enable')
         self.vip.rpc.export(self._tracker.disable, 'stats.disable')
         self.vip.rpc.export(lambda: self._tracker.stats, 'stats.get')
+
+    @Core.receiver('onstart')
+    def onstart(self, sender, **kwargs):
+        _log.debug(" agent monitor frequency is... {}".format(
+            self.agent_monitor_frequency))
+        self.core.schedule(periodic(self.agent_monitor_frequency),
+                           self._monitor_agents)
+
+    def _monitor_agents(self):
+        """
+        Periodically look for agents that crashed and schedule a restart
+        attempt. Attempts at most 5 times with increasing interval
+        between attempts. Sends alert if attempts fail.
+        """
+        # Get status for agents that have been started at least once.
+        stats = self._aip.status_agents()
+        for (uid, name, (pid, stat)) in stats:
+            if stat:
+                # stat=0 means stopped and stat=None means running
+                # will always have pid(current/crashed/stopped)
+                attempt = self.crashed_agents.get(uid, -1) + 1
+                if attempt < 5:
+                    self.crashed_agents[uid] = attempt
+                    next_restart = utils.get_aware_utc_now() + timedelta(
+                        minutes=attempt*5)
+                    _log.debug("{} stopped unexpectedly. Will attempt to "
+                               "restart at {}".format(name, next_restart))
+                    self.core.schedule(next_restart,
+                                       self._restart_agent,
+                                       uid, name)
+                else:
+                    self.send_alert(uid, name)
+                    self.crashed_agents.pop(uid)
+
+    def _restart_agent(self, agent_id, agent_name):
+        """
+        Checks if a given agent has crashed. If so attempts to restart it.
+        If successful removes the agent id from list of crashed agents
+        :param agent_id:
+        :param agent_name:
+        :return:
+        """
+        (id, stat) = self._aip.agent_status(agent_id)
+        if stat:
+            # if there is still some error status... attempt restart
+            # call self.stop to inform router but call aip start to get
+            # status back
+            self.stop_agent(agent_id)
+            (id,stat) = self._aip.start_agent(agent_id)
+            if stat is None:
+                # start successful
+                self.crashed_agents.pop(agent_id)
+                _log.info("Successfully restarted agent {}".format(agent_name))
+            else:
+                _log.info("Restart of {} failed".format(agent_name))
+
+    def send_alert(self, agent_id, agent_name):
+        """Send an alert for the group, summarizing missing topics.
+
+        :param unseen_topics: List of topics that were expected but not received
+        :type unseen_topics: list
+        """
+        alert_key = "Agent {}({}) stopped unexpectedly".format(agent_name,
+                                                               agent_id)
+        context = "Agent {}({}) stopped unexpectedly. Attempts to " \
+                    "restart failed".format(agent_name, agent_id)
+        status = Status.build(STATUS_BAD, context=context)
+        self.vip.health.send_alert(alert_key, status)
 
     @RPC.export
     def serverkey(self):
@@ -710,7 +786,7 @@ def agent_health(opts):
         _stderr.write(json.dumps(
             opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4),
             indent=4) + '\n'
-                      )
+        )
     except VIPError:
         print("Agent {} is not running on the Volttron platform.".format(agent.uuid))
 
@@ -792,7 +868,6 @@ def run_agent(opts):
 
 def shutdown_agents(opts):
     opts.connection.call('shutdown')
-    _log.debug("Calling stop_platform")
     if opts.platform:
         opts.connection.notify('stop_platform')
 
@@ -1443,6 +1518,8 @@ def edit_config(opts):
 
         success = True
         try:
+            # do not use utils.execute_command as we don't want set stdout to
+            #  subprocess.PIPE
             subprocess.check_call([opts.editor, f.name])
         except subprocess.CalledProcessError as e:
             _stderr.write("Editor returned with code {}. Changes not committed.\n".format(e.returncode))
@@ -1951,7 +2028,7 @@ def main(argv=sys.argv):
 
     global_args.set_defaults(
         vip_address=get_address(),
-        timeout=30
+        timeout=60
     )
 
     filterable = config.ArgumentParser(add_help=False)

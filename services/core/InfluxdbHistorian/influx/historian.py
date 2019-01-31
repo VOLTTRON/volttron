@@ -239,6 +239,11 @@ class InfluxdbHistorian(BaseHistorian):
                 ts = utils.format_timestamp(row['timestamp'])
                 source = row['source']
                 topic = row['topic']
+
+                # record/* has got wrong format for InfluxDB, only timeseries data
+                if topic.startswith('record/'):
+                    continue
+
                 meta = row['meta']
                 value = row['value']
                 value_string = str(value)

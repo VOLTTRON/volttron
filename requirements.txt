@@ -27,3 +27,4 @@ cryptography==2.2.2
 service-identity==17.0.0
 git+https://github.com/shwethanidd/pika.git@gevent_connection_adapter#egg=pika
 wget==3.2
+pint==0.8.1
