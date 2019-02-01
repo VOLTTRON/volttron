@@ -1,1317 +1,2595 @@
 functions:
-- id: frequency_watt_curve
-  name: frequency_watt_curve
-  ref: MESA-ESS spec section 6.4.10.3 (Table 32)
+- id: connect_and_disconnect
+  name: Connect and Disconnect
+  ref: AN2018 Spec section 2.4.4 Table 29
   steps:
-  - description: 'Set Referenced ECP '
-    optional: M
-    point_name: DFWS.ECPRefId
+  - description: Set time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DCTE.WinTms.AO16
+    response: DCTE.WinTms.AI60
     step_number: 1
-  - description: 'Frequency measurement from the Referenced ECP '
-    optional: M
-    point_name: DFWS.HzRef
+  - description: Set reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DCTE.RvrtTms.AO17
+    response: DCTE.RvrtTms.AI61
     step_number: 2
-  - description: 'Nominal frequency '
+  - description: Retrieve status of switch
+    fcodes:
+    - read
+    - response
     optional: O
-    point_name: DOPR.ECPNomHz.1.out
+    point_name: n/a
+    response: DSTO.DEROpSt.off.BI23
     step_number: 3
-  - description: 'Curve of Frequency-Watt pairs '
-    optional: M
-    point_name: DFWS.PairArrHzW
-    step_number: 4
-  - description: 'Time window within which to randomly initiate mode '
-    optional: O
-    point_name: DFWS.WinTms
-    step_number: 5
-  - description: 'Ramp time for moving from current operational mode settings to new
-      operational mode settings '
-    optional: O
-    point_name: DFWS.RmpTms
-    step_number: 6
-  - description: 'Reversion timeout period upon which to take reversion default action '
-    optional: O
-    point_name: DFWS.RvrtTms
-    step_number: 7
   - action: publish
-    description: 'F-W enable '
-    optional: M
-    point_name: DFWS.Mod
-    step_number: 8
-  support_point: DFWS.Beh
-- id: automatic_generation_control
-  name: automatic_generation_control
-  ref: MESA-ESS spec section 6.4.7 (Table 29)
-  steps:
-  - description: 'Time window within which to randomly initiate mode '
-    optional: O
-    point_name: DAGC.WinTms
-    step_number: 1
-  - description: 'Ramp time for moving from current operational mode settings to new
-      operational mode settings '
-    optional: O
-    point_name: DAGC.RmpTms
-    step_number: 2
-  - description: 'Reversion timeout period upon which to take reversion default action '
-    optional: O
-    point_name: DAGC.RvrtTms
-    step_number: 3
-  - description: 'Set ramp up time by which the Active Power target is reached '
-    optional: O
-    point_name: DAGC.RmpUpTms.out
-    step_number: 4
-  - description: 'Set ramp down time by which the Active Power target is reached '
-    optional: O
-    point_name: DAGC.RmpDnTms.out
-    step_number: 5
-  - description: 'Minimum Usable SOC for AGC '
-    optional: O
-    point_name: DAGC.SOCUseMin.out
-    step_number: 6
-  - description: 'Maximum Usable SOC for AGC '
-    optional: O
-    point_name: DAGC.SOCUseMax.out
-    step_number: 7
-  - description: 'Periodicity of AGC signals '
-    optional: O
-    point_name: DAGC.PerTms.out
-    step_number: 8
-  - description: 'Set charge or discharge Active Power target in watts. Positive is
-      discharging, negative is charging '
-    optional: M
-    point_name: DAGC.WTgt.out
-    step_number: 9
-  - action: publish
-    description: 'Enable Charge/Discharge mode and receive response '
+    description: Issue switch control command and receive response
     fcodes:
     - select
     - operate
     optional: M
-    point_name: DAGC.ModEna
+    point_name: CSWI.Pos.BO5
+    response: DSTO.DEROpSt.off.BI23
+    step_number: 4
+  - description: Detect if switch is moving
+    fcodes:
+    - read
+    - response
+    optional: O
+    point_name: n/a
+    response: CSWI.Pos.BI24
+    step_number: 5
+- id: cease_to_energize_and_return_to_service
+  name: Cease to Energize and Return to Service
+  ref: AN2018 Spec section 2.4.5 Table 30
+  steps:
+  - description: Set Cease to Energize Time Window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DCTE.WinTms.AO13
+    response: DCTE.WinTms.AI57
+    step_number: 1
+  - description: Set Cease to Energize Ramp DownTime
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DCTE.RmpTms.AO14
+    response: DCTE.RmpTms.AI58
+    step_number: 2
+  - description: Set Cease to Energize Timeout Period
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DCTE.RvrtTms.AO15
+    response: DCTE.RvrtTms.AI59
+    step_number: 3
+  - description: Cause DER to Cease to Energize
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DCTE.CeaEngzReq.BO2
+    response: DSTO.DEROpSt.connectedandidle.BI14
+    step_number: 4
+  - description: Give DER Permission to Stop
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DSTO.PrmDscon.BO4
+    response: DSTO.PrmDscon.BI17
+    step_number: 5
+  - description: Confirm DER is Stopping
+    fcodes:
+    - read
+    - response
+    optional: O
+    point_name: n/a
+    response: DSTO.DEROpSt.stopping.BI13
+    step_number: 6
+  - description: Confirm DER has Ceased to Energize
+    fcodes:
+    - read
+    - response
+    optional: O
+    point_name: n/a
+    response: DSTO.DEROpSt.ceasedtoenergize.BI15
+    step_number: 7
+  - description: Set High Voltage Limit
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DCTE.VHiLim.AO6
+    response: DCTE.VHiLim.AI50
+    step_number: 8
+  - description: Set Low Voltage Limit
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DCTE.VLoLim.AO7
+    response: DCTE.VLoLim.AI51
+    step_number: 9
+  - description: Set High Frequency Limit
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DCTE.HzHiLim.AO8
+    response: DCTE.HzHiLim.AI52
     step_number: 10
-  - description: 'AGC Mode Priority '
-    optional: O
-    point_name: DAGC.ModPrty.out
+  - description: Set Low Frequency Limit
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DCTE.HzLoLim.AO9
+    response: DCTE.HzLoLim.AI53
     step_number: 11
-  - description: 'Maximum Ramp Up Rate. Ramp up rate during generating (discharging).
-      Ramp rate as percentage of NomRmpUpRte. '
-    optional: O
-    point_name: DRCT.MaxRmpUpRte.1
+  - description: Set Delay Time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DCTE.RtnDlyTmms.AO10
+    response: DCTE.RtnDlTmms.AI54
     step_number: 12
-  - description: 'Maximum Ramp Down Rate. As percentage of nominal maximum ramp rate.
-      Ramp down rate during generating (discharging). Ramp rate as percentage of NomRmpDnRte. '
-    optional: O
-    point_name: DRCT.MaxRmpDnRte.1
+  - description: Set Return to Service Time Window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DCTE.WinTms.AO11
+    response: DCTE.WinTms.AI55
     step_number: 13
-  support_point: DCHA.Beh.1
-- id: low_high_voltage_ride_through
-  name: low_high_voltage_ride_through
-  ref: MESA-ESS spec section 6.3.1 (Table 17)
-  steps:
-  - description: Low/High Voltage Ride-Through Signal Meter ID. Ride through limited
-      voltage spikes and sags, while still ensuring anti-islanding cease-to-energize
-      when required
-    optional: M
-    point_name: DVRT.ECPRefId
-    step_number: 28
-  - description: 'H/LVRT Reference Input. Voltage measurements from the referenced
-      connection point '
-    optional: M
-    point_name: DVRT.VolRef
-    step_number: 29
-  - description: 'Set the Reference Voltage if it is not already set '
-    optional: O
-    point_name: DRCT.VRef.out
-    step_number: 30
-  - description: 'Set the Reference Voltage Offset if it is not already set '
-    optional: O
-    point_name: DRCT.VRegOfs
-    step_number: 31
-  - description: 'Paired array of independent and dependent variables:  xVal = time,
-      yVal = HVRT Must Trip voltage values '
-    optional: M
-    point_name: DVRT.CurveVHiTr
-    step_number: 32
-  - description: 'Paired array of independent and dependent variables:  xVal = time,
-      yVal = HVRT Momentary Cessation voltage values '
-    optional: O
-    point_name: DVRT.CurveVHiCea
-    step_number: 33
-  - description: 'Paired array of independent and dependent variables: xVal = time,
-      yVal = LVRT Momentary Cessation voltage values '
-    optional: O
-    point_name: DVRT.CurveVLoCea
-    step_number: 34
-  - description: 'Paired array of independent and dependent variables: xVal = time,
-      yVal = LVRT Must Trip voltage values'
-    optional: M
-    point_name: DVRT.CurveVLoTr
-    step_number: 35
-  - action: publish
-    description: 'Enable Low/High voltage ride- through '
+  - description: Set Return to Service Ramp Up Time
     fcodes:
-    - select
-    - operate
-    optional: M
-    point_name: DVRT.ModEna
-    step_number: 36
-  - description: 'Alarm indicating that a Voltage Ride-Through event has occurred '
-    optional: O
-    point_name: DVRT.ModVRtSt
-    step_number: 37
-  support_point: DVRT.Beh
-- id: cease_to_energize
-  name: cease_to_energize
-  ref: MESA-ESS spec section 6.2.3 (Table 15)
-  steps:
-  - description: 'Set Time Window '
-    optional: O
-    point_name: DCTE.WinTms
-    step_number: 1
-  - description: 'Set Ramp Time '
-    optional: O
-    point_name: DCTE.RmpTms.1
-    step_number: 2
-  - description: 'Set Timeout Period '
-    optional: O
-    point_name: DCTE.RvrtTms
-    step_number: 3
-  - action: publish
-    description: 'Set ESS to cease to energize and receive confirmation '
-    optional: C
-    point_name: DCTE.DERStop.out
-    step_number: 4
-- id: reconnect
-  name: reconnect
-  ref: MESA-ESS spec section 6.2.2 (Table 14)
-  steps:
-  - description: 'Set Start Time Window '
-    optional: O
-    point_name: DCND.StrWinTms
-    step_number: 1
-  - description: 'Set Ramp Time '
-    optional: O
-    point_name: DCND.RmpTms.1
-    step_number: 2
-  - description: 'Permission to reconnect '
-    optional: O
-    point_name: DCND.ECPStrAuth
-    step_number: 3
-  - description: 'Issue switch close control command, and receive response '
-    optional: C
-    point_name: If switch, CSWI.Pos.1
-    step_number: 4
-  - action: publish
-    description: 'Set the ESS to return to service and receive confirmation '
-    optional: C
-    point_name: If not switch, DCND.DERStr
-    step_number: 5
-- id: dynamic_volt_watt
-  name: dynamic_volt_watt
-  ref: MESA-ESS spec section 6.3.4 (Table 21)
-  steps:
-  - description: 'Referenced ECP '
-    optional: M
-    point_name: DVWD.ECPRefId
-    step_number: 1
-  - description: 'Dynamic Volt-Watt Gradient. Signed unit-less quantity that establishes
-      the ratio of additional Watts supplied (expressed in terms of % DRCT.WMax) to
-      the present difference from the moving average voltage (expressed as % DRCT.VRef). '
-    optional: M
-    point_name: DVWD.DynVWGra
-    step_number: 2
-  - description: 'Dynamic Volt-Watt Filter Time. The time in seconds used to calculate
-      the moving average voltage for dynamic Volt-Watt support. '
-    optional: O
-    point_name: DVWD.VWFilTms
-    step_number: 3
-  - description: 'Dynamic Volt-Watt Lower Deadband. Percentage of the nominal voltage
-      (DRCT.Vref) measured below the moving average voltage. If the present voltage
-      is above this value, no additional Watts shall be supplied. '
-    optional: O
-    point_name: DVWD.DbVWLo
-    step_number: 4
-  - description: 'Dynamic Volt-Watt Upper Deadband. Percentage of the nominal voltage
-      (DRCT.Vref) measured above the moving average voltage. If the present voltage
-      is below this value, no additional Watts shall be supplied. '
-    optional: O
-    point_name: DVWD.DbVWHi
-    step_number: 5
-  - description: 'Dynamic Volt-Watt Reversion Timeout Period '
-    optional: O
-    point_name: DVWD.RevtTms
-    step_number: 6
-  - description: 'Enable/disable dynamic Volt-Watt mode '
-    optional: O
-    point_name: DVWD.ModEna
-    step_number: 7
-  - description: 'Dynamic Volt-Watt Mode Priority '
-    optional: O
-    point_name: DVWD.ModPrty
-    step_number: 8
-  - description: 'Delta voltage measurement '
-    optional: O
-    point_name: DVWD.DelV
-    step_number: 9
-  - action: publish
-    description: 'Moving average voltage calculation '
-    optional: O
-    point_name: DVWD.VAv
-    step_number: 10
-  support_point: DVWD.Beh
-- id: peak_power_limiting
-  name: peak_power_limiting
-  ref: MESA-ESS spec section 6.4.4 (Table 26)
-  steps:
-  - description: 'Referenced ECP '
-    optional: M
-    point_name: DPKP.ECPRefId
-    step_number: 1
-  - description: 'Measurement from the Referenced ECP '
-    optional: M
-    point_name: DPKP.WRef
-    step_number: 2
-  - description: 'Time window within which to randomly initiate mode '
-    optional: O
-    point_name: DPKP.WinTms.out
-    step_number: 3
-  - description: 'Ramp time for moving from current operational mode settings to new
-      operational mode settings '
-    optional: O
-    point_name: DPKP.RmpTms.out
-    step_number: 4
-  - description: 'Reversion timeout period upon which to take reversion default action '
-    optional: O
-    point_name: DPKP.RvrtTms
-    step_number: 5
-  - description: 'Target value of the reference load power in watts. The ESS shall
-      generate watts to ensure the reference load does not exceed this limit. '
-    optional: C
-    point_name: DPKP.PkPwrWLim.out
-    step_number: 6
-  - description: 'Peak Power Limiting Ratio. If 100%, then peak power is limited to
-      the limit value. If < 100%, then peak power is limited to the remaining percentage
-      over the limit. '
-    optional: C
-    point_name: DPKP.PkPwrFolPct.out
-    step_number: 7
-  - description: 'Discharging Ramp Up Rate. Maximum ramp up rate '
-    optional: O
-    point_name: DPKP.RmpUpRte.out
-    step_number: 8
-  - description: 'Discharging Ramp Down Rate. Maximum ramp down rate '
-    optional: O
-    point_name: DPKP.RmpDnRte.out
-    step_number: 9
-  - description: 'Active Power Limit Mode Priority '
-    optional: O
-    point_name: DPKP.ModPrty.out
-    step_number: 10
-  - action: publish
-    description: 'Enable Limited Watts mode and receive response '
-    fcodes:
-    - select
-    - operate
-    optional: M
-    point_name: DPKP.ModEna
-    step_number: 11
-  support_point: DLFL.Beh
-- id: return_to_service
-  name: return_to_service
-  ref: MESA-ESS spec section 6.2.3 (Table 16)
-  steps:
-  - description: 'Set Start Time Window '
-    optional: O
-    point_name: DCTE.StrWinTms
-    step_number: 1
-  - description: 'Set Ramp Time '
-    optional: O
-    point_name: DCTE.RmpTms
-    step_number: 2
-  - description: 'Permission to return to service '
-    optional: O
-    point_name: DCTE.ECPClsAuth
-    step_number: 3
-  - action: publish
-    description: 'Set the ESS to return to service and receive confirmation '
-    optional: C
-    point_name: DCTE.DERStr
-    step_number: 4
-- id: volt_var_control
-  name: volt_var_control
-  ref: MESA-ESS spec section 6.5.2 (Table 34)
-  steps:
-  - description: 'Set Referenced ECP '
-    optional: M
-    point_name: DVVC.ECPRefId
-    step_number: 1
-  - description: 'Voltage measurement from the Referenced ECP '
-    optional: M
-    point_name: DVVC.VRef.out
-    step_number: 2
-  - description: 'Time window within which to randomly initiate mode '
-    optional: O
-    point_name: DVVC.WinTms.out
-    step_number: 3
-  - description: 'Ramp time for moving from current operational mode settings to new
-      operational mode settings '
-    optional: O
-    point_name: DVVC.RmpTms.out
-    step_number: 4
-  - description: 'Reversion timeout period upon which to take reversion default action '
-    optional: O
-    point_name: DVVC.RvrtTms
-    step_number: 5
-  - description: 'Volt-VAR curve, using CSG '
-    optional: M
-    point_name: DVVC.PairArrVVar
-    step_number: 6
-  - action: publish
-    description: 'Volt-VAR enable '
-    optional: M
-    point_name: DVVC.ModEna
-    step_number: 7
-  - description: 'Volt-VAR Control Mode Priority '
-    optional: O
-    point_name: DVVC.ModPrty.out
-    step_number: 8
-  support_point: DVVC.Beh
-- id: disconnect
-  name: disconnect
-  ref: MESA-ESS spec section 6.2.2 (Table 13)
-  steps:
-  - description: 'Set Time Window '
-    optional: O
-    point_name: DCND.WinTms
-    step_number: 1
-  - description: 'Set Ramp Time '
-    optional: O
-    point_name: DCND.RmpTms
-    step_number: 2
-  - description: 'Set Timeout Period '
-    optional: O
-    point_name: DCND.RvrtTms
-    step_number: 3
-  - description: 'Issue switch open control command, and receive response '
-    optional: C
-    point_name: If switch, CSWI.Pos
-    step_number: 4
-  - description: 'Set ESS to cease to energize and receive confirmation '
-    optional: C
-    point_name: If not switch, DCND.DERStop
-    step_number: 5
-- id: Schedule
-  name: Schedule
-  ref: Function added by script
-  steps:
-  - description: ''
-    optional: M
-    point_name: Schedule Edit Selector
-    step_number: 1
-  - description: ''
-    optional: M
-    point_name: Schedule Start
-    step_number: 2
-  - action: publish
-    description: ''
-    optional: M
-    point_name: Schedule Enable
-    step_number: 3
-- id: schedule_creation
-  name: schedule_creation
-  ref: MESA-ESS spec section 6.6 (Table 37)
-  steps:
-  - description: 'Select which schedule to edit by writing a number to this point.
-      This is the index of the schedule, not its identity. The indexes shall be the
-      monotonically increasing integers 1, 2, 3, etc. while the curve identities may
-      be any unique number. '
-    optional: M
-    point_name: FSCHxx (the xx refers to the schedule number (index)
-    step_number: 1
-  - description: 'Set the Time Offset (X-Value) for each schedule point. Time Offsets
-      must increase with each point. Time Offsets represent relative seconds from
-      each repetition of the schedule. '
-    optional: O
-    point_name: FSCHxx.ValASG (with FSCH.ClcIntvTyp set to seconds)
-    step_number: 2
-  - description: 'Set the Y-value for each schedule point for power system values
-      (watts,VARs, PF, pricing signal, etc.). '
-    optional: O
-    point_name: FSCHxx.ValASG (set for power system values and pricing signals)
-    step_number: 3
-  - description: 'Set the Y-value for enabling or disabling operational modes (VV,
-      FW, VW, etc.) at each schedule point. '
-    optional: C
-    point_name: FSCHxx.ING (set to the operational mode identity)
-    step_number: 4
-  - description: 'Set the Ramp Type for entire schedule point. '
-    optional: O
-    point_name: FSCHxx.RmpTms
-    step_number: 5
-  - action: publish
-    description: 'Set the number of points used for the schedule. Set this value to
-      zero to disable the schedule (there are other ways to enable and disable schedules). '
-    optional: M
-    point_name: FSCHxx.NumEntr
-    step_number: 6
-  - description: 'Set the priority for the schedule. '
-    optional: O
-    point_name: FSCHxx.SchdPrio
-    step_number: 7
-  - description: 'Set the meaning of the Y-values of the schedule. '
-    optional: O
-    point_name: FSCHxx.ValMV (for power system values or pricing signals) or FSCH.ValINS
-      (for operational modes) (meanings of pricing signals need to be defined)
-    step_number: 8
-- id: generation_following
-  name: generation_following
-  ref: MESA-ESS spec section 6.4.6 (Table 28)
-  steps:
-  - description: 'Set the Referenced ECP '
-    optional: M
-    point_name: DGFL.ECPRefId
-    step_number: 1
-  - description: 'Measurement from the Referenced ECP '
-    optional: M
-    point_name: DGFL.WRef.out
-    step_number: 2
-  - description: 'Time window within which to randomly initiate mode '
-    optional: O
-    point_name: DGFL.WinTms.out
-    step_number: 3
-  - description: 'Ramp time for moving from current operational mode settings to new
-      operational mode settings '
-    optional: O
-    point_name: DGFL.RmpTms.out
-    step_number: 4
-  - description: 'Reversion timeout period upon which to take reversion default action '
-    optional: O
-    point_name: DGFL.RvrtTms
-    step_number: 5
-  - description: 'Threshold to start actively following generation in watts. '
-    optional: M
-    point_name: DGFL.GenFolThrshW.out
-    step_number: 6
-  - description: 'Generation Following Ratio. If 100%, then Load Following follows
-      the load exactly. If < 100%, then Load Following follows the load as a percentage
-      of the load over the threshold. '
-    optional: O
-    point_name: DGFL.GenFolPct.out
-    step_number: 7
-  - description: 'Discharging Ramp Up Rate. Maximum ramp up rate '
-    optional: O
-    point_name: DGFL.RmpUpRte.out
-    step_number: 8
-  - description: 'Discharging Ramp Down Rate. Maximum ramp down rate '
-    optional: O
-    point_name: DGFL.RmpDnRte.out
-    step_number: 9
-  - description: 'Charging ramp up rate Maximum ramp up rate '
-    optional: O
-    point_name: DGFL.ChaRmpUpRte.out
-    step_number: 10
-  - description: 'Charging ramp down rate Maximum ramp up rate '
-    optional: O
-    point_name: DGFL.ChaRmpDnRte.out
-    step_number: 11
-  - description: 'Active Power Limit Mode Priority '
-    optional: O
-    point_name: DGFL.ModPrty.out
-    step_number: 12
-  - action: publish
-    description: 'Enable Limited Watts mode and receive response '
-    fcodes:
-    - select
-    - operate
-    optional: M
-    point_name: DGFL.ModEna
-    step_number: 13
-  support_point: DGFL.Beh.1
-- id: charge_discharge
-  name: charge_discharge
-  ref: MESA-ESS spec section 6.4.1 (Table 23)
-  steps:
-  - description: 'Time window within which to randomly initiate mode '
-    optional: O
-    point_name: DCHD.WinTms
-    step_number: 1
-  - description: 'Ramp time for moving from current operational mode settings to new
-      operational mode settings '
-    optional: O
-    point_name: DCHD.RmpTms
-    step_number: 2
-  - description: 'Reversion timeout period upon which to take reversion default action '
-    optional: O
-    point_name: DCHD.RvrtTms
-    step_number: 3
-  - description: 'Set charge or discharge target. Positive is discharging, negative
-      is charging '
-    optional: M
-    point_name: DCHD.WTgt
-    step_number: 4
-  - description: 'Discharging ramp up rate '
-    optional: O
-    point_name: DCHD.RmpUpRte
-    step_number: 5
-  - description: 'Discharging ramp down rate '
-    optional: O
-    point_name: DCHD.RmpDnRte
-    step_number: 6
-  - description: 'Charging ramp up rate '
-    optional: O
-    point_name: DCHD.ChaRmpUpRte
-    step_number: 7
-  - description: 'Charging ramp down rate '
-    optional: O
-    point_name: DCHD.ChaRmpDnRte.out
-    step_number: 8
-  - description: 'Charge/Discharge Mode Priority '
-    optional: O
-    point_name: DCHD.ModPrty.out
-    step_number: 9
-  - description: 'Charge/Discharge VAr Action to take when switching between charging
-      and discharging: <0> Reserved, <1> Reverse: producing/absorbing Vars when changing
-      between charging and discharging (go to diagonal quadrant Q1/Q3 or Q2/Q4), <2>
-      Do not reverse: producing/absorbing Vars (go to adjacent quadrant Q1/Q2 or Q3/Q4) '
-    optional: O
-    point_name: DCHD.VArAct.out
-    step_number: 10
-  - action: publish
-    description: 'Enable Charge/Discharge mode and receive response '
-    fcodes:
-    - select
-    - operate
-    optional: M
-    point_name: DCHD.ModEna
-    step_number: 11
-  support_point: DCHA.Beh
-- id: watt_var
-  name: watt_var
-  ref: MESA-ESS spec section 6.5.3 (Table 35)
-  steps:
-  - description: 'Set Referenced ECP '
-    point_name: DWVR.ECPRefId
-    step_number: 1
-  - description: 'Voltage measurement from the Referenced ECP '
-    point_name: DWVR.VRef
-    step_number: 2
-  - description: 'Time window within which to randomly initiate mode '
-    point_name: DWVR.WinTms
-    step_number: 3
-  - description: 'Ramp time for moving from current operational mode settings to new
-      operational mode settings '
-    point_name: DWVR.RmpTms
-    step_number: 4
-  - description: 'Reversion timeout period upon which to take reversion default action '
-    point_name: DWVR.RvrtTms
-    step_number: 5
-  - description: 'Watt-VAr curve, using CSG '
-    point_name: DWVR.PairArrVVar
-    step_number: 6
-  - action: publish
-    description: 'Watt-VAr enable '
-    point_name: DWVR.ModEna
-    step_number: 7
-  - description: 'Watt-VAr Control Mode Priority '
-    point_name: DWVR.ModPrty
-    step_number: 8
-  support_point: FPFW.Beh
-- id: frequency_watt_emergency
-  name: frequency_watt_emergency
-  ref: MESA-ESS spec section 6.3.5 (Table 22)
-  steps:
-  - description: 'Set Referenced ECP '
-    optional: M
-    point_name: FWHZ.ECPRefId
-    step_number: 1
-  - description: 'Frequency measurement from the Referenced ECP '
-    optional: M
-    point_name: FWHZ.HzRef
-    step_number: 2
-  - description: 'Time window within which to randomly initiate mode '
-    optional: O
-    point_name: FWHZ.WinTms
-    step_number: 3
-  - description: 'Ramp time for moving from current operational mode settings to new
-      operational mode settings '
-    optional: O
-    point_name: FWHZ.RmpTms
-    step_number: 4
-  - description: 'Reversion timeout period upon which to take reversion default action '
-    optional: O
-    point_name: FWHZ.RvrtTms
-    step_number: 5
-  - description: 'Nominal frequency '
-    optional: M
-    point_name: DOPR.ECPNomHz
-    step_number: 6
-  - description: 'F-W Starting frequency: Delta frequency between start frequency
-      and nominal grid frequency '
-    optional: M
-    point_name: FWHZ.HzStr
-    step_number: 7
-  - description: 'F-W Stopping frequency: Delta frequency between stop frequency and
-      nominal grid frequency '
-    optional: M
-    point_name: FWHZ.HzStop
-    step_number: 8
-  - description: 'F-W Maximum W change rate: The maximum rate at which the output
-      may be increased after releasing the frozen value of snap shot function. This
-      is represented in terms of % WMax per minute. '
-    optional: O
-    point_name: FWHZ.HzStopWGra
-    step_number: 9
-  - description: 'F-W Activation delay: Intentional delay in ms before function activation '
-    optional: O
-    point_name: FWHZ.ActDlTmms
-    step_number: 10
-  - description: 'F-W Hysteresis enable/disable True = Use of hysteresis; False =
-      No use of hysteresis '
-    optional: O
-    point_name: FWHZ.HysEna
-    step_number: 11
-  - description: 'F-W Snapshot of power: True = Snapshot is active; False = Off, the
-      snapshot is not active '
-    optional: O
-    point_name: FWHZ.SnptW
-    step_number: 12
-  - description: 'Freq-Watt Emergency Mode Priority '
-    optional: O
-    point_name: FWHZ.ModPrty
-    step_number: 13
-  - action: publish
-    description: 'F-W enable '
-    optional: M
-    point_name: FWHZ.WCtlHzEna
+    - direct_operate
+    optional: I
+    point_name: DCTE.RtnRmpTmms.AO12
+    response: DCTE.RtnRmpTmms.AI56
     step_number: 14
-  support_point: FWHZ.Beh
-- id: low_high_freq_ride_through
-  name: low_high_freq_ride_through
-  ref: MESA-ESS spec section 6.3.2 (Table 18)
-  steps:
-  - description: 'Low/High Frequency Ride-Through Signal Meter ID. Ride through limited
-      voltage spikes and sags, while still ensuring anti-islanding cease-to- energize
-      when required '
-    optional: M
-    point_name: DFRT.ECPRef
-    step_number: 1
-  - description: 'H/LFRT Reference Input. Frequency measurements from the referenced
-      connection point '
-    optional: M
-    point_name: DFRT.HzRef
-    step_number: 2
-  - description: 'Set the nominal frequency if it is not already set '
-    optional: O
-    point_name: DFRT.NomHz
-    step_number: 3
-  - description: 'Paired array of independent and dependent variables: xVal = time,
-      yVal = HFRT Must Trip frequency values '
-    optional: M
-    point_name: DFRT.CurveHzHiTr
-    step_number: 4
-  - description: 'Paired array of independent and dependent variables: xVal = time,
-      yVal = HFRT Momentary Cessation frequency values '
-    optional: O
-    point_name: DFRT.CurveHzHiCea
-    step_number: 5
-  - description: 'Paired array of independent and dependent variables: xVal = time,
-      yVal = LFRT Momentary Cessation frequency values '
-    optional: O
-    point_name: DFRT.CurveHzLoCea
-    step_number: 6
-  - description: 'Paired array of independent and dependent variables: xVal = time,
-      yVal = LFRT Must Trip frequency values '
-    optional: M
-    point_name: DFRT.CurveHzLoTr
-    step_number: 7
-  - action: publish
-    description: 'Enable Low/High voltage ride-through '
+  - description: Cause DER to Return to Service
     fcodes:
     - select
     - operate
     optional: M
-    point_name: DFRT.ModEna
-    step_number: 8
-  - description: 'Alarm indicating that a Frequency Ride-Through event has occurred '
-    optional: O
-    point_name: DFRT.ModHzRtSt
-    step_number: 9
-  support_point: DFRT.Beh
-- id: active_power_limit
-  name: active_power_limit
-  ref: MESA-ESS spec section 6.4.3 (Table 25)
-  steps:
-  - description: 'Set Referenced ECP '
-    optional: M
-    point_name: DAMG.ECPRefId
-    step_number: 1
-  - description: 'Measurement from the Referenced ECP '
-    optional: M
-    point_name: DAMG.WRef.out
-    step_number: 2
-  - description: 'Time window within which to randomly initiate mode '
-    optional: O
-    point_name: DAMG.WinTms.out
-    step_number: 3
-  - description: 'Ramp time for moving from current operational mode settings to new
-      operational mode settings '
-    optional: O
-    point_name: DAMG.RmpTms.out
-    step_number: 4
-  - description: 'Reversion timeout period upon which to take reversion default action '
-    optional: O
-    point_name: DAMG.RvrtTms.out
-    step_number: 5
-  - description: 'Active Power Limit Charge Setpoint. Limit of imported Watts as a
-      percentage of Maximum Active Power capability '
-    optional: C
-    point_name: DAMG.WImpLimPct.out
-    step_number: 6
-  - description: 'Active Power Limit Discharge Setpoint. Limit of exported Watts as
-      a percentage of Maximum Active Power capability '
-    optional: C
-    point_name: DAMG.WExpLimPct.out
-    step_number: 7
-  - description: 'Active Power Limit Mode Priority '
-    optional: O
-    point_name: DAMG.ModPrty.out
-    step_number: 8
-  - action: publish
-    description: 'Enable Limited Watts mode and receive response '
-    fcodes:
-    - select
-    - operate
-    optional: M
-    point_name: DAMG.ModEna
-    step_number: 9
-  support_point: DAMG.Beh
-- id: dynamic_reactive_current
-  name: dynamic_reactive_current
-  ref: MESA-ESS spec section 6.3.3.6 (Table 20)
-  steps:
-  - description: 'Referenced ECP '
-    optional: O
-    point_name: RDGS.ECPRefId
-    step_number: 1
-  - description: 'Mode of reactive current characteristic: selects between that behaviour
-      where gradients trend toward zero at the deadband edges, and where the gradients
-      trend toward zero at the centre. False = Gradients trend toward zero at the
-      deadband. True = Gradient trend toward zero at the center.'
-    optional: O
-    point_name: RDGS.ArGraMod.out
-    step_number: 2
-  - description: 'This is a voltage deviation relative to Vaverage, expressed in terms
-      of % of Vref (for example -10%Vref). For negative voltage deviations (voltage
-      below the moving average) that are smaller in amplitude than this amount, no
-      additional dynamic reactive current is produced. '
-    optional: O
-    point_name: RDGS.DbVMin.out
-    step_number: 3
-  - description: 'This is a voltage deviation relative to Vaverage, expressed in terms
-      of % of Vref (for example +10%Vref). For positive voltage deviations (voltage
-      above the moving average) that are smaller in amplitude than this amount, no
-      additional dynamic reactive current is produced. Together, DbVMin and DbVMax
-      allow for the creation of a deadband, inside of which the system does not generate
-      additional reactive current support. '
-    optional: O
-    point_name: RDGS.DbVMax
-    step_number: 4
-  - description: 'This is a gradient, expressed in unit-less terms of %/%, to establish
-      the ratio by which Capacitive % VAr production is increased as %Delta-Voltage
-      decreases below DbVMin. Note that the % Delta- Voltage may be calculated relative
-      to Moving Average of Voltage + DbVMin (as shown in Figure 16-1) or relative
-      to Moving Average of Voltage (as shown in Figure 16-4), according to the ArGraMod
-      setting. '
-    optional: O
-    point_name: RDGS.ArGraSag.out
-    step_number: 5
-  - description: 'This is a gradient, expressed in unit- less terms of %/%, to establish
-      the ratio by which Inductive % VAr production is increased as %Delta- Voltage
-      increases above DbVMax. Note that the % Delta-Voltage may be calculated relative
-      to Moving Average of Voltage. DbVMax (as shown in Figure 16-1) or relative to
-      Moving Average of Voltage (as shown in Figure 16-4), according to the ArGraMod
-      setting. '
-    optional: O
-    point_name: RDGS.ArGraSwl
-    step_number: 6
-  - description: 'This is the time, expressed in seconds, over which the moving linear
-      average of voltage is calculated to determine the Delta-Voltage. '
-    optional: O
-    point_name: RDGS.FilTms
-    step_number: 7
-  - description: 'Hysteresis voltage '
-    optional: O
-    point_name: RDGS.HysBlkZnV.out
-    step_number: 8
-  - description: 'Block zone voltage '
-    optional: O
-    point_name: RDGS.BlkZnV.out
-    step_number: 9
-  - description: 'Block zone time (in milliseconds) '
-    optional: O
-    point_name: RDGS.BlkZnTmms.out
-    step_number: 10
-  - description: 'Hold time (in milliseconds) '
-    optional: O
-    point_name: RDGS.HoldTmms
-    step_number: 11
-  - description: 'Dynamic Reactive Current Support Mode Priority '
-    optional: O
-    point_name: RDGS.ModPrity
-    step_number: 12
-  - action: publish
-    description: 'Enable/disable dynamic reactive current support mode '
-    optional: M
-    point_name: RDGS.ModEna
-    step_number: 13
-  - description: 'This is a Boolean that selects whether or not the event-based behavior
-      is enabled. '
-    optional: O
-    point_name: RDGS.EvtEna (not in IEC 61850 yet)
-    step_number: 14
-  - description: 'This is a Boolean that selects the priority of whether or not Watts
-      should be curtailed in order to produce the reactive current required by this
-      function. '
-    optional: O
-    point_name: RDGS.VArMaxAvl (not in IEC 61850 yet)
+    point_name: DCTE.RtnSrvReq.BO1
+    response: DSTO.DEROpSt.startingandsynchronizing.BI12
     step_number: 15
-  - description: 'Delta voltage measurement '
-    optional: O
-    point_name: RDGS.DelV.out
+  - action: publish
+    description: Give DER Permission to Start
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DSTO.PrmConn.BO3
+    response: DSTO.PrmConn.BI16
     step_number: 16
-  - description: 'Moving average voltage calculation '
+  - description: Confirm DER is Started
+    fcodes:
+    - read
+    - response
     optional: O
-    point_name: RDGS.VAv
+    point_name: n/a
+    response: DSTO.DEROpSt.connectedandidle.BI14
     step_number: 17
-  support_point: RDGS.Beh
-- id: fixed_power_factor
-  name: fixed_power_factor
-  ref: MESA-ESS spec section 6.5.1 (Table 33)
+- id: enable_low_high_voltage_ride-through_mode
+  mode_types:
+    curve:
+    - 9
+    - 10
+    - 11
+    - 12
+    schedule:
+    - 1
+    - 2
+    - 3
+    - 4
+  name: Enable Low/High Voltage Ride-Through Mode
+  ref: AN2018 Spec section 2.5.1 Table 33
   steps:
-  - description: 'Set Referenced ECP '
-    optional: M
-    point_name: DFPF.ECPRefId
+  - description: Set the Reference Voltage if it is not already set
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DECP.VRef.AO0
+    response: DECP.VRef.AI29
     step_number: 1
-  - description: 'PF measurement from the Referenced ECP '
-    optional: M
-    point_name: DFPF.PFRef.out
+  - description: Set the Reference Voltage Offset if it is not already set
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DECP.VRefOfs.AO1
+    response: DECP.VRefOfs.AI30
     step_number: 2
-  - description: 'Time window within which to randomly initiate mode '
-    optional: O
-    point_name: DFPF.WinTms.out
+  - description: Identify the meter used to measure the voltage. By default this
+      is the System Meter (ID = 0)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHVT.EcpRef.AO22
+    response: DHVT.EcpRef.AI71
     step_number: 3
-  - description: 'Ramp time for moving from current operational mode settings to new
-      operational mode settings '
+  - description: 'DGSMn.ModTyp.AO245 = <9> HVRT Must Trip: If the curve is a must
+      trip curve, identify the index of the curve which specifies trip points when
+      the voltage is high'
+    fcodes:
+    - direct_operate
+    func_ref: curve
     optional: O
-    point_name: DFPF.RmpTms.out
+    point_name: PTOV.BlkRef.AO23
+    response: PTOV.BlkRef.AI73
     step_number: 4
-  - description: 'Reversion timeout period upon which to take reversion default action '
+  - description: 'DGSMn.ModTyp.AO245 = <11> LVRT Must Trip: If the curve is a must
+      trip curve, identify the index of the curve which specifies trip points when
+      the voltage is low'
+    fcodes:
+    - direct_operate
+    func_ref: curve
     optional: O
-    point_name: DFPF.RvrtTms
+    point_name: PTUV.BlkRef.AO24
+    response: PTUV.BlkRef.AI74
     step_number: 5
-  - description: 'Target Power Factor '
-    optional: M
-    point_name: DFPF.PFTgt.out
+  - description: 'DGSMn.ModTyp.AO245 = <10> HVRT Momentary Cessation: If the curve
+      is a must trip curve, identify the index of the curve which specifies where
+      generation/discharging must stop when the voltage is high'
+    fcodes:
+    - direct_operate
+    func_ref: curve
+    optional: O
+    point_name: PTOV.BlkRef.AO25
+    response: PTOV.BlkRef.AI75
     step_number: 6
-  - action: publish
-    description: 'Enable fixed PF mode '
-    optional: M
-    point_name: DFPF.ModEna
+  - description: 'DGSMn.ModTyp.AO245 = <12> LVRT Momentary Cessation: If the curve
+      is a must trip curve, identify the index of the curve which specifies where
+      generation/discharging must stop when the voltage is low'
+    fcodes:
+    - direct_operate
+    func_ref: curve
+    optional: O
+    point_name: PTUV.BlkRef.AO26
+    response: PTUV.BlkRef.AI76
     step_number: 7
-  - description: 'Fixed Power Factor Mode Priority '
-    optional: O
-    point_name: DFPF.ModPrty.out
-    step_number: 8
-  support_point: DFPF.Beh
-- id: power_factor_limiting
-  name: power_factor_limiting
-  ref: MESA-ESS spec section 6.5.4 (Table 36)
-  steps:
-  - description: 'Set Referenced ECP '
-    optional: M
-    point_name: DPFC.ECPRefId
-    step_number: 1
-  - description: 'PF measurement from the Referenced ECP '
-    optional: M
-    point_name: DPFC.PFRef
-    step_number: 2
-  - description: 'Time window within which to randomly initiate mode '
-    optional: O
-    point_name: DPFC.WinTms.out
-    step_number: 3
-  - description: 'Ramp time for moving from current operational mode settings to new
-      operational mode settings '
-    optional: O
-    point_name: DPFC.RmpTms
-    step_number: 4
-  - description: 'Reversion timeout period upon which to take reversion default action '
-    optional: O
-    point_name: DPFC.RvrtTms
-    step_number: 5
-  - description: 'Power Factor Limiting Lower PF Limit '
-    optional: M
-    point_name: DPFC.PFRef.rangeC
-    step_number: 6
-  - description: 'Power Factor Limiting Upper PF Limit '
-    point_name: DPFC.PFRef.rangeC.1
-    step_number: 7
-  - description: 'Power Factor Correction Mode Priority '
-    optional: O
-    point_name: DPFC.ModPrty.out
-    step_number: 8
   - action: publish
-    description: 'Power Factor Correction enable '
-    optional: M
-    point_name: DPFC.ModEna
-    step_number: 9
-  support_point: DPFC.Beh
-- id: active_power_smoothing
-  name: active_power_smoothing
-  ref: MESA-ESS spec section 6.4.8 (Table 30)
-  steps:
-  - description: 'Set the Referenced ECP '
-    optional: M
-    point_name: DWSM.ECPRefId
-    step_number: 1
-  - description: 'Measurement from the Referenced ECP '
-    optional: M
-    point_name: DWSM.WRef.out
-    step_number: 2
-  - description: 'Time window within which to randomly initiate mode '
-    optional: O
-    point_name: DWSM.WinTms.out
-    step_number: 3
-  - description: 'Ramp time for moving from current operational mode settings to new
-      operational mode settings '
-    optional: O
-    point_name: DWSM.RmpTms.out
-    step_number: 4
-  - description: 'Reversion timeout period upon which to take reversion default action '
-    optional: O
-    point_name: DWSM.RvrtTms
-    step_number: 5
-  - description: 'Active Power Smoothing Gradient. Signed quantity that establishes
-      the ratio of additional smoothing Watts provided to the present Delta Watts
-      of the reference load or generation. Delta Watts is the difference between the
-      moving average and the present value of the reference power. '
-    optional: M
-    point_name: DWSM.WSmthGra.out
-    step_number: 6
-  - description: 'Active Power Smoothing Lower Limit. Difference in Watts from the
-      moving average of the reference power above which no smoothing shall be applied. '
-    optional: O
-    point_name: DWSM.WSmthLoLim.out
-    step_number: 7
-  - description: 'Active Power Smoothing Upper Limit. Difference in Watts from the
-      moving average of the reference power below which no smoothing shall be applied. '
-    optional: O
-    point_name: DWSM.WSmthHiLim.out
-    step_number: 8
-  - description: 'Active Power Smoothing Filter Time (seconds). Time used to calculate
-      the moving average of the reference load or generation being smoothed. '
-    optional: O
-    point_name: DWSM.FilTms.out
-    step_number: 9
-  - description: 'Discharging Ramp Up Rate. Maximum ramp up rate '
-    optional: O
-    point_name: DWSM.RmpUpRte
-    step_number: 10
-  - description: 'Discharging Ramp Down Rate. Maximum ramp down rate '
-    optional: O
-    point_name: DWSM.RmpDnRte
-    step_number: 11
-  - description: 'Charge Ramp Up Rate. Maximum ramp up rate '
-    optional: O
-    point_name: DWSM.ChaRmpUpRte
-    step_number: 12
-  - description: 'Charge Ramp Down Rate. Maximum ramp up rate '
-    optional: O
-    point_name: DWSM.ChaRmpDnRte
-    step_number: 13
-  - description: 'Active Power Limit Mode Priority '
-    optional: O
-    point_name: DWSM.ModPrty.out
-    step_number: 14
-  - action: publish
-    description: 'Enable Limited Watts mode and receive response '
+    description: Enable the Low/High Voltage Ride-Through Mode
     fcodes:
     - select
     - operate
     optional: M
-    point_name: DWSM.ModEna
+    point_name: DHVT.ModEna.BO12
+    response: DHVT.ModEna.BI64
+    step_number: 8
+- id: enable_low_high_frequency_ride-through_mode
+  mode_types:
+    curve:
+    - 13
+    - 14
+    - 15
+    - 16
+    schedule:
+    - 5
+    - 6
+    - 7
+    - 8
+  name: Enable Low/High Frequency Ride-Through Mode
+  ref: AN2018 Spec section 2.5.2 Table 35
+  steps:
+  - description: Set the Nominal Grid Frequency if it is not already set
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DECP.EcpNomHz.AO2
+    response: DECP.EcpNomHz.AI31
+    step_number: 1
+  - description: Identify the meter used to measure the frequency. By default this
+      is the System Meter (ID = 0)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFT.EcpRef.AO27
+    response: DHFT.EcpRef.AI77
+    step_number: 2
+  - description: 'DGSMn.ModTyp.AO245 = <13> HFRT Must Trip: Identify the index of
+      the frequency ride through curve which specifies trip ponts when the frequency
+      is high'
+    fcodes:
+    - direct_operate
+    func_ref: curve
+    optional: O
+    point_name: PTOF.BlkRef.AO28
+    response: PTOF.BlkRef.AI79
+    step_number: 3
+  - description: 'DGSMn.ModTyp.AO245 = <15> LFRT Must Trip: Identify the index of
+      the frequency ride through curve which specifies trip ponts when the voltage
+      is low'
+    fcodes:
+    - direct_operate
+    func_ref: curve
+    optional: O
+    point_name: PTUF.BlkRef.AO29
+    response: PTUF.BlkRef.AI80
+    step_number: 4
+  - description: 'DGSMn.ModTyp.AO245 = <14> HFRT Mandatory Operation: Identify the
+      index of the frequency ride through curve which specifies where generation/discharging
+      must stop when the frequency is high'
+    fcodes:
+    - direct_operate
+    func_ref: curve
+    optional: O
+    point_name: PTOF.BlkRef.AO30
+    response: PTOF.BlkRef.AI81
+    step_number: 5
+  - description: 'DGSMn.ModTyp.AO245 = <16> LFRT Mandatory Operation: Identify the
+      index of the frequency ride through curve which specifies where generation/discharging
+      must stop when the frequency is high'
+    fcodes:
+    - direct_operate
+    func_ref: curve
+    optional: O
+    point_name: PTUF.BlkRef.AO31
+    response: PTUF.BlkRef.AI82
+    step_number: 6
+  - action: publish
+    description: Enable the Low/High Frequency Ride-Through Mode
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DHFT.ModEna.BO13
+    response: DHFT.ModEna.BI65
+    step_number: 7
+- id: enable_frequency-watt_mode
+  name: Enable Frequency-Watt Mode
+  ref: AN2018 Spec section 2.5.3 Table 36
+  mode_types:
+    schedule:
+      - 11
+  steps:
+  - description: If not already established, set the Nominal Grid Frequency
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DECP.EcpNomHz.AO2
+    response: DECP.EcpNomHz.AI31
+    step_number: 1
+  - description: Set priority of this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW2.ModPrio.AO57
+    response: DHFW2.ModPrio.AI115
+    step_number: 2
+  - description: Set enabling time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.WinTms.AO58
+    response: DHFW.WinTms.AI116
+    step_number: 3
+  - description: Set enabling ramp time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.RmpTms.AO59
+    response: DHFW.RmpTms.AI117
+    step_number: 4
+  - description: Set enabling reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.RvrtTms.AO60
+    response: DHFW.RvrtTms.AI118
+    step_number: 5
+  - description: Identify the meter used to measure the frequency. By default this
+      is the System Meter (ID = 0)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.EcpRef.AO61
+    response: DHFW2.EcpRef.AI119
+    step_number: 6
+  - description: Set the High Starting Frequency
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.HzStr.AO62
+    response: DHFW2.HzStr.AI121
+    step_number: 7
+  - description: Set the High Stopping Frequency
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.HzStop.AO63
+    response: DHFW2.HzStop.AI122
+    step_number: 8
+  - description: Set the High Discharging Gradient
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.WGra.AO64
+    response: DHFW.WGra.AI123
+    step_number: 9
+  - description: Set the High Charging Gradient
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.WChaGra.AO65
+    response: DHFW.WChaGra.AI124
+    step_number: 10
+  - description: Set the Low Starting Frequency
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DLFW.HzStr.AO66
+    response: DLFW2.HzStr.AI125
+    step_number: 11
+  - description: Set the Low Stopping Frequency
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DLFW.HzStop.AO67
+    response: DLFW2.HzStop.AI126
+    step_number: 12
+  - description: Set the Low Discharging Gradient
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DLFW.WGra.AO68
+    response: DLFW.WGra.AI127
+    step_number: 13
+  - description: Set the Low Charging Gradient
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DLFW.WChaGra.AO69
+    response: DLFW.WChaGra.AI128
+    step_number: 14
+  - description: Set the Start Delay
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW2.ActStrDlTmms.AO70
+    response: DHFW2.ActStrDlTmms.AI129
     step_number: 15
-  support_point: DWSM.Beh
-- id: schedule_enable
-  name: schedule_enable
-  ref: MESA-ESS spec section 6.6 (Table 38)
-  steps:
-  - description: 'Identify the schedule to enable '
-    point_name: FSCC.Schd
-    step_number: 1
-  - description: 'Set the start time for the selected schedule. TBD: Discuss time
-      format for DNP3.'
-    point_name: FSCHxx.StrTm
-    step_number: 2
-  - description: 'Set the repeat interval for the selected schedule '
-    point_name: FSCHxx.IntvPer
-    step_number: 3
-  - description: 'Set the repeat interval units for the selected schedule '
-    point_name: FSCHxx.ClcIntvTyp
-    step_number: 4
-  - action: publish
-    description: 'Enable the Schedule by changing its state to ready '
+  - description: Set the Stop Delay
     fcodes:
-    - select
-    - operate
-    point_name: FSCHxx.Enable
-    step_number: 5
-  - description: 'Selected Schedule is Validated '
-    point_name: FSCH.SchdSt.2
-    step_number: 6
-  - description: 'Selected Schedule Repeat Weekly Sunday '
-    point_name: FSCHxx.SchdReuse1
-    step_number: 7
-  - description: 'Selected Schedule Repeat Weekly Monday '
-    point_name: FSCHxx.SchdReuse2
-    step_number: 8
-  - description: 'Selected Schedule Repeat Weekly Tuesday '
-    point_name: FSCHxx.SchdReuse3
-    step_number: 9
-  - description: 'Selected Schedule Repeat Weekly Wednesday '
-    point_name: FSCHxx.SchdReuse4
-    step_number: 10
-  - description: 'Selected Schedule Repeat Weekly Thursday '
-    point_name: FSCHxx.SchdReuse5
-    step_number: 11
-  - description: 'Selected Schedule Repeat Weekly Friday '
-    point_name: FSCHxx.SchdReuse6
-    step_number: 12
-  - description: 'Selected Schedule Repeat Weekly Saturday '
-    point_name: FSCHxx.SchdReuse7
-    step_number: 13
-  - description: 'One of more Schedules Running '
-    point_name: FSCC.ActSchdRef
-    step_number: 14
-- id: curve
-  name: curve
-  ref: Not documented explicitly in the MESA-ESS spec
-  steps:
-  - description: Curve Edit Selector
-    optional: M
-    point_name: Curve Edit Selector
-    step_number: 1
-  - description: Curve Mode Type
-    point_name: Curve Mode Type
-    step_number: 2
-  - description: Curve Time Window
-    point_name: Curve Time Window
-    step_number: 3
-  - description: Curve Ramp Time
-    point_name: Curve Ramp Time
-    step_number: 4
-  - description: Curve Revert Time
-    point_name: Curve Revert Time
-    step_number: 5
-  - description: Curve Maximum Number of Points
-    point_name: Curve Maximum Number of Points
-    step_number: 6
-  - description: Independent (X-Value) Units for Curve
-    point_name: Independent (X-Value) Units for Curve
-    step_number: 7
-  - description: Dependent (Y-Value) Units for Curve
-    point_name: Dependent (Y-Value) Units for Curve
-    step_number: 8
-  - description: Curve Time Constant
-    point_name: Curve Time Constant
-    step_number: 9
-  - description: Curve Decreasing Max Ramp Rate
-    point_name: Curve Decreasing Max Ramp Rate
-    step_number: 10
-  - description: Curve Increasing Ramp Rate
-    point_name: Curve Increasing Ramp Rate
-    step_number: 11
-  - description: CurveStart
-    point_name: CurveStart
-    step_number: 12
-  - action: publish
-    description: Curve Number of Points
-    optional: M
-    point_name: Curve Number of Points
-    step_number: 13
-- id: load_following
-  name: load_following
-  ref: MESA-ESS spec section 6.4.5 (Table 27)
-  steps:
-  - description: 'Set the Referenced ECP '
-    optional: M
-    point_name: DLFL.ECPRefId
-    step_number: 1
-  - description: 'Measurement from the Referenced ECP '
-    optional: M
-    point_name: DLFL.WRef.out
-    step_number: 2
-  - description: 'Time window within which to randomly initiate mode '
-    optional: O
-    point_name: DLFL.WinTms.out
-    step_number: 3
-  - description: 'Ramp time for moving from current operational mode settings to new
-      operational mode settings '
-    optional: O
-    point_name: DLFL.RmpTms.out
-    step_number: 4
-  - description: 'Reversion timeout period upon which to take reversion default action '
-    optional: O
-    point_name: DLFL.RvrtTms
-    step_number: 5
-  - description: 'Threshold to start actively following load in watts. '
-    optional: M
-    point_name: DLFL.LodFolThrshW.out
-    step_number: 6
-  - description: 'Load Following Ratio. If 100%, then Load Following follows the load
-      exactly. If < 100%, then Load Following follows the load as a percentage of
-      the load over the threshold. '
-    optional: O
-    point_name: DLFL.PkPwrFolPct.out
-    step_number: 7
-  - description: 'Discharging Ramp Up Rate. Maximum ramp up rate '
-    optional: O
-    point_name: DLFL.RmpUpRte.out
-    step_number: 8
-  - description: 'Discharging Ramp Down Rate. Maximum ramp down rate '
-    optional: O
-    point_name: DLFL.RmpDnRte.out
-    step_number: 9
-  - description: 'Active Power Limit Mode Priority '
-    optional: O
-    point_name: DLFL.ModPrty.out
-    step_number: 10
-  - action: publish
-    description: 'Enable Limited Watts mode and receive response '
-    fcodes:
-    - select
-    - operate
-    optional: M
-    point_name: DLFL.ModEna
-    step_number: 11
-  support_point: DGFL.Beh
-- id: volt_watt
-  name: volt_watt
-  ref: MESA-ESS spec section 6.4.9 (Table 31)
-  steps:
-  - description: 'Set the Referenced ECP '
-    optional: M
-    point_name: DVWG.ECPRefId
-    step_number: 1
-  - description: 'Measurement from the Referenced ECP '
-    optional: M
-    point_name: DVWG.WRef
-    step_number: 2
-  - description: 'Time window within which to randomly initiate mode '
-    optional: O
-    point_name: DVWG.WinTms.out
-    step_number: 3
-  - description: 'Ramp time for moving from current operational mode settings to new
-      operational mode settings '
-    optional: O
-    point_name: DVWG.RmpTms
-    step_number: 4
-  - description: 'Reversion timeout period upon which to take reversion default action '
-    optional: O
-    point_name: DVWG.RvrtTms
-    step_number: 5
-  - description: 'Volt-Watt Decreasing Watt Gradient. Percent of WMax '
-    optional: M
-    point_name: DVWG.VWDecGra.out
-    step_number: 6
-  - description: 'Volt-Watt Increasing Watt Gradient. Percent of WMax or AMax (depending
-      on Watts/Amps agreement) '
-    optional: O
-    point_name: DVWG.VWIncrGra.out
-    step_number: 7
-  - description: 'Volt-Watt Lower Limit: start to increase export of watts '
-    optional: O
-    point_name: DVWG.VWLoLim.out
-    step_number: 8
-  - description: 'Volt-Watt Upper Limit: start to decrease export of watts '
-    optional: O
-    point_name: DVWG.VWHiLim.out
-    step_number: 9
-  - description: 'Volt-Watt Filter Time (Seconds) '
-    optional: O
-    point_name: DVWG.FilTms.out
-    step_number: 10
-  - description: 'Volt-Watt Discharging Ramp Up Rate. Maximum ramp up rate '
-    optional: O
-    point_name: DVWG.RmpUpRte.out
-    step_number: 11
-  - description: 'Volt-Watt Discharging Ramp Down Rate. Maximum ramp down rate '
-    optional: O
-    point_name: DVWG.RmpDnRte.out
-    step_number: 12
-  - description: 'Volt-Watt Charge Ramp Up Rate. Maximum charging ramp up rate '
-    optional: O
-    point_name: DVWG.ChaRmpUpRte.out
-    step_number: 13
-  - description: 'Volt-Watt Charge Ramp Down Rate. Maximum charging ramp down rate '
-    optional: O
-    point_name: DVWG.ChaRmpDnRte.out
-    step_number: 14
-  - description: 'Active Power Limit Mode Priority '
-    optional: O
-    point_name: DVWG.ModPrty.out
-    step_number: 15
-  - action: publish
-    description: 'Enable Limited Watts mode and receive response '
-    fcodes:
-    - select
-    - operate
-    optional: M
-    point_name: DVWG.ModEna
+    - direct_operate
+    optional: I
+    point_name: DHFW2.ActStopDlTmms.AO71
+    response: DHFW2.ActStopDlTmms.AI130
     step_number: 16
-  support_point: DVWA_x000D_DVVM.Beh
-- id: coordinated_charge_discharge
-  name: coordinated_charge_discharge
-  ref: MESA-ESS spec section 6.4.2 (Table 24)
-  steps:
-  - description: 'Time window within which to randomly initiate mode. '
-    optional: O
-    point_name: DTCD.WinTms.out
-    step_number: 12
-  - description: 'Ramp time for moving from current operational mode settings to new
-      operational mode settings. '
-    optional: O
-    point_name: DTCD.RmpTms.out
-    step_number: 13
-  - description: 'Reversion timeout period upon which to take reversion default action. '
-    optional: O
-    point_name: DTCD.RvrtTms
-    step_number: 14
-  - description: 'Target usable state of charge that the system is expected to achieve,
-      as a percentage of the usable capacity. '
-    optional: M
-    point_name: DTCD.SOCUseTgt.out
-    step_number: 15
-  - description: 'Target date and time by which the storage system must reach the
-      target SOC. '
-    optional: C
-    point_name: DTCD.DateTgt.out
-    step_number: 16
-  - description: 'Target duration to move from the current SOC to the target SOC. '
-    optional: C
-    point_name: DTCD.Tms.Tgt
+  - description: Set the Ramp Up Time Constant
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.OpnLoop.AO72
+    response: DLFW.OpnLoopMax.AI131
     step_number: 17
-  - action: publish
-    description: 'Coordinated Charge/Discharge mode enable. '
-    optional: M
-    point_name: DTCD.ModEna
+  - description: Set the Ramp Down Time Constant
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.OpnLoop.AO73
+    response: DHFW.OpnLoopMax.AI132
     step_number: 18
-  - description: 'Maximum Ramp Up Rate. Ramp up rate during generating (discharging).
-      Ramp rate as percentage of NomRmpUpRte. '
-    optional: O
-    point_name: DRCT.MaxRmpUpRte
+  - description: Set the Discharging Up Ramp Rate
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.DschRpuRte.AO74
+    response: DHFW.RpuRte.AI133
     step_number: 19
-  - description: 'Maximum Ramp Down Rate. As percentage of nominal maximum ramp rate.
-      Ramp down rate during generating (discharging). Ramp rate as percentage of NomRmpDnRte. '
-    optional: O
-    point_name: DRCT.MaxRmpDnRte
+  - description: Set the Discharging Down Ramp Rate
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.DschRpdRte.AO75
+    response: DHFW.RpdRteMax.AI134
     step_number: 20
-  support_point: DCBY.Beh
+  - description: Set the Charging Up Ramp Rate
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.ChaRpuRte.AO76
+    response: DHFW.RpuChaRte.AI135
+    step_number: 21
+  - description: Set the Charging Down Ramp Rate
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.ChaRpdRte.AO77
+    response: DHFW.RpdChaRteMax.AI136
+    step_number: 22
+  - description: Set the Hight Return Gradient
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.RtnRmpRte.AO78
+    response: DHFW2.RtnRmpRte.AI137
+    step_number: 23
+  - description: Set the Low Return Gradient
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DLFW.RtnRmpRte.AO79
+    response: DLFW2.RtnRmpRte.AI138
+    step_number: 24
+  - description: Set the minium State of Charge to be used by this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.SocUseMin.AO80
+    response: DAGC.SocUseMinPct.AI140
+    step_number: 25
+  - description: Set the maximum State of Charge to be used by this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.SocUseMax.AO81
+    response: DAGC.SocUseMaxPct.AI141
+    step_number: 26
+  - description: Enable or Disable Hysteresis
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.HysEna.BO34
+    response: DHFW.HysEna.BI86
+    step_number: 27
+  - description: Enable or Disable Snapshot of Power
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.SnptEna.BO35
+    response: DHFW.SnptEna.BI87
+    step_number: 28
+  - action: publish
+    description: Enable Frequency-Watt Mode
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DHFW.ModEna.BO16
+    response: DHFW.ModEna.BI68
+    step_number: 29
+- id: enable_dynamic_reactive_current_support_mode
+  name: Enable Dynamic Reactive Current Support Mode
+  ref: AN2018 Spec section 2.5.4 Table 37
+  mode_types:
+    schedule:
+      - 9
+  steps:
+  - description: Set priority of this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DRGS.ModPrio.AO32
+    response: DRGS.ModPrio.AI83
+    step_number: 1
+  - description: Set enabling time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DRGS.WinTms.AO33
+    response: DRGS.WinTms.AI84
+    step_number: 2
+  - description: Set enabling ramp time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DRGS.RmpTms.AO34
+    response: DRGS.RmpTms.AI85
+    step_number: 3
+  - description: Set enabling reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DRGS.RvrtTms.AO35
+    response: DRGS.RvrtTms.AI86
+    step_number: 4
+  - description: Identify the meter used to measure the voltage. By default this
+      is the System Meter (ID = 0)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DRGS.EcpRef.AO36
+    response: DRGS.EcpRef.AI87
+    step_number: 5
+  - description: Set the Gradient Mode to select the curve shape
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DRGS.ArGraMod.AO37
+    response: DRGS.ArGraMod.AI91
+    step_number: 6
+  - description: Set the Deadband Minimum Voltage
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DRGS.DbVMin.AO38
+    response: DRGS.DbVMin.AI92
+    step_number: 7
+  - description: Set the Deadband Maximum Voltage
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DRGS.DbVMax.AO39
+    response: DRGS.DbVMax.AI93
+    step_number: 8
+  - description: Set the Reactive Current Support Gradient for Sags
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DRGS.ArGraSag.AO40
+    response: DRGS.ArGraSag.AI94
+    step_number: 9
+  - description: Set the Reactive Current Support Gradient for Swells
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DRGS.ArGraSwl.AO41
+    response: DRGS.ArGraSwl.AI95
+    step_number: 10
+  - description: Set the Filter Time for the Moving Average Voltage in seconds
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DRGS.FilTms.AO42
+    response: DRGS.FilTms.AI96
+    step_number: 11
+  - description: Enable Event-Based Reactive Current Support if required. It shall
+      default to Disabled.
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DRGS.ArGraMod.BO33
+    response: DRGS.ModEna.BI85
+    step_number: 12
+  - description: Set the Hold Time in milliseconds if Event-Based Reactive Current
+      Support is required.
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DRGS.HoldTmms.AO46
+    response: DRGS.HoldTmms.AI100
+    step_number: 13
+  - description: Set the Block Zone Voltage if required. Otherwise it shall default
+      to zero.
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DRGS.BlkZnV.AO43
+    response: DRGS.BlkZnV.AI97
+    step_number: 14
+  - description: Set the Hysteresis Block Zone Voltage if required. Otherwise it
+      shall default to zero.
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DRGS.HysBlkZnV.AO44
+    response: DRGS.HysBlkZnV.AI98
+    step_number: 15
+  - description: Set the Block Zone Time in milliseconds if required. Otherwise it
+      shall default to zero.
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DRGS.BlkZnTmms.AO45
+    response: DRGS.BlkZnTmms.AI99
+    step_number: 16
+  - action: publish
+    description: Enable Dynamic Reactive Current Mode
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DRGS.ModEna.BO14
+    response: DRGS.ModEna.BI66
+    step_number: 17
+- id: enable_volt-watt_mode
+  name: Enable Volt-Watt Mode
+  ref: AN2018 Spec section 2.5.5 Table 38
+  steps:
+  - description: If not already established, set the Reference Voltage
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DECP.VRef.AO0
+    response: DECP.VRef.AI29
+    step_number: 1
+  - description: If not already established, set the Reference Voltage Offset
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DECP.VRefOfs.AO1
+    response: DECP.VRefOfs.AI30
+    step_number: 2
+  - description: Set priority of this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVWD.ModPrio.AO48
+    response: DVWD.ModPrio.AI102
+    step_number: 3
+  - description: Set enabling time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVWD.WinTms.AO49
+    response: DVWD.WinTms.AI103
+    step_number: 4
+  - description: Set enabling ramp time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVWD.RmpTms.AO50
+    response: DVWD.RmpTms.AI104
+    step_number: 5
+  - description: Set enabling reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVWD.RvrtTms.AO51
+    response: DVWD.RvrtTms.AI105
+    step_number: 6
+  - description: Identify the meter used to measure the voltage. By default this
+      is the System Meter (ID = 0)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVWD2.EcpRef.AO52
+    response: DVWD2.EcpRef.AI106
+    step_number: 7
+  - description: Set the Dynamic Volt-Watt Gradient
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVWD.DynVWGra.AO53
+    response: DVWD.DynVWGra.AI110
+    step_number: 8
+  - description: Set the Dynamic Volt-Watt Filter Time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVWD.VWFilTms.AO54
+    response: DVWD.VWFilTms.AI111
+    step_number: 9
+  - description: Set the Dynamic Volt-Watt Lower Deadband
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVWD.DbVWLo.AO55
+    response: DVWD.DbVWLo.AI112
+    step_number: 10
+  - description: Set the Dynamic Volt-Watt Upper Deadband
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVWD.DbVWHi.AO56
+    response: DVWD.DbVWHi.AI113
+    step_number: 11
+  - action: publish
+    description: Enable Dynamic Volt-Watt mode
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DVWD.ModEna.BO15
+    response: DVWD.ModEna.BI67
+    step_number: 12
+- id: enable_active_power_limit_mode
+  name: Enable Active Power Limit Mode
+  ref: AN2018 Spec section 2.6.1 Table 39
+  mode_types:
+    schedule:
+      - 12
+      - 13
+  steps:
+  - description: Set priority of this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWMX.ModPrio.AO82
+    response: DWMX.ModPrio.AI142
+    step_number: 1
+  - description: Set enabling time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWMX.WinTms.AO83
+    response: DWMX.WinTms.AI143
+    step_number: 2
+  - description: Set enabling ramp time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWMX.RmpTms.AO84
+    response: DWMX.RmpTms.AI144
+    step_number: 3
+  - description: Set reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWMX.RvrtTms.AO85
+    response: DWMX.RvrtTms.AI145
+    step_number: 4
+  - description: Identify the meter used to measure the active power. By default
+      this is the System Meter (ID = 0)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWMX.EcpRef.AO86
+    response: DWMX.EcpRef.AI146
+    step_number: 5
+  - description: Retrieve Maximum Active Generation Power Capability
+    fcodes:
+    - read
+    - response
+    optional: O
+    point_name: n/a
+    response: DGEN.WMax.AI32
+    step_number: 6
+  - description: Retrieve Maximum Active Charging Power Capability
+    fcodes:
+    - read
+    - response
+    optional: O
+    point_name: n/a
+    response: DSTO.ChaWMax.AI33
+    step_number: 7
+  - description: Set maximum output in percent of nominal Watts (Charging)
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DWMX.WLimPct.AO87
+    response: DWMX.WLimPct.AI148
+    step_number: 8
+  - description: Set maximum output in percent of nominal Watts (Generating)
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DWMN.WLimPct.AO88
+    response: DWMN.WLimPct.AI149
+    step_number: 9
+  - action: publish
+    description: Enable Active Power Limit mode and receive response
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DWLM.ModEna.BO17
+    response: DWLM.ModEna.BI69
+    step_number: 10
+- id: enable_charge_discharge_storage_mode
+  name: Enable Charge/Discharge Storage Mode
+  ref: AN2018 Spec section 2.6.2 Table 41
+  mode_types:
+    schedule:
+      - 14
+  steps:
+  - description: Set priority of this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWGC.ModPrio.AO89
+    response: DWGC.ModPrio.AI150
+    step_number: 1
+  - description: Set enabling time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWGC.WinTms.AO90
+    response: DWGC.WinTms.AI151
+    step_number: 2
+  - description: Set enabling ramp time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWGC.RmpTms.AO91
+    response: DWGC.RmpTms.AI152
+    step_number: 3
+  - description: Set enabling reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWGC.RvrtTms.AO92
+    response: DWGC.RvrtTms.AI153
+    step_number: 4
+  - description: Select whether to use Ramp Rates or Time Constants
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWGC.UseRmpRte.BO38
+    response: DWGC.UseRmpRte.BI90
+    step_number: 5
+  - description: 'If DWGC.UseRmpRte = 0: Set Charge/Discharge Time Constant Ramp Up
+      Time'
+    fcodes:
+    - direct_operate
+    optional: O
+    point_name: DWGC.OpnLoop.AO94
+    response: DWGC.OpnLoopMax.AI155
+    step_number: 6
+  - description: 'If DWGC.UseRmpRte = 0: Set Charge/Discharge Time Constant Ramp Down
+      Time'
+    fcodes:
+    - direct_operate
+    optional: O
+    point_name: DWGC.OpnLoop.AO95
+    response: DWGC.OpnLoopMax.AI156
+    step_number: 7
+  - description: 'If DWGC.UseRmpRte = 1: Set Discharge Ramp Up Rate'
+    fcodes:
+    - direct_operate
+    optional: O
+    point_name: DWGC.DschRpuRte.AO96
+    response: DWGC.RpuRte.AI157
+    step_number: 8
+  - description: 'If DWGC.UseRmpRte = 1: Set Discharge Ramp Down Rate'
+    fcodes:
+    - direct_operate
+    optional: O
+    point_name: DWGC.DschRpdRte.AO97
+    response: DWGC.RpdRteMax.AI158
+    step_number: 9
+  - description: 'If DWGC.UseRmpRte = 1: Set Charge Ramp Up Rate'
+    fcodes:
+    - direct_operate
+    optional: O
+    point_name: DWGC.ChaRpuRte.AO98
+    response: DWGC.RpuChaRte.AI159
+    step_number: 10
+  - description: 'If DWGC.UseRmpRte = 1: Set Charge Ramp Down Rate'
+    fcodes:
+    - direct_operate
+    optional: O
+    point_name: DWGC.ChaRpdRte.AO99
+    response: DWGC.RpdChaRteMax.AI160
+    step_number: 11
+  - description: Set Minimum Reserve for Storage (percent of Battery Capacity Rating)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWGC.SocUseMinPct.AO100
+    response: DWGC.SocUseMinPct.AI161
+    step_number: 12
+  - description: Set Maximum Reserve for Storage (percent of Battery Capacity Rating)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWGC.SocUseMaxPct.AO101
+    response: DWGC.SocUseMaxPct.AI162
+    step_number: 13
+  - description: Set discharge/charge Active Power Target. Positive is discharging,
+      negative is charging.
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DWGC.GnWPctSpt.AO93
+    response: DWGC.GnWPctSpt.AI154
+    step_number: 14
+  - action: publish
+    description: Enable charge/discharge  mode and receive response
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DWGC.ModEna.BO18
+    response: DWGC.ModEna.BI70
+    step_number: 15
+- id: enable_coordinated_charge_discharge_management_mode
+  name: Enable Coordinated Charge/Discharge Management Mode
+  ref: AN2018 Spec section 2.6.3 Table 42
+  mode_types:
+    schedule:
+      - 15
+  steps:
+  - description: Set priority of this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DTCD.ModPrio.AO102
+    response: DTCD.ModPrio.AI163
+    step_number: 1
+  - description: Set enabling time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DTCD.WinTms.AO103
+    response: DTCD.WinTms.AI164
+    step_number: 2
+  - description: Set enabling ramp time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DTCD.RmpTms.AO104
+    response: DTCD.RmpTms.AI165
+    step_number: 3
+  - description: Set enabling reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DTCD.RvrtTms.AO105
+    response: DTCD.RvrtTms.AI166
+    step_number: 4
+  - description: Set the Target State of Charge, as a percentage of Usable Capacity
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DTCD.SocUseTgtPct.AO106
+    response: DTCD.SocUseTgtPct.AI167
+    step_number: 5
+  - description: Set the Target Date Charge Needed
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DTCD.DateTgt.AO107
+    response: DTCD.DateTgt.AI168
+    step_number: 6
+  - description: Set the Target Time Charge Needed (milliseconds since midnight)
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DTCD.DateTgtTms.AO108
+    response: DTCD.DateTgtTms.AI169
+    step_number: 7
+  - action: publish
+    description: Enable coordinated charge/discharge mode and receive response
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DWGC.ModEna.BO18
+    response: DTCD.ModEna.BI71
+    step_number: 8
+- id: enable_active_power_response_mode_1
+  name: Enable Active Power Response Mode 1
+  ref: AN2018 Spec section 2.6.4 Table 43
+  mode_types:
+    schedule:
+      - 16
+  steps:
+  - description: 'Set the priority of mode #1'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPKP.ModPrio.AO115
+    response: DPKP.ModPrio.AI176
+    step_number: 1
+  - description: 'Set enabling time window of mode #1'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPKP.WinTms.AO116
+    response: DPKP.WinTms.AI177
+    step_number: 2
+  - description: 'Set enabling ramp time of mode #1'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPKP.RmpTms.AO117
+    response: DPKP.RmpTms.AI178
+    step_number: 3
+  - description: 'Set reversion timeout period of mode #1'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPKP.RvrtTms.AO118
+    response: DPKP.RvrtTms.AI179
+    step_number: 4
+  - description: 'Identify the meter used to measure the Reference Power Input of
+      mode #1. By default this is the System Meter (ID = 0)'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPKP.EcpRef.AO119
+    response: DPKP.EcpRef.AI180
+    step_number: 5
+  - description: 'Set the power threshold for activating mode #1'
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DPKP.PkPwrWLim.AO120
+    response: DPKP.PkPwrWLim.AI182
+    step_number: 6
+  - description: 'Set the ratio used to calculate the output power from the measured
+      power of mode #1'
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DPKP.PkPwrFolPct.AO121
+    response: DPKP.PkPwrFolPct.AI183
+    step_number: 7
+  - description: 'Set the maximum ramp up rate of mode #1'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPKP.RpuRte.AO122
+    response: DPKP.RpuRte.AI184
+    step_number: 8
+  - description: 'Set the maximum ramp down rate of mode #1'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPKP.RpdRte.AO123
+    response: DPKP.RpdRte.AI185
+    step_number: 9
+  - action: publish
+    description: 'Enable the active response mode #1'
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DPKP.ModEna.BO20
+    response: DPKP.ModEna.BI72
+    step_number: 10
+- id: enable_active_power_response_mode_2
+  name: Enable Active Power Response Mode 2
+  ref: AN2018 Spec section 2.6.4 Table 43
+  mode_types:
+    schedule:
+      - 17
+  steps:
+  - description: 'Set the priority of mode #2'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DGFL.ModPrio.AO124
+    response: DGFL.ModPrio.AI187
+    step_number: 1
+  - description: 'Set enabling time window of mode #2'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DGFL.WinTms.AO125
+    response: DGFL.WinTms.AI188
+    step_number: 2
+  - description: 'Set enabling ramp time of mode #2'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DGFL.RmpTms.AO126
+    response: DGFL.RmpTms.AI189
+    step_number: 3
+  - description: 'Set reversion timeout period of mode #2'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DGFL.RvrtTms.AO127
+    response: DGFL.RvrtTms.AI190
+    step_number: 4
+  - description: 'Identify the meter used to measure the Reference Power Input of
+      mode #2. By default this is the System Meter (ID = 0)'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DGFL.EcpRef.AO128
+    response: DGFL.EcpRef.AI191
+    step_number: 5
+  - description: 'Set the power threshold for activating mode #2'
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DGFL.PkPwrWLim.AO129
+    response: DGFL.PkPwrWLim.AI193
+    step_number: 6
+  - description: 'Set the ratio used to calculate the output power from the measured
+      power of mode #2'
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DGFL.PkPwrFolPct.AO130
+    response: DGFL.PkPwrFolPct.AI194
+    step_number: 7
+  - description: 'Set the maximum ramp up rate of mode #2'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DGFL.RpuRte.AO131
+    response: DGFL.RpuRte.AI195
+    step_number: 8
+  - description: 'Set the maximum ramp down rate of mode #2'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DGFL.RpdRte.AO132
+    response: DGFL.RpdRte.AI196
+    step_number: 9
+  - action: publish
+    description: 'Enable the active response mode #2'
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DGFL.ModEna.BO21
+    response: DGFL.ModEna.BI73
+    step_number: 10
+- id: enable_active_power_response_mode_3
+  name: Enable Active Power Response Mode 3
+  ref: AN2018 Spec section 2.6.4 Table 43
+  mode_types:
+    schedule:
+      - 18
+  steps:
+  - description: 'Set the priority of mode #3'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DLFL.ModPrio.AO133
+    response: DLFL.ModPrio.AI198
+    step_number: 1
+  - description: 'Set enabling time window of mode #3'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DLFL.WinTms.AO134
+    response: DLFL.WinTms.AI199
+    step_number: 2
+  - description: 'Set enabling ramp time of mode #3'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DLFL.RmpTms.AO135
+    response: DLFL.RmpTms.AI200
+    step_number: 3
+  - description: 'Set reversion timeout period of mode #3'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DLFL.RvrtTms.AO136
+    response: DLFL.RvrtTms.AI201
+    step_number: 4
+  - description: 'Identify the meter used to measure the Reference Power Input of
+      mode #3. By default this is the System Meter (ID = 0)'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DLFL.EcpRef.AO137
+    response: DLFL.EcpRef.AI202
+    step_number: 5
+  - description: 'Set the power threshold for activating mode #3'
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DLFL.PkPwrWLim.AO138
+    response: DLFL.PkPwrWLim.AI204
+    step_number: 6
+  - description: 'Set the ratio used to calculate the output power from the measured
+      power of mode #3'
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DLFL.PkPwrFolPct.AO139
+    response: DLFL.PkPwrFolPct.AI205
+    step_number: 7
+  - description: 'Set the maximum ramp up rate of mode #3'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DLFL.RpuRte.AO140
+    response: DLFL.RpuRte.AI206
+    step_number: 8
+  - description: 'Set the maximum ramp down rate of mode #3'
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DLFL.RpdRte.AO141
+    response: DLFL.RpdRte.AI207
+    step_number: 9
+  - action: publish
+    description: 'Enable the active response mode #3'
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DLFL.ModEna.BO22
+    response: DLFL.ModEna.BI74
+    step_number: 10
+- id: perform_automatic_generation_control_mode
+  name: Perform Automatic Generation Control Mode
+  ref: AN2018 Spec section 2.6.5 Table 45
+  mode_types:
+    schedule:
+      - 19
+  steps:
+  - description: Set priority of the mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DAGC.ModPrio.AO142
+    response: DAGC.ModPrio.AI209
+    step_number: 1
+  - description: Set enabling time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DAGC.WinTms.AO143
+    response: DAGC.WinTms.AI210
+    step_number: 2
+  - description: Set enabling ramp time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DAGC.RmpTms.AO144
+    response: DAGC.RmpTms.AI211
+    step_number: 3
+  - description: Set enabling reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DAGC.RvrtTms.AO145
+    response: DAGC.RvrtTms.AI212
+    step_number: 4
+  - description: Select whether to use Ramp Rates or Time Constants
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DAGC.UseRmpRte.BO39
+    response: DAGC.UseRmpRte.BI91
+    step_number: 5
+  - description: 'If DAGC.UseRmpRte = 0: Set AGC Ramp Time Constant Up Time'
+    fcodes:
+    - direct_operate
+    optional: O
+    point_name: DAGC.OpnLoop.AO147
+    response: DAGC.RmpUpTms.AI214
+    step_number: 6
+  - description: 'If DAGC.UseRmpRte = 0: Set AGC Ramp Time Constant Down Time'
+    fcodes:
+    - direct_operate
+    optional: O
+    point_name: DAGC.OpnLoop.AO148
+    response: DAGC.RmpDnTms.AI215
+    step_number: 7
+  - description: 'If DAGC.UseRmpRte = 1: Set AGC Discharge Ramp Up Rate'
+    fcodes:
+    - direct_operate
+    optional: O
+    point_name: DAGC.DschRpuRte.AO149
+    response: DAGC.RpuRte.AI216
+    step_number: 8
+  - description: 'If DAGC.UseRmpRte = 1: Set AGC Discharge Ramp Down Rate'
+    fcodes:
+    - direct_operate
+    optional: O
+    point_name: DAGC.DschRpdRte.AO150
+    response: DAGC.RpdRte.AI217
+    step_number: 9
+  - description: 'If DAGC.UseRmpRte = 1: Set AGC Charge Ramp Up Rate'
+    fcodes:
+    - direct_operate
+    optional: O
+    point_name: DAGC.ChaRpuRte.AO151
+    response: DAGC.RpuChaRte.AI218
+    step_number: 10
+  - description: 'If DAGC.UseRmpRte = 1: Set AGC Charge Ramp Down Rate'
+    fcodes:
+    - direct_operate
+    optional: O
+    point_name: DAGC.ChaRpdRte.AO152
+    response: DAGC.RpdChaRte.AI219
+    step_number: 11
+  - description: Set Minimum Usable State of Charge (percent of Usable Capacity Rating)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DAGC.SocUseMinPct.AO153
+    response: DAGC.SocUseMinPct.AI220
+    step_number: 12
+  - description: Set Maximum Usable State of Charge (percent of Usable Capacity Rating)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DAGC.SocUseMaxPct.AO154
+    response: DAGC.SocUseMaxPct.AI221
+    step_number: 13
+  - description: Set the Active Power Target (in Watts) Positive is discharging, negative
+      is charging.
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DAGC.GnWSpt.AO146
+    response: DAGC.GnWSpt.AI213
+    step_number: 14
+  - description: Enable AGC mode and receive response.
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DAGC.ModEna.BO23
+    response: DAGC.ModEna.BI75
+    step_number: 15
+  - action: publish
+    description: Once the mode is enabled, periodically update the Active Power Target.
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DAGC.GnWSpt.AO146
+    response: DAGC.GnWSpt.AI213
+    step_number: 16
+  - description: Read the predicted State of Charge
+    fcodes:
+    - read
+    optional: O
+    point_name: n/a
+    response: DAGC.SocExpc.AI224
+    step_number: 17
+- id: enable_active_power_smoothing
+  name: Enable Active Power Smoothing
+  ref: AN2018 Spec section 2.6.6 Table 46
+  mode_types:
+    schedule:
+      - 20
+  steps:
+  - description: Set priority of this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWSM.ModPrio.AO155
+    response: DWSM.ModPrio.AI227
+    step_number: 1
+  - description: Set time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWSM.WinTms.AO156
+    response: DWSM.WinTms.AI228
+    step_number: 2
+  - description: Set ramp time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWSM.RmpTms.AO157
+    response: DWSM.RmpTms.AI229
+    step_number: 3
+  - description: Set reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWSM.RvrtTms.AO158
+    response: DWSM.RvrtTms.AI230
+    step_number: 4
+  - description: Identify the meter used to measure the Reference Power Input. By
+      default this is the System Meter (ID = 0)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWSM.EcpRef.AO159
+    response: DWSM.EcpRef.AI231
+    step_number: 5
+  - description: Set the Active Power Smoothing Gradient
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWSM.WSmthGra.AO160
+    response: DWSM.WSmthGra.AI233
+    step_number: 6
+  - description: Set the Active Power Smoothing Lower Limit
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWSM.WSmthLoLim.AO161
+    response: DWSM.WSmthLoLim.AI234
+    step_number: 7
+  - description: Set the Active Power Smoothing Upper Limit
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWSM.WSmthHiLim.AO162
+    response: DWSM.WSmthHiLim.AI235
+    step_number: 8
+  - description: Set the Active Power Smoothing Filter Time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWSM.FilTms.AO163
+    response: DWSM.FilTms.AI236
+    step_number: 9
+  - description: Set the Discharge Ramp Up Rate
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWSM.DschRpuRte.AO164
+    response: DWSM.RpuRte.AI237
+    step_number: 10
+  - description: Set the Discharge Ramp Down Rate
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWSM.DschRpdRte.AO165
+    response: DWSM.RpdRte.AI238
+    step_number: 11
+  - description: Set the Charge Ramp Up Rate
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWSM.ChaRpuRte.AO166
+    response: DWSM.RpuChaRte.AI239
+    step_number: 12
+  - description: Set the Charge Ramp Down Rate
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWSM.ChaRpdRte.AO167
+    response: DWSM.RpdChaRte.AI240
+    step_number: 13
+  - action: publish
+    description: Enable Active Power Smoothing Mode
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DWSM.ModEna.BO24
+    response: DWSM.ModEna.BI76
+    step_number: 14
+- id: enable_volt-watt_curve
+  mode_types:
+    curve:
+    - 5
+    schedule:
+    - 21
+  name: Enable Volt-Watt Curve
+  ref: AN2018 Spec section 2.6.7 Table 47
+  steps:
+  - description: Set priority of this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVWC.ModPrio.AO168
+    response: DVWC.ModPrio.AI242
+    step_number: 1
+  - description: Set time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVWC.WinTms.AO169
+    response: DVWC.WinTms.AI243
+    step_number: 2
+  - description: Set ramp time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVWC.RmpTms.AO170
+    response: DVWC.RmpTms.AI244
+    step_number: 3
+  - description: Set reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVWC.RvrtTms.AO171
+    response: DVWC.RvrtTms.AI245
+    step_number: 4
+  - description: Identify the meter used to measure the Voltage. By default this
+      is the System Meter (ID = 0)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVWC.EcpRef.AO172
+    response: DVWC.EcpRef.AI246
+    step_number: 5
+  - description: Set the reference voltage if it has not already been set
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DECP.VRef.AO0
+    response: DECP.VRef.AI29
+    step_number: 6
+  - description: Set the reference voltage offset if it has not already been set
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DECP.VRefOfs.AO1
+    response: DECP.VRefOfs.AI30
+    step_number: 7
+  - description: Identify the index of the curve being used
+    fcodes:
+    - direct_operate
+    func_ref: curve
+    optional: M
+    point_name: DVWC.VWCrv.AO173
+    response: DVWC.VWCrv.AI248
+    step_number: 8
+  - action: publish
+    description: Enable the Volt-Watt Mode
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DVWC.ModEna.BO25
+    response: DVWC.ModEna.BI77
+    step_number: 9
+  - description: Read the maximum active power the outstation will attempt to generate
+      or absorb based on the voltage and the curve in use.
+    fcodes:
+    - read
+    optional: O
+    point_name: n/a
+    response: DVWC.ReqWLim.AI249
+    step_number: 10
+  - description: Read the actual active power produced or absorbed
+    fcodes:
+    - read
+    optional: O
+    point_name: n/a
+    response: MMXU.TotW.AI537
+    step_number: 11
+- id: enable_frequency-watt_curve_mode
+  mode_types:
+    curve:
+    - 3
+    schedule:
+    - 22
+    - 23
+    - 24
+  name: Enable Frequency-Watt Curve Mode
+  ref: AN2018 Spec section 2.6.8 Table 48
+  steps:
+  - description: Set priority of this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.ModPrio.AO181
+    response: DHFW.ModPrio.AI257
+    step_number: 1
+  - description: Set time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.WinTms.AO182
+    response: DHFW.WinTms.AI258
+    step_number: 2
+  - description: Set ramp time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.RvrtTms.AO184
+    response: DHFW.RmpTms.AI259
+    step_number: 3
+  - description: Set reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.RmpTms.AO183
+    response: DHFW.RvrtTms.AI260
+    step_number: 4
+  - description: Identify the meter used to measure the Frequency. By default this
+      is the System Meter (ID = 0)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.EcpRef.AO185
+    response: DHFW.EcpRef.AI261
+    step_number: 5
+  - description: Set the Nominal Grid Frequency if it is not already set
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DECP.EcpNomHz.AO2
+    response: DECP.EcpNomHz.AI31
+    step_number: 6
+  - description: Set the starting delays
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.ActStrDlTmms.AO189
+    response: DHFW.ActStrDlTmms.AI266
+    step_number: 7
+  - description: Set the stopping delays
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.ActStopDlTmms.AO190
+    response: DHFW.ActStopDlTmms.AI267
+    step_number: 8
+  - description: Set the frequency-watt curve ramp up time constant for the output
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.OpnLoopMax.AO191
+    response: DHFW.OpnLoopMax.AI268
+    step_number: 9
+  - description: Set the frequency-watt curve ramp down time constant for the output
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.OpnLoopMax.AO192
+    response: DHFW.OpnLoopMax.AI269
+    step_number: 10
+  - description: Set the frequency-watt curve discharge ramp up rate
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.RpuRte.AO193
+    response: DHFW.RpuRte.AI270
+    step_number: 11
+  - description: Set the frequency-watt curve discharge ramp down rate
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.RpdRte.AO194
+    response: DHFW.RpdRte.AI271
+    step_number: 12
+  - description: Set the frequency-watt curve charge ramp up rate
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.RpuChaRte.AO195
+    response: DHFW.RpuChaRte.AI272
+    step_number: 13
+  - description: Set the frequency-watt curve charge ramp down rate
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.RpdChaRte.AO196
+    response: DHFW.RpdChaRte.AI273
+    step_number: 14
+  - description: Identify the index of the main curve being used
+    fcodes:
+    - direct_operate
+    func_ref: curve
+    optional: I
+    point_name: DHFW.HzWCrv.AO186
+    response: DHFW.HzWCrv.AI263
+    step_number: 15
+  - description: Identify the index of the high frequency hyteresis curve being used
+    fcodes:
+    - direct_operate
+    func_ref: curve
+    optional: I
+    point_name: DHFW.HysCrv.AO187
+    response: DHFW.HysCrv.AI264
+    step_number: 16
+  - description: Identify the index of the low frequency hyteresis curve being used
+    fcodes:
+    - direct_operate
+    func_ref: curve
+    optional: I
+    point_name: DLFW.HysCrv.AO188
+    response: DLFW.HysCrv.AI265
+    step_number: 17
+  - description: Set the minimum state of charge in which this mode shall operate
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.SocUseMinPct.AO197
+    response: DHFW.SocUseMinPct.AI275
+    step_number: 18
+  - description: Set the maximum state of charge in which this mode shall operate
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DHFW.SocUseMaxPct.AO198
+    response: DHFW.SocUseMaxPct.AI276
+    step_number: 19
+  - description: Choose whether to use hysteresis
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DLFW.HysEna.BO36
+    response: DLFW.HysEna.BI88
+    step_number: 20
+  - description: Choose whether to snapshot power
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DLFW.SnptEna.BO37
+    response: DLFW.SnptEna.BI89
+    step_number: 21
+  - action: publish
+    description: Enable the Frequency-Watt Curve Mode
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DHFW.ModEna.BO26
+    response: DHFW.ModEna.BI78
+    step_number: 22
+- id: set_constant_var_output
+  name: Set Constant Var Output
+  ref: AN2018 Spec section 2.7.1 Table 50
+  mode_types:
+    schedule:
+      - 25
+  steps:
+  - description: Set the priority of this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVAR.ModPrio.AO199
+    response: DVAR.ModPrio.AI277
+    step_number: 1
+  - description: Set enabling time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVAR.WinTms.AO200
+    response: DVAR.WinTms.AI278
+    step_number: 2
+  - description: Set enabling ramp time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVAR.RmpTms.AO201
+    response: DVAR.RmpTms.AI279
+    step_number: 3
+  - description: Set enabling reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVAR.RvrtTms.AO202
+    response: DVAR.RvrtTms.AI280
+    step_number: 4
+  - description: Set the ramp up Time Constants
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVAR.OpnLoopMax.AO204
+    response: DVAR.OpnLoopMax.AI282
+    step_number: 5
+  - description: Set the ramp down Time Constants
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVAR.OpnLoopMax.AO205
+    response: DVAR.OpnLoopMax.AI283
+    step_number: 6
+  - description: Choose whether the time constants represent 3-Tau limits or Open
+      Loop Response Times
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DSTO.OpnLoopTau.BO9
+    response: DSTO.OpnLoopTau.BI28
+    step_number: 7
+  - description: If Open Loop Response Times are selected, choose the percentage of
+      final output represented by the time constant (e.g. 90% or 95%)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DSTO.OpnLoopPct.AO3
+    response: DGEN.OpnLoopPct.AI40
+    step_number: 8
+  - description: Select the meaning of the Constant VArs Reactive Power Target
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DSTO.VArRef.AO5
+    response: DGEN.VArSetRef.AI42
+    step_number: 9
+  - description: 'If DSTO.VArRef = 1: Read percent of maximum active generation power'
+    fcodes:
+    - read
+    - response
+    optional: O
+    point_name: n/a
+    response: DGEN.WMax.AI32
+    step_number: 10
+  - description: 'If DSTO.VArRef = 1: Read percent of maximum active charging power'
+    fcodes:
+    - read
+    - response
+    optional: O
+    point_name: n/a
+    response: DSTO.ChaWMax.AI33
+    step_number: 11
+  - description: 'If DSTO.VArRef = 2: Read percent of maximum reactive injection power'
+    fcodes:
+    - read
+    - response
+    optional: O
+    point_name: n/a
+    response: DGEN.IvarMax.AI34
+    step_number: 12
+  - description: 'If DSTO.VArRef = 2: Read percent of maximum reactive absorption
+      power'
+    fcodes:
+    - read
+    - response
+    optional: O
+    point_name: n/a
+    response: DGEN.AvarMax.AI35
+    step_number: 13
+  - description: 'If DSTO.VArRef = 3: Read percent of system reactive injection power'
+    fcodes:
+    - read
+    - response
+    optional: O
+    point_name: n/a
+    response: DGEN.AvarAvl.AI45
+    step_number: 14
+  - description: 'If DSTO.VArRef = 3: Read percent of system reactive absorption power'
+    fcodes:
+    - read
+    - response
+    optional: O
+    point_name: n/a
+    response: DGEN.IvarAvl.AI46
+    step_number: 15
+  - description: Set the Constant VArs Reactive Power Target in percent
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DVAR.VArTgtPct.AO203
+    response: DVAR.VArTgtPct.AI281
+    step_number: 16
+  - action: publish
+    description: Enable Constant VArs mode and receive response
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DVAR.ModEna.BO27
+    response: DVAR.ModEna.BI79
+    step_number: 17
+- id: set_a_fixed_power_factor
+  name: Set a Fixed Power Factor
+  ref: AN2018 Spec section 2.7.2 Table 52
+  mode_types:
+    schedule:
+      - 26
+  steps:
+  - description: Set the priority of this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DFPF.ModPrio.AO206
+    response: DFPF.ModPrio.AI284
+    step_number: 1
+  - description: Set enabling time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DFPF.WinTms.AO207
+    response: DFPF.WinTms.AI285
+    step_number: 2
+  - description: Set enabling ramp time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DFPF.RmpTms.AO208
+    response: DFPF.RmpTms.AI286
+    step_number: 3
+  - description: Set enabling reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DFPF.RvrtTms.AO209
+    response: DFPF.RvrtTms.AI287
+    step_number: 4
+  - description: Set the requirement for whether to inject or absorb VARs (PFExt)
+      when discharging / generating
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DFPF.PFGnExtSet.BO10
+    response: DFPF.PFGnExtSet.BI29
+    step_number: 5
+  - description: Set the requirement for whether to inject or absorb VARs (PFExt)
+      when charging
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DFPF.PFLodExtSet.BO11
+    response: DFPF.PFLodExtSet.BI30
+    step_number: 6
+  - description: Set Fixed Power Factor Setpoint to use when generating / discharging
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DFPF.PFGnTgt.AO210
+    response: DFPF.PFGnTgt.AI288
+    step_number: 7
+  - description: Set Fixed Power Factor Setpoint to use when charging
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DFPF.PFLodTgt.AO211
+    response: DFPF.PFLodTgt.AI289
+    step_number: 8
+  - action: publish
+    description: Enable fixed power factor mode and receive response
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DFPF.ModEna.BO28
+    response: DFPF.BI47
+    step_number: 9
+- id: change_and_select_volt-var_control_mode
+  mode_types:
+    curve:
+    - 2
+    schedule:
+    - 27
+  name: Change and Select Volt-Var Control Mode
+  ref: AN2018 Spec section 2.7.3 Table 54
+  steps:
+  - description: Set priority of this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVVR.ModPrio.AO212
+    response: DVVR.ModPrio.AI290
+    step_number: 1
+  - description: Set the enabling time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVVR.WinTms.AO213
+    response: DVVR.WinTms.AI291
+    step_number: 2
+  - description: Set the enabling ramp time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVVR.RmpTms.AO214
+    response: DVVR.RmpTms.AI292
+    step_number: 3
+  - description: Set the enabling reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVVR.RvrtTms.AO215
+    response: DVVR.RvrtTms.AI293
+    step_number: 4
+  - description: Identify the meter used to measure the voltage. By default this
+      is the System Meter (ID = 0)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVVR.EcpRef.AO216
+    response: DVVR.EcpRef.AI294
+    step_number: 5
+  - description: If using a fixed Voltage reference, set the reference voltage if
+      it has not already been set
+    fcodes:
+    - direct_operate
+    optional: O
+    point_name: DECP.VRef.AO0
+    response: DECP.VRef.AI29
+    step_number: 6
+  - description: If using a fixed Voltage reference, set the reference voltage offset
+      if it has not already been set
+    fcodes:
+    - direct_operate
+    optional: O
+    point_name: DECP.VRefOfs.AO1
+    response: DECP.VRefOfs.AI30
+    step_number: 7
+  - description: If autonomously adjusting the Voltage reference, set the time constant
+      for the lowpass filter
+    fcodes:
+    - direct_operate
+    optional: O
+    point_name: DVVR.VRefTmms.AO220
+    response: DVVR.VRefTmms.AI300
+    step_number: 8
+  - description: If autonomously adjusting the Voltage reference, enable autonomous
+      adjustment
+    fcodes:
+    - direct_operate
+    optional: O
+    point_name: DVVR.VRefAdjEna.BO41
+    response: DVVR.VRefAdjEna.BI93
+    step_number: 9
+  - description: Set the ramp up time constant for the output of the curve
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVVR.OpnLoopMax.AO218
+    response: DVVR.OpnLoopMax.AI298
+    step_number: 10
+  - description: Set the ramp down time constant for the output of the curve
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DVVR.OpnLoopMax.AO219
+    response: DVVR.OpnLoopMax.AI299
+    step_number: 11
+  - description: Identify the index of the curve being used
+    fcodes:
+    - direct_operate
+    func_ref: curve
+    optional: M
+    point_name: DVVR.VVArCrv.AO217
+    response: DVVR.VVArCrv.AI297
+    step_number: 12
+  - action: publish
+    description: Enable the Volt-VAr Control  Mode
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DVVC.ModEna.BO29
+    response: DVVC.BI48
+    step_number: 13
+  - description: Read the adjusted reference voltage, if it is not fixed
+    fcodes:
+    - read
+    optional: O
+    point_name: n/a
+    response: DVVR.VRefSet.AI296
+    step_number: 14
+  - description: Read the measured Voltage
+    fcodes:
+    - read
+    optional: O
+    point_name: n/a
+    response: MMXN.Vol.AI295
+    step_number: 15
+  - description: Read the attempted VArs
+    fcodes:
+    - read
+    optional: O
+    point_name: n/a
+    response: DVVR.ReqVAr.AI301
+    step_number: 16
+  - description: Read the actual VArs (if using system meter)
+    fcodes:
+    - read
+    optional: O
+    point_name: n/a
+    response: MMXU.TotVAr.AI541
+    step_number: 17
+- id: enable_watt-var_power_mode
+  mode_types:
+    curve:
+    - 4
+    schedule:
+    - 28
+  name: Enable Watt-Var Power Mode
+  ref: AN2018 Spec section 2.7.4 Table 55
+  steps:
+  - description: Set priority of this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWVR.ModPrio.AO221
+    response: DWVR.ModPrio.AI302
+    step_number: 1
+  - description: Set the enabling time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWVR.WinTms.AO222
+    response: DWVR.WinTms.AI303
+    step_number: 2
+  - description: Set the enabling ramp time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWVR.RmpTms.AO223
+    response: DWVR.RmpTms.AI304
+    step_number: 3
+  - description: Set the enabling reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWVR.RvrtTms.AO224
+    response: DWVR.RvrtTms.AI305
+    step_number: 4
+  - description: Identify the meter used to measure the active power. By default
+      this is the System Meter (ID = 0)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWVR.EcpRef.AO225
+    response: DWVR.EcpRef.AI306
+    step_number: 5
+  - description: Read the maximum generation power used as the reference for percent
+      Watts
+    fcodes:
+    - read
+    - response
+    optional: O
+    point_name: n/a
+    response: DGEN.WMax.AI32
+    step_number: 6
+  - description: Read the maximum charging power used as the reference for percent
+      Watts
+    fcodes:
+    - read
+    - response
+    optional: O
+    point_name: n/a
+    response: DSTO.ChaWMax.AI33
+    step_number: 7
+  - description: Set the ramp up time constant for the output of the curve
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWVR.OpnLoopMax.AO227
+    response: DWVR.OpnLoopMax.AI309
+    step_number: 8
+  - description: Set the ramp down time constant for the output of the curve
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DWVR.OpnLoopMax.AO228
+    response: DWVR.OpnLoopMax.AI310
+    step_number: 9
+  - description: Identify the index of the curve being used
+    fcodes:
+    - direct_operate
+    func_ref: curve
+    optional: M
+    point_name: DWVR.WVArCrv.AO226
+    response: DWVR.WVArCrv.AI308
+    step_number: 10
+  - action: publish
+    description: Enable the Watt-VAr Power  Mode
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DWVR.ModEna.BO30
+    response: DWVR.BI49
+    step_number: 11
+- id: enable_power_factor_correction_mode
+  name: Enable Power Factor Correction Mode
+  ref: AN2018 Spec section 2.7.5 Table 56
+  mode_types:
+    schedule:
+      - 29
+  steps:
+  - description: Set the priority of this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPFC.ModPrio.AO229
+    response: DPFC.ModPrio.AI312
+    step_number: 1
+  - description: Set enabling time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPFC.WinTms.AO230
+    response: DPFC.WinTms.AI313
+    step_number: 2
+  - description: Set enabling ramp time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPFC.RmpRte.AO231
+    response: DPFC.RmpTms.AI314
+    step_number: 3
+  - description: Set enabling reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPFC.RvrtTms.AO232
+    response: DPFC.RvrtTms.AI315
+    step_number: 4
+  - description: Identify the meter used to measure the active power. By default
+      this is the System Meter (ID = 0)
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPFC.EcpRef.AO233
+    response: DPFC.EcpRef.AI316
+    step_number: 5
+  - description: Set the requirement for whether to inject or absorb VARs (PFExt)
+      when discharging
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DFPF.PFGnExtSet.BO10
+    response: DFPF.PFGnExtSet.BI29
+    step_number: 6
+  - description: Set the requirement for whether to inject or absorb VARs (PFExt)
+      when charging
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DFPF.PFLodExtSet.BO11
+    response: DFPF.PFLodExtSet.BI30
+    step_number: 7
+  - description: Set the Average PF Target
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DPFC.PFTrg.AO234
+    response: MMXU.TotPF.AI317
+    step_number: 8
+  - description: Set the Lower PF Limit
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DPFC.PFCorRef.rangeC.AO235
+    response: DPFC.PFTrg.AI318
+    step_number: 9
+  - description: Set the Upper PF Limit
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DPFC.PFCorRef.rangeC.AO236
+    response: DPFC.PFCorRef.rangeC.AI319
+    step_number: 10
+  - action: publish
+    description: Enable Power Factor Correction Mode
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DPFC.ModEna.BO31
+    response: DPFC.ModEna.BI83
+    step_number: 11
+- id: signal_a_price_change
+  name: Signal a Price Change
+  ref: AN2018 Spec section 2.8 Table 57
+  steps:
+  - description: Set priority of this mode
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPRG.ModPrio.AO237
+    response: DPRG.ModPrio.AI321
+    step_number: 1
+  - description: Set enabling time window
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPRG.WinTms.AO238
+    response: DPRG.WinTms.AI322
+    step_number: 2
+  - description: Set enabling ramp time
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPRG.RmpTms.AO239
+    response: DPRG.RmpTms.AI323
+    step_number: 3
+  - description: Set enabling reversion timeout
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPRG.RvrtTms.AO240
+    response: DPRG.RvrtTms.AI324
+    step_number: 4
+  - description: Set pricing mode time constant for ramping up
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPRG.OpnLoopMax.AO242
+    response: DPRG.OpnLoopMax.AI326
+    step_number: 5
+  - description: Set pricing mode time constant for ramping down
+    fcodes:
+    - direct_operate
+    optional: I
+    point_name: DPRG.OpnLoopMax.AO243
+    response: DPRG.OpnLoopMax.AI327
+    step_number: 6
+  - description: Set pricing signal and receive response
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DPRG.PrcRef.AO241
+    response: DPRG.PrcRef.AI325
+    step_number: 7
+  - action: publish
+    description: Enable pricing signal mode and receive response
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: DPRG.ModEna.BO32
+    response: DPRG.ModEna.BI84
+    step_number: 8
+- id: enable_schedules
+  name: Enable Schedules
+  ref: AN2018 Spec section 2.9 Table 59
+  steps:
+  - description: Enable the Schedule by changing its state to ready
+    fcodes:
+    - select
+    - operate
+    optional: M
+    point_name: FSCHxx.Mod.BO42
+    response: FSCH.SchdSt.3.BI108
+    step_number: 1
+  - description: Select shedule index
+    fcodes:
+    - direct_operate
+    func_ref: schedule
+    optional: M
+    point_name: FSCC.Schd.AO461
+    response: FSCC.Schd.AI570
+    step_number: 2
+  - description: Check that outstation validates the selected schedule
+    fcodes:
+    - read
+    optional: O
+    point_name: n/a
+    response: FSCH.SchdSt.2.BI109
+    step_number: 3
+  - description: Set selected schedule repeat weekly Sunday
+    fcodes:
+    - select
+    - operate
+    optional: I
+    point_name: FSCHxx.SchdReuse.BO43
+    response: FSCHxx.SchdReuse.BI110
+    step_number: 4
+  - description: Set selected schedule repeat weekly Monday
+    fcodes:
+    - select
+    - operate
+    optional: I
+    point_name: FSCHxx.SchdReuse.BO44
+    response: FSCHxx.SchdReuse.BI111
+    step_number: 5
+  - description: Set selected schedule repeat weekly Tuesday
+    fcodes:
+    - select
+    - operate
+    optional: I
+    point_name: FSCHxx.SchdReuse.BO45
+    response: FSCHxx.SchdReuse.BI112
+    step_number: 6
+  - description: Set selected schedule repeat weekly Wednesday
+    fcodes:
+    - select
+    - operate
+    optional: I
+    point_name: FSCHxx.SchdReuse.BO46
+    response: FSCHxx.SchdReuse.BI113
+    step_number: 7
+  - description: Set selected schedule repeat weekly Thursday
+    fcodes:
+    - select
+    - operate
+    optional: I
+    point_name: FSCHxx.SchdReuse.BO47
+    response: FSCHxx.SchdReuse.BI114
+    step_number: 8
+  - description: Set selected schedule repeat weekly Friday
+    fcodes:
+    - select
+    - operate
+    optional: I
+    point_name: FSCHxx.SchdReuse.BO48
+    response: FSCHxx.SchdReuse.BI115
+    step_number: 9
+  - action: publish
+    description: Set selected schedule repeat weekly Saturday
+    fcodes:
+    - select
+    - operate
+    optional: I
+    point_name: FSCHxx.SchdReuse.BO49
+    response: FSCHxx.SchdReuse.BI116
+    step_number: 10
+  - description: Be notified when the schedule is running
+    fcodes:
+    - read
+    optional: O
+    point_name: n/a
+    response: FSCH1.SchdSt.AI579
+    step_number: 11
+- id: curve
+  name: Curve
+  ref: AN2018 Spec Curve Definition
+  steps:
+  - description: Select which curve to edit
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DGSMn.InCrv.AO244
+    response: DGSMn.InCrv.AI328
+    step_number: 1
+  - description: Specify the Curve Mode Type
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: DGSMn.ModTyp.AO245
+    response: DGSMn.ModTyp.AI329
+    step_number: 2
+  - description: Specify that the Independent (X-Value) units for the curve
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: FMARn.IndpUnits.AO247
+    response: FMARn.IndpUnits.AI331
+    step_number: 3
+  - description: Specify the Dependent (Y-Value) units for the curve
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: FMARn.DepRef.AO248
+    response: FMARn.DepRef.AI332
+    step_number: 4
+  - description: Set X-Value and Y-Values pairs for the curve
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: FMARn.PairArr.CrvPts.AO249
+    response: FMARn.PairArr.CrvPts.AI333
+    step_number: 5
+  - action: publish
+    description: Set number of points used for the curve
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: FMARn.PairArr.NumPts.AO246
+    response: FMARn.PairArr.NumPts.AI330
+    step_number: 6
+- id: schedule
+  name: Schedule
+  ref: AN2018 Spec Schedule Definition
+  steps:
+  - description: Select which schedule to edit. This is the index of the schedule,
+      not its identity. The indexes shall be the monotonically increasing integers
+      12, 13, 14 .etc. while the curve identities may be any unique number.
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: FSCC.Schd.AO461
+    response: FSCC.Schd.AI570
+    step_number: 1
+  - description: Set the identity of the schedule to a unique number
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: FSCC.Schd.AO462
+    response: FSCC.Schd.AI571
+    step_number: 2
+  - description: Set the priority for the schedule
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: FSCH1.SchdPrio.AO463
+    response: FSCH.SchdPrio.AI572
+    step_number: 3
+  - description: Set the meaning of the Y-values of the schedule, i.e. the schedule
+      type. Refer to Table 58.
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: FSCH.SchdVal.valEq.AO464
+    response: AI573
+    step_number: 4
+  - description: Set the date for the schedule to start
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: FSCH.StrTm.AO465
+    response: FSCH.StrTm.AI574
+    step_number: 5
+  - description: Set the time for the schedule to start
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: FSCH.StrTm.AO466
+    response: FSCH.StrTm.AI575
+    step_number: 6
+  - description: Set the repetition interval
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: FSCH.NxtStrTm.AO467
+    response: FSCH.NxtStrTm.AI576
+    step_number: 7
+  - description: Set the units of the repetition interval
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: FSCH.SchdReuse.AO468
+    response: FSCH.SchdReuse.AI577
+    step_number: 8
+  - description: Set the Time Offset (X-Values) and Schedule Value (Y-Values) for
+      each schedule point
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: FSCHn.SchdEntr.AO470
+    response: FSCHn.SchdEntr.AI581
+    step_number: 9
+  - action: publish
+    description: Set the number of points used for the schedule.
+    fcodes:
+    - direct_operate
+    optional: M
+    point_name: FSCH.NumEntr.AO469
+    response: FSCH.NumEntr.AI580
+    step_number: 10
