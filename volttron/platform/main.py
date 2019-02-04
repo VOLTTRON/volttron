@@ -893,10 +893,6 @@ def start_volttron_process(opts):
                 message_bus=opts.message_bus,
                 agent_monitor_frequency=opts.agent_monitor_frequency),
 
-            CompatPubSub(address=address, identity='pubsub.compat',
-                         publish_address=opts.publish_address,
-                         subscribe_address=opts.subscribe_address),
-
             MasterWebService(
                 serverkey=publickey, identity=MASTER_WEB,
                 address=address,
