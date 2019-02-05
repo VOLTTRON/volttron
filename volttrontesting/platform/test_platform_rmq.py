@@ -135,10 +135,11 @@ def test_vstart_expired_ca_cert(request, instance):
         assert not (instance.is_running())
         # Rabbitmq log would show Fatal certificate expired
     finally:
-        pass
         shutil.rmtree(crts.cert_dir)
         os.rename(os.path.join(os.path.dirname(crts.cert_dir), "certs_backup"),
                   crts.cert_dir)
+        cleanup_rmq_volttron_setup(vhome=instance.volttron_home,
+                                   ssl_auth=True)
 
 @pytest.mark.wrapper
 def test_vstart_expired_server_cert(request, instance):
@@ -170,10 +171,11 @@ def test_vstart_expired_server_cert(request, instance):
         # "TLS server: In state certify received CLIENT ALERT: Fatal -
         # Certificate Expired"
     finally:
-        pass
         shutil.rmtree(crts.cert_dir)
         os.rename(os.path.join(os.path.dirname(crts.cert_dir), "certs_backup"),
                   crts.cert_dir)
+        cleanup_rmq_volttron_setup(vhome=instance.volttron_home,
+                                   ssl_auth=True)
 
 
 @pytest.mark.skip("Discuss what should be the expected behavior")
@@ -239,6 +241,8 @@ def test_vstart_rabbit_startup_error(request, instance):
             os.path.join(instance.volttron_home, "rabbit.yml"),
             os.path.join(instance.volttron_home, "rabbitmq_config.yml"),
         )
+        cleanup_rmq_volttron_setup(vhome=instance.volttron_home,
+                                   ssl_auth=True)
 
 
 @pytest.mark.timeout(300)
@@ -280,7 +284,73 @@ def test_expired_ca_cert_after_vstart(request, instance):
         agent = instance.install_agent(
             agent_dir=get_examples("ListenerAgent"),
             vip_identity="listener", start=True)
-        gevent.sleep(50)
+        gevent.sleep(50) # waiting for rabbit to start and then volttron
+        try:
+            agent = instance.install_agent(
+                agent_dir=get_examples("ListenerAgent"),
+                vip_identity="listener2", start=True)
+            pytest.fail("Agent install should fail")
+        except Exception as e:
+            print("Exception:", e)
+            assert True
+        # status of first agent would still be fine and it would
+        # continue to publish hearbeat. What should be the expected
+        # behavior?
+        assert instance.is_agent_running(agent)
+
+    finally:
+        shutil.rmtree(crts.cert_dir)
+        os.rename(os.path.join(os.path.dirname(crts.cert_dir), "certs_backup"),
+                  crts.cert_dir)
+        cleanup_rmq_volttron_setup(vhome=instance.volttron_home,
+                                   ssl_auth=True)
+        instance.shutdown_platform()
+
+
+@pytest.mark.dev
+@pytest.mark.timeout(400)
+#@pytest.mark.skip("Discuss what should be the expected behavior")
+def test_expired_server_cert_after_vstart(request, instance):
+    """
+    Test error when server cert expires after volttron has started
+    :param request: pytest request object
+    :param instance: instance of volttron using rmq and ssl
+    """
+    stop_rabbit(rmq_home=os.path.join(os.environ.get('HOME'),
+                                      'rabbitmq_server/rabbitmq_server-3.7.7'))
+    crts = Certs()
+    orig_ca_file = crts.cert_file(crts.root_ca_name)
+    try:
+        shutil.copytree(crts.cert_dir,
+                        os.path.join(os.path.dirname(crts.cert_dir),
+                                     "certs_backup"))
+        (root_ca, server_cert_name, admin_cert_name) = \
+            Certs.get_admin_cert_names("volttron_test")
+
+        data = {'C': 'US',
+                'ST': 'Washington',
+                'L': 'Richland',
+                'O': 'pnnl',
+                'OU': 'volttron',
+                'CN': root_ca}
+        print("current time:{}".format(datetime.datetime.utcnow()))
+        crts.create_root_ca(**data)
+        copy(crts.cert_file(crts.root_ca_name),
+             crts.cert_file(crts.trusted_ca_name))
+
+        crts.create_ca_signed_cert(server_cert_name, type='server',
+                                   fqdn='localhost', valid_days=0.001)
+        print("current time:{}".format(datetime.datetime.utcnow()))
+        crts.create_ca_signed_cert(admin_cert_name, type='client')
+        instance.startup_platform(vip_address=get_rand_vip())
+        #gevent.sleep(30)
+        #  waiting for rabbit to start and then volttron
+        # merge changes from develop to get platformwrapper and pid updates
+        print("current time:{}".format(datetime.datetime.utcnow()))
+        agent = instance.install_agent(
+            agent_dir=get_examples("ListenerAgent"),
+            vip_identity="listener", start=True)
+        gevent.sleep(50) #Timinig nightmare!
         try:
             agent = instance.install_agent(
                 agent_dir=get_examples("ListenerAgent"),
@@ -295,12 +365,12 @@ def test_expired_ca_cert_after_vstart(request, instance):
         assert instance.is_agent_running(agent)
 
     finally:
-        shutil.copytree(os.path.join(os.path.dirname(crts.cert_dir),
-                                     "certs_backup"),
-                        crts.cert_dir)
-
-
-
+        shutil.rmtree(crts.cert_dir)
+        os.rename(os.path.join(os.path.dirname(crts.cert_dir), "certs_backup"),
+                  crts.cert_dir)
+        cleanup_rmq_volttron_setup(vhome=instance.volttron_home,
+                                   ssl_auth=True)
+        instance.shutdown_platform()
 
 
 
