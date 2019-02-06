@@ -59,6 +59,7 @@ from volttron.utils import is_ip_private
 from webapp import WebApplicationWrapper
 from admin_endpoints import AdminEndpoints
 from authenticate_endpoint import AuthenticateEndpoints
+from csr_endpoints import CSREndpoints
 
 from volttron.platform.agent import json as jsonapi
 from volttron.platform.agent.web import Response
@@ -527,8 +528,9 @@ class MasterWebService(Agent):
                                       self._allow))
         self.registeredroutes.append((re.compile('^/$'), 'callable',
                                       self._redirect_index))
-        self.registeredroutes.append((re.compile('^/csr/request_new$'), 'callable',
-                                      self._csr_request_new))
+
+        for rt in CSREndpoints().get_routes():
+            self.registeredroutes.append(rt)
 
         for rt in self._admin_endpoints.get_routes():
             self.registeredroutes.append(rt)
@@ -568,31 +570,6 @@ class MasterWebService(Agent):
         jwt.encode()
 
 
-    def _csr_request_new(self, env, start_response, data):
-
-        request_data = json.loads(json.loads(data))
-        csr = request_data.get('csr')
-        identity = request_data.get('identity')
-        instance_name = get_platform_instance_name()
-
-        instance_new_name = "{}.{}".format(instance_name, identity)
-        csr_file = self._certs.csr_create_file(instance_new_name)
-        if csr:
-            with open(csr_file, "wb") as fw:
-                fw.write(csr)
-
-        auto_accept = True
-        if auto_accept:
-            cert = self._certs.sign_csr(csr_file)
-            json_response = dict(
-                status="SUCCESSFUL",
-                cert=cert
-            )
-        else:
-            json_response = dict(status="PENDING")
-
-        start_response('200 OK', [('Content-type', 'application/json')])
-        return jsonapi.dumps(json_response)
 
     def _crs_admin(self, env, start_response):
         pass
