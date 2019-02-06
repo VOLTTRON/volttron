@@ -71,7 +71,8 @@ except AttributeError:
     IN_MODIFY = None
 
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
-           'is_valid_identity', 'load_platform_config', 'get_messagebus']
+           'is_valid_identity', 'load_platform_config', 'get_messagebus',
+           'get_fq_identity']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
@@ -170,6 +171,18 @@ def load_platform_config():
         for option in options:
             config_opts[option] = parser.get('volttron', option)
     return config_opts
+
+
+def get_fq_identity(identity):
+    """
+    Return the fully qualified identity for the passed core identity.
+
+    Fully qualified identities are instance_name.identity
+
+    :param identity:
+    :return:
+    """
+    return "{}.{}".format(get_platform_instance_name(), identity)
 
 
 def get_platform_instance_name(prompt=False):
