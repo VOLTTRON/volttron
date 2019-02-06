@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script language="JavaScript">
+        $(document).ready(() => {
+            $("form").submit((event) =>{
+                event.preventDefault();
+                url = '/authenticate'
+                data = {
+                    'username': $('#username').val(),
+                    'password': $('#password').val()
+                };
+
+                // Not sure why both the accepts and the dataType parameter
+                // must be set in order for the HTTP_ACCEPT: application/json to
+                // be something other than HTTP_ACCEPT: */*
+                $.ajax({
+                    type: 'POST',
+                    url: url,
+                    data: JSON.stringify(data),
+                    dataType: 'json',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    success: function(content){
+                        alert(content)
+                        $("#response").append(content)
+                    },
+                    failure: function(content){
+                        alert("failed!")
+                        $('#response').append("FAILURE "+ content.toString());
+                    },
+                    statusCode: {
+                        200: function(response){
+                            $('#response').append(response.responseText);
+                            document.cookie = "Bearer="+response.responseText+"; secure=True";
+
+                            //$.cookie('Bearer', response, {secure: true, htmlOnly:true})
+                            //alert(document.cookie)
+                            window.location="https://localhost:8080/admin/index.html"
+                        }
+                    }
+
+                });
+            });
+        });
+
+    </script>
+</head>
+<body>
+    <h1>Authentication</h1>
+    <form>
+        <div>
+            <label>Username:</label><input type="text" id="username" name="username" />
+        </div>
+        <div>
+            <label>Password:</label><input type="password" id="password" name="password" />
+        </div>
+        <div>
+            <textarea id="response" cols="80" rows="20"></textarea>
+        </div>
+        <input type="submit" value="Login" />
+    </form>
+
+</body>
+</html>
