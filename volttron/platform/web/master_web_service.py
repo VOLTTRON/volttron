@@ -57,9 +57,12 @@ import mimetypes
 
 from volttron.utils import is_ip_private
 from webapp import WebApplicationWrapper
+from admin_endpoints import AdminEndpoints
+from authenticate_endpoint import AuthenticateEndpoints
 
 from volttron.platform.agent import json as jsonapi
-from volttron.platform.agent.utils import get_platform_instance_name
+from volttron.platform.agent.web import Response
+from volttron.platform.agent.utils import get_fq_identity
 from volttron.platform.certs import Certs
 from volttron.platform.auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
 from volttron.platform.vip.agent import Agent, Core, RPC
@@ -78,31 +81,6 @@ class CouldNotRegister(StandardError):
 
 class DuplicateEndpointError(StandardError):
     pass
-
-
-class WebResponse(object):
-    """ The WebResponse object is a serializable representation of
-    a response to an http(s) client request that can be transmitted
-    through the RPC subsystem to the appropriate platform's MasterWebAgent
-    """
-
-    def __init__(self, status, data, headers):
-        self.status = status
-        self.headers = self.process_headers(headers)
-        self.data = self.process_data(data)
-
-    def process_headers(self, headers):
-        return [(key, value) for key, value in headers.items()]
-
-    def process_data(self, data):
-        if type(data) == bytes:
-            self.base64 = True
-            data = base64.b64encode(data)
-        elif type(data) == str:
-            self.base64 = False
-        else:
-            raise TypeError("Response data is neither bytes nor string type")
-        return data
 
 
 class MasterWebService(Agent):
@@ -145,6 +123,8 @@ class MasterWebService(Agent):
         self._certs = Certs()
         self.appContainer = None
         self._server_greenlet = None
+        self._admin_endpoints = AdminEndpoints(
+            self._certs.get_cert_public_key(get_fq_identity(self.core.identity)))
 
     def remove_unconnnected_routes(self):
         peers = self.vip.peerlist().get()
@@ -348,6 +328,8 @@ class MasterWebService(Agent):
         """
         path_info = env['PATH_INFO']
 
+        from pprint import pprint
+        pprint(env)
         if path_info.startswith('/http://'):
             path_info = path_info[path_info.index('/', len('/http://')):]
             _log.debug('Path info is: {}'.format(path_info))
@@ -366,6 +348,9 @@ class MasterWebService(Agent):
         (peer, res_type) = self.endpoints.get(path_info, (None, None))
         _log.debug('Peer we path_info is associated with: {}'.format(peer))
 
+        if self.is_json_content(env):
+            data = json.loads(data)
+
         # if we have a peer then we expect to call that peer's web subsystem
         # callback to perform whatever is required of the method.
         if peer:
@@ -374,6 +359,7 @@ class MasterWebService(Agent):
             ))
             res = self.vip.rpc.call(peer, 'route.callback',
                                     passenv, data).get(timeout=60)
+
             if res_type == "jsonrpc":
                 return self.create_response(res, start_response)
             elif res_type == "raw":
@@ -385,7 +371,14 @@ class MasterWebService(Agent):
                            .format(k.pattern, path_info, v))
                 _log.debug('registered route t is: {}'.format(t))
                 if t == 'callable':  # Generally for locally called items.
-                    return v(env, start_response, data)
+                    # Changing signature of the "locally" called points to return
+                    # a Response object. Our response object then will in turn
+                    # be processed and the response will be written back to the
+                    # calling client.
+                    try:
+                        return v(env, start_response, data)
+                    except TypeError:
+                        return self.process_response(start_response, v(env, data))
                 elif t == 'peer_route':  # RPC calls from agents on the platform
                     _log.debug('Matched peer_route with pattern {}'.format(
                         k.pattern))
@@ -402,6 +395,17 @@ class MasterWebService(Agent):
 
         start_response('404 Not Found', [('Content-Type', 'text/html')])
         return [b'<h1>Not Found</h1>']
+
+    def is_json_content(self, env):
+        ct = env.get('CONTENT_TYPE')
+        if ct is not None and 'application/json' in ct:
+            return True
+        return False
+
+    def process_response(self, start_responsee, response):
+        # process the response
+        start_responsee(response.status, response.headers)
+        return bytes(response.content)
 
     def create_raw_response(self, res, start_response):
         # If this is a tuple then we know we are going to have a response
@@ -509,8 +513,8 @@ class MasterWebService(Agent):
         ssl_key = None
         parsed = urlparse.urlparse(self.bind_web_address)
         if parsed.scheme == 'https':
-            ssl_cert = self._certs.cert_file(self._certs.root_ca_name)
-            ssl_key = self._certs.private_key_file(self._certs.root_ca_name)
+            ssl_cert = self._certs.cert_file('vfoo.'+self.core.identity)
+            ssl_key = self._certs.private_key_file('vfoo.'+self.core.identity)
         hostname = parsed.hostname
         port = parsed.port
 
@@ -525,6 +529,17 @@ class MasterWebService(Agent):
                                       self._redirect_index))
         self.registeredroutes.append((re.compile('^/csr/request_new$'), 'callable',
                                       self._csr_request_new))
+
+        for rt in self._admin_endpoints.get_routes():
+            self.registeredroutes.append(rt)
+
+        ssl_private_key = self._certs.get_private_key(get_fq_identity(self.core.identity))
+
+        for rt in AuthenticateEndpoints(ssl_private_key).get_routes():
+            self.registeredroutes.append(rt)
+
+        #self._admin_endpoints.setupendpoints(self.registeredroutes)
+
         port = int(port)
         vhome = os.environ.get('VOLTTRON_HOME')
         logdir = os.path.join(vhome, "log")
@@ -536,6 +551,22 @@ class MasterWebService(Agent):
                          certfile=ssl_cert,
                          keyfile=ssl_key)
         self._server_greenlet = gevent.spawn(svr.serve_forever)
+
+    def _authenticate_route(self, env, start_response, data):
+        scheme = env.get('wsgi.url_scheme')
+
+        if scheme != 'https':
+            _log.warning("Authentication should be through https")
+            start_response("401 Unauthorized", [('Content-Type', 'text/html')])
+            return "<html><body><h1>401 Unauthorized</h1></body></html>"
+
+        from pprint import pprint
+        pprint(env)
+
+        import jwt
+
+        jwt.encode()
+
 
     def _csr_request_new(self, env, start_response, data):
 

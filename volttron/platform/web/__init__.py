@@ -1,7 +1,7 @@
 import logging
 from urlparse import urlparse
 
-from master_web_service import MasterWebService
+from master_web_service import MasterWebService, Response
 from discovery import DiscoveryInfo, DiscoveryError
 
 _log = logging.getLogger(__name__)

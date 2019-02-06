@@ -331,6 +331,7 @@ class RPC(SubsystemBase):
             method, name = name, name.__name__
             annotate(method, set, 'rpc.exports', name)
             return method
+
         def decorate(method):
             annotate(method, set, 'rpc.exports', name)
             return method

@@ -402,6 +402,41 @@ class Certs(object):
             subjects.append(Subject.create_from_x509_subject(cert.subject))
         return subjects
 
+    def get_private_key(self, name):
+        """
+        Serialize a private key in a traditional openssl manner to be able to
+        use it with JWT and other technologies.
+
+        Traditional openssl format begins as follows
+
+        b'-----BEGIN RSA PRIVATE KEY-----'
+
+        :param name: full instance and identity of the key
+        :return: serialized private key
+        """
+        pk = _load_key(self.private_key_file(name))
+        return pk.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption())
+
+    def get_cert_public_key(self, name, remote=False):
+        """
+        Retrieves a publickey from the passed named certificate.
+
+        Traditional openssl format begins as follows
+
+        b'-----BEGIN PUBLIC KEY-----'
+
+        :param name: full instance and identity of the key
+        :param remote:
+        :return: serialized public key
+        """
+        cert = self.cert(name, remote)
+        return cert.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo)
+
     def append_external_certificate(self, certificate_str):
         return False
 
