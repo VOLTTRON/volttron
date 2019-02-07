@@ -520,7 +520,7 @@ def backup_agent_data(output_filename, source_dir):
         tar.add(source_dir, arcname=os.path.sep) #os.path.basename(source_dir))
 
 
-def restore_agent_data(source_file, output_dir):
+def restore_agent_data_from_tgz(source_file, output_dir):
     # Open tarfile
     with tarfile.open(mode="r:gz", fileobj=file(source_file)) as tar:
         tar.extractall(output_dir)
@@ -569,8 +569,8 @@ def upgrade_agent(opts):
     def restore_agent_data(agent_uuid):
         # if we are  upgrading transfer the old data on.
         if os.path.exists(backup_agent_file):
-            new_agent_data_dir = find_agent_data_dir(opts, new_agent_uuid)
-            restore_agent_data(backup_agent_file, new_agent_data_dir)
+            new_agent_data_dir = find_agent_data_dir(opts, agent_uuid)
+            restore_agent_data_from_tgz(backup_agent_file, new_agent_data_dir)
             os.remove(backup_agent_file)
 
     install_agent(opts, publickey=publickey, secretkey=secretkey,
