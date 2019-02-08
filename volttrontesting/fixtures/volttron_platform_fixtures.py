@@ -92,7 +92,7 @@ def volttron_instance2(request):
 
 
 @pytest.fixture(scope="module",
-                params=[('zmq', False), ('rmq', True)])
+                params=[('zmq', True), ('rmq', True)])
 def volttron_instance_msgdebug(request):
     print("building msgdebug instance")
     wrapper = build_wrapper(get_rand_vip(),
