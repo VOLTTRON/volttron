@@ -46,13 +46,14 @@ from volttron.platform.agent.known_identities import PLATFORM_TOPIC_WATCHER
 from volttron.platform.agent import utils
 from volttron.platform.messaging.health import Status, STATUS_BAD
 from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.agent.utils import get_aware_utc_now
 from volttron.platform.scheduling import periodic
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-__version__ = '1.0'
+__version__ = '2.0'
 
 
 class AlertAgent(Agent):
@@ -61,7 +62,44 @@ class AlertAgent(Agent):
         self.config = utils.load_config(config_path)
         self.group_agent = {}
         self._connection = None
+        self.publish_settings = self.config.get('publish-settings')
+        self._remote_agent = None
 
+        if self.publish_settings:
+            self.publish_local = self.publish_settings.get('publish-local', True)
+            self.publish_remote = self.publish_settings.get('publish-remote', False)
+            remote = self.publish_settings.get('remote')
+            if self.publish_remote and not remote:
+                raise ValueError("Configured publish-remote without remote section")
+
+            self.remote_identity = remote.get('identity', None)
+            self.remote_serverkey = remote.get('serverkey', None)
+            self.remote_address = remote.get('vip-address', None)
+
+            if self.publish_remote:
+                assert self.remote_identity
+                assert self.remote_serverkey
+                assert self.remote_address
+
+    @property
+    def remote_agent(self):
+        if self._remote_agent is None:
+            try:
+                self._remote_agent = build_agent(
+                    address=self.remote_address,
+                    identity=self.remote_identity,
+                    secretkey=self.core.secretkey,
+                    publickey=self.core.publickey,
+                    serverkey=self.remote_serverkey
+                )
+                self._remote_agent.vip.ping("").get()
+            except gevent.Timeout, ZMQError:
+                _log.error("Couldn't connect to remote platform at: {}".format(
+                    self.remote_address))
+                self._remote_agent = None
+                raise
+
+        return self._remote_agent
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
@@ -97,14 +135,23 @@ class AlertAgent(Agent):
         self._connection.commit()
 
         for group_name, config in self.config.items():
-            self.group_agent[group_name] = self.spawn_alert_group(group_name,
-                                                                  config)
+            if group_name != 'publish-settings':
+                if self.publish_remote:
+                    self.group_agent[group_name] = self.spawn_alert_group(group_name,
+                                                                          config,
+                                                                          main_agent=self,
+                                                                          publish_local=self.publish_local)
+                else:
+                    self.group_agent[group_name] = self.spawn_alert_group(group_name,
+                                                                          config)
 
-    def spawn_alert_group(self, group_name, config):
+    def spawn_alert_group(self, group_name, config, main_agent=None, publish_local=True):
         event = gevent.event.Event()
         group = AlertGroup(group_name, config, self._connection,
                            address=self.core.address,
-                           enable_store=False)
+                           enable_store=False,
+                           main_agent=main_agent,
+                           publish_local=publish_local)
         gevent.spawn(group.core.run, event)
         event.wait()
         return group
@@ -183,16 +230,20 @@ class AlertAgent(Agent):
 
 
 class AlertGroup(Agent):
-    def __init__(self, group_name, config, connection, **kwargs):
+    def __init__(self, group_name, config, connection, main_agent=None,
+                 publish_local=False, **kwargs):
         super(AlertGroup, self).__init__(**kwargs)
         self.group_name = group_name
         self.connection = connection
         self.config = config
+        self.main_agent = main_agent
+
         self.wait_time = {}
         self.topic_ttl = {}
         self.point_ttl = {}
         self.unseen_topics = set()
         self.last_seen = {}
+        self.publish_local = publish_local
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
@@ -265,8 +316,7 @@ class AlertGroup(Agent):
         self.wait_time.pop(topic, None)
         self.unseen_topics.remove(topic)
         for p in points:
-            self.unseen_topics.remove((topic,p))
-
+            self.unseen_topics.remove((topic, p))
 
     def reset_time(self, peer, sender, bus, topic, headers, message):
         """Callback for topic subscriptions
@@ -308,7 +358,7 @@ class AlertGroup(Agent):
                 if point in received_points:
                     self.point_ttl[topic][point] = self.wait_time[topic]
                     self.last_seen[(topic, point)] = get_aware_utc_now()
-                    if (topic,point) in self.unseen_topics:
+                    if (topic, point) in self.unseen_topics:
                         self.unseen_topics.remove((topic, point))
                         log_topics.add((topic, point))
 
@@ -387,7 +437,6 @@ class AlertGroup(Agent):
                              "/all use standard topic configuration format in "
                              "alert agent configuration".format(parts))
 
-
     @Core.schedule(periodic(1))
     def decrement_ttl(self):
         """Periodic call
@@ -413,7 +462,7 @@ class AlertGroup(Agent):
                 for p in points:
                     self.point_ttl[topic][p] -= 1
                     if self.point_ttl[topic][p] <= 0:
-                        if (topic,p) not in self.unseen_topics:
+                        if (topic, p) not in self.unseen_topics:
                             topics_timedout.add((topic, p))
                             self.unseen_topics.add((topic, p))
                         self.point_ttl[topic][p] = self.wait_time[topic]
@@ -422,6 +471,8 @@ class AlertGroup(Agent):
 
         if self.unseen_topics:
             self.send_alert(list(self.unseen_topics))
+            self.unseen_topics.clear()
+
         if topics_timedout:
             self.log_timeout(list(topics_timedout))
 
@@ -434,9 +485,18 @@ class AlertGroup(Agent):
         alert_key = "AlertAgent Timeout for group {}".format(self.group_name)
         context = "Topic(s) not published within time limit: {}".format(
             sorted(unseen_topics))
-
         status = Status.build(STATUS_BAD, context=context)
-        self.vip.health.send_alert(alert_key, status)
+
+        if self.main_agent:
+            try:
+                self.main_agent.remote_agent.vip.health.send_alert(alert_key, status)
+            except gevent.Timeout:
+                self.vip.health.send_alert(alert_key, status)
+            else:
+                if self.publish_local:
+                    self.vip.health.send_alert(alert_key, status)
+        else:
+            self.vip.health.send_alert(alert_key, status)
 
 
 def main():
