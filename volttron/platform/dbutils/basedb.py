@@ -85,12 +85,29 @@ class DbDriver(object):
     """
     def __init__(self, dbapimodule, **kwargs):
         thread_name = threading.currentThread().getName()
-        _log.debug("Constructing Driver for %s in thread: %s",
-                   dbapimodule, thread_name)
-        _log.debug("kwargs for connect is %r", kwargs)
-        dbapimodule = importlib.import_module(dbapimodule)
-        self.__connect = lambda: dbapimodule.connect(**kwargs)
+        if callable(dbapimodule):
+            _log.debug("Constructing Driver for %s in thread: %s",
+                       dbapimodule.__name__, thread_name)
+            connect = dbapimodule
+        else:
+            _log.debug("Constructing Driver for %s in thread: %s",
+                       dbapimodule, thread_name)
+            _log.debug("kwargs for connect is %r", kwargs)
+            dbapimodule = importlib.import_module(dbapimodule)
+            connect = lambda: dbapimodule.connect(**kwargs)
+        self.__connect = connect
         self.__connection = None
+
+    @contextlib.contextmanager
+    def bulk_insert(self):
+        """
+        Function to meet bulk insert requirements. This function can be overridden by historian drivers to yield the
+        required method for data insertion during bulk inserts in the respective historians. In this generic case it
+        will yield the single insert method
+
+        :yields: insert method
+        """
+        yield self.insert_data
 
     def cursor(self):
         if self.__connection is not None and not getattr(self.__connection, "closed", False):
@@ -282,7 +299,7 @@ class DbDriver(object):
 
         :param ts: timestamp
         :param topic_id: topic id for which data is inserted
-        :param metadata: data values
+        :param data: data value
         :return: True if execution completes. raises Exception if unable to
         connect to database
         """

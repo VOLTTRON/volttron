@@ -23,6 +23,8 @@ from glob import glob
 from mock import Mock as MagicMock
 from recommonmark.parser import CommonMarkParser
 
+from volttron.platform.agent.utils import execute_command
+
 
 class Mock(MagicMock):
     @classmethod
@@ -239,7 +241,7 @@ def generate_apidoc(app):
     cmd.extend(exlusions)
     print("The command is: {}".format(cmd))
 
-    subprocess.check_call(cmd)
+    execute_command(cmd)
 
 #     print("\n##In run_apidocs##\n")
 #     global script_dir, apidocs_base_dir

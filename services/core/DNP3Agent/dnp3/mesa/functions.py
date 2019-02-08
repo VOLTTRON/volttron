@@ -216,6 +216,18 @@ class FunctionDefinition(object):
     def all_points(self):
         return [step_def.point_def for step_def in self.steps]
 
+    def is_mode(self):
+        for point in self.all_points():
+            if 'ModEna' in point.name:
+                return True
+        return False
+
+    def get_mode_enable(self):
+        for point in self.all_points():
+            if 'ModEna' in point.name:
+                return point
+        return False
+
 
 class StepDefinition(object):
     """Step definition in a MESA-ESS FunctionDefinition."""
@@ -295,6 +307,14 @@ class Step(object):
                                           ACTION_PUBLISH_AND_RESPOND]
 
 
+class FunctionException(Exception):
+    """
+        Raise exceptions that are used for _process_point_value in Mesa agent.
+        Set the current function to None if the exception is raised.
+    """
+    pass
+
+
 class Function(object):
     """A MESA-ESS Function that has been received by an outstation."""
 
@@ -316,78 +336,90 @@ class Function(object):
             raise ValueError("Membership test only works for PointDefinition instance, not {}".format(point_def))
         return point_def in self.definition
 
-    def add_step(self, step_def, func, value):
-        step_value = Step(step_def, func, value)
+    @property
+    def last_step(self):
+        """
+            Return last received step of the function.
+        """
+        return self.steps[-1] if self.steps else None
+
+    @property
+    def next_remaining_mandatory_step_number(self):
+        """
+            Return next remaining mandatory step number of the function if there is one existed, None otherwise.
+        """
+        last_received_step_number = 0 if not self.last_step else self.last_step.definition.step_number
+        for step_def in self.definition.steps:
+            step_number = step_def.step_number
+            if step_number > last_received_step_number and step_def.optional == MANDATORY:
+                return step_number
+        return None
+
+    def add_step(self, step_def, value, function_validation=False):
+        """
+            Add a step to function if no mandatory step missing and return the step, raise exception otherwise.
+
+        :param step_def: step definition to add to function
+        :param value: value of the point in step_def
+        :param function_validation: defaults to False.
+            When there is mandatory step missing, raise DNP3Exception if function_validation is True,
+            raise FunctionException otherwise.
+            FunctionException is used for _process_point_value in Mesa agent, if the FunctionException is raised,
+            reset current function to None and process the next point as the first step of a new function.
+        """
+        # Check for missing mandatory steps up to the current step
+        if self.next_remaining_mandatory_step_number \
+                and step_def.step_number > self.next_remaining_mandatory_step_number:
+            exception_message = '{} is missing Mandatory step number {}'.format(
+                self,
+                self.next_remaining_mandatory_step_number
+            )
+            if function_validation:
+                raise DNP3Exception(exception_message)
+            raise FunctionException(exception_message)
+        # add current step to self.steps
+        step_value = Step(step_def, self, value)
         self.steps.append(step_value)
         return step_value
 
-    @property
-    def last_step(self):
-        return self.steps[-1] if self.steps else None
-
-    def is_complete(self):
+    def add_point_value(self, point_value, current_array=None, function_validation=False):
         """
-            Confirm whether the Function is complete and ready to release.
+            Add a received PointValue as a Step in the current Function. Return the Step.
 
-            For it to be complete, a Step value must have been received
-            for each Mandatory StepDefinition in the FunctionDefinition.
-
-        :return: (boolean) Whether the Function is complete.
+        :param point_value: point value
+        :param current_array: current array
+        :param function_validation: defaults to False. If function_validation is True,
+            raise DNP3Exception when getting an error while adding a new step to the current function.
+            If function_validation is False, reset current function to None if missing mandatory step,
+            set the adding step as the first step of the current function if step is not in order,
+            or replace the last step by the adding step if step is duplicated.
         """
-        received_step_names = [received_step.definition.name for received_step in self.steps]
-        for step_def in self.definition.steps:
-            if step_def.optional == MANDATORY and step_def.name not in received_step_names:
-                _log.debug('Function is incomplete: missing mandatory step {}'.format(step_def))
-                return False
-        return True
-
-    # def process(self, point_value, handler):
-    #     step_def = self.definition[point_value.point_def]
-    #     print(step_def)
-
-    def add_point_value(self, point_value, current_array=None):
-        """Add a received PointValue as a Step in the current Function. Return the Step."""
         step_def = self.definition[point_value.point_def]
         step_number = step_def.step_number
-        if self.last_step is None:
-            self.add_step(step_def, self, point_value)
+        if not self.last_step:
+            self.add_step(step_def, point_value, function_validation)
         else:
             last_received_step_number = self.last_step.definition.step_number
-            if step_number == last_received_step_number:
-                if not point_value.point_def.is_array_point:
-                    raise DNP3Exception('Duplicate step number {} received'.format(step_number))
-                # An array point was received for an existing step. Update the step's value.
-                self.last_step.value = current_array
-            else:
+            if step_number != last_received_step_number:
                 if step_number < last_received_step_number:
-                    # The Function's steps must be received in step-number order
-                    if not self.complete:
-                        raise DNP3Exception('Step {} received after {}'.format(step_number, last_received_step_number))
+                    if self.next_remaining_mandatory_step_number:
+                        if function_validation:
+                            raise DNP3Exception('Step {} received after {}'.format(step_number,
+                                                                                   last_received_step_number))
                     # Since the old function was complete, treat this as the first step of a new function.
-                    self.complete = False
                     self.steps = []
-
-                self.check_for_missing_steps(step_def)
-                self.add_step(step_def, self, point_value)
-
-        if not self.missing_step_numbers():
-            self.complete = True
+                self.add_step(step_def, point_value, function_validation)
+            else:
+                if not point_value.point_def.is_array_point:
+                    if function_validation:
+                        raise DNP3Exception('Duplicate step number {} received'.format(step_number))
+                    self.steps.pop()
+                    self.add_step(step_def, point_value, function_validation)
+                else:
+                    # An array point was received for an existing step. Update the step's value.
+                    self.last_step.value = current_array
 
         return self.last_step
-
-    def check_for_missing_steps(self, step_def):
-        """All Mandatory steps with smaller step numbers must be received prior to the current step."""
-        for n in self.missing_step_numbers():
-            if step_def.step_number > n:
-                raise DNP3Exception('Function {} is missing Mandatory step number {}'.format(self, n))
-
-    def missing_step_numbers(self):
-        """Return a list of the numbers of this function's Mandatory steps that have not yet been received."""
-        received_step_numbers = [s.definition.step_number for s in self.steps]
-        missing_step_numbers = [sd.step_number
-                                for sd in self.definition.steps
-                                if sd.optional == MANDATORY and sd.step_number not in received_step_numbers]
-        return missing_step_numbers
 
     def has_input_point(self):
         """Function has an input pont to be echoed following last step."""

@@ -137,7 +137,7 @@ to stop the instance.
 
 
 def fail_if_not_in_src_root():
-    in_src_root = os.path.exists("./volttron") and os.path.exists("./.git")
+    in_src_root = os.path.exists("./volttron")
     if not in_src_root:
         print """
 volttron-cfg needs to be run from the volttron top level source directory.
