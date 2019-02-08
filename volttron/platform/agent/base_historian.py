@@ -1444,7 +1444,10 @@ class BackupDatabase:
                         WHERE ROWID IN
                         (SELECT ROWID FROM outstanding
                           ORDER BY ts LIMIT ?)''', (submit_size,))
-            self._record_count -= c.rowcount
+            if self._record_count < c.rowcount:
+                self._record_count = 0
+            else:
+                self._record_count -= c.rowcount
         else:
             temp = list(successful_publishes)
             temp.sort()

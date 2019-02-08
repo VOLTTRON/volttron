@@ -237,10 +237,7 @@ def test_health_stuff(request, historian, client_agent):
                                          DEVICES_ALL_TOPIC,
                                          headers=headers,
                                          message=all_message).get(timeout=10)
-
-
-    gevent.sleep(0.2)
-
+    gevent.sleep(2)
     status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
     alert_publish = alert_publishes[0]
@@ -254,7 +251,7 @@ def test_health_stuff(request, historian, client_agent):
 
     historian.publish_fail = False
 
-    gevent.sleep(1.0)
+    gevent.sleep(2.0)
 
     status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
@@ -528,7 +525,7 @@ def test_failing_historian(request, fail_historian, client_agent):
     client_agent.vip.pubsub.publish('pubsub',
                                     DEVICES_ALL_TOPIC,
                                     headers=headers,
-                                    message=all_message).get(timeout=10)
+                                    message=all_message).get(timeout=20)
 
     gevent.sleep(2.0)
     assert fail_historian._process_thread.is_alive()
