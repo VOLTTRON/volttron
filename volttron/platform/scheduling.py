@@ -313,7 +313,7 @@ def cron(cron_string, start=None, stop=None, second=0):
                 if weekdays:
                     _days = merge(_days, _weekdays(year, month, first_day))
             elif weekdays:
-                _days = _weekdays(year, month)
+                _days = _weekdays(year, month, first_day)
             else:
                 _days = range(first_day, 32)
             for day in _days:
