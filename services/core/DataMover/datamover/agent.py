@@ -105,7 +105,8 @@ class DataMover(BaseHistorian):
         self.destination_serverkey = destination_serverkey
         self.destination_historian_identity = destination_historian_identity
         self.remote_identity = remote_identity
-
+        self._target_platform = None
+        
         config = {"destination_vip":self.destination_vip,
                   "destination_serverkey": self.destination_serverkey,
                   "destination_historian_identity": self.destination_historian_identity,
@@ -147,12 +148,6 @@ class DataMover(BaseHistorian):
 
         data = message
         try:
-            # 2.0 agents compatability layer makes sender = pubsub.compat
-            # so we can do the proper thing when it is here
-            _log.debug("message in capture_data {}".format(message))
-            if sender == 'pubsub.compat':
-                data = compat.unpack_legacy_message(headers, message)
-                _log.debug("data in capture_data {}".format(data))
             if isinstance(data, dict):
                 data = data
             elif isinstance(data, int) or \
