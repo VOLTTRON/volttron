@@ -124,8 +124,7 @@ class MasterWebService(Agent):
         self._certs = Certs()
         self.appContainer = None
         self._server_greenlet = None
-        self._admin_endpoints = AdminEndpoints(
-            self._certs.get_cert_public_key(get_fq_identity(self.core.identity)))
+        self._admin_endpoints = None
 
     def remove_unconnnected_routes(self):
         peers = self.vip.peerlist().get()
@@ -509,13 +508,16 @@ class MasterWebService(Agent):
         if not self.bind_web_address:
             # _log.info('Web server not started.')
             return
+
+        self._admin_endpoints = AdminEndpoints(
+            self._certs.get_cert_public_key(get_fq_identity(self.core.identity)))
         import urlparse
         ssl_cert = None
         ssl_key = None
         parsed = urlparse.urlparse(self.bind_web_address)
         if parsed.scheme == 'https':
-            ssl_cert = self._certs.cert_file('vfoo.'+self.core.identity)
-            ssl_key = self._certs.private_key_file('vfoo.'+self.core.identity)
+            ssl_cert = self._certs.cert_file(get_fq_identity(self.core.identity))
+            ssl_key = self._certs.private_key_file(get_fq_identity(self.core.identity))
         hostname = parsed.hostname
         port = parsed.port
 
