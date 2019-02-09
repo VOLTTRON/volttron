@@ -6,6 +6,7 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script language="JavaScript">
         $(document).ready(() => {
+            $("#status").hide();
             $("form").submit((event) =>{
                 event.preventDefault();
                 url = '/authenticate'
@@ -35,13 +36,12 @@
                         $('#response').append("FAILURE "+ content.toString());
                     },
                     statusCode: {
+                        401: function(response){
+                            $("#status").show();
+                        },
                         200: function(response){
-                            $('#response').append(response.responseText);
                             document.cookie = "Bearer="+response.responseText+"; secure=True";
-
-                            //$.cookie('Bearer', response, {secure: true, htmlOnly:true})
-                            //alert(document.cookie)
-                            window.location="https://localhost:8080/admin/index.html"
+                            window.location=window.location.origin + "/admin/index.html";
                         }
                     }
 
@@ -54,14 +54,14 @@
 <body>
     <h1>Authentication</h1>
     <form>
+        <div id="status">
+            <label style="color: red">Invalid username/password specified</label>
+        </div>
         <div>
             <label>Username:</label><input type="text" id="username" name="username" />
         </div>
         <div>
             <label>Password:</label><input type="password" id="password" name="password" />
-        </div>
-        <div>
-            <textarea id="response" cols="80" rows="20"></textarea>
         </div>
         <input type="submit" value="Login" />
     </form>
