@@ -4,15 +4,17 @@ import os
 import re
 import urlparse
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
 import jwt
 from passlib.hash import argon2
 from watchdog_gevent import Observer
 
 from volttron.platform import get_home
+from volttron.platform.agent import json
 from volttron.platform.agent.web import Response
 from volttron.utils import FileReloader
 from volttron.utils.persistance import PersistentDict
+from volttron.platform.certs import Certs
 
 _log = logging.getLogger(__name__)
 
@@ -44,6 +46,7 @@ class AdminEndpoints(object):
             get_home()
         )
         self._observer.start()
+        self._certs = Certs()
 
     def reload_userdict(self):
         webuserpath = os.path.join(get_home(), 'web-users.json')
@@ -96,12 +99,49 @@ class AdminEndpoints(object):
 
         claims = jwt.decode(bearer, self._ssl_public_key, algorithms='RS256')
 
+        if 'admin' not in claims.get('groups'):
+            return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
+
+        path_info = env.get('PATH_INFO')
+        if path_info.startswith('/admin/api/'):
+            return self.__api_endpoint(path_info[len('/admin/api/'):], data)
+
+        if path_info.endswith('html'):
+            page = path_info.split('/')[-1]
+            try:
+                template = tplenv.get_template(page)
+            except TemplateNotFound:
+                return Response("<h1>404 Not Found</h1>", status="404 Not Found")
+
+            if page == 'list_certs.html':
+                html = template.render(certs=self._certs.get_all_cert_subjects())
+            elif page == 'pending_csrs.html':
+                html = template.render(csrs=self._certs.get_pending_csr_requests())
+            else:
+                html = "<h1>404 Unknown</h1>"
+            return Response(html)
+        #if path == '/csr/pending'
         if not isinstance(claims, dict):
             _log.warning("Invalid claimed ")
 
         template = tplenv.get_template('index.html')
         resp = template.render()
         return Response(resp)
+
+    def __api_endpoint(self, endpoint, data):
+        _log.debug("Doing admin endpoint {}".format(endpoint))
+        if endpoint == 'certs':
+            response = self.__cert_list_api()
+        else:
+            response = Response('{"status": "Unknown endpoint {}"}'.format(endpoint),
+                                content_type="application/json")
+        return response
+
+    def __cert_list_api(self):
+
+        subjects = [dict(common_name=x.common_name)
+                    for x in self._certs.get_all_cert_subjects()]
+        return Response(json.dumps(subjects), content_type="application/json")
 
     def add_user(self, username, unencrypted_pw, groups=[], overwrite=False):
         if self._userdict.get(username):
