@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Index{% endblock %}
+{% block content %}
+
+    <ul>
+    {% for c in csrs %}
+        <li>{{c}}</li>
+    {% endfor %}
+    </ul>
+
+{% endblock %}
