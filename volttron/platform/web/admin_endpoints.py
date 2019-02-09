@@ -99,6 +99,7 @@ class AdminEndpoints(object):
 
         claims = jwt.decode(bearer, self._ssl_public_key, algorithms='RS256')
 
+        # Make sure we have only admins for viewing this.
         if 'admin' not in claims.get('groups'):
             return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
 
@@ -118,11 +119,10 @@ class AdminEndpoints(object):
             elif page == 'pending_csrs.html':
                 html = template.render(csrs=self._certs.get_pending_csr_requests())
             else:
-                html = "<h1>404 Unknown</h1>"
+                # A template with no params.
+                html = template.render()
+
             return Response(html)
-        #if path == '/csr/pending'
-        if not isinstance(claims, dict):
-            _log.warning("Invalid claimed ")
 
         template = tplenv.get_template('index.html')
         resp = template.render()
