@@ -1,15 +1,15 @@
 import logging
 import os
 import re
-import urlparse
 
-from passlib.hash import argon2
 import jwt
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from passlib.hash import argon2
+from watchdog_gevent import Observer
 
 from volttron.platform import get_home
-from volttron.platform.agent import json
 from volttron.platform.agent.web import Response
+from volttron.utils import FileReloader
 from volttron.utils.persistance import PersistentDict
 
 _log = logging.getLogger(__name__)
@@ -31,8 +31,19 @@ tplenv = Environment(
 class AuthenticateEndpoints(object):
 
     def __init__(self, ssl_private_key):
-        webuserpath = os.path.join(get_home(), 'web-users.json')
+
         self._ssl_private_key = ssl_private_key
+        self._userdict = None
+        self.reload_userdict()
+        self._observer = Observer()
+        self._observer.schedule(
+            FileReloader("web-users.json", self.reload_userdict),
+            get_home()
+        )
+        self._observer.start()
+
+    def reload_userdict(self):
+        webuserpath = os.path.join(get_home(), 'web-users.json')
         self._userdict = PersistentDict(webuserpath)
 
     def get_routes(self):

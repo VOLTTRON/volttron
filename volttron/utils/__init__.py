@@ -1,5 +1,7 @@
 import re
 
+from watchdog.events import PatternMatchingEventHandler
+
 
 def is_ip_private(vip_address):
     """ Determines if the passed vip_address is a private ip address or not.
@@ -19,3 +21,17 @@ def is_ip_private(vip_address):
     return priv_lo.match(ip) is not None or priv_24.match(
         ip) is not None or priv_20.match(ip) is not None or priv_16.match(
         ip) is not None
+
+
+class FileReloader(PatternMatchingEventHandler):
+    def __init__(self, filetowatch, callback):
+        super(FileReloader, self).__init__(['*/'+filetowatch])
+        self._callback = callback
+        self._filetowatch = filetowatch
+
+    @property
+    def watchfile(self):
+        return self._filetowatch
+
+    def on_any_event(self, event):
+        self._callback()

@@ -4,11 +4,14 @@ import os
 import re
 import urlparse
 
-from passlib.hash import argon2
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+import jwt
+from passlib.hash import argon2
+from watchdog_gevent import Observer
 
 from volttron.platform import get_home
 from volttron.platform.agent.web import Response
+from volttron.utils import FileReloader
 from volttron.utils.persistance import PersistentDict
 
 _log = logging.getLogger(__name__)
@@ -30,9 +33,21 @@ tplenv = Environment(
 class AdminEndpoints(object):
 
     def __init__(self, ssl_public_key):
+
+        self._userdict = None #PersistentDict(webuserpath)
+        self._ssl_public_key = ssl_public_key
+        self._userdict = None
+        self.reload_userdict()
+        self._observer = Observer()
+        self._observer.schedule(
+            FileReloader("web-users.json", self.reload_userdict),
+            get_home()
+        )
+        self._observer.start()
+
+    def reload_userdict(self):
         webuserpath = os.path.join(get_home(), 'web-users.json')
         self._userdict = PersistentDict(webuserpath)
-        self._ssl_public_key = ssl_public_key
 
     def get_routes(self):
         """
@@ -70,17 +85,19 @@ class AdminEndpoints(object):
         return self.verify_and_dispatch(env, data)
 
     def verify_and_dispatch(self, env, data):
+
         bearer = env.get('HTTP_COOKIE')
         if not bearer:
             template = tplenv.get_template('login.html')
-            # resp = template.render()
             return Response(template.render(), status='401 Unauthorized')
 
         cookie = Cookie.SimpleCookie(env.get('HTTP_COOKIE'))
         bearer = cookie.get('Bearer').value.decode('utf-8')
-        print(bearer)
-        import jwt
-        decoded = jwt.decode(bearer, self._ssl_public_key, algorithms='RS256')
+
+        claims = jwt.decode(bearer, self._ssl_public_key, algorithms='RS256')
+
+        if not isinstance(claims, dict):
+            _log.warning("Invalid claimed ")
 
         template = tplenv.get_template('index.html')
         resp = template.render()
