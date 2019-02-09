@@ -83,6 +83,7 @@ class DataMover(BaseHistorian):
 
     def __init__(self, destination_vip, destination_serverkey,
                  destination_historian_identity=PLATFORM_HISTORIAN,
+                 remote_identity=None,
                  **kwargs):
         """
         
@@ -103,10 +104,13 @@ class DataMover(BaseHistorian):
         self.destination_vip = destination_vip
         self.destination_serverkey = destination_serverkey
         self.destination_historian_identity = destination_historian_identity
-
+        self.remote_identity = remote_identity
+        self._target_platform = None
+        
         config = {"destination_vip":self.destination_vip,
                   "destination_serverkey": self.destination_serverkey,
-                  "destination_historian_identity": self.destination_historian_identity}
+                  "destination_historian_identity": self.destination_historian_identity,
+                  "remote_identity": self.remote_identity}
 
         self.update_default_config(config)
 
@@ -117,7 +121,7 @@ class DataMover(BaseHistorian):
         self.destination_vip = str(configuration.get('destination_vip', ""))
         self.destination_serverkey = str(configuration.get('destination_serverkey', ""))
         self.destination_historian_identity = str(configuration.get('destination_historian_identity', PLATFORM_HISTORIAN))
-
+        self.remote_identity = configuration.get("remote_identity")
 
     #Redirect the normal capture functions to capture_data.
     def _capture_device_data(self, peer, sender, bus, topic, headers, message):
@@ -144,12 +148,6 @@ class DataMover(BaseHistorian):
 
         data = message
         try:
-            # 2.0 agents compatability layer makes sender = pubsub.compat
-            # so we can do the proper thing when it is here
-            _log.debug("message in capture_data {}".format(message))
-            if sender == 'pubsub.compat':
-                data = compat.unpack_legacy_message(headers, message)
-                _log.debug("data in capture_data {}".format(data))
             if isinstance(data, dict):
                 data = data
             elif isinstance(data, int) or \
@@ -230,6 +228,7 @@ class DataMover(BaseHistorian):
         _log.debug("Setting up to forward to {}".format(self.destination_vip))
         try:
             agent = build_agent(address=self.destination_vip,
+                                identity=self.remote_identity,
                                 serverkey=self.destination_serverkey,
                                 publickey=self.core.publickey,
                                 secretkey=self.core.secretkey,
