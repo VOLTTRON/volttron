@@ -50,6 +50,7 @@ from outstation import DNP3Outstation
 from points import DEFAULT_POINT_TOPIC, DEFAULT_OUTSTATION_STATUS_TOPIC
 from points import DEFAULT_LOCAL_IP, DEFAULT_PORT
 from points import POINT_TYPE_ANALOG_INPUT, POINT_TYPE_BINARY_INPUT
+from dnp3.points import PUBLISH_AND_RESPOND
 from points import PointDefinitions, PointDefinition, PointArray
 from points import DNP3Exception
 
@@ -77,7 +78,7 @@ class BaseDNP3Agent(Agent):
     def __init__(self, points=None, point_topic='', local_ip=None, port=None,
                  outstation_config=None, local_point_definitions_path=None, **kwargs):
         """Initialize the DNP3 agent."""
-        super(BaseDNP3Agent, self).__init__(enable_web=True, **kwargs)
+        super(BaseDNP3Agent, self).__init__(**kwargs)
         self.points = points
         self.point_topic = point_topic
         self.local_ip = local_ip
@@ -99,6 +100,9 @@ class BaseDNP3Agent(Agent):
         self._local_point_definitions_path = local_point_definitions_path
         self._selector_block_points = {}
 
+        self.vip.config.set_default('config', self.default_config)
+        self.vip.config.subscribe(self._configure, actions=['NEW', 'UPDATE'], pattern='config')
+
     def _configure(self, config_name, action, contents):
         """Initialize/Update the agent configuration."""
         self._configure_parameters(contents)
@@ -111,19 +115,8 @@ class BaseDNP3Agent(Agent):
         """
         _log.debug('Loading DNP3 point definitions.')
         try:
-            if type(self.points) == str:
-                # There's something odd here. The point and function definitions are defined in the
-                # config file using a 'config://' entry (previously used only by MasterDriveAgent).
-                # It seems like this should have been resolved to the registry entry at which the
-                # 'config://' entry points, and in that case 'self.points' should already be
-                # a json structure. But instead, it's still the string 'config://mesa_points.config'.
-                # The call to get_from_config_store() below works around the issue by fetching the linked
-                # registry entry.
-                point_defs = self.get_from_config_store(self.points)
-            else:
-                point_defs = self.points
             self.point_definitions = PointDefinitions()
-            self.point_definitions.load_points(point_defs)
+            self.point_definitions.load_points(self.points)
         except (AttributeError, TypeError) as err:
             if self._local_point_definitions_path:
                 _log.warning("Attempting to load point definitions from local path.")
@@ -131,23 +124,27 @@ class BaseDNP3Agent(Agent):
             else:
                 raise DNP3Exception("Failed to load point definitions from config store: {}".format(err))
 
-    def get_from_config_store(self, config_path):
-        """Query the agent's config store for the data at the key 'config_path'."""
-        resolved_path = check_for_config_link(config_path)
-        entry = self.vip.rpc.call(CONFIGURATION_STORE, 'manage_get', self.core.identity, resolved_path, raw=True).get()
-        if type(entry) == str:
-            entry = json.loads(utils.strip_comments(entry))
-        return entry
+    @Core.receiver('onstop')
+    def onstop(self, sender, **kwargs):
+        """Stop the DNP3Outstation instance for agent shutdown."""
+        self.stop_outstation()
 
-    @Core.receiver('onstart')
-    def onstart(self, sender, **kwargs):
+    def start_outstation(self):
         """Start the DNP3Outstation instance, kicking off communication with the DNP3 Master."""
-        self._configure_parameters(self.default_config)
+        self.stop_outstation()
         _log.info('Starting DNP3Outstation')
         self.publish_outstation_status('starting')
         self.application = DNP3Outstation(self.local_ip, self.port, self.outstation_config)
         self.application.start()
         self.publish_outstation_status('running')
+
+    def stop_outstation(self):
+        if self.application is not None:
+            _log.info('Stopping DNP3Outstation')
+            self.publish_outstation_status('stopping')
+            self.application.shutdown()
+            self.publish_outstation_status('stopped')
+            self.application = None
 
     def _configure_parameters(self, contents):
         """
@@ -199,6 +196,7 @@ class BaseDNP3Agent(Agent):
         _log.debug('\toutstation_config={}'.format(self.outstation_config))
         self.load_point_definitions()
         DNP3Outstation.set_agent(self)
+        self.start_outstation()
         return config
 
     @RPC.export
@@ -465,10 +463,15 @@ class BaseDNP3Agent(Agent):
     def publish_point_value(self, point_value):
         """Publish a PointValue as it is received from the DNP3 Master."""
         _log.info('Publishing DNP3 {}'.format(point_value))
-        self.publish_points({point_value.name: (point_value.unwrapped_value() if point_value else None)})
+        msg = {
+            point_value.name: (point_value.unwrapped_value() if point_value else None)
+        }
 
-    def publish_points(self, msg):
-        """Publish point values to the message bus."""
+        if point_value.point_def.action == PUBLISH_AND_RESPOND:
+            msg.update({
+                'response': point_value.point_def.response
+            })
+
         self.publish_data(self.point_topic, msg)
 
     def publish_outstation_status(self, outstation_status):

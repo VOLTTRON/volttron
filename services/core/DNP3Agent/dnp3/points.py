@@ -51,6 +51,10 @@ DIRECT_OPERATE = 'direct_operate'       # This is actually DIRECT OPERATE / RESP
 SELECT = 'select'                       # This is actually SELECT / RESPONSE
 OPERATE = 'operate'                     # This is actually OPERATE / RESPONSE
 
+# PointDefinition.action values:
+PUBLISH = 'publish'
+PUBLISH_AND_RESPOND = 'publish_and_respond'
+
 # Some PointDefinition.point_type values:
 POINT_TYPE_ANALOG_INPUT = 'Analog Input'
 POINT_TYPE_ANALOG_OUTPUT = 'Analog Output'
@@ -424,6 +428,9 @@ class BasePointDefinition(object):
         self.selector_block_start = element_def.get('selector_block_start', None)
         self.selector_block_end = element_def.get('selector_block_end', None)
         self.save_on_write = element_def.get('save_on_write', None)
+        self.action = element_def.get('action', None)
+        self.response = element_def.get('response', None)
+        self.category = element_def.get('category', None)
 
     @property
     def is_array_point(self):
@@ -539,6 +546,10 @@ class BasePointDefinition(object):
         return self.point_type in [POINT_TYPE_ANALOG_OUTPUT, POINT_TYPE_BINARY_OUTPUT]
 
     @property
+    def is_refid(self):
+        return True if 'RefId' in self.name else False
+
+    @property
     def is_selector_block(self):
         return self.type == 'selector_block'
 
@@ -594,7 +605,7 @@ class ArrayHeadPointDefinition(BasePointDefinition):
         super(ArrayHeadPointDefinition, self).__init__(json_element)
         self.array_points = json_element.get('array_points', None)
         self.array_times_repeated = json_element.get('array_times_repeated', None)
-        self.array_point_definitions = []         # Holds all ArrayPointDefinitions belonging to this array.
+        self.array_point_definitions = []  # Holds all ArrayPointDefinitions belonging to this array.
         self.validate_point()
 
     def validate_point(self):
