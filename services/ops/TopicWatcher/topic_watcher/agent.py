@@ -39,12 +39,15 @@
 import logging
 
 import gevent
+
 import sqlite3
 import datetime
 
+from zmq import ZMQError
+
 from volttron.platform.agent.known_identities import PLATFORM_TOPIC_WATCHER
 from volttron.platform.agent import utils
-from volttron.platform.messaging.health import Status, STATUS_BAD
+from volttron.platform.messaging.health import Status, STATUS_BAD, STATUS_GOOD
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.agent.utils import get_aware_utc_now
@@ -64,6 +67,8 @@ class AlertAgent(Agent):
         self._connection = None
         self.publish_settings = self.config.get('publish-settings')
         self._remote_agent = None
+        self._creating_agent = False
+        self._resetting_remote_agent = False
 
         if self.publish_settings:
             self.publish_local = self.publish_settings.get('publish-local', True)
@@ -76,30 +81,48 @@ class AlertAgent(Agent):
             self.remote_serverkey = remote.get('serverkey', None)
             self.remote_address = remote.get('vip-address', None)
 
+            # The remote serverkey need not be specified if the serverkey is added
+            # to the known hosts file.  If it is not specified then the call to
+            # build agent will fail.  Note not sure what rabbit will do in this
+            # case
+            #
+            # TODO: check rabbit.
             if self.publish_remote:
                 assert self.remote_identity
-                assert self.remote_serverkey
                 assert self.remote_address
 
     @property
     def remote_agent(self):
         if self._remote_agent is None:
-            try:
-                self._remote_agent = build_agent(
-                    address=self.remote_address,
-                    identity=self.remote_identity,
-                    secretkey=self.core.secretkey,
-                    publickey=self.core.publickey,
-                    serverkey=self.remote_serverkey
-                )
-                self._remote_agent.vip.ping("").get()
-            except gevent.Timeout, ZMQError:
-                _log.error("Couldn't connect to remote platform at: {}".format(
-                    self.remote_address))
-                self._remote_agent = None
-                raise
+            if not self._creating_agent:
+                self._creating_agent = True
+                try:
 
+                    self._remote_agent = build_agent(
+                        address=self.remote_address,
+                        identity=self.remote_identity,
+                        secretkey=self.core.secretkey,
+                        publickey=self.core.publickey,
+                        serverkey=self.remote_serverkey
+                    )
+                    self._remote_agent.vip.ping("").get(timeout=2)
+                    self.vip.health.set_status(STATUS_GOOD)
+                except gevent.Timeout, ZMQError:
+                    status_context = "Couldn't connect to remote platform at: {}".format(
+                        self.remote_address)
+                    _log.error(status_context)
+                    self._remote_agent = None
+                    self.vip.health.set_status(STATUS_BAD, status_context)
+                finally:
+                    self._creating_agent = False
         return self._remote_agent
+
+    def reset_reomte_agent(self):
+        if not self._resetting_remote_agent and not self._creating_agent:
+            if self._remote_agent is not None:
+                self._remote_agent.core.stop()
+            self._remote_agent = None
+            self._resetting_remote_agent = False
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
@@ -470,7 +493,11 @@ class AlertGroup(Agent):
                 pass
 
         if self.unseen_topics:
-            self.send_alert(list(self.unseen_topics))
+            try:
+                self.send_alert(list(self.unseen_topics))
+            except ZMQError:
+                self.main_agent.reset_reomte_agent()
+            
             self.unseen_topics.clear()
 
         if topics_timedout:
@@ -489,7 +516,11 @@ class AlertGroup(Agent):
 
         if self.main_agent:
             try:
-                self.main_agent.remote_agent.vip.health.send_alert(alert_key, status)
+                remote_agent = self.main_agent.remote_agent
+                if not remote_agent:
+                    _log.error("Remote agent unavailable")
+                else:
+                    remote_agent.vip.health.send_alert(alert_key, status)
             except gevent.Timeout:
                 self.vip.health.send_alert(alert_key, status)
             else:

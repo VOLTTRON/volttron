@@ -45,7 +45,7 @@ import gevent
 
 from volttron.platform import get_address
 from volttron.platform.agent import utils
-from volttron.platform.keystore import KeyStore
+from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.connection import Connection
 
@@ -53,6 +53,11 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 ks = KeyStore()
+host_store = KnownHostsStore()
+
+
+def get_known_host_serverkey(vip_address):
+    return host_store.serverkey(vip_address)
 
 
 def build_connection(identity, peer='', address=get_address(),
@@ -81,8 +86,12 @@ def build_agent(address=get_address(), identity=None, publickey=ks.public,
     :return: an agent based upon agent_class that has been started
     :rtype: agent_class
     """
+    if not serverkey:
+        serverkey = get_known_host_serverkey(address)
+
     agent = agent_class(address=address, identity=identity, publickey=publickey,
                         secretkey=secretkey, serverkey=serverkey, **kwargs)
+
     event = gevent.event.Event()
     gevent.spawn(agent.core.run, event)
     with gevent.Timeout(timeout):
