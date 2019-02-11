@@ -696,4 +696,3 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None):
         else:
             raise RuntimeError(err_message)
     return output
-

@@ -10,12 +10,12 @@ of CZMQ that can be used with this version of ZMQ is version 3.0.2.  You can dow
 https://archive.org/download/zeromq_czmq_3.0.2/czmq-3.0.2.tar.gz.
 
 Follow the fncs installation from https://github.com/FNCS/fncs substituding the above urls for 
-ZMQ and CZMQ respectively.
+ZMQ and CZMQ respectively. (NOTE: please use the develop branch for your fncs installation)
 
 Also, fncs must be installed into the python environment.  This can be done by the following steps:
 
 1. Activate a volttron environment shell
-1. cd to the FNCS/python directory
+1. In the fncs repository there is a python directory.  cd into that directory.
 1. Run python setup.py sdist
 1. Run pip install dist/fncs-2.0.1.tar.gz
 

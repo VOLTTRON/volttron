@@ -85,6 +85,8 @@ mongo_platform = {
     }
 }
 
+pytestmark = pytest.mark.skip(reason="Performance test. Not for CI")
+
 
 def mongo_connection_string(params):
     mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'

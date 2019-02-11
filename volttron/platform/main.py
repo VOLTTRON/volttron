@@ -260,7 +260,7 @@ class Router(BaseRouter):
                  volttron_central_address=None, instance_name=None,
                  bind_web_address=None, volttron_central_serverkey=None,
                  protected_topics={}, external_address_file='',
-                 msgdebug=None):
+                 msgdebug=None, agent_monitor_frequency=600):
 
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
@@ -293,6 +293,7 @@ class Router(BaseRouter):
         self._msgdebug = msgdebug
         self._message_debugger_socket = None
         self._instance_name = instance_name
+        self._agent_monitor_frequency = agent_monitor_frequency
 
     def setup(self):
         sock = self.socket
@@ -413,6 +414,8 @@ class Router(BaseRouter):
                     value = __version__
                 elif name == b'message-bus':
                     value = os.environ.get('MESSAGEBUS', 'zmq')
+                elif name == b'agent-monitor-frequency':
+                    value = self._agent_monitor_frequency
                 else:
                     value = None
             frames[6:] = [b'', jsonapi.dumps(value)]
@@ -693,6 +696,14 @@ def start_volttron_process(opts):
     external_address_file = os.path.join(opts.volttron_home, 'external_address.json')
     _log.debug('external_address_file file %s', external_address_file)
     protected_topics = {}
+    if opts.agent_monitor_frequency:
+        try:
+            int(opts.agent_monitor_frequency)
+        except ValueError as e:
+            raise ValueError("agent-monitor-frequency should be integer "
+                             "value. Units - seconds. This determines how "
+                             "often the platform checks for any crashed agent "
+                             "and attempts to restart. {}".format(e))
 
     # Main loops
     def router(stop):
@@ -881,7 +892,8 @@ def start_volttron_process(opts):
             ControlService(opts.aip, address=address, identity='control',
                            tracker=tracker, heartbeat_autostart=True,
                            enable_store=False, enable_channel=True,
-                           message_bus=opts.message_bus),
+                           message_bus=opts.message_bus,
+                           agent_monitor_frequency=opts.agent_monitor_frequency),
 
             MasterWebService(
                 serverkey=publickey, identity=MASTER_WEB,
@@ -1049,6 +1061,11 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--volttron-central-rmq-address', default=None,
         help='The AMQP address of a volttron central install instance')
+    agents.add_argument(
+        '--agent-monitor-frequency', default=600,
+        help='How often should the platform check for crashed agents and '
+             'attempt to restart. Units=seconds. Default=600')
+
     # XXX: re-implement control options
     # on
     # control.add_argument(
