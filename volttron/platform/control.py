@@ -77,6 +77,7 @@ from volttron.platform.vip.socket import Message
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from .vip.agent.errors import VIPError
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
+from volttron.utils.rmq_setup import check_rabbit_status
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 from volttron.platform.scheduling import periodic
@@ -866,10 +867,13 @@ def run_agent(opts):
 
 
 def shutdown_agents(opts):
-    opts.connection.call('shutdown')
-    _log.debug("Calling stop_platform")
-    if opts.platform:
-        opts.connection.notify('stop_platform')
+    if 'rmq' == utils.get_messagebus() and not check_rabbit_status():
+        opts.aip.rmq_shutdown()
+    else:
+        opts.connection.call('shutdown')
+        _log.debug("Calling stop_platform")
+        if opts.platform:
+            opts.connection.notify('stop_platform')
 
 
 def create_cgroups(opts):
