@@ -44,9 +44,9 @@ from .base import SubsystemBase
 
 import json
 from volttron.platform.agent.known_identities import AUTH
-from volttron.platform.jsonrpc import RemoteError
-from volttron.platform.certs import Certs
 from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity
+from volttron.platform.certs import Certs
+from volttron.platform.jsonrpc import RemoteError
 from volttron.utils.rmq_config_params import RMQConfig
 
 
@@ -77,7 +77,27 @@ class Auth(SubsystemBase):
         core.onsetup.connect(onsetup, self)
 
     def connect_remote_platform(self, address):
-        pass
+        from volttron.platform.vip.agent.utils import build_agent
+        from volttron.platform.web import DiscoveryInfo
+
+        # Discovery info for external platform
+        value = self.request_cert(address)
+
+        _log.debug("RESPONSE VALUE WAS: {}".format(value))
+        if value is not None:
+            info = DiscoveryInfo.request_discovery_info(address)
+            remote_rmq_user = "{}.{}.{}".format(info.instance_name,
+                                                get_platform_instance_name(),
+                                                self._core().identity)
+            remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
+                remote_rmq_user,
+                info.vc_rmq_address)
+
+            # remote_identity = "{}.{}".format(get_platform_instance_name(), self.core.identity)
+            return build_agent(identity=".".join((get_platform_instance_name(),
+                                                                self._core().identity)),
+                                             address=remote_rmq_address,
+                                             instance_name=info.instance_name)
 
     def make_remote_agent(self, csr_s):
         pass

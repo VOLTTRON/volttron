@@ -130,23 +130,7 @@ class ListenerAgent(Agent):
         if self._establish_connection_event is not None:
             self._establish_connection_event.cancel()
 
-        # Discovery info for external platform
-        value = self.vip.auth.request_cert("http://10.0.2.5:8080")
-
-        _log.debug("RESPONSE VALUE WAS: {}".format(value))
-        if value is not None:
-            info = DiscoveryInfo.request_discovery_info("http://v2:8080")
-            remote_rmq_user = "{}.{}.{}".format(info.instance_name,
-                                             get_platform_instance_name(),
-                                             self.core.identity)
-            remote_rmq_address = self.core.rmq_mgmt.build_remote_connection_param(
-                remote_rmq_user,
-                info.vc_rmq_address)
-            # remote_identity = "{}.{}".format(get_platform_instance_name(), self.core.identity)
-            self._remote_agent = build_agent(identity=".".join((get_platform_instance_name(),
-                                             self.core.identity)),
-                                             address=remote_rmq_address,
-                                             instance_name=info.instance_name)
+        self._remote_agent = self.vip.auth.connect_remote_platform("https://v2:8080")
 
         if not self._remote_agent:
 
