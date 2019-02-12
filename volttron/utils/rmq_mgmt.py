@@ -805,12 +805,16 @@ class RabbitMQMgmt(object):
 
         try:
             if ssl_auth:
+                certfile = self.certs.cert_file(rmq_user, True)
+                metafile = certfile[:-4] + ".json"
+                metadata = jsonapi.loads(open(metafile).read())
+                local_keyfile = metadata['local_keyname']
+                ca_file = self.certs.cert_file(metadata['remote_ca_name'], True)
                 ssl_options = dict(
                     ssl_version=ssl.PROTOCOL_TLSv1,
-                    ca_certs="/home/osboxes/other_certs/v2-root-ca.crt",
-                    #ca_certs=self.certs.cert_file(self.certs.trusted_ca_name),
-                    keyfile=self.certs.private_key_file('vfoo.remote.agent'),
-                    certfile=self.certs.cert_file('v2.vfoo.remote.agent', True),
+                    ca_certs=ca_file,
+                    keyfile=self.certs.private_key_file(local_keyfile),
+                    certfile=self.certs.cert_file(rmq_user, True),
                     cert_reqs=ssl.CERT_REQUIRED)
                 conn_params = pika.ConnectionParameters(
                     host= parsed_addr.hostname,

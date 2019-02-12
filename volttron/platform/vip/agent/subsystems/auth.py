@@ -46,7 +46,7 @@ import json
 from volttron.platform.agent.known_identities import AUTH
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.certs import Certs
-from volttron.platform.agent.utils import get_platform_instance_name
+from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity
 from volttron.utils.rmq_config_params import RMQConfig
 
 
@@ -76,6 +76,9 @@ class Auth(SubsystemBase):
 
         core.onsetup.connect(onsetup, self)
 
+    def connect_remote_platform(self, address):
+        pass
+
     def make_remote_agent(self, csr_s):
         pass
 
@@ -93,8 +96,13 @@ class Auth(SubsystemBase):
         certs = Certs()
         # csr_request = certs.create_csr(self._full_identity, csr_server)
         csr_request = certs.create_csr(self._core().identity, info.instance_name)
+        # The csr request requires the fully qualified identity that is
+        # going to be connected to the external instance.
+        #
+        # The remote instance id is the instance name of the remote platform
+        # concatenated with the identity of the local fully quallified identity.
         remote_cert_name = "{}.{}".format(info.instance_name,
-                                          get_platform_instance_name()+"."+self._core().identity)
+                                          get_fq_identity(self._core().identity))
         remote_ca_name = info.instance_name+"_ca"
 
         if certs.cert_exists(remote_cert_name, True):
@@ -105,7 +113,10 @@ class Auth(SubsystemBase):
             identity=remote_cert_name, # get_platform_instance_name()+"."+self._core().identity,
             hostname=config.hostname
         )
-        response = requests.post(csr_server+"/csr/request_new", json=json.dumps(json_request))
+        response = requests.post(csr_server+"/csr/request_new",
+                                 json=json.dumps(json_request),
+                                 verify=False)
+
         _log.debug("The response: {}".format(response))
         from pprint import pprint
         pprint(response.json())
@@ -114,8 +125,13 @@ class Auth(SubsystemBase):
         cert = j.get('cert')
 
         if status == 'SUCCESSFUL':
-            certs.save_remote_cert(remote_cert_name, cert)
-            certs.save_remote_cert(remote_ca_name, info.rmq_ca_cert)
+            certs.save_remote_info(get_fq_identity(self._core().identity),
+                                   remote_cert_name, cert,
+                                   remote_ca_name,
+                                   info.rmq_ca_cert)
+
+        elif status == 'PENDING':
+            print('PENDING')
         elif status == 'DENIAL':
             print("Woops")
         elif status == 'ERROR':

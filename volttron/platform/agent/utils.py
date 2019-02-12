@@ -173,18 +173,6 @@ def load_platform_config():
     return config_opts
 
 
-def get_fq_identity(identity):
-    """
-    Return the fully qualified identity for the passed core identity.
-
-    Fully qualified identities are instance_name.identity
-
-    :param identity:
-    :return:
-    """
-    return "{}.{}".format(get_platform_instance_name(), identity)
-
-
 def get_platform_instance_name(prompt=False):
     # Next get instance name
     platform_config = load_platform_config()
@@ -199,6 +187,19 @@ def get_platform_instance_name(prompt=False):
                            "$VOLTTRON_HOME/config. Please set instance-name in "
                            "$VOLTTRON_HOME/config")
     return instance_name
+
+
+def get_fq_identity(identity, platform_instance_name=get_platform_instance_name()):
+    """
+    Return the fully qualified identity for the passed core identity.
+
+    Fully qualified identities are instance_name.identity
+
+    :param identity:
+    :param platform_instance_name: str The name of the platform.
+    :return:
+    """
+    return "{}.{}".format(platform_instance_name, identity)
 
 
 def get_messagebus():

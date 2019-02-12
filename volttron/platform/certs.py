@@ -639,6 +639,27 @@ class Certs(object):
             wf.write(certdata)
         os.chmod(cert_file, 0644)
 
+    def save_remote_info(self, local_keyname, remote_name, remote_cert, remote_ca_name,
+                         remote_ca_cert):
+        """
+        Save the remote info file, remote certificates and remote ca to the proper place
+        in the remote_certificate directory.
+
+        :param local_keyname: identity of the local agent connected to the local messagebux
+        :param remote_name: identity of the dynamic agent connected to the remote message bus
+        :param remote_cert: certificate returned from the remote instance
+        :param remote_ca_name: name of the remote ca
+        :param remote_ca_cert: certificate of the remote ca certificate
+        """
+        self.save_remote_cert(remote_name, remote_cert)
+        self.save_remote_cert(remote_ca_name, remote_ca_cert)
+        metadata = dict(remote_ca_name=remote_ca_name,
+                        local_keyname=local_keyname)
+        metafile = self.remote_certs_file(remote_name)[:-4] + ".json"
+
+        with open(metafile, 'w') as fp:
+            fp.write(json.dumps(metadata))
+
     def save_cert(self, file_path):
         cert_file = self.cert_file(os.path.splitext(os.path.basename(
             file_path))[0])
