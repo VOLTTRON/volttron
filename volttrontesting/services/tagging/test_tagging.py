@@ -114,11 +114,11 @@ crate_historian = {
 }
 
 historians = [
-    # None,
+    None,
     sqlite_historian,
-    # mysql_historian,
-    # mongo_historian,
-    # crate_historian
+    mysql_historian,
+    mongo_historian,
+    crate_historian
 ]
 
 
@@ -1050,6 +1050,7 @@ def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
             volttron_instance.remove_agent(hist_id)
         cleanup_function = globals()["cleanup_" + connection_type]
         cleanup_function(db_connection, ['topic_tags'])
+
 
 @pytest.mark.tagging
 def test_topic_by_tags_param_and_or(volttron_instance, tagging_service,
