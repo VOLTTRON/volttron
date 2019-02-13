@@ -114,11 +114,11 @@ crate_historian = {
 }
 
 historians = [
-    None,
+    # None,
     sqlite_historian,
-    mysql_historian,
-    mongo_historian,
-    crate_historian
+    # mysql_historian,
+    # mongo_historian,
+    # crate_historian
 ]
 
 
@@ -1050,7 +1050,6 @@ def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
         cleanup_function = globals()["cleanup_" + connection_type]
         cleanup_function(db_connection, ['topic_tags'])
 
-
 @pytest.mark.tagging
 def test_topic_by_tags_param_and_or(volttron_instance, tagging_service,
                                     query_agent):
@@ -1168,7 +1167,7 @@ def test_topic_by_tags_param_and_or(volttron_instance, tagging_service,
             and_condition={'campus': True,
                            'geoCountry': "US"},
             or_condition=['campus', 'equip']).get(timeout=10)
-        assert result1 == ['campus1', 'campus2']
+        assert result1 == ['campus1']
 
         result1 = query_agent.vip.rpc.call(
             'platform.tagging',
@@ -1177,7 +1176,7 @@ def test_topic_by_tags_param_and_or(volttron_instance, tagging_service,
                            'elec': True,
                            'campusRef.geoCountry': "UK",
                            'campusRef.dis': "United Kingdom"}).get(timeout=10)
-        print("Result of NOT LIKE query: {}".format(result1))
+        print("Result of AND and OR query: {}".format(result1))
         assert result1 == ['campus2/d1']
 
     finally:
