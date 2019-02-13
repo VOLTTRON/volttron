@@ -292,7 +292,7 @@ class MongodbHistorian(BaseHistorian):
         last_date = ''
         cursor = db[self._data_collection].find(
             find_condition).sort("_id", pymongo.ASCENDING)
-        _log.debug("rollup query returned. Looping through to updated db")
+        _log.debug("rollup query returned. Looping through to update db")
         for row in cursor:
             if not stat or row['_id'] > stat["last_data_into_hourly"]:
                 self.initialize_hourly(topic_id=row['topic_id'], ts=row['ts'])
@@ -1086,6 +1086,8 @@ class MongodbHistorian(BaseHistorian):
         all collections when `history_limit_days` is specified in the
         agent configuration. `storage_limit_gb` is ignored.
         """
+        if history_limit_timestamp is None:
+            return
         history_limit_timestamp = history_limit_timestamp.replace(hour=0,
                                                                   minute=0,
                                                                   second=0,

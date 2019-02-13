@@ -44,12 +44,12 @@ repo_gpgcheck=0
 enabled=1"
 
     if [ ! -f "/etc/yum.repos.d/rabbitmq-erlang.repo" ]; then
-      echo "$repo" | sudo tee -a /etc/yum.repos.d/rabbitmq-erlang.repo
+      echo "$repo" | $prefix tee -a /etc/yum.repos.d/rabbitmq-erlang.repo
       exit_on_error
     else
       echo "\nrepo file /etc/yum.repos.d/rabbitmq-erlang.repo already exists\n"
     fi
-    sudo yum install erlang
+    $prefix yum install erlang
     exit_on_error
 }
 
@@ -68,23 +68,31 @@ function install_on_ubuntu {
     fi
 
     echo "installing ERLANG"
-    sudo apt-get install apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
-    sudo apt-get purge -yf erlang*
+    $prefix apt-get install apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
+    $prefix apt-get purge -yf erlang*
 
-    wget -O - 'https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc' | sudo apt-key add -
+    wget -O - 'https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc' | $prefix apt-key add -
 
     if [ ! -f "/etc/apt/sources.list.d/bintray.erlang.list" ]; then
-      echo "deb https://dl.bintray.com/rabbitmq/debian $DIST erlang-21.x"|sudo tee --append /etc/apt/sources.list.d/bintray.erlang.list
+      echo "deb https://dl.bintray.com/rabbitmq/debian $DIST erlang-21.x"|$prefix tee --append /etc/apt/sources.list.d/bintray.erlang.list
     fi
-    sudo apt-get update
-    sudo apt-get install -yf
-    sudo apt-get install -y erlang-base erlang-diameter erlang-eldap erlang-ssl erlang-crypto erlang-asn1 erlang-public-key
-    sudo apt-get install -y erlang-nox
+    $prefix apt-get update
+    $prefix apt-get install -yf
+    $prefix apt-get install -y erlang-base erlang-diameter erlang-eldap erlang-ssl erlang-crypto erlang-asn1 erlang-public-key
+    $prefix apt-get install -y erlang-nox
 }
 
-sudo pwd > /dev/null
 os_name="$1"
 DIST="$2"
+user=`whoami`
+if [ $user == 'root' ]; then
+  prefix=""
+else
+  prefix="sudo"
+fi
+
+$prefix pwd > /dev/null
+
 if [ "$os_name" == "ubuntu" ]; then
     install_on_ubuntu
 elif [ "$os_name" == "centos" ]; then

@@ -92,7 +92,7 @@ def volttron_instance2(request):
 
 
 @pytest.fixture(scope="module",
-                params=[('zmq', False), ('rmq', True)])
+                params=[('zmq', True), ('rmq', True)])
 def volttron_instance_msgdebug(request):
     print("building msgdebug instance")
     wrapper = build_wrapper(get_rand_vip(),
@@ -177,7 +177,7 @@ def volttron_instance_module_web(request):
 # test
 @pytest.fixture(scope="module",
                 params=[('zmq', False), ('rmq', True)])
-def volttron_instance(request):
+def volttron_instance(request, **kwargs):
     """Fixture that returns a single instance of volttron platform for testing
 
     @param request: pytest request object
@@ -185,10 +185,11 @@ def volttron_instance(request):
     """
     print("building instance")
     wrapper = None
-    address = get_rand_vip()
+    address = kwargs.pop("vip_address", get_rand_vip())
     wrapper = build_wrapper(address,
                             message_bus=request.param[0],
-                            ssl_auth=request.param[1])
+                            ssl_auth=request.param[1],
+                            **kwargs)
 
     def cleanup():
         print('Shutting down instance: {}'.format(wrapper.volttron_home))
@@ -222,14 +223,14 @@ def get_volttron_instances(request):
     """
     all_instances = []
 
-    def get_n_volttron_instances(n, should_start=True):
+    def get_n_volttron_instances(n, should_start=True, **kwargs):
         get_n_volttron_instances.count = n
         instances = []
         for i in range(0, n):
-            address = get_rand_vip()
+            address = kwargs.pop("vip_address", get_rand_vip())
             wrapper = None
             if should_start:
-                wrapper = build_wrapper(address)
+                wrapper = build_wrapper(address, **kwargs)
             else:
                 wrapper = PlatformWrapper()
             instances.append(wrapper)

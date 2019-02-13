@@ -411,16 +411,19 @@ class CrateHistorian(BaseHistorian):
 
         where_clauses = ["WHERE topic =?"]
         args = [topic]
+        # Because the crate client requires naive dates we replace
+        # tzinfo with None.  This won't have any impact on the query
+        # as data in the database is in UTC already.
         if start and end and start == end:
             where_clauses.append("ts = ?")
-            args.append(start)
+            args.append(start.replace(tzinfo=None))
         else:
             if start:
                 where_clauses.append("ts >= ?")
-                args.append(start)
+                args.append(start.replace(tzinfo=None))
             if end:
                 where_clauses.append("ts < ?")
-                args.append(end)
+                args.append(end.replace(tzinfo=None))
 
         where_statement = ' AND '.join(where_clauses)
 

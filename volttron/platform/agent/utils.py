@@ -47,6 +47,7 @@ import syslog
 import traceback
 from datetime import datetime, tzinfo, timedelta
 
+import psutil
 import gevent
 import os
 import pytz
@@ -697,3 +698,21 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None):
             raise RuntimeError(err_message)
     return output
 
+
+def is_volttron_running(volttron_home):
+    """
+    Checks if volttron is running for the given volttron home. Checks if a VOLTTRON_PID file exist and if it does
+    check if the PID in the file corresponds to a running process. If so, returns True else returns False
+    :param vhome: volttron home
+    :return: True if VOLTTRON_PID file exists and points to a valid process id
+    """
+
+    pid_file = os.path.join(volttron_home, 'VOLTTRON_PID')
+    if os.path.exists(pid_file):
+        running = False
+        with open(pid_file, 'r') as pf:
+            pid = int(pf.read().strip())
+            running = psutil.pid_exists(pid)
+        return running
+    else:
+        return False

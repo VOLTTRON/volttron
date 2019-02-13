@@ -7,11 +7,10 @@ else
     vhome="$VOLTTRON_HOME"
 
 fi
-echo "VOLTTRON_HOME is $VOLTTRON_HOME"
 
 FILE="$vhome/VOLTTRON_PID"
-pid=`cat $FILE`
 if [ -f $FILE ]; then
+   pid=`cat $FILE`
    if ps -p $pid > /dev/null 2>&1
    then
        echo "VOLTTRON with process id $pid is already running"
@@ -42,18 +41,27 @@ fi
 source "$SCRIPT_DIR/env/bin/activate"
 
 if [ "$1" = '--rotating' ]; then
-    echo "Starting VOLTTRON with rotatinglog.py in the background."
+    echo "Starting VOLTTRON with rotatinglog.py in the background with VOLTTRON_HOME=$vhome"
     volttron -L examples/rotatinglog.py > volttron.log 2>&1 &
     disown
 else
-    echo "Starting VOLTTRON verbosely in the background"
+    echo "Starting VOLTTRON verbosely in the background with VOLTTRON_HOME=$vhome"
     volttron -vv -l volttron.log > volttron.log 2>&1 &
     disown
 fi
 
 echo "Waiting for VOLTTRON to startup.."
-while [ ! -f $FILE ]
+count=0
+while [ ! -f $FILE ] && [ $count -lt 60 ]
 do
   sleep 1
+  ((++count))
 done
-echo "VOLTTRON startup complete"
+
+if [ -f $FILE ]; then
+ echo "VOLTTRON startup complete"
+ exit 0
+else
+ echo "VOLTTRON startup failed/timed out. Please check volttron.log for details"
+ exit 2
+fi
