@@ -88,7 +88,7 @@ user=`whoami`
 if [ $user == 'root' ]; then
   prefix=""
 else
-  prefix="sudo "
+  prefix="sudo"
 fi
 
 $prefix pwd > /dev/null
