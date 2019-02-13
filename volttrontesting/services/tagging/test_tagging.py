@@ -135,7 +135,7 @@ def setup_sqlite(config):
 def setup_mongodb(config):
     print ("setup mongodb")
     connection_params = config['connection']['params']
-    mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
+    mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}?authSource={authSource}'
     params = connection_params
     mongo_conn_str = mongo_conn_str.format(**params)
     mongo_client = pymongo.MongoClient(mongo_conn_str)
