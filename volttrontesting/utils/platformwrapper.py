@@ -350,6 +350,7 @@ class PlatformWrapper:
             event.wait(timeout=2)
             gevent.sleep(0.5)
             hello = agent.vip.hello().get(timeout=.5)
+
             self.logit('Got hello response {}'.format(hello))
         agent.publickey = publickey
         return agent

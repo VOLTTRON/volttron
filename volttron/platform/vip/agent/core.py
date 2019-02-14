@@ -893,6 +893,7 @@ class RMQCore(Core):
         self.connection = RMQConnection(param,
                                         self.identity,
                                         self.instance_name,
+                                        reconnect_delay=self.rmq_mgmt.rmq_config.reconnect_delay(),
                                         vc_url=self.volttron_central_address)
         yield
 

@@ -25,7 +25,8 @@ rabbitmq_config = {
     'amqp-port-ssl': 5671,
     'mgmt-port': 15672,
     'mgmt-port-ssl': 15671,
-    'rmq-home': os.path.join(HOME, 'rabbitmq_server/rabbitmq_server-3.7.7')
+    'rmq-home': os.path.join(HOME, 'rabbitmq_server/rabbitmq_server-3.7.7'),
+    'reconnect-delay': 5
 }
 
 
