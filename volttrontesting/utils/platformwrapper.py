@@ -547,9 +547,16 @@ class PlatformWrapper:
         # A None value means that the process is still running.
         # A negative means that the process exited with an error.
         assert self.p_process.poll() is None
-        if self.message_bus == 'rmq':
-            # give some extra time for volttron process to startup
-            gevent.sleep(4)
+
+        # Check for VOLTTRON_PID
+        sleep_time = 0
+        while (not self.is_running()) and sleep_time < 60:
+            gevent.sleep(3)
+            sleep_time += 3
+
+        if sleep_time >= 60:
+            raise Exception("Platform startup failed. Please check volttron.log in {}".format(self.volttron_home))
+
         self.serverkey = self.keystore.public
         assert self.serverkey
         agent = self.build_agent()
@@ -598,8 +605,7 @@ class PlatformWrapper:
             time.sleep(5)
 
     def is_running(self):
-        self.logit("PROCESS IS RUNNING: {}".format(self.p_process))
-        return self.p_process is not None and self.p_process.poll() is None
+        return utils.is_volttron_running(self.volttron_home)
 
     def twistd_is_running(self):
         return self.t_process is not None
