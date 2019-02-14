@@ -63,6 +63,7 @@ except ImportError:
 
 from .agent.utils import is_valid_identity, get_messagebus, \
     get_platform_instance_name
+from volttron.platform import get_home
 from .packages import UnpackedPackage
 from .vip.agent import Agent
 from .keystore import KeyStore
@@ -227,6 +228,21 @@ class AIPplatform(object):
             agent.core.stop()
             task.kill()
         _log.debug("I'm done with aip shutdown")
+
+    def rmq_shutdown(self):
+        for agent_uuid in self.agents.iterkeys():
+            _log.debug("Stopping agent UUID {}".format(agent_uuid))
+            self.stop_agent(agent_uuid)
+        # kill the platform
+        pid = None
+        pid_file = "{vhome}/VOLTTRON_PID".format(vhome=get_home())
+        with open(pid_file) as f:
+            pid = int(f.read())
+        print pid
+        if pid:
+            os.kill(pid, signal.SIGINT)
+            os.remove(pid_file)
+
 
     subscribe_address = property(lambda me: me.env.subscribe_address)
     publish_address = property(lambda me: me.env.publish_address)

@@ -88,7 +88,7 @@ def cleanup_rmq_volttron_setup(vhome=None, ssl_auth=False):
                              vhost=rabbitmq_config['virtual-host'])
     rmq_mgmt.delete_exchange(exchange='volttron',
                              vhost=rabbitmq_config['virtual-host'])
-    rmq_mgmt.delete_vhost(vhost=rabbitmq_config['virtual-host'])
+    #rmq_mgmt.delete_vhost(vhost=rabbitmq_config['virtual-host'])
 
     if ssl_auth:
         rmq_mgmt.delete_user('volttron_test-admin')

@@ -331,7 +331,7 @@ class RMQConnection(BaseConnection):
                                    destination_routing_key,
                                    json.dumps(msg, ensure_ascii=False),
                                    properties)
-        except (pika.exceptions.AMQPConnectionErro,
+        except (pika.exceptions.AMQPConnectionError,
                 pika.exceptions.AMQPChannelError) as exc:
             raise Unreachable(errno.EHOSTUNREACH, "Connection to RabbitMQ is lost",
                               'rabbitmq broker', 'rmq_connection')
