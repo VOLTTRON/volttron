@@ -146,6 +146,7 @@ def test_vstart_expired_ca_cert(request, instance):
     finally:
         pass
         shutil.rmtree(crts.default_certs_dir)
+        # restore original certs for next test case
         os.rename(os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"),
                   crts.default_certs_dir)
         gevent.sleep(2)
@@ -190,12 +191,12 @@ def test_vstart_expired_server_cert(request, instance):
         # Certificate Expired"
     finally:
         shutil.rmtree(crts.default_certs_dir)
+        # restore original certs for next test case
         os.rename(os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"),
                   crts.default_certs_dir)
         print("In finally. Restarting ssl so that RMQ picks up the right certs")
         restart_ssl(rmq_home=os.path.join(os.environ.get('HOME'),
                                       'rabbitmq_server/rabbitmq_server-3.7.7'))
-
 
 @pytest.mark.wrapper
 def test_vstart_expired_admin_cert(request, instance):
@@ -231,14 +232,16 @@ def test_vstart_expired_admin_cert(request, instance):
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     finally:
+        instance.p_process.terminate()  # certs are messed up so just terminate
         shutil.rmtree(crts.default_certs_dir)
+        # restore original certs for next test case
         os.rename(os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"),
                   crts.default_certs_dir)
         print("In finally. Restarting ssl so that RMQ picks up the right certs")
         restart_ssl(rmq_home=os.path.join(os.environ.get('HOME'),
                                           'rabbitmq_server/rabbitmq_server-3.7.7'))
 
-#@pytest.mark.dev
+
 @pytest.mark.timeout(300)
 @pytest.mark.wrapper
 def test_vstart_rabbit_startup_error(request, instance):
@@ -249,20 +252,19 @@ def test_vstart_rabbit_startup_error(request, instance):
     :return:
     """
     try:
-        if instance.is_running():
-            instance.shutdown_platform()
-
-        # Now delete the yml file so volttron will not know which rmq to start
+         # Now delete the yml file so volttron will not know which rmq to start
         # and hence throw error during start_rabbitmq in main
         os.rename(
             os.path.join(instance.volttron_home, "rabbitmq_config.yml"),
             os.path.join(instance.volttron_home, "rabbit.yml"),
         )
+        gevent.sleep(1)
         try:
             instance.startup_platform(vip_address=get_rand_vip())
         except:
             pass
         assert not (instance.is_running())
+        gevent.sleep(1)
     finally:
         os.rename(
             os.path.join(instance.volttron_home, "rabbit.yml"),
@@ -270,7 +272,6 @@ def test_vstart_rabbit_startup_error(request, instance):
         )
 
 
-#@pytest.mark.dev
 @pytest.mark.timeout(500)
 @pytest.mark.wrapper
 def test_expired_ca_cert_after_vstart(request, instance):
@@ -330,10 +331,11 @@ def test_expired_ca_cert_after_vstart(request, instance):
             assert True
 
     finally:
+        instance.p_process.terminate()  # certs are messed up so just terminate
         shutil.rmtree(crts.default_certs_dir)
+        # restore original certs for next test case
         os.rename(os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"),
                   crts.default_certs_dir)
-        gevent.sleep(2)
         # ssl restart  doesn't work when ca cert is expired. So have to restart rabbitmq server
         # restart_ssl(rmq_home=os.path.join(os.environ.get('HOME'),
         #                               'rabbitmq_server/rabbitmq_server-3.7.7'))
@@ -341,14 +343,8 @@ def test_expired_ca_cert_after_vstart(request, instance):
                                           'rabbitmq_server/rabbitmq_server-3.7.7'))
         start_rabbit(rmq_home=os.path.join(os.environ.get('HOME'),
                                            'rabbitmq_server/rabbitmq_server-3.7.7'))
-        # platform needs to be restarted too since all agent certs have to regenerated when CA cert expires and new
-        # new CA is created
-        try:
-            instance.p_process.terminate()
-        except:
-            pass
 
-@pytest.mark.dev
+
 @pytest.mark.timeout(400)
 @pytest.mark.wrapper
 def test_expired_server_cert_after_vstart(request, instance):
@@ -361,9 +357,6 @@ def test_expired_server_cert_after_vstart(request, instance):
     #instance = PlatformWrapper(message_bus='rmq', ssl_auth=True)
 
     try:
-        # backup original certificates dir before replacing it with fast expiry certs
-        shutil.copytree(crts.default_certs_dir,
-                        os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"))
         (root_ca, server_cert_name, admin_cert_name) = \
             Certs.get_admin_cert_names("volttron_test")
 
@@ -389,26 +382,21 @@ def test_expired_server_cert_after_vstart(request, instance):
             print("Exception:", e)
             assert True
 
+        # Restore server cert and restart rmq ssl, wait for 30 seconds for volttron to reconnect
         crts.create_ca_signed_cert(server_cert_name, type='server',
                                    fqdn='localhost')
         restart_ssl(rmq_home=os.path.join(os.environ.get('HOME'),
                                           'rabbitmq_server/rabbitmq_server-3.7.7'))
-        gevent.sleep(30)  # hardcoded seconds that rmq_connection class waits before reconnecting
+        gevent.sleep(35)  # hardcoded for now. Can be configured once the corresponding PR is merged in
+
         # status of first agent would still be fine and it would
         # continue to publish hearbeat. What should be the expected
         # behavior
         assert instance.is_agent_running(agent)
 
     finally:
-        shutil.rmtree(crts.default_certs_dir)
-        os.rename(os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"),
-                  crts.default_certs_dir)
-        print("In finally. Restarting ssl so that RMQ picks up the right certs")
-        restart_ssl(rmq_home=os.path.join(os.environ.get('HOME'),
-                                          'rabbitmq_server/rabbitmq_server-3.7.7'))
-        try:
-            instance.p_process.terminate()
-        except:
-            pass
+        instance.shutdown_platform()
+
+
 
 
