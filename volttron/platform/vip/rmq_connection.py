@@ -63,12 +63,13 @@ import pika
 import errno
 from volttron.platform.vip.socket import Message
 from volttron.platform.vip import BaseConnection
-
+from volttron.platform.vip.agent.errors import Unreachable
 
 _log = logging.getLogger(__name__)
 # reduce pika log level
 logging.getLogger("pika").setLevel(logging.WARNING)
-
+RMQ_RESOURCE_LOCKED = 405
+CONNECTION_FORCED = 320
 
 class RMQConnection(BaseConnection):
     """
@@ -95,6 +96,7 @@ class RMQConnection(BaseConnection):
         self._connect_callback = None
         self._connect_error_callback = None
         self._queue_properties = dict()
+        self._explicitly_closed = False
         #_log.debug("ROUTING KEY: {}".format(self.routing_key))
 
     def open_connection(self):
@@ -105,7 +107,7 @@ class RMQConnection(BaseConnection):
         self._connection = pika.GeventConnection(self._connection_param,
                                                  on_open_callback=self.on_connection_open,
                                                  on_open_error_callback=self.on_open_error,
-                                                 #on_close_callback=self.on_connection_closed,
+                                                 on_close_callback=self.on_connection_closed
                                                  )
 
     def on_connection_open(self, unused_connection):
@@ -138,9 +140,41 @@ class RMQConnection(BaseConnection):
         :param reply_text: Connection reply message
         :return:
         """
-        _log.debug("Connection closed unexpectedly, reopening in 5 seconds. {}"
-                   .format(self._identity))
-        self._connection.add_timeout(5, self._reconnect)
+        if self._explicitly_closed:
+            self._connection.ioloop.stop()
+            return
+
+        timeout = 30
+        _log.error("Connection closed unexpectedly, reopening in {timeout} seconds. {identity}"
+                   .format(timeout=timeout, identity=self._identity))
+        self._connection.add_timeout(timeout, self._reconnect)
+
+    def add_on_channel_close_callback(self):
+        """
+        This method tells pika to call the on_channel_closed method if
+        RabbitMQ unexpectedly closes the channel.
+
+        """
+        self.channel.add_on_close_callback(self.on_channel_closed)
+
+    def on_channel_closed(self, channel, reply_code, reply_text):
+        """
+        Invoked by pika when RabbitMQ unexpectedly closes the channel.
+        Channels are usually closed if you attempt to do something that
+        violates the protocol, such as re-declare an exchange or queue with
+        different parameters. In this case, we'll close the connection
+        to shutdown the object.
+
+        :param pika.channel.Channel: The closed channel
+        :param int reply_code: The numeric reason the channel was closed
+        :param str reply_text: The text reason the channel was closed
+
+        """
+        _log.error("Channel Closed Unexpectedly. {0}, {1}".format(reply_code, reply_text))
+        if reply_code == RMQ_RESOURCE_LOCKED:
+            _log.error("Channel Closed Unexpectedly. Attempting to run Agent/platform again".format(self._identity))
+            self._connection.close()
+            self._explicitly_closed = True
 
     def _reconnect(self):
         """
@@ -148,11 +182,11 @@ class RMQConnection(BaseConnection):
         """
         # First, close the old connection IOLoop instance
         self._connection.ioloop.stop()
-        # Next, create a new connection
-        self.open_connection()
-
-        # There is now a new connection, needs a new ioloop to run
-        self._connection.ioloop.start()
+        if not self._explicitly_closed:
+            # Next, create a new connection
+            self.open_connection()
+            # There is now a new connection, needs a new ioloop to run
+            self._connection.ioloop.start()
 
     def on_channel_open(self, channel):
         """
@@ -162,11 +196,15 @@ class RMQConnection(BaseConnection):
         :return:
         """
         self.channel = channel
+        self.add_on_channel_close_callback()
+
+        # Check if VIP queue exists, if so delete the stale queue first
         self.channel.queue_declare(queue=self._vip_queue_name,
                                     durable=self._queue_properties['durable'],
                                     exclusive=self._queue_properties['exclusive'],
                                     auto_delete=self._queue_properties['auto_delete'],
-                                    callback=self.on_queue_declare_ok)
+                                    callback=self.on_queue_declare_ok
+                                   )
 
     def set_properties(self, flags):
         """
@@ -175,7 +213,7 @@ class RMQConnection(BaseConnection):
         :return:
         """
         self._queue_properties['durable'] = flags.get('durable', True)
-        self._queue_properties['exclusive'] = flags.get('exclusive', False)
+        self._queue_properties['exclusive'] = flags.get('exclusive', True)
         self._queue_properties['auto_delete'] = flags.get('auto_delete', True)
 
     def on_queue_declare_ok(self, method_frame):
@@ -288,10 +326,15 @@ class RMQConnection(BaseConnection):
         #                                                              msg,
         #                                                              properties,
         #                                                              self.routing_key))
-        self.channel.basic_publish(self.exchange,
+        try:
+            self.channel.basic_publish(self.exchange,
                                    destination_routing_key,
                                    json.dumps(msg, ensure_ascii=False),
                                    properties)
+        except (pika.exceptions.AMQPConnectionErro,
+                pika.exceptions.AMQPChannelError) as exc:
+            raise Unreachable(errno.EHOSTUNREACH, "Connection to RabbitMQ is lost",
+                              'rabbitmq broker', 'rmq_connection')
 
     def disconnect(self):
         """
@@ -324,6 +367,7 @@ class RMQConnection(BaseConnection):
             _log.debug("Closing connection to RMQ: {}".format(self._identity))
             _log.debug("********************************************************************")
             self._connection.close()
+            self._explicitly_closed = True
 
 
 class RMQRouterConnection(RMQConnection):
@@ -357,14 +401,13 @@ class RMQRouterConnection(RMQConnection):
         :return:
         """
         self.channel = channel
-        args = dict()
-        args['alternate-exchange'] = self._alternate_exchange
-
+        self.add_on_channel_close_callback()
         self.channel.queue_declare(queue=self._vip_queue_name,
                                     durable=self._queue_properties['durable'],
                                     exclusive=self._queue_properties['exclusive'],
                                     auto_delete=self._queue_properties['auto_delete'],
-                                    callback=self.on_queue_declare_ok)
+                                    callback=self.on_queue_declare_ok,
+                                   )
         self.channel.queue_declare(queue=self._alternate_queue,
                                    durable=False,
                                    exclusive=True,
@@ -431,12 +474,12 @@ class RMQRouterConnection(RMQConnection):
         # not bring down the platform.
         recipient = props.headers.get('recipient', '') if props.headers else ''
         message = [errnum, errmsg, recipient, subsystem]
-        
-        _log.error("Host Unreachable Error Message is: {0}, {1}, {2}, {3}".format(
-            message,
-            method.routing_key,
-            sender,
-            props))
+
+        # _log.error("Host Unreachable Error Message is: {0}, {1}, {2}, {3}".format(
+        #     message,
+        #     method.routing_key,
+        #     sender,
+        #     props))
 
         # The below try/except protects the platform from someone who is not communicating
         # via vip protocol.  If sender is not a string then the channel publish will throw

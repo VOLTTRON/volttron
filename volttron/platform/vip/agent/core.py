@@ -887,6 +887,7 @@ class RMQCore(Core):
         else:
             param = self.rmq_mgmt.build_agent_connection(self.identity,
                                                          self.instance_name)
+
         return param
 
     def loop(self, running_event):
@@ -915,9 +916,30 @@ class RMQCore(Core):
             self.stop()
             self.ondisconnected.send(self)
 
+        def connect_callback():
+            router_connected = False
+            bindings = self.rmq_mgmt.get_bindings('volttron')
+            router_user = router_key = "{inst}.{ident}".format(inst=self.instance_name,
+                                                               ident='router')
+            if bindings:
+                for binding in bindings:
+                    if binding['destination'] == router_user and \
+                                    binding['routing_key'] == router_key:
+                        router_connected = True
+                        break
+            # Connection retry attempt issue #1702.
+            # If the agent detects that RabbitMQ broker is reconnected before the router, wait for the router to
+            # connect before sending hello()
+            if router_connected:
+                hello()
+            else:
+                _log.debug("Router not bound to RabbitMQ yet, waiting for 5 seconds before sending hello".
+                           format(self.identity))
+                self.spawn_later(5, hello)
+
         # Connect to RMQ broker. Register a callback to get notified when
         # connection is confirmed
-        self.connection.connect(hello, connection_error)
+        self.connection.connect(connect_callback, connection_error)
 
         self.onconnected.connect(hello_response)
         self.ondisconnected.connect(self.connection.close_connection)

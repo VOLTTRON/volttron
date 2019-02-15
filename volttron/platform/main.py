@@ -104,6 +104,7 @@ else:
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
+VOLTTRON_INSTANCES = '~/.volttron_instances'
 
 def log_to_file(file_, level=logging.WARNING,
                 handler_class=logging.StreamHandler):
@@ -258,7 +259,7 @@ class Router(BaseRouter):
                  volttron_central_address=None, instance_name=None,
                  bind_web_address=None, volttron_central_serverkey=None,
                  protected_topics={}, external_address_file='',
-                 msgdebug=None):
+                 msgdebug=None, agent_monitor_frequency=600):
 
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
@@ -291,6 +292,7 @@ class Router(BaseRouter):
         self._msgdebug = msgdebug
         self._message_debugger_socket = None
         self._instance_name = instance_name
+        self._agent_monitor_frequency = agent_monitor_frequency
 
     def setup(self):
         sock = self.socket
@@ -411,6 +413,8 @@ class Router(BaseRouter):
                     value = __version__
                 elif name == b'message-bus':
                     value = os.environ.get('MESSAGEBUS', 'zmq')
+                elif name == b'agent-monitor-frequency':
+                    value = self._agent_monitor_frequency
                 else:
                     value = None
             frames[6:] = [b'', jsonapi.dumps(value)]
@@ -691,6 +695,14 @@ def start_volttron_process(opts):
     external_address_file = os.path.join(opts.volttron_home, 'external_address.json')
     _log.debug('external_address_file file %s', external_address_file)
     protected_topics = {}
+    if opts.agent_monitor_frequency:
+        try:
+            int(opts.agent_monitor_frequency)
+        except ValueError as e:
+            raise ValueError("agent-monitor-frequency should be integer "
+                             "value. Units - seconds. This determines how "
+                             "often the platform checks for any crashed agent "
+                             "and attempts to restart. {}".format(e))
 
     # Main loops
     def router(stop):
@@ -732,6 +744,7 @@ def start_volttron_process(opts):
             stop()
 
     address = 'inproc://vip'
+    pid_file = os.path.join(opts.volttron_home, "VOLTTRON_PID")
     try:
 
         stop_event = None
@@ -781,7 +794,15 @@ def start_volttron_process(opts):
         else:
             # Start RabbitMQ server if not running
             rmq_config = RMQConfig()
-            start_rabbit(rmq_config.rmq_home)
+            if rmq_config is None:
+                _log.error("DEBUG: Exiting due to error in rabbitmq config file. Please check.")
+                sys.exit()
+
+            try:
+                start_rabbit(rmq_config.rmq_home)
+            except AttributeError as exc:
+                _log.error("Exception while starting RabbitMQ. Check the path in the config file.")
+                sys.exit()
 
             # Start the config store before auth so we may one day have auth use it.
             config_store = ConfigStoreService(address=address,
@@ -838,7 +859,7 @@ def start_volttron_process(opts):
             del event
         # The instance file is where we are going to record the instance and
         # its details according to
-        instance_file = os.path.expanduser('~/.volttron_instances')
+        instance_file = os.path.expanduser(VOLTTRON_INSTANCES)
         try:
             instances = load_create_store(instance_file)
         except ValueError:
@@ -866,7 +887,8 @@ def start_volttron_process(opts):
             ControlService(opts.aip, address=address, identity='control',
                            tracker=tracker, heartbeat_autostart=True,
                            enable_store=False, enable_channel=True,
-                           message_bus=opts.message_bus),
+                           message_bus=opts.message_bus,
+                           agent_monitor_frequency=opts.agent_monitor_frequency),
 
             MasterWebService(
                 serverkey=publickey, identity=MASTER_WEB,
@@ -903,6 +925,12 @@ def start_volttron_process(opts):
         if opts.autostart:
             for name, error in opts.aip.autostart():
                 _log.error('error starting {!r}: {}\n'.format(name, error))
+
+        # Done with all start up process write a PID file
+
+        with open(pid_file, 'w+') as f:
+            f.write(str(os.getpid()))
+
         # Wait for any service to stop, signaling exit
         try:
             gevent.wait(tasks, count=1)
@@ -919,6 +947,15 @@ def start_volttron_process(opts):
     finally:
         _log.debug("AIP finally")
         opts.aip.finish()
+        instance_file = os.path.expanduser(VOLTTRON_INSTANCES)
+        try:
+            instances = load_create_store(instance_file)
+            instances.pop(opts.volttron_home, None)
+            instances.sync()
+            if os.path.exists(pid_file):
+                os.remove(pid_file)
+        except Exception:
+            _log.warn("Unable to load {}".format(VOLTTRON_INSTANCES))
 
 
 def main(argv=sys.argv):
@@ -1019,6 +1056,11 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--volttron-central-rmq-address', default=None,
         help='The AMQP address of a volttron central install instance')
+    agents.add_argument(
+        '--agent-monitor-frequency', default=600,
+        help='How often should the platform check for crashed agents and '
+             'attempt to restart. Units=seconds. Default=600')
+
     # XXX: re-implement control options
     # on
     # control.add_argument(

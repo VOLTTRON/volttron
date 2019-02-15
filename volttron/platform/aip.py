@@ -699,7 +699,7 @@ class AIPplatform(object):
             # pylint: disable=catching-non-exception
             execenv.process.send_signal(signal.SIGINT)
             try:
-                return gevent.with_timeout(3, process_wait, execenv.process)
+                return gevent.with_timeout(60, process_wait, execenv.process)
             except gevent.Timeout:
                 _log.warn("First timeout")
                 execenv.process.terminate()

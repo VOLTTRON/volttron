@@ -31,3 +31,4 @@ wget==3.2
 argon2_cffi==19.1.0
 passlib==1.7.1
 pyjwt==1.7.1
+pint==0.8.1

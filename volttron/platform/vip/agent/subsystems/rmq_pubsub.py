@@ -66,6 +66,7 @@ import pika
 import uuid
 from volttron.platform.agent import json as jsonapi
 import requests
+import errno
 
 from ..decorators import annotate, annotations, dualmethod, spawn
 from .base import BasePubSub
@@ -73,6 +74,7 @@ from collections import defaultdict
 from ..results import ResultsDictionary
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
+from ..errors import Unreachable
 
 __all__ = ['RMQPubSub']
 min_compatible_version = '5.0'
@@ -414,10 +416,16 @@ class RMQPubSub(BasePubSub):
         }
         properties = pika.BasicProperties(**dct)
         json_msg = dict(sender=self.core().identity, bus=bus, headers=headers, message=message)
-        connection.channel.basic_publish(exchange=connection.exchange,
+        try:
+            connection.channel.basic_publish(exchange=connection.exchange,
                                          routing_key=routing_key,
                                          properties=properties,
                                          body=jsonapi.dumps(json_msg, ensure_ascii=False))
+        except (pika.exceptions.AMQPConnectionError,
+                pika.exceptions.AMQPChannelError) as exc:
+            self._isconnected = False
+            raise Unreachable(errno.EHOSTUNREACH, "Connection to RabbitMQ is lost",
+                              'rabbitmq broker', 'pubsub')
         return result
 
     def set_result(self, ident, value=None):

@@ -47,7 +47,6 @@ import argparse
 import logging
 import os
 import shutil
-import subprocess
 import time
 from socket import getfqdn
 from shutil import copy
@@ -57,7 +56,8 @@ import yaml
 from rmq_mgmt import RabbitMQMgmt
 from volttron.platform import certs
 from volttron.platform import get_home
-from volttron.platform.agent.utils import store_message_bus_config
+from volttron.platform.agent.utils import store_message_bus_config, \
+    execute_command
 from volttron.utils.prompt import prompt_response, y, y_or_n
 from volttron.platform.agent.utils import get_platform_instance_name
 from rmq_config_params import RMQConfig
@@ -419,11 +419,11 @@ def _create_certs(rmq_config, admin_client_name, server_cert_name):
     cert_data = rmq_config.certificate_data
     if not cert_data or \
             not (all(k in cert_data for k in ['country',
-                                             'state',
-                                             'location',
-                                             'organization',
-                                             'organization-unit',
-                                             'common-name']) or
+                                              'state',
+                                              'location',
+                                              'organization',
+                                              'organization-unit',
+                                              'common-name']) or
                  all(
                   k in cert_data for k in ['ca-public-key', 'ca-private-key'])):
         print(
@@ -517,7 +517,12 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False):
     # Load either the newly created config or config passed
     try:
         rmq_config.load_rmq_config()
-    except (IOError, yaml.YAMLError) as exc:
+
+    except (yaml.parser.ParserError, yaml.scanner.ScannerError, yaml.YAMLError) as exc:
+        _log.error("Error: YAML file cannot parsed properly. Check the contents of the file")
+        return exc
+
+    except IOError as exc:
         _log.error("Error opening {}. Please create a rabbitmq_config.yml "
                    "file in your volttron home. If you want to point to a "
                    "volttron home other than {} please set it as the "
@@ -529,6 +534,7 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False):
                    "volttron instance with which communication needs "
                    "to be established. Please refer to example config file "
                    "at examples/configurations/rabbitmq/rabbitmq_config.yml")
+        raise
         return exc
 
     invalid = True
@@ -911,13 +917,11 @@ def stop_rabbit(rmq_home, quite=False):
     try:
         cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"),
                "stop"]
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-        stdout, stderr = p.communicate()
+        execute_command(cmd)
         gevent.sleep(2)
         if not quite:
             _log.info("**Stopped rmq server")
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
         if not quite:
             raise e
 
@@ -938,37 +942,25 @@ def start_rabbit(rmq_home):
     status_cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "shovel_status"]
     start_cmd = [os.path.join(rmq_home, "sbin/rabbitmq-server"), "-detached"]
 
+
     i = 0
     started = False
     start = True
     while not started:
         try:
-            p = subprocess.Popen(status_cmd, stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE)
-            out, err = p.communicate()
-            rc = p.returncode
-            if rc != 0:
-                # _log.debug("out: {} #err: {}".format(out, err))
-                raise subprocess.CalledProcessError(cmd=status_cmd,
-                                                    returncode=rc)
+            execute_command(status_cmd)
             if not start:
                 # if we have attempted started already
                 gevent.sleep(1)  # give a second just to be sure
             started = True
             _log.info("Rmq server at {} is running at ".format(rmq_home))
-        except subprocess.CalledProcessError as e:
+        except Exception as e:
 
             if start:
                 _log.debug("Rabbitmq is not running. Attempting to start")
+                msg = "Error starting rabbitmq at {}".format(rmq_home)
                 # attempt to start once
-                p = subprocess.Popen(start_cmd)
-                out, err = p.communicate()
-                rc = p.returncode
-                if rc != 0:
-                    _log.error("Error starting rabbitmq at {} Command out: {} "
-                               "Command err: {}".format(rmq_home, out, err))
-                    raise subprocess.CalledProcessError(cmd=start_cmd,
-                                                        returncode=rc)
+                execute_command(start_cmd, err_prefix=msg, logger=_log)
                 start = False
             else:
                 if i > 60:  # if more than a minute, may be something is wrong

@@ -2,10 +2,5 @@
     "destination-vip": "tcp://127.0.0.1:22916",
     "destination-serverkey": "<valid server key>",
     "destination-historian-identity": "platform.historian"
-
-    "custom_topic_list": [],
-    "services_topic_list": [
-       "devices", "analysis", "record", "datalogger", "actuators"
-    ],
 }
 

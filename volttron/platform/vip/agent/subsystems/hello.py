@@ -91,10 +91,10 @@ class Hello(SubsystemBase):
                                                     subsystem=b'hello',
                                                     args=[b'hello'],
                                                     id=result.ident))
-            #socket.send_vip(peer, b'hello', [b'hello'], msg_id=result.ident)
+            #self.core().socket.send_vip(peer, b'hello', [b'hello'], msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
-                _log.debug("Socket send on non socket {}".format(self.core().identity))
+                _log.error("Socket send on non socket {}".format(self.core().identity))
 
         return result
 
