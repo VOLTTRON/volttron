@@ -41,6 +41,8 @@ import os
 import ssl
 import pika
 
+from volttron.platform.agent.utils import get_fq_identity
+
 try:
     import yaml
 except ImportError:
@@ -897,6 +899,15 @@ class RabbitMQMgmt(object):
                      write=permissions['write'])
         self.set_user_permissions(perms, user, ssl_auth=ssl_auth)
 
+    def get_default_permissions(self, fq_identity):
+        config_access = "{user}|{user}.pubsub.*|{user}.zmq.*|amq.*".format(
+            user=fq_identity)
+        read_access = "volttron|{}".format(config_access)
+        write_access = "volttron|{}".format(config_access)
+        permissions = dict(configure=config_access, read=read_access,
+                           write=write_access)
+        return permissions
+
     def build_agent_connection(self, identity, instance_name):
         """
         Check if RabbitMQ user and certs exists for this agent, if not
@@ -907,13 +918,9 @@ class RabbitMQMgmt(object):
         :param is_ssl: Flag to indicate if SSL connection or not
         :return: Return connection parameters
         """
-        rmq_user = instance_name + '.' + identity
-        config_access = "{user}|{user}.pubsub.*|{user}.zmq.*|amq.*".format(
-            user=rmq_user)
-        read_access = "volttron|{}".format(config_access)
-        write_access = "volttron|{}".format(config_access)
-        permissions = dict(configure=config_access, read=read_access,
-                           write=write_access)
+
+        rmq_user = get_fq_identity(identity, instance_name)
+        permissions = self.get_default_permissions(rmq_user)
 
         if self.is_ssl:
             self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)

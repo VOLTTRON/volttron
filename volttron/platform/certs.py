@@ -73,8 +73,9 @@ from cryptography.x509.name import RelativeDistinguishedName
 from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
 
 from volttron.platform import get_home
-from volttron.platform.agent.utils import get_platform_instance_name, \
-    execute_command
+from volttron.platform.agent.utils import (get_platform_instance_name,
+                                           get_fq_identity,
+                                           execute_command)
 
 _log = logging.getLogger(__name__)
 
@@ -460,35 +461,16 @@ class Certs(object):
         :return:
         """
         assert name
-        full_name = "{}.{}.{}".format(remote_instance_name,
-                                      get_platform_instance_name(), name)
+        remote_rmq_user = "{}.{}".format(remote_instance_name, get_fq_identity(name))
         xname = x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME,  six.u(full_name)),
+            x509.NameAttribute(NameOID.COMMON_NAME,  six.u(remote_rmq_user)),
         ])
-        key = _load_key(self.private_key_file(get_platform_instance_name()+"."+name))
+        key = _load_key(self.private_key_file(get_fq_identity(name)))
         csr = x509.CertificateSigningRequestBuilder().subject_name(
             xname).sign(key, hashes.SHA256(), default_backend())
         # with open(self.csr_create_file(name, target_volttron), "wb") as fw:
         #     fw.write(csr.public_bytes(serialization.Encoding.PEM))
         return csr.public_bytes(serialization.Encoding.PEM)
-    #
-    #
-    # def create_csr(self, key, domains, must_staple=False):
-    #     """
-    #     Creates a CSR in DER format for the specified key and domain names.
-    #     """
-    #     assert domains
-    #     name = x509.Name([
-    #         x509.NameAttribute(NameOID.COMMON_NAME, domains[0]),
-    #     ])
-    #     san = x509.SubjectAlternativeName([x509.DNSName(domain) for domain in domains])
-    #     csr = x509.CertificateSigningRequestBuilder().subject_name(name) \
-    #         .add_extension(san, critical=False)
-    #     if must_staple:
-    #         ocsp_must_staple = x509.TLSFeature(features=[x509.TLSFeatureType.status_request])
-    #         csr = csr.add_extension(ocsp_must_staple, critical=False)
-    #     csr = csr.sign(key, hashes.SHA256(), default_backend())
-    #     return csr  # export_csr_for_acme(csr)
 
     def sign_csr(self, csr_file):
 

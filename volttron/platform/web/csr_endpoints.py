@@ -1,5 +1,6 @@
 import re
 import logging
+import weakref
 
 from volttron.platform.agent import json
 from volttron.platform.agent.utils import get_fq_identity
@@ -11,7 +12,8 @@ _log = logging.getLogger(__name__)
 
 class CSREndpoints(object):
 
-    def __init__(self):
+    def __init__(self, core):
+        self._core = weakref.ref(core)
         self._certs = Certs()
 
     def get_routes(self):
@@ -26,6 +28,7 @@ class CSREndpoints(object):
 
     def _csr_request_new(self, env, data):
 
+        _log.debug("New csr request")
         if not isinstance(data, dict):
             try:
                 request_data = json.loads(data)
@@ -47,17 +50,20 @@ class CSREndpoints(object):
 
         auto_accept = True
         if auto_accept:
+            _log.debug("Creating cert and permissions for user: {}".format(instance_new_name))
+            permissions = self._core().rmq_mgmt.get_default_permissions(instance_new_name)
+            self._core().rmq_mgmt.create_user_with_permissions(instance_new_name,
+                                                               permissions,
+                                                               True)
             cert = self._certs.sign_csr(csr_file)
             json_response = dict(
                 status="SUCCESSFUL",
                 cert=cert
             )
         else:
+            _log.debug("Returning pending!")
             json_response = dict(status="PENDING")
 
         return Response(json.dumps(json_response),
                         content_type='application/json',
                         headers={'Content-type': 'application/json'})
-
-        # start_response('200 OK', [('Content-type', 'application/json')])
-        # return jsonapi.dumps(json_response)

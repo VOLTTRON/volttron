@@ -99,13 +99,11 @@ class Auth(SubsystemBase):
                                              address=remote_rmq_address,
                                              instance_name=info.instance_name)
 
-    def make_remote_agent(self, csr_s):
-        pass
-
     def request_cert(self, csr_server):
         """ Get a signed csr from the csr_server endpoint
 
-        This method will cre
+        This method will create a csr request that is going to be sent to the
+        signing server.
 
         :param csr_server: the http(s) location of the server to connect to.
         :return:
