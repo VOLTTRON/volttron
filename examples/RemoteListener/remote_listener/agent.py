@@ -130,7 +130,7 @@ class ListenerAgent(Agent):
         if self._establish_connection_event is not None:
             self._establish_connection_event.cancel()
 
-        self._remote_agent = self.vip.auth.connect_remote_platform("https://v2:8080")
+        self._remote_agent = self.vip.auth.connect_remote_platform("https://v2:8443")
 
         if not self._remote_agent:
 
