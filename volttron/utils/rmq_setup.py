@@ -917,14 +917,14 @@ def stop_rabbit(rmq_home, quite=False):
             raise e
 
 
-def restart_rmq_ssl(rmq_home):
+def restart_ssl(rmq_home):
     """
     Runs rabbitmqctl eval "ssl:stop(), ssl:start()." to make rmq reload ssl certificates. Client connection will get
     dropped and client should reconnect.
     :param rmq_home:
     :return:
     """
-    cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "eval", "'ssl:stop(), ssl:start().'"]
+    cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "eval", "ssl:stop(), ssl:start()."]
     execute_command(cmd, err_prefix="Error reloading ssl certificates")
 
 def start_rabbit(rmq_home):

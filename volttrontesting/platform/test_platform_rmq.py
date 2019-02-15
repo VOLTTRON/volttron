@@ -54,7 +54,7 @@ from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_vip
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 from volttron.platform.certs import Certs
 from volttron.platform import get_ops, get_examples
-from volttron.utils.rmq_setup import stop_rabbit
+from volttron.utils.rmq_setup import stop_rabbit, start_rabbit, restart_ssl
 
 
 @pytest.fixture(scope="module")
@@ -72,7 +72,6 @@ def instance(request):
     return instance
 
 
-#@pytest.mark.dev
 @pytest.mark.wrapper
 def test_vstart_without_rmq_init(request, instance):
     """
@@ -84,7 +83,7 @@ def test_vstart_without_rmq_init(request, instance):
     try:
         os.rename(
             os.path.join(instance.volttron_home, "certificates"),
-            os.path.join(instance.volttron_home, "certs")
+            os.path.join(instance.volttron_home, "certs_backup")
             )
         try:
             instance.startup_platform(vip_address=get_rand_vip())
@@ -92,13 +91,14 @@ def test_vstart_without_rmq_init(request, instance):
             pass
         assert not (instance.is_running())
     finally:
+        shutil.rmtree(os.path.join(instance.volttron_home, "certificates"))
         os.rename(
-            os.path.join(instance.volttron_home, "certs"),
+            os.path.join(instance.volttron_home, "certs_backup"),
             os.path.join(instance.volttron_home, "certificates")
             )
 
 
-@pytest.mark.dev
+@pytest.mark.timeout(200)
 @pytest.mark.wrapper
 def test_vstart_expired_ca_cert(request, instance):
     """
@@ -110,6 +110,8 @@ def test_vstart_expired_ca_cert(request, instance):
     # replace certs
     crts = Certs()
     try:
+        restart_ssl(rmq_home=os.path.join(os.environ.get('HOME'),
+                                      'rabbitmq_server/rabbitmq_server-3.7.7'))
         # backup original certificates dir before replacing it with fast expiry certs
         shutil.copytree(crts.default_certs_dir,
                   os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"))
@@ -134,25 +136,26 @@ def test_vstart_expired_ca_cert(request, instance):
         gevent.sleep(9)
         print("Attempting to start volttron after cert expiry")
         try:
-            instance.startup_platform(vip_address=get_rand_vip())
+            # it fails fast. send a timeout instead of waiting for default timeout
+            instance.startup_platform(vip_address=get_rand_vip(), timeout=10)
         except:
             pass
         gevent.sleep(5)
         assert not (instance.is_running())
         # Rabbitmq log would show Fatal certificate expired
     finally:
-
+        pass
         shutil.rmtree(crts.default_certs_dir)
         os.rename(os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"),
                   crts.default_certs_dir)
         gevent.sleep(2)
-        restart_rmq_ssl(rmq_home=os.path.join(os.environ.get('HOME'),
-                                      'rabbitmq_server/rabbitmq_server-3.7.7'))
-        instance.startup_platform(vip_address=get_rand_vip())
-        gevent.sleep(2)
-        instance.shutdown_platform()
-
-
+        # ssl restart  doesn't work when ca cert is expired. So have to restart rabbitmq server
+        # restart_ssl(rmq_home=os.path.join(os.environ.get('HOME'),
+        #                               'rabbitmq_server/rabbitmq_server-3.7.7'))
+        stop_rabbit(rmq_home=os.path.join(os.environ.get('HOME'),
+                                          'rabbitmq_server/rabbitmq_server-3.7.7'))
+        start_rabbit(rmq_home=os.path.join(os.environ.get('HOME'),
+                                          'rabbitmq_server/rabbitmq_server-3.7.7'))
 
 
 @pytest.mark.wrapper
@@ -165,10 +168,11 @@ def test_vstart_expired_server_cert(request, instance):
     """
     # replace certs
     crts = Certs()
-    orig_ca_file = crts.cert_file(crts.root_ca_name)
     try:
+        # backup original certificates dir before replacing it with fast expiry certs
         shutil.copytree(crts.default_certs_dir,
-                  os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"))
+                        os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"))
+
         (root_ca, server_cert_name, admin_cert_name) = \
             Certs.get_admin_cert_names("volttron_test")
 
@@ -176,7 +180,7 @@ def test_vstart_expired_server_cert(request, instance):
                                    fqdn='localhost', valid_days=0.0001)
         gevent.sleep(9)
         try:
-            instance.startup_platform(vip_address=get_rand_vip())
+            instance.startup_platform(vip_address=get_rand_vip(), timeout=10)
         except:
             pass
         gevent.sleep(5)
@@ -188,13 +192,11 @@ def test_vstart_expired_server_cert(request, instance):
         shutil.rmtree(crts.default_certs_dir)
         os.rename(os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"),
                   crts.default_certs_dir)
-        stop_rabbit(rmq_home=os.path.join(os.environ.get('HOME'),
-                                          'rabbitmq_server/rabbitmq_server-3.7.7'))
-        start_rabbit(rmq_home=os.path.join(os.environ.get('HOME'),
-                                           'rabbitmq_server/rabbitmq_server-3.7.7'))
+        print("In finally. Restarting ssl so that RMQ picks up the right certs")
+        restart_ssl(rmq_home=os.path.join(os.environ.get('HOME'),
+                                      'rabbitmq_server/rabbitmq_server-3.7.7'))
 
 
-#@pytest.mark.dev
 @pytest.mark.wrapper
 def test_vstart_expired_admin_cert(request, instance):
     """
@@ -206,6 +208,7 @@ def test_vstart_expired_admin_cert(request, instance):
     # replace certs
     crts = Certs()
     try:
+        # backup original certificates dir before replacing it with fast expiry certs
         shutil.copytree(crts.default_certs_dir,
                         os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"))
 
@@ -214,32 +217,30 @@ def test_vstart_expired_admin_cert(request, instance):
 
         crts.create_ca_signed_cert(admin_cert_name, type='client',
                                    fqdn='localhost', valid_days=0.0001)
-        gevent.sleep(9)
+        gevent.sleep(20)
         try:
             instance.startup_platform(vip_address=get_rand_vip())
         except:
             pass
         gevent.sleep(5)
         assert instance.is_running()
+
+        # MGMT PLUGIN DOES NOT COMPLAIN ABOUT EXPIRED ADMIN CERT?? May be because we send the password too ?
         cmd = ['volttron-ctl', 'rabbitmq', 'list-users']
         process = subprocess.Popen(cmd, env=instance.env,
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        (out, err)= process.communicate()
-        print ("out : {}".format(out))
-        print ("err: {}".format(err))
 
     finally:
         shutil.rmtree(crts.default_certs_dir)
         os.rename(os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"),
                   crts.default_certs_dir)
-        stop_rabbit(rmq_home=os.path.join(os.environ.get('HOME'),
+        print("In finally. Restarting ssl so that RMQ picks up the right certs")
+        restart_ssl(rmq_home=os.path.join(os.environ.get('HOME'),
                                           'rabbitmq_server/rabbitmq_server-3.7.7'))
-        start_rabbit(rmq_home=os.path.join(os.environ.get('HOME'),
-                                           'rabbitmq_server/rabbitmq_server-3.7.7'))
-
 
 #@pytest.mark.dev
 @pytest.mark.timeout(300)
+@pytest.mark.wrapper
 def test_vstart_rabbit_startup_error(request, instance):
     """
     Test use case when start_rabbitmq fails. See if volttron catches it correctly.
@@ -267,26 +268,25 @@ def test_vstart_rabbit_startup_error(request, instance):
             os.path.join(instance.volttron_home, "rabbit.yml"),
             os.path.join(instance.volttron_home, "rabbitmq_config.yml"),
         )
-        cleanup_rmq_volttron_setup(vhome=instance.volttron_home,
-                                   ssl_auth=True)
 
 
+#@pytest.mark.dev
 @pytest.mark.timeout(500)
-def test_expired_ca_cert_after_vstart(request):
+@pytest.mark.wrapper
+def test_expired_ca_cert_after_vstart(request, instance):
     """
-    Test error when CA cert expires after volttron has started
+    Test error when CA cert expires after volttron has started. Once CA cert expires, can't install agent or can't get
+    agent status. CA certificate needs to be recreated and client certs have to
     :param request: pytest request object
     :param instance: instance of volttron using rmq and ssl
     """
-    instance = PlatformWrapper(message_bus='rmq', ssl_auth=True)
-    stop_rabbit(rmq_home=os.path.join(os.environ.get('HOME'),
-                                      'rabbitmq_server/rabbitmq_server-3.7.7'))
+    #instance = PlatformWrapper(message_bus='rmq', ssl_auth=True)
     crts = Certs()
-    orig_ca_file = crts.cert_file(crts.root_ca_name)
     try:
-        shutil.copytree(crts.cert_dir,
-                        os.path.join(os.path.dirname(crts.cert_dir),
-                                     "certs_backup"))
+        # backup original certificates dir before replacing it with fast expiry certs
+        shutil.copytree(crts.default_certs_dir,
+                        os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"))
+
         (root_ca, server_cert_name, admin_cert_name) = \
             Certs.get_admin_cert_names("volttron_test")
 
@@ -311,7 +311,9 @@ def test_expired_ca_cert_after_vstart(request):
         agent = instance.install_agent(
             agent_dir=get_examples("ListenerAgent"),
             vip_identity="listener", start=True)
-        gevent.sleep(30)
+        gevent.sleep(30)  # wait for CA to expire
+
+        # Can't install new agent
         try:
             agent = instance.install_agent(
                 agent_dir=get_examples("ListenerAgent"),
@@ -320,66 +322,64 @@ def test_expired_ca_cert_after_vstart(request):
         except Exception as e:
             print("Exception:", e)
             assert True
-        # status of first agent would still be fine and it would
-        # continue to publish hearbeat.
-        assert instance.is_agent_running(agent)
+
+        # Can't find status. Essentially we have to create CA and reissue all client certs.
+        try:
+            instance.is_agent_running(agent)
+        except Exception as e:
+            assert True
 
     finally:
-        instance.p_process.terminate()
-        shutil.rmtree(crts.cert_dir)
-        os.rename(os.path.join(os.path.dirname(crts.cert_dir), "certs_backup"),
-                  crts.cert_dir)
+        shutil.rmtree(crts.default_certs_dir)
+        os.rename(os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"),
+                  crts.default_certs_dir)
+        gevent.sleep(2)
+        # ssl restart  doesn't work when ca cert is expired. So have to restart rabbitmq server
+        # restart_ssl(rmq_home=os.path.join(os.environ.get('HOME'),
+        #                               'rabbitmq_server/rabbitmq_server-3.7.7'))
         stop_rabbit(rmq_home=os.path.join(os.environ.get('HOME'),
                                           'rabbitmq_server/rabbitmq_server-3.7.7'))
         start_rabbit(rmq_home=os.path.join(os.environ.get('HOME'),
-                                          'rabbitmq_server/rabbitmq_server-3.7.7'))
-        instance.startup_platform(vip_address=get_rand_vip())
-        cleanup_rmq_volttron_setup(vhome=instance.volttron_home,
-                                   ssl_auth=True)
+                                           'rabbitmq_server/rabbitmq_server-3.7.7'))
+        # platform needs to be restarted too since all agent certs have to regenerated when CA cert expires and new
+        # new CA is created
+        try:
+            instance.p_process.terminate()
+        except:
+            pass
 
-
+@pytest.mark.dev
 @pytest.mark.timeout(400)
+@pytest.mark.wrapper
 def test_expired_server_cert_after_vstart(request, instance):
     """
     Test error when server cert expires after volttron has started
     :param request: pytest request object
     :param instance: instance of volttron using rmq and ssl
     """
-    stop_rabbit(rmq_home=os.path.join(os.environ.get('HOME'),
-                                      'rabbitmq_server/rabbitmq_server-3.7.7'))
     crts = Certs()
-    orig_ca_file = crts.cert_file(crts.root_ca_name)
+    #instance = PlatformWrapper(message_bus='rmq', ssl_auth=True)
+
     try:
-        shutil.copytree(crts.cert_dir,
-                        os.path.join(os.path.dirname(crts.cert_dir),
-                                     "certs_backup"))
+        # backup original certificates dir before replacing it with fast expiry certs
+        shutil.copytree(crts.default_certs_dir,
+                        os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"))
         (root_ca, server_cert_name, admin_cert_name) = \
             Certs.get_admin_cert_names("volttron_test")
 
-        data = {'C': 'US',
-                'ST': 'Washington',
-                'L': 'Richland',
-                'O': 'pnnl',
-                'OU': 'volttron',
-                'CN': root_ca}
-        print("current time:{}".format(datetime.datetime.utcnow()))
-        crts.create_root_ca(**data)
-        copy(crts.cert_file(crts.root_ca_name),
-             crts.cert_file(crts.trusted_ca_name))
-
         crts.create_ca_signed_cert(server_cert_name, type='server',
-                                   fqdn='localhost', valid_days=0.001)
+                                   fqdn='localhost', valid_days=0.0004)  # 34.5 seconds
         print("current time:{}".format(datetime.datetime.utcnow()))
-        crts.create_ca_signed_cert(admin_cert_name, type='client')
+
         instance.startup_platform(vip_address=get_rand_vip())
-        #gevent.sleep(30)
-        #  waiting for rabbit to start and then volttron
-        # merge changes from develop to get platformwrapper and pid updates
+
         print("current time:{}".format(datetime.datetime.utcnow()))
+
         agent = instance.install_agent(
             agent_dir=get_examples("ListenerAgent"),
-            vip_identity="listener", start=True)
-        gevent.sleep(50) #Timinig nightmare!
+            vip_identity="listener1", start=True)
+        gevent.sleep(20)
+        print("Attempting agent install after server certificate expiry")
         try:
             agent = instance.install_agent(
                 agent_dir=get_examples("ListenerAgent"),
@@ -388,22 +388,27 @@ def test_expired_server_cert_after_vstart(request, instance):
         except Exception as e:
             print("Exception:", e)
             assert True
+
+        crts.create_ca_signed_cert(server_cert_name, type='server',
+                                   fqdn='localhost')
+        restart_ssl(rmq_home=os.path.join(os.environ.get('HOME'),
+                                          'rabbitmq_server/rabbitmq_server-3.7.7'))
+        gevent.sleep(30)  # hardcoded seconds that rmq_connection class waits before reconnecting
         # status of first agent would still be fine and it would
         # continue to publish hearbeat. What should be the expected
         # behavior
         assert instance.is_agent_running(agent)
 
     finally:
-        shutil.rmtree(crts.cert_dir)
-        os.rename(os.path.join(os.path.dirname(crts.cert_dir), "certs_backup"),
-                  crts.cert_dir)
-        stop_rabbit(rmq_home=os.path.join(os.environ.get('HOME'),
+        shutil.rmtree(crts.default_certs_dir)
+        os.rename(os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"),
+                  crts.default_certs_dir)
+        print("In finally. Restarting ssl so that RMQ picks up the right certs")
+        restart_ssl(rmq_home=os.path.join(os.environ.get('HOME'),
                                           'rabbitmq_server/rabbitmq_server-3.7.7'))
-        start_rabbit(rmq_home=os.path.join(os.environ.get('HOME'),
-                                          'rabbitmq_server/rabbitmq_server-3.7.7'))
-        cleanup_rmq_volttron_setup(vhome=instance.volttron_home,
-                                   ssl_auth=True)
-        instance.shutdown_platform()
-
+        try:
+            instance.p_process.terminate()
+        except:
+            pass
 
 

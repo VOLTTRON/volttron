@@ -418,7 +418,8 @@ class PlatformWrapper:
                          msgdebug=False,
                          setupmode=False,
                          instance_name=None,
-                         agent_monitor_frequency=600):
+                         agent_monitor_frequency=600,
+                         timeout=60):
 
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
@@ -555,11 +556,11 @@ class PlatformWrapper:
 
         # Check for VOLTTRON_PID
         sleep_time = 0
-        while (not self.is_running()) and sleep_time < 60:
+        while (not self.is_running()) and sleep_time < timeout:
             gevent.sleep(3)
             sleep_time += 3
 
-        if sleep_time >= 60:
+        if sleep_time >= timeout:
             raise Exception("Platform startup failed. Please check volttron.log in {}".format(self.volttron_home))
 
         self.serverkey = self.keystore.public
