@@ -40,7 +40,7 @@
                             $("#status").show();
                         },
                         200: function(response){
-                            document.cookie = "Bearer="+response.responseText+"; secure=True";
+                            document.cookie = "Bearer="+response.responseText+"; secure=True; path=/";
                             window.location=window.location.origin + "/admin/index.html";
                         }
                     }
