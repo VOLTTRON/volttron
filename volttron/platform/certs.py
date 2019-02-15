@@ -450,6 +450,17 @@ class Certs(object):
     def get_rejected_certs(self):
         return []
 
+    def load_csr(self, data):
+        """
+        Loads a PEM X.509 CSR.
+        """
+        return x509.load_pem_x509_csr(data, default_backend())
+
+    def get_csr_common_name(self, data):
+        csr = self.load_csr(data)
+
+        return csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+
     def create_csr(self, name, remote_instance_name):
         """
         Create a csr with name as the common name.
