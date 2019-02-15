@@ -62,7 +62,7 @@ from zmq.utils.monitor import recv_monitor_message
 from volttron.platform import certs
 from volttron.platform import get_address
 from volttron.platform.agent import utils
-from volttron.platform.agent.utils import load_platform_config
+from volttron.platform.agent.utils import load_platform_config, get_platform_instance_name
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from .decorators import annotate, annotations, dualmethod
@@ -885,9 +885,13 @@ class RMQCore(Core):
         if self.identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
-            param = self.rmq_mgmt.build_agent_connection(self.identity,
-                                                         self.instance_name)
-
+            if self.instance_name == get_platform_instance_name():
+                param = self.rmq_mgmt.build_agent_connection(self.identity,
+                                                             self.instance_name)
+            else:
+                param = self.rmq_mgmt.build_remote_connection_param(self.rmq_user,
+                                                                    self.rmq_address,
+                                                                    True)
         return param
 
     def loop(self, running_event):

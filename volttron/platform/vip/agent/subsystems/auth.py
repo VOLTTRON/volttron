@@ -94,10 +94,9 @@ class Auth(SubsystemBase):
                 info.vc_rmq_address)
 
             # remote_identity = "{}.{}".format(get_platform_instance_name(), self.core.identity)
-            return build_agent(identity=".".join((get_platform_instance_name(),
-                                                                self._core().identity)),
-                                             address=remote_rmq_address,
-                                             instance_name=info.instance_name)
+            return build_agent(identity=remote_rmq_user,
+                               address=remote_rmq_address,
+                               instance_name=info.instance_name)
 
     def request_cert(self, csr_server):
         """ Get a signed csr from the csr_server endpoint
@@ -123,8 +122,8 @@ class Auth(SubsystemBase):
                                           get_fq_identity(self._core().identity))
         remote_ca_name = info.instance_name+"_ca"
 
-        if certs.cert_exists(remote_cert_name, True):
-            return certs.cert(remote_cert_name, True)
+        # if certs.cert_exists(remote_cert_name, True):
+        #     return certs.cert(remote_cert_name, True)
 
         json_request = dict(
             csr=csr_request,
