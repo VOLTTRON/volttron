@@ -130,10 +130,14 @@ class ListenerAgent(Agent):
         if self._establish_connection_event is not None:
             self._establish_connection_event.cancel()
 
-        self._remote_agent = self.vip.auth.connect_remote_platform("https://v2:8443")
+        agent = self.vip.auth.connect_remote_platform("https://v2:8443")
+
+        if isinstance(agent, tuple):
+            _log.debug(agent)
+        else:
+            self._remote_agent = agent
 
         if not self._remote_agent:
-
             next_update_time = self._next_update_time(5)
             self._establish_connection_event = self.core.schedule(
                 next_update_time, self._connect_to_remote)

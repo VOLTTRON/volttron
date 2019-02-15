@@ -132,10 +132,16 @@ class AdminEndpoints(object):
         _log.debug("Doing admin endpoint {}".format(endpoint))
         if endpoint == 'certs':
             response = self.__cert_list_api()
+        elif endpoint == 'pending_csrs':
+            response = self.__pending_csrs_api()
         else:
             response = Response('{"status": "Unknown endpoint {}"}'.format(endpoint),
                                 content_type="application/json")
         return response
+
+    def __pending_csrs_api(self):
+        csrs = [c for c in self._certs.get_pending_csr_requests()]
+        return Response(json.dumps(csrs), content_type="application/json")
 
     def __cert_list_api(self):
 

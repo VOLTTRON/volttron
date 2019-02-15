@@ -321,11 +321,11 @@ class Certs(object):
         """
         return '/'.join((self.ca_db_dir, name + '-serial'))
 
-    def csr_create_file(self, name, target=None):
+    def csr_pending_file(self, name, target=None):
         if target:
-            return '/'.join((self.remote_cert_dir, target + "-" + name + ".csr"))
+            return '/'.join((self.csr_pending_dir, target + "-" + name + ".csr"))
 
-        return '/'.join((self.remote_cert_dir, name + ".csr"))
+        return '/'.join((self.csr_pending_dir, name + ".csr"))
 
     def remote_certs_file(self, name):
         return '/'.join((self.remote_cert_dir, name + '.crt'))
@@ -442,7 +442,13 @@ class Certs(object):
         return False
 
     def get_pending_csr_requests(self):
-        return []
+        pending_csr = []
+        for c in os.listdir(self.csr_pending_dir):
+            if c.endswith('.json'):
+                with open(os.path.join(self.csr_pending_dir, c)) as fp:
+                    pending_csr.append(json.loads(fp.read()))
+
+        return pending_csr
 
     def get_pending_certs(self):
         return []
@@ -460,6 +466,23 @@ class Certs(object):
         csr = self.load_csr(data)
 
         return csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+
+    def save_pending_csr_request(self, ip_addr, common_name, csr):
+        meta = dict(remote_ip_address=ip_addr, identity=common_name,
+                    csr=csr, status="PENDING")
+        metafile = os.path.join(self.csr_pending_dir, common_name+".json")
+
+        if os.path.exists(metafile):
+            _log.debug("csr file already exists, not saving")
+        else:
+            with open(metafile, 'w') as fp:
+                fp.write(json.dumps(meta))
+
+    def save_pending_csr(self, data):
+        common_name = self.get_csr_common_name(data)
+
+        with open(os.path.join(self.csr_pending_dir, common_name+'.csr'), 'wb') as fp:
+            fp.write(data)
 
     def create_csr(self, name, remote_instance_name):
         """

@@ -4,7 +4,10 @@
 
     <ul>
     {% for c in csrs %}
-        <li>{{c}}</li>
+        <li><a href="javascript:approve('{{c}}'); return false;">Approve</a>
+            <a href="javascript:deny('{{c}}'); return false;">Deny</a>
+            <a href="javascript:delete('{{c}}'); return false;">Delete</a>
+            {{c}}</li>
     {% endfor %}
     </ul>
 

@@ -39,20 +39,19 @@ class CSREndpoints(object):
             request_data = data.copy()
 
         csr = request_data.get('csr')
-        identity = request_data.get('identity')
+        identity = self._certs.get_csr_common_name(str(csr))
 
-        # The identity
-        if not identity.startswith(get_platform_instance_name()):
-            json_response = dict(status="FAILURE",
+        # The identity must start with the current instances name or it is a failure.
+        if not identity.startswith(get_platform_instance_name() + "."):
+            json_response = dict(status="ERROR",
                                  message="CSR must start with instance name: {}".format(
                                      get_platform_instance_name()))
             Response(json.dumps(json_response),
                      content_type='application/json',
                      headers={'Content-type': 'application/json'})
 
-        cert_identity = self._certs.get_csr_common_name(str(csr))  # csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
-
-        csr_file = self._certs.csr_create_file(identity)
+        self._certs.save_pending_csr_request(env.get('REMOTE_ADDR'), identity, csr)
+        csr_file = self._certs.csr_pending_file(identity)
         if csr:
             with open(csr_file, "wb") as fw:
                 fw.write(csr)
@@ -71,7 +70,8 @@ class CSREndpoints(object):
             )
         else:
             _log.debug("Returning pending!")
-            json_response = dict(status="PENDING")
+            json_response = dict(status="PENDING",
+                                 message="The request is pending administrator approval.")
 
         return Response(json.dumps(json_response),
                         content_type='application/json',

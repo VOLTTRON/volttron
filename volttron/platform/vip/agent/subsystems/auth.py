@@ -84,7 +84,7 @@ class Auth(SubsystemBase):
         value = self.request_cert(address)
 
         _log.debug("RESPONSE VALUE WAS: {}".format(value))
-        if value is not None:
+        if not isinstance(value, tuple):
             info = DiscoveryInfo.request_discovery_info(address)
             remote_rmq_user = "{}.{}.{}".format(info.instance_name,
                                                 get_platform_instance_name(),
@@ -97,6 +97,7 @@ class Auth(SubsystemBase):
             return build_agent(identity=remote_rmq_user,
                                address=remote_rmq_address,
                                instance_name=info.instance_name)
+        return value
 
     def request_cert(self, csr_server):
         """ Get a signed csr from the csr_server endpoint
@@ -135,11 +136,12 @@ class Auth(SubsystemBase):
                                  verify=False)
 
         _log.debug("The response: {}".format(response))
-        from pprint import pprint
-        pprint(response.json())
+        # from pprint import pprint
+        # pprint(response.json())
         j = response.json()
         status = j.get('status')
         cert = j.get('cert')
+        message = j.get('message', '')
 
         if status == 'SUCCESSFUL':
             certs.save_remote_info(get_fq_identity(self._core().identity),
@@ -148,15 +150,23 @@ class Auth(SubsystemBase):
                                    info.rmq_ca_cert)
 
         elif status == 'PENDING':
-            print('PENDING')
+            _log.debug("Pending CSR request for {}".format(remote_cert_name))
         elif status == 'DENIAL':
             print("Woops")
         elif status == 'ERROR':
-            print("Wrong address")
-        else: # No resposne
+            err = "Error retrieving certificate from {}\n".format(
+                config.hostname)
+            err += "{}".format(message)
+            raise ValueError(err)
+        else:  # No resposne
             return None
 
-        return certs.cert_file(remote_cert_name, remote=True)
+        certfile = certs.cert_file(remote_cert_name, remote=True)
+
+        if certs.cert_exists(certfile):
+            return certfile
+        else:
+            return status, message
 
     def _fetch_capabilities(self):
         while self._dirty:
