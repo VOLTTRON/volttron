@@ -293,14 +293,15 @@ class MasterWebService(Agent):
         q = query.Query(self.core)
 
         self.instance_name = q.query('instance-name').get(timeout=60)
-        print("Discovery instance: {}".format(self.instance_name))
         addreses = q.query('addresses').get(timeout=60)
         external_vip = None
         for x in addreses:
-            if not is_ip_private(x):
-                external_vip = x
-                break
-        peers = self.vip.peerlist().get(timeout=60)
+            try:
+                if not is_ip_private(x):
+                    external_vip = x
+                    break
+            except IndexError:
+                pass
 
         return_dict = {}
 
@@ -531,7 +532,7 @@ class MasterWebService(Agent):
         self.registeredroutes.append((re.compile('^/$'), 'callable',
                                       self._redirect_index))
 
-        for rt in CSREndpoints().get_routes():
+        for rt in CSREndpoints(self.core).get_routes():
             self.registeredroutes.append(rt)
 
         for rt in self._admin_endpoints.get_routes():
