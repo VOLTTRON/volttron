@@ -8,7 +8,7 @@ from passlib.hash import argon2
 from watchdog_gevent import Observer
 
 from volttron.platform import get_home
-from volttron.platform.agent.web import Response
+from volttron.platform.agent.web import Response, Endpoints
 from volttron.utils import FileReloader
 from volttron.utils.persistance import PersistentDict
 
@@ -28,7 +28,7 @@ tplenv = Environment(
 )
 
 
-class AuthenticateEndpoints(object):
+class AuthenticateEndpoints(Endpoints):
 
     def __init__(self, ssl_private_key):
 

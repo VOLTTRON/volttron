@@ -11,32 +11,23 @@ from watchdog_gevent import Observer
 
 from volttron.platform import get_home
 from volttron.platform.agent import json
-from volttron.platform.agent.web import Response
+from volttron.platform.agent.web import Response, Endpoints
 from volttron.utils import FileReloader
 from volttron.utils.persistance import PersistentDict
 from volttron.platform.certs import Certs
 
 _log = logging.getLogger(__name__)
 
-__PACKAGE_DIR__ = os.path.dirname(os.path.abspath(__file__))
-__TEMPLATE_DIR__ = os.path.join(__PACKAGE_DIR__, "templates")
-__STATIC_DIR__ = os.path.join(__PACKAGE_DIR__, "static")
+
+def template_env(env):
+    return env['JINJA2_TEMPLATE_ENV']
 
 
-# Our admin interface will use Jinja2 templates based upon the above paths
-# reference api for using Jinja2 http://jinja.pocoo.org/docs/2.10/api/
-# Using the FileSystemLoader instead of the package loader in this case however.
-tplenv = Environment(
-    loader=FileSystemLoader(__TEMPLATE_DIR__),
-    autoescape=select_autoescape(['html', 'xml'])
-)
-
-
-class AdminEndpoints(object):
+class AdminEndpoints(Endpoints):
 
     def __init__(self, ssl_public_key):
 
-        self._userdict = None #PersistentDict(webuserpath)
+        self._userdict = None
         self._ssl_public_key = ssl_public_key
         self._userdict = None
         self.reload_userdict()
@@ -76,12 +67,12 @@ class AdminEndpoints(object):
                     self.add_user(username, pass1, groups=['admin'])
                     return Response('', status='302', headers={'Location': '/admin/login.html'})
 
-            template = tplenv.get_template('first.html')
+            template = template_env(env).get_template('first.html')
             resp = template.render()
             return Response(template.render())
 
-        if 'login.html' in env.get('PATH_INFO'):
-            template = tplenv.get_template('login.html')
+        if 'login.html' in env.get('PATH_INFO') or '/admin/' == env.get('PATH_INFO'):
+            template = template_env(env).get_template('login.html')
             resp = template.render()
             return Response(template.render())
 
@@ -91,7 +82,7 @@ class AdminEndpoints(object):
 
         bearer = env.get('HTTP_COOKIE')
         if not bearer:
-            template = tplenv.get_template('login.html')
+            template = template_env(env).get_template('login.html')
             return Response(template.render(), status='401 Unauthorized')
 
         cookie = Cookie.SimpleCookie(env.get('HTTP_COOKIE'))
@@ -110,7 +101,7 @@ class AdminEndpoints(object):
         if path_info.endswith('html'):
             page = path_info.split('/')[-1]
             try:
-                template = tplenv.get_template(page)
+                template = template_env(env).get_template(page)
             except TemplateNotFound:
                 return Response("<h1>404 Not Found</h1>", status="404 Not Found")
 
@@ -124,7 +115,7 @@ class AdminEndpoints(object):
 
             return Response(html)
 
-        template = tplenv.get_template('index.html')
+        template = template_env(env).get_template('index.html')
         resp = template.render()
         return Response(resp)
 

@@ -55,6 +55,7 @@ import zlib
 
 import mimetypes
 
+from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
 from volttron.utils import is_ip_private
 from webapp import WebApplicationWrapper
 from admin_endpoints import AdminEndpoints
@@ -82,6 +83,20 @@ class CouldNotRegister(StandardError):
 
 class DuplicateEndpointError(StandardError):
     pass
+
+
+__PACKAGE_DIR__ = os.path.dirname(os.path.abspath(__file__))
+__TEMPLATE_DIR__ = os.path.join(__PACKAGE_DIR__, "templates")
+__STATIC_DIR__ = os.path.join(__PACKAGE_DIR__, "static")
+
+
+# Our admin interface will use Jinja2 templates based upon the above paths
+# reference api for using Jinja2 http://jinja.pocoo.org/docs/2.10/api/
+# Using the FileSystemLoader instead of the package loader in this case however.
+tplenv = Environment(
+    loader=FileSystemLoader(__TEMPLATE_DIR__),
+    autoescape=select_autoescape(['html', 'xml'])
+)
 
 
 class MasterWebService(Agent):
@@ -338,7 +353,7 @@ class MasterWebService(Agent):
         # agents.
         envlist = ['HTTP_USER_AGENT', 'PATH_INFO', 'QUERY_STRING',
                    'REQUEST_METHOD', 'SERVER_PROTOCOL', 'REMOTE_ADDR',
-                   'HTTP_ACCEPT_ENCODING']
+                   'HTTP_ACCEPT_ENCODING', 'HTTP_COOKIE', 'CONTENT_TYPE']
         data = env['wsgi.input'].read()
         passenv = dict(
             (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)) if envlist[i] in env.keys())
@@ -351,6 +366,12 @@ class MasterWebService(Agent):
 
         if self.is_json_content(env):
             data = json.loads(data)
+
+        # Load the publickey that was used to sign the login message through the env
+        # parameter so agents can use it to verify the Bearer has specific
+        # jwt claims
+        passenv['WEB_PUBLIC_KEY'] = env['WEB_PUBLIC_KEY'] = self._certs.get_cert_public_key(get_fq_identity(self.core.identity))
+
 
         # if we have a peer then we expect to call that peer's web subsystem
         # callback to perform whatever is required of the method.
@@ -365,6 +386,8 @@ class MasterWebService(Agent):
                 return self.create_response(res, start_response)
             elif res_type == "raw":
                 return self.create_raw_response(res, start_response)
+
+        env['JINJA2_TEMPLATE_ENV'] = tplenv
 
         for k, t, v in self.registeredroutes:
             if k.match(path_info):
