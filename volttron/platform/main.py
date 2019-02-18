@@ -806,7 +806,7 @@ def start_volttron_process(opts):
                 sys.exit()
             except subprocess.CalledProcessError as exc:
                 _log.error("Unable to start rabbitmq server. "
-                           "Possible solution is to regenerate the certificates and start volttron again")
+                           "Check rabbitmq log for errors")
                 sys.exit()
 
             # Start the config store before auth so we may one day have auth use it.

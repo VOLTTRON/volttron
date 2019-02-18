@@ -238,7 +238,6 @@ class AIPplatform(object):
         pid_file = "{vhome}/VOLTTRON_PID".format(vhome=get_home())
         with open(pid_file) as f:
             pid = int(f.read())
-        print pid
         if pid:
             os.kill(pid, signal.SIGINT)
             os.remove(pid_file)

@@ -170,7 +170,7 @@ class RMQConnection(BaseConnection):
         :param str reply_text: The text reason the channel was closed
 
         """
-        _log.error("Channel Closed Unexpectedly. {0}, {1}".format(reply_code, reply_text))
+        #_log.error("Channel Closed Unexpectedly. {0}, {1}".format(reply_code, reply_text))
         if reply_code == RMQ_RESOURCE_LOCKED:
             _log.error("Channel Closed Unexpectedly. Attempting to run Agent/platform again".format(self._identity))
             self._connection.close()

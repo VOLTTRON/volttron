@@ -294,13 +294,11 @@ class BasicCore(object):
             stop.wait()
         except (gevent.GreenletExit, KeyboardInterrupt):
             pass
-        print("Out of gevent wait")
+
         scheduler.kill()
         looper.next()
-        print("prestop done")
         receivers = self.onstop.sendby(self.link_receiver, self)
         gevent.wait(receivers)
-        print("prefinish done")
         looper.next()
         self.onfinish.send(self)
 
@@ -533,7 +531,8 @@ class Core(BasicCore):
             # shut down.
             if hello_response_event.wait(10.0):
                 return
-            _log.error("No response to hello message after 10 seconds.{}".format(self.messagebus))
+            _log.error("No response to hello message after 10 seconds.")
+            _log.error("Type of message bus used {}".format(self.messagebus))
             _log.error("A common reason for this is a conflicting VIP IDENTITY.")
             _log.error("Another common reason is not having an auth entry on"
                        "the target instance.")
@@ -880,11 +879,13 @@ class RMQCore(Core):
 
         if self.identity is None:
             raise ValueError("Agent's VIP identity is not set")
-            return param
         else:
-            param = self.rmq_mgmt.build_agent_connection(self.identity,
+            try:
+                param = self.rmq_mgmt.build_agent_connection(self.identity,
                                                          self.instance_name)
-
+            except AttributeError:
+                _log.error("RabbitMQ broker may not be running. Restart the broker first")
+                param = None
         return param
 
     def loop(self, running_event):
@@ -931,7 +932,7 @@ class RMQCore(Core):
             if router_connected:
                 hello()
             else:
-                _log.debug("Router not bound to RabbitMQ yet, waiting for 5 seconds before sending hello {}".
+                _log.debug("Router not bound to RabbitMQ yet, waiting for 2 seconds before sending hello {}".
                            format(self.identity))
                 self.spawn_later(2, hello)
 

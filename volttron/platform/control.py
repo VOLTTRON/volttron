@@ -77,6 +77,7 @@ from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from .vip.agent.errors import VIPError
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import check_rabbit_status
+from volttron.utils.rmq_config_params import RMQConfig
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 from volttron.platform.scheduling import periodic
@@ -866,13 +867,23 @@ def run_agent(opts):
 
 
 def shutdown_agents(opts):
-    if 'rmq' == utils.get_messagebus() and not check_rabbit_status():
-        opts.aip.rmq_shutdown()
-    else:
-        opts.connection.call('shutdown')
-        _log.debug("Calling stop_platform")
-        if opts.platform:
-            opts.connection.notify('stop_platform')
+    if 'rmq' == utils.get_messagebus():
+        if not check_rabbit_status():
+            rmq_cfg = RMQConfig()
+            wait_period = rmq_cfg.reconnect_delay() if rmq_cfg.reconnect_delay() < 60 else 60
+            _stderr.write(
+                'RabbitMQ server is not running.\n'
+                'Waiting for {} seconds for possible reconnection and to perform normal shutdown\n'.format(wait_period))
+            gevent.sleep(wait_period)
+            if not check_rabbit_status():
+                _stderr.write(
+                    'RabbitMQ server is still not running.\nShutting down the platform forcefully\n')
+                opts.aip.rmq_shutdown()
+                return
+    opts.connection.call('shutdown')
+    _log.debug("Calling stop_platform")
+    if opts.platform:
+        opts.connection.notify('stop_platform')
 
 
 def create_cgroups(opts):

@@ -173,12 +173,10 @@ def volttron_instance_module_web(request):
     return wrapper
 
 
-
 # Generic fixtures. Ideally we want to use the below instead of
 # Use this fixture when you want a single instance of volttron platform for
 # test
 @pytest.fixture(scope="module",
-                #params=[('zmq', False)])
                 params=[('zmq', False), ('rmq', True)])
 def volttron_instance(request, **kwargs):
     """Fixture that returns a single instance of volttron platform for testing
