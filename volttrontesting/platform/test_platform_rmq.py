@@ -388,7 +388,8 @@ def test_expired_server_cert_after_vstart(request, instance):
                                    fqdn='localhost')
         restart_ssl(rmq_home=os.path.join(os.environ.get('HOME'),
                                           'rabbitmq_server/rabbitmq_server-3.7.7'))
-        gevent.sleep(35)  # hardcoded for now. Can be configured once the corresponding PR is merged in
+
+        gevent.sleep(10)  # test setup sets the volttron reconnect wait to 5 seconds
 
         # status of first agent would still be fine and it would
         # continue to publish hearbeat. What should be the expected
