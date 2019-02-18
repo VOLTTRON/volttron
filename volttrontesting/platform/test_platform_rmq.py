@@ -392,8 +392,7 @@ def test_expired_server_cert_after_vstart(request, instance):
         gevent.sleep(10)  # test setup sets the volttron reconnect wait to 5 seconds
 
         # status of first agent would still be fine and it would
-        # continue to publish hearbeat. What should be the expected
-        # behavior
+        # continue to publish hearbeat.
         assert instance.is_agent_running(agent)
 
     finally:
