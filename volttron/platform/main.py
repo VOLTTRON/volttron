@@ -961,6 +961,9 @@ def start_volttron_process(opts):
                 os.remove(pid_file)
         except Exception:
             _log.warn("Unable to load {}".format(VOLTTRON_INSTANCES))
+        _log.debug("********************************************************************")
+        _log.debug("VOLTTRON PLATFORM HAS SHUTDOWN")
+        _log.debug("********************************************************************")
 
 
 def main(argv=sys.argv):
