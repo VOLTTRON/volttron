@@ -78,7 +78,7 @@ class RMQConnection(BaseConnection):
     2. Translates from VIP message format to RabbitMQ message format and visa-versa
     3. Sends and receives messages using Pika library APIs
     """
-    def __init__(self, url, identity, instance_name, vc_url=None):
+    def __init__(self, url, identity, instance_name, reconnect_delay=30, vc_url=None):
         super(RMQConnection, self).__init__(url, identity, instance_name)
         self._connection = None
         self.channel = None
@@ -97,6 +97,7 @@ class RMQConnection(BaseConnection):
         self._connect_error_callback = None
         self._queue_properties = dict()
         self._explicitly_closed = False
+        self._reconnect_delay = reconnect_delay
         #_log.debug("ROUTING KEY: {}".format(self.routing_key))
 
     def open_connection(self):
@@ -144,10 +145,9 @@ class RMQConnection(BaseConnection):
             self._connection.ioloop.stop()
             return
 
-        timeout = 30
         _log.error("Connection closed unexpectedly, reopening in {timeout} seconds. {identity}"
-                   .format(timeout=timeout, identity=self._identity))
-        self._connection.add_timeout(timeout, self._reconnect)
+                   .format(timeout=self._reconnect_delay, identity=self._identity))
+        self._connection.add_timeout(self._reconnect_delay, self._reconnect)
 
     def add_on_channel_close_callback(self):
         """
@@ -170,7 +170,7 @@ class RMQConnection(BaseConnection):
         :param str reply_text: The text reason the channel was closed
 
         """
-        _log.error("Channel Closed Unexpectedly. {0}, {1}".format(reply_code, reply_text))
+        #_log.error("Channel Closed Unexpectedly. {0}, {1}".format(reply_code, reply_text))
         if reply_code == RMQ_RESOURCE_LOCKED:
             _log.error("Channel Closed Unexpectedly. Attempting to run Agent/platform again".format(self._identity))
             self._connection.close()
@@ -331,7 +331,7 @@ class RMQConnection(BaseConnection):
                                    destination_routing_key,
                                    json.dumps(msg, ensure_ascii=False),
                                    properties)
-        except (pika.exceptions.AMQPConnectionErro,
+        except (pika.exceptions.AMQPConnectionError,
                 pika.exceptions.AMQPChannelError) as exc:
             raise Unreachable(errno.EHOSTUNREACH, "Connection to RabbitMQ is lost",
                               'rabbitmq broker', 'rmq_connection')
@@ -374,8 +374,8 @@ class RMQRouterConnection(RMQConnection):
     """
     RabbitMQ message bus connection class for Router module
     """
-    def __init__(self, url, identity, instance_name, vc_url=None):
-        super(RMQRouterConnection, self).__init__(url, identity, instance_name)
+    def __init__(self, url, identity, instance_name, reconnect_delay=30, vc_url=None):
+        super(RMQRouterConnection, self).__init__(url, identity, instance_name, reconnect_delay=reconnect_delay)
         _log.debug("ROUTER URL: {}".format(url))
         self._alternate_exchange = 'undeliverable'
         self._alternate_queue = "{instance}.{identity}.unroutable".format(instance=instance_name,
