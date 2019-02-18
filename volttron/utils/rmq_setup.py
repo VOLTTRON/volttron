@@ -927,6 +927,21 @@ def restart_ssl(rmq_home):
     cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "eval", "ssl:stop(), ssl:start()."]
     execute_command(cmd, err_prefix="Error reloading ssl certificates")
 
+
+def check_rabbit_status(rmq_home=None):
+    status = True
+    if not rmq_home:
+        rmq_cfg = RMQConfig()
+        rmq_home = rmq_cfg.rmq_home
+
+    status_cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "shovel_status"]
+    try:
+        execute_command(status_cmd)
+    except Exception:
+        status = False
+    return status
+
+
 def start_rabbit(rmq_home):
     """
     Start RabbitMQ server

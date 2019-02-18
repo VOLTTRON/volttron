@@ -58,6 +58,7 @@ from gevent.fileobject import FileObject
 import zmq
 from zmq import ZMQError
 from zmq import green
+import subprocess
 
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
@@ -803,6 +804,10 @@ def start_volttron_process(opts):
             except AttributeError as exc:
                 _log.error("Exception while starting RabbitMQ. Check the path in the config file.")
                 sys.exit()
+            except subprocess.CalledProcessError as exc:
+                _log.error("Unable to start rabbitmq server. "
+                           "Check rabbitmq log for errors")
+                sys.exit()
 
             # Start the config store before auth so we may one day have auth use it.
             config_store = ConfigStoreService(address=address,
@@ -956,6 +961,9 @@ def start_volttron_process(opts):
                 os.remove(pid_file)
         except Exception:
             _log.warn("Unable to load {}".format(VOLTTRON_INSTANCES))
+        _log.debug("********************************************************************")
+        _log.debug("VOLTTRON PLATFORM HAS SHUTDOWN")
+        _log.debug("********************************************************************")
 
 
 def main(argv=sys.argv):

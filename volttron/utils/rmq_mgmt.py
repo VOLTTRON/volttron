@@ -876,10 +876,14 @@ class RabbitMQMgmt(object):
 
         if self.is_ssl:
             self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)
+        param = None
 
-        self.create_user_with_permissions(rmq_user, permissions, ssl_auth=self.is_ssl)
+        try:
+            self.create_user_with_permissions(rmq_user, permissions, ssl_auth=self.is_ssl)
+            param = self.build_connection_param(rmq_user, ssl_auth=self.is_ssl)
+        except AttributeError:
+            _log.error("Unable to create RabbitMQ user for the agent. Check if RabbitMQ broker is running")
 
-        param = self.build_connection_param(rmq_user, ssl_auth=self.is_ssl)
         return param
 
     def build_shovel_connection(self, identity, instance_name, host, port, vhost, is_ssl):

@@ -114,6 +114,7 @@ class RMQConfig(object):
         self.config_opts.setdefault('mgmt-port', 15672)
         self.config_opts.setdefault('mgmt-port-ssl', 15671)
         self.config_opts.setdefault('virtual-host', 'volttron')
+        self.config_opts.setdefault('reconnect-delay', 30)
         self.config_opts.setdefault('user', self.instance_name + '-admin')
         rmq_home = os.path.join(os.path.expanduser("~"),
                                 "rabbitmq_server/rabbitmq_server-3.7.7")
@@ -173,6 +174,8 @@ class RMQConfig(object):
     def local_password(self):
         return "guest"
 
+    def reconnect_delay(self):
+        return self.config_opts.get('reconnect-delay')
     @hostname.setter
     def hostname(self, host):
         self.config_opts['host'] = host

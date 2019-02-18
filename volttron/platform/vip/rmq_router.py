@@ -108,7 +108,8 @@ class RMQRouter(BaseRouter):
         param = self._build_connection_parameters()
         self.connection = RMQRouterConnection(param,
                                               identity,
-                                              instance_name
+                                              instance_name,
+                                              reconnect_delay=self.rmq_mgmt.rmq_config.reconnect_delay()
                                               )
 
     def _build_connection_parameters(self):
