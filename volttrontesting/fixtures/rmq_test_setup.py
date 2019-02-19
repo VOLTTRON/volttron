@@ -25,7 +25,8 @@ rabbitmq_config = {
     'amqp-port-ssl': 5671,
     'mgmt-port': 15672,
     'mgmt-port-ssl': 15671,
-    'rmq-home': os.path.join(HOME, 'rabbitmq_server/rabbitmq_server-3.7.7')
+    'rmq-home': os.path.join(HOME, 'rabbitmq_server/rabbitmq_server-3.7.7'),
+    'reconnect-delay': 5
 }
 
 
@@ -88,7 +89,7 @@ def cleanup_rmq_volttron_setup(vhome=None, ssl_auth=False):
                              vhost=rabbitmq_config['virtual-host'])
     rmq_mgmt.delete_exchange(exchange='volttron',
                              vhost=rabbitmq_config['virtual-host'])
-    rmq_mgmt.delete_vhost(vhost=rabbitmq_config['virtual-host'])
+    #rmq_mgmt.delete_vhost(vhost=rabbitmq_config['virtual-host'])
 
     if ssl_auth:
         rmq_mgmt.delete_user('volttron_test-admin')

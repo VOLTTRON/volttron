@@ -67,7 +67,8 @@ def cleanup_wrappers(platforms):
     for p in platforms:
         cleanup_wrapper(p)
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module",
+                params=[('zmq', False), ('rmq', True)])
 def volttron_instance1(request):
     print("building instance 1")
     wrapper = build_wrapper(get_rand_vip())
@@ -79,7 +80,8 @@ def volttron_instance1(request):
     return wrapper
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module",
+                params=[('zmq', False), ('rmq', True)])
 def volttron_instance2(request):
     print("building instance 2")
     wrapper = build_wrapper(get_rand_vip())
@@ -169,7 +171,6 @@ def volttron_instance_module_web(request):
 
     request.addfinalizer(cleanup)
     return wrapper
-
 
 
 # Generic fixtures. Ideally we want to use the below instead of
@@ -273,6 +274,30 @@ def volttron_instance_zmq(request):
 
     def cleanup():
         print('Shutting down instance: {}'.format(wrapper.volttron_home))
+        wrapper.shutdown_platform()
+
+    request.addfinalizer(cleanup)
+    return wrapper
+
+# Use this fixture when you want a single instance of volttron platform for rmq message bus
+# test
+@pytest.fixture(scope="module")
+def volttron_instance_rmq(request):
+    """Fixture that returns a single instance of volttron platform for testing
+
+    @param request: pytest request object
+    @return: volttron platform instance
+    """
+    wrapper = None
+    address = get_rand_vip()
+
+    wrapper = build_wrapper(address,
+                            message_bus='rmq',
+                            ssl_auth = True)
+
+
+    def cleanup():
+        print('Shutting down RMQ instance: {}'.format(wrapper.volttron_home))
         wrapper.shutdown_platform()
 
     request.addfinalizer(cleanup)

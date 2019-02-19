@@ -45,3 +45,6 @@ ssl: 'true'
 # defaults to ~/rabbitmq_server/rabbbitmq_server-3.7.7
 rmq-home: "~/rabbitmq_server/rabbitmq_server-3.7.7"
 
+# RabbitMQ reconnect retry delay (in seconds)
+reconnect-delay: 30
+

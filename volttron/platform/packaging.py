@@ -460,14 +460,6 @@ def _create_ca(override=True, data=None):
         data = _create_cert_ui(crts.default_root_ca_cn)
     crts.create_root_ca(**data)
 
-def create_instance_ca(instance_name):
-    crts = certs.Certs()
-    ca_name, server_name, admin_name = crts.get_admin_cert_names(instance_name)
-    crts.create_instance_ca(ca_name)
-    print("\nCreated files: \n{}\n{}".format(
-        crts.cert_file(ca_name),
-        crts.private_key_file(ca_name)))
-
 
 def _create_cert(name=None, **kwargs):
     """Create a cert using options specified on the command line"""
@@ -486,8 +478,6 @@ def _create_cert(name=None, **kwargs):
         cert_data = _create_cert_ui('{} ({})'.format(cert_type, name))
 
     instance_name = get_platform_instance_name()
-    instance_ca, server, admin = certs.Certs.get_admin_cert_names(instance_name)
-    #crts.create_ca_signed_cert(name, ca_name=instance_ca,  **cert_data)
     crts.create_ca_signed_cert(name, **cert_data)
 
 
@@ -610,11 +600,7 @@ def main(argv=sys.argv):
                                help='configuration file to add to wheel.')
 
     create_ca_cmd = subparsers.add_parser('create_ca')
-    create_instance_ca_cmd = subparsers.add_parser('create_instance_ca')
-    create_instance_ca_cmd.add_argument(
-        'instance_name',
-        help='Name of the instance for which intermediate CA needs to be '
-             'generated')
+
     if auth is not None:
         create_cert_cmd = subparsers.add_parser('create_cert')
         create_cert_opts = create_cert_cmd.add_mutually_exclusive_group(required=True)
@@ -708,8 +694,6 @@ def main(argv=sys.argv):
             init_agent(opts.directory, opts.module_name, opts.template, opts.silent, opts.identity)
         elif opts.subparser_name == 'create_ca':
             _create_ca()
-        elif opts.subparser_name == 'create_instance_ca':
-            create_instance_ca(opts.instance_name)
         else:
             if auth is not None:
                 try:

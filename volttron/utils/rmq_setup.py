@@ -155,21 +155,12 @@ def _create_federation_setup(admin_user, admin_password, is_ssl, vhost, vhome):
                                                         host=host)
                 _log.debug("Upstream Server: {name} ".format(name=name))
 
-                if is_ssl:
-                    address = "amqps://{host}:{port}/{vhost}?" \
-                              "{ssl_params}&server_name_indication={host}".format(
-                        host=host,
-                        port=upstream['port'],
-                        vhost=upstream['virtual-host'],
-                        ssl_params=ssl_params)
-                else:
-                    address = "amqp://{user}:{pwd}@{host}:{port}/" \
-                              "{vhost}".format(
-                        user=admin_user,
-                        pwd=admin_password,
-                        host=host,
-                        port=upstream['port'],
-                        vhost=upstream['virtual-host'])
+                address = rmq_mgmt.build_rmq_address(admin_user,
+                                                     admin_password, host,
+                                                     upstream['port'],
+                                                     upstream['virtual-host'],
+                                                     is_ssl,
+                                                     ssl_params)
                 prop = dict(vhost=vhost,
                             component="federation-upstream",
                             name=name,
@@ -924,6 +915,31 @@ def stop_rabbit(rmq_home, quite=False):
     except Exception as e:
         if not quite:
             raise e
+
+
+def restart_ssl(rmq_home):
+    """
+    Runs rabbitmqctl eval "ssl:stop(), ssl:start()." to make rmq reload ssl certificates. Client connection will get
+    dropped and client should reconnect.
+    :param rmq_home:
+    :return:
+    """
+    cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "eval", "ssl:stop(), ssl:start()."]
+    execute_command(cmd, err_prefix="Error reloading ssl certificates")
+
+
+def check_rabbit_status(rmq_home=None):
+    status = True
+    if not rmq_home:
+        rmq_cfg = RMQConfig()
+        rmq_home = rmq_cfg.rmq_home
+
+    status_cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "shovel_status"]
+    try:
+        execute_command(status_cmd)
+    except Exception:
+        status = False
+    return status
 
 
 def start_rabbit(rmq_home):
