@@ -126,7 +126,7 @@ class RabbitMQMgmt(object):
         """
 
         if ssl_auth:
-            instance_ca, server_cert, client_cert = \
+            root_ca_name, server_cert, client_cert = \
                 certs.Certs.get_admin_cert_names(self.rmq_config.instance_name)
 
             # TODO: figure out how to manage admin user and password. rabbitmq
@@ -783,6 +783,10 @@ class RabbitMQMgmt(object):
                     ssl_options=ssl_options,
                     credentials=pika.credentials.ExternalCredentials())
             else:
+                # TODO: How is this working? PlainCredentials(rmq_user,
+                # rmq_user) ?? My understanding is that non ssl mode is going to
+                #  be used only for testing - when using plain
+                # credentials all agents use same password.
                 conn_params = pika.ConnectionParameters(
                     host=self.rmq_config.hostname,
                     port=int(self.rmq_config.amqp_port),
@@ -906,15 +910,9 @@ class RabbitMQMgmt(object):
         self.create_user_with_permissions(rmq_user, permissions)
         ssl_params = None
         if is_ssl:
-            self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)
-            ca_certs = self.rmq_config.crts.cert_file(self.rmq_config.crts.trusted_ca_name)
-            key_file = self.rmq_config.crts.private_key_file(rmq_user)
-            cert_file = self.rmq_config.crts.cert_file(rmq_user)
-            ssl_params = "cacertfile={ca}&certfile={cert}&keyfile={key}" \
-               "&verify=verify_peer&fail_if_no_peer_cert=true" \
-               "&auth_mechanism=external".format(ca=ca_certs,
-                                                 cert=cert_file,
-                                                 key=key_file)
+            self.rmq_config.crts.create_ca_signed_cert(rmq_user,
+                                                       overwrite=False)
+            ssl_params = self.get_ssl_url_params(user=rmq_user)
         return self.build_rmq_address(rmq_user, self.rmq_config.admin_pwd,
                                       host, port, vhost, is_ssl, ssl_params)
 
@@ -942,16 +940,19 @@ class RabbitMQMgmt(object):
                                             retry_delay=2)
         return param
 
-    def get_ssl_url_params(self):
+    def get_ssl_url_params(self, user=None):
         """
         Return SSL parameter string
         :return:
         """
-        instance_ca, server_cert, client_cert = \
+
+        root_ca_name, server_cert, admin_user = \
             certs.Certs.get_admin_cert_names(self.rmq_config.instance_name)
+        if not user:
+            user = admin_user
         ca_file = self.rmq_config.crts.cert_file(self.rmq_config.crts.trusted_ca_name)
-        cert_file = self.rmq_config.crts.cert_file(client_cert)
-        key_file = self.rmq_config.crts.private_key_file(client_cert)
+        cert_file = self.rmq_config.crts.cert_file(user)
+        key_file = self.rmq_config.crts.private_key_file(user)
         return "cacertfile={ca}&certfile={cert}&keyfile={key}" \
                "&verify=verify_peer&fail_if_no_peer_cert=true" \
                "&auth_mechanism=external".format(ca=ca_file,
