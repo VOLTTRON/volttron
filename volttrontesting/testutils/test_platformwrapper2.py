@@ -40,6 +40,7 @@ def test_can_cleanup_installed_listener():
     gevent.sleep(0.1)
     assert not psutil.pid_exists(started)
 
+
 @pytest.mark.wrapper
 def test_pid_file():
     try:
@@ -58,7 +59,7 @@ def test_pid_file():
     assert os.path.exists(pid_file)
     with open(pid_file, 'r') as pf:
         assert psutil.pid_exists(int(pf.read().strip()))
-
+    wrapper.skip_cleanup = True
     wrapper.shutdown_platform()
     # give operating system enough time to update pids.
     gevent.sleep(0.1)
@@ -85,7 +86,8 @@ def test_pid_file():
     # is already running
     env = os.environ.copy()
     env["VOLTTRON_HOME"] = wrapper.volttron_home
-    process = Popen(["./start-volttron"], env=env, stderr=subprocess.PIPE,
+    vsource_home = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+    process = Popen(["./start-volttron"], cwd=vsource_home, env=env, stderr=subprocess.PIPE,
                     stdout=subprocess.PIPE)
     (output, error) = process.communicate()
     assert process.returncode == 1
