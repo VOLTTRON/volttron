@@ -102,7 +102,9 @@ def volttron_instance_msgdebug(request):
 
 
 @pytest.fixture(scope="function",
-        params=['tcp', 'ipc'])
+        params=['tcp',
+                #'ipc'
+               ])
 def volttron_instance_encrypt(request):
     print("building instance (using encryption)")
     if request.param == 'tcp':

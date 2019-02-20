@@ -363,7 +363,7 @@ class PlatformWrapper:
         return add_volttron_central(self)
 
     def add_capabilities(self, publickey, capabilities):
-        if isinstance(capabilities, basestring):
+        if isinstance(capabilities, basestring) or isinstance(capabilities, dict):
             capabilities = [capabilities]
         auth, auth_path = self._read_auth_file()
         cred = publickey
@@ -371,7 +371,9 @@ class PlatformWrapper:
         entry = next((item for item in allow if item['credentials'] == cred),
                      {})
         caps = entry.get('capabilities', [])
-        entry['capabilities'] = list(set(caps + capabilities))
+        # Might have duplicates. But do we care? The check method should handle it correctly
+        caps.extend(capabilities)
+        entry['capabilities'] = caps
 
         with open(auth_path, 'w+') as fd:
             json.dump(auth, fd)

@@ -360,6 +360,7 @@ class AIPplatform(object):
 
     def _authorize_agent_keys(self, agent_uuid, identity):
         publickey = self.get_agent_keystore(agent_uuid).public
+        ## TODO add capability to update config store for self.
         entry = AuthEntry(credentials=publickey, user_id=identity,
                           comments='Automatically added on agent install')
         try:
