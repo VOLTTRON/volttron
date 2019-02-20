@@ -951,14 +951,14 @@ class RMQCore(Core):
 
         # Connect to RMQ broker. Register a callback to get notified when
         # connection is confirmed
-        if param:
+        if self.rmq_address:
             self.connection.connect(connect_callback, connection_error)
 
         self.onconnected.connect(hello_response)
         self.ondisconnected.connect(self.connection.close_connection)
 
         def vip_loop():
-            if param:
+            if self.rmq_address:
                 wait_period = 1  # 1 second
                 while True:
                     message = None
@@ -1001,7 +1001,7 @@ class RMQCore(Core):
         # pre-stop
         yield
         # pre-finish
-        if param:
+        if self.rmq_address:
             self.connection.close_connection()
         yield
 
