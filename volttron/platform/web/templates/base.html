@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title%}{% endblock %}</title>
+</head>
+<body>
+    <div id="top_menu">
+        <ul>
+            <li><a href="/admin/list_certs.html">List x509 Certificates</a></li>
+            <!--<li><a href="/admin/certs/create">Create Certificate</a></li>-->
+            <li><a href="/admin/pending_csrs.html">Pending CSR Requests</a></li>
+            <li><a href="/admin/create_csr.html">Create CSR Request</a></li>
+        </ul>
+    </div>
+    <div id="content">{% block content %}{% endblock %}</div>
+</body>
+</html>

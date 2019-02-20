@@ -71,6 +71,9 @@ def historian(config_path, **kwargs):
     destination_vip = config.pop('destination-vip', None)
     destination_instance_name = config.pop('destination-instance-name', None)
     service_topic_list = config.pop('service_topic_list', None)
+    destination_serverkey = None
+    # This will trigger rmq based forwarder
+    destination_address = config.pop('destination-address')
     if service_topic_list is not None:
         w = "Deprecated service_topic_list.  Use capture_device_data " \
             "capture_log_data, capture_analysis_data or capture_record_data " \
@@ -83,26 +86,30 @@ def historian(config_path, **kwargs):
         kwargs['capture_record_data'] = True if ("record" in service_topic_list or "all" in service_topic_list) else False
         kwargs['capture_analysis_data'] = True if ("analysis" in service_topic_list or "all" in service_topic_list) else False
 
-    hosts = KnownHostsStore()
-    destination_serverkey = hosts.serverkey(destination_vip)
-    if destination_serverkey is None:
-        _log.info("Destination serverkey not found in known hosts file, using config")
-        destination_serverkey = config.pop('destination-serverkey')
-    else:
-        config.pop('destination-serverkey', None)
+    # Skip zmq based configuration
+    if not destination_address:
+        hosts = KnownHostsStore()
+        destination_serverkey = hosts.serverkey(destination_vip)
+        if destination_serverkey is None:
+            _log.info("Destination serverkey not found in known hosts file, using config")
+            destination_serverkey = config.pop('destination-serverkey')
+        else:
+            config.pop('destination-serverkey', None)
 
     # If running on RabbitMQ message bus, the correct destination address need to be specified
     message_bus = os.environ.get('MESSAGEBUS', 'zmq')
     kwargs['message_bus'] = message_bus
-    parsed = urlparse(destination_vip)
-    if message_bus == 'rmq':
-        if parsed.scheme not in ('amqp', 'amqps'):
-            raise StandardError(
-                'RabbitMQ address must begin with amqp')
-    else:
-        if parsed.scheme not in 'tcp':
-            raise StandardError(
-                'ZeroMQ address must begin with tcp')
+
+    # need to re-examine if these are necessary
+    # parsed = urlparse(destination_vip)
+    # if message_bus == 'rmq':
+    #     if parsed.scheme not in ('amqp', 'amqps'):
+    #         raise StandardError(
+    #             'RabbitMQ address must begin with amqp')
+    # else:
+    #     if parsed.scheme not in 'tcp':
+    #         raise StandardError(
+    #             'ZeroMQ address must begin with tcp')
 
     required_target_agents = config.pop('required_target_agents', [])
     cache_only = config.pop('cache_only', False)
@@ -115,6 +122,7 @@ def historian(config_path, **kwargs):
                             required_target_agents=required_target_agents,
                             cache_only=cache_only,
                             destination_instance_name=destination_instance_name,
+                            destination_address=destination_address,
                             **kwargs)
 
 
@@ -130,6 +138,7 @@ class ForwardHistorian(BaseHistorian):
                  required_target_agents=[],
                  cache_only=False,
                  destination_instance_name=None,
+                 destination_address=None,
                  **kwargs):
         kwargs["process_loop_in_greenlet"] = True
         super(ForwardHistorian, self).__init__(**kwargs)
@@ -146,6 +155,7 @@ class ForwardHistorian(BaseHistorian):
         self.required_target_agents = required_target_agents
         self.cache_only = cache_only
         self.destination_instance_name = destination_instance_name
+        self.destination_address = destination_address
 
         config = {"custom_topic_list": custom_topic_list,
                   "topic_replace_list": self.topic_replace_list,
@@ -153,7 +163,8 @@ class ForwardHistorian(BaseHistorian):
                   "destination_vip": self.destination_vip,
                   "destination_instance_name": self.destination_instance_name,
                   "destination_serverkey": self.destination_serverkey,
-                  "cache_only": self.cache_only}
+                  "cache_only": self.cache_only,
+                  "destination_address": self.destination_address}
 
         self.update_default_config(config)
 
@@ -170,6 +181,7 @@ class ForwardHistorian(BaseHistorian):
         self.required_target_agents = configuration.get('required_target_agents', [])
         self.topic_replace_list = configuration.get('topic_replace_list', [])
         self.cache_only = configuration.get('cache_only', False)
+        self.destination_address = configuration.get('destination_address', None)
         # Reset the replace map.
         self._topic_replace_map = {}
 
@@ -306,6 +318,12 @@ class ForwardHistorian(BaseHistorian):
             if self.timestamp() < self._last_timeout + 60:
                 _log.debug('Not allowing send < 60 seconds from failure')
                 return
+        if self.destination_address:
+            if not self._target_platform:
+                value = self.vip.auth.connect_remote_platform(self.destination_address)
+                if isinstance(value, Agent):
+                    self._target_platform = value
+
         if not self._target_platform:
             self.historian_setup()
         if not self._target_platform:

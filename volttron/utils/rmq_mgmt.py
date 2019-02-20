@@ -41,6 +41,8 @@ import os
 import ssl
 import pika
 
+from volttron.platform.agent.utils import get_fq_identity
+
 try:
     import yaml
 except ImportError:
@@ -80,6 +82,7 @@ class RabbitMQMgmt(object):
     def __init__(self):
         self.rmq_config = RMQConfig()
         self.is_ssl = self.rmq_config.is_ssl
+        self.certs = self.rmq_config.crts
 
     def _call_grequest(self, method_name, url_suffix, ssl_auth=True, **kwargs):
         """
@@ -798,6 +801,50 @@ class RabbitMQMgmt(object):
             return None
         return conn_params
 
+    def build_remote_connection_param(self, rmq_user, rmq_address, ssl_auth=None):
+        """
+        Build Pika Connection parameters
+        :param rmq_user: RabbitMQ user
+        :param ssl_auth: If SSL based connection or not
+        :return:
+        """
+
+        from urlparse import urlparse
+
+        parsed_addr = urlparse(rmq_address)
+        ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
+
+        try:
+            if ssl_auth:
+                certfile = self.certs.cert_file(rmq_user, True)
+                metafile = certfile[:-4] + ".json"
+                metadata = jsonapi.loads(open(metafile).read())
+                local_keyfile = metadata['local_keyname']
+                ca_file = self.certs.cert_file(metadata['remote_ca_name'], True)
+                ssl_options = dict(
+                    ssl_version=ssl.PROTOCOL_TLSv1,
+                    ca_certs=ca_file,
+                    keyfile=self.certs.private_key_file(local_keyfile),
+                    certfile=self.certs.cert_file(rmq_user, True),
+                    cert_reqs=ssl.CERT_REQUIRED)
+                conn_params = pika.ConnectionParameters(
+                    host= parsed_addr.hostname,
+                    port= parsed_addr.port,
+                    virtual_host='volttron',
+                    ssl=True,
+                    ssl_options=ssl_options,
+                    credentials=pika.credentials.ExternalCredentials())
+            else:
+                conn_params = pika.ConnectionParameters(
+                    host=parsed_addr.hostname,
+                    port=parsed_addr.port,
+                    virtual_host='volttron',
+                    credentials=pika.credentials.PlainCredentials(
+                        rmq_user, rmq_user))
+        except KeyError:
+            return None
+        return conn_params
+
     def build_rmq_address(self, user=None, password=None,
                           host=None, port=None, vhost=None,
                           ssl_auth=None, ssl_params=None):
@@ -856,6 +903,15 @@ class RabbitMQMgmt(object):
                      write=permissions['write'])
         self.set_user_permissions(perms, user, ssl_auth=ssl_auth)
 
+    def get_default_permissions(self, fq_identity):
+        config_access = "{user}|{user}.pubsub.*|{user}.zmq.*|amq.*".format(
+            user=fq_identity)
+        read_access = "volttron|{}".format(config_access)
+        write_access = "volttron|{}".format(config_access)
+        permissions = dict(configure=config_access, read=read_access,
+                           write=write_access)
+        return permissions
+
     def build_agent_connection(self, identity, instance_name):
         """
         Check if RabbitMQ user and certs exists for this agent, if not
@@ -866,13 +922,9 @@ class RabbitMQMgmt(object):
         :param is_ssl: Flag to indicate if SSL connection or not
         :return: Return connection parameters
         """
-        rmq_user = instance_name + '.' + identity
-        config_access = "{user}|{user}.pubsub.*|{user}.zmq.*|amq.*".format(
-            user=rmq_user)
-        read_access = "volttron|{}".format(config_access)
-        write_access = "volttron|{}".format(config_access)
-        permissions = dict(configure=config_access, read=read_access,
-                           write=write_access)
+
+        rmq_user = get_fq_identity(identity, instance_name)
+        permissions = self.get_default_permissions(rmq_user)
 
         if self.is_ssl:
             self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)

@@ -75,7 +75,7 @@ except AttributeError:
 
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
            'is_valid_identity', 'load_platform_config', 'get_messagebus',
-           'execute_command']
+           'get_fq_identity', 'execute_command']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
@@ -190,6 +190,19 @@ def get_platform_instance_name(prompt=False):
                            "$VOLTTRON_HOME/config. Please set instance-name in "
                            "$VOLTTRON_HOME/config")
     return instance_name
+
+
+def get_fq_identity(identity, platform_instance_name=get_platform_instance_name()):
+    """
+    Return the fully qualified identity for the passed core identity.
+
+    Fully qualified identities are instance_name.identity
+
+    :param identity:
+    :param platform_instance_name: str The name of the platform.
+    :return:
+    """
+    return "{}.{}".format(platform_instance_name, identity)
 
 
 def get_messagebus():

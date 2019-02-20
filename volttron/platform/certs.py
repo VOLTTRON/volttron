@@ -53,10 +53,12 @@
 # under Contract DE-AC05-76RL01830
 
 # }}}
+from collections import namedtuple
 import datetime
 import json
 import logging
 import os
+import six
 import time
 from shutil import copyfile
 from socket import gethostname, getfqdn
@@ -71,8 +73,9 @@ from cryptography.x509.name import RelativeDistinguishedName
 from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
 
 from volttron.platform import get_home
-from volttron.platform.agent.utils import get_platform_instance_name, \
-    execute_command
+from volttron.platform.agent.utils import (get_platform_instance_name,
+                                           get_fq_identity,
+                                           execute_command)
 
 _log = logging.getLogger(__name__)
 
@@ -89,6 +92,28 @@ PROMPT_PASSPHRASE = False
 
 class CertError(Exception):
     pass
+
+
+class Subject(namedtuple("SubjectObj",
+                         ('country', 'state', 'location',
+                          'organization', 'organization_unit', 'common_name'))):
+    @staticmethod
+    def create_from_x509_subject(subject):
+        mapping = {
+            'common_name': subject.get_attributes_for_oid(
+                NameOID.COMMON_NAME)[0].value,
+            'country': subject.get_attributes_for_oid(
+                NameOID.COUNTRY_NAME)[0].value,
+            'state': subject.get_attributes_for_oid(
+                NameOID.STATE_OR_PROVINCE_NAME)[0].value,
+            'location': subject.get_attributes_for_oid(
+                NameOID.LOCALITY_NAME)[0].value,
+            'organization': subject.get_attributes_for_oid(
+                NameOID.ORGANIZATION_NAME)[0].value,
+            'organization_unit': subject.get_attributes_for_oid(
+                NameOID.ORGANIZATIONAL_UNIT_NAME)[0].value
+        }
+        return Subject(**mapping)
 
 
 def _create_subject(**kwargs):
@@ -252,16 +277,20 @@ class Certs(object):
 
     """
 
-    def cert_file(self, name):
+    def cert_file(self, name, remote=False):
         """
         Returns path to the certificate with passed name. .crt extension is
         added to the passed name be
         :param name: Name of the certificate file
+        :param remote: Toggle between local and remote cert connections.
         :return: Full path the <name>.crt file
         :rtype: str
         """
         """"""
-        return '/'.join((self.cert_dir, name + '.crt'))
+        if remote:
+            return '/'.join((self.remote_cert_dir, name + '.crt'))
+        else:
+            return '/'.join((self.cert_dir, name + '.crt'))
 
     def private_key_file(self, name):
         """
@@ -292,6 +321,15 @@ class Certs(object):
         """
         return '/'.join((self.ca_db_dir, name + '-serial'))
 
+    def csr_pending_file(self, name, target=None):
+        if target:
+            return '/'.join((self.csr_pending_dir, target + "-" + name + ".csr"))
+
+        return '/'.join((self.csr_pending_dir, name + ".csr"))
+
+    def remote_certs_file(self, name):
+        return '/'.join((self.remote_cert_dir, name + '.crt'))
+
     def __init__(self, certificate_dir=None):
         """Creates a Certs instance"""
 
@@ -303,10 +341,10 @@ class Certs(object):
 
         if not certificate_dir:
             certificate_dir = self.default_certs_dir
-        # If user provided explicit directory then it should exist
-        if not os.path.exists(certificate_dir):
-            if certificate_dir != self.default_certs_dir:
-                raise ValueError('Invalid cert_dir {}'.format(self.cert_dir))
+            # If user provided explicit directory then it should exist
+            if not os.path.exists(certificate_dir):
+                if certificate_dir != self.default_certs_dir:
+                    raise ValueError('Invalid cert_dir {}'.format(self.cert_dir))
 
         self.cert_dir = os.path.join(os.path.expanduser(certificate_dir),
                                      'certs')
@@ -314,13 +352,20 @@ class Certs(object):
                                         'private')
         self.ca_db_dir = os.path.join(os.path.expanduser(certificate_dir),
                                       'ca_db')
+        self.csr_pending_dir = os.path.join(os.path.expanduser(certificate_dir),
+                                            'pending_csr')
+        self.remote_cert_dir = os.path.join(os.path.expanduser(certificate_dir),
+                                            'remote_certs')
+        self.certs_pending_dir = os.path.join(os.path.expanduser(certificate_dir),
+                                              'pending_certs')
+        self.rejected_dir = os.path.join(os.path.expanduser(certificate_dir),
+                                         'rejected')
 
-        if not os.path.exists(self.cert_dir):
-            os.makedirs(self.cert_dir, 0o755)
-        if not os.path.exists(self.private_dir):
-            os.makedirs(self.private_dir, 0o755)
-        if not os.path.exists(self.ca_db_dir):
-            os.makedirs(self.ca_db_dir, 0o755)
+        required_paths = (self.cert_dir, self.private_dir, self.ca_db_dir,
+                          self.csr_pending_dir, self.remote_cert_dir, self.certs_pending_dir)
+        for p in required_paths:
+            if not os.path.exists(p):
+                os.makedirs(p, 0o755)
 
     def ca_cert(self):
         """
@@ -332,25 +377,195 @@ class Certs(object):
 
         return self.cert(self.root_ca_name)
 
-    def cert(self, name):
+    def cert(self, name, remote=False):
         """
         Get the X509 certificate based upon the name
         :param name: name of the certificate to be loaded
+        :param remote: determines correct path to search for the cert.
         :return: The certificate object by the given name
         :rtype: :class: `x509._Certificate`
         """
-        if not os.path.exists(self.cert_file(name)):
-            raise CertError("invalid certificate path {}".format(
-                self.cert_file(name)))
-        return _load_cert(self.cert_file(name))
 
-    def cert_exists(self, cert_name):
+        if remote:
+            cert_file = self.remote_certs_file(name)
+        else:
+            cert_file = self.cert_file(name)
+
+        if not os.path.exists(cert_file):
+            raise CertError("invalid certificate path {}".format(
+                cert_file))
+        return _load_cert(cert_file)
+
+    def get_all_cert_subjects(self):
+        subjects = []
+        for fname in os.listdir(self.cert_dir):
+            cert = _load_cert(self.cert_file(fname[:-4]))
+            subjects.append(Subject.create_from_x509_subject(cert.subject))
+        return subjects
+
+    def get_private_key(self, name):
+        """
+        Serialize a private key in a traditional openssl manner to be able to
+        use it with JWT and other technologies.
+
+        Traditional openssl format begins as follows
+
+        b'-----BEGIN RSA PRIVATE KEY-----'
+
+        :param name: full instance and identity of the key
+        :return: serialized private key
+        """
+        pk = _load_key(self.private_key_file(name))
+        return pk.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption())
+
+    def get_cert_public_key(self, name, remote=False):
+        """
+        Retrieves a publickey from the passed named certificate.
+
+        Traditional openssl format begins as follows
+
+        b'-----BEGIN PUBLIC KEY-----'
+
+        :param name: full instance and identity of the key
+        :param remote:
+        :return: serialized public key
+        """
+        cert = self.cert(name, remote)
+        return cert.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo)
+
+    def append_external_certificate(self, certificate_str):
+        return False
+
+    def get_pending_csr_requests(self):
+        pending_csr = []
+        for c in os.listdir(self.csr_pending_dir):
+            if c.endswith('.json'):
+                with open(os.path.join(self.csr_pending_dir, c)) as fp:
+                    pending_csr.append(json.loads(fp.read()))
+
+        return pending_csr
+
+    def get_pending_certs(self):
+        return []
+
+    def get_rejected_certs(self):
+        return []
+
+    def load_csr(self, data):
+        """
+        Loads a PEM X.509 CSR.
+        """
+        return x509.load_pem_x509_csr(data, default_backend())
+
+    def get_csr_common_name(self, data):
+        csr = self.load_csr(data)
+
+        return csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+
+    def save_pending_csr_request(self, ip_addr, common_name, csr):
+        meta = dict(remote_ip_address=ip_addr, identity=common_name,
+                    csr=csr, status="PENDING")
+        metafile = os.path.join(self.csr_pending_dir, common_name+".json")
+
+        if os.path.exists(metafile):
+            _log.debug("csr file already exists, not saving")
+        else:
+            with open(metafile, 'w') as fp:
+                fp.write(json.dumps(meta))
+
+    def save_pending_csr(self, data):
+        common_name = self.get_csr_common_name(data)
+
+        with open(os.path.join(self.csr_pending_dir, common_name+'.csr'), 'wb') as fp:
+            fp.write(data)
+
+    def create_csr(self, name, remote_instance_name):
+        """
+        Create a csr with name as the common name.
+
+        The key that is used to sign the csr is <instance_name>.name.
+
+        :param name:
+        :param target_volttron:
+        :return:
+        """
+        assert name
+        remote_rmq_user = "{}.{}".format(remote_instance_name, get_fq_identity(name))
+        xname = x509.Name([
+            x509.NameAttribute(NameOID.COMMON_NAME,  six.u(remote_rmq_user)),
+        ])
+        key = _load_key(self.private_key_file(get_fq_identity(name)))
+        csr = x509.CertificateSigningRequestBuilder().subject_name(
+            xname).sign(key, hashes.SHA256(), default_backend())
+        # with open(self.csr_create_file(name, target_volttron), "wb") as fw:
+        #     fw.write(csr.public_bytes(serialization.Encoding.PEM))
+        return csr.public_bytes(serialization.Encoding.PEM)
+
+    def sign_csr(self, csr_file):
+
+        ca_crt = self.ca_cert()
+        ca_pkey = _load_key(self.private_key_file(self.root_ca_name))
+        with open(csr_file, 'rb') as f:
+            csr = x509.load_pem_x509_csr(data=f.read(), backend=default_backend())
+
+        subject_common_name = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+
+        if self.cert_exists(subject_common_name):
+            crt = self.cert(subject_common_name)
+            return crt.public_bytes(encoding=serialization.Encoding.PEM)
+
+        crt = x509.CertificateBuilder().subject_name(
+            csr.subject
+        ).issuer_name(
+            ca_crt.subject
+        ).public_key(
+            csr.public_key()
+        ).serial_number(
+            int(time.time())  # pylint: disable=no-member
+        ).not_valid_before(
+            datetime.datetime.utcnow()
+        ).not_valid_after(
+            datetime.datetime.utcnow() + datetime.timedelta(days=365 * 10)
+        ).add_extension(
+            extension=x509.KeyUsage(
+                digital_signature=True, key_encipherment=True, content_commitment=True,
+                data_encipherment=False, key_agreement=False, encipher_only=False, decipher_only=False,
+                key_cert_sign=False, crl_sign=False
+            ),
+            critical=True
+        ).add_extension(
+            extension=x509.BasicConstraints(ca=False, path_length=None),
+            critical=True
+        ).add_extension(
+            extension=x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_pkey.public_key()),
+            critical=False
+        ).sign(
+            private_key=ca_pkey,
+            algorithm=hashes.SHA256(),
+            backend=default_backend()
+        )
+
+        crt_file = self.cert_file(
+            csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value)
+        with open(crt_file, 'wb') as f:
+            f.write(crt.public_bytes(encoding=serialization.Encoding.PEM))
+        return crt.public_bytes(encoding=serialization.Encoding.PEM)
+
+    def cert_exists(self, cert_name, remote=False):
         """
         Verifies that the cert exists by filename.
         :param cert_name: name of the cert to look up
         :return: True if cert exists, False otherwise
         """
-        return os.path.exists(self.cert_file(cert_name))
+        if remote:
+            return os.path.exists(self.remote_certs_file(cert_name))
+        else:
+            return os.path.exists(self.cert_file(cert_name))
 
     def ca_exists(self):
         """
@@ -373,6 +588,7 @@ class Certs(object):
             'common-name':value
         }
         """
+
         subject = self.cert(name).subject
         return {
             'common-name': subject.get_attributes_for_oid(
@@ -427,6 +643,47 @@ class Certs(object):
             return False
 
         return mod_pub == mod_key
+
+    def save_cert(self, file_path):
+        cert_file = self.cert_file(os.path.splitext(os.path.basename(
+            file_path))[0])
+        directory = os.path.dirname(cert_file)
+        if not os.path.exists(directory):
+            os.makedirs(directory, mode=0750)
+        if file_path != cert_file:
+            copyfile(file_path, cert_file)
+        os.chmod(cert_file,0644)
+
+    def save_key(self, file_path):
+        key_file = self.private_key_file(os.path.splitext(os.path.basename(
+            file_path))[0])
+        directory = os.path.dirname(key_file)
+        if not os.path.exists(directory):
+            os.makedirs(directory, mode=0750)
+        if file_path != key_file:
+            copyfile(file_path, key_file)
+            os.chmod(key_file, 0600)
+
+    def save_remote_info(self, local_keyname, remote_name, remote_cert, remote_ca_name,
+                         remote_ca_cert):
+        """
+        Save the remote info file, remote certificates and remote ca to the proper place
+        in the remote_certificate directory.
+
+        :param local_keyname: identity of the local agent connected to the local messagebux
+        :param remote_name: identity of the dynamic agent connected to the remote message bus
+        :param remote_cert: certificate returned from the remote instance
+        :param remote_ca_name: name of the remote ca
+        :param remote_ca_cert: certificate of the remote ca certificate
+        """
+        self.save_remote_cert(remote_name, remote_cert)
+        self.save_remote_cert(remote_ca_name, remote_ca_cert)
+        metadata = dict(remote_ca_name=remote_ca_name,
+                        local_keyname=local_keyname)
+        metafile = self.remote_certs_file(remote_name)[:-4] + ".json"
+
+        with open(metafile, 'w') as fp:
+            fp.write(json.dumps(metadata))
 
     def save_cert(self, file_path):
         cert_file = self.cert_file(os.path.splitext(os.path.basename(
@@ -658,8 +915,6 @@ class Certs(object):
 
         with open(self.ca_serial_file(ca_name), "w+") as f:
             f.write(str(serial+1))  # next available serial is current + 1
-
-
 
     def verify_cert(self, cert_name):
         """

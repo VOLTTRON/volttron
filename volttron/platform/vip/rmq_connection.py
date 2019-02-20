@@ -61,6 +61,8 @@ import os
 
 import pika
 import errno
+
+from volttron.platform.agent.utils import get_fq_identity
 from volttron.platform.vip.socket import Message
 from volttron.platform.vip import BaseConnection
 from volttron.platform.vip.agent.errors import Unreachable
@@ -90,8 +92,10 @@ class RMQConnection(BaseConnection):
             self._url = url
 
         self._connection_param = url
-        self.routing_key = self._vip_queue_name = self._rmq_userid = \
-            "{instance}.{identity}".format(instance=instance_name, identity=identity)
+        if identity.startswith(instance_name):
+            self.routing_key = self._vip_queue_name = self._rmq_userid = identity
+        else:
+            self.routing_key = self._vip_queue_name = self._rmq_userid = get_fq_identity(identity)
         self.exchange = 'volttron'
         self._connect_callback = None
         self._connect_error_callback = None

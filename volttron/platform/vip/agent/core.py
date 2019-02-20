@@ -62,7 +62,7 @@ from zmq.utils.monitor import recv_monitor_message
 from volttron.platform import certs
 from volttron.platform import get_address
 from volttron.platform.agent import utils
-from volttron.platform.agent.utils import load_platform_config
+from volttron.platform.agent.utils import load_platform_config, get_platform_instance_name
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from .decorators import annotate, annotations, dualmethod
@@ -73,6 +73,7 @@ from ..rmq_connection import RMQConnection
 from ..socket import Message
 from ..zmq_connection import ZMQConnection
 from .... import platform
+import pika
 
 __all__ = ['BasicCore', 'Core', 'RMQCore', 'ZMQCore', 'killing']
 
@@ -489,7 +490,7 @@ class Core(BasicCore):
         self.serverkey = serverkey
         self.reconnect_interval = reconnect_interval
         self._reconnect_attempt = 0
-        self.instance_name = None
+        self.instance_name = instance_name
         self.connection = None
         self.messagebus = messagebus
         self.subsystems = {'error': self.handle_error}
@@ -860,7 +861,8 @@ class RMQCore(Core):
                  agent_uuid=agent_uuid, reconnect_interval=reconnect_interval,
                  version=version, instance_name=instance_name, messagebus=messagebus)
         self.volttron_central_address = volttron_central_address
-        if not self.instance_name:
+
+        if not instance_name:
             config_opts = load_platform_config()
             self.instance_name = config_opts.get('instance-name', 'volttron1')
         if volttron_central_instance_name:
@@ -868,11 +870,15 @@ class RMQCore(Core):
 
         #self._event_queue = gevent.queue.Queue
         self._event_queue = Queue()
-        self.rmq_user = self.instance_name + '.' + self.identity
+        if isinstance(self.address, pika.ConnectionParameters):
+            self.rmq_user = self.identity
+        else:
+            self.rmq_user = self.instance_name + '.' + self.identity
         _log.debug("AGENT RUNNING on RMQ Core {}".format(self.identity))
 
         self.messagebus = messagebus
         self.rmq_mgmt = RabbitMQMgmt()
+        self.rmq_address = address
 
     def _build_connection_parameters(self):
         param = None
@@ -881,17 +887,24 @@ class RMQCore(Core):
             raise ValueError("Agent's VIP identity is not set")
         else:
             try:
-                param = self.rmq_mgmt.build_agent_connection(self.identity,
-                                                         self.instance_name)
+                if self.instance_name == get_platform_instance_name():
+                    param = self.rmq_mgmt.build_agent_connection(self.identity,
+                                                                 self.instance_name)
+                else:
+                    param = self.rmq_mgmt.build_remote_connection_param(self.rmq_user,
+                                                                        self.rmq_address,
+                                                                        True)
             except AttributeError:
                 _log.error("RabbitMQ broker may not be running. Restart the broker first")
                 param = None
+                
         return param
 
     def loop(self, running_event):
-        param = self._build_connection_parameters()
+        if not isinstance(self.rmq_address, pika.ConnectionParameters):
+            self.rmq_address = self._build_connection_parameters()
         # pre-setup
-        self.connection = RMQConnection(param,
+        self.connection = RMQConnection(self.rmq_address,
                                         self.identity,
                                         self.instance_name,
                                         reconnect_delay=self.rmq_mgmt.rmq_config.reconnect_delay(),
@@ -938,14 +951,14 @@ class RMQCore(Core):
 
         # Connect to RMQ broker. Register a callback to get notified when
         # connection is confirmed
-        if param:
+        if self.rmq_address:
             self.connection.connect(connect_callback, connection_error)
 
         self.onconnected.connect(hello_response)
         self.ondisconnected.connect(self.connection.close_connection)
 
         def vip_loop():
-            if param:
+            if self.rmq_address:
                 wait_period = 1  # 1 second
                 while True:
                     message = None
@@ -988,7 +1001,7 @@ class RMQCore(Core):
         # pre-stop
         yield
         # pre-finish
-        if param:
+        if self.rmq_address:
             self.connection.close_connection()
         yield
 

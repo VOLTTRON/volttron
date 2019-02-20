@@ -79,6 +79,7 @@ from volttron.platform.vip.agent import (Agent, Core, RPC, Unreachable)
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.web import DiscoveryInfo, DiscoveryError
+from volttron.platform.agent.web import get_user_claims
 from .vcconnection import VCConnection
 
 __version__ = '4.7'

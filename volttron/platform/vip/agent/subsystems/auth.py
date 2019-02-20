@@ -37,12 +37,18 @@
 # }}}
 
 import logging
+import requests
 import weakref
 
 from .base import SubsystemBase
 
+import json
 from volttron.platform.agent.known_identities import AUTH
+from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity
+from volttron.platform.certs import Certs
 from volttron.platform.jsonrpc import RemoteError
+from volttron.utils.rmq_config_params import RMQConfig
+
 
 """
 The auth subsystem allows an agent to quickly query authorization state
@@ -50,7 +56,7 @@ The auth subsystem allows an agent to quickly query authorization state
 """
 
 __docformat__ = 'reStructuredText'
-__version__ = '1.0'
+__version__ = '1.1'
 
 _log = logging.getLogger(__name__)
 
@@ -62,11 +68,105 @@ class Auth(SubsystemBase):
         self._rpc = weakref.ref(rpc)
         self._user_to_capabilities = {}
         self._dirty = True
+        self._csr_certs = dict()
+        self._full_identity = "{}.{}".format(get_platform_instance_name(), self._core().identity)
 
         def onsetup(sender, **kwargs):
             rpc.export(self._update_capabilities, 'auth.update')
 
         core.onsetup.connect(onsetup, self)
+
+    def connect_remote_platform(self, address):
+        from volttron.platform.vip.agent.utils import build_agent
+        from volttron.platform.web import DiscoveryInfo
+
+        # Discovery info for external platform
+        value = self.request_cert(address)
+
+        _log.debug("RESPONSE VALUE WAS: {}".format(value))
+        if not isinstance(value, tuple):
+            info = DiscoveryInfo.request_discovery_info(address)
+            remote_rmq_user = "{}.{}.{}".format(info.instance_name,
+                                                get_platform_instance_name(),
+                                                self._core().identity)
+            remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
+                remote_rmq_user,
+                info.vc_rmq_address)
+
+            # remote_identity = "{}.{}".format(get_platform_instance_name(), self.core.identity)
+            return build_agent(identity=remote_rmq_user,
+                               address=remote_rmq_address,
+                               instance_name=info.instance_name)
+        return value
+
+    def request_cert(self, csr_server):
+        """ Get a signed csr from the csr_server endpoint
+
+        This method will create a csr request that is going to be sent to the
+        signing server.
+
+        :param csr_server: the http(s) location of the server to connect to.
+        :return:
+        """
+        from volttron.platform.web import DiscoveryInfo
+        config = RMQConfig()
+        info = DiscoveryInfo.request_discovery_info(csr_server)
+        certs = Certs()
+        # csr_request = certs.create_csr(self._full_identity, csr_server)
+        csr_request = certs.create_csr(self._core().identity, info.instance_name)
+        # The csr request requires the fully qualified identity that is
+        # going to be connected to the external instance.
+        #
+        # The remote instance id is the instance name of the remote platform
+        # concatenated with the identity of the local fully quallified identity.
+        remote_cert_name = "{}.{}".format(info.instance_name,
+                                          get_fq_identity(self._core().identity))
+        remote_ca_name = info.instance_name+"_ca"
+
+        # if certs.cert_exists(remote_cert_name, True):
+        #     return certs.cert(remote_cert_name, True)
+
+        json_request = dict(
+            csr=csr_request,
+            identity=remote_cert_name, # get_platform_instance_name()+"."+self._core().identity,
+            hostname=config.hostname
+        )
+        response = requests.post(csr_server+"/csr/request_new",
+                                 json=json.dumps(json_request),
+                                 verify=False)
+
+        _log.debug("The response: {}".format(response))
+        # from pprint import pprint
+        # pprint(response.json())
+        j = response.json()
+        status = j.get('status')
+        cert = j.get('cert')
+        message = j.get('message', '')
+
+        if status == 'SUCCESSFUL':
+            certs.save_remote_info(get_fq_identity(self._core().identity),
+                                   remote_cert_name, cert,
+                                   remote_ca_name,
+                                   info.rmq_ca_cert)
+
+        elif status == 'PENDING':
+            _log.debug("Pending CSR request for {}".format(remote_cert_name))
+        elif status == 'DENIAL':
+            print("Woops")
+        elif status == 'ERROR':
+            err = "Error retrieving certificate from {}\n".format(
+                config.hostname)
+            err += "{}".format(message)
+            raise ValueError(err)
+        else:  # No resposne
+            return None
+
+        certfile = certs.cert_file(remote_cert_name, remote=True)
+
+        if certs.cert_exists(certfile):
+            return certfile
+        else:
+            return status, message
 
     def _fetch_capabilities(self):
         while self._dirty:
@@ -93,3 +193,4 @@ class Auth(SubsystemBase):
         if identity == AUTH:
             self._user_to_capabilities = user_to_capabilities
             self._dirty = True
+

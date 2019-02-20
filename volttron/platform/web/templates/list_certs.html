@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Index{% endblock %}
+{% block content %}
+
+    <h1>Current Certificates</h1>
+    <ul>
+    {% for c in certs %}
+        <li>{{c._fields}}<br />
+            {{c._asdict()}}<br/>
+            {{c.common_name}}</li>
+    {% endfor %}
+    </ul>
+
+{% endblock %}

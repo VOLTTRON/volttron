@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Administration</title>
+</head>
+<body>
+    <h1>Master Administration Password</h1>
+    <form action="/admin/setpassword" method="post">
+        <div>
+            <label>Username:</label><input type="text" name="username" />
+        </div>
+        <div>
+            <label>Password:</label><input type="password" name="password1" />
+        </div>
+        <div>
+            <label>Re-Password:</label><input type="password" name="password2" />
+        </div>
+        <input type="submit" value="Set Master Password" />
+    </form>
+</body>
+</html>

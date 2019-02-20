@@ -97,6 +97,7 @@ class RMQRouter(BaseRouter):
         self.default_user_id = default_user_id
         self._peers = set()
         self.addresses = [Address(addr) for addr in set(addresses)]
+        self.local_address = Address(local_address)
         self._address = address
         self._volttron_central_address = volttron_central_address
         self._volttron_central_serverkey = volttron_central_serverkey

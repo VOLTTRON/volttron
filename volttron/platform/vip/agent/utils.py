@@ -87,8 +87,8 @@ def build_agent(address=get_address(), identity=None, publickey=ks.public,
     :return: an agent based upon agent_class that has been started
     :rtype: agent_class
     """
-    if not serverkey:
-        serverkey = get_known_host_serverkey(address)
+    # if not serverkey:
+    #     serverkey = get_known_host_serverkey(address)
 
     message_bus = os.environ.get('MESSAGEBUS', 'zmq')
     agent = agent_class(address=address, identity=identity, publickey=publickey,
