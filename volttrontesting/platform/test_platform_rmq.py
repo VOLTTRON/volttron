@@ -199,6 +199,7 @@ def test_vstart_expired_server_cert(request, instance):
         restart_ssl(rmq_home=os.path.join(os.environ.get('HOME'),
                                       'rabbitmq_server/rabbitmq_server-3.7.7'))
 
+
 @pytest.mark.wrapper
 def test_vstart_expired_admin_cert(request, instance):
     """
@@ -389,7 +390,7 @@ def test_expired_server_cert_after_vstart(request, instance):
         restart_ssl(rmq_home=os.path.join(os.environ.get('HOME'),
                                           'rabbitmq_server/rabbitmq_server-3.7.7'))
 
-        gevent.sleep(10)  # test setup sets the volttron reconnect wait to 5 seconds
+        gevent.sleep(15)  # test setup sets the volttron reconnect wait to 5 seconds
 
         # status of first agent would still be fine and it would
         # continue to publish hearbeat.
