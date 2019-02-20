@@ -892,11 +892,12 @@ class RMQCore(Core):
                                                                  self.instance_name)
                 else:
                     param = self.rmq_mgmt.build_remote_connection_param(self.rmq_user,
+                                                                        self.rmq_address,
+                                                                        True)
             except AttributeError:
                 _log.error("RabbitMQ broker may not be running. Restart the broker first")
                 param = None
-                self.rmq_address,
-                                                                    True)
+                
         return param
 
     def loop(self, running_event):
