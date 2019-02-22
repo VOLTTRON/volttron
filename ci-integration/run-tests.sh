@@ -34,7 +34,6 @@ testdirs="services/core/VolttronCentral/tests services/core/VolttronCentralPlatf
 #directories that must have their subdirectories split
 splitdirs="services/core/* services/contrib/*"
 
-pip install --upgrade pip
 python bootstrap.py --market
 
 echo "TestDirs"
