@@ -163,7 +163,7 @@ class Auth(SubsystemBase):
 
         certfile = certs.cert_file(remote_cert_name, remote=True)
 
-        if certs.cert_exists(certfile):
+        if certs.cert_exists(remote_cert_name, remote=True):
             return certfile
         else:
             return status, message
