@@ -5,7 +5,7 @@
     },
     "--testing": {
         "help": "Installs testing infrastructure dependencies",
-        "packages": ["more-itertools>=4.0.0,<6.0.0;python_version<=2.7","more-itertools>=4.0.0;python_version>2.7",
+        "packages": ["more-itertools>=4.0.0,<6.0.0;python_version<='2.7'","more-itertools>=4.0.0;python_version>'2.7'",
                      "pytest==3.6.4", "pytest-timeout", "mock", "websocket-client"]
     },
     "--crate": {
