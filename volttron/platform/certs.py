@@ -288,7 +288,7 @@ class Certs(object):
         """
         """"""
         if remote:
-            return '/'.join((self.remote_cert_dir, name + '.crt'))
+            return self.remote_certs_file(name)
         else:
             return '/'.join((self.cert_dir, name + '.crt'))
 
@@ -644,26 +644,6 @@ class Certs(object):
 
         return mod_pub == mod_key
 
-    def save_cert(self, file_path):
-        cert_file = self.cert_file(os.path.splitext(os.path.basename(
-            file_path))[0])
-        directory = os.path.dirname(cert_file)
-        if not os.path.exists(directory):
-            os.makedirs(directory, mode=0750)
-        if file_path != cert_file:
-            copyfile(file_path, cert_file)
-        os.chmod(cert_file,0644)
-
-    def save_key(self, file_path):
-        key_file = self.private_key_file(os.path.splitext(os.path.basename(
-            file_path))[0])
-        directory = os.path.dirname(key_file)
-        if not os.path.exists(directory):
-            os.makedirs(directory, mode=0750)
-        if file_path != key_file:
-            copyfile(file_path, key_file)
-            os.chmod(key_file, 0600)
-
     def save_remote_info(self, local_keyname, remote_name, remote_cert, remote_ca_name,
                          remote_ca_cert):
         """
@@ -684,6 +664,11 @@ class Certs(object):
 
         with open(metafile, 'w') as fp:
             fp.write(json.dumps(metadata))
+
+    def save_remote_cert(self, name, cert_string):
+        cert_file = self.remote_certs_file(name)
+        with open(cert_file, 'wb') as fp:
+            fp.write(cert_string)
 
     def save_cert(self, file_path):
         cert_file = self.cert_file(os.path.splitext(os.path.basename(
