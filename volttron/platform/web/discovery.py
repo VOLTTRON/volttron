@@ -30,8 +30,18 @@ class DiscoveryInfo(object):
         self.vip_address = kwargs.pop('vip-address')
         self.serverkey = kwargs.pop('serverkey')
         self.instance_name = kwargs.pop('instance-name')
-        self.vc_rmq_address = kwargs.pop('vc-rmq-address')
-        self.rmq_ca_cert = kwargs.pop('rmq-ca-cert')
+        try:
+            self.vc_rmq_address = kwargs.pop('vc-rmq-address')
+        except KeyError:
+            self.messagebus_type = 'zmq'
+        else:
+            self.messagebus_type = 'rmq'
+        try:
+            self.rmq_ca_cert = kwargs.pop('rmq-ca-cert')
+        except KeyError:
+            self.messagebus_type = 'zmq'
+        else:
+            self.messagebus_type = 'rmq'
         self.certs = Certs()
 
         assert len(kwargs) == 0
@@ -83,7 +93,8 @@ class DiscoveryInfo(object):
             'serverkey': self.serverkey,
             'instance_name': self.instance_name,
             'vc_rmq_address': self.vc_rmq_address,
-            'rmq_ca_cert': self.rmq_ca_cert
+            'rmq_ca_cert': self.rmq_ca_cert,
+            'messagebus_type': self.messagebus_type
         }
 
         return jsonapi.dumps(dk)
