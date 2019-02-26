@@ -365,7 +365,6 @@ class CrateHistorian(BaseHistorian):
                         _log.debug('Invalid data not saved {}'.format(
                             to_publish_list[id]
                         ))
-                        # self.report_handled(to_publish_list[id])
                     except Exception as ex:
                         _log.error(repr(ex))
                     else:
