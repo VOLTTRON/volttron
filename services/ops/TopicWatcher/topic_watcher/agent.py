@@ -56,7 +56,7 @@ from volttron.platform.scheduling import periodic
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-__version__ = '2.0'
+__version__ = '2.1'
 
 
 class AlertAgent(Agent):
@@ -69,6 +69,8 @@ class AlertAgent(Agent):
         self._remote_agent = None
         self._creating_agent = False
         self._resetting_remote_agent = False
+        self.publish_remote = False
+        self.publish_local = True
 
         if self.publish_settings:
             self.publish_local = self.publish_settings.get('publish-local', True)
@@ -117,7 +119,7 @@ class AlertAgent(Agent):
                     self._creating_agent = False
         return self._remote_agent
 
-    def reset_reomte_agent(self):
+    def reset_remote_agent(self):
         if not self._resetting_remote_agent and not self._creating_agent:
             if self._remote_agent is not None:
                 self._remote_agent.core.stop()
@@ -467,7 +469,6 @@ class AlertGroup(Agent):
         Used to maintain the time since each topic's last publish.
         Sends an alert if any topics are missing.
         """
-
         topics_timedout = set()
         for topic in self.wait_time.iterkeys():
 
@@ -496,7 +497,7 @@ class AlertGroup(Agent):
             try:
                 self.send_alert(list(self.unseen_topics))
             except ZMQError:
-                self.main_agent.reset_reomte_agent()
+                self.main_agent.reset_remote_agent()
             
             self.unseen_topics.clear()
 
