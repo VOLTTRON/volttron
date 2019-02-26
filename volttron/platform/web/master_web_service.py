@@ -207,6 +207,8 @@ class MasterWebService(Agent):
             'Registering agent route expression: {} peer: {} function: {}'
             .format(regex, peer, fn))
 
+        # TODO: inspect peer for function
+
         compiled = re.compile(regex)
         self.peerroutes[peer].append(compiled)
         self.registeredroutes.insert(0, (compiled, 'peer_route', (peer, fn)))
@@ -331,7 +333,6 @@ class MasterWebService(Agent):
         return_dict['vip-address'] = external_vip
         return_dict['vc-rmq-address'] = self.volttron_central_rmq_address
         return_dict['rmq-ca-cert'] = self._certs.cert(self._certs.root_ca_name).public_bytes(serialization.Encoding.PEM)
-        print("Discovery Info {}".format(return_dict))
         start_response('200 OK', [('Content-Type', 'application/json')])
         return jsonapi.dumps(return_dict)
 
@@ -344,11 +345,9 @@ class MasterWebService(Agent):
         """
         path_info = env['PATH_INFO']
 
-        from pprint import pprint
-        pprint(env)
         if path_info.startswith('/http://'):
             path_info = path_info[path_info.index('/', len('/http://')):]
-            _log.debug('Path info is: {}'.format(path_info))
+
         # only expose a partial list of the env variables to the registered
         # agents.
         envlist = ['HTTP_USER_AGENT', 'PATH_INFO', 'QUERY_STRING',
@@ -371,7 +370,6 @@ class MasterWebService(Agent):
         # parameter so agents can use it to verify the Bearer has specific
         # jwt claims
         passenv['WEB_PUBLIC_KEY'] = env['WEB_PUBLIC_KEY'] = self._certs.get_cert_public_key(get_fq_identity(self.core.identity))
-
 
         # if we have a peer then we expect to call that peer's web subsystem
         # callback to perform whatever is required of the method.
@@ -512,7 +510,12 @@ class MasterWebService(Agent):
         guess = mimetypes.guess_type(filename)[0]
         _log.debug('MIME GUESS: {}'.format(guess))
 
-        if not os.path.exists(filename):
+        basename = os.path.dirname(filename)
+
+        if not os.path.exists(basename):
+            start_response('404 Not Found', [('Content-Type', 'text/html')])
+            return [b'<h1>Not Found</h1>']
+        elif not os.path.exists(filename):
             start_response('404 Not Found', [('Content-Type', 'text/html')])
             return [b'<h1>Not Found</h1>']
 
@@ -552,9 +555,6 @@ class MasterWebService(Agent):
         self.registeredroutes.append((re.compile('^/discovery/allow$'),
                                       'callable',
                                       self._allow))
-        self.registeredroutes.append((re.compile('^/$'), 'callable',
-                                      self._redirect_index))
-
         for rt in CSREndpoints(self.core).get_routes():
             self.registeredroutes.append(rt)
 
@@ -566,7 +566,8 @@ class MasterWebService(Agent):
         for rt in AuthenticateEndpoints(ssl_private_key).get_routes():
             self.registeredroutes.append(rt)
 
-        #self._admin_endpoints.setupendpoints(self.registeredroutes)
+        static_dir = os.path.join(os.path.dirname(__file__), "static")
+        self.registeredroutes.append((re.compile('^/.*$'), 'path', static_dir))
 
         port = int(port)
         vhome = os.environ.get('VOLTTRON_HOME')

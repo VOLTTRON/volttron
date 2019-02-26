@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title%}{% endblock %}</title>
+    <title>Title</title>
     <style type="text/css">
         body{
             background-color: black;
@@ -26,15 +26,20 @@
     </style>
 </head>
 <body>
-    <div id="header"><img height="100" id="logotag" src="/logo-tagline.png" /></div>
-    <div id="top_menu">
-        <ul>
-            <li><a href="/admin/list_certs.html">List x509 Certificates</a></li>
-            <!--<li><a href="/admin/certs/create">Create Certificate</a></li>-->
-            <li><a href="/admin/pending_csrs.html">Pending CSR Requests</a></li>
-            <li><a href="/admin/create_csr.html">Create CSR Request</a></li>
-        </ul>
+    <div id="header"><img height="100" id="logotag" src="logo-tagline.png" /></div>
+    <div id="content">
+        <p>
+            You are accessing the default page of a web enabled volttron node.  This content is
+            located in the volttron/platform/web/static directory in the volttron distribution.
+            You may use or remove this folder to make it un-available.
+        </p>
+        <p>
+            Your volttron comes with
+            <ul>
+                <li><a href="/admin/login.html">Login to Admininstration Area</a></li>
+            </ul>
+        </p>
     </div>
-    <div id="content">{% block content %}{% endblock %}</div>
+
 </body>
 </html>
