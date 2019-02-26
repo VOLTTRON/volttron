@@ -411,6 +411,8 @@ class MasterWebService(Agent):
                     return self.create_response(res, start_response)
 
                 elif t == 'path':  # File service from agents on the platform.
+                    if path_info == '/':
+                        return self._redirect_index(env, start_response)
                     server_path = v + path_info  # os.path.join(v, path_info)
                     _log.debug('Serverpath: {}'.format(server_path))
                     return self._sendfile(env, start_response, server_path)
@@ -515,7 +517,7 @@ class MasterWebService(Agent):
         if not os.path.exists(basename):
             start_response('404 Not Found', [('Content-Type', 'text/html')])
             return [b'<h1>Not Found</h1>']
-        elif not os.path.exists(filename):
+        elif not os.path.isfile(filename):
             start_response('404 Not Found', [('Content-Type', 'text/html')])
             return [b'<h1>Not Found</h1>']
 
