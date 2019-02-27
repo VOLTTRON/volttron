@@ -333,8 +333,7 @@ class MasterWebService(Agent):
         return_dict['vip-address'] = external_vip
         return_dict['vc-rmq-address'] = self.volttron_central_rmq_address
         return_dict['rmq-ca-cert'] = self._certs.cert(self._certs.root_ca_name).public_bytes(serialization.Encoding.PEM)
-        start_response('200 OK', [('Content-Type', 'application/json')])
-        return jsonapi.dumps(return_dict)
+        return Response(jsonapi.dumps(return_dict), content_type="application/json")
 
     def app_routing(self, env, start_response):
         """
@@ -398,9 +397,15 @@ class MasterWebService(Agent):
                     # be processed and the response will be written back to the
                     # calling client.
                     try:
-                        return v(env, start_response, data)
+                        retvalue = v(env, start_response, data)
                     except TypeError:
-                        return self.process_response(start_response, v(env, data))
+                        retvalue = self.process_response(start_response, v(env, data))
+
+                    if isinstance(retvalue, Response):
+                        return self.process_response(start_response, retvalue)
+                    else:
+                        return retvalue
+
                 elif t == 'peer_route':  # RPC calls from agents on the platform
                     _log.debug('Matched peer_route with pattern {}'.format(
                         k.pattern))
@@ -551,7 +556,7 @@ class MasterWebService(Agent):
         port = parsed.port
 
         _log.info('Starting web server binding to {}:{}.'.format(hostname, port))
-
+        # Handle the platform.web routes here.
         self.registeredroutes.append((re.compile('^/discovery/$'), 'callable',
                                       self._get_discovery))
         self.registeredroutes.append((re.compile('^/discovery/allow$'),
