@@ -11,7 +11,7 @@ from watchdog_gevent import Observer
 
 from volttron.platform import get_home
 from volttron.platform.agent import json
-from volttron.platform.agent.web import Response, Endpoints
+from volttron.platform.agent.web import Response
 from volttron.utils import FileReloader
 from volttron.utils.persistance import PersistentDict
 from volttron.platform.certs import Certs
@@ -23,7 +23,7 @@ def template_env(env):
     return env['JINJA2_TEMPLATE_ENV']
 
 
-class AdminEndpoints(Endpoints):
+class AdminEndpoints(object):
 
     def __init__(self, ssl_public_key):
 

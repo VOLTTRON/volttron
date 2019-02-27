@@ -3,14 +3,14 @@ import logging
 import weakref
 
 from volttron.platform.agent import json
-from volttron.platform.agent.utils import get_fq_identity, get_platform_instance_name
-from volttron.platform.agent.web import Response, Endpoints
+from volttron.platform.agent.utils import get_platform_instance_name
+from volttron.platform.agent.web import Response
 from volttron.platform.certs import Certs
 
 _log = logging.getLogger(__name__)
 
 
-class CSREndpoints(Endpoints):
+class CSREndpoints(object):
 
     def __init__(self, core):
         self._core = weakref.ref(core)
@@ -19,6 +19,18 @@ class CSREndpoints(Endpoints):
     def get_routes(self):
         """
         Returns a list of tuples with the routes for authentication.
+
+        Tuple should have the following:
+
+            - regular expression for calling the endpoint
+            - 'callable' keyword specifying that a method is being specified
+            - the method that should be used to call when the regular expression matches
+
+        code:
+
+            return [
+                (re.compile('^/csr/request_new$'), 'callable', self._csr_request_new)
+            ]
 
         :return:
         """
