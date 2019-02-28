@@ -125,10 +125,22 @@ class AdminEndpoints(object):
             response = self.__cert_list_api()
         elif endpoint == 'pending_csrs':
             response = self.__pending_csrs_api()
+        elif endpoint.startswith('approve_csr/'):
+            response = self.__approve_csr_api(endpoint.split('/')[1])
         else:
             response = Response('{"status": "Unknown endpoint {}"}'.format(endpoint),
                                 content_type="application/json")
         return response
+
+    def __approve_csr_api(self, common_name):
+        try:
+            self._certs.approve_csr(common_name)
+            data = dict(status=self._certs.get_csr_status(common_name),
+                        cert=self._certs.get_cert_from_csr(common_name))
+        except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        return Response(json.dumps(data), content_type="application/json")
 
     def __pending_csrs_api(self):
         csrs = [c for c in self._certs.get_pending_csr_requests()]

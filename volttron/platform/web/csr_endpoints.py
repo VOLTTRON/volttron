@@ -63,13 +63,11 @@ class CSREndpoints(object):
                      headers={'Content-type': 'application/json'})
 
         self._certs.save_pending_csr_request(env.get('REMOTE_ADDR'), identity, csr)
-        csr_file = self._certs.csr_pending_file(identity)
-        if csr:
-            with open(csr_file, "wb") as fw:
-                fw.write(csr)
 
-        auto_accept = True
+        auto_accept = False
         if auto_accept:
+            if self._certs.cert_exists(identity, True):
+                cert = self._certs.cert(identity, True)
             _log.debug("Creating cert and permissions for user: {}".format(identity))
             permissions = self._core().rmq_mgmt.get_default_permissions(identity)
             self._core().rmq_mgmt.create_user_with_permissions(identity,
@@ -81,10 +79,20 @@ class CSREndpoints(object):
                 cert=cert
             )
         else:
-            _log.debug("Returning pending!")
-            json_response = dict(status="PENDING",
-                                 message="The request is pending administrator approval.")
 
+            status = self._certs.get_csr_status(identity)
+            cert = self._certs.get_cert_from_csr(identity)
+
+            json_response = dict(status=status)
+            if status == "APPROVED":
+                json_response['cert'] = self._certs.get_cert_from_csr(identity)
+            elif status == "PENDING":
+                json_response['message'] = "The request is pending admininstrator approval."
+            elif status == "UNKNOWN":
+                json.response['message'] = "An unknown common name was specified to the server {}".format(identity)
+            else:
+                json_response['message'] = "An unkonwn error has occured during the respons phase"
+                _
         return Response(json.dumps(json_response),
                         content_type='application/json',
                         headers={'Content-type': 'application/json'})
