@@ -3,14 +3,14 @@ import logging
 import weakref
 
 from volttron.platform.agent import json
-from volttron.platform.agent.utils import get_fq_identity, get_platform_instance_name
-from volttron.platform.agent.web import Response, Endpoints
+from volttron.platform.agent.utils import get_platform_instance_name
+from volttron.platform.agent.web import Response
 from volttron.platform.certs import Certs
 
 _log = logging.getLogger(__name__)
 
 
-class CSREndpoints(Endpoints):
+class CSREndpoints(object):
 
     def __init__(self, core):
         self._core = weakref.ref(core)
@@ -19,6 +19,18 @@ class CSREndpoints(Endpoints):
     def get_routes(self):
         """
         Returns a list of tuples with the routes for authentication.
+
+        Tuple should have the following:
+
+            - regular expression for calling the endpoint
+            - 'callable' keyword specifying that a method is being specified
+            - the method that should be used to call when the regular expression matches
+
+        code:
+
+            return [
+                (re.compile('^/csr/request_new$'), 'callable', self._csr_request_new)
+            ]
 
         :return:
         """
@@ -51,12 +63,9 @@ class CSREndpoints(Endpoints):
                      headers={'Content-type': 'application/json'})
 
         self._certs.save_pending_csr_request(env.get('REMOTE_ADDR'), identity, csr)
-        csr_file = self._certs.csr_pending_file(identity)
-        if csr:
-            with open(csr_file, "wb") as fw:
-                fw.write(csr)
 
-        auto_accept = True
+        # TODO Allow configuration of this dynamically.
+        auto_accept = False
         if auto_accept:
             _log.debug("Creating cert and permissions for user: {}".format(identity))
             permissions = self._core().rmq_mgmt.get_default_permissions(identity)
@@ -69,10 +78,20 @@ class CSREndpoints(Endpoints):
                 cert=cert
             )
         else:
-            _log.debug("Returning pending!")
-            json_response = dict(status="PENDING",
-                                 message="The request is pending administrator approval.")
 
+            status = self._certs.get_csr_status(identity)
+            cert = self._certs.get_cert_from_csr(identity)
+
+            json_response = dict(status=status)
+            if status == "APPROVED":
+                json_response['cert'] = self._certs.get_cert_from_csr(identity)
+            elif status == "PENDING":
+                json_response['message'] = "The request is pending admininstrator approval."
+            elif status == "UNKNOWN":
+                json.response['message'] = "An unknown common name was specified to the server {}".format(identity)
+            else:
+                json_response['message'] = "An unkonwn error has occured during the respons phase"
+                _
         return Response(json.dumps(json_response),
                         content_type='application/json',
                         headers={'Content-type': 'application/json'})

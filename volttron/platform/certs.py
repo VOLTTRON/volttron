@@ -471,18 +471,14 @@ class Certs(object):
         meta = dict(remote_ip_address=ip_addr, identity=common_name,
                     csr=csr, status="PENDING")
         metafile = os.path.join(self.csr_pending_dir, common_name+".json")
-
+        csrfile = os.path.join(self.csr_pending_dir, common_name + ".csr")
         if os.path.exists(metafile):
             _log.debug("csr file already exists, not saving")
         else:
             with open(metafile, 'w') as fp:
                 fp.write(json.dumps(meta))
-
-    def save_pending_csr(self, data):
-        common_name = self.get_csr_common_name(data)
-
-        with open(os.path.join(self.csr_pending_dir, common_name+'.csr'), 'wb') as fp:
-            fp.write(data)
+            with open(csrfile, "wb") as fw:
+                fw.write(csr)
 
     def create_csr(self, name, remote_instance_name):
         """
@@ -506,8 +502,36 @@ class Certs(object):
         #     fw.write(csr.public_bytes(serialization.Encoding.PEM))
         return csr.public_bytes(serialization.Encoding.PEM)
 
-    def sign_csr(self, csr_file):
+    def get_csr_status(self, common_name):
+        metafile = os.path.join(self.csr_pending_dir, common_name + ".json")
+        if not os.path.isfile(metafile):
+            return "UNKNOWN"
 
+        meta = json.loads(open(metafile, 'rb').read())
+        return meta.get("status")
+
+    def get_cert_from_csr(self, common_name):
+        status = self.get_csr_status(common_name)
+        if status == 'APPROVED':
+            return self.cert(common_name, True).public_bytes(encoding=serialization.Encoding.PEM)
+
+    def approve_csr(self, common_name):
+        metafile = os.path.join(self.csr_pending_dir, common_name + ".json")
+        csrfile = os.path.join(self.csr_pending_dir, common_name + ".csr")
+        if not os.path.isfile(metafile):
+            raise ValueError("Unknown csr for common_name {}".format(common_name))
+        if not os.path.isfile(csrfile):
+            raise ValueError("Bad state unknown CSR for common_name {}".format(common_name))
+
+        cert = self.sign_csr(csrfile)
+        self.save_remote_cert(common_name, cert)
+        meta = json.loads(open(metafile, 'rb').read())
+        meta['status'] = 'APPROVED'
+        with open(metafile, 'wb') as fp:
+            fp.write(json.dumps(meta))
+        return cert
+
+    def sign_csr(self, csr_file):
         ca_crt = self.ca_cert()
         ca_pkey = _load_key(self.private_key_file(self.root_ca_name))
         with open(csr_file, 'rb') as f:
@@ -550,9 +574,9 @@ class Certs(object):
             backend=default_backend()
         )
 
-        crt_file = self.cert_file(
+        new_cert_file = self.cert_file(
             csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value)
-        with open(crt_file, 'wb') as f:
+        with open(new_cert_file, 'wb') as f:
             f.write(crt.public_bytes(encoding=serialization.Encoding.PEM))
         return crt.public_bytes(encoding=serialization.Encoding.PEM)
 

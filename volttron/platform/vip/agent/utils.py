@@ -90,7 +90,13 @@ def build_agent(address=get_address(), identity=None, publickey=ks.public,
     # if not serverkey:
     #     serverkey = get_known_host_serverkey(address)
 
-    message_bus = os.environ.get('MESSAGEBUS', 'zmq')
+    # This is a fix allows the connect to message bus to be different than
+    # the one that is currently running.
+    try:
+        message_bus = kwargs.pop('message_bus')
+    except KeyError:
+        message_bus = os.environ.get('MESSAGEBUS', 'zmq')
+
     agent = agent_class(address=address, identity=identity, publickey=publickey,
                         secretkey=secretkey, serverkey=serverkey, volttron_central_address=volttron_central_address,
                         volttron_central_instance_name=volttron_central_instance_name,

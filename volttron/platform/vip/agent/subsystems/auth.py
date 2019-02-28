@@ -37,17 +37,20 @@
 # }}}
 
 import logging
+import os
 import requests
+import urlparse
 import weakref
 
 from .base import SubsystemBase
 
 import json
 from volttron.platform.agent.known_identities import AUTH
-from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity
+from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity, get_messagebus
 from volttron.platform.certs import Certs
 from volttron.platform.jsonrpc import RemoteError
 from volttron.utils.rmq_config_params import RMQConfig
+from volttron.platform.keystore import KeyStore
 
 
 """
@@ -76,30 +79,77 @@ class Auth(SubsystemBase):
 
         core.onsetup.connect(onsetup, self)
 
-    def connect_remote_platform(self, address):
+    def connect_remote_platform(self, address, server_key=None, remote_bus_type=None, agent_class=None):
         from volttron.platform.vip.agent.utils import build_agent
         from volttron.platform.web import DiscoveryInfo
+        from volttron.platform.vip.agent import Agent
+        from volttron.platform.web import DiscoveryError
 
-        # Discovery info for external platform
-        value = self.request_cert(address)
+        if agent_class is None:
+            agent_class = Agent
 
-        _log.debug("RESPONSE VALUE WAS: {}".format(value))
-        if not isinstance(value, tuple):
-            info = DiscoveryInfo.request_discovery_info(address)
-            remote_rmq_user = "{}.{}.{}".format(info.instance_name,
-                                                get_platform_instance_name(),
-                                                self._core().identity)
-            remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
-                remote_rmq_user,
-                info.vc_rmq_address)
+        parsed_address = urlparse.urlparse(address)
 
-            # remote_identity = "{}.{}".format(get_platform_instance_name(), self.core.identity)
-            return build_agent(identity=remote_rmq_user,
-                               address=remote_rmq_address,
-                               instance_name=info.instance_name)
+        value = None
+        if parsed_address.scheme in ('https', 'http'):
+            try:
+                # We need to discover which type of bus is at the other end.
+                info = DiscoveryInfo.request_discovery_info(address)
+
+                remote_identity = "{}.{}.{}".format(info.instance_name,
+                                                    get_platform_instance_name(),
+                                                    self._core().identity)
+
+                if info.messagebus_type == 'rmq' and get_messagebus() == 'zmq':
+                    ValueError("ZMQ -> RMQ connection not supported at this time.")
+
+                # If this is present we can assume we are going to connect to rabbit
+                if info.messagebus_type == 'rmq':
+
+                    # Discovery info for external platform
+                    value = self.request_cert(address)
+
+                    _log.debug("RESPONSE VALUE WAS: {}".format(value))
+                    if not isinstance(value, tuple):
+                        info = DiscoveryInfo.request_discovery_info(address)
+                        remote_rmq_user = remote_identity
+                        remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
+                            remote_rmq_user,
+                            info.vc_rmq_address)
+                        
+                        value = build_agent(identity=remote_rmq_user,
+                                            address=remote_rmq_address,
+                                            instance_name=info.instance_name)
+
+                else:
+                    # TODO: cache the connection so we don't always have to ping
+                    #       the server to connect.
+
+                    # This branch happens when the message bus is not the same note
+                    # this writes to the agent-data directory of this agent if the agent
+                    # is installed.
+                    if get_messagebus() == 'rmq':
+                        if not os.path.exists("keystore.json"):
+                            with open("keystore.json", 'w') as fp:
+                                fp.write(json.dumps(KeyStore.generate_keypair_dict()))
+
+                        with open("keystore.json") as fp:
+                            keypair = json.loads(fp.read())
+
+                    value = build_agent(agent_class=agent_class,
+                                        identity=remote_identity,
+                                        serverkey=info.serverkey,
+                                        publickey=keypair.get('publickey'),
+                                        secretkey=keypair.get('secretekey'),
+                                        message_bus='zmq',
+                                        address=info.vip_address)
+            except DiscoveryError:
+                value = dict(status='UNKNOWN',
+                             message="Couldn't connect to {} or incorrect response returned".format(address))
+
         return value
 
-    def request_cert(self, csr_server):
+    def request_cert(self, csr_server, discovery_info=None):
         """ Get a signed csr from the csr_server endpoint
 
         This method will create a csr request that is going to be sent to the
@@ -110,7 +160,11 @@ class Auth(SubsystemBase):
         """
         from volttron.platform.web import DiscoveryInfo
         config = RMQConfig()
-        info = DiscoveryInfo.request_discovery_info(csr_server)
+
+        info = discovery_info
+        if info is None:
+            info = DiscoveryInfo.request_discovery_info(csr_server)
+
         certs = Certs()
         # csr_request = certs.create_csr(self._full_identity, csr_server)
         csr_request = certs.create_csr(self._core().identity, info.instance_name)
@@ -143,7 +197,7 @@ class Auth(SubsystemBase):
         cert = j.get('cert')
         message = j.get('message', '')
 
-        if status == 'SUCCESSFUL':
+        if status == 'SUCCESSFUL' or status == 'APPROVED':
             certs.save_remote_info(get_fq_identity(self._core().identity),
                                    remote_cert_name, cert,
                                    remote_ca_name,

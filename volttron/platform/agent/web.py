@@ -73,27 +73,3 @@ class Response(object):
         else:
             raise TypeError("Response data is neither bytes nor string type")
         return data
-
-
-class Endpoints(object):
-    __metaclass__ = ABCMeta
-
-    def get_routes(self):
-        """
-        Returns a list of tuples with the routes for authentication.
-
-        Tuple should have the following:
-
-            - regular expression for calling the endpoint
-            - 'callable' keyword specifying that a method is being specified
-            - the method that should be used to call when the regular expression matches
-
-        code:
-
-            return [
-                (re.compile('^/csr/request_new$'), 'callable', self._csr_request_new)
-            ]
-
-        :return:
-        """
-        pass

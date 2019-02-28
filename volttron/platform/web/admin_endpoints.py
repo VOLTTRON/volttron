@@ -11,7 +11,7 @@ from watchdog_gevent import Observer
 
 from volttron.platform import get_home
 from volttron.platform.agent import json
-from volttron.platform.agent.web import Response, Endpoints
+from volttron.platform.agent.web import Response
 from volttron.utils import FileReloader
 from volttron.utils.persistance import PersistentDict
 from volttron.platform.certs import Certs
@@ -23,7 +23,7 @@ def template_env(env):
     return env['JINJA2_TEMPLATE_ENV']
 
 
-class AdminEndpoints(Endpoints):
+class AdminEndpoints(object):
 
     def __init__(self, ssl_public_key):
 
@@ -125,10 +125,22 @@ class AdminEndpoints(Endpoints):
             response = self.__cert_list_api()
         elif endpoint == 'pending_csrs':
             response = self.__pending_csrs_api()
+        elif endpoint.startswith('approve_csr/'):
+            response = self.__approve_csr_api(endpoint.split('/')[1])
         else:
             response = Response('{"status": "Unknown endpoint {}"}'.format(endpoint),
                                 content_type="application/json")
         return response
+
+    def __approve_csr_api(self, common_name):
+        try:
+            self._certs.approve_csr(common_name)
+            data = dict(status=self._certs.get_csr_status(common_name),
+                        cert=self._certs.get_cert_from_csr(common_name))
+        except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        return Response(json.dumps(data), content_type="application/json")
 
     def __pending_csrs_api(self):
         csrs = [c for c in self._certs.get_pending_csr_requests()]
