@@ -67,8 +67,6 @@ class CSREndpoints(object):
         # TODO Allow configuration of this dynamically.
         auto_accept = False
         if auto_accept:
-            if self._certs.cert_exists(identity, True):
-                cert = self._certs.cert(identity, True)
             _log.debug("Creating cert and permissions for user: {}".format(identity))
             permissions = self._core().rmq_mgmt.get_default_permissions(identity)
             self._core().rmq_mgmt.create_user_with_permissions(identity,
