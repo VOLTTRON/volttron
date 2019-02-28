@@ -116,11 +116,10 @@ class Auth(SubsystemBase):
                         remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
                             remote_rmq_user,
                             info.vc_rmq_address)
-
-                        # remote_identity = "{}.{}".format(get_platform_instance_name(), self.core.identity)
-                        return build_agent(identity=remote_rmq_user,
-                                           address=remote_rmq_address,
-                                           instance_name=info.instance_name)
+                        
+                        value = build_agent(identity=remote_rmq_user,
+                                            address=remote_rmq_address,
+                                            instance_name=info.instance_name)
 
                 else:
                     # TODO: cache the connection so we don't always have to ping
@@ -137,13 +136,13 @@ class Auth(SubsystemBase):
                         with open("keystore.json") as fp:
                             keypair = json.loads(fp.read())
 
-                    return build_agent(agent_class=agent_class,
-                                       identity=remote_identity,
-                                       serverkey=info.serverkey,
-                                       publickey=keypair.get('publickey'),
-                                       secretkey=keypair.get('secretekey'),
-                                       message_bus='zmq',
-                                       address=info.vip_address)
+                    value = build_agent(agent_class=agent_class,
+                                        identity=remote_identity,
+                                        serverkey=info.serverkey,
+                                        publickey=keypair.get('publickey'),
+                                        secretkey=keypair.get('secretekey'),
+                                        message_bus='zmq',
+                                        address=info.vip_address)
             except DiscoveryError:
                 value = dict(status='UNKNOWN',
                              message="Couldn't connect to {} or incorrect response returned".format(address))
