@@ -64,6 +64,7 @@ class CSREndpoints(object):
 
         self._certs.save_pending_csr_request(env.get('REMOTE_ADDR'), identity, csr)
 
+        # TODO Allow configuration of this dynamically.
         auto_accept = False
         if auto_accept:
             if self._certs.cert_exists(identity, True):
