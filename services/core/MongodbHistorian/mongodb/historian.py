@@ -76,7 +76,7 @@ except ImportError:
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '2.1'
+__version__ = '2.1.1'
 _VOLTTRON_TYPE = '__volttron_type__'
 
 
