@@ -468,10 +468,9 @@ class AuthEntry(object):
         self.address = AuthEntry._build_field(address)
         self.mechanism = mechanism
         self.credentials = AuthEntry._build_field(credentials)
-        self.groups = AuthEntry._build_field(groups, list, str) or []
-        self.roles = AuthEntry._build_field(roles, list, str) or []
-        self.capabilities = AuthEntry._build_field(capabilities, list,
-                                                   str) or []
+        self.groups = AuthEntry._build_field(groups) or []
+        self.roles = AuthEntry._build_field(roles) or []
+        self.capabilities = AuthEntry._build_capabilities_field(capabilities) or {}
         self.comments = AuthEntry._build_field(comments)
         if user_id is None:
             user_id = str(uuid.uuid4())
@@ -493,18 +492,50 @@ class AuthEntry(object):
         return False
 
     @staticmethod
-    def _build_field(value, list_class=List, str_class=String):
+    def _build_field(value):
         if not value:
             return None
         if isinstance(value, basestring):
             return String(value)
         return List(String(elem) for elem in value)
 
+    @staticmethod
+    def _build_capabilities_field(value):
+        _log.debug("_build_capabilities {}".format(value))
+        if not value:
+            return None
+        field = AuthEntry._get_capability(value)
+        if isinstance(field, list):
+            result = dict()
+            for elem in value:
+                # update if it is not there or if existing entry doesn't have args.
+                # i.e. capability with args can override capability str
+                _log.debug("In loop elem {}".format(elem))
+                if elem not in result or result[elem] is None:
+                    result.update(AuthEntry._get_capability(elem))
+            _log.debug("Returning field _build_capabilities {}".format(result))
+            return result
+        _log.debug("Returning field _build_capabilities {}".format(field))
+        return field
+
+    @staticmethod
+    def _get_capability(value):
+        err_message = "Invalid capability value: {} of type {}. Capability entries can only be a string or " \
+                      "dictionary or list containing string/dictionary. " \
+                      "dictionaries should be of the format {'capability_name':None} or " \
+                      "{'capability_name':{'arg1':'value',...}"
+
+        if isinstance(value, basestring):
+            return {value: None}
+        elif isinstance(value, list) or isinstance(value, dict):
+            return value
+        raise AuthEntryInvalid(err_message.format(value, type(value)))
+
     def add_capabilities(self, capabilities):
-        caps_set = set(capabilities)
-        caps_set |= set(self.capabilities)
-        self.capabilities = AuthEntry._build_field(
-            list(caps_set), list, str) or []
+        _log.debug("In add_capabilities- {}".format(capabilities))
+        temp = AuthEntry._build_capabilities_field(capabilities)
+        if temp:
+            self.capabilities.update(temp)
 
     def match(self, domain, address, mechanism, credentials):
         return ((self.domain is None or self.domain.match(domain)) and
@@ -608,6 +639,7 @@ class AuthFile(object):
         return entries, groups, roles
 
     def _upgrade(self, allow_list, groups, roles, version):
+        # TODO add logic to allow config store access by default
         backup = self.auth_file + '.' + str(uuid.uuid4()) + '.bak'
         shutil.copy(self.auth_file, backup)
         _log.info('Created backup of {} at {}'.format(self.auth_file, backup))

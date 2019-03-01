@@ -41,7 +41,7 @@ import os
 
 import gevent
 import pytest
-from py.test import raises
+from pytest import raises
 
 from volttron.platform import jsonrpc
 from volttron.platform.auth import (AuthEntry, AuthFile, AuthFileIndexError,

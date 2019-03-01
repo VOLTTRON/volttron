@@ -370,9 +370,17 @@ class PlatformWrapper:
         allow = auth['allow']
         entry = next((item for item in allow if item['credentials'] == cred),
                      {})
-        caps = entry.get('capabilities', [])
-        # Might have duplicates. But do we care? The check method should handle it correctly
-        caps.extend(capabilities)
+        caps = entry.get('capabilities', {})
+
+        for c in capabilities:
+            if isinstance(c, basestring):
+                if c not in caps:
+                    caps[c] = {}
+            elif isinstance(c, dict):
+                caps.update(c)
+            else:
+                raise ValueError("Invalid capability {}. Capability should be string or dictionary or list of string"
+                                 "and dictionary.")
         entry['capabilities'] = caps
 
         with open(auth_path, 'w+') as fd:

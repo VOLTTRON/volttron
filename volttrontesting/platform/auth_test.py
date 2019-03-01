@@ -55,21 +55,19 @@ def test_unauthorized_rpc_call1(volttron_instance_encrypt):
     with pytest.raises(jsonrpc.RemoteError):
         agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=1)
 
-@pytest.mark.dev
+
 @pytest.mark.auth
 def test_authorized_rpc_call1(volttron_instance_encrypt):
     """ Tests an agent with one capability calling a method that
     requires that same capability
     """
     agent1, agent2 = build_two_test_agents(volttron_instance_encrypt)
-    volttron_instance_encrypt.add_capabilities(agent2.publickey, {'name':'can_call_foo','x':'42'})
     volttron_instance_encrypt.add_capabilities(agent2.publickey, 'can_call_foo')
-    volttron_instance_encrypt.add_capabilities(agent2.publickey, 'can_call_bar')
     gevent.sleep(.1)
-    result = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=40)
+    result = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=2)
     assert result == 42
 
-
+@pytest.mark.dev
 @pytest.mark.auth
 def test_unauthorized_rpc_call2(volttron_instance_encrypt):
     """Tests an agent with one capability calling a method that

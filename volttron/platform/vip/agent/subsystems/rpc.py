@@ -237,38 +237,22 @@ class RPC(SubsystemBase):
         def checked_method(*args, **kwargs):
             user = str(self.context.vip_message.user)
             user_capabilites = self._owner.vip.auth.get_capabilities(user)
-            # caps - Can be list of dictionary and string.
-            # loop through user capabilities to grab all capability names in a list
-            # grab all dictionary objects in a separate list to check for args.
-            # Only user capabilities can have dict objects.
-            uc_dict = dict()
-
-            for uc in user_capabilites:
-                if isinstance(uc, basestring):
-                    if not uc_dict.get(uc):
-                        uc_dict[uc] = {}
-                elif isinstance(uc, dict):
-                    # Should have name.
-                    # TODO: Should be checked by auth add/update
-                    name = uc.pop("name")
-                    _log.debug("name is {}".format(name))
-                    uc_dict[name] = uc
-
-
+            user_capabilities_names = set(user_capabilites.keys())
             _log.debug("Required caps is : {}".format(required_caps))
             _log.debug("user caps is: {}".format(user_capabilites))
-            _log.debug("user cap dict {}".format(uc_dict))
-
-            if not required_caps <= set(user_capabilites):
-                msg = ('method "{}" requires capabilities {},'
-                      ' but capability list {} was'
-                      ' provided').format(method.__name__, required_caps, user_capabilites)
+            _log.debug("user capability names: {}".format(user_capabilities_names))
+            if not required_caps.issubset(user_capabilities_names):
+                msg = ('method "{}" requires capabilities {}, but capability {} was'
+                       ' provided').format(method.__name__, required_caps, user_capabilites)
                 raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)
             else:
-                # Now check if args passed to method are the ones allowed.
-                # Check all dict object in user capability
                 # TODO
+                # Now check if args passed to method are the ones allowed.
+                # for name, value in user_capabilites:
+                #     if value and required_caps :
+                #         # there is some args mentioned in
                 pass
+
             return method(*args, **kwargs)
         return checked_method
 
