@@ -14,8 +14,8 @@ function exit_on_error {
 function print_usage {
  echo "
 Command Usage:
-<path>/rabbit_dependencies.sh <ubuntu or centos> <distribution name or centos version>
-Valid Ubuntu distributions: ${list[@]}
+<path>/rabbit_dependencies.sh <debian or centos> <distribution name or centos version>
+Valid Debian distributions: ${list[@]}
 Valid centos versions: 6, 7
 "
  exit 0
@@ -31,7 +31,7 @@ function install_on_centos {
        erlang_url='https://dl.bintray.com/rabbitmq-erlang/rpm/erlang/21/el/7'
    else
        printf "Invalid centos version. 6 and 7 are the only compatible versions\n"
-       print_usagec
+       print_usage
    fi
 
    repo="## In /etc/yum.repos.d/rabbitmq-erlang.repo
@@ -93,13 +93,12 @@ fi
 
 $prefix pwd > /dev/null
 
-if [ "$os_name" == "ubuntu" ]; then
+if [ "$os_name" == "debian" ]; then
     install_on_ubuntu
 elif [ "$os_name" == "centos" ]; then
     install_on_centos
 else
-    printf "ubuntu and centos are the only operating systems this script \
-supports. For other operating systems, please install Erlang manually with the \
+    printf "For operating system/distributions not supported by this script, please install Erlang manually with the \
 following components- ssl, publickey, asn1, and crypto.\n"
     print_usage
 fi
