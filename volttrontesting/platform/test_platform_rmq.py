@@ -59,7 +59,7 @@ from volttron.utils.rmq_setup import stop_rabbit, start_rabbit, restart_ssl
 
 @pytest.fixture(scope="module")
 def instance(request):
-    instance = PlatformWrapper(message_bus='rmq', ssl_auth=True)
+    instance = PlatformWrapper(message_bus='rmq', ssl_auth=True, skip_cleanup=True)
 
     def stop():
         try:
