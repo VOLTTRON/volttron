@@ -341,7 +341,7 @@ class CrateHistorian(BaseHistorian):
                 index = 0
                 failures = []
                 for r in results:
-                    if r['rowcount'] == -1:
+                    if r['rowcount'] != 1:
                         failures.append(index)
                     index += 1
 
@@ -365,7 +365,6 @@ class CrateHistorian(BaseHistorian):
                         _log.debug('Invalid data not saved {}'.format(
                             to_publish_list[id]
                         ))
-                        self.report_handled(to_publish_list[id])
                     except Exception as ex:
                         _log.error(repr(ex))
                     else:
