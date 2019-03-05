@@ -673,7 +673,7 @@ class BaseTaggingService(Agent):
 
         condition = None
         if and_str and or_str:
-            condition = and_str + ' AND ' + or_str
+            condition = and_str + ' AND (' + or_str + ')'
         elif and_str:
             condition = and_str
         elif or_str:

@@ -135,7 +135,7 @@ def setup_sqlite(config):
 def setup_mongodb(config):
     print ("setup mongodb")
     connection_params = config['connection']['params']
-    mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
+    mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}?authSource={authSource}'
     params = connection_params
     mongo_conn_str = mongo_conn_str.format(**params)
     mongo_client = pymongo.MongoClient(mongo_conn_str)
@@ -255,6 +255,7 @@ def test_init_failure(volttron_instance, tagging_service, query_agent):
             volttron_instance.start_agent(agent_id)
         except:
             pass
+        gevent.sleep(1)
         print ("Call back count {}".format(query_agent.callback.call_count))
         assert query_agent.callback.call_count == 1
         print("Call args {}".format(query_agent.callback.call_args))
@@ -1168,7 +1169,7 @@ def test_topic_by_tags_param_and_or(volttron_instance, tagging_service,
             and_condition={'campus': True,
                            'geoCountry': "US"},
             or_condition=['campus', 'equip']).get(timeout=10)
-        assert result1 == ['campus1', 'campus2']
+        assert result1 == ['campus1']
 
         result1 = query_agent.vip.rpc.call(
             'platform.tagging',
@@ -1177,7 +1178,7 @@ def test_topic_by_tags_param_and_or(volttron_instance, tagging_service,
                            'elec': True,
                            'campusRef.geoCountry': "UK",
                            'campusRef.dis': "United Kingdom"}).get(timeout=10)
-        print("Result of NOT LIKE query: {}".format(result1))
+        print("Result of AND and OR query: {}".format(result1))
         assert result1 == ['campus2/d1']
 
     finally:

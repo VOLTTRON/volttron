@@ -5,7 +5,8 @@
     },
     "--testing": {
         "help": "Installs testing infrastructure dependencies",
-        "packages": ["pytest==3.6.4", "pytest-timeout", "mock", "websocket-client"]
+        "packages": ["more-itertools>=4.0.0,<6.0.0;python_version<='2.7'","more-itertools>=4.0.0;python_version>'2.7'",
+                     "pytest==3.6.4", "pytest-timeout", "mock", "websocket-client"]
     },
     "--crate": {
         "help": "Installs requirements for crate databases",
