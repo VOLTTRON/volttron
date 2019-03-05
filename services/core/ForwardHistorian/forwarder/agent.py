@@ -61,7 +61,7 @@ import os
 FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '4.0'
+__version__ = '4.1'
 
 
 def historian(config_path, **kwargs):
@@ -73,7 +73,10 @@ def historian(config_path, **kwargs):
     service_topic_list = config.pop('service_topic_list', None)
     destination_serverkey = None
     # This will trigger rmq based forwarder
-    destination_address = config.pop('destination-address')
+    try:
+        destination_address = config.pop('destination-address')
+    except KeyError:
+        destination_address = None
     if service_topic_list is not None:
         w = "Deprecated service_topic_list.  Use capture_device_data " \
             "capture_log_data, capture_analysis_data or capture_record_data " \
@@ -470,9 +473,6 @@ class ForwardHistorian(BaseHistorian):
         if self._target_platform is not None:
             self._target_platform.core.stop()
             self._target_platform = None
-
-
-
 
 
 def main(argv=sys.argv):
