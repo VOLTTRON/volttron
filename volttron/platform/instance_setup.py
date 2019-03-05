@@ -76,7 +76,7 @@ def _load_config():
             config_opts[option] = parser.get('volttron', option)
 
 
-def _update_config_file(instance_name='volttron1'):
+def _update_config_file(instance_name=None):
     home = get_home()
 
     if not os.path.exists(home):
@@ -87,13 +87,19 @@ def _update_config_file(instance_name='volttron1'):
     config = ConfigParser()
 
     _load_config()
-    if not os.path.exists(path):
-        config.add_section('volttron')
-
-    config.set('volttron', 'instance-name', instance_name)
+    config.add_section('volttron')
 
     for k, v in config_opts.items():
         config.set('volttron', k, v)
+
+    if 'instance-name' in config_opts:
+        # Overwrite existing if instance name was passed
+        if instance_name is not None:
+            config.set('volttron', 'instance-name', instance_name)
+    else:
+        if instance_name is None:
+            instance_name = 'volttron1'
+        config.set('volttron', 'instance-name', instance_name)
 
     with open(path, 'w') as configfile:
         config.write(configfile)
