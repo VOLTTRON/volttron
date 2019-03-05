@@ -64,6 +64,7 @@ config_opts = {}
 # Populated by the `installs` decorator.
 available_agents = {}
 
+
 def _load_config():
     """Loads the config file if the path exists."""
     path = os.path.join(get_home(), 'config')
@@ -74,7 +75,8 @@ def _load_config():
         for option in options:
             config_opts[option] = parser.get('volttron', option)
 
-def _install_config_file():
+
+def _update_config_file(instance_name='volttron1'):
     home = get_home()
 
     if not os.path.exists(home):
@@ -83,7 +85,12 @@ def _install_config_file():
     path = os.path.join(home, 'config')
 
     config = ConfigParser()
-    config.add_section('volttron')
+
+    _load_config()
+    if not os.path.exists(path):
+        config.add_section('volttron')
+
+    config.set('volttron', 'instance-name', instance_name)
 
     for k, v in config_opts.items():
         config.set('volttron', k, v)
@@ -186,7 +193,7 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
 
             print 'Configuring {}'.format(agent_dir)
             config = config_func(*args, **kwargs)
-            _install_config_file()
+            _update_config_file()
             _start_platform()
             _install_agent(agent_dir, config, tag)
             if post_install_func:
@@ -491,7 +498,7 @@ def wizard():
     confirm_volttron_home()
     _load_config()
     do_vip()
-    _install_config_file()
+    _update_config_file()
 
     prompt = 'Is this instance a volttron central?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
@@ -526,7 +533,7 @@ def wizard():
 
 def process_rmq_inputs(args):
     confirm_volttron_home()
-    _install_config_file()
+    _update_config_file()
     if len(args) == 2:
         vhome = get_home()
         if args[0] == 'single':

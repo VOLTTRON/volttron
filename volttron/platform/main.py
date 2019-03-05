@@ -61,6 +61,8 @@ from zmq import green
 import subprocess
 
 # Create a context common to the green and non-green zmq modules.
+from volttron.platform.instance_setup import _update_config_file
+
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
 from volttron.platform.agent import json as jsonapi
 
@@ -895,15 +897,6 @@ def start_volttron_process(opts):
                            message_bus=opts.message_bus,
                            agent_monitor_frequency=opts.agent_monitor_frequency),
 
-            MasterWebService(
-                serverkey=publickey, identity=MASTER_WEB,
-                address=address,
-                bind_web_address=opts.bind_web_address,
-                volttron_central_address=opts.volttron_central_address,
-                aip=opts.aip, enable_store=False,
-                message_bus=opts.message_bus,
-                volttron_central_rmq_address=opts.volttron_central_rmq_address),
-
             KeyDiscoveryAgent(address=address, serverkey=publickey,
                               identity='keydiscovery',
                               external_address_config=external_address_file,
@@ -916,6 +909,20 @@ def start_volttron_process(opts):
                           enable_store=False,
                           message_bus='zmq')
         ]
+
+        if opts.bind_web_address is not None:
+            if opts.instance_name is None:
+                _update_config_file()
+
+            services.append(MasterWebService(
+                serverkey=publickey, identity=MASTER_WEB,
+                address=address,
+                bind_web_address=opts.bind_web_address,
+                volttron_central_address=opts.volttron_central_address,
+                aip=opts.aip, enable_store=False,
+                message_bus=opts.message_bus,
+                volttron_central_rmq_address=opts.volttron_central_rmq_address))
+
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
                  for service, event in zip(services, events)]
