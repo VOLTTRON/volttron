@@ -59,14 +59,17 @@ from volttron.utils.rmq_setup import stop_rabbit, start_rabbit, restart_ssl
 
 @pytest.fixture(scope="module")
 def instance(request):
-    instance = PlatformWrapper(message_bus='rmq', ssl_auth=True, skip_cleanup=True)
+    instance = PlatformWrapper(message_bus='rmq', ssl_auth=True)
+    instance.skip_cleanup = True
 
     def stop():
         try:
-            cleanup_rmq_volttron_setup(vhome=instance.volttron_home,
-                                       ssl_auth=True)
+            instance.skip_cleanup = False
             if instance.is_running():
                 instance.shutdown_platform()
+            else:
+                cleanup_rmq_volttron_setup(vhome=instance.volttron_home,
+                                           ssl_auth=True)
         except:
             pass
     request.addfinalizer(stop)
@@ -347,6 +350,7 @@ def test_expired_ca_cert_after_vstart(request, instance):
                                            'rabbitmq_server/rabbitmq_server-3.7.7'))
 
 
+@pytest.mark.dev
 @pytest.mark.timeout(400)
 @pytest.mark.wrapper
 def test_expired_server_cert_after_vstart(request, instance):
