@@ -84,14 +84,19 @@ def _update_config_file(instance_name='volttron1'):
 
     path = os.path.join(home, 'config')
 
-    config = ConfigParser()
-
+    # Loads config into a config_opts variable.
     _load_config()
-    if not os.path.exists(path):
-        config.add_section('volttron')
 
-    config.set('volttron', 'instance-name', instance_name)
+    config = ConfigParser()
+    # add the volttron section because that's where it will end up in the
+    # config file.
+    config.add_section('volttron')
 
+    # The _load_config loads data into config_opts so we
+    # set the config opts on that
+    config_opts['instance-name'] = instance_name
+
+    # Transfer from existing config_opts into the new config object.
     for k, v in config_opts.items():
         config.set('volttron', k, v)
 
