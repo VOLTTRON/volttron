@@ -77,6 +77,7 @@ def _load_config():
 
 
 def _update_config_file(instance_name=None):
+    _load_config()
     home = get_home()
 
     if not os.path.exists(home):
@@ -86,7 +87,6 @@ def _update_config_file(instance_name=None):
 
     config = ConfigParser()
 
-    _load_config()
     config.add_section('volttron')
 
     for k, v in config_opts.items():
@@ -537,9 +537,8 @@ def wizard():
     print('the config file at {}/config\n'.format(volttron_home))
 
 
-def process_rmq_inputs(args):
+def process_rmq_inputs(args, instance_name=None):
     confirm_volttron_home()
-    _update_config_file()
     if len(args) == 2:
         vhome = get_home()
         if args[0] == 'single':
@@ -552,9 +551,9 @@ def process_rmq_inputs(args):
             return
         if args[1] != vhome_config:
             copy(args[1], vhome_config)
-        setup_rabbitmq_volttron(args[0], verbose)
+        setup_rabbitmq_volttron(args[0], verbose, instance_name=instance_name)
     else:
-        setup_rabbitmq_volttron(args[0], verbose, prompt=True)
+        setup_rabbitmq_volttron(args[0], verbose, prompt=True, instance_name=instance_name)
 
 
 def main():
@@ -563,6 +562,7 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--vhome', help="Path to volttron home")
+    parser.add_argument('--instance-name', dest='instance_name', help="Name of this volttron instance")
 
     group = parser.add_mutually_exclusive_group()
 
@@ -591,7 +591,8 @@ def main():
     fail_if_not_in_src_root()
 
     _load_config()
-
+    if args.instance_name:
+        _update_config_file(instance_name=args.instance_name)
     if args.list_agents:
         print "Agents available to configure:{}".format(agent_list)
     elif args.rabbitmq:
@@ -609,7 +610,7 @@ def main():
             parser.print_help()
             exit(1)
         else:
-            process_rmq_inputs(args.rabbitmq)
+            process_rmq_inputs(args.rabbitmq, args.instance_name)
     elif not args.agent:
         wizard()
 
@@ -618,6 +619,8 @@ def main():
         for agent in args.agent:
             if agent not in available_agents:
                 print '"{}" not configurable with this tool'.format(agent)
+
+        confirm_volttron_home()
 
         # Configure agents
         for agent in args.agent:

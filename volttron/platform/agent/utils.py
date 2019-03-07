@@ -180,22 +180,24 @@ def load_platform_config():
 def get_platform_instance_name(prompt=False):
     # Next get instance name
     platform_config = load_platform_config()
-    try:
-        instance_name = platform_config.get('instance-name')
-        if instance_name is not None:
-            instance_name = instance_name.strip('"')
-    except KeyError as exc:
-        if prompt:
-            instance_name = prompt_response("Name of this volttron instance:",
-                                            mandatory=True)
-        else:
+
+    instance_name = platform_config.get('instance-name')
+    if instance_name is not None:
+        instance_name = instance_name.strip('"')
+    if prompt:
+        if not instance_name:
+            instance_name = 'volttron1'
+        instance_name = prompt_response("Name of this volttron instance:",
+                                        mandatory=True, default=instance_name)
+    else:
+        if not instance_name:
             raise KeyError("No instance-name is configured in "
-                           "$VOLTTRON_HOME/config. Please set instance-name in "
-                           "$VOLTTRON_HOME/config")
+                       "$VOLTTRON_HOME/config. Please set instance-name in "
+                       "$VOLTTRON_HOME/config")
     return instance_name
 
 
-def get_fq_identity(identity, platform_instance_name=get_platform_instance_name()):
+def get_fq_identity(identity, platform_instance_name=None):
     """
     Return the fully qualified identity for the passed core identity.
 
@@ -205,6 +207,8 @@ def get_fq_identity(identity, platform_instance_name=get_platform_instance_name(
     :param platform_instance_name: str The name of the platform.
     :return:
     """
+    if not platform_instance_name:
+        platform_instance_name = get_platform_instance_name()
     return "{}.{}".format(platform_instance_name, identity)
 
 
