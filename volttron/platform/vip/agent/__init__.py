@@ -88,42 +88,44 @@ class Agent(object):
                  instance_name=None, message_bus=None,
                  volttron_central_address=None, volttron_central_instance_name=None):
 
-        self._version = version
+        try:
+            self._version = version
 
-        if identity is not None and not is_valid_identity(identity):
-            _log.warn('Deprecation warning')
-            _log.warn(
-                'All characters in {identity} are not in the valid set.'.format(
-                    identity=identity))
+            if identity is not None and not is_valid_identity(identity):
+                _log.warn('Deprecation warning')
+                _log.warn(
+                    'All characters in {identity} are not in the valid set.'.format(
+                        identity=identity))
 
-        #_log.debug("MESSAGE TYPE: {0}, IDENITY: {1}".format(message_bus, identity))
-        if message_bus == 'rmq':
-            _log.debug("Creating RMQ Core {}".format(identity))
-            self.core = RMQCore(self, identity=identity, address=address,
-                         context=context, publickey=publickey,
-                         secretkey=secretkey, serverkey=serverkey,
-                         instance_name=instance_name,
-                         volttron_home=volttron_home, agent_uuid=agent_uuid,
-                         reconnect_interval=reconnect_interval,
-                         version=version,
-                         volttron_central_address=volttron_central_address,
-                         volttron_central_instance_name=volttron_central_instance_name)
-        else:
-            _log.debug("Creating ZMQ Core {}".format(identity))
-            self.core = ZMQCore(self, identity=identity, address=address,
-                                context=context, publickey=publickey,
-                                secretkey=secretkey, serverkey=serverkey,
-                                instance_name=instance_name,
-                                volttron_home=volttron_home, agent_uuid=agent_uuid,
-                                reconnect_interval=reconnect_interval,
-                                version=version, enable_fncs=enable_fncs)
-
-        self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
-                                    heartbeat_period, enable_store, enable_web,
-                                    enable_channel, enable_fncs, message_bus)
-
-        self.core.setup()
-        self.vip.rpc.export(self.core.version, 'agent.version')
+            #_log.debug("MESSAGE TYPE: {0}, IDENITY: {1}".format(message_bus, identity))
+            if message_bus == 'rmq':
+                _log.debug("Creating RMQ Core {}".format(identity))
+                self.core = RMQCore(self, identity=identity, address=address,
+                             context=context, publickey=publickey,
+                             secretkey=secretkey, serverkey=serverkey,
+                             instance_name=instance_name,
+                             volttron_home=volttron_home, agent_uuid=agent_uuid,
+                             reconnect_interval=reconnect_interval,
+                             version=version,
+                             volttron_central_address=volttron_central_address,
+                             volttron_central_instance_name=volttron_central_instance_name)
+            else:
+                _log.debug("Creating ZMQ Core {}".format(identity))
+                self.core = ZMQCore(self, identity=identity, address=address,
+                                    context=context, publickey=publickey,
+                                    secretkey=secretkey, serverkey=serverkey,
+                                    instance_name=instance_name,
+                                    volttron_home=volttron_home, agent_uuid=agent_uuid,
+                                    reconnect_interval=reconnect_interval,
+                                    version=version, enable_fncs=enable_fncs)
+            self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
+                                        heartbeat_period, enable_store, enable_web,
+                                        enable_channel, enable_fncs, message_bus)
+            self.core.setup()
+            self.vip.rpc.export(self.core.version, 'agent.version')
+        except Exception as e:
+            _log.exception("Exception creating Agent. {}".format(e))
+            raise e
 
 
 class BasicAgent(object):
