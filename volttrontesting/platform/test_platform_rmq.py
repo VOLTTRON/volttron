@@ -350,7 +350,6 @@ def test_expired_ca_cert_after_vstart(request, instance):
                                            'rabbitmq_server/rabbitmq_server-3.7.7'))
 
 
-@pytest.mark.dev
 @pytest.mark.timeout(400)
 @pytest.mark.wrapper
 def test_expired_server_cert_after_vstart(request, instance):
