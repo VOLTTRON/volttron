@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-list=( artful bionic jessie precise rtful sid stretch trusty weezy xenial yakkety zesty )
+list=( artful bionic  precise artful sid stretch trusty weezy xenial yakkety zesty )
 
 function exit_on_error {
     rc=$?
@@ -53,7 +53,7 @@ enabled=1"
     exit_on_error
 }
 
-function install_on_ubuntu {
+function install_on_debian {
     FOUND=0
     for item in ${list[@]}; do
         if [ "$DIST" == "$item" ]; then
@@ -94,7 +94,7 @@ fi
 $prefix pwd > /dev/null
 
 if [ "$os_name" == "debian" ]; then
-    install_on_ubuntu
+    install_on_debian
 elif [ "$os_name" == "centos" ]; then
     install_on_centos
 else

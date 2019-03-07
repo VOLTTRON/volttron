@@ -63,16 +63,15 @@ http://ryanstutorials.net/linuxtutorial/
   supported
 
     debian bionic (for Ubuntu 18.04)
-    denian xenial (for Ubuntu 16.04)
+    debian xenial (for Ubuntu 16.04)
     debian xenial (for Linux Mint 18.04)
     debian stretch (for Debian Stretch)
-    debian jessie (for Debian Jessie)
     centos 7 (for CentOS 7)
     centos 6 (for CentOS 6)
   
   Example command
   ``` 
-  ~/volttron/scripts/rabbit_dependencies.sh denian xenial
+  ~/volttron/scripts/rabbit_dependencies.sh debian xenial
   ```
   
   **Alternatively**
