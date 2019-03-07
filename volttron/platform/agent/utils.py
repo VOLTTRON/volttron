@@ -178,7 +178,6 @@ def load_platform_config():
 
 
 def get_platform_instance_name(prompt=False):
-    # Next get instance name
     platform_config = load_platform_config()
 
     instance_name = platform_config.get('instance-name')
@@ -191,9 +190,11 @@ def get_platform_instance_name(prompt=False):
                                         mandatory=True, default=instance_name)
     else:
         if not instance_name:
-            raise KeyError("No instance-name is configured in "
-                       "$VOLTTRON_HOME/config. Please set instance-name in "
-                       "$VOLTTRON_HOME/config")
+            err = "No instance-name is configured in $VOLTTRON_HOME/config. Please set instance-name in " \
+                  "$VOLTTRON_HOME/config"
+            _log.error(err)
+            raise KeyError(err)
+
     return instance_name
 
 
