@@ -77,7 +77,8 @@ def _load_config():
 
 
 def _update_config_file(instance_name=None):
-    _load_config()
+    if not config_opts:
+        _load_config()
     home = get_home()
 
     if not os.path.exists(home):
@@ -547,9 +548,13 @@ def process_rmq_inputs(args, instance_name=None):
             vhome_config = os.path.join(vhome, 'rabbitmq_federation_config.yml')
         elif args[0] == 'shovel':
             vhome_config = os.path.join(vhome, 'rabbitmq_shovel_config.yml')
-        else: # Ignoring 'all' for now
-            return
+        else:
+            print("Invalid argument. \nUsage: vcf --rabbitmq single|federation|shovel "
+                  "[optional path to rabbitmq config yml]")
+            exit(1)
         if args[1] != vhome_config:
+            if not os.path.exists(vhome):
+                os.makedirs(vhome, 0o755)
             copy(args[1], vhome_config)
         setup_rabbitmq_volttron(args[0], verbose, instance_name=instance_name)
     else:
@@ -574,10 +579,10 @@ def main():
                         help='configure listed agents')
     group.add_argument('--rabbitmq', nargs='+',
                        help='Configure rabbitmq for single instance, '
-                            'federation, shovel or all either based on '
+                            'federation, or shovel either based on '
                             'configuration file in yml format or providing '
                             'details when prompted. \nUsage: vcfg --rabbitmq '
-                            'single|federation|shovel|all [rabbitmq config '
+                            'single|federation|shovel [rabbitmq config '
                             'file]')
 
     args = parser.parse_args()
@@ -586,7 +591,7 @@ def main():
     if args.vhome:
         set_home(args.vhome)
         prompt_vhome = False
-    if not args.rabbitmq or args.rabbitmq[0] in ["single", "all"]:
+    if not args.rabbitmq or args.rabbitmq[0] in ["single"]:
         fail_if_instance_running()
     fail_if_not_in_src_root()
 
@@ -600,8 +605,8 @@ def main():
             print("vcfg --rabbitmq can at most accept 2 arguments")
             parser.print_help()
             exit(1)
-        elif args.rabbitmq[0] not in ['single', 'federation', 'shovel', 'all']:
-            print("Usage: vcf --rabbitmq single|federation|shovel|all "
+        elif args.rabbitmq[0] not in ['single', 'federation', 'shovel']:
+            print("Usage: vcf --rabbitmq single|federation|shovel "
                   "[optional path to rabbitmq config yml]")
             parser.print_help()
             exit(1)
