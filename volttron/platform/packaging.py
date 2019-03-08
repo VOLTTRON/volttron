@@ -477,7 +477,6 @@ def _create_cert(name=None, **kwargs):
     else:
         cert_data = _create_cert_ui('{} ({})'.format(cert_type, name))
 
-    instance_name = get_platform_instance_name()
     crts.create_ca_signed_cert(name, **cert_data)
 
 

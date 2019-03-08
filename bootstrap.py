@@ -82,6 +82,7 @@ import os
 from distutils.version import LooseVersion
 import traceback
 
+
 _log = logging.getLogger(__name__)
 
 _WINDOWS = sys.platform.startswith('win')
@@ -276,6 +277,15 @@ def update(operation, verbose=None, upgrade=False, offline=False,
 
 
 def install_rabbit(rmq_install_dir):
+
+    # try:
+    process = subprocess.Popen(["which", "erl"], stderr=subprocess.PIPE,  stdout=subprocess.PIPE)
+    (output, error) = process.communicate()
+    if process.returncode != 0:
+        sys.stderr.write("ERROR:\n Unable to find erlang in path. Please install necessary pre-requisites. "
+                         "Reference: https://github.com/VOLTTRON/volttron/blob/rabbitmq-volttron/README.md")
+        sys.exit(60)
+
     import wget
     if rmq_install_dir == default_rmq_dir and not os.path.exists(
             default_rmq_dir):

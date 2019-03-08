@@ -72,8 +72,6 @@ class Auth(SubsystemBase):
         self._user_to_capabilities = {}
         self._dirty = True
         self._csr_certs = dict()
-        self._full_identity = "{}.{}".format(get_platform_instance_name(), self._core().identity)
-
         def onsetup(sender, **kwargs):
             rpc.export(self._update_capabilities, 'auth.update')
 
@@ -166,7 +164,6 @@ class Auth(SubsystemBase):
             info = DiscoveryInfo.request_discovery_info(csr_server)
 
         certs = Certs()
-        # csr_request = certs.create_csr(self._full_identity, csr_server)
         csr_request = certs.create_csr(self._core().identity, info.instance_name)
         # The csr request requires the fully qualified identity that is
         # going to be connected to the external instance.

@@ -57,7 +57,8 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False):
 
     setup_rabbitmq_volttron('single',
                             verbose=False,
-                            prompt=False)
+                            prompt=False,
+                            instance_name=VOLTTRON_INSTANCE_NAME)
 
 
 def cleanup_rmq_volttron_setup(vhome=None, ssl_auth=False):

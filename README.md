@@ -56,48 +56,26 @@ http://ryanstutorials.net/linuxtutorial/
 
  For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
 
-  **On Debian based systems:**
+  **On Debian and CentOS 6/7**
 
-  If you are running an Ubuntu system, you can install the RabbitMQ dependencies by running the rabbit dependencies
-  script, passing in the approriate distribution as a parameter. Please note,
-  distribution parameter will vary according to the distribution used in your system. For example,
+  If you are running an Debian or CentOS system, you can install the RabbitMQ dependencies by running the rabbit 
+  dependencies script, passing in the os name and approriate distribution as a parameter. The following are  
+  supported
 
-    bionic for Ubuntu 18.04
-    xenial for Ubuntu 16.04
-    xenial for Linux Mint 18.04
-    stretch for Debian Stretch
-    jessie for Debian Jessie
+    debian bionic (for Ubuntu 18.04)
+    debian xenial (for Ubuntu 16.04)
+    debian xenial (for Linux Mint 18.04)
+    debian stretch (for Debian Stretch)
+    centos 7 (for CentOS 7)
+    centos 6 (for CentOS 6)
   
+  Example command
   ``` 
-  ~/volttron/scripts/rabbit_dependencies.sh xenial
+  ~/volttron/scripts/rabbit_dependencies.sh debian xenial
   ```
-
-  **On Redhat based systems:**
-
-  Easiest way to install Erlang for use with RabbitMQ is to use [Zero dependency
-  Erlang RPM](https://github.com/rabbitmq/erlang-rpm). This included only the components required for RabbitMQ.
-  Copy the contents of the repo file provided into /etc/yum.repos.d/rabbitmq-erlang.repo and then run yum install erlang. 
-  You would need to do both these as root user. Below is a example
-  rabbitmq-erlang.repo file for centos 7 and erlang 21.
-
   
-  ```sh
-# In /etc/yum.repos.d/rabbitmq-erlang.repo
-[rabbitmq-erlang]
-name=rabbitmq-erlang
-baseurl=https://dl.bintray.com/rabbitmq/rpm/erlang/21/el/7
-gpgcheck=1
-gpgkey=https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc
-repo_gpgcheck=0
-enabled=1
-  ```
- Once you save the repo file, run the following commands
- ```sh
- sudo yum install erlang
- ```
+  **Alternatively**
   
-  
- Alternatively,
   You can also download and install Erlang from [Erlang Solutions](https://www.erlang-solutions.com/resources/download.html).
   Please include OTP/components - ssl, public_key, asn1, and crypto.
   Also lock version of Erlang using the [yum-plugin-versionlock](https://access.redhat.com/solutions/98873)

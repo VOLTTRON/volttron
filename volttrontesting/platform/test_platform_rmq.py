@@ -60,13 +60,16 @@ from volttron.utils.rmq_setup import stop_rabbit, start_rabbit, restart_ssl
 @pytest.fixture(scope="module")
 def instance(request):
     instance = PlatformWrapper(message_bus='rmq', ssl_auth=True)
+    instance.skip_cleanup = True
 
     def stop():
         try:
-            cleanup_rmq_volttron_setup(vhome=instance.volttron_home,
-                                       ssl_auth=True)
+            instance.skip_cleanup = False
             if instance.is_running():
                 instance.shutdown_platform()
+            else:
+                cleanup_rmq_volttron_setup(vhome=instance.volttron_home,
+                                           ssl_auth=True)
         except:
             pass
     request.addfinalizer(stop)

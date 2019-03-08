@@ -474,7 +474,7 @@ def _verify_and_save_instance_ca(rmq_config, instance_ca_path, instance_ca_key):
     return found
 
 
-def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False):
+def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_name=None):
     """
     Setup VOLTTRON instance to run with RabbitMQ message bus.
     :param setup_type:
@@ -484,7 +484,8 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False):
             shovel - Setup shovels to forward local messages to remote instances
     :return:
     """
-    instance_name = get_platform_instance_name(prompt=True)
+    if not instance_name:
+        instance_name = get_platform_instance_name(prompt=True)
     # Store config this is checked at startup
     store_message_bus_config(message_bus='rmq', instance_name=instance_name)
 

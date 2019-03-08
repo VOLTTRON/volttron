@@ -76,7 +76,9 @@ def _load_config():
             config_opts[option] = parser.get('volttron', option)
 
 
-def _update_config_file(instance_name='volttron1'):
+def _update_config_file(instance_name=None):
+    if not config_opts:
+        _load_config()
     home = get_home()
 
     if not os.path.exists(home):
@@ -86,14 +88,19 @@ def _update_config_file(instance_name='volttron1'):
 
     config = ConfigParser()
 
-    _load_config()
-    if not os.path.exists(path):
-        config.add_section('volttron')
-
-    config.set('volttron', 'instance-name', instance_name)
+    config.add_section('volttron')
 
     for k, v in config_opts.items():
         config.set('volttron', k, v)
+
+    if 'instance-name' in config_opts:
+        # Overwrite existing if instance name was passed
+        if instance_name is not None:
+            config.set('volttron', 'instance-name', instance_name)
+    else:
+        if instance_name is None:
+            instance_name = 'volttron1'
+        config.set('volttron', 'instance-name', instance_name)
 
     with open(path, 'w') as configfile:
         config.write(configfile)
@@ -531,9 +538,8 @@ def wizard():
     print('the config file at {}/config\n'.format(volttron_home))
 
 
-def process_rmq_inputs(args):
+def process_rmq_inputs(args, instance_name=None):
     confirm_volttron_home()
-    _update_config_file()
     if len(args) == 2:
         vhome = get_home()
         if args[0] == 'single':
@@ -542,13 +548,17 @@ def process_rmq_inputs(args):
             vhome_config = os.path.join(vhome, 'rabbitmq_federation_config.yml')
         elif args[0] == 'shovel':
             vhome_config = os.path.join(vhome, 'rabbitmq_shovel_config.yml')
-        else: # Ignoring 'all' for now
-            return
+        else:
+            print("Invalid argument. \nUsage: vcf --rabbitmq single|federation|shovel "
+                  "[optional path to rabbitmq config yml]")
+            exit(1)
         if args[1] != vhome_config:
+            if not os.path.exists(vhome):
+                os.makedirs(vhome, 0o755)
             copy(args[1], vhome_config)
-        setup_rabbitmq_volttron(args[0], verbose)
+        setup_rabbitmq_volttron(args[0], verbose, instance_name=instance_name)
     else:
-        setup_rabbitmq_volttron(args[0], verbose, prompt=True)
+        setup_rabbitmq_volttron(args[0], verbose, prompt=True, instance_name=instance_name)
 
 
 def main():
@@ -557,6 +567,7 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--vhome', help="Path to volttron home")
+    parser.add_argument('--instance-name', dest='instance_name', help="Name of this volttron instance")
 
     group = parser.add_mutually_exclusive_group()
 
@@ -568,10 +579,10 @@ def main():
                         help='configure listed agents')
     group.add_argument('--rabbitmq', nargs='+',
                        help='Configure rabbitmq for single instance, '
-                            'federation, shovel or all either based on '
+                            'federation, or shovel either based on '
                             'configuration file in yml format or providing '
                             'details when prompted. \nUsage: vcfg --rabbitmq '
-                            'single|federation|shovel|all [rabbitmq config '
+                            'single|federation|shovel [rabbitmq config '
                             'file]')
 
     args = parser.parse_args()
@@ -580,12 +591,13 @@ def main():
     if args.vhome:
         set_home(args.vhome)
         prompt_vhome = False
-    if not args.rabbitmq or args.rabbitmq[0] in ["single", "all"]:
+    if not args.rabbitmq or args.rabbitmq[0] in ["single"]:
         fail_if_instance_running()
     fail_if_not_in_src_root()
 
     _load_config()
-
+    if args.instance_name:
+        _update_config_file(instance_name=args.instance_name)
     if args.list_agents:
         print "Agents available to configure:{}".format(agent_list)
     elif args.rabbitmq:
@@ -593,8 +605,8 @@ def main():
             print("vcfg --rabbitmq can at most accept 2 arguments")
             parser.print_help()
             exit(1)
-        elif args.rabbitmq[0] not in ['single', 'federation', 'shovel', 'all']:
-            print("Usage: vcf --rabbitmq single|federation|shovel|all "
+        elif args.rabbitmq[0] not in ['single', 'federation', 'shovel']:
+            print("Usage: vcf --rabbitmq single|federation|shovel "
                   "[optional path to rabbitmq config yml]")
             parser.print_help()
             exit(1)
@@ -603,7 +615,7 @@ def main():
             parser.print_help()
             exit(1)
         else:
-            process_rmq_inputs(args.rabbitmq)
+            process_rmq_inputs(args.rabbitmq, args.instance_name)
     elif not args.agent:
         wizard()
 
@@ -612,6 +624,8 @@ def main():
         for agent in args.agent:
             if agent not in available_agents:
                 print '"{}" not configurable with this tool'.format(agent)
+
+        confirm_volttron_home()
 
         # Configure agents
         for agent in args.agent:
