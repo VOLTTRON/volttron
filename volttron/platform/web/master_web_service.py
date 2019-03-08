@@ -107,7 +107,8 @@ class MasterWebService(Agent):
     """
 
     def __init__(self, serverkey, identity, address, bind_web_address, aip,
-                 volttron_central_address=None, volttron_central_rmq_address=None, **kwargs):
+                 volttron_central_address=None, volttron_central_rmq_address=None,
+                 web_ssl_key=None, web_ssl_cert=None, **kwargs):
         """Initialize the discovery service with the serverkey
 
         serverkey is the public key in order to access this volttron's bus.
@@ -120,6 +121,10 @@ class MasterWebService(Agent):
         self.registeredroutes = []
         self.peerroutes = defaultdict(list)
         self.pathroutes = defaultdict(list)
+        # These will be used if set rather than the
+        # any of the internal agent's certificates
+        self.web_ssl_key = web_ssl_key
+        self.web_ssl_cert = web_ssl_cert
 
         # Maps from endpoint to peer.
         self.endpoints = {}
@@ -237,7 +242,7 @@ class MasterWebService(Agent):
 
     @RPC.export
     def register_path_route(self, regex, root_dir):
-        _log.info('Registering path route: {}'.format(root_dir))
+        _log.info('Registering path route: {} {}'.format(regex, root_dir))
 
         # Get calling peer from the rpc context
         peer = bytes(self.vip.rpc.context.vip_message.peer)
@@ -331,8 +336,9 @@ class MasterWebService(Agent):
             return_dict['instance-name'] = self.instance_name
 
         return_dict['vip-address'] = external_vip
-        return_dict['vc-rmq-address'] = self.volttron_central_rmq_address
-        return_dict['rmq-ca-cert'] = self._certs.cert(self._certs.root_ca_name).public_bytes(serialization.Encoding.PEM)
+        if self.core.messagebus == 'rmq':
+            return_dict['vc-rmq-address'] = self.volttron_central_rmq_address
+            return_dict['rmq-ca-cert'] = self._certs.cert(self._certs.root_ca_name).public_bytes(serialization.Encoding.PEM)
         return Response(jsonapi.dumps(return_dict), content_type="application/json")
 
     def app_routing(self, env, start_response):
@@ -365,10 +371,12 @@ class MasterWebService(Agent):
         if self.is_json_content(env):
             data = json.loads(data)
 
-        # Load the publickey that was used to sign the login message through the env
-        # parameter so agents can use it to verify the Bearer has specific
-        # jwt claims
-        passenv['WEB_PUBLIC_KEY'] = env['WEB_PUBLIC_KEY'] = self._certs.get_cert_public_key(get_fq_identity(self.core.identity))
+        # Only if https available and rmq for the admin area.
+        if env['wsgi.url_scheme'] == 'https' and self.core.messagebus == 'rmq':
+            # Load the publickey that was used to sign the login message through the env
+            # parameter so agents can use it to verify the Bearer has specific
+            # jwt claims
+            passenv['WEB_PUBLIC_KEY'] = env['WEB_PUBLIC_KEY'] = self._certs.get_cert_public_key(get_fq_identity(self.core.identity))
 
         # if we have a peer then we expect to call that peer's web subsystem
         # callback to perform whatever is required of the method.
@@ -539,42 +547,48 @@ class MasterWebService(Agent):
     @Core.receiver('onstart')
     def startupagent(self, sender, **kwargs):
 
-        if not self.bind_web_address:
-            # _log.info('Web server not started.')
-            return
-
-        self._admin_endpoints = AdminEndpoints(
-            self._certs.get_cert_public_key(get_fq_identity(self.core.identity)))
         import urlparse
-        ssl_cert = None
-        ssl_key = None
         parsed = urlparse.urlparse(self.bind_web_address)
+
+        ssl_key = self.web_ssl_key
+        ssl_cert = self.web_ssl_cert
+
         if parsed.scheme == 'https':
-            ssl_cert = self._certs.cert_file(get_fq_identity(self.core.identity))
-            ssl_key = self._certs.private_key_file(get_fq_identity(self.core.identity))
+            # Admin interface is only availble to rmq at present.
+            if self.core.messagebus == 'rmq':
+                self._admin_endpoints = AdminEndpoints(
+                    self._certs.get_cert_public_key(get_fq_identity(self.core.identity)))
+
+            if ssl_key is None or ssl_cert is None:
+                ssl_cert = self._certs.cert_file(get_fq_identity(self.core.identity))
+                ssl_key = self._certs.private_key_file(get_fq_identity(self.core.identity))
         hostname = parsed.hostname
         port = parsed.port
 
-        _log.info('Starting web server binding to {}:{}.'.format(hostname, port))
+        _log.info('Starting web server binding to {}://{}:{}.'.format(parsed.scheme,
+                                                                      hostname, port))
         # Handle the platform.web routes here.
         self.registeredroutes.append((re.compile('^/discovery/$'), 'callable',
                                       self._get_discovery))
         self.registeredroutes.append((re.compile('^/discovery/allow$'),
                                       'callable',
                                       self._allow))
-        for rt in CSREndpoints(self.core).get_routes():
-            self.registeredroutes.append(rt)
+        # these routes are only available for rmq based message bus
+        # at present.
+        if self.core.messagebus == 'rmq':
+            for rt in CSREndpoints(self.core).get_routes():
+                self.registeredroutes.append(rt)
 
-        for rt in self._admin_endpoints.get_routes():
-            self.registeredroutes.append(rt)
+            for rt in self._admin_endpoints.get_routes():
+                self.registeredroutes.append(rt)
 
-        ssl_private_key = self._certs.get_private_key(get_fq_identity(self.core.identity))
+            ssl_private_key = self._certs.get_private_key(get_fq_identity(self.core.identity))
 
-        for rt in AuthenticateEndpoints(ssl_private_key).get_routes():
-            self.registeredroutes.append(rt)
+            for rt in AuthenticateEndpoints(ssl_private_key).get_routes():
+                self.registeredroutes.append(rt)
 
-        static_dir = os.path.join(os.path.dirname(__file__), "static")
-        self.registeredroutes.append((re.compile('^/.*$'), 'path', static_dir))
+            static_dir = os.path.join(os.path.dirname(__file__), "static")
+            self.registeredroutes.append((re.compile('^/.*$'), 'path', static_dir))
 
         port = int(port)
         vhome = os.environ.get('VOLTTRON_HOME')
@@ -583,9 +597,12 @@ class MasterWebService(Agent):
             os.makedirs(logdir)
 
         self.appContainer = WebApplicationWrapper(self, hostname, port)
-        svr = WSGIServer((hostname, port), self.appContainer,
-                         certfile=ssl_cert,
-                         keyfile=ssl_key)
+        if ssl_key and ssl_cert:
+            svr = WSGIServer((hostname, port), self.appContainer,
+                             certfile=ssl_cert,
+                             keyfile=ssl_key)
+        else:
+            svr = WSGIServer((hostname, port), self.appContainer)
         self._server_greenlet = gevent.spawn(svr.serve_forever)
 
     def _authenticate_route(self, env, start_response, data):
@@ -602,10 +619,5 @@ class MasterWebService(Agent):
         import jwt
 
         jwt.encode()
-
-
-
-    def _crs_admin(self, env, start_response):
-        pass
 
 
