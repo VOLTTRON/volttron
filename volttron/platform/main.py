@@ -604,8 +604,15 @@ def start_volttron_process(opts):
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
     opts.vip_local_address = config.expandall(opts.vip_local_address)
     opts.message_bus = config.expandall(opts.message_bus)
-    opts.web_ssl_key = config.expandall(opts.web_ssl_key)
-    opts.web_ssl_cert = config.expandall(opts.web_ssl_cert)
+    if opts.web_ssl_key:
+        opts.web_ssl_key = config.expandall(opts.web_ssl_key)
+    if opts.web_ssl_cert:
+        opts.web_ssl_cert = config.expandall(opts.web_ssl_cert)
+
+    if opts.web_ssl_key and not opts.web_ssl_cert:
+        raise StandardError("If web-ssl-key is specified web-ssl-cert MUST be specified.")
+    if opts.web_ssl_cert and not opts.web_ssl_key:
+        raise StandardError("If web-ssl-cert is specified web-ssl-key MUST be specified.")
 
     os.environ['MESSAGEBUS'] = opts.message_bus
     if opts.instance_name is None:
@@ -622,6 +629,8 @@ def start_volttron_process(opts):
                 'bind-web-address must begin with http or https.')
         opts.bind_web_address = config.expandall(opts.bind_web_address)
         if opts.message_bus == 'zmq' and parsed.scheme == 'https':
+            if not opts.web_ssl_key or not opts.web_ssl_cert:
+                raise StandardError("zmq https requires a web-ssl-key and a web-ssl-cert file.")
             if not os.path.isfile(opts.web_ssl_key) or not os.path.isfile(opts.web_ssl_cert):
                 raise StandardError("zmq https requires a web-ssl-key and a web-ssl-cert file.")
     if opts.volttron_central_address:
