@@ -109,6 +109,7 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
 
 VOLTTRON_INSTANCES = '~/.volttron_instances'
 
+
 def log_to_file(file_, level=logging.WARNING,
                 handler_class=logging.StreamHandler):
     '''Direct log output to a file (or something like one).'''
@@ -554,6 +555,7 @@ class GreenRouter(Router):
         sock.set_hwm(6000)
         self.setup()
 
+
 def start_volttron_process(opts):
     '''Start the main volttron process.
 
@@ -617,11 +619,14 @@ def start_volttron_process(opts):
             raise StandardError(
                 'bind-web-address must begin with http or https.')
         opts.bind_web_address = config.expandall(opts.bind_web_address)
+        if opts.message_bus == 'zmq' and parsed.scheme == 'https':
+            if not os.path.isfile(opts.web_ssl_key) or not os.path.isfile(opts.web_ssl_cert):
+                raise StandardError("zmq https requires a web-ssl-key and a web-ssl-cert file.")
     if opts.volttron_central_address:
         parsed = urlparse.urlparse(opts.volttron_central_address)
-        if parsed.scheme not in ('http', 'https', 'tcp', 'amqp'):
+        if parsed.scheme not in ('http', 'https', 'tcp', 'amqp', 'amqps'):
             raise StandardError(
-                'volttron-central-address must begin with tcp, http or https.')
+                'volttron-central-address must begin with tcp, amqp, amqps, http or https.')
         opts.volttron_central_address = config.expandall(
             opts.volttron_central_address)
     opts.volttron_central_serverkey = opts.volttron_central_serverkey
@@ -921,7 +926,10 @@ def start_volttron_process(opts):
                 volttron_central_address=opts.volttron_central_address,
                 aip=opts.aip, enable_store=False,
                 message_bus=opts.message_bus,
-                volttron_central_rmq_address=opts.volttron_central_rmq_address))
+                volttron_central_rmq_address=opts.volttron_central_rmq_address,
+                web_ssl_key=opts.web_ssl_key,
+                web_ssl_cert=opts.web_ssl_cert
+            ))
 
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
@@ -1050,6 +1058,14 @@ def main(argv=sys.argv):
         '--bind-web-address', metavar='BINDWEBADDR', default=None,
         help='Bind a web server to the specified ip:port passed')
     agents.add_argument(
+        '--web-ssl-key', metavar='KEYFILE', default=None,
+        help='ssl key file for using https with the volttron server'
+    )
+    agents.add_argument(
+        '--web-ssl-cert', metavar='CERTFILE', default=None,
+        help='ssl certficate file for using https with the volttron server'
+    )
+    agents.add_argument(
         '--volttron-central-address', default=None,
         help='The web address of a volttron central install instance.')
     agents.add_argument(
@@ -1163,6 +1179,8 @@ def main(argv=sys.argv):
         message_bus='zmq',
         # Volttron Central in AMQP address format is needed if running on RabbitMQ message bus
         volttron_central_rmq_address=None,
+        web_ssl_key=None,
+        web_ssl_cert=None
     )
 
     # Parse and expand options
