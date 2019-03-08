@@ -604,6 +604,8 @@ def start_volttron_process(opts):
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
     opts.vip_local_address = config.expandall(opts.vip_local_address)
     opts.message_bus = config.expandall(opts.message_bus)
+    opts.web_ssl_key = config.expandall(opts.web_ssl_key)
+    opts.web_ssl_cert = config.expandall(opts.web_ssl_cert)
 
     os.environ['MESSAGEBUS'] = opts.message_bus
     if opts.instance_name is None:
