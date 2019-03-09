@@ -35,6 +35,7 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+import shutil
 from ConfigParser import ConfigParser
 import argparse
 import getpass
@@ -54,6 +55,9 @@ from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.utils.rmq_setup import setup_rabbitmq_volttron
 from . import get_home, get_services_core, set_home
+from volttron.platform import certs
+from volttron.platform.agent.known_identities import MASTER_WEB
+
 
 # Global configuration options.  Must be key=value strings.  No cascading
 # structure so that we can easily create/load from the volttron config file
@@ -306,7 +310,7 @@ def do_vip():
 
 
 @installs(get_services_core("VolttronCentral"), 'vc')
-def do_vc():
+def do_vc(vhome):
     global config_opts
 
     # Full implies that it will have a port on it as well.  Though if it's
@@ -350,12 +354,17 @@ internal address such as 127.0.0.1.
     while external_ip.endswith("/"):
         external_ip = external_ip[:-1]
 
+    parsed = urlparse.urlparse(external_ip)
+
     config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
 
     resp = vc_config()
+
+    if config_opts['message-bus'] == 'zmq' and parsed.scheme == "https":
+        get_cert_and_key(vhome)
+
     print('Installing volttron central')
     return resp
-
 
 def vc_config():
     username = ''
@@ -391,13 +400,87 @@ def vc_config():
     return config
 
 
+def get_cert_and_key(vhome):
+
+    # Check for existing files first. If present and are valid ask if we are to use that
+
+    master_web_cert = os.path.join(vhome, 'certificates/certs/', MASTER_WEB+".crt")
+    master_web_key = os.path.join(vhome, 'certificates/private/', MASTER_WEB + ".pem")
+    cert_error = True
+
+    if is_file_readable(master_web_cert, False) and is_file_readable(master_web_key, False):
+        try:
+            if certs.Certs.validate_key_pair(master_web_cert, master_web_key):
+                print('\nFollowing certificate and keyfile exists for web access over https: \n{}\n{}'.format(master_web_cert,
+                                                                                                              master_web_key))
+                prompt = '\nDo you want to use these certificates for VC? '
+                if prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
+                    config_opts['web-ssl-cert'] = master_web_cert
+                    config_opts['web-ssl-key'] = master_web_key
+                    cert_error = False
+                else:
+                    print('\nPlease provide path to cert and key files. '
+                          'This will overwrite existing files: \n{} and {}'.format(master_web_cert, master_web_key))
+            else:
+                print("Existing key pair is not valid. ")
+        except RuntimeError as e:
+            print(e)
+            pass
+
+
+
+    # Either are there no valid existing certs or user decided to overwrite the existing file.
+    # Prompt for new files
+    while cert_error:
+        while True:
+            prompt = 'Enter the SSL certificate public key file:'
+            cert_file = prompt_response(prompt, mandatory=True)
+            if is_file_readable(cert_file):
+                break
+            else:
+                print("Unable to read file {}".format(cert_file))
+        while True:
+            prompt = \
+                'Enter the SSL certificate private key file:'
+            key_file = prompt_response(prompt, mandatory=True)
+            if is_file_readable(key_file):
+                break
+            else:
+                print("Unable to read file {}".format(key_file))
+        try:
+            if certs.Certs.validate_key_pair(cert_file, key_file):
+                cert_error = False
+                shutil.copy(cert_file, master_web_cert)
+                shutil.copy(key_file, master_web_key)
+                config_opts['web-ssl-cert'] = master_web_cert
+                config_opts['web-ssl-key'] = master_web_key
+            else:
+                print("ERROR:\n Given public key and private key do not "
+                      "match or is invalid. public and private key "
+                      "files should be PEM encoded and private key "
+                      "should use RSA encryption")
+        except RuntimeError:
+            print("ERROR:\n Given public key and private key do not "
+                  "match or is invalid. public and private key "
+                  "files should be PEM encoded and private key "
+                  "should use RSA encryption")
+
+def is_file_readable(file_path, log=True):
+    file_path = os.path.expanduser(file_path)
+    if os.path.exists(file_path) and os.access(file_path, os.R_OK):
+        return True
+    else:
+        if log:
+            print("\nInvalid file path. Path does not exists or is not readable")
+        return False
+
 @installs(get_services_core("VolttronCentralPlatform"), 'vcp')
 def do_vcp():
     global config_opts
 
     # Default instance name to the vip address.
     instance_name = config_opts.get('instance-name',
-                                    config_opts.get('vip-address'))
+                                    'volttron1')
     instance_name = instance_name.strip('"')
 
     valid_name = False
@@ -510,7 +593,7 @@ def wizard():
     prompt = 'Is this instance a volttron central?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
-        do_vc()
+        do_vc(volttron_home)
 
     prompt = 'Will this instance be controlled by volttron central?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
