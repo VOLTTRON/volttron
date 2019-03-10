@@ -26,8 +26,13 @@ if os.environ.get('WAS_CORRECTED'):
 else:
     corrected = False
 
+# Moste of the time the environment will be run within a virtualenv
+# however if we need to run the install agent in a non virtualized
+# environment this allows us to do that.
+ignore_env_check = os.environ.get('IGNORE_ENV_CHECK', False)
+
 # Call the script with the correct environment if we aren't activated yet.
-if not inenv and not corrected:
+if not ignore_env_check and not inenv and not corrected:
     mypath = os.path.dirname(__file__)
     # Travis-CI puts the python in a little bit different location than
     # we do.
