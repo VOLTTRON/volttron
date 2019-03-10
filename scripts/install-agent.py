@@ -302,7 +302,9 @@ if __name__ == '__main__':
     elif not opts.json and not opts.csv:
         opts.json = True
 
-    if os.environ.get('CI') is not None:
+    # We know we need to disable the joining of env path if we aren't within
+    # the context of an environment
+    if os.environ.get('CI') is not None or ignore_env_check:
         opts.volttron_control = "volttron-ctl"
     else:
         opts.volttron_control = os.path.join(opts.volttron_root,
