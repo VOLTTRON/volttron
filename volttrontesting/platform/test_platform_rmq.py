@@ -47,8 +47,7 @@ from shutil import copy
 import gevent
 import pytest
 from gevent import subprocess
-from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup, \
-    cleanup_rmq_volttron_setup
+from volttrontesting.fixtures.rmq_test_setup import cleanup_rmq_volttron_setup
 
 from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_vip
 from volttrontesting.utils.platformwrapper import PlatformWrapper
@@ -60,18 +59,20 @@ from volttron.utils.rmq_setup import stop_rabbit, start_rabbit, restart_ssl
 @pytest.fixture(scope="module")
 def instance(request):
     instance = PlatformWrapper(message_bus='rmq', ssl_auth=True)
+    # becuase tests in the module shutdown and restart instance within test and we don't want
+    # all rmq users and queues to be deleted.
     instance.skip_cleanup = True
 
     def stop():
         try:
-            instance.skip_cleanup = False
             if instance.is_running():
-                instance.shutdown_platform()
-            else:
-                cleanup_rmq_volttron_setup(vhome=instance.volttron_home,
-                                           ssl_auth=True)
+               instance.shutdown_platform()
         except:
-            pass
+            cleanup_rmq_volttron_setup(vhome=instance.volttron_home,
+                                       ssl_auth=instance.ssl_auth)
+        finally:
+            instance.restore_conf()
+
     request.addfinalizer(stop)
     return instance
 

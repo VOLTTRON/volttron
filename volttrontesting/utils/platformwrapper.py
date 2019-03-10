@@ -32,8 +32,10 @@ from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttron.platform.agent import json as jsonapi
 from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup, \
-    cleanup_rmq_volttron_setup
+    cleanup_rmq_volttron_setup, rabbitmq_config
 from volttron.platform.agent.utils import execute_command
+from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
+
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -237,11 +239,12 @@ class PlatformWrapper:
         self.keystore.generate()
         self.message_bus = message_bus if message_bus else 'zmq'
         self.ssl_auth = ssl_auth
+        self.rmq_conf_backup = None
         if self.message_bus == 'rmq':
             self.logit("Setting up volttron test environemnt"
                        " {}".format(self.volttron_home))
-            create_rmq_volttron_setup(vhome=self.volttron_home,
-                                      ssl_auth=self.ssl_auth)
+            self.rmq_conf_backup = create_rmq_volttron_setup(vhome=self.volttron_home,
+                                                             ssl_auth=self.ssl_auth)
             platform_config = load_platform_config()
             instance_name = platform_config.get('instance-name', '').strip('"')
             if not instance_name:
@@ -809,6 +812,15 @@ class PlatformWrapper:
             assert self.is_agent_running(agent_uuid)
 
         return agent_uuid
+
+    def restore_conf(self):
+        if self.rmq_conf_backup:
+            _log.debug("Restoring original rabbitmq.conf to server and restarting rmq")
+            shutil.copy(self.rmq_conf_backup, os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf'))
+            stop_rabbit(rabbitmq_config['rmq-home'], quite=True)
+            start_rabbit(rabbitmq_config['rmq-home'])
+        else:
+            _log.debug("No conf file to restore")
 
     def start_agent(self, agent_uuid):
         self.logit('Starting agent {}'.format(agent_uuid))

@@ -61,6 +61,7 @@ def cleanup_wrapper(wrapper):
     # Shutdown handles case where the platform hasn't started.
     wrapper.remove_all_agents()
     wrapper.shutdown_platform()
+    wrapper.restore_conf()
 
 
 def cleanup_wrappers(platforms):

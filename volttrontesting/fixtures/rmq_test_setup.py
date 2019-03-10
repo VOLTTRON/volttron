@@ -1,4 +1,7 @@
+import logging
 import os
+import shutil
+
 import yaml
 import requests
 
@@ -9,6 +12,7 @@ from volttron.utils.rmq_setup import setup_rabbitmq_volttron, stop_rabbit
 
 HOME = os.environ.get('HOME')
 VOLTTRON_INSTANCE_NAME = 'volttron_test'
+_log = logging.getLogger(__name__)
 
 rabbitmq_config = {
     'host': 'localhost',
@@ -28,7 +32,6 @@ rabbitmq_config = {
     'rmq-home': os.path.join(HOME, 'rabbitmq_server/rabbitmq_server-3.7.7'),
     'reconnect-delay': 5
 }
-
 
 def create_rmq_volttron_setup(vhome=None, ssl_auth=False):
     """
@@ -51,7 +54,8 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False):
     if not os.path.isfile(vhome_config):
         with open(vhome_config, 'w') as yml_file:
             yaml.dump(rabbitmq_config, yml_file, default_flow_style=False)
-
+    conf_backup = os.path.join(vhome,"original_rabbitmq.conf")
+    shutil.copy(os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf'), conf_backup)
     store_message_bus_config(message_bus='rmq',
                              instance_name=VOLTTRON_INSTANCE_NAME)
 
@@ -59,7 +63,7 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False):
                             verbose=False,
                             prompt=False,
                             instance_name=VOLTTRON_INSTANCE_NAME)
-
+    return conf_backup
 
 def cleanup_rmq_volttron_setup(vhome=None, ssl_auth=False):
     """
@@ -79,7 +83,7 @@ def cleanup_rmq_volttron_setup(vhome=None, ssl_auth=False):
     users_to_remove.remove('guest')
     if ssl_auth:
         users_to_remove.remove('{}-admin'.format(VOLTTRON_INSTANCE_NAME))
-
+    _log.debug("Test Users to remove: {}".format(users_to_remove))
     for user in users_to_remove:
         try:
             rmq_mgmt.delete_user(user)
