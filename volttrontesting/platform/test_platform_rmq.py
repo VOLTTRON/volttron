@@ -67,10 +67,9 @@ def instance(request):
         try:
             if instance.is_running():
                instance.shutdown_platform()
-        except:
+        finally:
             cleanup_rmq_volttron_setup(vhome=instance.volttron_home,
                                        ssl_auth=instance.ssl_auth)
-        finally:
             instance.restore_conf()
 
     request.addfinalizer(stop)

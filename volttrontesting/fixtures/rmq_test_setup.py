@@ -86,7 +86,9 @@ def cleanup_rmq_volttron_setup(vhome=None, ssl_auth=False):
     _log.debug("Test Users to remove: {}".format(users_to_remove))
     for user in users_to_remove:
         try:
-            rmq_mgmt.delete_user(user)
+            # Delete only users created by test. Those will have the test instance name as prefix
+            if user.startswith(VOLTTRON_INSTANCE_NAME):
+                rmq_mgmt.delete_user(user)
         except (AttributeError, requests.exceptions.HTTPError):
             pass
 
@@ -94,10 +96,10 @@ def cleanup_rmq_volttron_setup(vhome=None, ssl_auth=False):
                              vhost=rabbitmq_config['virtual-host'])
     rmq_mgmt.delete_exchange(exchange='volttron',
                              vhost=rabbitmq_config['virtual-host'])
-    #rmq_mgmt.delete_vhost(vhost=rabbitmq_config['virtual-host'])
+    rmq_mgmt.delete_vhost(vhost=rabbitmq_config['virtual-host'])
 
     if ssl_auth:
-        rmq_mgmt.delete_user('volttron_test-admin')
+        rmq_mgmt.delete_user('{}-admin'.format(VOLTTRON_INSTANCE_NAME))
 
     stop_rabbit(rmq_home=rabbitmq_config['rmq-home'])
 
