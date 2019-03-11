@@ -93,21 +93,21 @@ def test_create_root_ca(temp_volttron_home):
     assert certs.ca_exists()
 
 
-def test_cadb_updated(temp_volttron_home):
-    certs = Certs()
-    certs.create_root_ca()
-    instance_name = get_platform_instance_name(False)
-    assert not os.path.exists(certs.ca_db_file(instance_name))
-    certs.create_instance_ca(instance_name)
-    assert os.path.exists(certs.ca_db_file(instance_name))
-
-
-def test_create_instance_ca(temp_volttron_home):
-    certs = Certs()
-    certs.create_root_ca()
-    instance_name = get_platform_instance_name(False)
-    assert instance_name == INSTANCE_NAME
-    assert not certs.cert_exists(instance_name)
-    certs.create_instance_ca(instance_name)
-    assert certs.cert_exists(instance_name)
-    assert certs.verify_cert(instance_name)
+# def test_cadb_updated(temp_volttron_home):
+#     certs = Certs()
+#     certs.create_root_ca()
+#     instance_name = get_platform_instance_name(False)
+#     assert not os.path.exists(certs.ca_db_file(instance_name))
+#     certs.create_instance_ca(instance_name)
+#     assert os.path.exists(certs.ca_db_file(instance_name))
+#
+#
+# def test_create_instance_ca(temp_volttron_home):
+#     certs = Certs()
+#     certs.create_root_ca()
+#     instance_name = get_platform_instance_name(False)
+#     assert instance_name == INSTANCE_NAME
+#     assert not certs.cert_exists(instance_name)
+#     certs.create_instance_ca(instance_name)
+#     assert certs.cert_exists(instance_name)
+#     assert certs.verify_cert(instance_name)

@@ -279,7 +279,7 @@ def publish_test_data(publish_agent, start_time, start_reading, count):
                        {'in_temp': float_meta,
                         'out_temp': float_meta
                         }]
-        time_str = utils.format_timestring(time)
+        time_str = utils.format_timestamp(time)
         headers = {
             headers_mod.DATE: time_str,
             headers_mod.TIMESTAMP: time_str
