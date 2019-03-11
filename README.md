@@ -50,9 +50,7 @@ http://ryanstutorials.net/linuxtutorial/
 
  ###2. Clone VOLTTRON code
 
-From version 6.0 VOLTTRON supports two message bus - ZMQ and RabbitMQ. Clone the appropriate
-branch of volttron code. The develop branch currently only supports ZMQ. The 6.0alpha branch
-is backward compatible and supports both ZMQ and RMQ.
+From version 6.0 VOLTTRON supports two message bus - ZMQ and RabbitMQ. 
 
 ```sh
 git clone https://github.com/VOLTTRON/volttron --branch <branch name>
