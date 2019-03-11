@@ -327,7 +327,9 @@ trust_store.refresh_interval=0""".format(
     # Stop server, move new config file with ssl params, start server
     stop_rabbit(rmq_config.rmq_home)
 
-    shutil.move(os.path.join(vhome, "rabbitmq.conf"),
+    # Leave a copy of the conf in vhome. Useful when running tests in debug mode.
+    # we can see what was the conf with which the tests were run
+    shutil.copy(os.path.join(vhome, "rabbitmq.conf"),
               os.path.join(rmq_config.rmq_home,
                            "etc/rabbitmq/rabbitmq.conf"))
     start_rabbit(rmq_config.rmq_home)
