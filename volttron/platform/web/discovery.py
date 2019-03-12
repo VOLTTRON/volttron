@@ -31,7 +31,7 @@ class DiscoveryInfo(object):
         self.serverkey = kwargs.pop('serverkey')
         self.instance_name = kwargs.pop('instance-name')
         try:
-            self.vc_rmq_address = kwargs.pop('vc-rmq-address')
+            self.rmq_address = kwargs.pop('rmq-address')
         except KeyError:
             self.messagebus_type = 'zmq'
         else:
@@ -92,7 +92,7 @@ class DiscoveryInfo(object):
             'vip_address': self.vip_address,
             'serverkey': self.serverkey,
             'instance_name': self.instance_name,
-            'vc_rmq_address': self.vc_rmq_address,
+            'rmq_address': self.rmq_address,
             'rmq_ca_cert': self.rmq_ca_cert,
             'messagebus_type': self.messagebus_type
         }

@@ -113,7 +113,7 @@ class Auth(SubsystemBase):
                         remote_rmq_user = remote_identity
                         remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
                             remote_rmq_user,
-                            info.vc_rmq_address)
+                            info.rmq_address)
                         
                         value = build_agent(identity=remote_rmq_user,
                                             address=remote_rmq_address,
@@ -140,7 +140,7 @@ class Auth(SubsystemBase):
                                         publickey=keypair.get('publickey'),
                                         secretkey=keypair.get('secretekey'),
                                         message_bus='zmq',
-                                        address=info.vip_address)
+                                        address=info.rmq_address)
             except DiscoveryError:
                 value = dict(status='UNKNOWN',
                              message="Couldn't connect to {} or incorrect response returned".format(address))
