@@ -246,13 +246,13 @@ def get_volttron_instances(request):
         if isinstance(get_n_volttron_instances.instances, PlatformWrapper):
             print('Shutting down instance: {}'.format(
                 get_n_volttron_instances.instances.volttron_home))
-            get_n_volttron_instances.instances.shutdown_platform()
+            cleanup_wrapper(get_n_volttron_instances)
             return
 
         for i in range(0, get_n_volttron_instances.count):
             print('Shutting down instance: {}'.format(
                 get_n_volttron_instances.instances[i].volttron_home))
-            get_n_volttron_instances.instances[i].shutdown_platform()
+            cleanup_wrapper(get_n_volttron_instances.instances[i])
 
     request.addfinalizer(cleanup)
 
@@ -276,7 +276,7 @@ def volttron_instance_zmq(request):
 
     def cleanup():
         print('Shutting down instance: {}'.format(wrapper.volttron_home))
-        wrapper.shutdown_platform()
+        cleanup_wrapper(wrapper)
 
     request.addfinalizer(cleanup)
     return wrapper
@@ -300,7 +300,7 @@ def volttron_instance_rmq(request):
 
     def cleanup():
         print('Shutting down RMQ instance: {}'.format(wrapper.volttron_home))
-        wrapper.shutdown_platform()
+        cleanup_wrapper(wrapper)
 
     request.addfinalizer(cleanup)
     return wrapper
