@@ -70,7 +70,7 @@ c. If there are no errors in either of the logs, stop rabbitmq and
       @RABBITMQ_HOME/sbin/rabbitmq-server
 
 
-ssl trouble shooting
+SSL trouble shooting
 --------------------
 There are few things that are essential for SSL certificates to work right.
 
