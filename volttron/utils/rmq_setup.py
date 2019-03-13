@@ -722,7 +722,7 @@ def _create_rabbitmq_config(rmq_config, setup_type):
 
 
 def is_file_readable(file_path):
-    file_path = os.path.expanduser(file_path)
+    file_path = os.path.expanduser(os.path.expandvars(file_path))
     if os.path.exists(file_path) and os.access(file_path, os.R_OK):
         return True
     else:

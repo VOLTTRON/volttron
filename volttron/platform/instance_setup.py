@@ -413,7 +413,7 @@ def get_cert_and_key(vhome):
             if certs.Certs.validate_key_pair(master_web_cert, master_web_key):
                 print('\nFollowing certificate and keyfile exists for web access over https: \n{}\n{}'.format(master_web_cert,
                                                                                                               master_web_key))
-                prompt = '\nDo you want to use these certificates for VC? '
+                prompt = '\nDo you want to use these certificates for web server? '
                 if prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
                     config_opts['web-ssl-cert'] = master_web_cert
                     config_opts['web-ssl-key'] = master_web_key
@@ -450,10 +450,8 @@ def get_cert_and_key(vhome):
         try:
             if certs.Certs.validate_key_pair(cert_file, key_file):
                 cert_error = False
-                shutil.copy(cert_file, master_web_cert)
-                shutil.copy(key_file, master_web_key)
-                config_opts['web-ssl-cert'] = master_web_cert
-                config_opts['web-ssl-key'] = master_web_key
+                config_opts['web-ssl-cert'] = cert_file
+                config_opts['web-ssl-key'] = key_file
             else:
                 print("ERROR:\n Given public key and private key do not "
                       "match or is invalid. public and private key "
@@ -466,7 +464,7 @@ def get_cert_and_key(vhome):
                   "should use RSA encryption")
 
 def is_file_readable(file_path, log=True):
-    file_path = os.path.expanduser(file_path)
+    file_path = os.path.expanduser(os.path.expandvars(file_path))
     if os.path.exists(file_path) and os.access(file_path, os.R_OK):
         return True
     else:
