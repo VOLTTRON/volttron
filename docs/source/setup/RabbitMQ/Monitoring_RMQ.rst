@@ -3,7 +3,6 @@
 Monitoring and Controlling RabbitMQ
 ===================================
 
-VOLTTRON RabbitMQ control and management utility
 Some of the important native RabbitMQ control and management commands are now
 integrated with "volttron-ctl" utility. Using volttron-ctl rabbitmq management
 utility, we can control and monitor the status of RabbitMQ message bus.
