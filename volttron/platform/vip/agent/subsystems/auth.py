@@ -123,13 +123,9 @@ class Auth(SubsystemBase):
                 if temp_serverkey != server_key:
                     raise ValueError("server_key passed and known hosts serverkey do not match!")
                 destination_serverkey = server_key
-
-            # this is an rmq message bus but we are connecting to
-            if get_messagebus() == 'rmq':
-                publickey, secretkey = self._core()._get_keys_from_keystore()
-            else:
-                publickey, secretkey = self.core().publickey, self.core().secretkey
-
+            
+            publickey, secretkey = self._core()._get_keys_from_keystore()
+            
             value = build_agent(agent_class=agent_class,
                                 identity=get_fq_identity(self._core().identity),
                                 serverkey=destination_serverkey,
