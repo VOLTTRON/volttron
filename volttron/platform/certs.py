@@ -651,19 +651,16 @@ class Certs(object):
         """
         try:
             cmd = ['openssl', 'x509', '-noout', '-modulus', '-in',
-                   public_key_file]
+                   os.path.expanduser(os.path.expandvars(public_key_file))]
             mod_pub = execute_command(cmd,
                                       err_prefix="Error getting modulus of "
                                                  "public key")
             cmd = ['openssl', 'rsa', '-noout', '-modulus', '-in',
-                   private_key_file]
+                   os.path.expanduser(os.path.expandvars(private_key_file))]
             mod_key = execute_command(cmd,
                                       err_prefix="Error getting modulus of "
                                                  "private key")
         except Exception as e:
-            _log.info("Error validating {} and {}: {}".format(public_key_file,
-                                                              private_key_file,
-                                                              e))
             return False
 
         return mod_pub == mod_key
