@@ -46,12 +46,12 @@ from .base import SubsystemBase
 
 import json
 from volttron.platform.agent.known_identities import AUTH
+from volttron.platform.keystore import KnownHostsStore
 from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity, get_messagebus
 from volttron.platform.certs import Certs
 from volttron.platform.jsonrpc import RemoteError
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.platform.keystore import KeyStore
-
 
 """
 The auth subsystem allows an agent to quickly query authorization state
@@ -72,12 +72,33 @@ class Auth(SubsystemBase):
         self._user_to_capabilities = {}
         self._dirty = True
         self._csr_certs = dict()
+
         def onsetup(sender, **kwargs):
             rpc.export(self._update_capabilities, 'auth.update')
 
         core.onsetup.connect(onsetup, self)
 
-    def connect_remote_platform(self, address, server_key=None, remote_bus_type=None, agent_class=None):
+    def connect_remote_platform(self, address, server_key=None,
+                                agent_class=None):
+        """
+        Atempts to connect to a remote platform to exchange data.
+
+        address must start with http, https, tcp, ampq, or ampqs or a ValueError will be
+        raised
+
+        If this function is successful it will return an instance of the `agent_class`
+        parameter if not then this function will return None.
+
+        If the address parameter begins with http or https
+        TODO: use the known host functionality here
+        the agent will attempt to use Discovery to find the values associated with it.
+
+        Discovery should return either an rmq-address or a vip-address or both.  In
+        that situation the connection will be made using zmq.  In the event that
+        fails then rmq will be tried.  If both fail then None is returned from this
+        function.
+
+        """
         from volttron.platform.vip.agent.utils import build_agent
         from volttron.platform.web import DiscoveryInfo
         from volttron.platform.vip.agent import Agent
@@ -89,8 +110,38 @@ class Auth(SubsystemBase):
         parsed_address = urlparse.urlparse(address)
 
         value = None
-        if parsed_address.scheme in ('https', 'http'):
+        if parsed_address.scheme == 'tcp':
+            # ZMQ connection
+            hosts = KnownHostsStore()
+            temp_serverkey = hosts.serverkey(address)
+            if not temp_serverkey:
+                _log.info("Destination serverkey not found in known hosts file, using config")
+                destination_serverkey = server_key
+            elif not server_key:
+                destination_serverkey = temp_serverkey
+            else:
+                if temp_serverkey != server_key:
+                    raise ValueError("server_key passed and known hosts serverkey do not match!")
+                destination_serverkey = server_key
+
+            publickey, secretkey = self._core()._get_keys_from_keystore()
+
+            value = build_agent(agent_class=agent_class,
+                                identity=get_fq_identity(self._core().identity),
+                                serverkey=destination_serverkey,
+                                publickey=publickey,
+                                secretkey=secretkey,
+                                message_bus='zmq',
+                                address=address)
+
+        elif parsed_address.scheme in ('amqp', 'amqps'):
+            # Rabbitmq connection
+            # TODO use known host rather than
+            pass
+        elif parsed_address.scheme in ('https', 'http'):
             try:
+                # TODO: Use known host instead of looking up for discovery info if possible.
+
                 # We need to discover which type of bus is at the other end.
                 info = DiscoveryInfo.request_discovery_info(address)
 
@@ -113,8 +164,8 @@ class Auth(SubsystemBase):
                         remote_rmq_user = remote_identity
                         remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
                             remote_rmq_user,
-                            info.rmq_address)
-                        
+                            info.vc_rmq_address)
+
                         value = build_agent(identity=remote_rmq_user,
                                             address=remote_rmq_address,
                                             instance_name=info.instance_name)
@@ -140,10 +191,12 @@ class Auth(SubsystemBase):
                                         publickey=keypair.get('publickey'),
                                         secretkey=keypair.get('secretekey'),
                                         message_bus='zmq',
-                                        address=info.rmq_address)
+                                        address=info.vip_address)
             except DiscoveryError:
                 value = dict(status='UNKNOWN',
                              message="Couldn't connect to {} or incorrect response returned".format(address))
+        else:
+            raise ValueError("Invalid configuration found the address: {} has an invalid scheme".format(address))
 
         return value
 
@@ -172,17 +225,17 @@ class Auth(SubsystemBase):
         # concatenated with the identity of the local fully quallified identity.
         remote_cert_name = "{}.{}".format(info.instance_name,
                                           get_fq_identity(self._core().identity))
-        remote_ca_name = info.instance_name+"_ca"
+        remote_ca_name = info.instance_name + "_ca"
 
         # if certs.cert_exists(remote_cert_name, True):
         #     return certs.cert(remote_cert_name, True)
 
         json_request = dict(
             csr=csr_request,
-            identity=remote_cert_name, # get_platform_instance_name()+"."+self._core().identity,
+            identity=remote_cert_name,  # get_platform_instance_name()+"."+self._core().identity,
             hostname=config.hostname
         )
-        response = requests.post(csr_server+"/csr/request_new",
+        response = requests.post(csr_server + "/csr/request_new",
                                  json=json.dumps(json_request),
                                  verify=False)
 
@@ -224,7 +277,7 @@ class Auth(SubsystemBase):
             self._dirty = False
             try:
                 self._user_to_capabilities = self._rpc().call(AUTH,
-                    'get_user_to_capabilities').get(timeout=10)
+                                                              'get_user_to_capabilities').get(timeout=10)
             except RemoteError:
                 self._dirty = True
 

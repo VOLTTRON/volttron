@@ -54,7 +54,11 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False):
     if not os.path.isfile(vhome_config):
         with open(vhome_config, 'w') as yml_file:
             yaml.dump(rabbitmq_config, yml_file, default_flow_style=False)
-    conf_backup = os.path.join(vhome,"original_rabbitmq.conf")
+    # Backup in parent dir of vhome as vhome will get deleted at time of instnace shutdown if debug=False
+    # and we want to use the backup conf to restore only at fixture teardown and not instance shutdown.
+    # instance can get started and shutdown multiple times within test. But restore should happen only
+    # at end of instance lifetime.
+    conf_backup = os.path.join(os.path.dirname(vhome),"backup_rabbitmq_conf_"+ os.path.basename(vhome))
     shutil.copy(os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf'), conf_backup)
     store_message_bus_config(message_bus='rmq',
                              instance_name=VOLTTRON_INSTANCE_NAME)
