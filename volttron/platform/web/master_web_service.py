@@ -328,15 +328,13 @@ class MasterWebService(Agent):
 
         return_dict = {}
 
-        if self.serverkey:
+        if external_vip and self.serverkey:
             return_dict['serverkey'] = encode_key(self.serverkey)
-        else:
-            sk = None
+            return_dict['vip-address'] = external_vip
 
         if self.instance_name:
             return_dict['instance-name'] = self.instance_name
-
-        return_dict['vip-address'] = external_vip
+        
         if self.core.messagebus == 'rmq':
             config = RMQConfig()
             rmq_address = None
