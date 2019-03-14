@@ -99,36 +99,6 @@ def historian(config_path, **kwargs):
             config.pop('destination-serverkey', None)
 
         destination_messagebus = 'zmq'
-    #
-    # # Skip zmq based configuration
-    # if not destination_address:
-    #     hosts = KnownHostsStore()
-    #     destination_serverkey = hosts.serverkey(destination_vip)
-    #     if destination_serverkey is None:
-    #         _log.info("Destination serverkey not found in known hosts file, using config")
-    #         destination_serverkey = config.pop('destination-serverkey')
-    #     else:
-    #         config.pop('destination-serverkey', None)
-    #
-    #     if destination_serverkey is None:
-    #         raise ValueError("destination-serverkey could not be found in keystore or in configuraiton file.")
-    #     message_bus = 'zmq'
-    # else:
-    #
-    #     # If running on RabbitMQ message bus, the correct destination address need to be specified
-    #     message_bus = os.environ.get('MESSAGEBUS', 'zmq')
-    # kwargs['message_bus'] = message_bus
-
-    # need to re-examine if these are necessary
-    # parsed = urlparse(destination_vip)
-    # if message_bus == 'rmq':
-    #     if parsed.scheme not in ('amqp', 'amqps'):
-    #         raise StandardError(
-    #             'RabbitMQ address must begin with amqp')
-    # else:
-    #     if parsed.scheme not in 'tcp':
-    #         raise StandardError(
-    #             'ZeroMQ address must begin with tcp')
 
     required_target_agents = config.pop('required_target_agents', [])
     cache_only = config.pop('cache_only', False)
@@ -339,14 +309,6 @@ class ForwardHistorian(BaseHistorian):
                 _log.debug('Not allowing send < 60 seconds from failure')
                 return
 
-
-        #
-        # if self.destination_address:
-        #     if not self._target_platform:
-        #         value = self.vip.auth.connect_remote_platform(self.destination_address)
-        #         if isinstance(value, Agent):
-        #             self._target_platform = value
-
         if not self._target_platform:
             self.historian_setup()
         if not self._target_platform:
@@ -405,10 +367,6 @@ class ForwardHistorian(BaseHistorian):
                 break
             with gevent.Timeout(30):
                 try:
-                    # _log.debug('debugger: {} {} {}'.format(topic,
-                    #                                        headers,
-                    #                                        payload))
-
                     self._target_platform.vip.pubsub.publish(
                         peer='pubsub',
                         topic=topic,
