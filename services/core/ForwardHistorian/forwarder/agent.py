@@ -312,7 +312,8 @@ class ForwardHistorian(BaseHistorian):
         if not self._target_platform:
             self.historian_setup()
         if not self._target_platform:
-            _log.debug('Could not connect to target {}'.format(address))
+            _log.error('Could not connect to targeted historian dest_vip {} dest_address'.format(
+                self.destination_vip, self.destination_address))
             return
 
         for vip_id in self.required_target_agents:
