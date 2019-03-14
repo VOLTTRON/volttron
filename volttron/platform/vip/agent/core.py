@@ -509,6 +509,30 @@ class Core(BasicCore):
     def connected(self):
         return self.__connected
 
+    # This function moved directly from the zmqcore agent.  it is included here because
+    # when we are attempting to connect to a zmq bus from a rmq bus this will be used
+    # to create the public and secret key for that connection or use it if it was already
+    # created.
+    def _get_keys_from_keystore(self):
+        '''Returns agent's public and secret key from keystore'''
+        if self.agent_uuid:
+            # this is an installed agent, put keystore in its install dir
+            keystore_dir = os.curdir
+        elif self.identity is None:
+            raise ValueError("Agent's VIP identity is not set")
+        else:
+            if not self.volttron_home:
+                raise ValueError('VOLTTRON_HOME must be specified.')
+            keystore_dir = os.path.join(
+                self.volttron_home, 'keystores',
+                self.identity)
+            if not os.path.exists(keystore_dir):
+                os.makedirs(keystore_dir)
+
+        keystore_path = os.path.join(keystore_dir, 'keystore.json')
+        keystore = KeyStore(keystore_path)
+        return keystore.public, keystore.secret
+    
     def register(self, name, handler, error_handler=None):
         self.subsystems[name] = handler
         if error_handler:
@@ -649,26 +673,6 @@ class ZMQCore(Core):
         known_hosts_file = os.path.join(self.volttron_home, 'known_hosts')
         known_hosts = KnownHostsStore(known_hosts_file)
         return known_hosts.serverkey(self.address)
-
-    def _get_keys_from_keystore(self):
-        '''Returns agent's public and secret key from keystore'''
-        if self.agent_uuid:
-            # this is an installed agent, put keystore in its install dir
-            keystore_dir = os.curdir
-        elif self.identity is None:
-            raise ValueError("Agent's VIP identity is not set")
-        else:
-            if not self.volttron_home:
-                raise ValueError('VOLTTRON_HOME must be specified.')
-            keystore_dir = os.path.join(
-                self.volttron_home, 'keystores',
-                self.identity)
-            if not os.path.exists(keystore_dir):
-                os.makedirs(keystore_dir)
-
-        keystore_path = os.path.join(keystore_dir, 'keystore.json')
-        keystore = KeyStore(keystore_path)
-        return keystore.public, keystore.secret
 
     def _get_keys_from_addr(self):
         url = list(urlparse.urlsplit(self.address))
