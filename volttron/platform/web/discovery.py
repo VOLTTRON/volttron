@@ -89,12 +89,13 @@ class DiscoveryInfo(object):
     def __str__(self):
         dk = {
             'discovery_address': self.discovery_address,
-            'vip_address': self.vip_address,
-            'serverkey': self.serverkey,
             'instance_name': self.instance_name,
             'rmq_address': self.rmq_address,
             'rmq_ca_cert': self.rmq_ca_cert,
             'messagebus_type': self.messagebus_type
         }
+        if self.vip_address:
+            dk['vip_address'] = self.vip_address
+            dk['serverkey'] = self.serverkey
 
         return jsonapi.dumps(dk)

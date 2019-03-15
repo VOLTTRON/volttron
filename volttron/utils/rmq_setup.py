@@ -661,14 +661,12 @@ def _create_rabbitmq_config(rmq_config, setup_type):
                     while True:
                         prompt = 'Enter the root CA certificate public key file:'
                         root_public = prompt_response(prompt, mandatory=True)
-                        root_public = os.path.expanduser(root_public)
                         if is_file_readable(root_public):
                             break
                     while True:
                         prompt =\
                             'Enter the root CA certificate private key file:'
                         root_key = prompt_response(prompt, mandatory=True)
-                        root_key = os.path.expanduser(root_key)
                         if is_file_readable(root_key):
                             break
                     if certs.Certs.validate_key_pair(root_public, root_key):
@@ -726,6 +724,7 @@ def _create_rabbitmq_config(rmq_config, setup_type):
 
 
 def is_file_readable(file_path):
+    file_path = os.path.expanduser(os.path.expandvars(file_path))
     if os.path.exists(file_path) and os.access(file_path, os.R_OK):
         return True
     else:

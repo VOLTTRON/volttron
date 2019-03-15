@@ -816,7 +816,7 @@ class PlatformWrapper:
     def restore_conf(self):
         if self.rmq_conf_backup:
             _log.debug("Restoring original rabbitmq.conf to server and restarting rmq")
-            shutil.copy(self.rmq_conf_backup, os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf'))
+            shutil.move(self.rmq_conf_backup, os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf'))
             stop_rabbit(rabbitmq_config['rmq-home'], quite=True)
             start_rabbit(rabbitmq_config['rmq-home'])
         else:
