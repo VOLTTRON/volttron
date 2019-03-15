@@ -479,6 +479,7 @@ class Certs(object):
                 fp.write(json.dumps(meta))
             with open(csrfile, "wb") as fw:
                 fw.write(csr)
+        return csrfile
 
     def create_csr(self, name, remote_instance_name):
         """

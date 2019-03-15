@@ -53,7 +53,6 @@ from volttron.platform.jsonrpc import RemoteError
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.platform.keystore import KeyStore
 
-
 """
 The auth subsystem allows an agent to quickly query authorization state
 (e.g., which capabilities each user has been granted).
@@ -73,6 +72,7 @@ class Auth(SubsystemBase):
         self._user_to_capabilities = {}
         self._dirty = True
         self._csr_certs = dict()
+
         def onsetup(sender, **kwargs):
             rpc.export(self._update_capabilities, 'auth.update')
 
@@ -123,9 +123,9 @@ class Auth(SubsystemBase):
                 if temp_serverkey != server_key:
                     raise ValueError("server_key passed and known hosts serverkey do not match!")
                 destination_serverkey = server_key
-            
+
             publickey, secretkey = self._core()._get_keys_from_keystore()
-            
+
             value = build_agent(agent_class=agent_class,
                                 identity=get_fq_identity(self._core().identity),
                                 serverkey=destination_serverkey,
@@ -225,17 +225,17 @@ class Auth(SubsystemBase):
         # concatenated with the identity of the local fully quallified identity.
         remote_cert_name = "{}.{}".format(info.instance_name,
                                           get_fq_identity(self._core().identity))
-        remote_ca_name = info.instance_name+"_ca"
+        remote_ca_name = info.instance_name + "_ca"
 
         # if certs.cert_exists(remote_cert_name, True):
         #     return certs.cert(remote_cert_name, True)
 
         json_request = dict(
             csr=csr_request,
-            identity=remote_cert_name, # get_platform_instance_name()+"."+self._core().identity,
+            identity=remote_cert_name,  # get_platform_instance_name()+"."+self._core().identity,
             hostname=config.hostname
         )
-        response = requests.post(csr_server+"/csr/request_new",
+        response = requests.post(csr_server + "/csr/request_new",
                                  json=json.dumps(json_request),
                                  verify=False)
 
@@ -277,7 +277,7 @@ class Auth(SubsystemBase):
             self._dirty = False
             try:
                 self._user_to_capabilities = self._rpc().call(AUTH,
-                    'get_user_to_capabilities').get(timeout=10)
+                                                              'get_user_to_capabilities').get(timeout=10)
             except RemoteError:
                 self._dirty = True
 

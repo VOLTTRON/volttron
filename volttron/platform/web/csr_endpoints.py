@@ -62,7 +62,7 @@ class CSREndpoints(object):
                      content_type='application/json',
                      headers={'Content-type': 'application/json'})
 
-        self._certs.save_pending_csr_request(env.get('REMOTE_ADDR'), identity, csr)
+        csr_file = self._certs.save_pending_csr_request(env.get('REMOTE_ADDR'), identity, csr)
 
         # TODO Allow configuration of this dynamically.
         auto_accept = False

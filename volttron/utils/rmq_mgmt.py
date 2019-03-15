@@ -814,6 +814,8 @@ class RabbitMQMgmt(object):
         parsed_addr = urlparse(rmq_address)
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
 
+        _, virtual_host = parsed_addr.path.split('/')
+
         try:
             if ssl_auth:
                 certfile = self.certs.cert_file(rmq_user, True)
@@ -830,7 +832,7 @@ class RabbitMQMgmt(object):
                 conn_params = pika.ConnectionParameters(
                     host= parsed_addr.hostname,
                     port= parsed_addr.port,
-                    virtual_host='volttron',
+                    virtual_host=virtual_host,
                     ssl=True,
                     ssl_options=ssl_options,
                     credentials=pika.credentials.ExternalCredentials())
@@ -838,7 +840,7 @@ class RabbitMQMgmt(object):
                 conn_params = pika.ConnectionParameters(
                     host=parsed_addr.hostname,
                     port=parsed_addr.port,
-                    virtual_host='volttron',
+                    virtual_host=virtual_host,
                     credentials=pika.credentials.PlainCredentials(
                         rmq_user, rmq_user))
         except KeyError:

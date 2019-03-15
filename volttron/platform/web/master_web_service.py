@@ -73,6 +73,7 @@ from volttron.platform.jsonrpc import (
     json_result, json_validate_request, UNAUTHORIZED)
 from volttron.platform.vip.socket import encode_key
 from cryptography.hazmat.primitives import serialization
+from volttron.utils.rmq_config_params import RMQConfig
 
 _log = logging.getLogger(__name__)
 
@@ -327,17 +328,23 @@ class MasterWebService(Agent):
 
         return_dict = {}
 
-        if self.serverkey:
+        if external_vip and self.serverkey:
             return_dict['serverkey'] = encode_key(self.serverkey)
-        else:
-            sk = None
+            return_dict['vip-address'] = external_vip
 
         if self.instance_name:
             return_dict['instance-name'] = self.instance_name
-
-        return_dict['vip-address'] = external_vip
+        
         if self.core.messagebus == 'rmq':
-            return_dict['vc-rmq-address'] = self.volttron_central_rmq_address
+            config = RMQConfig()
+            rmq_address = None
+            if config.is_ssl:
+                rmq_address = "amqps://{host}:{port}/{vhost}".format(host=config.hostname, port=config.amqp_port_ssl,
+                                                                 vhost=config.virtual_host)
+            else:
+                rmq_address = "amqp://{host}:{port}/{vhost}".format(host=config.hostname, port=config.amqp_port,
+                                                                     vhost=config.virtual_host)
+            return_dict['rmq-address'] = rmq_address
             return_dict['rmq-ca-cert'] = self._certs.cert(self._certs.root_ca_name).public_bytes(serialization.Encoding.PEM)
         return Response(jsonapi.dumps(return_dict), content_type="application/json")
 
