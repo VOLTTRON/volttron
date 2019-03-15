@@ -505,9 +505,15 @@ class Core(BasicCore):
     def version(self):
         return self._version
 
-    @property
-    def connected(self):
+    def get_connected(self):
         return self.__connected
+
+    def set_connected(self, value):
+        self.__connected = value
+
+    connected = property(fget=lambda self: self.get_connected(),
+                         fset=lambda self, v: self.set_connected(v)
+                         )
 
     # This function moved directly from the zmqcore agent.  it is included here because
     # when we are attempting to connect to a zmq bus from a rmq bus this will be used
@@ -532,7 +538,7 @@ class Core(BasicCore):
         keystore_path = os.path.join(keystore_dir, 'keystore.json')
         keystore = KeyStore(keystore_path)
         return keystore.public, keystore.secret
-    
+
     def register(self, name, handler, error_handler=None):
         self.subsystems[name] = handler
         if error_handler:
@@ -617,6 +623,14 @@ class ZMQCore(Core):
         _log.debug("AGENT RUNNING on ZMQ Core {}".format(self.identity))
 
         self.socket = None
+
+    def get_connected(self):
+        return super(ZMQCore, self).get_connected()
+
+    def set_connected(self, value):
+        super(ZMQCore, self).set_connected(value)
+
+    connected = property(get_connected, set_connected)
 
     def _set_keys(self):
         """Implements logic for setting encryption keys and putting
@@ -733,11 +747,11 @@ class ZMQCore(Core):
                             if event & zmq.EVENT_CONNECTED:
                                 hello()
                             elif event & zmq.EVENT_DISCONNECTED:
-                                self.__connected = False
+                                self.connected = False
                             elif event & zmq.EVENT_CONNECT_RETRIED:
                                 self._reconnect_attempt += 1
                                 if self._reconnect_attempt == 50:
-                                    self.__connected = False
+                                    self.connected = False
                                     sock.disable_monitor()
                                     self.stop()
                                     self.ondisconnected.send(self)
@@ -796,7 +810,7 @@ class ZMQCore(Core):
                             bytes(message.args[0]) == b'welcome'):
                     version, server, identity = [
                         bytes(x) for x in message.args[1:4]]
-                    self.__connected = True
+                    self.connected = True
                     self.onconnected.send(self, version=version,
                                           router=server, identity=identity)
                     continue
@@ -884,6 +898,14 @@ class RMQCore(Core):
         self.rmq_mgmt = RabbitMQMgmt()
         self.rmq_address = address
 
+    def get_connected(self):
+        return super(RMQCore, self).get_connected()
+
+    def set_connected(self, value):
+        super(RMQCore, self).set_connected(value)
+
+    connected = property(get_connected, set_connected)
+
     def _build_connection_parameters(self):
         param = None
 
@@ -928,7 +950,7 @@ class RMQCore(Core):
             self.create_event_handlers(state, hello_response_event, running_event)
 
         def connection_error():
-            self.__connected = False
+            self.connected = False
             self.stop()
             self.ondisconnected.send(self)
 
@@ -983,7 +1005,7 @@ class RMQCore(Core):
                                         bytes(message.args[0]) == b'welcome'):
                                 version, server, identity = [
                                     bytes(x) for x in message.args[1:4]]
-                                self.__connected = True
+                                self.connected = True
                                 self.onconnected.send(self, version=version,
                                                       router=server,
                                                       identity=identity)

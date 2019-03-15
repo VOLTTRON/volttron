@@ -1418,7 +1418,7 @@ def test_get_error_invalid_point(publish_agent):
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=error_topic,
                                        callback=publish_agent.callback).get()
-
+    gevent.sleep(1)
     header = {
         'requesterID': TEST_AGENT
     }
@@ -2067,7 +2067,7 @@ def test_set_lock_error(publish_agent):
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=error_topic,
                                        callback=publish_agent.callback).get()
-
+    gevent.sleep(1)
     # set value
     header = {
         'requesterID': TEST_AGENT

@@ -121,6 +121,7 @@ class Connection(object):
         self._last_publish = None
         self._last_publish_failed = False
         self._last_rpc_call = None
+
         # Make the actual attempt to connect to the server.
         self.is_connected()
 

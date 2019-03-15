@@ -32,7 +32,7 @@ class _publish_from_handler_test_agent(Agent):
         self.subscription_results = {}
 
 
-@pytest.mark.subsystems
+@pytest.mark.pubsub
 def test_publish_from_message_handler(volttron_instance):
     """ Tests the ability to change a status by sending a different status
     code.
