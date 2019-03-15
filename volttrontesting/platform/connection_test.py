@@ -50,9 +50,8 @@ def test_can_connect_to_control(setup_control_connection):
 def test_can_get_peers(setup_control_connection):
     wrapper, connection = setup_control_connection
     peers = connection.peers()
-    assert MASTER_WEB in peers
-    # assert CONTROL in peers
-    # assert AUTH in peers
+    assert CONTROL in peers
+    assert AUTH in peers
     assert CONFIGURATION_STORE in peers
 
 
