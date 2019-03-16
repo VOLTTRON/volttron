@@ -1,0 +1,38 @@
+version: '3'
+services:
+  volttron1:
+    image: volttron_1
+    ports:
+      # This is only needed if we want to accept incoming connections from the
+      # host or another service running outside of the container on the port
+      - 22916:22916
+    environment:
+      # $UID does not seem to work properly for me so I am using
+      # my specific UID in order for the files created to be
+      # able to be read by my user when in the context of
+      # volttron inside the container.
+      - LOCAL_USER_ID=1000
+
+      # This variable will be used by the setup-platform.py script to allow
+      # the scripts to "know" where to get teh configuration files from.
+      #
+      # see platform_config_house_a.yml to see how this variable is used.
+      - CONFIG=/home/volttron/configs
+  volttron2:
+      image: volttron_2
+      ports:
+        # This is only needed if we want to accept incoming connections from the
+        # host or another service running outside of the container on the port
+        - 22916:22916
+      environment:
+        # $UID does not seem to work properly for me so I am using
+        # my specific UID in order for the files created to be
+        # able to be read by my user when in the context of
+        # volttron inside the container.
+        - LOCAL_USER_ID=1000
+
+        # This variable will be used by the setup-platform.py script to allow
+        # the scripts to "know" where to get teh configuration files from.
+        #
+        # see platform_config_house_a.yml to see how this variable is used.
+        - CONFIG=/home/volttron/configs
