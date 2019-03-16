@@ -4,7 +4,7 @@ SHELL [ "bash", "-c" ]
 
 ENV OS_TYPE=debian
 ENV DIST=buster
-ENV VOLTTRON_GIT_BRANCH=rabbitmq-volttron
+ENV VOLTTRON_GIT_BRANCH=rmq_tests
 ENV VOLTTRON_USER_HOME=/home/volttron
 ENV VOLTTRON_HOME=${VOLTTRON_USER_HOME}/.volttron
 ENV CODE_ROOT=/code
@@ -51,7 +51,8 @@ FROM volttron_base AS volttron_core
 
 USER $VOLTTRON_USER
 WORKDIR /code
-RUN git clone https://github.com/VOLTTRON/volttron -b ${VOLTTRON_GIT_BRANCH}
+#RUN git clone https://github.com/VOLTTRON/volttron -b ${VOLTTRON_GIT_BRANCH}
+RUN git clone https://github.com/shwethanidd/volttron.git -b {VOLTTRON_GIT_BRANCH}
 WORKDIR /code/volttron
 RUN pip install --user -r requirements.txt && pip install --user .
 
