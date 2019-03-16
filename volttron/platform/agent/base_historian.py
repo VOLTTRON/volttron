@@ -1408,7 +1408,10 @@ class BackupDatabase:
                     WHERE ROWID IN
                     (SELECT ROWID FROM outstanding
                     ORDER BY ROWID ASC LIMIT 100)''')
-                self._record_count -= c.rowcount
+                if self._record_count < c.rowcount:
+                    self._record_count = 0
+                else:
+                    self._record_count -= c.rowcount
                 cache_full = True
 
             # Catch case where we are not adding fast enough to trigger the above
