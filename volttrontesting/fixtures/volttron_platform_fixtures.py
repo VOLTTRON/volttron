@@ -109,9 +109,9 @@ def volttron_instance_msgdebug(request):
     request.addfinalizer(cleanup)
     return wrapper
 
-
+# IPC testing is removed since it is not used from VOLTTRON 6.0
 @pytest.fixture(scope="function",
-        params=['tcp', 'ipc'])
+        params=['tcp'])
 def volttron_instance_encrypt(request):
     print("building instance (using encryption)")
     if request.param == 'tcp':

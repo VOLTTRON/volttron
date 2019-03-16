@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-list=( artful bionic  precise artful sid stretch trusty weezy xenial yakkety zesty )
+list=( artful bionic  precise artful sid stretch buster trusty weezy xenial yakkety zesty )
 
 function exit_on_error {
     rc=$?
