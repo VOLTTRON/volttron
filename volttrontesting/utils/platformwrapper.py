@@ -252,6 +252,7 @@ class PlatformWrapper:
                 store_message_bus_config('rmq', instance_name)
             else:
                 self.instance_name = instance_name
+        self.dynamic_agent = None
 
     def logit(self, message):
         print('{}: {}'.format(self.volttron_home, message))
@@ -364,7 +365,7 @@ class PlatformWrapper:
             gevent.spawn(agent.core.run, event)  # .join(0)
             event.wait(timeout=2)
             gevent.sleep(0.5)
-            hello = agent.vip.hello().get(timeout=.5)
+            hello = agent.vip.hello().get(timeout=5)
 
             self.logit('Got hello response {}'.format(hello))
         agent.publickey = publickey
@@ -569,14 +570,14 @@ class PlatformWrapper:
 
         self.serverkey = self.keystore.public
         assert self.serverkey
-        agent = self.build_agent()
 
+        self.dynamic_agent = self.build_agent()
         has_control = False
         times = 0
         while not has_control and times < 10:
             times += 1
             try:
-                has_control = agent.vip.peerlist().get(timeout=.2)
+                has_control = self.dynamic_agent.vip.peerlist().get(timeout=.2)
                 self.logit("Has control? {}".format(has_control))
             except gevent.Timeout:
                 pass
@@ -613,6 +614,8 @@ class PlatformWrapper:
             tparams = [TWISTED_START, "-n", "smap", tconfig]
             self.t_process = subprocess.Popen(tparams, env=self.env)
             time.sleep(5)
+
+
 
     def is_running(self):
         return utils.is_volttron_running(self.volttron_home)
@@ -861,10 +864,8 @@ class PlatformWrapper:
         return self.agent_pid(agent_uuid)
 
     def list_agents(self):
-        agent = self.build_agent()
-        print('PEER LIST: {}'.format(agent.vip.peerlist().get(timeout=10)))
-        agent_list = agent.vip.rpc('control', 'list_agents').get(timeout=10)
-        agent.core.stop(timeout=3)
+        print('PEER LIST: {}'.format(self.dynamic_agent.vip.peerlist().get(timeout=10)))
+        agent_list = self.dynamic_agent.vip.rpc('control', 'list_agents').get(timeout=10)
         return agent_list
 
     def remove_agent(self, agent_uuid):
@@ -878,12 +879,11 @@ class PlatformWrapper:
         return self.agent_pid(agent_uuid)
 
     def remove_all_agents(self):
-        agent = self.build_agent()
-        print('PEER LIST: {}'.format(agent.vip.peerlist().get(timeout=10)))
-        agent_list = agent.vip.rpc('control', 'list_agents').get(timeout=10)
+        print('PEER LIST: {}'.format(self.dynamic_agent.vip.peerlist().get(timeout=10)))
+        agent_list = self.dynamic_agent.vip.rpc('control', 'list_agents').get(timeout=10)
         for agent_props in agent_list:
-            agent.vip.rpc('control', 'remove_agent', agent_props['uuid']).get(timeout=10)
-        agent.core.stop(timeout=3)
+            self.dynamic_agent.vip.rpc('control', 'remove_agent', agent_props['uuid']).get(timeout=10)
+
 
     def is_agent_running(self, agent_uuid):
         return self.agent_pid(agent_uuid) is not None
@@ -1061,6 +1061,7 @@ class PlatformWrapper:
                 print("######################### No Log Exists: {}".format(
                     logpath
                 ))
+        print(" Skip clean up flag is {}".format(self.skip_cleanup))
         if not self.skip_cleanup and self.message_bus == 'rmq':
             cleanup_rmq_volttron_setup(vhome=self.volttron_home,
                                        ssl_auth=self.ssl_auth)
