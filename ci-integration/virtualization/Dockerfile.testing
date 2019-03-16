@@ -1,9 +1,11 @@
 FROM volttron_test_base as test_core
 
 WORKDIR /code/volttron
-COPY ./ci-integration/virtualization/requirements_test.txt ./requirements_test.txt
+#COPY ./ci-integration/virtualization/requirements_test.txt ./requirements_test.txt
 USER $VOLTTRON_USER
-RUN pip install --user -r requirements_test.txt
+RUN pwd
+#RUN ls -a
+RUN pip install --user -r ./ci-integration/virtualization/requirements_test.txt
 
 RUN echo "export VOLTTRON_ROOT=${VOLTTRON_ROOT}" >> /home/volttron/.bashrc && \
     echo "export VOLTTRON_USER_HOME=${VOLTTRON_USER_HOME}" >> /home/volttron/.bashrc && \

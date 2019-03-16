@@ -52,7 +52,7 @@ FROM volttron_base AS volttron_core
 USER $VOLTTRON_USER
 WORKDIR /code
 #RUN git clone https://github.com/VOLTTRON/volttron -b ${VOLTTRON_GIT_BRANCH}
-RUN git clone https://github.com/shwethanidd/volttron.git -b {VOLTTRON_GIT_BRANCH}
+RUN git clone https://github.com/shwethanidd/volttron.git -b ${VOLTTRON_GIT_BRANCH}
 WORKDIR /code/volttron
 RUN pip install --user -r requirements.txt && pip install --user .
 
