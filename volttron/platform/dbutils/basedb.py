@@ -370,7 +370,7 @@ class DbDriver(object):
         connect to database
         """
         self.execute_stmt(self.update_agg_topic_stmt(),
-                          (agg_id, agg_topic_name),commit=False)
+                          (agg_topic_name, agg_id),commit=False)
         return True
 
     def commit(self):
