@@ -14,7 +14,6 @@ NUM_PROCESSES=1
 #
 #}
 
-docker build --network=host -t volttron_test_base .
 docker build --network=host -t volttron_test_image -f ./virtualization/Dockerfile.testing ../
 
 area2=( test_pubsub_authorized test_pubsub_unauthorized test_agent_)

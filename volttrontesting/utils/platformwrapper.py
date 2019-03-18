@@ -138,6 +138,7 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
                            instance_name='volttron1'):
     """ Customize easily customize the platform wrapper before starting it.
     """
+    # Please note, if 'with_http'==True, then instance name needs to be provided
     assert not wrapper.is_running()
 
     vc_http = get_rand_http_address() if with_http else None
