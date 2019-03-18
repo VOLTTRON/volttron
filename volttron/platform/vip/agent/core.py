@@ -707,8 +707,6 @@ class ZMQCore(Core):
         flags = dict(hwm=True, reconnect_interval=self.reconnect_interval)
         self.connection.set_properties(flags)
         self.socket = self.connection.socket
-        if self.identity:
-            self.socket.identity = self.identity
         yield
 
         # pre-start
@@ -956,7 +954,10 @@ class RMQCore(Core):
 
         def connect_callback():
             router_connected = False
-            bindings = self.rmq_mgmt.get_bindings('volttron')
+            try:
+                bindings = self.rmq_mgmt.get_bindings('volttron')
+            except AttributeError:
+                bindings = None
             router_user = router_key = "{inst}.{ident}".format(inst=self.instance_name,
                                                                ident='router')
             if bindings:

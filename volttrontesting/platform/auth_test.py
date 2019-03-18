@@ -54,7 +54,8 @@ def test_unauthorized_rpc_call1(volttron_instance_encrypt):
     # If the agent is not authorized, then an exception will be raised
     with pytest.raises(jsonrpc.RemoteError):
         agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=1)
-
+    agent1.core.stop()
+    agent2.core.stop()
 
 @pytest.mark.auth
 def test_authorized_rpc_call1(volttron_instance_encrypt):
@@ -66,7 +67,8 @@ def test_authorized_rpc_call1(volttron_instance_encrypt):
     gevent.sleep(.1)
     result = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=2)
     assert result == 42
-
+    agent1.core.stop()
+    agent2.core.stop()
 
 @pytest.mark.auth
 def test_unauthorized_rpc_call2(volttron_instance_encrypt):
@@ -84,7 +86,8 @@ def test_unauthorized_rpc_call2(volttron_instance_encrypt):
     # If the agent is not authorized, then an exception will be raised
     with pytest.raises(jsonrpc.RemoteError):
         agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=1)
-
+    agent1.core.stop()
+    agent2.core.stop()
 
 @pytest.mark.auth
 def test_authorized_rpc_call2(volttron_instance_encrypt):
@@ -101,7 +104,8 @@ def test_authorized_rpc_call2(volttron_instance_encrypt):
     gevent.sleep(.1)
     result = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=2)
     assert result == 42
-
+    agent1.core.stop()
+    agent2.core.stop()
 
 def build_two_agents_pubsub_agents(volttron_instance_encrypt, topic='foo'):
     """ Return two agents for testing protected pubsub
@@ -114,7 +118,7 @@ def build_two_agents_pubsub_agents(volttron_instance_encrypt, topic='foo'):
     :return:
     """
     agent1, agent2 = build_two_test_agents(volttron_instance_encrypt)
-
+    gevent.sleep(1)
     msgs = []
     def got_msg(peer, sender, bus, topic, headers, message):
         print("Got message: {}".format(message))
@@ -134,7 +138,8 @@ def test_pubsub_not_protected(volttron_instance_encrypt):
     assert msgs[0] == 'hello agent'
     #This was the old method for checking for the results. Not sure which method is better.
     #assert poll_gevent_sleep(2, lambda: len(msgs) > 0 and msgs[0] == 'hello agent')
-
+    agent1.core.stop()
+    agent2.core.stop()
 
 def build_protected_pubsub(instance, topic, capabilities, topic_regex=None,
                           add_capabilities=False):
@@ -166,10 +171,13 @@ def pubsub_unauthorized(volttron_instance_encrypt, topic='foo', regex=None, peer
     setup = build_protected_pubsub(volttron_instance_encrypt, topic,
                                   'can_publish_to_my_topic', regex)
     gevent.sleep(0.1)
+    agent1 = setup['agent1']
     agent2 = setup['agent2']
     topic = setup['topic']
     with pytest.raises(VIPError):
         agent2.vip.pubsub.publish(peer, topic, message='hello').get(timeout=2)
+    agent1.core.stop()
+    agent2.core.stop()
 
 
 def pubsub_authorized(volttron_instance_encrypt, topic='foo', regex=None, peer='pubsub'):
@@ -185,7 +193,8 @@ def pubsub_authorized(volttron_instance_encrypt, topic='foo', regex=None, peer='
     msgs = setup['messages']
     agent2.vip.pubsub.publish(peer, topic, message='hello agent').get(timeout=2)
     assert poll_gevent_sleep(2, lambda: 'hello agent' in msgs)
-
+    agent1.core.stop()
+    agent2.core.stop()
 
 @pytest.mark.auth
 def test_pubsub_unauthorized(volttron_instance_encrypt):
