@@ -111,14 +111,11 @@ def volttron_instance_msgdebug(request):
     return wrapper
 
 # IPC testing is removed since it is not used from VOLTTRON 6.0
-@pytest.fixture(scope="function",
-        params=['tcp'])
+@pytest.fixture(scope="function")
 def volttron_instance_encrypt(request):
     print("building instance (using encryption)")
-    if request.param == 'tcp':
-        address = get_rand_vip()
-    else:
-        address = get_rand_ipc_vip()
+
+    address = get_rand_vip()
     wrapper = build_wrapper(address)
 
     def cleanup():

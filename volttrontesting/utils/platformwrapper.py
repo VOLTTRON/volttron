@@ -135,7 +135,7 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
                            volttron_central_address=None,
                            volttron_central_serverkey=None,
                            add_local_vc_address=False,
-                           instance_name='volttron1'):
+                           instance_name='volttron_test'):
     """ Customize easily customize the platform wrapper before starting it.
     """
     # Please note, if 'with_http'==True, then instance name needs to be provided
@@ -822,10 +822,10 @@ class PlatformWrapper:
     def restore_conf(self):
         if self.rmq_conf_backup:
             _log.debug("Restoring original rabbitmq.conf to server and restarting rmq")
-            try:
-                shutil.move(self.rmq_conf_backup, os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf'))
-            except IOError as e:
-                _log.exception("rabbitmq.conf missing from path {}".format(self.rmq_conf_backup))
+            #try:
+            shutil.move(self.rmq_conf_backup, os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf'))
+            #except IOError as e:
+            #    _log.exception("rabbitmq.conf missing from path {}".format(self.rmq_conf_backup))
             stop_rabbit(rabbitmq_config['rmq-home'], quite=True)
             start_rabbit(rabbitmq_config['rmq-home'])
         else:
