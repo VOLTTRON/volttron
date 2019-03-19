@@ -100,6 +100,7 @@ def test_authorized_rpc_call2(volttron_instance_encrypt):
     result = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=2)
     assert result == 42
 
+
 def build_two_agents_pubsub_agents(volttron_instance_encrypt, topic='foo'):
     """ Return two agents for testing protected pubsub
 
@@ -131,6 +132,7 @@ def test_pubsub_not_protected(volttron_instance_encrypt):
     assert msgs[0] == 'hello agent'
     #This was the old method for checking for the results. Not sure which method is better.
     #assert poll_gevent_sleep(2, lambda: len(msgs) > 0 and msgs[0] == 'hello agent')
+
 
 def build_protected_pubsub(instance, topic, capabilities, topic_regex=None,
                           add_capabilities=False):
@@ -167,8 +169,6 @@ def pubsub_unauthorized(volttron_instance_encrypt, topic='foo', regex=None, peer
     topic = setup['topic']
     with pytest.raises(VIPError):
         agent2.vip.pubsub.publish(peer, topic, message='hello').get(timeout=2)
-
-
 
 
 def pubsub_authorized(volttron_instance_encrypt, topic='foo', regex=None, peer='pubsub'):
