@@ -32,7 +32,7 @@ http://ryanstutorials.net/linuxtutorial/
 
 ## Installation
 
- ###1. Install prerequisites
+ ### 1. Install prerequisites
 
 (https://volttron.readthedocs.io/en/latest/setup/VOLTTRON-Prerequisites.html#volttron-prerequisites).
 
@@ -56,9 +56,9 @@ From version 6.0 VOLTTRON supports two message bus - ZMQ and RabbitMQ.
 git clone https://github.com/VOLTTRON/volttron --branch <branch name>
 ```
 
-###3. Setup virtual environment
+### 3. Setup virtual environment
 
-####Steps for ZMQ
+#### Steps for ZMQ
 Run the following command to install all required packages
 
 ```sh
@@ -69,9 +69,9 @@ source env/bin/activate
 
 Proceed to step 4. 
 
-####Steps for RabbitMQ
+#### Steps for RabbitMQ
 
-  1. **Install Erlang version 21 packages.**
+  ##### 1. Install Erlang version 21 packages
 
        For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
     
@@ -89,8 +89,8 @@ Proceed to step 4.
         centos 6 (for CentOS 6)
       
       Example command
-      ``` 
-      ~/volttron/scripts/rabbit_dependencies.sh debian xenial
+      ``` sh
+      ./scripts/rabbit_dependencies.sh debian xenial
       ```
       
       **Alternatively**
@@ -99,7 +99,7 @@ Proceed to step 4.
       Please include OTP/components - ssl, public_key, asn1, and crypto.
       Also lock version of Erlang using the [yum-plugin-versionlock](https://access.redhat.com/solutions/98873)
 
-  2. **Configure hostname**
+  ##### 2. Configure hostname
 
         Make sure that your hostname is correctly configured in /etc/hosts.
         See (https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho). If you are testing with VMs make please make sure to provide unique host names for each of the VM you are using. 
@@ -110,7 +110,7 @@ Proceed to step 4.
         port 4369) on <hostname>." Note: RabbitMQ startup error would show up in syslog (/var/log/messages) file
         and not in RabbitMQ logs (/var/log/rabbitmq/rabbitmq@hostname.log)
 
-  3. **bootstrap**
+  ##### 3. bootstrap
 
         ```sh
         cd volttron
@@ -139,13 +139,13 @@ Proceed to step 4.
         $RABBITMQ_HOME/sbin/rabbitmqctl status
         ```
 
-  4. **Activate the environment**
+  ###### 4. Activate the environment
 
         ```sh
         source env/bin/activate
         ```
 
-  5. **Create RabbitMQ setup for VOLTTRON :**
+  ##### 5. Create RabbitMQ setup for VOLTTRON:
         ```
         vcfg --rabbitmq single [optional path to rabbitmq_config.yml]
         ```
@@ -234,7 +234,7 @@ Proceed to step 4.
 
 
 
-###4. Test
+### 4. Test
 
 We are now ready to start VOLTTRON with RabbitMQ message bus. If we need to revert back to ZeroMQ based VOLTTRON, we
 will have to either remove "message-bus" parameter or set it to default "zmq" in $VOLTTRON\_HOME/config.
