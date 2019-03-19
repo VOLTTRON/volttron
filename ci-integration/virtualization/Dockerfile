@@ -4,7 +4,7 @@ SHELL [ "bash", "-c" ]
 
 ENV OS_TYPE=debian
 ENV DIST=buster
-ENV VOLTTRON_GIT_BRANCH=rmq_tests
+ENV VOLTTRON_GIT_BRANCH=volttron_docker_test
 ENV VOLTTRON_USER_HOME=/home/volttron
 ENV VOLTTRON_HOME=${VOLTTRON_USER_HOME}/.volttron
 ENV CODE_ROOT=/code
