@@ -85,6 +85,7 @@ def volttron_instance_msgdebug(request):
     request.addfinalizer(cleanup)
     return wrapper
 
+
 # IPC testing is removed since it is not used from VOLTTRON 6.0
 @pytest.fixture(scope="function")
 def volttron_instance_encrypt(request):
@@ -232,13 +233,13 @@ def volttron_instance_zmq(request):
 
     wrapper = build_wrapper(address)
 
-
     def cleanup():
         print('Shutting down instance: {}'.format(wrapper.volttron_home))
         cleanup_wrapper(wrapper)
 
     request.addfinalizer(cleanup)
     return wrapper
+
 
 # Use this fixture when you want a single instance of volttron platform for rmq message bus
 # test
@@ -255,7 +256,6 @@ def volttron_instance_rmq(request):
     wrapper = build_wrapper(address,
                             message_bus='rmq',
                             ssl_auth = True)
-
 
     def cleanup():
         print('Shutting down RMQ instance: {}'.format(wrapper.volttron_home))
