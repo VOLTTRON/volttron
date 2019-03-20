@@ -58,12 +58,16 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False):
     # and we want to use the backup conf to restore only at fixture teardown and not instance shutdown.
     # instance can get started and shutdown multiple times within test. But restore should happen only
     # at end of instance lifetime.
-    conf_backup = os.path.join(os.path.dirname(vhome),"backup_rabbitmq_conf_"+ os.path.basename(vhome))
-    #try:
-    shutil.copy(os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf'), conf_backup)
-    #except IOError as e:
-    #    _log.exception("rabbitmq.conf missing from path {}".
-    #                   format(os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf')))
+    conf_backup = os.path.join(os.path.dirname(vhome),"backup_rabbitmq_conf_" + os.path.basename(vhome))
+    try:
+        shutil.copy(os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf'), conf_backup)
+    except IOError as e:
+        _log.warn("rabbitmq.conf missing from path {}".
+                      format(os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf')))
+        # Could happen if vcfg --rabbitmq single was never run. Or some test case didn't restore conf correctly
+        # if a test case explicitly sets platform instance.skip_cleanup=True, then the test case should call
+        # cleanup_rmq_volttron_setup() and instance.restore_conf() at the end of the life cycle of the instance
+        conf_backup = None
 
     store_message_bus_config(message_bus='rmq',
                              instance_name=VOLTTRON_INSTANCE_NAME)

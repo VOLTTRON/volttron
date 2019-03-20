@@ -63,7 +63,7 @@ FAILURE = 'FAILURE'
 
 
 @pytest.fixture(scope="module")
-def publish_agent(request, volttron_instance1):
+def publish_agent(request, volttron_instance):
     """
     Fixture used for setting up the environment.
     1. Creates fake driver configs
@@ -72,14 +72,14 @@ def publish_agent(request, volttron_instance1):
     4. Creates an instance Agent class for publishing and returns it
 
     :param request: pytest request object
-    :param volttron_instance1: instance of volttron in which test cases are run
+    :param volttron_instance: instance of volttron in which test cases are run
     :return: an instance of fake agent used for publishing
     """
 
 
     # Reset master driver config store
     cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
-    process = Popen(cmd, env=volttron_instance1.env,
+    process = Popen(cmd, env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
@@ -89,7 +89,7 @@ def publish_agent(request, volttron_instance1):
     # Add master driver configuration files to config store.
     cmd = ['volttron-ctl', 'config', 'store',PLATFORM_DRIVER,
            'fake.csv', 'fake_unit_testing.csv', '--csv']
-    process = Popen(cmd, env=volttron_instance1.env,
+    process = Popen(cmd, env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
@@ -100,7 +100,7 @@ def publish_agent(request, volttron_instance1):
         config_name = "devices/fakedriver{}".format(i)
         cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
                config_name, 'fake_unit_testing.config', '--json']
-        process = Popen(cmd, env=volttron_instance1.env,
+        process = Popen(cmd, env=volttron_instance.env,
                         cwd='scripts/scalability-testing',
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         result = process.wait()
@@ -109,7 +109,7 @@ def publish_agent(request, volttron_instance1):
 
     # Start the master driver agent which would intern start the fake driver
     #  using the configs created above
-    master_uuid = volttron_instance1.install_agent(
+    master_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
         start=True)
@@ -119,23 +119,23 @@ def publish_agent(request, volttron_instance1):
     # Start the actuator agent through which publish agent should communicate
     # to fake device. Start the master driver agent which would intern start
     # the fake driver using the configs created above
-    actuator_uuid = volttron_instance1.install_agent(
+    actuator_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("ActuatorAgent"),
         config_file=get_services_core("ActuatorAgent/tests/actuator.config"),
         start=True)
     print("agent id: ", actuator_uuid)
 
     # 3: Start a fake agent to publish to message bus
-    publish_agent = volttron_instance1.build_agent(identity=TEST_AGENT)
+    publish_agent = volttron_instance.build_agent(identity=TEST_AGENT)
 
     # 4: add a tear down method to stop sqlhistorian agent and the fake agent
     #  \that published to message bus
     def stop_agent():
         print("In teardown method of module")
-        volttron_instance1.stop_agent(actuator_uuid)
-        volttron_instance1.stop_agent(master_uuid)
-        volttron_instance1.remove_agent(actuator_uuid)
-        volttron_instance1.remove_agent(master_uuid)
+        volttron_instance.stop_agent(actuator_uuid)
+        volttron_instance.stop_agent(master_uuid)
+        volttron_instance.remove_agent(actuator_uuid)
+        volttron_instance.remove_agent(master_uuid)
         publish_agent.core.stop()
 
     request.addfinalizer(stop_agent)
@@ -1834,7 +1834,7 @@ def test_scrape_all(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_set_value_no_lock(publish_agent, volttron_instance1):
+def test_set_value_no_lock(publish_agent, volttron_instance):
     """ Tests the (now default) setting to allow writing without a
     lock as long as nothing else has the device locked.
 
@@ -1845,7 +1845,7 @@ def test_set_value_no_lock(publish_agent, volttron_instance1):
 
     alternate_actuator_vip_id = "my_actuator"
     #Use actuator that allows write with no lock.
-    my_actuator_uuid = volttron_instance1.install_agent(
+    my_actuator_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("ActuatorAgent"),
         config_file=get_services_core("ActuatorAgent/tests/actuator-no-lock.config"),
         start=True, vip_identity=alternate_actuator_vip_id)
@@ -1869,12 +1869,12 @@ def test_set_value_no_lock(publish_agent, volttron_instance1):
             'fakedriver0'  # Point to revert
         ).get(timeout=10)
 
-        volttron_instance1.stop_agent(my_actuator_uuid)
-        volttron_instance1.remove_agent(my_actuator_uuid)
+        volttron_instance.stop_agent(my_actuator_uuid)
+        volttron_instance.remove_agent(my_actuator_uuid)
 
 
 @pytest.mark.actuator
-def test_set_value_no_lock_failure(publish_agent, volttron_instance1):
+def test_set_value_no_lock_failure(publish_agent, volttron_instance):
     """ Tests the (now default) setting to allow writing without a
     lock as long as nothing else has the device locked.
 
@@ -1885,14 +1885,14 @@ def test_set_value_no_lock_failure(publish_agent, volttron_instance1):
 
     alternate_actuator_vip_id = "my_actuator"
     #Use actuator that allows write with no lock.
-    my_actuator_uuid = volttron_instance1.install_agent(
+    my_actuator_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("ActuatorAgent"),
         config_file=get_services_core("ActuatorAgent/tests/actuator-no-lock.config"),
         start=True, vip_identity=alternate_actuator_vip_id)
     try:
         agentid2 = "test-agent2"
         taskid = "test-task"
-        publish_agent2 = volttron_instance1.build_agent(identity=agentid2)
+        publish_agent2 = volttron_instance.build_agent(identity=agentid2)
 
         start = str(datetime.now())
         end = str(datetime.now() + timedelta(seconds=60))
@@ -1930,8 +1930,8 @@ def test_set_value_no_lock_failure(publish_agent, volttron_instance1):
         ).get(timeout=10)
 
         publish_agent2.core.stop()
-        volttron_instance1.stop_agent(my_actuator_uuid)
-        volttron_instance1.remove_agent(my_actuator_uuid)
+        volttron_instance.stop_agent(my_actuator_uuid)
+        volttron_instance.remove_agent(my_actuator_uuid)
 
 
 @pytest.mark.actuator
