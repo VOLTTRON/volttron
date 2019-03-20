@@ -2,7 +2,7 @@ import logging
 
 from ws4py.websocket import WebSocket
 
-_log = logging.getLogger(self.__class__.__name__)
+_log = logging.getLogger(__name__)
 
 
 class VolttronWebSocket(WebSocket):
