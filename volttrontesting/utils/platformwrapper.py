@@ -134,9 +134,11 @@ def build_vip_address(dest_wrapper, agent):
 def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
                            volttron_central_address=None,
                            volttron_central_serverkey=None,
-                           add_local_vc_address=False):
+                           add_local_vc_address=False,
+                           instance_name='volttron_test'):
     """ Customize easily customize the platform wrapper before starting it.
     """
+    # Please note, if 'with_http'==True, then instance name needs to be provided
     assert not wrapper.is_running()
 
     vc_http = get_rand_http_address() if with_http else None
@@ -151,7 +153,8 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
     wrapper.startup_platform(vip_address=vc_tcp,
                              bind_web_address=vc_http,
                              volttron_central_address=volttron_central_address,
-                             volttron_central_serverkey=volttron_central_serverkey)
+                             volttron_central_serverkey=volttron_central_serverkey,
+                             instance_name=instance_name)
     if with_http:
         discovery = "{}/discovery/".format(vc_http)
         response = requests.get(discovery)
@@ -187,6 +190,7 @@ class PlatformWrapper:
             'PACKAGED_DIR': self.packaged_dir,
             'DEBUG_MODE': os.environ.get('DEBUG_MODE', ''),
             'DEBUG': os.environ.get('DEBUG', ''),
+            'SKIP_CLEANUP': os.environ.get('SKIP_CLEANUP', ''),
             'PATH': VOLTTRON_ROOT + ':' + os.environ['PATH'],
             # RABBITMQ requires HOME env set
             'HOME': os.environ.get('HOME'),
@@ -253,6 +257,11 @@ class PlatformWrapper:
             else:
                 self.instance_name = instance_name
         self.dynamic_agent = None
+
+        self.debug_mode = self.env.get('DEBUG_MODE', False)
+        if not self.debug_mode:
+            self.debug_mode = self.env.get('DEBUG', False)
+        self.skip_cleanup = self.env.get('SKIP_CLEANUP', False)
 
     def logit(self, message):
         print('{}: {}'.format(self.volttron_home, message))
@@ -364,10 +373,10 @@ class PlatformWrapper:
             event = gevent.event.Event()
             gevent.spawn(agent.core.run, event)  # .join(0)
             event.wait(timeout=2)
-            gevent.sleep(0.5)
+            gevent.sleep(1)
             hello = agent.vip.hello().get(timeout=5)
 
-            self.logit('Got hello response {}'.format(hello))
+            #self.logit('Got hello response {}'.format(hello))
         agent.publickey = publickey
         return agent
 
@@ -448,15 +457,12 @@ class PlatformWrapper:
 
         msgdebug = self.env.get('MSG_DEBUG', False)
         enable_logging = self.env.get('ENABLE_LOGGING', False)
-        debug_mode = self.env.get('DEBUG_MODE', False)
-        if not debug_mode:
-            debug_mode = self.env.get('DEBUG', False)
-        self.skip_cleanup = self.env.get('SKIP_CLEANUP', False)
 
-        if debug_mode:
+        if self.debug_mode:
             self.skip_cleanup = True
             enable_logging = True
             msgdebug = True
+
         self.logit(
             "In start up platform enable_logging is {} ".format(enable_logging))
         assert self.mode in MODES, 'Invalid platform mode set: ' + str(mode)
@@ -819,7 +825,10 @@ class PlatformWrapper:
     def restore_conf(self):
         if self.rmq_conf_backup:
             _log.debug("Restoring original rabbitmq.conf to server and restarting rmq")
+            #try:
             shutil.move(self.rmq_conf_backup, os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf'))
+            #except IOError as e:
+            #    _log.exception("rabbitmq.conf missing from path {}".format(self.rmq_conf_backup))
             stop_rabbit(rabbitmq_config['rmq-home'], quite=True)
             start_rabbit(rabbitmq_config['rmq-home'])
         else:
@@ -879,6 +888,8 @@ class PlatformWrapper:
         return self.agent_pid(agent_uuid)
 
     def remove_all_agents(self):
+        if self._instance_shutdown:
+            return
         print('PEER LIST: {}'.format(self.dynamic_agent.vip.peerlist().get(timeout=10)))
         agent_list = self.dynamic_agent.vip.rpc('control', 'list_agents').get(timeout=10)
         for agent_props in agent_list:
@@ -1079,6 +1090,20 @@ class PlatformWrapper:
         data.append('volttron_home: {}'.format(self.volttron_home))
         return '\n'.join(data)
 
+
+    def cleanup(self):
+        """
+        Cleanup all resources created for test purpose if debug_mode is false.
+        Restores orignial rabbitmq.conf if testing with rmq
+        :return:
+        """
+        if self.message_bus == 'rmq':
+            cleanup_rmq_volttron_setup(vhome=self.volttron_home,
+                                       ssl_auth=self.ssl_auth)
+            self.restore_conf()
+
+        if not self.debug_mode:
+            shutil.rmtree(self.volttron_home, ignore_errors=True)
 
 def mergetree(src, dst, symlinks=False, ignore=None):
     if not os.path.exists(dst):

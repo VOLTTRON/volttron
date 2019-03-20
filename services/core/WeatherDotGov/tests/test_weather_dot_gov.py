@@ -90,7 +90,7 @@ def cleanup_cache(volttron_instance, query_agent, weather):
 
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
-    # 1: Start a fake agent to query the historian agent in volttron_instance2
+    # 1: Start a fake agent to query the historian agent in volttron_instance
     agent = volttron_instance.build_agent()
     agent.poll_callback = MagicMock(name="poll_callback")
     # subscribe to weather poll results

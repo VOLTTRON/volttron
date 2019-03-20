@@ -66,16 +66,16 @@ alert_uuid = None
 
 
 @pytest.fixture(scope='module')
-def agent(request, volttron_instance1):
+def agent(request, volttron_instance):
     global db_connection, agent_version, db_path, alert_uuid
     assert os.path.exists(get_ops("TopicWatcher"))
-    alert_uuid = volttron_instance1.install_agent(
+    alert_uuid = volttron_instance.install_agent(
         agent_dir=get_ops("TopicWatcher"),
         config_file=WATCHER_CONFIG,
         vip_identity=PLATFORM_TOPIC_WATCHER
     )
     gevent.sleep(2)
-    db_path = os.path.join(volttron_instance1.volttron_home, 'agents',
+    db_path = os.path.join(volttron_instance.volttron_home, 'agents',
                            alert_uuid, 'topic_watcheragent-' + agent_version,
                            'topic-watcheragent-' + agent_version + '.agent-data',
                            'alert_log.sqlite')
@@ -85,7 +85,7 @@ def agent(request, volttron_instance1):
         db_path,
         detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
 
-    agent = volttron_instance1.build_agent()
+    agent = volttron_instance.build_agent()
 
     def onmessage(peer, sender, bus, topic, headers, message):
         global alert_messages
@@ -103,7 +103,7 @@ def agent(request, volttron_instance1):
                                callback=onmessage)
 
     def stop():
-        volttron_instance1.stop_agent(alert_uuid)
+        volttron_instance.stop_agent(alert_uuid)
         agent.core.stop()
         db_connection.close()
 
@@ -207,20 +207,20 @@ def test_ignore_topic(agent):
 
 
 @pytest.mark.alert
-def test_watch_topic_same_group(volttron_instance1, agent, cleanup_db):
+def test_watch_topic_same_group(volttron_instance, agent, cleanup_db):
     """
     Test adding a new topic to watch list. Add the topic to a already configured
     group. Agent should watching for the new topic and should send correct
     alert messages
-    :param volttron_instance1: instance in which alert agent is running
+    :param volttron_instance: instance in which alert agent is running
     :param agent: fake agent used to make rpc calls to alert agent
     :param cleanup_db: function scope fixture to clean up alert and agent log
     tables in database.
     """
     global alert_messages, db_connection, alert_uuid
-    volttron_instance1.stop_agent(alert_uuid)
+    volttron_instance.stop_agent(alert_uuid)
     alert_messages.clear()
-    volttron_instance1.start_agent(alert_uuid)
+    volttron_instance.start_agent(alert_uuid)
     gevent.sleep(1)
     publish_time = get_aware_utc_now()
     agent.vip.pubsub.publish(peer='pubsub',
@@ -258,20 +258,20 @@ def test_watch_topic_same_group(volttron_instance1, agent, cleanup_db):
 
 
 @pytest.mark.alert
-def test_watch_topic_new_group(volttron_instance1, agent, cleanup_db):
+def test_watch_topic_new_group(volttron_instance, agent, cleanup_db):
     """
     Test adding a new topic to watch list. Add the topic to a new watch group.
     Agent should start watching for the new topic and should send correct
     alert messages and update database entries for the new topic
-    :param volttron_instance1: instance in which alert agent is running
+    :param volttron_instance: instance in which alert agent is running
     :param agent: fake agent used to make rpc calls to alert agent
     :param cleanup_db: function scope fixture to clean up alert and agent log
     tables in database.
     """
     global alert_messages, db_connection, alert_uuid
-    volttron_instance1.stop_agent(alert_uuid)
+    volttron_instance.stop_agent(alert_uuid)
     alert_messages.clear()
-    volttron_instance1.start_agent(alert_uuid)
+    volttron_instance.start_agent(alert_uuid)
     gevent.sleep(1)
     publish_time = get_aware_utc_now()
     agent.vip.pubsub.publish(peer='pubsub',
@@ -312,20 +312,20 @@ def test_watch_topic_new_group(volttron_instance1, agent, cleanup_db):
 
 
 @pytest.mark.alert
-def test_watch_device_same_group(volttron_instance1, agent, cleanup_db):
+def test_watch_device_same_group(volttron_instance, agent, cleanup_db):
     """
     Test adding a new point topic to watch list. Add the topic to an existing
     watch group. Agent should start watching for the new topic and should
     send correct alert messages and update database entries for the new topic
-    :param volttron_instance1: instance in which alert agent is running
+    :param volttron_instance: instance in which alert agent is running
     :param agent: fake agent used to make rpc calls to alert agent
     :param cleanup_db: function scope fixture to clean up alert and agent log
     tables in database.
     """
     global alert_messages, db_connection
-    volttron_instance1.stop_agent(alert_uuid)
+    volttron_instance.stop_agent(alert_uuid)
     alert_messages.clear()
-    volttron_instance1.start_agent(alert_uuid)
+    volttron_instance.start_agent(alert_uuid)
     gevent.sleep(1)
     publish_time = get_aware_utc_now()
     agent.vip.pubsub.publish(peer='pubsub',
@@ -365,20 +365,20 @@ def test_watch_device_same_group(volttron_instance1, agent, cleanup_db):
 
 
 @pytest.mark.alert
-def test_watch_device_new_group(volttron_instance1, agent, cleanup_db):
+def test_watch_device_new_group(volttron_instance, agent, cleanup_db):
     """
     Test adding a new point topic to watch list. Add the topic to a new watch
     group. Agent should start watching for the new topic and should send correct
     alert messages and update database entries for the new topic
-    :param volttron_instance1: instance in which alert agent is running
+    :param volttron_instance: instance in which alert agent is running
     :param agent: fake agent used to make rpc calls to alert agent
     :param cleanup_db: function scope fixture to clean up alert and agent log
     tables in database.
     """
     global alert_messages, db_connection
-    volttron_instance1.stop_agent(alert_uuid)
+    volttron_instance.stop_agent(alert_uuid)
     alert_messages.clear()
-    volttron_instance1.start_agent(alert_uuid)
+    volttron_instance.start_agent(alert_uuid)
     gevent.sleep(1)
     publish_time = get_aware_utc_now()
     agent.vip.pubsub.publish(peer='pubsub',
@@ -421,15 +421,15 @@ def test_watch_device_new_group(volttron_instance1, agent, cleanup_db):
 
 
 @pytest.mark.alert
-def test_agent_logs(volttron_instance1, agent):
+def test_agent_logs(volttron_instance, agent):
     """
     Test if alert agent's start and stop time are getting logged correctly
-    :param volttron_instance1: instance in which alert agent is running
+    :param volttron_instance: instance in which alert agent is running
     :param agent: fake agent used to make rpc calls to alert agent
     """
     global alert_messages, db_connection, alert_uuid
     stop_t = get_aware_utc_now()
-    volttron_instance1.stop_agent(alert_uuid)
+    volttron_instance.stop_agent(alert_uuid)
     gevent.sleep(1)
     c = db_connection.cursor()
     c.execute("SELECT * FROM agent_log "
@@ -438,37 +438,37 @@ def test_agent_logs(volttron_instance1, agent):
     r = c.fetchall()
     assert len(r) == 1
     start_t = get_aware_utc_now()
-    volttron_instance1.start_agent(alert_uuid)
+    volttron_instance.start_agent(alert_uuid)
     gevent.sleep(4)
     stop_t = get_aware_utc_now()
-    volttron_instance1.stop_agent(alert_uuid)
+    volttron_instance.stop_agent(alert_uuid)
     c.execute("SELECT * FROM agent_log "
               "WHERE start_time > '{}' AND "
               "stop_time > '{}'".format(start_t, stop_t))
     r = c.fetchall()
     assert len(r) == 1
-    volttron_instance1.start_agent(alert_uuid)
+    volttron_instance.start_agent(alert_uuid)
     gevent.sleep(1)
 
 
 @pytest.mark.alert
-def test_for_duplicate_logs(volttron_instance1, agent, cleanup_db):
+def test_for_duplicate_logs(volttron_instance, agent, cleanup_db):
     """
     Test if records are not getting duplicated in database after every watch
     time interval. When a topic is not seen within the configured time
     frame a single row is inserted into database for that topic. When the topic
     is seen again the same row is updated with timestamp of when the
     topic message was seen.
-    :param volttron_instance1: instance in which alert agent is running
+    :param volttron_instance: instance in which alert agent is running
     :param agent: fake agent used to make rpc calls to alert agent
     :param cleanup_db: function scope fixture to clean up alert and agent log
     tables in database.
     """
     global db_connection, alert_messages, alert_uuid
-    volttron_instance1.stop_agent(alert_uuid)
+    volttron_instance.stop_agent(alert_uuid)
     gevent.sleep(1)
     start_t = get_aware_utc_now()
-    volttron_instance1.start_agent(alert_uuid)
+    volttron_instance.start_agent(alert_uuid)
     gevent.sleep(6)
     c = db_connection.cursor()
     c.execute('SELECT * FROM topic_log '
