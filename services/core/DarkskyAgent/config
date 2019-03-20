@@ -1,0 +1,6 @@
+{
+    'max_size_gb': None,
+    'api_key': '902a708bcc2c20fdcd91962640ef5d1b',
+    'poll_locations': [],
+    'poll_interval': 5
+}

@@ -73,7 +73,9 @@ def cleanup_cache(volttron_instance, query_agent, weather):
     tables = ["get_current_weather", "get_hourly_forecast"]
     version = query_agent.vip.rpc.call(identity, 'get_version').get(timeout=3)
     cwd = volttron_instance.volttron_home
-    database_file = "/".join()
+    database_file = "/".join([cwd, "agents", weather, "darkskyagent-" +
+                         version, "darkskyagent-" + version +
+                         ".agent-data", "weather.sqlite"])
     _log.debug(database_file)
     sqlite_connection = sqlite3.connect(database_file)
     cursor = sqlite_connection.cursor()
@@ -82,6 +84,27 @@ def cleanup_cache(volttron_instance, query_agent, weather):
         _log.debug(query)
         cursor.execute(query)
         sqlite_connection.commit()
+
+
+@pytest.fixture(scope="module")
+def query_agent(request, volttron_instance):
+    # 1: Start a fake agent to query the historian agent in volttron_instance2
+    agent = volttron_instance.build_agent()
+    agent.poll_callback = MagicMock(name="poll_callback")
+    # subscribe to weather poll results
+    agent.vip.pubsub.subscribe(
+        peer='pubsub',
+        prefix="weather/poll/current",
+        callback=agent.poll_callback).get()
+
+    # 2: add a tear down method to stop the fake
+    # agent that published to message bus
+    def stop_agent():
+        print("In teardown method of query_agent")
+        agent.core.stop()
+
+    request.addfinalizer(stop_agent)
+    return agent
 
 
 @pytest.fixture(scope="module", params=[darksky_service])
@@ -127,7 +150,7 @@ def test_success_current(cleanup_cache, weather, query_agent, locations):
         results = record.get("weather_results")
         if results:
             assert isinstance(results, dict)
-            assert not "summary" in results
+            assert "data" not in results
         else:
             results = record.get("weather_error")
             if results.startswith("Remote API returned no data") or \
@@ -140,9 +163,12 @@ def test_success_current(cleanup_cache, weather, query_agent, locations):
                 assert True
             else:
                 assert False
+
+    # TODO check cache for other services
+
     cache_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
                                           locations).get(timeout=30)
-
+    print("CACHE DATA = {}".format(cache_data))
     # check names returned are valid
     assert len(cache_data) == len(cache_data)
     for x in range(0, len(cache_data)):
@@ -150,6 +176,8 @@ def test_success_current(cleanup_cache, weather, query_agent, locations):
         for key in query_data[x]:
             assert query_data[x].get(key) == cache_data[x].get(key)
 
+
+# TODO create tests for performance mode
 
 @pytest.mark.parametrize("locations", [
     ["fail"],
@@ -173,7 +201,8 @@ def test_current_fail(weather, query_agent, locations):
     [{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": 119.2752}]
 ])
 @pytest.mark.darksky
-def test_success_forecast(cleanup_cache, weather, query_agent, locations):
+def test_success_hourly_forecast(cleanup_cache, weather, query_agent,
+                                 locations):
     print(datetime.utcnow())
     query_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
                                           locations, hours=2).get(timeout=30)
@@ -200,7 +229,7 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
             for record in results:
                 forecast_time = utils.parse_timestamp_string(record[0])
                 assert isinstance(forecast_time, datetime)
-                assert 'summary' in results
+                assert 'summary' in record[1]
 
 
 @pytest.mark.parametrize("locations", [
@@ -223,7 +252,20 @@ def test_hourly_forecast_fail(weather, query_agent, locations):
         assert record.get("weather_results") is None
 
 
+# TODO add for specific topics
 @pytest.mark.darksky
+@pytest.mark.parametrize('config, result_topics', [
+    ({'poll_locations': [{"lat": 39.7555, "long": -105.2211},
+                         {"lat": 46.2804, "long": 119.2752}],
+      'poll_interval': 5,
+      },
+     ['weather/poll/current/all']),
+    # ({'poll_locations': [],
+    #   'poll_interval': 5,
+    #   'poll_topic_suffixes': ["KLAX", "KABQ"]},
+    #  ['weather/poll/current/', 'weather/poll/current/KABQ']
+    #  ),
+])
 def test_polling_locations_valid_config(volttron_instance, query_agent, config,
                                         result_topics):
     agent_uuid = None
