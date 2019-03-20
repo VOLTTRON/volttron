@@ -62,7 +62,6 @@ import hashlib
 import logging
 import os
 import os.path as p
-import requests
 import sys
 from collections import defaultdict, namedtuple
 from copy import deepcopy
@@ -78,7 +77,6 @@ from platforms import Platforms, PlatformHandler
 from sessions import SessionHandler
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
-from volttron.platform.agent.web import get_user_claims, get_bearer, NotAuthorized
 from volttron.platform.agent.exit_codes import INVALID_CONFIGURATION_CODE
 from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, PLATFORM_HISTORIAN)
@@ -89,7 +87,7 @@ from volttron.platform.jsonrpc import (
     UNHANDLED_EXCEPTION, UNAUTHORIZED,
     DISCOVERY_ERROR,
     UNABLE_TO_UNREGISTER_INSTANCE, UNAVAILABLE_PLATFORM, INVALID_PARAMS,
-    UNAVAILABLE_AGENT, INTERNAL_ERROR, JsonRpcData)
+    UNAVAILABLE_AGENT, INTERNAL_ERROR)
 from volttron.platform.messaging.health import Status, \
     BAD_STATUS, GOOD_STATUS, UNKNOWN_STATUS
 from volttron.platform.vip.agent import Agent, RPC, PubSub, Core, Unreachable
@@ -97,7 +95,7 @@ from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 
-__version__ = "4.2"
+__version__ = "4.4"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -109,7 +107,6 @@ DEFAULT_WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot/'))
 Platform = namedtuple('Platform', ['instance_name', 'serverkey', 'vip_address'])
 RequiredArgs = namedtuple('RequiredArgs', ['id', 'session_user',
                                            'platform_uuid'])
-
 
 def init_volttron_central(config_path, **kwargs):
     # Load the configuration into a dictionary
@@ -436,62 +433,48 @@ class VolttronCentralAgent(Agent):
                                       )
 
         try:
-            rpcdata = JsonRpcData.parse(jsonapi.dumps(data))
+            rpcdata = self._to_jsonrpc_obj(data)
             _log.info('rpc method: {}'.format(rpcdata.method))
-
-            claims = get_user_claims(env)
-
             if rpcdata.method == 'get_authorization':
-
-                if not claims:
+                args = {'username': rpcdata.params['username'],
+                        'password': rpcdata.params['password'],
+                        'ip': env['REMOTE_ADDR']}
+                sess = self._authenticated_sessions.authenticate(**args)
+                if not sess:
+                    _log.info('Invalid username/password for {}'.format(
+                        rpcdata.params['username']))
                     return jsonrpc.json_error(
                         rpcdata.id, UNAUTHORIZED,
                         "Invalid username/password specified.")
-
-                sess = get_bearer(env)
-                # sess = "foobar"
-                # args = {'username': rpcdata.params['username'],
-                #         'password': rpcdata.params['password'],
-                #         'ip': env['REMOTE_ADDR']}
-                # requests.post('/authenticate',
-                #               data=dict(username=rpcdata.params['username'], password=rpcdata.params['password']),
-                #               json=True)
-                # sess = self._authenticated_sessions.authenticate(**args)
-                # if not sess:
-                #     _log.info('Invalid username/password for {}'.format(
-                #         rpcdata.params['username']))
-                #     return jsonrpc.json_error(
-                #         rpcdata.id, UNAUTHORIZED,
-                #         "Invalid username/password specified.")
-                # _log.info('Session created for {}'.format(
-                #     rpcdata.params['username']))
+                _log.info('Session created for {}'.format(
+                    rpcdata.params['username']))
                 self.vip.web.register_websocket(
                     "/vc/ws/{}/management".format(sess),
                     self.open_authenticate_ws_endpoint,
                     self._ws_closed,
                     self._received_data)
+                _log.info('Session created for {}'.format(
+                    rpcdata.params['username']))
 
+                gevent.sleep(1)
                 return jsonrpc.json_result(rpcdata.id, sess)
 
             token = rpcdata.authorization
             ip = env['REMOTE_ADDR']
-            # _log.debug('REMOTE_ADDR: {}'.format(ip))
-            # session_user = self._authenticated_sessions.check_session(token, ip)
-            # _log.debug('SESSION_USER IS: {}'.format(session_user))
-            # if not session_user:
-            #     _log.debug("Session Check Failed for Token: {}".format(token))
-            #     return jsonrpc.json_error(rpcdata.id, UNAUTHORIZED,
-            #                               "Invalid authentication token")
-            # _log.debug('RPC METHOD IS: {}'.format(rpcdata.method))
+            _log.debug('REMOTE_ADDR: {}'.format(ip))
+            session_user = self._authenticated_sessions.check_session(token, ip)
+            _log.debug('SESSION_USER IS: {}'.format(session_user))
+            if not session_user:
+                _log.debug("Session Check Failed for Token: {}".format(token))
+                return jsonrpc.json_error(rpcdata.id, UNAUTHORIZED,
+                                          "Invalid authentication token")
+            _log.debug('RPC METHOD IS: {}'.format(rpcdata.method))
 
             # Route any other method that isn't
-            result_or_error = self._route_request(claims,
+            result_or_error = self._route_request(session_user,
                                                   rpcdata.id, rpcdata.method,
                                                   rpcdata.params)
-        except NotAuthorized:
-            return jsonrpc.json_error(
-                rpcdata.id, UNAUTHORIZED,
-                "Invalid username/password specified.")
+
         except AssertionError:
             return jsonrpc.json_error(
                 'NA', INVALID_REQUEST, 'Invalid rpc data {}'.format(data))

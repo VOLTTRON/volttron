@@ -79,10 +79,9 @@ from volttron.platform.vip.agent import (Agent, Core, RPC, Unreachable)
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.web import DiscoveryInfo, DiscoveryError
-from volttron.platform.agent.web import get_user_claims
 from .vcconnection import VCConnection
 
-__version__ = '4.7'
+__version__ = '4.8'
 
 RegistrationStates = Enum('AgentStates',
                           'NotRegistered Unregistered Registered '
@@ -254,14 +253,12 @@ class VolttronCentralPlatform(Agent):
 
         cfg_vc_address = config.get("volttron-central-address")
         cfg_vc_serverkey = config.get("volttron-central-serverkey")
-        message_bus = os.environ.get('MESSAGEBUS', 'zmq')
 
         try:
             a, s = self._determine_vc_address_and_serverkey(cfg_vc_address,
                                                             cfg_vc_serverkey,
                                                             qry_bind_web_address)
         except AttributeError:
-
             try:
                 a, s = self._determine_vc_address_and_serverkey(qry_vc_address,
                                                                 qry_vc_serverkey,
@@ -281,7 +278,6 @@ volttron-central-serverkey."""
             _log.error("Couldn't determine server key and address")
             return
 
-
         # Reset the connection if necessary.  The case that we are changing
         # configuration to a new vc.
         if action == "UPDATE":
@@ -293,14 +289,13 @@ volttron-central-serverkey."""
         self._topic_replacement.clear()
         self._topic_replace_map = config['topic-replace-map']
         self._vc_address = a
+        self._vc_serverkey = s
         self._registration_state = RegistrationStates.NotRegistered
 
-        if message_bus == 'zmq':
-            self._vc_serverkey = s
-            if not self._vc_address or not self._vc_serverkey:
-                _log.error("vc address and serverkey could not be determined. "
-                           "registration is not allowed.")
-                return
+        if not self._vc_address or not self._vc_serverkey:
+            _log.error("vc address and serverkey could not be determined. "
+                       "registration is not allowed.")
+            return
 
         cfg_instance_name = config.get("instance-name")
         if cfg_instance_name is not None:
@@ -381,9 +376,6 @@ volttron-central-serverkey."""
             except DiscoveryError:
                 raise AttributeError(
                     "Cannot retrieve data from address: {}".format(address))
-        elif parsed_address.scheme in ('amqp',):
-            a = address
-            s = None
         else:
             if parsed_address.scheme not in ('tcp', 'ipc'):
                 raise AttributeError("Invalid scheme detected for vc_address "
@@ -489,7 +481,7 @@ volttron-central-serverkey."""
         """
         parsed_type = None
         parsed = urlparse.urlparse(address)
-        if parsed.scheme not in ('http', 'https', 'ipc', 'tcp', 'amqp'):
+        if parsed.scheme not in ('http', 'https', 'ipc', 'tcp'):
             raise ValueError('Invalid volttron central address.')
 
         return parsed.scheme
@@ -499,7 +491,7 @@ volttron-central-serverkey."""
         if not self._vc_address:
             raise ValueError("vc_address was not resolved properly.")
 
-        if not self._vc_address.startswith('amqp') and not self._vc_serverkey:
+        if not self._vc_serverkey:
             raise ValueError("vc_serverkey was not resolved properly.")
 
         if self._establish_connection_event is not None:
@@ -511,15 +503,13 @@ volttron-central-serverkey."""
                 "Serverkey is going to be: {}".format(self._vc_serverkey))
 
             try:
-                volttron_central_instance_name = 'volttron1'
+
                 self._vc_connection = build_agent(
                     identity=self._instance_id,
                     address=self._vc_address,
                     serverkey=self._vc_serverkey,
                     publickey=self.core.publickey,
                     secretkey=self.core.secretkey,
-                    volttron_central_address=self._vc_address,
-                    volttron_central_instance_name=volttron_central_instance_name,
                     agent_class=VCConnection
                 )
             except ValueError as ex:
