@@ -190,6 +190,7 @@ class PlatformWrapper:
             'PACKAGED_DIR': self.packaged_dir,
             'DEBUG_MODE': os.environ.get('DEBUG_MODE', ''),
             'DEBUG': os.environ.get('DEBUG', ''),
+            'SKIP_CLEANUP': os.environ.get('SKIP_CLEANUP', ''),
             'PATH': VOLTTRON_ROOT + ':' + os.environ['PATH'],
             # RABBITMQ requires HOME env set
             'HOME': os.environ.get('HOME'),
@@ -256,6 +257,11 @@ class PlatformWrapper:
             else:
                 self.instance_name = instance_name
         self.dynamic_agent = None
+
+        self.debug_mode = self.env.get('DEBUG_MODE', False)
+        if not self.debug_mode:
+            self.debug_mode = self.env.get('DEBUG', False)
+        self.skip_cleanup = self.env.get('SKIP_CLEANUP', False)
 
     def logit(self, message):
         print('{}: {}'.format(self.volttron_home, message))
@@ -451,15 +457,12 @@ class PlatformWrapper:
 
         msgdebug = self.env.get('MSG_DEBUG', False)
         enable_logging = self.env.get('ENABLE_LOGGING', False)
-        debug_mode = self.env.get('DEBUG_MODE', False)
-        if not debug_mode:
-            debug_mode = self.env.get('DEBUG', False)
-        self.skip_cleanup = self.env.get('SKIP_CLEANUP', False)
 
-        if debug_mode:
+        if self.debug_mode:
             self.skip_cleanup = True
             enable_logging = True
             msgdebug = True
+
         self.logit(
             "In start up platform enable_logging is {} ".format(enable_logging))
         assert self.mode in MODES, 'Invalid platform mode set: ' + str(mode)
@@ -1087,6 +1090,20 @@ class PlatformWrapper:
         data.append('volttron_home: {}'.format(self.volttron_home))
         return '\n'.join(data)
 
+
+    def cleanup(self):
+        """
+        Cleanup all resources created for test purpose if debug_mode is false.
+        Restores orignial rabbitmq.conf if testing with rmq
+        :return:
+        """
+        if self.message_bus == 'rmq':
+            cleanup_rmq_volttron_setup(vhome=self.volttron_home,
+                                       ssl_auth=self.ssl_auth)
+            self.restore_conf()
+
+        if not self.debug_mode:
+            shutil.rmtree(self.volttron_home, ignore_errors=True)
 
 def mergetree(src, dst, symlinks=False, ignore=None):
     if not os.path.exists(dst):
