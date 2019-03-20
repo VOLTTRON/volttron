@@ -31,8 +31,6 @@ def web_instance(request, get_volttron_instances):
 
     yield instance
 
-    instance.shutdown_platform()
-
 
 def _build_web_agent(vhome):
     """

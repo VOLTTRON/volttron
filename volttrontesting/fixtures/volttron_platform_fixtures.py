@@ -69,31 +69,6 @@ def cleanup_wrappers(platforms):
     for p in platforms:
         cleanup_wrapper(p)
 
-@pytest.fixture(scope="module",
-                params=[('zmq', False), ('rmq', True)])
-def volttron_instance1(request):
-    print("building instance 1")
-    wrapper = build_wrapper(get_rand_vip())
-
-    def cleanup():
-        cleanup_wrapper(wrapper)
-
-    request.addfinalizer(cleanup)
-    return wrapper
-
-
-@pytest.fixture(scope="module",
-                params=[('zmq', False), ('rmq', True)])
-def volttron_instance2(request):
-    print("building instance 2")
-    wrapper = build_wrapper(get_rand_vip())
-
-    def cleanup():
-        cleanup_wrapper(wrapper)
-
-    request.addfinalizer(cleanup)
-    return wrapper
-
 
 @pytest.fixture(scope="module",
                 params=[('zmq', True), ('rmq', True)])
@@ -126,7 +101,7 @@ def volttron_instance_encrypt(request):
 
 
 @pytest.fixture
-def volttron_instance1_web(request):
+def volttron_instance_web(request):
     print("building instance 1 (using web)")
     address = get_rand_vip()
     web_address = "http://{}".format(get_rand_ip_and_port())
@@ -139,20 +114,6 @@ def volttron_instance1_web(request):
     request.addfinalizer(cleanup)
     return wrapper
 
-
-@pytest.fixture
-def volttron_instance2_web(request):
-    print("building instance 2 (using web)")
-    address = get_rand_vip()
-    web_address = "http://{}".format(get_rand_ip_and_port())
-    wrapper = build_wrapper(address,
-                            bind_web_address=web_address)
-
-    def cleanup():
-        cleanup_wrapper(wrapper)
-
-    request.addfinalizer(cleanup)
-    return wrapper
 
 @pytest.fixture(scope="module",
                 params=[('zmq', False), ('rmq', True)])

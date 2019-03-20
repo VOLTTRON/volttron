@@ -167,7 +167,7 @@ def cleanup_mongodb(db_connection, truncate_tables):
 
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
-    # 1: Start a fake agent to query the historian agent in volttron_instance2
+    # 1: Start a fake agent to query the historian agent in volttron_instance
     agent = volttron_instance.build_agent()
 
     # 2: add a tear down method to stop the fake
