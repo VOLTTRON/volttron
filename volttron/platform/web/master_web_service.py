@@ -250,7 +250,9 @@ class MasterWebService(Agent):
 
         compiled = re.compile(regex)
         self.pathroutes[peer].append(compiled)
-        self.registeredroutes.append((compiled, 'path', root_dir))
+        # in order for this agent to pass against the default route we want this
+        # to be before the last route which will resolve to .*
+        self.registeredroutes.insert(len(self.registeredroutes) - 1, (compiled, 'path', root_dir))
 
     @RPC.export
     def register_websocket(self, endpoint):
