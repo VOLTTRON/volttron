@@ -9,7 +9,7 @@
         min-width: 500px;
       }
     </style>
-    <script src="http://code.jquery.com/jquery.min.js"></script>
+    <script src="https://code.jquery.com/jquery.min.js"></script>
     <script language="javascript" type="text/javascript">
       $(document).ready(function () {
 
@@ -29,11 +29,12 @@
           var host = $("#host").val();
           var port = $("#port").val();
           var uri = $("#uri").val();
-          var websocket = "ws://"
+          var websocket = "ws://";
           if (location.protocol == 'https:'){
             websocket = "wss://";
           }
-          websocket.concat(host + ":" + port + uri); // 'ws://%(host)s:%(port)s/ws';
+
+          websocket = websocket.concat(host + ":" + port + uri); // 'ws://%(host)s:%(port)s/ws';
           if (window.WebSocket) {
             ws = new WebSocket(websocket);
           }
