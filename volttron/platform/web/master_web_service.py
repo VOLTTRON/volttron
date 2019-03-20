@@ -403,6 +403,11 @@ class MasterWebService(Agent):
 
         env['JINJA2_TEMPLATE_ENV'] = tplenv
 
+        # if ws4pi.socket is set then this connection is a web socket
+        # and so we return the websocket response.
+        if 'ws4py.socket' in env:
+            return env['ws4py.socket'](env, start_response)
+
         for k, t, v in self.registeredroutes:
             if k.match(path_info):
                 _log.debug("MATCHED:\npattern: {}, path_info: {}\n v: {}"
