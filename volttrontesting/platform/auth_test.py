@@ -31,7 +31,6 @@ def build_two_test_agents(platform):
     The second agent is the unauthorized "RPC caller."
     """
     agent1 = build_agent(platform, 'agent1')
-    gevent.sleep(1)
     agent2 = build_agent(platform, 'agent2')
     gevent.sleep(1)
 
@@ -85,7 +84,6 @@ def test_unauthorized_rpc_call2(volttron_instance_encrypt):
     with pytest.raises(jsonrpc.RemoteError):
         agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=1)
 
-
 @pytest.mark.auth
 def test_authorized_rpc_call2(volttron_instance_encrypt):
     """Tests an agent with two capability calling a method that
@@ -114,7 +112,7 @@ def build_two_agents_pubsub_agents(volttron_instance_encrypt, topic='foo'):
     :return:
     """
     agent1, agent2 = build_two_test_agents(volttron_instance_encrypt)
-
+    gevent.sleep(1)
     msgs = []
     def got_msg(peer, sender, bus, topic, headers, message):
         print("Got message: {}".format(message))
@@ -166,6 +164,7 @@ def pubsub_unauthorized(volttron_instance_encrypt, topic='foo', regex=None, peer
     setup = build_protected_pubsub(volttron_instance_encrypt, topic,
                                   'can_publish_to_my_topic', regex)
     gevent.sleep(0.1)
+    agent1 = setup['agent1']
     agent2 = setup['agent2']
     topic = setup['topic']
     with pytest.raises(VIPError):

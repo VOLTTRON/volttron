@@ -49,23 +49,10 @@ from volttrontesting.utils.platformwrapper import start_wrapper_platform, \
     PlatformWrapper
 
 
-@pytest.fixture(scope="module")
-def setup_instances():
+def test_can_restart_platform_without_addresses_changing(get_volttron_instances):
 
-    inst1 = PlatformWrapper()
-    inst2 = PlatformWrapper()
+    inst_forward, inst_target = get_volttron_instances(2)
 
-    start_wrapper_platform(inst1)
-    start_wrapper_platform(inst2)
-
-    yield inst1, inst2
-
-    inst1.shutdown_platform()
-    inst2.shutdown_platform()
-
-
-def test_can_restart_platform_without_addresses_changing(setup_instances):
-    inst_forward, inst_target = setup_instances
     original_vip = inst_forward.vip_address
     assert inst_forward.is_running()
     inst_forward.stop_platform()
@@ -73,7 +60,6 @@ def test_can_restart_platform_without_addresses_changing(setup_instances):
     inst_forward.restart_platform()
     assert inst_forward.is_running()
     assert original_vip == inst_forward.vip_address
-
 
 
 @pytest.mark.wrapper

@@ -45,7 +45,8 @@ from .base import SubsystemBase
 from ..dispatch import Signal
 from ..results import ResultsDictionary
 from volttron.platform.vip.socket import Message
-
+from zmq import ZMQError
+from zmq.green import ENOTSOCK
 
 __all__ = ['PeerList']
 
@@ -65,10 +66,14 @@ class PeerList(SubsystemBase):
         connection = self.core().connection
         result = next(self._results)
         #socket.send_vip(b'', b'peerlist', [b'list'], result.ident)
-        connection.send_vip_object(Message(peer=b'',
+        try:
+            connection.send_vip_object(Message(peer=b'',
                                                 subsystem=b'peerlist',
                                                 args=[b'list'],
                                                 id=result.ident))
+        except ZMQError as exc:
+            if exc.errno == ENOTSOCK:
+                _log.error("Socket send on non socket {}".format(self.core().identity))
         return result
 
     __call__ = list
