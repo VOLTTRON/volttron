@@ -284,6 +284,9 @@ class MySqlFuncts(DbDriver):
                     values[id_name_map[topic_id]].append(
                         (utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
                          jsonapi.loads(value)))
+
+            if cursor is not None:
+                _log.debug("#######Closing cursor")
                 cursor.close()
         return values
 

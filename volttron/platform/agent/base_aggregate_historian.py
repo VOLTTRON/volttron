@@ -120,6 +120,12 @@ class AggregateHistorian(Agent):
         self.agg_topic_id_map = self.get_agg_topic_map()
         _log.debug("In start of aggregate historian. "
                    "After loading topic and aggregate topic maps")
+
+        if not config.get("aggregations"):
+            _log.debug("End of onstart method - current time{}".format(
+                datetime.utcnow()))
+            return
+
         for agg_group in config['aggregations']:
             # 1. Validate and normalize aggregation period and
             # initialize use_calendar_periods flag

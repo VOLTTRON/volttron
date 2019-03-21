@@ -41,6 +41,7 @@ import contextlib
 import importlib
 import logging
 import threading
+from threading import Thread
 
 import sys
 from abc import abstractmethod
@@ -112,21 +113,28 @@ class DbDriver(object):
     def cursor(self):
         if self.__connection is not None and not getattr(self.__connection, "closed", False):
             try:
+                _log.debug("#######Returning new cursor")
                 return self.__connection.cursor()
             except Exception:
-                _log.exception("An exception occured while creating "
-                               "a cursor and is being ignored")
+                _log.warn("An exception occured while creating "
+                               "a cursor. Will try establishing connection again")
         self.__connection = None
         try:
             self.__connection = self.__connect()
+            _log.debug("#####Connected to database")
         except Exception as e:
             _log.error("Could not connect to database. Raise ConnectionError")
             raise ConnectionError(e), None, sys.exc_info()[2]
         if self.__connection is None:
             raise ConnectionError(
                 "Unknown error. Could not connect to database")
-        return self.__connection.cursor()
-
+        _log.debug("#######Creating new cursor")
+        try:
+            cursor = self.__connection.cursor()
+        except Exception as e:
+            raise ConnectionError(e), None, sys.exc_info()[2]
+        _log.debug("#######Returning new cursor")
+        return cursor
 
     def read_tablenames_from_db(self, meta_table_name):
         """

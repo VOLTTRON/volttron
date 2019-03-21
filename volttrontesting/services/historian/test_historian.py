@@ -225,6 +225,10 @@ postgresql_platform = {
         'type': 'postgresql',
         'params': {
             'dbname': 'historian_test',
+            'port': 5433,
+            'host': '127.0.0.1',
+            'user' : 'historian',
+            'password': 'volttron'
         },
     },
 }
