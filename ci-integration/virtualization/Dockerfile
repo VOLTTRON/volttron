@@ -69,14 +69,12 @@ RUN set -eux \
     && $RMQ_HOME/sbin/rabbitmq-plugins enable rabbitmq_management rabbitmq_federation rabbitmq_federation_management rabbitmq_shovel rabbitmq_shovel_management rabbitmq_auth_mechanism_ssl rabbitmq_trust_store
 ############################################
 
-USER root
-RUN mkdir /startup $VOLTTRON_HOME
-RUN chown $VOLTTRON_USER.$VOLTTRON_USER $VOLTTRON_HOME
+RUN mkdir /startup $VOLTTRON_HOME && \
+    chown $VOLTTRON_USER.$VOLTTRON_USER $VOLTTRON_HOME
 COPY ./core/entrypoint.sh /startup/entrypoint.sh
 COPY ./core/bootstart.sh /startup/bootstart.sh
-RUN chmod +x /startup/entrypoint.sh
-RUN chmod +x /startup/bootstart.sh
-# RUN echo "source /code/volttron/env/bin/activate">/home/${VOLTTRON_USER}/.bashrc
+RUN chmod +x /startup/entrypoint.sh && \
+    chmod +x /startup/bootstart.sh
 
 ########################################
 # The following lines should be run from any Dockerfile that
