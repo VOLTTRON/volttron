@@ -33,6 +33,7 @@ rabbitmq_config = {
     'reconnect-delay': 5
 }
 
+
 def create_rmq_volttron_setup(vhome=None, ssl_auth=False):
     """
         Set-up rabbitmq broker for volttron testing:
@@ -58,6 +59,7 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False):
     # and we want to use the backup conf to restore only at fixture teardown and not instance shutdown.
     # instance can get started and shutdown multiple times within test. But restore should happen only
     # at end of instance lifetime.
+
     conf_backup = os.path.join(os.path.dirname(vhome),"backup_rabbitmq_conf_" + os.path.basename(vhome))
     try:
         shutil.copy(os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf'), conf_backup)
@@ -77,6 +79,7 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False):
                             prompt=False,
                             instance_name=VOLTTRON_INSTANCE_NAME)
     return conf_backup
+
 
 def cleanup_rmq_volttron_setup(vhome=None, ssl_auth=False):
     """
