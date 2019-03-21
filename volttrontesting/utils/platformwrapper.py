@@ -204,7 +204,9 @@ class PlatformWrapper:
 
         assert os.path.exists(volttron_exe)
         self.python = os.path.join(os.path.dirname(volttron_exe), 'python')
-        assert os.path.exists(self.python)
+        if not os.path.exists(self.python):
+            self.python = execute_command(['which', 'python']).strip()
+            assert os.path.exists(self.python)
 
         # By default no web server should be started.
         self.bind_web_address = None
