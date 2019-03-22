@@ -236,8 +236,8 @@ Proceed to step 4.
 
 ### 4. Test
 
-We are now ready to start VOLTTRON with RabbitMQ message bus. If we need to revert back to ZeroMQ based VOLTTRON, we
-will have to either remove "message-bus" parameter or set it to default "zmq" in $VOLTTRON\_HOME/config.
+We are now ready to start VOLTTRON instance. If configureds with RabbitMQ message bus a config file would have got generated in $VOLTTRON\_HOME/config with the entry message-bus=rmq. If you need to revert back to ZeroMQ based VOLTTRON, you
+will have to either remove "message-bus" parameter or set it to default "zmq" in $VOLTTRON\_HOME/config and restart volttron process. The following command starts volttron process in the background
 
 ```sh
 volttron -vv -l volttron.log&
