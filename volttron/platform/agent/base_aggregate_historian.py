@@ -321,11 +321,29 @@ class AggregateHistorian(Agent):
             _log.debug(
                 "After  compute agg_time_period = {} start_time {} end_time "
                 "{} ".format(agg_time_period, start_time, end_time))
+            schedule_next = True
             for data in points:
                 _log.debug("data in loop {}".format(data))
                 topic_ids = data.get('topic_ids', None)
                 _log.debug("topic ids configured {} ".format(topic_ids))
                 topic_pattern = data.get('topic_name_pattern', None)
+
+                aggregate_topic_id = \
+                    self.agg_topic_id_map.get(
+                        (data['aggregation_topic_name'].lower(),
+                         data['aggregation_type'].lower(),
+                         agg_time_period))
+                if not aggregate_topic_id:
+                    _log.warn("Name:{} Type: {} Aggregation Period: {}    --"
+                              "No such aggregate topic found. This could have happened if the "
+                              "configuration of the agent changed after the last schedule for data collection"
+                              " Stopping collection for the outdated configuration".format(
+                        data['aggregation_topic_name'].lower(),
+                        data['aggregation_type'].lower(),
+                        agg_time_period))
+                    schedule_next = False
+                    break  # break out of for loop and move to finally block
+
                 if topic_pattern:
                     # Find topic ids that match the pattern at runtime
                     topic_map = self.vip.rpc.call(
@@ -370,32 +388,28 @@ class AggregateHistorian(Agent):
                             end_time=end_time,
                             count=data.get('min_count', 0)))
                 else:
-                    aggregate_topic_id = \
-                        self.agg_topic_id_map[
-                            data['aggregation_topic_name'].lower(),
-                            data['aggregation_type'].lower(),
-                            agg_time_period]
-                    _log.debug(
-                        "agg_topic_id {} and topic ids sent to insert {} "
-                        "".format(aggregate_topic_id, topic_ids))
+                    _log.debug("data is {} aggg_time_period is {}".format(data, agg_time_period))
+                    _log.debug(" topic id map {}".format(self.agg_topic_id_map))
                     self.insert_aggregate(aggregate_topic_id,
                                           data['aggregation_type'],
                                           agg_time_period,
                                           end_time,
                                           agg_value,
                                           topic_ids)
+
         finally:
-            collection_time = AggregateHistorian.compute_next_collection_time(
-                collection_time, agg_time_period, use_calendar_periods)
-            _log.debug(
-                "Scheduling next collection at {}".format(collection_time))
-            event = self.core.schedule(collection_time,
-                                       self.collect_aggregate_data,
-                                       collection_time,
-                                       agg_time_period,
-                                       use_calendar_periods,
-                                       points)
-            _log.debug("After Scheduling next collection.{}".format(event))
+            if schedule_next:
+                collection_time = AggregateHistorian.compute_next_collection_time(
+                    collection_time, agg_time_period, use_calendar_periods)
+                _log.debug(
+                    "Scheduling next collection at {}".format(collection_time))
+                event = self.core.schedule(collection_time,
+                                           self.collect_aggregate_data,
+                                           collection_time,
+                                           agg_time_period,
+                                           use_calendar_periods,
+                                           points)
+                _log.debug("After Scheduling next collection.{}".format(event))
 
     @abstractmethod
     def get_topic_map(self):
