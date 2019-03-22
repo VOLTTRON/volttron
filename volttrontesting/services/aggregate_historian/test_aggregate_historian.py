@@ -343,7 +343,7 @@ def query_agent(request, volttron_instance):
 # Fixtures for setup and teardown of sqlhistorian agent and aggregation agent
 @pytest.fixture(scope="module",
                 params=[
-                    #mysql_skipif(mysql_aggregator),
+                    mysql_skipif(mysql_aggregator),
                     sqlite_aggregator,
                     pymongo_skipif(mongo_aggregator),
                     postgresql_skipif(postgresql_aggregator),
@@ -557,7 +557,7 @@ def test_single_topic_pattern(aggregate_agent, query_agent):
     finally:
         cleanup(aggregate_agent['connection']['type'], ['sum_1m'])
 
-@pytest.mark.dev
+
 @pytest.mark.timeout(400)
 @pytest.mark.aggregator
 def test_single_topic(aggregate_agent, query_agent):
@@ -641,7 +641,7 @@ def test_single_topic(aggregate_agent, query_agent):
 
         diff = compute_timediff_seconds(result2['values'][1][0],
                                         result2['values'][0][0])
-        assert diff == 60
+        assert diff == 1*60
 
         assert (result1['metadata']) == (result2['metadata']) == \
             {'units': 'F', 'tz': 'UTC', 'type': 'float'}
