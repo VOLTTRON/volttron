@@ -41,7 +41,7 @@ import contextlib
 import importlib
 import logging
 import threading
-from threading import Thread
+from gevent.local import local
 
 import sys
 from abc import abstractmethod
@@ -98,6 +98,7 @@ class DbDriver(object):
             connect = lambda: dbapimodule.connect(**kwargs)
         self.__connect = connect
         self.__connection = None
+        self.stash = local()
 
     @contextlib.contextmanager
     def bulk_insert(self):
@@ -111,30 +112,29 @@ class DbDriver(object):
         yield self.insert_data
 
     def cursor(self):
+
+        self.stash.cursor = None
         if self.__connection is not None and not getattr(self.__connection, "closed", False):
             try:
-                _log.debug("#######Returning new cursor")
-                return self.__connection.cursor()
+                self.stash.cursor = self.__connection.cursor()
+                return self.stash.cursor
             except Exception:
-                _log.warn("An exception occured while creating "
-                               "a cursor. Will try establishing connection again")
+                _log.warn("An exception occurred while creating "
+                          "a cursor. Will try establishing connection again")
         self.__connection = None
         try:
             self.__connection = self.__connect()
-            _log.debug("#####Connected to database")
         except Exception as e:
             _log.error("Could not connect to database. Raise ConnectionError")
             raise ConnectionError(e), None, sys.exc_info()[2]
         if self.__connection is None:
             raise ConnectionError(
                 "Unknown error. Could not connect to database")
-        _log.debug("#######Creating new cursor")
         try:
-            cursor = self.__connection.cursor()
+            self.stash.cursor = self.__connection.cursor()
         except Exception as e:
             raise ConnectionError(e), None, sys.exc_info()[2]
-        _log.debug("#######Returning new cursor")
-        return cursor
+        return self.stash.cursor
 
     def read_tablenames_from_db(self, meta_table_name):
         """
