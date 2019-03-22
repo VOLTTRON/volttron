@@ -286,7 +286,6 @@ class MySqlFuncts(DbDriver):
                          jsonapi.loads(value)))
 
             if cursor is not None:
-                _log.debug("#######Closing cursor")
                 cursor.close()
         return values
 
