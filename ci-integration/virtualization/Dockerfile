@@ -72,8 +72,8 @@ RUN set -eux \
 USER root
 RUN mkdir /startup $VOLTTRON_HOME
 RUN chown $VOLTTRON_USER.$VOLTTRON_USER $VOLTTRON_HOME
-COPY ./core/entrypoint.sh /startup/entrypoint.sh
-COPY ./core/bootstart.sh /startup/bootstart.sh
+COPY ./ci-integration/virtualization/core/entrypoint.sh /startup/entrypoint.sh
+COPY ./ci-integration/virtualization/core/bootstart.sh /startup/bootstart.sh
 RUN chmod +x /startup/entrypoint.sh
 RUN chmod +x /startup/bootstart.sh
 # RUN echo "source /code/volttron/env/bin/activate">/home/${VOLTTRON_USER}/.bashrc

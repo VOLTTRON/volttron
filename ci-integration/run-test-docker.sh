@@ -13,9 +13,10 @@ NUM_PROCESSES=1
 #    #docker run -t volttron-test-image "which pytest"
 #
 #}
-
+docker build --network=host -t volttron_test_base .
 docker build --network=host -t volttron-test-image -f ./virtualization/Dockerfile.testing ../
 
+test_dirs =
 area2=( test_pubsub_authorized test_pubsub_unauthorized test_agent_)
 count=0
 for line in ${area2[@]}
@@ -46,3 +47,4 @@ wait
 #    echo `jobs`
 #    sleep 5
 #done
+
