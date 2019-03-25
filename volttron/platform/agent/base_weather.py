@@ -70,6 +70,7 @@ from volttron.platform.agent.utils import fix_sqlite3_datetime, \
 from volttron.platform.vip.agent import *
 from volttron.platform.async import AsyncCall
 from volttron.platform.messaging import headers
+import pkg_resources
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_GOOD,
                                                 Status)
@@ -329,7 +330,6 @@ class BaseWeatherAgent(Agent):
         self._default_config.update(config)
         self.vip.config.set_default("config", self._default_config)
 
-    @abstractmethod
     def get_point_name_defs_file(self):
         """
         :return: file path of a csv containing a mapping of
@@ -341,6 +341,7 @@ class BaseWeatherAgent(Agent):
         the concrete agent does not require point name mapping and/or unit
         conversion.
         """
+        return pkg_resources.resource_stream(__name__, "data/name_mapping.csv")
 
     def parse_point_name_mapping(self):
         """
@@ -571,11 +572,9 @@ class BaseWeatherAgent(Agent):
             if observation_time and data:
                 interval = self._api_services[SERVICE_CURRENT_WEATHER][
                     "update_interval"]
-                _log.debug("update interval is {}".format(interval))
                 # ts in cache is tz aware utc
                 current_time = get_aware_utc_now()
                 next_update_at = observation_time + interval
-                # if observation time is within the update interval
                 if current_time < next_update_at:
                     result["observation_time"] = \
                         format_timestamp(observation_time)
@@ -646,16 +645,16 @@ class BaseWeatherAgent(Agent):
         :return: dictionary containing a single record of current weather data
         """
 
-    @RPC.export
-    def get_hourly_forecast(self, locations, hours=24):
+    def get_forecast_by_service(self, locations, service, quantity):
         """
         RPC method returning hourly forecast weather data for each location
         provided. Will provide cached data for
         efficiency if available.
         :param locations: list of location dictionaries for which to return
         weather data
-        :param hours: number of hours worth of weather data to return for the
-        request
+        :param quantity: number of time series data points of data to include
+        with each location's records
+        :param service:
         :return: list of dictionaries containing weather data for each location.
                  result dictionary would contain all location details passed
                  as input in addition to results. Weather data results  will be
@@ -717,22 +716,23 @@ class BaseWeatherAgent(Agent):
         request_time = get_aware_utc_now()
         result = []
         for location in locations:
-            record_dict = self.validate_location_dict(SERVICE_HOURLY_FORECAST,
+            record_dict = self.validate_location_dict(service,
                                                       location)
             if record_dict:
                 result.append(record_dict)
                 continue
 
             # check if we have enough recent data in cache
-            record_dict = self.get_cached_hourly_forecast(location, hours,
-                                                          request_time)
+            record_dict = self.get_cached_forecast_by_service(location,
+                                                              quantity,
+                                                              request_time,
+                                                              service)
             cache_warning = record_dict.get(WEATHER_WARN)
             # if cache didn't work out query remote api
             if not record_dict.get(WEATHER_RESULTS):
                 _log.debug("forecast weather from api")
-                record_dict = self.get_remote_hourly_forecast(location,
-                                                              hours,
-                                                              request_time)
+                record_dict = self.get_remote_forecast(service, location,
+                                                       quantity, request_time)
                 if cache_warning:
                     warnings = record_dict.get(WEATHER_WARN, [])
                     warnings.extend(cache_warning)
@@ -742,27 +742,34 @@ class BaseWeatherAgent(Agent):
 
         return result
 
-    def get_cached_hourly_forecast(self, location, hours, request_time):
+    @RPC.export
+    def get_hourly_forecast(self, locations, hours=24):
+        return self.get_forecast_by_service(locations, SERVICE_HOURLY_FORECAST,
+                                            hours)
+
+    def get_cached_forecast_by_service(self, location, quantity, request_time,
+                                       service):
         """
         Retrieves forecast weather data stored in cache if it exists and is
         current (the generation timestamp is
         within the update interval) for the location
         :param location: location for which to retrieve forecast weather records
-        :param hours: number of hours worth of data to include with each
-        location's records
+        :param quantity: number of time series data points of data to include
+        with each location's records
         :param request_time: time at which the request for data was made,
         used for checking if the data is current.
+        :param service: service for which to retrieve cached forecast records
         :return: dictionary of forecast weather data for the location
         """
         record_dict = location.copy()
         interval = \
-            self._api_services[SERVICE_HOURLY_FORECAST]["update_interval"]
+            self._api_services[service]["update_interval"]
         # format [(generation_time, forecast_time, points), ...]
         try:
             most_recent_for_location = \
-                self._cache.get_forecast_data(SERVICE_HOURLY_FORECAST,
+                self._cache.get_forecast_data(service,
                                               json.dumps(location),
-                                              hours, request_time)
+                                              quantity, request_time)
             location_data = []
             if most_recent_for_location:
                 _log.debug(" from cache")
@@ -774,11 +781,11 @@ class BaseWeatherAgent(Agent):
                 _log.debug("generation_time time {}".format(generation_time))
 
                 if request_time < next_update_at and \
-                        len(most_recent_for_location) >= hours:
+                        len(most_recent_for_location) >= quantity:
                     # Enough to just check for length since cache is querying
                     # records between expected forecast start and end time
                     i = 0
-                    while i < hours:
+                    while i < quantity:
                         record = most_recent_for_location[i]
                         # record = (forecast time, points)
                         entry = [format_timestamp(record[1]),
@@ -802,13 +809,27 @@ class BaseWeatherAgent(Agent):
             if self.cache_read_error:
                 self.vip.health.set_status(STATUS_GOOD)
                 self.cache_read_error = False
-                
+
         return record_dict
 
-    def get_remote_hourly_forecast(self, location, hours, request_time):
+    # TODO
+    @abstractmethod
+    def query_forecast_service(self, service, location):
+        """
+        Queries a remote api service. Available services are determined per
+        weather agent implementation
+        :param service: The desired service end point to query
+        :param location: The desired location for retrieval of weather records
+        :return: A list of time series forecast records to be processed and
+        stored
+        """
+
+    def get_remote_forecast(self, service, location, hours, request_time):
         """
         Retrieves forecast weather data for a location from the remote api
         service provider
+        :param service: Desired remote forecast service - Available services are
+        determined by concrete implementations of the weather agent
         :param location: location for which to retrieve forecast weather records
         :param hours: number of hours worth of data to include with each
         location's records
@@ -821,8 +842,8 @@ class BaseWeatherAgent(Agent):
         try:
             # query for maximum number of hours so that we can cache it
             # also makes retrieval from cache simpler
-            generation_time, response = self.query_hourly_forecast(
-                location)
+            generation_time, response = self.query_forecast_service(
+                service, location)
             _log.debug("Current time {}".format(datetime.datetime.utcnow()))
             _log.debug(" response from forecast generation_time : {}".format(
                 generation_time))
@@ -862,7 +883,7 @@ class BaseWeatherAgent(Agent):
                 i = i + 1
             if location_data:
                 try:
-                    self.store_weather_records(SERVICE_HOURLY_FORECAST,
+                    self.store_weather_records(service,
                                                storage_records)
                 except Exception:
                     err_message = "Weather agent failed to write to cache"
@@ -1247,7 +1268,7 @@ class WeatherCache:
         else:
             return None, None
 
-    def get_forecast_data(self, service_name, location, hours, request_time):
+    def get_forecast_data(self, service_name, location, quantity, request_time):
         """
         Retrieves the most recent forecast record set (forecast should be a
         time-series) by location
@@ -1267,7 +1288,7 @@ class WeatherCache:
         forecast_start = request_time + datetime.timedelta(hours=1)
         forecast_start = forecast_start.replace(minute=0, second=0,
                                                 microsecond=0)
-        forecast_end = forecast_start + datetime.timedelta(hours=hours)
+        forecast_end = forecast_start + datetime.timedelta(hours=quantity)
 
         cursor = self._sqlite_conn.cursor()
         query = """SELECT GENERATION_TIME, FORECAST_TIME, POINTS 

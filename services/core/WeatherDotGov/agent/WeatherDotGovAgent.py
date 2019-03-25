@@ -59,7 +59,6 @@ import logging
 import re
 import sys
 import json
-import pkg_resources
 import grequests
 import datetime
 from volttron.platform.agent.base_weather import BaseWeatherAgent
@@ -70,6 +69,8 @@ __version__ = "2.0.0"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+
+SERVICE_HOURLY_FORECAST = "get_hourly_forecast"
 
 LAT_LONG_REGEX = re.compile(
     "^-?[0-9]{1,3}(\.[0-9]{1,4})?,( |t?)-?[0-9]{1,3}(\.[0-9]{1,4})?$")
@@ -120,15 +121,6 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             return datetime.timedelta(hours=1)
         else:
             return None
-
-    def get_point_name_defs_file(self):
-        """
-        Constructs the point name mapping dict from the
-        mapping csv.
-        :return: dictionary containing a mapping of service point
-        names to standard point names with optional
-        """
-        return pkg_resources.resource_stream(__name__, "data/name_mapping.csv")
 
     def get_location_string(self, location):
         """
@@ -243,7 +235,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             if STATION_REGEX.match(location_string):
                 return True
             else:
-                _log.debug("station did not matched regex")
+                _log.debug("station did not match regex")
                 return False
 
         elif ("gridpoints" in accepted_formats) and (
@@ -318,6 +310,16 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             properties = response["properties"]
             observation_time = properties["timestamp"]
             return observation_time, properties
+
+    @doc_inherit
+    def query_forecast_service(self, service, location):
+
+        if service is SERVICE_HOURLY_FORECAST:
+            generation_time, data = self.query_hourly_forecast(location)
+            return generation_time, data
+        else:
+            raise RuntimeError("Weather.Gov supports hourly forecast requests "
+                               "only")
 
     @doc_inherit
     def query_hourly_forecast(self, location):

@@ -158,6 +158,7 @@ def test_success_current(cleanup_cache, weather, query_agent, locations):
         results = record.get("weather_results")
         if results:
             assert isinstance(results, dict)
+            assert "summary" not in results
         else:
             results = record.get("weather_error")
             if results.startswith("Remote API returned no data") or \
@@ -292,7 +293,9 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
 @pytest.mark.parametrize("locations", [
     ["fail"],
     [{"station": "KLAX"}],
-    [{"station": "KLAX"}, "fail"]
+    [{"station": "KLAX"}, "fail"],
+    [{"lat": 39.0693}],
+
 ])
 def test_hourly_forecast_fail(weather, query_agent, locations):
     query_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
