@@ -82,6 +82,9 @@ SERVICE_CURRENT_WEATHER = "get_current_weather"
 
 SERVICE_HOURLY_HISTORICAL = "get_hourly_historical"
 
+CREATE_STMT_API_CALLS = """CREATE TABLE API_CALLS
+                          (CALL_TIME TIMESTAMP NOT NULL);"""
+
 CREATE_STMT_CURRENT = """CREATE TABLE {table}
                         (ID INTEGER PRIMARY KEY ASC,
                          LOCATION TEXT NOT NULL,
@@ -1105,6 +1108,7 @@ class WeatherCache:
     def __init__(self,
                  database_file,
                  api_services=None,
+                 using_api_key=False,
                  max_size_gb=1,
                  check_same_thread=True):
         """
@@ -1119,6 +1123,7 @@ class WeatherCache:
         to the sqlite object, else false (see
         https://docs.python.org/3/library/sqlite3.html)
         """
+        self._key_table = using_api_key
         self._db_file_path = database_file
         self._api_services = api_services
         self._max_size_gb = max_size_gb
@@ -1159,6 +1164,16 @@ class WeatherCache:
         ensures proper structure.
         """
         cursor = self._sqlite_conn.cursor()
+        if self._key_table:
+            try:
+                cursor.execute(CREATE_STMT_API_CALLS)
+                self._sqlite_conn.commit()
+            except sqlite3.OperationalError as o:
+                if str(o).startswith("table") and str(o).endswith("already "
+                                                                  "exists"):
+                    self.validate_and_fix_cache_tables("api_calls", None)
+                else:
+                    raise RuntimeError("Unable to create api_call table")
         for service_name in self._api_services:
             table_exists = False
             table_type = None
@@ -1195,7 +1210,9 @@ class WeatherCache:
         :param table_type: indicates the expected columns for the service (
         must be forecast, history, or current)
         """
-        if table_type == "forecast":
+        if service_name == 'api_call':
+            expected_columns = ["CALL_TIME"]
+        elif table_type == "forecast":
             expected_columns = ["ID", "LOCATION", "GENERATION_TIME",
                                 "FORECAST_TIME", "POINTS"]
         else:
@@ -1213,7 +1230,9 @@ class WeatherCache:
                 self._sqlite_conn.commit()
                 _log.debug(delete_query)
                 create_table = ""
-                if table_type == "forecast":
+                if service_name == "api_calls":
+                    create_table = CREATE_STMT_API_CALLS
+                elif table_type == "forecast":
                     create_table = CREATE_STMT_FORECAST.format(
                         table=service_name)
                 elif table_type == "current" or table_type == "history":
@@ -1224,6 +1243,35 @@ class WeatherCache:
                     cursor.execute(create_table)
                     self._sqlite_conn.commit()
                     break
+
+    def add_api_call(self):
+        """
+        adds a timestamp rerpesenting an api call made at the current time
+        """
+        cursor = self._sqlite_conn.cursor()
+        current_time = get_aware_utc_now()
+        past_time = current_time - datetime.timedelta(days=1)
+        delete_query = """DELETE FROM API_CALLS
+                   WHERE CALL_TIME < {};""".format(past_time)
+        cursor.execute(delete_query)
+        insert_query = """INSERT INTO API_CALLS
+                         (CALL_TIME) VALUES {}""".format(current_time)
+        cursor.execute(insert_query)
+        self._sqlite_conn.commit()
+        cursor.close()
+
+    def get_api_calls(self):
+        """
+        :return: The quantity of api call timestamps
+        """
+        cursor = self._sqlite_conn.cursor()
+        select_query = """SELECT COUNT(*) 
+                          FROM API_CALLS;"""
+        cursor.execute(select_query)
+        num_calls = cursor.fetchone()[0]
+        self._sqlite_conn.commit()
+        cursor.close()
+        return num_calls
 
     def get_current_data(self, service_name, location):
         """
