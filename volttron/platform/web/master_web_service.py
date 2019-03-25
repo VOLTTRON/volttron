@@ -601,8 +601,8 @@ class MasterWebService(Agent):
             for rt in AuthenticateEndpoints(ssl_private_key).get_routes():
                 self.registeredroutes.append(rt)
 
-            static_dir = os.path.join(os.path.dirname(__file__), "static")
-            self.registeredroutes.append((re.compile('^/.*$'), 'path', static_dir))
+        static_dir = os.path.join(os.path.dirname(__file__), "static")
+        self.registeredroutes.append((re.compile('^/.*$'), 'path', static_dir))
 
         port = int(port)
         vhome = os.environ.get('VOLTTRON_HOME')
