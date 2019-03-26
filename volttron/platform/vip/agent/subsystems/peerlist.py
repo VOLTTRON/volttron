@@ -65,12 +65,40 @@ class PeerList(SubsystemBase):
     def list(self):
         connection = self.core().connection
         result = next(self._results)
-        #socket.send_vip(b'', b'peerlist', [b'list'], result.ident)
+
         try:
             connection.send_vip_object(Message(peer=b'',
-                                                subsystem=b'peerlist',
-                                                args=[b'list'],
-                                                id=result.ident))
+                                               subsystem=b'peerlist',
+                                               args=[b'list'],
+                                               id=result.ident))
+        except ZMQError as exc:
+            if exc.errno == ENOTSOCK:
+                _log.error("Socket send on non socket {}".format(self.core().identity))
+        return result
+
+    def add_peer(self, peer):
+        connection = self.core().connection
+        result = next(self._results)
+
+        try:
+            connection.send_vip_object(Message(peer=b'',
+                                               subsystem=b'peerlist',
+                                               args=[b'add', bytes(peer)],
+                                               id=result.ident))
+        except ZMQError as exc:
+            if exc.errno == ENOTSOCK:
+                _log.error("Socket send on non socket {}".format(self.core().identity))
+        return result
+
+    def drop_peer(self, peer):
+        connection = self.core().connection
+        result = next(self._results)
+
+        try:
+            connection.send_vip_object(Message(peer=b'',
+                                               subsystem=b'peerlist',
+                                               args=[b'drop', peer],
+                                               id=result.ident))
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.error("Socket send on non socket {}".format(self.core().identity))
@@ -98,7 +126,7 @@ class PeerList(SubsystemBase):
                 return
             result.set([bytes(arg) for arg in message.args[1:]])
         else:
-            _log.error('unknown peerlist subsystem operation')
+            _log.error('unknown peerlist subsystem operation == {}'.format(op))
 
     def _handle_error(self, sender, message, error, **kwargs):
         try:

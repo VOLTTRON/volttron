@@ -229,6 +229,12 @@ class RMQRouter(BaseRouter):
                 del message.args[:]
                 message.args = [b'listing']
                 message.args.extend(self._peers)
+            elif op == b'add':
+                peer = message.args[1]
+                self._add_peer(peer=peer)
+            elif op == b'drop':
+                peer = message.args[1]
+                self._drop_peer(peer=peer)
             else:
                 error = (b'unknown' if op else b'missing') + b' operation'
                 message.args.extend([b'error', error])
