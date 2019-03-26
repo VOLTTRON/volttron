@@ -46,8 +46,8 @@ Steps for ZMQ
 Proceed to `Test`
 
 
-Steps for ZMQ
-~~~~~~~~~~~~~
+Steps for RabbitMQ
+~~~~~~~~~~~~~~~~~~
 
 1. Install Erlang version 21 packages
 #####################################
