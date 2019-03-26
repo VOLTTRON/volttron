@@ -146,8 +146,11 @@ def weather(request, volttron_instance):
     request.addfinalizer(stop_agent)
     return agent, identity
 
+# TODO create/add to tests to see if data is being cached properly for
+#  non-perofmrance mode only
+# TODO check that the contents do not contain forecast data if performance
+#  mode is on only
 
-# TODO check that the contents do not contain forecast data
 @pytest.mark.parametrize("locations", [
     [{"lat": 39.7555, "long": -105.2211}],
     [{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": -119.2752}]
@@ -354,15 +357,21 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
             assert num_records is records_amount*len(locations)
 
 
-@pytest.mark.parametrize("locations", [
-    ["fail"],
-    [{"lat": 39.7555}],
-    ()
+@pytest.mark.parametrize("locations, service", [
+    (["fail"], 'get_minutely_forecast'),
+    ([{"lat": 39.7555}], 'get_minutely_forecast'),
+    ([], 'get_minutely_forecast'),
+    (["fail"], 'get_hourly_forecast'),
+    ([{"lat": 39.7555}], 'get_hourly_forecast'),
+    ([], 'get_hourly_forecast'),
+    (["fail"], 'get_daily_forecast'),
+    ([{"lat": 39.7555}], 'get_daily_forecast'),
+    ([], 'get_daily_forecast')
 ])
 @pytest.mark.darksky
-def test_hourly_forecast_fail(weather, query_agent, locations):
+def test_forecast_fail(weather, query_agent, locations, service):
     identity = weather[1]
-    query_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
+    query_data = query_agent.vip.rpc.call(identity, service,
                                           locations).get(timeout=30)
     for record in query_data:
         error = record.get("weather_error")

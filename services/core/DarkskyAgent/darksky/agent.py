@@ -68,10 +68,11 @@ def darksky(config_path, **kwargs):
     return Darksky(**kwargs)
 
 
-# TODO docs
 class Darksky(BaseWeatherAgent):
     """
-    Document agent constructor here.
+    The Darksky agent requires having an API key to interact with the remote
+    API. The agent offers a performance_mode configuration option which
+    allows users to limit the amount of data returned by the API.
     """
 
     def __init__(self, performance_mode=False, **kwargs):
@@ -102,8 +103,22 @@ class Darksky(BaseWeatherAgent):
         """
         return __version__
 
-    # TODO Docs
+    def get_api_calls_settings(self):
+        """
+        :return: Returns a datetime object representing the time period for API
+        calls to expire as well as a number representing the number of API calls
+        alloted during the period
+        """
+        return datetime.timedelta(days=1), 1000
+
     def validate_location(self, service_name, location):
+        """
+        Indicates whether the location dictionary provided matches the format
+        required by the remote weather API
+        :param service_name: name of the remote API service
+        :param location: location dictionary to provide in the remote API url
+        :return: True if the location matches the required format else False
+        """
         if 'lat' in location and 'long' in location:
             if LAT_LONG_REGEX.match(str(location['lat'])) and \
                     LAT_LONG_REGEX.match(str(location['long'])):
@@ -111,8 +126,12 @@ class Darksky(BaseWeatherAgent):
         else:
             return False
 
-    # TODO update/validate service intervals, docs
     def get_update_interval(self, service_name):
+        """
+        Indicates the interval between remote API updates
+        :param service_name: requested service endpoint
+        :return: datetime timedelta representing the time interval
+        """
         if service_name == "get_current_weather":
             return datetime.timedelta(hours=1)
         elif service_name == "get_hourly_forecast":
@@ -124,8 +143,13 @@ class Darksky(BaseWeatherAgent):
         else:
             return None
 
-    # TODO DOCS
     def get_api_description(self, service_name):
+        """
+        Provides a human-readable description of the various endpoints provided
+        by the agent
+        :param service_name: requested service endpoint
+        :return: Human-readable description string
+        """
         if service_name is "get_current_weather":
             return "Provides current weather observations by lat/long via RPC "\
                    "(Requires {'lat': <latitude>, 'long': <longitude>}"
@@ -150,8 +174,16 @@ class Darksky(BaseWeatherAgent):
     def get_point_name_defs_file(self):
         pass
 
-    # TODO DOCS
     def get_darksky_forecast(self, service, location):
+        """
+        Generic method called by the current and forecast service endpoint
+        methods to fetch a forecast request from the Darksky API. If
+        performance mode is set to True, the url adds exclusions for the
+        services provided by the API that were not requested.
+        :param service: requested service endpoint
+        :param location: location dictionary for building url
+        :return: Darksky forecast request response
+        """
         service_json_name = ''
         for service_code in SERVICES_MAPPING:
             if SERVICES_MAPPING[service_code]['service'] is service:
@@ -184,6 +216,16 @@ class Darksky(BaseWeatherAgent):
     @staticmethod
     def format_multientry_response(location, response, request_type,
                                    timezone=None):
+        """
+        Used to extract the data not used by the RPC method, and store it in
+        the cache, helping to limit the number of API calls used to obtain data
+        :param location: location dictionary to include with cached data
+        :param response: Darksky forecast response
+        :param request_type: The type service data to extract and format
+        :param timezone: Timezone of the timestamps in the forecast response
+        data
+        :return: formatted response data by service
+        """
         data = []
         generation_time = get_aware_utc_now()\
             .replace(microsecond=0, second=0, minute=0)
@@ -198,8 +240,13 @@ class Darksky(BaseWeatherAgent):
                     entry)])
         return data
 
-    # TODO docs
     def query_current_weather(self, location):
+        """
+        Retrieve data from the Darksky API, return formatted current data and
+        store forecast data in cache
+        :param location: location dictionary requested by the user
+        :return: Timestamp and data for current data from the Darksky API
+        """
         darksky_response = self.get_darksky_forecast(
             SERVICES_MAPPING['SERVICE_CURRENT_WEATHER']['service'], location)
         response_timezone = pytz.timezone(darksky_response['timezone'])
@@ -223,8 +270,14 @@ class Darksky(BaseWeatherAgent):
                                                    'service'], service_data)
         return format_timestamp(current_time), current_response
 
-    # TODO docs
     def query_forecast_service(self, service, location):
+        """
+        Generic method for requesting forecast data from the various RPC
+        forecast methods
+        :param service: forecast service type of weather data to return
+        :param location: location dictionary requested during the RPC call
+        :return: Timestamp and data returned by the Darksky weather API response
+        """
         service_name = ''
         for service_code in SERVICES_MAPPING:
             if SERVICES_MAPPING[service_code]['service'] is service:
@@ -268,17 +321,32 @@ class Darksky(BaseWeatherAgent):
                                                    'service'], service_data)
         return generation_time, forecast_data
 
-    # TODO DOCS
     @RPC.export
     def get_minutely_forecast(self, locations, minutes=60):
+        """
+        RPC method for getting timeseries forecast weather data minute by minute
+        :param locations: list of location dictionaries from the RPC call
+        :param minutes: Number of minutes of weather data to be returned
+        :return: List of minutely forecast weather dictionaries
+        """
+        # maximum of 60 minutes plus the current minute of forecast available
+        # TODO check that this is the desired behavior
+        if minutes > 61:
+            minutes = 61
         return self.get_forecast_by_service(locations, SERVICES_MAPPING[
                                                 'SERVICE_MINUTELY_FORECAST'][
                                                 'service'],
                                             minutes)
 
-    # TODO DOCS
     @RPC.export
     def get_daily_forecast(self, locations, days=7):
+        """
+        RPC method for getting timeseries forecast weather data by full day
+        :param locations: list of location dictionaries from the RPC call
+        :param days: Number of minutes of weather data to be returned
+        :return: List of daily forecast weather dictionaries
+        """
+        # maximum of 8 days including the current day provided by the API
         return self.get_forecast_by_service(locations,
                                             SERVICES_MAPPING[
                                                 'SERVICE_DAILY_FORECAST'][

@@ -155,6 +155,8 @@ class BaseWeatherAgent(Agent):
                     "poll_topic_suffixes": self.poll_topic_suffixes
                 }
             self.unit_registry = pint.UnitRegistry()
+            self._api_calls_period, self._api_calls_limit = \
+                self.get_api_calls_settings()
             self.point_name_mapping = self.parse_point_name_mapping()
             self._api_services = {
                 SERVICE_CURRENT_WEATHER:
@@ -187,6 +189,15 @@ class BaseWeatherAgent(Agent):
                                        "Error: {}".format(e.message))
 
     # Configuration methods
+
+    def get_api_calls_settings(self):
+        """
+        By default sets the api call parameters for cache to None. Should be
+        overridden by concrete agents that utilize an api call tracking feature.
+        :return: Datetime timedelta representing the period for which api
+        calls are measured, Number of api calls allotted for the given period
+        """
+        return None, None
 
     def register_service(self, service_function_name, interval, service_type,
                          description=None):
@@ -422,6 +433,8 @@ class BaseWeatherAgent(Agent):
             _log.debug("Configuration successful")
             try:
                 self._cache = WeatherCache(self._database_file,
+                                           calls_period=self._api_calls_period,
+                                           calls_limit=self._api_calls_limit,
                                            api_services=self._api_services,
                                            max_size_gb=self._max_size_gb)
                 self.vip.health.set_status(STATUS_GOOD,
@@ -550,12 +563,20 @@ class BaseWeatherAgent(Agent):
             # if there was no data in cache or if data is old, query api
             if not record_dict.get(WEATHER_RESULTS):
                 _log.debug("Current weather data from api")
-                record_dict = self.get_current_weather_remote(location)
-                if cache_warning:
-                    warnings = record_dict.get(WEATHER_WARN, [])
-                    warnings.extend(cache_warning)
-                    record_dict[WEATHER_WARN] = warnings
-
+                if self._cache.api_call_available:
+                    record_dict = self.get_current_weather_remote(location)
+                    # rework this check to catch specific problems (probably
+                    # just weather_error)
+                    if record_dict:
+                        self._cache.add_api_call()
+                    if cache_warning:
+                        warnings = record_dict.get(WEATHER_WARN, [])
+                        warnings.extend(cache_warning)
+                        record_dict[WEATHER_WARN] = warnings
+                else:
+                    record_dict[WEATHER_ERROR] = "No calls currently " \
+                                                 "available for the " \
+                                                 "configured API key"
             result.append(record_dict)
         return result
 
@@ -733,20 +754,35 @@ class BaseWeatherAgent(Agent):
             cache_warning = record_dict.get(WEATHER_WARN)
             # if cache didn't work out query remote api
             if not record_dict.get(WEATHER_RESULTS):
-                _log.debug("forecast weather from api")
-                record_dict = self.get_remote_forecast(service, location,
-                                                       quantity, request_time)
-                if cache_warning:
-                    warnings = record_dict.get(WEATHER_WARN, [])
-                    warnings.extend(cache_warning)
-                    record_dict[WEATHER_WARN] = warnings
-                _log.debug("record_dict from remote : {}".format(record_dict))
+                if self._cache.api_call_available:
+                    _log.debug("forecast weather from api")
+                    record_dict = self.get_remote_forecast(service, location,
+                                                           quantity,
+                                                           request_time)
+                    # Rework this condition to catch specific problems
+                    # contacting the api
+                    if record_dict:
+                        self._cache.add_api_call()
+                    if cache_warning:
+                        warnings = record_dict.get(WEATHER_WARN, [])
+                        warnings.extend(cache_warning)
+                        record_dict[WEATHER_WARN] = warnings
+                    _log.debug("record_dict from remote : {}".format(record_dict))
             result.append(record_dict)
 
         return result
 
     @RPC.export
     def get_hourly_forecast(self, locations, hours=24):
+        """
+        RPC method for retrieving a time series of forecast data by hour. The
+        amount and form of data returned is dependent upon the remote API.
+        :param locations: List of location dictionaries used to build the
+        request to the remote API
+        :param hours: Optional parameter for specifying the amount of records
+        user would like returned
+        :return:
+        """
         return self.get_forecast_by_service(locations, SERVICE_HOURLY_FORECAST,
                                             hours)
 
@@ -815,7 +851,6 @@ class BaseWeatherAgent(Agent):
 
         return record_dict
 
-    # TODO
     @abstractmethod
     def query_forecast_service(self, service, location):
         """
@@ -1129,7 +1164,8 @@ class WeatherCache:
     def __init__(self,
                  database_file,
                  api_services=None,
-                 using_api_key=False,
+                 calls_limit=None,
+                 calls_period=None,
                  max_size_gb=1,
                  check_same_thread=True):
         """
@@ -1144,7 +1180,8 @@ class WeatherCache:
         to the sqlite object, else false (see
         https://docs.python.org/3/library/sqlite3.html)
         """
-        self._key_table = using_api_key
+        self._calls_limit = calls_limit
+        self._calls_period = calls_period
         self._db_file_path = database_file
         self._api_services = api_services
         self._max_size_gb = max_size_gb
@@ -1185,14 +1222,15 @@ class WeatherCache:
         ensures proper structure.
         """
         cursor = self._sqlite_conn.cursor()
-        if self._key_table:
+        if self._calls_limit:
             try:
                 cursor.execute(CREATE_STMT_API_CALLS)
                 self._sqlite_conn.commit()
+                _log.debug(CREATE_STMT_API_CALLS)
             except sqlite3.OperationalError as o:
                 if str(o).startswith("table") and str(o).endswith("already "
                                                                   "exists"):
-                    self.validate_and_fix_cache_tables("api_calls", None)
+                    self.validate_and_fix_cache_tables("API_CALLS", None)
                 else:
                     raise RuntimeError("Unable to create api_call table")
         for service_name in self._api_services:
@@ -1231,7 +1269,7 @@ class WeatherCache:
         :param table_type: indicates the expected columns for the service (
         must be forecast, history, or current)
         """
-        if service_name == 'api_call':
+        if service_name == 'API_CALLS':
             expected_columns = ["CALL_TIME"]
         elif table_type == "forecast":
             expected_columns = ["ID", "LOCATION", "GENERATION_TIME",
@@ -1251,7 +1289,7 @@ class WeatherCache:
                 self._sqlite_conn.commit()
                 _log.debug(delete_query)
                 create_table = ""
-                if service_name == "api_calls":
+                if service_name == "API_CALLS":
                     create_table = CREATE_STMT_API_CALLS
                 elif table_type == "forecast":
                     create_table = CREATE_STMT_FORECAST.format(
@@ -1265,34 +1303,43 @@ class WeatherCache:
                     self._sqlite_conn.commit()
                     break
 
+    def api_call_available(self):
+        """
+        :return: True if the number of calls within the call period is less
+        than the api calls limit, false otherwise
+        """
+        if not self._calls_limit:
+            return True
+        cursor = self._sqlite_conn.cursor()
+        if self._calls_period:
+            current_time = get_aware_utc_now()
+            expiry_time = current_time - self._calls_period
+            delete_query = """DELETE FROM API_CALLS WHERE CALL_TIME <= ?;"""
+            cursor.execute(delete_query, (expiry_time,))
+            self._sqlite_conn.commit()
+        active_calls_query = """SELECT COUNT(*) FROM API_CALLS;"""
+        cursor.execute(active_calls_query)
+        active_calls = cursor.fetchone()[0]
+        cursor.close()
+        return active_calls < self._calls_limit
+
     def add_api_call(self):
         """
-        adds a timestamp rerpesenting an api call made at the current time
+        If an API call is available given the constraints, adds an entry to
+        the table for tracking
+        :return: True if an entry was made successfully, false otherwise
         """
-        cursor = self._sqlite_conn.cursor()
-        current_time = get_aware_utc_now()
-        past_time = current_time - datetime.timedelta(days=1)
-        delete_query = """DELETE FROM API_CALLS
-                   WHERE CALL_TIME < {};""".format(past_time)
-        cursor.execute(delete_query)
-        insert_query = """INSERT INTO API_CALLS
-                         (CALL_TIME) VALUES {}""".format(current_time)
-        cursor.execute(insert_query)
-        self._sqlite_conn.commit()
-        cursor.close()
-
-    def get_api_calls(self):
-        """
-        :return: The quantity of api call timestamps
-        """
-        cursor = self._sqlite_conn.cursor()
-        select_query = """SELECT COUNT(*) 
-                          FROM API_CALLS;"""
-        cursor.execute(select_query)
-        num_calls = cursor.fetchone()[0]
-        self._sqlite_conn.commit()
-        cursor.close()
-        return num_calls
+        if self._calls_limit:
+            if self.api_call_available():
+                cursor = self._sqlite_conn.cursor()
+                current_time = get_aware_utc_now()
+                insert_query = """INSERT INTO API_CALLS
+                                 (CALL_TIME) VALUES (?);"""
+                cursor.execute(insert_query, (current_time,))
+                self._sqlite_conn.commit()
+                cursor.close()
+                return True
+        return False
 
     def get_current_data(self, service_name, location):
         """

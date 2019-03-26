@@ -102,7 +102,7 @@ class BasicWeatherAgent(BaseWeatherAgent):
     a particular api (essentially testing the cache functionality)."""
 
     def __init__(self, **kwargs):
-        super(BasicWeatherAgent, self).__init__(**kwargs)
+        super(BasicWeatherAgent, self).__init__(api_key='test', **kwargs)
 
     def get_point_name_defs_file(self):
         point_name_defs = [{"Service_Point_Name": "fake1",
@@ -136,6 +136,15 @@ class BasicWeatherAgent(BaseWeatherAgent):
         ]
         return record
 
+    def query_forecast_service(self, service, location):
+
+        if service is 'get_hourly_forecast':
+            generation_time, data = self.query_hourly_forecast(location)
+            return generation_time, data
+        else:
+            raise RuntimeError("BasicWeather supports hourly forecast requests "
+                               "only")
+
     def query_hourly_forecast(self, location):
         records = []
         current_time = datetime.datetime.utcnow()
@@ -146,6 +155,12 @@ class BasicWeatherAgent(BaseWeatherAgent):
             ]
             records.append(record)
         return format_timestamp(current_time), records
+
+# TODO cache cleanup needs to clear api calls
+# TODO api call cleanup needs to be tested
+
+    def get_api_calls_settings(self):
+        return datetime.timedelta(days=14), 100
 
     def query_hourly_historical(self, location, start_date, end_date):
         pass
@@ -216,6 +231,14 @@ def test_create_tables(weather):
 
     weather._cache.create_tables()
 
+    # check that the api_calls table is made
+    table = "API_CALLS"
+    info_query = "PRAGMA table_info({});".format(table)
+    _log.debug(info_query)
+    table_info = cursor.execute(info_query).fetchall()
+    table_columns = table_info[0][1]
+    assert 'CALL_TIME' in table_columns
+
     for table in weather._api_services:
         info_query = "PRAGMA table_info({});".format(table)
         table_info = cursor.execute(info_query).fetchall()
@@ -237,7 +260,7 @@ def test_manage_cache_size(volttron_instance):
     weather = volttron_instance.build_agent(
         agent_class=BasicWeatherAgent,
         identity="test_cache_basic_weather",
-        max_size_gb=0.00003
+        max_size_gb=0.00005
     )
 
     gevent.sleep(3)  # wait for agent to start and configure method to be called
@@ -266,22 +289,53 @@ def test_manage_cache_size(volttron_instance):
     cursor.execute("PRAGMA page_count")
     num_pages = cursor.fetchone()[0]
     total_size = page_size * num_pages
-    assert total_size < 25000
+    assert total_size < 35000
 
     weather.get_hourly_forecast(fake_locations, hours=5)
 
     cursor.execute("PRAGMA page_size")
     page_size = cursor.fetchone()[0]
     total_size = page_size * num_pages
-    assert total_size < 25000
+    assert total_size < 35000
 
     weather.get_current_weather(fake_locations)
 
     cursor.execute("PRAGMA page_size")
     page_size = cursor.fetchone()[0]
     total_size = page_size * num_pages
-    assert total_size < 25000
+    assert total_size < 35000
 
+@pytest.mark.dev
+def test_api_call_tracking(weather):
+    cache = weather._cache
+    connection = cache._sqlite_conn
+    cursor = connection.cursor()
+
+    delete_query = "DROP TABLE IF EXISTS API_CALLS;"
+    cursor.execute(delete_query)
+    connection.commit()
+
+    cache.create_tables()
+
+    for i in range(0, 100):
+        cache.add_api_call()
+
+    quantity_query = "SELECT COUNT(*) FROM API_CALLS;"
+    cursor.execute(quantity_query)
+    stored_calls = cursor.fetchone()[0]
+    assert stored_calls == 100
+
+    overflow = cache.add_api_call()
+    assert not overflow
+
+    cursor.execute(quantity_query)
+    stored_calls = cursor.fetchone()[0]
+    assert stored_calls == 100
+
+    cursor.execute(delete_query)
+    connection.commit()
+
+    cache.create_tables()
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("service_name, interval, service_type", [
@@ -789,6 +843,41 @@ def test_hourly_historical_success(weather, fake_locations, start_date,
 @pytest.mark.parametrize("fake_locations, start_date, end_date", [])
 def test_hourly_historical_fail(weather, fake_locations, start_date, end_date):
     assert False
+
+@pytest.mark.weather2
+def test_api_calls_services(weather):
+    cache = weather._cache
+    connection = cache._sqlite_conn
+    cursor = connection.cursor()
+
+    delete_query = "DROP TABLE IF EXISTS API_CALLS;"
+    cursor.execute(delete_query)
+    connection.commit()
+
+    cache.create_tables()
+
+    for i in range(0, 100):
+        cache.add_api_call()
+
+    quantity_query = "SELECT COUNT(*) FROM API_CALLS;"
+    cursor.execute(quantity_query)
+    stored_calls = cursor.fetchone()[0]
+    assert stored_calls == 100
+
+    result = weather.get_current_weather([{"location": "fake_location1"}])
+    print(result)
+
+    # result = weather.get_hourly_forecast([{"location": "fake_location1"}])
+    # print(result)
+
+    cursor.execute(quantity_query)
+    stored_calls = cursor.fetchone()[0]
+    assert stored_calls == 100
+
+    cursor.execute(delete_query)
+    connection.commit()
+
+    cache.create_tables()
 
 
 @pytest.mark.weather2
