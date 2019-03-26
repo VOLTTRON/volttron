@@ -376,10 +376,10 @@ check the log file.
 Automated Test cases and documentation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Before you can contribute a new agent to the VOLTTRON source code repository, please consider adding two other essential
+Before contributing a new agent to the VOLTTRON source code repository, please consider adding two other essential
 elements.
 
-1. Unit test cases
+1. Integration and unit test cases
 2. README file that includes details of pre-requisite software, agent setup details (such as setting up databases,
 permissions, etc.)and sample configuration
 
