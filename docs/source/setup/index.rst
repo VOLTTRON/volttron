@@ -43,7 +43,7 @@ Steps for ZMQ
     python bootstrap.py
     source env/bin/activate
 
-Proceed to `Test`
+Proceed to `Testing the Installation`_.
 
 
 Steps for RabbitMQ
