@@ -53,7 +53,7 @@ USER $VOLTTRON_USER
 WORKDIR /code
 RUN git clone https://github.com/VOLTTRON/volttron -b ${VOLTTRON_GIT_BRANCH}
 WORKDIR /code/volttron
-RUN pip install --user -r requirements.txt && pip install --user .
+RUN pip install --user -r requirements.txt && pip install -e . --user
 
 ############################################
 # RABBITMQ SPECIFIC INSTALLATION

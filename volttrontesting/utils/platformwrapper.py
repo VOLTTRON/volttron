@@ -92,7 +92,9 @@ RESTRICTED = 3
 
 MODES = (UNRESTRICTED, VERIFY_ONLY, RESOURCE_CHECK_ONLY, RESTRICTED)
 
-VOLTTRON_ROOT = dirname(dirname(dirname(os.path.realpath(__file__))))
+VOLTTRON_ROOT = os.environ.get("VOLTTRON_ROOT")
+if not VOLTTRON_ROOT:
+    VOLTTRON_ROOT = dirname(dirname(dirname(os.path.realpath(__file__))))
 
 if os.environ.get('CI', None) is None:
     VSTART = os.path.join(VOLTTRON_ROOT, "env/bin/volttron")
