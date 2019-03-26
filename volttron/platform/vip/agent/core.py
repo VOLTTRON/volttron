@@ -38,7 +38,6 @@
 
 from __future__ import absolute_import, print_function
 
-
 import heapq
 import inspect
 import logging
@@ -423,7 +422,8 @@ class BasicCore(object):
     def _schedule_callback(self, deadline, callback):
         deadline = utils.get_utc_seconds_from_epoch(deadline)
         heapq.heappush(self._schedule, (deadline, callback))
-        self._schedule_event.set()
+        if self._schedule_event:
+            self._schedule_event.set()
 
     def _schedule_iter(self, it, event):
         def wrapper():
@@ -603,18 +603,19 @@ class ZMQCore(Core):
     """
     Concrete Core class for ZeroMQ message bus
     """
+
     def __init__(self, owner, address=None, identity=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, reconnect_interval=None,
                  version='0.1', enable_fncs=False,
                  instance_name=None, messagebus='zmq'):
-        super(ZMQCore, self).__init__(owner,address=address, identity=identity,
-                 context=context, publickey=publickey, secretkey=secretkey,
-                 serverkey=serverkey, volttron_home=volttron_home,
-                 agent_uuid=agent_uuid, reconnect_interval=reconnect_interval,
-                 version=version,
-                 instance_name=instance_name, messagebus=messagebus)
+        super(ZMQCore, self).__init__(owner, address=address, identity=identity,
+                                      context=context, publickey=publickey, secretkey=secretkey,
+                                      serverkey=serverkey, volttron_home=volttron_home,
+                                      agent_uuid=agent_uuid, reconnect_interval=reconnect_interval,
+                                      version=version,
+                                      instance_name=instance_name, messagebus=messagebus)
         self.context = context or zmq.Context.instance()
         self._fncs_enabled = enable_fncs
         self.messagebus = messagebus
@@ -672,7 +673,7 @@ class ZMQCore(Core):
         known_serverkey = self._get_serverkey_from_known_hosts()
 
         if (self.serverkey is not None and known_serverkey is not None
-            and self.serverkey != known_serverkey):
+                and self.serverkey != known_serverkey):
             raise Exception("Provided server key ({}) for {} does "
                             "not match known serverkey ({}).".format(
                 self.serverkey, self.address, known_serverkey))
@@ -803,9 +804,9 @@ class ZMQCore(Core):
 
                 # Handle hellos sent by CONNECTED event
                 if (subsystem == b'hello' and
-                            bytes(message.id) == state.ident and
-                            len(message.args) > 3 and
-                            bytes(message.args[0]) == b'welcome'):
+                        bytes(message.id) == state.ident and
+                        len(message.args) > 3 and
+                        bytes(message.args[0]) == b'welcome'):
                     version, server, identity = [
                         bytes(x) for x in message.args[1:4]]
                     self.connected = True
@@ -864,6 +865,7 @@ class RMQCore(Core):
     """
     Concrete Core class for RabbitMQ message bus
     """
+
     def __init__(self, owner, address=None, identity=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
@@ -871,11 +873,11 @@ class RMQCore(Core):
                  version='0.1', instance_name=None, messagebus='rmq',
                  volttron_central_address=None,
                  volttron_central_instance_name=None):
-        super(RMQCore, self).__init__(owner,address=address, identity=identity,
-                 context=context, publickey=publickey, secretkey=secretkey,
-                 serverkey=serverkey, volttron_home=volttron_home,
-                 agent_uuid=agent_uuid, reconnect_interval=reconnect_interval,
-                 version=version, instance_name=instance_name, messagebus=messagebus)
+        super(RMQCore, self).__init__(owner, address=address, identity=identity,
+                                      context=context, publickey=publickey, secretkey=secretkey,
+                                      serverkey=serverkey, volttron_home=volttron_home,
+                                      agent_uuid=agent_uuid, reconnect_interval=reconnect_interval,
+                                      version=version, instance_name=instance_name, messagebus=messagebus)
         self.volttron_central_address = volttron_central_address
 
         if not instance_name:
@@ -884,7 +886,7 @@ class RMQCore(Core):
         if volttron_central_instance_name:
             self.instance_name = volttron_central_instance_name
 
-        #self._event_queue = gevent.queue.Queue
+        # self._event_queue = gevent.queue.Queue
         self._event_queue = Queue()
         if isinstance(self.address, pika.ConnectionParameters):
             self.rmq_user = self.identity
@@ -921,7 +923,7 @@ class RMQCore(Core):
             except AttributeError:
                 _log.error("RabbitMQ broker may not be running. Restart the broker first")
                 param = None
-                
+
         return param
 
     def loop(self, running_event):
@@ -963,7 +965,7 @@ class RMQCore(Core):
             if bindings:
                 for binding in bindings:
                     if binding['destination'] == router_user and \
-                                    binding['routing_key'] == router_key:
+                            binding['routing_key'] == router_key:
                         router_connected = True
                         break
             # Connection retry attempt issue #1702.
@@ -1001,9 +1003,9 @@ class RMQCore(Core):
 
                         if subsystem == b'hello':
                             if (subsystem == b'hello' and
-                                        bytes(message.id) == state.ident and
-                                        len(message.args) > 3 and
-                                        bytes(message.args[0]) == b'welcome'):
+                                    bytes(message.id) == state.ident and
+                                    len(message.args) > 3 and
+                                    bytes(message.args[0]) == b'welcome'):
                                 version, server, identity = [
                                     bytes(x) for x in message.args[1:4]]
                                 self.connected = True

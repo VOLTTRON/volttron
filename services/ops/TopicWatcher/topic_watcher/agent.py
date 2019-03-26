@@ -176,6 +176,8 @@ class AlertAgent(Agent):
                            address=self.core.address,
                            enable_store=False,
                            main_agent=main_agent,
+#                           identity='AlertGroup',
+                           message_bus=self.core.messagebus,
                            publish_local=publish_local)
         gevent.spawn(group.core.run, event)
         event.wait()
@@ -470,15 +472,22 @@ class AlertGroup(Agent):
         Sends an alert if any topics are missing.
         """
         topics_timedout = set()
+        alert_topics = set()
+        _log.debug("In decrement_ttl {}".format(gevent.getcurrent()))
+        if "newtopic" in self.wait_time:
+            _log.debug("got new topic")
         for topic in self.wait_time.iterkeys():
 
             # Send an alert if a topic hasn't been seen
             self.topic_ttl[topic] -= 1
             if self.topic_ttl[topic] <= 0:
+                if "newtopic" == topic:
+                    _log.debug("got new topic timeout")
+                alert_topics.add(topic)
+                self.topic_ttl[topic] = self.wait_time[topic]
                 if topic not in self.unseen_topics:
                     topics_timedout.add(topic)
                     self.unseen_topics.add(topic)
-                self.topic_ttl[topic] = self.wait_time[topic]
 
             # Send an alert if a point hasn't been seen
             try:
@@ -486,23 +495,24 @@ class AlertGroup(Agent):
                 for p in points:
                     self.point_ttl[topic][p] -= 1
                     if self.point_ttl[topic][p] <= 0:
+                        self.point_ttl[topic][p] = self.wait_time[topic]
+                        alert_topics.add((topic, p))
                         if (topic, p) not in self.unseen_topics:
                             topics_timedout.add((topic, p))
                             self.unseen_topics.add((topic, p))
-                        self.point_ttl[topic][p] = self.wait_time[topic]
             except KeyError:
                 pass
+            gevent.sleep(0.1)
 
-        if self.unseen_topics:
+        if alert_topics:
             try:
-                self.send_alert(list(self.unseen_topics))
+                self.send_alert(list(alert_topics))
             except ZMQError:
                 self.main_agent.reset_remote_agent()
-            
-            self.unseen_topics.clear()
 
         if topics_timedout:
             self.log_timeout(list(topics_timedout))
+
 
     def send_alert(self, unseen_topics):
         """Send an alert for the group, summarizing missing topics.

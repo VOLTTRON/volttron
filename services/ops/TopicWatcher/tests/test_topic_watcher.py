@@ -47,7 +47,7 @@ from volttron.platform import get_ops
 from volttron.platform.agent.known_identities import PLATFORM_TOPIC_WATCHER
 from volttron.platform.agent.utils import get_aware_utc_now
 
-agent_version = '1.0'
+agent_version = '2.1'
 WATCHER_CONFIG = {
     "group1": {
         "fakedevice": 5,
