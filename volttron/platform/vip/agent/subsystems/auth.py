@@ -147,50 +147,65 @@ class Auth(SubsystemBase):
                 remote_identity = "{}.{}.{}".format(info.instance_name,
                                                     get_platform_instance_name(),
                                                     self._core().identity)
+                # if the current message bus is zmq then we need
+                # to connect a zmq on the remote, whether that be the
+                # rmq router or proxy.  Also note that we are using the fully qualified
+                # version of the identity because there will be conflicts if
+                # volttron central has more than one platform.agent connecting
+                if get_messagebus() == 'zmq':
+                    if not info.vip_address or not info.serverkey:
+                        err = "Discovery from {} did not return serverkey and/or vip_address".format(address)
+                        raise ValueError(err)
 
-                if info.messagebus_type == 'rmq' and get_messagebus() == 'zmq':
-                    ValueError("ZMQ -> RMQ connection not supported at this time.")
-
-                # If this is present we can assume we are going to connect to rabbit
-                if info.messagebus_type == 'rmq':
-
-                    # Discovery info for external platform
-                    value = self.request_cert(address)
-
-                    _log.debug("RESPONSE VALUE WAS: {}".format(value))
-                    if not isinstance(value, tuple):
-                        info = DiscoveryInfo.request_discovery_info(address)
-                        remote_rmq_user = remote_identity
-                        remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
-                            remote_rmq_user,
-                            info.vc_rmq_address)
-
-                        value = build_agent(identity=remote_rmq_user,
-                                            address=remote_rmq_address,
-                                            instance_name=info.instance_name)
-
-                else:
-                    # TODO: cache the connection so we don't always have to ping
-                    #       the server to connect.
-
-                    # This branch happens when the message bus is not the same note
-                    # this writes to the agent-data directory of this agent if the agent
-                    # is installed.
-                    if get_messagebus() == 'rmq':
-                        if not os.path.exists("keystore.json"):
-                            with open("keystore.json", 'w') as fp:
-                                fp.write(json.dumps(KeyStore.generate_keypair_dict()))
-
-                        with open("keystore.json") as fp:
-                            keypair = json.loads(fp.read())
-
-                    value = build_agent(agent_class=agent_class,
-                                        identity=remote_identity,
+                    # use fully qualified identity
+                    value = build_agent(identity=get_fq_identity(self._core().identity),
+                                        address=info.vip_address,
                                         serverkey=info.serverkey,
-                                        publickey=keypair.get('publickey'),
-                                        secretkey=keypair.get('secretekey'),
-                                        message_bus='zmq',
-                                        address=info.vip_address)
+                                        secretkey=self._core().secretkey,
+                                        publickey=self._core().publickey,
+                                        agent_class=agent_class)
+
+                else:  # we are on rmq messagebus
+
+                    if info.messagebus_type == 'rmq':
+
+                        # Discovery info for external platform
+                        value = self.request_cert(address)
+
+                        _log.debug("RESPONSE VALUE WAS: {}".format(value))
+                        if not isinstance(value, tuple):
+                            info = DiscoveryInfo.request_discovery_info(address)
+                            remote_rmq_user = remote_identity
+                            remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
+                                remote_rmq_user,
+                                info.vc_rmq_address)
+
+                            value = build_agent(identity=remote_rmq_user,
+                                                address=remote_rmq_address,
+                                                instance_name=info.instance_name)
+
+                    else:
+                        # TODO: cache the connection so we don't always have to ping
+                        #       the server to connect.
+
+                        # This branch happens when the message bus is not the same note
+                        # this writes to the agent-data directory of this agent if the agent
+                        # is installed.
+                        if get_messagebus() == 'rmq':
+                            if not os.path.exists("keystore.json"):
+                                with open("keystore.json", 'w') as fp:
+                                    fp.write(json.dumps(KeyStore.generate_keypair_dict()))
+
+                            with open("keystore.json") as fp:
+                                keypair = json.loads(fp.read())
+
+                        value = build_agent(agent_class=agent_class,
+                                            identity=remote_identity,
+                                            serverkey=info.serverkey,
+                                            publickey=keypair.get('publickey'),
+                                            secretkey=keypair.get('secretekey'),
+                                            message_bus='zmq',
+                                            address=info.vip_address)
             except DiscoveryError:
                 value = dict(status='UNKNOWN',
                              message="Couldn't connect to {} or incorrect response returned".format(address))
