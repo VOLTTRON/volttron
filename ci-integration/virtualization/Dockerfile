@@ -53,7 +53,7 @@ USER $VOLTTRON_USER
 WORKDIR /code
 RUN git clone https://github.com/VOLTTRON/volttron -b ${VOLTTRON_GIT_BRANCH}
 WORKDIR /code/volttron
-RUN pip install --user -r requirements.txt && pip install --user .
+RUN pip install --user -r requirements.txt && pip install -e . --user
 
 ############################################
 # RABBITMQ SPECIFIC INSTALLATION
@@ -71,8 +71,8 @@ RUN set -eux \
 
 RUN mkdir /startup $VOLTTRON_HOME && \
     chown $VOLTTRON_USER.$VOLTTRON_USER $VOLTTRON_HOME
-COPY ./core/entrypoint.sh /startup/entrypoint.sh
-COPY ./core/bootstart.sh /startup/bootstart.sh
+COPY ./ci-integration/virtualization/core/entrypoint.sh /startup/entrypoint.sh
+COPY ./ci-integration/virtualization/core/bootstart.sh /startup/bootstart.sh
 RUN chmod +x /startup/entrypoint.sh && \
     chmod +x /startup/bootstart.sh
 
