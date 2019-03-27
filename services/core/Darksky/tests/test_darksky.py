@@ -56,7 +56,7 @@ _log = logging.getLogger(__name__)
 API_KEY = os.environ.get('DARKSKY_KEY')
 
 darksky_service = {
-    'weather_service': get_services_core('DarkskyAgent'),
+    'weather_service': get_services_core('Darksky'),
     'identity': 'platform.darksky',
     'max_size_gb': None,
     'api_key': API_KEY,
@@ -66,7 +66,7 @@ darksky_service = {
 }
 
 darksky_perf = {
-    'weather_service': get_services_core('DarkskyAgent'),
+    'weather_service': get_services_core('Darksky'),
     'identity': 'platform.darksky_perf',
     'max_size_gb': None,
     'api_key': API_KEY,
