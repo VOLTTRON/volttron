@@ -20,7 +20,7 @@ setup(
     author="larson, James K",
     install_requires=['volttron'],
     packages=packages,
-    package_data={'agent': ['data/name_mapping.csv']},
+    package_data={'darksky': ['data/name_mapping.csv']},
     entry_points={
         'setuptools.installation': [
             'eggsecutable = ' + agent_module + ':main',

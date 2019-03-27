@@ -1019,6 +1019,7 @@ def delete_database_file():
         os.remove(db_path)
 
 
+# TODO expected behavior for api_calls in cache
 @pytest.mark.weather2
 def test_unhandled_cache_store_exception(volttron_instance, weather,
                                          query_agent):
@@ -1084,6 +1085,7 @@ def test_unhandled_cache_store_exception(volttron_instance, weather,
         weather._cache._sqlite_conn = sqlite3.connect(weather._database_file)
 
 
+# TODO expected behavior for api_calls in cache
 @pytest.mark.weather2
 def test_unhandled_cache_read_exception(volttron_instance, weather,
                                         query_agent):
