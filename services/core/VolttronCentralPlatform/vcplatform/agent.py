@@ -180,6 +180,8 @@ class VolttronCentralPlatform(Agent):
         self._vc_connection = None
         self._vc_address = None
         self._vc_serverkey = None
+        self._vc_rmq_ca_cert = None
+
         self._instance_name = None
         self._local_external_address = None
         self._local_serverkey = None
@@ -246,37 +248,57 @@ class VolttronCentralPlatform(Agent):
         # qry prefix is from the query subsystem.
         qry_external_addresses = q.query('addresses').get(timeout=5)
         qry_local_serverkey = q.query('serverkey').get(timeout=5)
+
+        # This can either be http(s), ampq(s) or tcp address
         qry_vc_address = q.query('volttron-central-address').get(timeout=5)
+
         qry_vc_serverkey = q.query('volttron-central-serverkey').get(timeout=5)
-        qry_instance_name = q.query('instance-name').get(timeout=5)
+        qry_vc_rmq_ca_cert = q.query('volttron-central-rmq-ca-cert').get(timeout=5)
+
         qry_bind_web_address = q.query('bind-web-address').get(timeout=5)
+        qry_instance_name = q.query('instance-name').get(timeout=5)
 
         cfg_vc_address = config.get("volttron-central-address")
         cfg_vc_serverkey = config.get("volttron-central-serverkey")
+        cfg_vc_rmq_ca_cert = config.get('volttron-central-rmq-ca-cert')
 
-        try:
-            a, s = self._determine_vc_address_and_serverkey(cfg_vc_address,
-                                                            cfg_vc_serverkey,
-                                                            qry_bind_web_address)
-        except AttributeError:
-            try:
-                a, s = self._determine_vc_address_and_serverkey(qry_vc_address,
-                                                                qry_vc_serverkey,
-                                                                qry_bind_web_address)
-            except AttributeError:
-                error = """The global configuration contains an invalid/unavailable
-reference to an volttron discovery server and there was not a configuration
-for the platform agent that contains a volttron-central-agent and 
-volttron-central-serverkey."""
-                _log.error(error)
-                return
+        vc_address = qry_vc_address
+        if cfg_vc_address is not None:
+            vc_address = cfg_vc_address
 
-        try:
-            if not a or not s:
-                _log.error("Couldn't determine server key and address")
-        except NameError:
-            _log.error("Couldn't determine server key and address")
-            return
+        vc_serverkey = qry_vc_serverkey
+        if cfg_vc_serverkey is not None:
+            vc_serverkey = cfg_vc_serverkey
+
+        vc_rmq_ca_cert = qry_vc_rmq_ca_cert
+        if cfg_vc_rmq_ca_cert is not None:
+            vc_rmq_ca_cert = cfg_vc_rmq_ca_cert
+#
+#
+#
+#         try:
+#             a, s = self._determine_vc_address_and_serverkey(cfg_vc_address,
+#                                                             cfg_vc_serverkey,
+#                                                             qry_bind_web_address)
+#         except AttributeError:
+#             try:
+#                 a, s = self._determine_vc_address_and_serverkey(qry_vc_address,
+#                                                                 qry_vc_serverkey,
+#                                                                 qry_bind_web_address)
+#             except AttributeError:
+#                 error = """The global configuration contains an invalid/unavailable
+# reference to an volttron discovery server and there was not a configuration
+# for the platform agent that contains a volttron-central-agent and
+# volttron-central-serverkey."""
+#                 _log.error(error)
+#                 return
+#
+#         try:
+#             if not a or not s:
+#                 _log.error("Couldn't determine server key and address")
+#         except NameError:
+#             _log.error("Couldn't determine server key and address")
+#             return
 
         # Reset the connection if necessary.  The case that we are changing
         # configuration to a new vc.
@@ -288,14 +310,16 @@ volttron-central-serverkey."""
 
         self._topic_replacement.clear()
         self._topic_replace_map = config['topic-replace-map']
-        self._vc_address = a
-        self._vc_serverkey = s
+        self._vc_address = vc_address
+        self._vc_serverkey = vc_serverkey
+        self._vc_rmq_ca_cert = vc_rmq_ca_cert
+
         self._registration_state = RegistrationStates.NotRegistered
 
-        if not self._vc_address or not self._vc_serverkey:
-            _log.error("vc address and serverkey could not be determined. "
-                       "registration is not allowed.")
-            return
+        # if not self._vc_address and not self._vc_serverkey:
+        #     _log.error("vc address and serverkey could not be determined. "
+        #                "registration is not allowed.")
+        #     return
 
         cfg_instance_name = config.get("instance-name")
         if cfg_instance_name is not None:
@@ -488,11 +512,11 @@ volttron-central-serverkey."""
 
     def _establish_connection_to_vc(self):
 
-        if not self._vc_address:
-            raise ValueError("vc_address was not resolved properly.")
-
-        if not self._vc_serverkey:
-            raise ValueError("vc_serverkey was not resolved properly.")
+        # if not self._vc_address:
+        #     raise ValueError("vc_address was not resolved properly.")
+        #
+        # if not self._vc_serverkey:
+        #     raise ValueError("vc_serverkey was not resolved properly.")
 
         if self._establish_connection_event is not None:
             self._establish_connection_event.cancel()
@@ -504,14 +528,26 @@ volttron-central-serverkey."""
 
             try:
 
-                self._vc_connection = build_agent(
-                    identity=self._instance_id,
+                self._vc_connection = self.vip.auth.connect_remote_platform(
                     address=self._vc_address,
                     serverkey=self._vc_serverkey,
-                    publickey=self.core.publickey,
-                    secretkey=self.core.secretkey,
+                    rmq_ca_cert=self._vc_rmq_ca_cert,
                     agent_class=VCConnection
                 )
+                #
+                # if self.core.messagebus == 'rmq':
+                #     self._vc_connection = self.vip.auth.connect_remote_platform(
+                #         address=self._vc_address
+                #     )
+                # else:
+                #     self._vc_connection = build_agent(
+                #         identity=self._instance_id,
+                #         address=self._vc_address,
+                #         serverkey=self._vc_serverkey,
+                #         publickey=self.core.publickey,
+                #         secretkey=self.core.secretkey,
+                #         agent_class=VCConnection
+                #     )
             except ValueError as ex:
                 _log.warn("Unable to connect to volttron central due to "
                           "invalid configuration.")
@@ -527,10 +563,16 @@ volttron-central-serverkey."""
                 self._establish_connection_event = self.core.schedule(
                     next_update_time, self._establish_connection_to_vc)
             else:
-                self._vc_connection.set_main_agent(self)
-                self._still_connected()
-                self._publish_stats()
-                self._publish_device_health()
+                if self._vc_connection is not None:
+                    self._vc_connection.set_main_agent(self)
+                    self._still_connected()
+                    self._publish_stats()
+                    self._publish_device_health()
+                else:
+                    next_update_time = self._next_update_time()
+
+                    self._establish_connection_event = self.core.schedule(
+                        next_update_time, self._establish_connection_to_vc)
 
     def _still_connected(self):
 
@@ -541,6 +583,8 @@ volttron-central-serverkey."""
             with gevent.Timeout(seconds=5):
                 hello = self._vc_connection.vip.ping(
                     b'', self._instance_id).get()
+                # print(self._vc_connection.identity)
+                # print(self._vc_connection.vip.peerlist().get())
         except gevent.Timeout:
             self._vc_connection = None
             self._establish_connection_to_vc()

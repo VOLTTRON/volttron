@@ -290,7 +290,7 @@ class VolttronCentralAgent(Agent):
         if self._platform_scan_event is not None:
             # This won't hurt anything if we are canceling ourselves.
             self._platform_scan_event.cancel()
-
+        print("PEER LIST IS NOW:\n", self.vip.peerlist().get(timeout=5))
         # Identities of all platform agents that are connecting to us should
         # have an identity of platform.md5hash.
         connected_platforms = set([x for x in self.vip.peerlist().get(timeout=5)
