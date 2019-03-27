@@ -84,8 +84,18 @@ All historians support the following settings:
 
         # For historian developers. Adds benchmarking information to gathered data.
         # Defaults to false and should be left that way.
-        "gather_timing_data": false,
+        "gather_timing_data": false
 
+        # Allow for the custom topics or for limiting topics picked up by a historian instance.
+        # the key for each entry in custom topics is the data handler.  The topic and data must
+        # conform to the syntax the handler expects (e.g., the capture_device_data handler expects
+        # data the driver framework).  The list associated with the handler is a list of custom
+        # topics to associated with that handler.
+        "custom_topics": {
+            "capture_device_data": ["devices/campus/building/device/all"],
+            "capture_analysis_data": ["analysis/application_data/example"],
+            "capture_record_data": ["example"]
+        }
     }
 
 By default the base historian will listen to 4 separate root topics
