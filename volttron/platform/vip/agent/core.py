@@ -598,17 +598,6 @@ class Core(BasicCore):
 
         return connection_failed_check, hello, hello_response
 
-    def stop(self, timeout=None):
-        # Send message to router when stop method is called explicitly
-        frames = [bytes(self.identity)]
-        try:
-            self.connection.send_vip_object(Message(peer=b'', subsystem='agentstop', args=frames))
-        except ZMQError as exc:
-            if exc.errno == ENOTSOCK:
-                _log.error("Socket send on non socket {}".format(self.identity))
-        super(Core, self).stop()
-
-
 class ZMQCore(Core):
     """
     Concrete Core class for ZeroMQ message bus
