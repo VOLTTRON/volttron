@@ -78,8 +78,7 @@ class Auth(SubsystemBase):
 
         core.onsetup.connect(onsetup, self)
 
-    def connect_remote_platform(self, address, server_key=None,
-                                agent_class=None):
+    def connect_remote_platform(self, address, serverkey=None, agent_class=None):
         """
         Atempts to connect to a remote platform to exchange data.
 
@@ -116,13 +115,13 @@ class Auth(SubsystemBase):
             temp_serverkey = hosts.serverkey(address)
             if not temp_serverkey:
                 _log.info("Destination serverkey not found in known hosts file, using config")
-                destination_serverkey = server_key
-            elif not server_key:
+                destination_serverkey = serverkey
+            elif not serverkey:
                 destination_serverkey = temp_serverkey
             else:
-                if temp_serverkey != server_key:
+                if temp_serverkey != serverkey:
                     raise ValueError("server_key passed and known hosts serverkey do not match!")
-                destination_serverkey = server_key
+                destination_serverkey = serverkey
 
             publickey, secretkey = self._core()._get_keys_from_keystore()
 

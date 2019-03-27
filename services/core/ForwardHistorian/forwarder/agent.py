@@ -430,7 +430,7 @@ class ForwardHistorian(BaseHistorian):
             elif self.destination_vip:
                 address = self.destination_vip
 
-            value = self.vip.auth.connect_remote_platform(address, server_key=self.destination_serverkey)
+            value = self.vip.auth.connect_remote_platform(address, serverkey=self.destination_serverkey)
 
         except gevent.Timeout:
             _log.error("Couldn't connect to address: ({})".format(address))
