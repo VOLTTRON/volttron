@@ -1,4 +1,5 @@
 .. _Agent-Development:
+
 Agent Creation Walkthrough
 --------------------------
 
@@ -371,3 +372,44 @@ check the log file.
 -  Start the ListenerAgent as in :ref:`Building VOLTTRON <Building-VOLTTRON>`
 -  Check the log file for messages indicating the TestAgent is receiving
    the ListenerAgents messages:
+
+Automated Test cases and documentation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before contributing a new agent to the VOLTTRON source code repository, please consider adding two other essential
+elements.
+
+1. Integration and unit test cases
+2. README file that includes details of pre-requisite software, agent setup details (such as setting up databases,
+permissions, etc.)and sample configuration
+
+VOLTTRON uses py.test as a framework for executing tests. All unit tests should be based on py.test framework.
+py.test is not installed with the distribution by default.  To install py.test and it's dependencies execute the
+following:
+
+.. code-block:: bash
+
+    python bootstrap.py --testing
+
+.. note::
+
+  There are other options for different agent requirements.  To see all of the options use:
+
+  .. code-block:: bash
+
+    python bootstrap.py --help
+
+  in the Extra Package Options section.
+
+To run a single test module, use the command
+
+.. code-block:: bash
+
+    pytest <testmodule.py>
+
+To run all of the tests in the volttron repository execute the following in the
+root directory using an activated command prompt:
+
+.. code-block:: bash
+
+    ./ci-integration/run-tests.sh
