@@ -55,12 +55,15 @@
 
 # }}}
 
+__docformat__ = 'reStructuredText'
+
 import logging
 import re
 import sys
 import json
 import grequests
 import datetime
+import pkg_resources
 from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.agent import utils
 from volttron.utils.docs import doc_inherit
@@ -121,6 +124,15 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             return datetime.timedelta(hours=1)
         else:
             return None
+
+    def get_point_name_defs_file(self):
+        """
+        Constructs the point name mapping dict from the
+        mapping csv.
+        :return: dictionary containing a mapping of service point
+        names to standard point names with optional
+        """
+        return pkg_resources.resource_stream(__name__, "data/name_mapping.csv")
 
     def get_location_string(self, location):
         """

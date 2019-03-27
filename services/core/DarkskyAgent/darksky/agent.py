@@ -1,6 +1,59 @@
-"""
-Agent documentation goes here.
-"""
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+#
+# Copyright (c) 2017, Battelle Memorial Institute
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+#  FOR
+# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# The views and conclusions contained in the software and documentation are
+# those of the authors and should not be interpreted as representing official,
+# policies either expressed or implied, of the FreeBSD Project.
+#
+
+# This material was prepared as an account of work sponsored by an
+# agency of the United States Government.  Neither the United States
+# Government nor the United States Department of Energy, nor Battelle,
+# nor any of their employees, nor any jurisdiction or organization
+# that has cooperated in the development of these materials, makes
+# any warranty, express or implied, or assumes any legal liability
+# or responsibility for the accuracy, completeness, or usefulness or
+# any information, apparatus, product, software, or process disclosed,
+# or represents that its use would not infringe privately owned rights.
+#
+# Reference herein to any specific commercial product, process, or
+# service by trade name, trademark, manufacturer, or otherwise does
+# not necessarily constitute or imply its endorsement, recommendation,
+# r favoring by the United States Government or any agency thereof,
+# or Battelle Memorial Institute. The views and opinions of authors
+# expressed herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#
+# PACIFIC NORTHWEST NATIONAL LABORATORY
+# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
+
+# }}}
 
 __docformat__ = 'reStructuredText'
 
@@ -11,17 +64,18 @@ import sys
 import re
 import json
 import grequests
+import pkg_resources
 from volttron.platform.agent import utils
-from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.vip.agent import RPC
 from volttron.platform.agent.utils import format_timestamp, get_aware_utc_now
 from volttron.platform.agent.base_weather import BaseWeatherAgent
-from volttron.utils.docs import doc_inherit
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 __version__ = "0.1"
 
 WEATHER_WARN = "weather_warnings"
+WEATHER_ERROR = "weather_error"
 WEATHER_RESULTS = "weather_results"
 
 SERVICES_MAPPING = {
@@ -38,8 +92,6 @@ SERVICES_MAPPING = {
      {'service': 'get_minutely_forecast', 'json_name': 'minutely', 'type':
          'forecast'}
 }
-
-WEATHER_ERROR = "weather_error"
 
 LAT_LONG_REGEX = re.compile("^-?[0-9]{1,3}(\.[0-9]{1,4})?$")
 
@@ -60,7 +112,7 @@ def darksky(config_path, **kwargs):
         config = {}
     if not config:
         _log.error("Darksky agent configuration: ".format(config))
-        # TODO an additional check should be made here for the api key
+    if "api_key" not in config:
         raise RuntimeError("Darksky agent must be configured with an api key.")
     _log.debug("config_dict before init: {}".format(config))
     utils.update_kwargs_with_config(kwargs, config)
@@ -73,11 +125,15 @@ class Darksky(BaseWeatherAgent):
     The Darksky agent requires having an API key to interact with the remote
     API. The agent offers a performance_mode configuration option which
     allows users to limit the amount of data returned by the API.
+
+    ***Powered by Dark Sky***
     """
 
     def __init__(self, performance_mode=False, **kwargs):
         super(Darksky, self).__init__(**kwargs)
         self.performance_mode = performance_mode
+        if self.performance_mode:
+            _log.info("Darksky agent staring in performance mode")
         _log.debug("vip_identity: " + self.core.identity)
         self.headers = {"Accept": "application/json",
                         "Accept-Language": "en-US"
@@ -170,9 +226,14 @@ class Darksky(BaseWeatherAgent):
                 "Service {} is not implemented by Darksky.".format(
                     service_name))
 
-    # TODO
     def get_point_name_defs_file(self):
-        pass
+        """
+        Constructs the point name mapping dict from the
+        mapping csv.
+        :return: dictionary containing a mapping of service point
+        names to standard point names with optional
+        """
+        return pkg_resources.resource_stream(__name__, "data/name_mapping.csv")
 
     def get_darksky_forecast(self, service, location):
         """
@@ -190,13 +251,13 @@ class Darksky(BaseWeatherAgent):
                 service_json_name = SERVICES_MAPPING[service_code]['json_name']
         if "lat" in location and 'long' in location:
             url = "https://api.darksky.net/forecast/{key}/{lat}," \
-               "{long}".format(key=self._api_key, lat=location['lat'],
+               "{long}?units=si".format(key=self._api_key, lat=location['lat'],
                                long=location['long'])
             if self.performance_mode:
                 services = ["currently", "hourly", "minutely", "daily"]
                 if service_json_name and service_json_name in services:
                     services.remove(service_json_name)
-                    url += "?excludes=" + ",".join(services)
+                    url += "&exclude=" + ",".join(services)
                 else:
                     raise RuntimeError("Requested service {} is not provided"
                                        " by the Darksky API".format(service))
@@ -214,8 +275,7 @@ class Darksky(BaseWeatherAgent):
         return response
 
     @staticmethod
-    def format_multientry_response(location, response, request_type,
-                                   timezone=None):
+    def format_multientry_response(location, response, request_type):
         """
         Used to extract the data not used by the RPC method, and store it in
         the cache, helping to limit the number of API calls used to obtain data
@@ -231,7 +291,7 @@ class Darksky(BaseWeatherAgent):
             .replace(microsecond=0, second=0, minute=0)
         for entry in response['data']:
             entry_time = datetime.datetime.fromtimestamp(entry['time'],
-                                                         tz=timezone)
+                                                         pytz.utc)
             if request_type is 'forecast':
                 data.append([json.dumps(location), generation_time, entry_time,
                              json.dumps(entry)])
@@ -249,11 +309,11 @@ class Darksky(BaseWeatherAgent):
         """
         darksky_response = self.get_darksky_forecast(
             SERVICES_MAPPING['SERVICE_CURRENT_WEATHER']['service'], location)
-        response_timezone = pytz.timezone(darksky_response['timezone'])
         current_response = darksky_response.pop('currently')
-        current_epoch = current_response['time']
-        current_time = datetime.datetime.fromtimestamp(current_epoch,
-                                                       tz=response_timezone)
+        # Darksky required attribution
+        current_response["attribution"] = "Powered by Dark Sky"
+        current_time = datetime.datetime.fromtimestamp(
+            current_response['time'], pytz.utc)
         if not self.performance_mode:
             # if performance mode isn't running we'll be receiving extra data
             # that we can store to help with conserving daily api calls
@@ -265,7 +325,7 @@ class Darksky(BaseWeatherAgent):
                         SERVICES_MAPPING[service]['json_name'])
                     service_data = self.format_multientry_response(
                         location, service_response, SERVICES_MAPPING[
-                            service]['type'], timezone=response_timezone)
+                            service]['type'])
                     self.store_weather_records(SERVICES_MAPPING[service][
                                                    'service'], service_data)
         return format_timestamp(current_time), current_response
@@ -290,34 +350,41 @@ class Darksky(BaseWeatherAgent):
             SERVICES_MAPPING[service_name]['service'], location)
         forecast_response = darksky_response.pop(SERVICES_MAPPING[service_name]
                                                  ['json_name'])
-        response_timezone = pytz.timezone(darksky_response['timezone'])
         forecast_data = []
         for entry in forecast_response['data']:
             entry_time = datetime.datetime.fromtimestamp(entry['time'],
-                                                         tz=response_timezone)
+                                                         pytz.utc)
+            # Darksky required attribution
+            entry["attribution"] = "Powered by Dark Sky"
             forecast_data.append([format_timestamp(entry_time), entry])
-        generation_time = format_timestamp(get_aware_utc_now()
-                                           .replace(microsecond=0, second=0,
-                                                    minute=0))
+        if service == "get_minutely_weather":
+            now = get_aware_utc_now()
+            gen_minutes = now.minute / 5 * 5
+            generation_time = now.replace(microsecond=0, second=0,
+                                          minute=gen_minutes)
+        else:
+            generation_time = format_timestamp(get_aware_utc_now()
+                                               .replace(microsecond=0, second=0,
+                                                        minute=0))
         if not self.performance_mode:
             # if performance mode isn't running we'll be receiving extra data
             # that we can store to help with conserving daily api calls
-            for header in SERVICES_MAPPING:
-                if header is not service_name and \
-                        SERVICES_MAPPING[header]['json_name'] in \
+            for service_code in SERVICES_MAPPING:
+                if service_code is not service_name and \
+                        SERVICES_MAPPING[service_code]['json_name'] in \
                         darksky_response:
                     service_response = darksky_response.pop(
-                        SERVICES_MAPPING[header]['json_name'])
-                    if SERVICES_MAPPING[header]['type'] is not 'current':
+                        SERVICES_MAPPING[service_code]['json_name'])
+                    if SERVICES_MAPPING[service_code]['type'] is not 'current':
                         service_data = self.format_multientry_response(
                             location, service_response, SERVICES_MAPPING[
-                                header]['type'], timezone=response_timezone)
+                                service_code]['type'])
                     else:
                         service_data = \
                             [json.dumps(location), datetime.datetime.
                                 fromtimestamp(service_response['time']),
                              json.dumps(service_response)]
-                    self.store_weather_records(SERVICES_MAPPING[header][
+                    self.store_weather_records(SERVICES_MAPPING[service_code][
                                                    'service'], service_data)
         return generation_time, forecast_data
 
@@ -331,11 +398,11 @@ class Darksky(BaseWeatherAgent):
         """
         # maximum of 60 minutes plus the current minute of forecast available
         # TODO check that this is the desired behavior
-        if minutes > 61:
-            minutes = 61
+        if minutes > 60:
+            minutes = 60
         return self.get_forecast_by_service(locations, SERVICES_MAPPING[
                                                 'SERVICE_MINUTELY_FORECAST'][
-                                                'service'],
+                                                'service'], 'minute',
                                             minutes)
 
     @RPC.export
@@ -347,10 +414,12 @@ class Darksky(BaseWeatherAgent):
         :return: List of daily forecast weather dictionaries
         """
         # maximum of 8 days including the current day provided by the API
+        if days > 7:
+            days = 7
         return self.get_forecast_by_service(locations,
                                             SERVICES_MAPPING[
                                                 'SERVICE_DAILY_FORECAST'][
-                                                'service'],
+                                                'service'], 'day',
                                             days)
 
     @staticmethod

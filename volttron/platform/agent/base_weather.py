@@ -61,6 +61,7 @@ import json
 import csv
 import sqlite3
 import datetime
+import pkg_resources
 from functools import wraps
 from abc import abstractmethod
 from gevent import get_hub
@@ -70,7 +71,6 @@ from volttron.platform.agent.utils import fix_sqlite3_datetime, \
 from volttron.platform.vip.agent import *
 from volttron.platform.async import AsyncCall
 from volttron.platform.messaging import headers
-import pkg_resources
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_GOOD,
                                                 Status)
@@ -158,6 +158,7 @@ class BaseWeatherAgent(Agent):
             self._api_calls_period, self._api_calls_limit = \
                 self.get_api_calls_settings()
             self.point_name_mapping = self.parse_point_name_mapping()
+            _log.debug("POINT MAP = {}".format(self.point_name_mapping))
             self._api_services = {
                 SERVICE_CURRENT_WEATHER:
                     {"type": "current",
@@ -344,6 +345,7 @@ class BaseWeatherAgent(Agent):
         self._default_config.update(config)
         self.vip.config.set_default("config", self._default_config)
 
+    @abstractmethod
     def get_point_name_defs_file(self):
         """
         :return: file path of a csv containing a mapping of
@@ -355,7 +357,6 @@ class BaseWeatherAgent(Agent):
         the concrete agent does not require point name mapping and/or unit
         conversion.
         """
-        return pkg_resources.resource_stream(__name__, "data/name_mapping.csv")
 
     def parse_point_name_mapping(self):
         """
@@ -669,7 +670,8 @@ class BaseWeatherAgent(Agent):
         :return: dictionary containing a single record of current weather data
         """
 
-    def get_forecast_by_service(self, locations, service, quantity):
+    def get_forecast_by_service(self, locations, service, service_length,
+                                quantity):
         """
         RPC method returning hourly forecast weather data for each location
         provided. Will provide cached data for
@@ -750,7 +752,8 @@ class BaseWeatherAgent(Agent):
             record_dict = self.get_cached_forecast_by_service(location,
                                                               quantity,
                                                               request_time,
-                                                              service)
+                                                              service,
+                                                              service_length)
             cache_warning = record_dict.get(WEATHER_WARN)
             # if cache didn't work out query remote api
             if not record_dict.get(WEATHER_RESULTS):
@@ -783,11 +786,13 @@ class BaseWeatherAgent(Agent):
         user would like returned
         :return:
         """
-        return self.get_forecast_by_service(locations, SERVICE_HOURLY_FORECAST,
+        return self.get_forecast_by_service(locations,
+                                            SERVICE_HOURLY_FORECAST, 'hour',
                                             hours)
 
+    # TODO service length docstring
     def get_cached_forecast_by_service(self, location, quantity, request_time,
-                                       service):
+                                       service, service_length):
         """
         Retrieves forecast weather data stored in cache if it exists and is
         current (the generation timestamp is
@@ -798,6 +803,7 @@ class BaseWeatherAgent(Agent):
         :param request_time: time at which the request for data was made,
         used for checking if the data is current.
         :param service: service for which to retrieve cached forecast records
+        :param service_length:
         :return: dictionary of forecast weather data for the location
         """
         record_dict = location.copy()
@@ -806,7 +812,7 @@ class BaseWeatherAgent(Agent):
         # format [(generation_time, forecast_time, points), ...]
         try:
             most_recent_for_location = \
-                self._cache.get_forecast_data(service,
+                self._cache.get_forecast_data(service, service_length,
                                               json.dumps(location),
                                               quantity, request_time)
             location_data = []
@@ -1120,6 +1126,7 @@ class BaseWeatherAgent(Agent):
         table.
         :param records: list of records to put into the insert query.
         """
+        _log.debug("STORING RECORDS FOR {}".format(service_name))
         try:
             cache_full = self._cache.store_weather_records(service_name,
                                                            records)
@@ -1363,7 +1370,9 @@ class WeatherCache:
         else:
             return None, None
 
-    def get_forecast_data(self, service_name, location, quantity, request_time):
+    def get_forecast_data(self, service_name, service_length, location, \
+                                                             quantity,
+                          request_time):
         """
         Retrieves the most recent forecast record set (forecast should be a
         time-series) by location
@@ -1380,11 +1389,23 @@ class WeatherCache:
         # after when user requested the data and endtime < start+hours
         # do this to avoid returning data for hours 4 to 10 instead of
         # 2-8 when the request time is hour 1.
-        forecast_start = request_time + datetime.timedelta(hours=1)
-        forecast_start = forecast_start.replace(minute=0, second=0,
-                                                microsecond=0)
-        forecast_end = forecast_start + datetime.timedelta(hours=quantity)
-
+        if service_length == "hour":
+            forecast_start = request_time + datetime.timedelta(hours=1)
+            forecast_start = forecast_start.replace(minute=0, second=0,
+                                                    microsecond=0)
+            forecast_end = forecast_start + datetime.timedelta(hours=quantity)
+        elif service_length == "minute":
+            forecast_start = request_time + datetime.timedelta(minutes=1)
+            forecast_start = forecast_start.replace(second=0,
+                                                    microsecond=0)
+            forecast_end = forecast_start + datetime.timedelta(minutes=quantity)
+        elif service_length == "day":
+            forecast_start = request_time + datetime.timedelta(days=1)
+            forecast_start = forecast_start.replace(hours=0, minute=0, second=0,
+                                                    microsecond=0)
+            forecast_end = forecast_start + datetime.timedelta(days=quantity)
+        else:
+            raise RuntimeError("Unsupported service length")
         cursor = self._sqlite_conn.cursor()
         query = """SELECT GENERATION_TIME, FORECAST_TIME, POINTS 
                    FROM {table} 
@@ -1403,34 +1424,34 @@ class WeatherCache:
         cursor.close()
         return data
 
-    def get_historical_data(self, service_name, location, date_timestamp):
-        """
-        Retrieves historical data over the the given time period by location
-        :param service_name: name of the api service for table lookup
-        :param location: location to query by
-        :param date_timestamp: date for which to return a record set
-        :return: list of historical records for the provided date/location
-        """
-        start_timestamp = date_timestamp
-        end_timestamp = date_timestamp + (
-                    datetime.timedelta(days=1) - datetime.timedelta(
-                        milliseconds=1))
-        if service_name not in self._api_services:
-            raise ValueError(
-                "service {} does not exist in the agent's services.".format(
-                    service_name))
-
-        cursor = self._sqlite_conn.cursor()
-        query = """SELECT OBSERVATION_TIME, POINTS 
-                   FROM {table} WHERE LOCATION = ? 
-                   AND OBSERVATION_TIME BETWEEN ? AND ? 
-                   ORDER BY OBSERVATION_TIME ASC;""".format(
-            table=service_name)
-        _log.debug(query)
-        cursor.execute(query, (location, start_timestamp, end_timestamp))
-        data = cursor.fetchall()
-        cursor.close()
-        return data
+    # def get_historical_data(self, service_name, location, date_timestamp):
+    #     """
+    #     Retrieves historical data over the the given time period by location
+    #     :param service_name: name of the api service for table lookup
+    #     :param location: location to query by
+    #     :param date_timestamp: date for which to return a record set
+    #     :return: list of historical records for the provided date/location
+    #     """
+    #     start_timestamp = date_timestamp
+    #     end_timestamp = date_timestamp + (
+    #                 datetime.timedelta(days=1) - datetime.timedelta(
+    #                     milliseconds=1))
+    #     if service_name not in self._api_services:
+    #         raise ValueError(
+    #             "service {} does not exist in the agent's services.".format(
+    #                 service_name))
+    #
+    #     cursor = self._sqlite_conn.cursor()
+    #     query = """SELECT OBSERVATION_TIME, POINTS
+    #                FROM {table} WHERE LOCATION = ?
+    #                AND OBSERVATION_TIME BETWEEN ? AND ?
+    #                ORDER BY OBSERVATION_TIME ASC;""".format(
+    #         table=service_name)
+    #     _log.debug(query)
+    #     cursor.execute(query, (location, start_timestamp, end_timestamp))
+    #     data = cursor.fetchall()
+    #     cursor.close()
+    #     return data
 
     def store_weather_records(self, service_name, records):
         """
@@ -1569,7 +1590,7 @@ class AsyncWeatherCache(WeatherCache):
 # Cache methods to make available for threading.
 for method in [WeatherCache.get_current_data,
                WeatherCache.get_forecast_data,
-               WeatherCache.get_historical_data,
+               # WeatherCache.get_historical_data,
                WeatherCache._setup_cache,
                WeatherCache.store_weather_records]:
     setattr(AsyncWeatherCache, method.__name__, _using_threadpool(method))
