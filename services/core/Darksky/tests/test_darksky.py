@@ -175,6 +175,12 @@ def test_success_current(volttron_instance, cleanup_cache, weather,
     cursor = sqlite_connection.cursor()
     query_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
                                           locations).get(timeout=30)
+
+    if query_data[0].get("weather_error"):
+        error = query_data[0].get("weather_error")
+        if error.endswith("Remote API returned Code 403"):
+            pytest.skip("API key has exceeded daily call limit")
+
     print(query_data)
 
     expected_minutely = 0 if identity == 'platform.darksky_perf' else \
@@ -305,6 +311,11 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
     if service == "get_daily_forecast":
         query_data = query_agent.vip.rpc.call(
             identity, service, locations, days=2).get(timeout=30)
+
+    if query_data[0].get("weather_error"):
+        error = query_data[0].get("weather_error")
+        if error.endswith("Remote API returned Code 403"):
+            pytest.skip("API key has exceeded daily call limit")
 
     services = {"get_minutely_forecast": 61,
                 "get_hourly_forecast": 49,
@@ -445,7 +456,7 @@ def test_forecast_fail(weather, query_agent, locations, service):
     ({'poll_locations': [{"lat": 39.7555, "long": -105.2211},
                          {"lat": 46.2804, "long": 119.2752}],
       'poll_interval': 5,
-      'api_key': '902a708bcc2c20fdcd91962640ef5d1b'
+      'api_key': API_KEY
       },
      ['weather/poll/current/all'])
 ])
@@ -456,7 +467,7 @@ def test_polling_locations_valid_config(volttron_instance, query_agent, config,
     try:
         agent_uuid = volttron_instance.install_agent(
             vip_identity="poll.weather",
-            agent_dir=get_services_core("DarkskyAgent"),
+            agent_dir=get_services_core("Darksky"),
             start=False,
             config_file=config)
         volttron_instance.start_agent(agent_uuid)

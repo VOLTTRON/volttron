@@ -270,10 +270,11 @@ class Darksky(BaseWeatherAgent):
         if gresponse is None:
             raise RuntimeError("get request did not return any "
                                "response")
-        response = json.loads(gresponse.content)
-        if gresponse.status_code != 200:
+        try:
+            response = json.loads(gresponse.content)
+            return response
+        except ValueError:
             self.generate_response_error(url, gresponse.status_code)
-        return response
 
     def format_multientry_response(self, location, response, service):
         """
@@ -430,8 +431,7 @@ class Darksky(BaseWeatherAgent):
                                                 'service'], 'day',
                                             days)
 
-    @staticmethod
-    def generate_response_error(url, response_code):
+    def generate_response_error(self, url, response_code):
         """
         raises a descriptive runtime error based on the response code
         returned by a service.
@@ -451,8 +451,8 @@ class Darksky(BaseWeatherAgent):
                                                                url))
         elif code_x100 == 4:
             raise RuntimeError(
-                "Invalid request ({}) Remote API returned "
-                " Code {}".format(url, response_code))
+                "Request ({}) rejected by remote API: Remote API returned "
+                "Code {}".format(url, response_code))
         elif code_x100 == 5:
             raise RuntimeError(
                 "Remote API returned invalid response "

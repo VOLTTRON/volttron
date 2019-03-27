@@ -315,13 +315,14 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         if gresponse is None:
             raise RuntimeError("get request did not return any "
                                "response")
-        response = json.loads(gresponse.content)
-        if gresponse.status_code != 200:
-            self.generate_response_error(url, gresponse.status_code)
-        else:
+        try:
+            response = json.loads(gresponse.content)
             properties = response["properties"]
             observation_time = properties["timestamp"]
             return observation_time, properties
+        except ValueError:
+            self.generate_response_error(url, gresponse.status_code)
+
 
     @doc_inherit
     def query_forecast_service(self, service, location):
@@ -359,10 +360,8 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         if gresponse is None:
             raise RuntimeError("get request did not return any "
                                "response")
-        response = json.loads(gresponse.content)
-        if gresponse.status_code != 200:
-            self.generate_response_error(url, gresponse.status_code)
-        else:
+        try:
+            response = json.loads(gresponse.content)
             data = []
             properties = response["properties"]
             generation_time = properties["generatedAt"]
@@ -372,6 +371,9 @@ class WeatherDotGovAgent(BaseWeatherAgent):
                 record = [forecast_time, period]
                 data.append(record)
             return generation_time, data
+        except ValueError:
+            self.generate_response_error(url, gresponse.status_code)
+
 
     def query_hourly_historical(self, location, start_date, end_date):
         """
