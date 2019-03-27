@@ -37,6 +37,7 @@
 # }}}
 
 import pytest
+import os
 import gevent
 from mock import MagicMock
 import sqlite3
@@ -52,13 +53,13 @@ __version__ = "0.1.0"
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-# TODO remove api key from test configs as well as agent included config
+API_KEY = os.environ.get('DARKSKY_KEY')
 
 darksky_service = {
     'weather_service': get_services_core('DarkskyAgent'),
     'identity': 'platform.darksky',
     'max_size_gb': None,
-    'api_key': '902a708bcc2c20fdcd91962640ef5d1b',
+    'api_key': API_KEY,
     'poll_locations': [],
     'poll_interval': 5,
     'performance_mode': False
@@ -68,7 +69,7 @@ darksky_perf = {
     'weather_service': get_services_core('DarkskyAgent'),
     'identity': 'platform.darksky_perf',
     'max_size_gb': None,
-    'api_key': '902a708bcc2c20fdcd91962640ef5d1b',
+    'api_key': API_KEY,
     'poll_locations': [],
     'poll_interval': 5,
     'performance_mode': True
@@ -80,6 +81,13 @@ polling_service = {
     'api_key': '902a708bcc2c20fdcd91962640ef5d1b',
     'poll_interval': 5
 }
+
+pytestmark = pytest.mark.skipif(not API_KEY, reason="No API key found. "
+                                                    "Darksky weather API "
+                                                    "key needs to be set in "
+                                                    "the environment variable "
+                                                    "DARKSKY_KEY")
+
 
 @pytest.fixture(scope="function")
 def cleanup_cache(volttron_instance, query_agent, weather):
@@ -227,8 +235,6 @@ def test_success_current(volttron_instance, cleanup_cache, weather,
 
     cache_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
                                           locations).get(timeout=30)
-
-    print("CACHE DATA = {}".format(cache_data))
     # check names returned are valid
     assert len(cache_data) == len(cache_data)
     for x in range(0, len(cache_data)):
@@ -274,7 +280,7 @@ def test_current_fail(weather, query_agent, locations):
     ([{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": -119.2752}],
      'get_hourly_forecast'),
 ])
-@pytest.mark.dev
+@pytest.mark.darksky
 def test_success_forecast(volttron_instance, cleanup_cache, weather,
                                  query_agent,
                                  locations, service):
@@ -288,17 +294,17 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
     sqlite_connection = sqlite3.connect(database_file)
     cursor = sqlite_connection.cursor()
 
+    query_data = []
+
     if service == "get_minutely_forecast":
-        query_data = query_agent.vip.rpc.call(identity, service,
-                                          locations, minutes=2).get(timeout=30)
+        query_data = query_agent.vip.rpc.call(
+            identity, service, locations, minutes=2).get(timeout=30)
     if service == "get_hourly_forecast":
-        query_data = query_agent.vip.rpc.call(identity, service,
-                                              locations, hours=2).get(
-            timeout=30)
+        query_data = query_agent.vip.rpc.call(
+            identity, service, locations, hours=2).get(timeout=30)
     if service == "get_daily_forecast":
-        query_data = query_agent.vip.rpc.call(identity, service,
-                                              locations, days=2).get(
-            timeout=30)
+        query_data = query_agent.vip.rpc.call(
+            identity, service, locations, days=2).get(timeout=30)
 
     services = {"get_minutely_forecast": 61,
                 "get_hourly_forecast": 49,
@@ -317,6 +323,7 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
                 assert num_records is records_amount*len(locations)
 
     assert len(query_data) == len(locations)
+
     for x in range(0, len(query_data)):
         location_data = query_data[x]
         assert location_data.get("lat") and location_data.get("long")
@@ -338,24 +345,24 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
             for record in results:
                 forecast_time = utils.parse_timestamp_string(record[0])
                 assert isinstance(forecast_time, datetime)
-                if not service =="get_minutely_forecast":
+                if not service == "get_minutely_forecast":
                     assert 'summary' in record[1]
                 else:
                     assert 'summary' not in record[1]
                 assert record[1]["attribution"] == "Powered by Dark Sky"
 
+    cache_data = []
+
     if service == 'get_minutely_forecast':
-        cache_data = query_agent.vip.rpc.call(identity, service,
-                                              locations,
-                                              minutes=2).get(timeout=30)
+        cache_data = query_agent.vip.rpc.call(
+            identity, service, locations, minutes=2).get(timeout=30)
     if service == 'get_hourly_forecast':
-        cache_data = query_agent.vip.rpc.call(identity, service,
-                                              locations,
-                                              hours=2).get(timeout=30)
+        cache_data = query_agent.vip.rpc.call(
+            identity, service, locations, hours=2).get(
+            timeout=30)
     if service == 'get_daily_forecast':
-        cache_data = query_agent.vip.rpc.call(identity, service,
-                                              locations,
-                                              days=2).get(timeout=30)
+        cache_data = query_agent.vip.rpc.call(
+            identity, service, locations, days=2).get(timeout=30)
 
     assert len(cache_data) == len(query_data)
     for x in range(0, len(cache_data)):

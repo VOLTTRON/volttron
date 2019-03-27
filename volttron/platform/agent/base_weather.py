@@ -790,7 +790,6 @@ class BaseWeatherAgent(Agent):
                                             SERVICE_HOURLY_FORECAST, 'hour',
                                             hours)
 
-    # TODO service length docstring
     def get_cached_forecast_by_service(self, location, quantity, request_time,
                                        service, service_length):
         """
@@ -817,7 +816,7 @@ class BaseWeatherAgent(Agent):
                                               quantity, request_time)
             location_data = []
             if most_recent_for_location:
-                _log.debug(" from cache")
+                _log.debug("from cache")
 
                 generation_time = most_recent_for_location[0][0]
                 next_update_at = generation_time + interval
@@ -868,15 +867,15 @@ class BaseWeatherAgent(Agent):
         stored
         """
 
-    def get_remote_forecast(self, service, location, hours, request_time):
+    def get_remote_forecast(self, service, location, quantity, request_time):
         """
         Retrieves forecast weather data for a location from the remote api
         service provider
         :param service: Desired remote forecast service - Available services are
         determined by concrete implementations of the weather agent
         :param location: location for which to retrieve forecast weather records
-        :param hours: number of hours worth of data to include with each
-        location's records
+        :param quantity: number of time -series records to included with each
+        location
         :param request_time: time at which the request for data was made,
         used for checking if the data is current.
         :return: dictionary containing forecast weather data, or an error
@@ -918,7 +917,7 @@ class BaseWeatherAgent(Agent):
                                       forecast_time,
                                       json.dumps(item[1])]
                     storage_records.append(storage_record)
-                    if len(location_data) < hours and \
+                    if len(location_data) < quantity and \
                             forecast_time > request_time:
                         # checking time because weather.gov returns fixed set
                         # of data and some of the records might be older than
@@ -942,7 +941,7 @@ class BaseWeatherAgent(Agent):
                 result[WEATHER_ERROR] = \
                     "No records were returned by the weather query"
 
-            if location_data and len(location_data) < hours:
+            if location_data and len(location_data) < quantity:
                 warnings = result.get(WEATHER_WARN, [])
                 warnings.append("Weather provider returned less than requested "
                                 "amount of data")
@@ -1126,7 +1125,6 @@ class BaseWeatherAgent(Agent):
         table.
         :param records: list of records to put into the insert query.
         """
-        _log.debug("STORING RECORDS FOR {}".format(service_name))
         try:
             cache_full = self._cache.store_weather_records(service_name,
                                                            records)
@@ -1370,15 +1368,15 @@ class WeatherCache:
         else:
             return None, None
 
-    def get_forecast_data(self, service_name, service_length, location, \
-                                                             quantity,
-                          request_time):
+    def get_forecast_data(self, service_name, service_length, location,
+                          quantity, request_time):
         """
         Retrieves the most recent forecast record set (forecast should be a
         time-series) by location
         :param service_name: name of the api service for table lookup
+        :param service_length: indicates the length of time between records
         :param location: location to query by
-        :param hours: number of hours (records) to query for
+        :param quantity: number of records to query for
         :param request_time: time at which the data was requested, used to
         compare with generation time.
         :return: list of up-to-date forecast records for the location
@@ -1401,7 +1399,7 @@ class WeatherCache:
             forecast_end = forecast_start + datetime.timedelta(minutes=quantity)
         elif service_length == "day":
             forecast_start = request_time + datetime.timedelta(days=1)
-            forecast_start = forecast_start.replace(hours=0, minute=0, second=0,
+            forecast_start = forecast_start.replace(hour=0, minute=0, second=0,
                                                     microsecond=0)
             forecast_end = forecast_start + datetime.timedelta(days=quantity)
         else:

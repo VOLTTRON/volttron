@@ -252,7 +252,7 @@ class Darksky(BaseWeatherAgent):
         if "lat" in location and 'long' in location:
             url = "https://api.darksky.net/forecast/{key}/{lat}," \
                "{long}?units=si".format(key=self._api_key, lat=location['lat'],
-                               long=location['long'])
+                                        long=location['long'])
             if self.performance_mode:
                 services = ["currently", "hourly", "minutely", "daily"]
                 if service_json_name and service_json_name in services:
@@ -274,25 +274,31 @@ class Darksky(BaseWeatherAgent):
             self.generate_response_error(url, gresponse.status_code)
         return response
 
-    @staticmethod
-    def format_multientry_response(location, response, request_type):
+    def format_multientry_response(self, location, response, service):
         """
         Used to extract the data not used by the RPC method, and store it in
         the cache, helping to limit the number of API calls used to obtain data
         :param location: location dictionary to include with cached data
         :param response: Darksky forecast response
-        :param request_type: The type service data to extract and format
-        :param timezone: Timezone of the timestamps in the forecast response
-        data
+        :param service:
         :return: formatted response data by service
         """
         data = []
-        generation_time = get_aware_utc_now()\
-            .replace(microsecond=0, second=0, minute=0)
+        generation_time = get_aware_utc_now()
+        if service == "get_minutely_forecast":
+            interval_minutes = self.get_update_interval(
+                'get_minutely_forecast').seconds / 60
+            gen_minutes = (generation_time.minute / interval_minutes)\
+                * interval_minutes
+            generation_time = format_timestamp(generation_time.replace(
+                microsecond=0, second=0, minute=gen_minutes))
+        else:
+            generation_time = format_timestamp(generation_time.replace(
+                microsecond=0, second=0, minute=0))
         for entry in response['data']:
             entry_time = datetime.datetime.fromtimestamp(entry['time'],
                                                          pytz.utc)
-            if request_type is 'forecast':
+            if 'forecast' in service:
                 data.append([json.dumps(location), generation_time, entry_time,
                              json.dumps(entry)])
             else:
@@ -325,7 +331,7 @@ class Darksky(BaseWeatherAgent):
                         SERVICES_MAPPING[service]['json_name'])
                     service_data = self.format_multientry_response(
                         location, service_response, SERVICES_MAPPING[
-                            service]['type'])
+                            service]['service'])
                     self.store_weather_records(SERVICES_MAPPING[service][
                                                    'service'], service_data)
         return format_timestamp(current_time), current_response
@@ -357,15 +363,15 @@ class Darksky(BaseWeatherAgent):
             # Darksky required attribution
             entry["attribution"] = "Powered by Dark Sky"
             forecast_data.append([format_timestamp(entry_time), entry])
-        if service == "get_minutely_weather":
-            now = get_aware_utc_now()
+
+        now = get_aware_utc_now()
+        if service == "get_minutely_forecast":
             gen_minutes = now.minute / 5 * 5
-            generation_time = now.replace(microsecond=0, second=0,
-                                          minute=gen_minutes)
+            generation_time = format_timestamp(
+                now.replace(microsecond=0, second=0, minute=gen_minutes))
         else:
-            generation_time = format_timestamp(get_aware_utc_now()
-                                               .replace(microsecond=0, second=0,
-                                                        minute=0))
+            generation_time = format_timestamp(
+                now.replace(microsecond=0, second=0, minute=0))
         if not self.performance_mode:
             # if performance mode isn't running we'll be receiving extra data
             # that we can store to help with conserving daily api calls
@@ -378,7 +384,7 @@ class Darksky(BaseWeatherAgent):
                     if SERVICES_MAPPING[service_code]['type'] is not 'current':
                         service_data = self.format_multientry_response(
                             location, service_response, SERVICES_MAPPING[
-                                service_code]['type'])
+                                service_code]['service'])
                     else:
                         service_data = \
                             [json.dumps(location), datetime.datetime.
@@ -414,6 +420,7 @@ class Darksky(BaseWeatherAgent):
         :return: List of daily forecast weather dictionaries
         """
         # maximum of 8 days including the current day provided by the API
+        # TODO check that this is the desired behavior
         if days > 7:
             days = 7
         return self.get_forecast_by_service(locations,

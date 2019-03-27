@@ -212,7 +212,6 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
     :param weather: instance of weather service to be tested
     :param query_agent: agent to leverage to use RPC calls
     """
-    print(datetime.utcnow())
     query_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
                                           locations, hours=2).get(timeout=30)
     # print(query_data)
