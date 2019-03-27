@@ -54,7 +54,7 @@ VC_CONFIG = {
 
 
 @pytest.fixture
-def vc_instance(request, volttron_instance1_web):
+def vc_instance(request, volttron_instance_web):
     """
     Creates an instance of volttron with a `VolttronCentral` agent
     already installed and started.
@@ -65,48 +65,48 @@ def vc_instance(request, volttron_instance1_web):
         - the jsonrpc address to be used for communicating with the
           `VolttronCentral` agent.
     """
-    agent_uuid = volttron_instance1_web.install_agent(
+    agent_uuid = volttron_instance_web.install_agent(
         agent_dir=get_services_core("VolttronCentral"),
         config_file=VC_CONFIG,
         start=True
     )
 
-    rpc_addr = volttron_instance1_web.jsonrpc_endpoint
+    rpc_addr = volttron_instance_web.jsonrpc_endpoint
 
     # Allow all incoming connections that are encrypted.
-    volttron_instance1_web.allow_all_connections()
+    volttron_instance_web.allow_all_connections()
 
     def cleanup():
         print('Cleanup vc_instance')
-        volttron_instance1_web.remove_agent(agent_uuid)
-        print_log(volttron_instance1_web.volttron_home)
+        volttron_instance_web.remove_agent(agent_uuid)
+        print_log(volttron_instance_web.volttron_home)
 
     request.addfinalizer(cleanup)
-    return volttron_instance1_web, agent_uuid, rpc_addr
+    return volttron_instance_web, agent_uuid, rpc_addr
 
 
 @pytest.fixture
-def pa_instance(request, volttron_instance2_web):
+def pa_instance(request, volttron_instance_web):
     """
     Creates an instance of volttron with a `VolttronCentralPlatform` agent
     already installed and started.
 
     :returns tuple: the platformwrapper and the uuid of the agaent installed.
     """
-    agent_uuid = volttron_instance2_web.install_agent(
+    agent_uuid = volttron_instance_web.install_agent(
         agent_dir=get_services_core("VolttronCentralPlatform"),
         config_file=PLATFORM_AGENT_CONFIG,
         start=True
     )
 
     # Allow all incoming encrypted connections
-    volttron_instance2_web.allow_all_connections()
+    volttron_instance_web.allow_all_connections()
 
     def cleanup():
         print('Cleanup pa_instance')
-        volttron_instance2_web.remove_agent(agent_uuid)
-        print_log(volttron_instance2_web.volttron_home)
+        volttron_instance_web.remove_agent(agent_uuid)
+        print_log(volttron_instance_web.volttron_home)
 
     request.addfinalizer(cleanup)
 
-    return volttron_instance2_web, agent_uuid
+    return volttron_instance_web, agent_uuid

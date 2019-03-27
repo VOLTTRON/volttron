@@ -59,18 +59,22 @@ from volttron.utils.rmq_setup import stop_rabbit, start_rabbit, restart_ssl
 @pytest.fixture(scope="module")
 def instance(request):
     instance = PlatformWrapper(message_bus='rmq', ssl_auth=True)
-    # becuase tests in the module shutdown and restart instance within test and we don't want
+    # because tests in the module shutdown and restart instance within test and we don't want
     # all rmq users and queues to be deleted.
     instance.skip_cleanup = True
 
     def stop():
+        print("In fixture cleanup. skip clean up is {}".format(instance.skip_cleanup))
         try:
             if instance.is_running():
                instance.shutdown_platform()
         finally:
-            cleanup_rmq_volttron_setup(vhome=instance.volttron_home,
-                                       ssl_auth=instance.ssl_auth)
-            instance.restore_conf()
+            # Since we explicitly set instance.skip_cleanup=True for the entire test suite, we have
+            # call the cleanup explicitly. This will
+            # 1. remove all test rmq users, queues, vhosts
+            # 2. Restore original rabbitmq.conf if one exists
+            # 3. remove the test volttron_home if DEBUG_MODE=True is not set the env
+            instance.cleanup()
 
     request.addfinalizer(stop)
     return instance
