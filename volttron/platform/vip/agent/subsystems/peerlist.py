@@ -97,7 +97,7 @@ class PeerList(SubsystemBase):
         try:
             connection.send_vip_object(Message(peer=b'',
                                                subsystem=b'peerlist',
-                                               args=[b'drop', peer],
+                                               args=[b'drop', bytes(peer)],
                                                id=result.ident))
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:

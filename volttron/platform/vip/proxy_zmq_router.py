@@ -156,6 +156,8 @@ class ZMQProxyRouter(Agent):
         try:
             args = json.loads(body)
             try:
+                # This is necessary because jsonrpc request/response is inside a list which the
+                # ZMQ agent subsystem does not like
                 args = json.loads(args[0])
             except ValueError as e:
                 if isinstance(args, list) and len(args) > 1:
@@ -166,7 +168,7 @@ class ZMQProxyRouter(Agent):
             return
         userid = props.headers.get('user', b'')
 
-        # _log.debug("Proxy ZMQ Router Outbound handler {0}, {1}".format(to_identity, args))
+        _log.debug("Proxy ZMQ Router Outbound handler {0}, {1}".format(to_identity, args))
         # Reformat message into ZMQ VIP format
         frames = [bytes(to_identity), bytes(from_identity), b'VIP1', bytes(userid),
                   bytes(props.message_id), bytes(props.type)]
@@ -176,7 +178,7 @@ class ZMQProxyRouter(Agent):
         try:
             self.zmq_router.socket.send_multipart(frames, copy=True)
         except ZMQError as ex:
-            _log.debug("ZMQ Error {}".format(ex))
+            _log.error("ZMQ Error {}".format(ex))
 
     def outbound_request_handler(self, ch, method, props, body):
         """
@@ -230,12 +232,9 @@ class ZMQProxyRouter(Agent):
                 sender, recipient, proto, auth_token, msg_id, subsystem = frames[:6]
                 recipient = bytes(recipient)
                 subsystem = bytes(subsystem)
-
                 if subsystem == b'hello':
-                    _log.debug("Addding sender to peerlist: {}".format(sender))
                     self.vip.peerlist.add_peer(sender)
                 elif subsystem == b'agentstop':
-                    _log.debug("Dropping sender from peerlist: {}".format(sender))
                     self.vip.peerlist.drop_peer(sender)
 
                 if not recipient:
