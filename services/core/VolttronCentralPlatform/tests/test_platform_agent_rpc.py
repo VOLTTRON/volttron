@@ -30,9 +30,10 @@ _log = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="module",
-                params=[dict(messagebus='zmq', ssl_auth=False),
-                        dict(messagebus='rmq', ssl_auth=True)])
-def setup_platform(messaagebus, ssl_auth):
+                params=[("zmq", False),
+                        # ("rmq", True)
+                ])
+def setup_platform(request):
     """
     Creates a single instance of VOLTTRON with a VOLTTRON Central Platform,
     a listener agent, and a sqlite historian that is a platform.historian.
@@ -40,7 +41,7 @@ def setup_platform(messaagebus, ssl_auth):
     The VOLTTRON Central Platform agent is not registered with a VOLTTRON
     Central Platform.
     """
-    vcp = PlatformWrapper()
+    vcp = PlatformWrapper(messagebus=request.param[0], ssl_auth=request.param[1])
 
     start_wrapper_platform(vcp, with_http=True,
                            add_local_vc_address=True)
