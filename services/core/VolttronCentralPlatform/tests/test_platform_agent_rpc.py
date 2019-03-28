@@ -69,8 +69,12 @@ def setup_platform(request):
 
     yield vcp
 
-    vcp.shutdown_platform()
-    vcp = None
+    print('Shutting down instance: {}'.format(vcp.volttron_home))
+    if vcp.is_running():
+        vcp.remove_all_agents()
+        # Shutdown handles case where the platform hasn't started.
+        vcp.shutdown_platform()
+        vcp.restore_conf()
 
 
 @pytest.fixture(scope="module")
