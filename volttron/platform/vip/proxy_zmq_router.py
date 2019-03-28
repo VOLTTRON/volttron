@@ -152,29 +152,31 @@ class ZMQProxyRouter(Agent):
         routing_key = str(method.routing_key)
         platform, to_identity = routing_key.split(".", 1)
         platform, from_identity = props.app_id.split(".", 1)
-        op = None
+        userid = props.headers.get('user', b'')
+        # Reformat message into ZMQ VIP format
+        frames = [bytes(to_identity), bytes(from_identity), b'VIP1', bytes(userid),
+                  bytes(props.message_id), bytes(props.type)]
         try:
             args = json.loads(body)
             try:
                 # This is necessary because jsonrpc request/response is inside a list which the
                 # ZMQ agent subsystem does not like
                 args = json.loads(args[0])
+                frames.append(json.dumps(args))
+                _log.debug("Outbound message : {}".format(args))
             except ValueError as e:
-                if isinstance(args, list) and len(args) > 1:
-                    op = args.pop(0)
+                _log.debug("Outbound message ValueError: {}".format(args))
+                if isinstance(args, list):
+                    for m in args:
+                        frames.append(bytes(m))
+                else:
+                    frames.append(json.dumps(args))
         except TypeError as e:
-            # TODO: to be fixed
             _log.error("Invalid json format {}".format(e))
             return
-        userid = props.headers.get('user', b'')
 
         _log.debug("Proxy ZMQ Router Outbound handler {0}, {1}".format(to_identity, args))
-        # Reformat message into ZMQ VIP format
-        frames = [bytes(to_identity), bytes(from_identity), b'VIP1', bytes(userid),
-                  bytes(props.message_id), bytes(props.type)]
-        if op is not None:
-            frames.append(bytes(op))
-        frames.append(json.dumps(args))
+
         try:
             self.zmq_router.socket.send_multipart(frames, copy=True)
         except ZMQError as ex:

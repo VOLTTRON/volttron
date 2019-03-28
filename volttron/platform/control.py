@@ -261,7 +261,7 @@ class ControlService(BaseAgent):
         frames = [bytes(identity)]
 
         # self.core.socket.send_vip(b'', 'agentstop', frames, copy=False)
-        self.core.connection.send_vip_object(Message(peer=b'', subsystem='agentstop', args=frames))
+        self.core.connection.send_vip_object(Message(peer=b'', subsystem='agentstop', args=frames), copy=False)
 
     @RPC.export
     def restart_agent(self, uuid):
