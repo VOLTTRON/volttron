@@ -220,10 +220,19 @@ class VolttronCentralPlatform(Agent):
         # This uses convience methods so we can get information from the proxied
         # devices
         self._bacnet_proxy_readers = None
+        self._vc_connection = None # VCConnection()
+
+    # @Core.receiver('onsetup')
+    # def _setup(self, sender, **kwargs):
+    #     self.vip.rpc.export(self._vc_connection.start_agent, 'start_agent')
 
     def _retrieve_address_and_serverkey(self, discovery_address):
         info = DiscoveryInfo.request_discovery_info(discovery_address)
         return info.vip_address, info.serverkey
+
+    @Core.periodic(5)
+    def _print_peers(self):
+        _log.debug("PEERS:------ {}".format(self.vip.peerlist().get()))
 
     def _configure(self, config_name, action, contents):
         """
@@ -351,7 +360,7 @@ class VolttronCentralPlatform(Agent):
 
         # Begin a connection loop that will automatically attempt to reconnect
         # and publish stats to volttron central if the connection is successful.
-        self._establish_connection_to_vc()
+        self.core.spawn_later(2, self._establish_connection_to_vc)
 
     def _stop_event_timers(self):
         if self._establish_connection_event is not None:

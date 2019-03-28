@@ -166,13 +166,13 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
 
 
 class PlatformWrapper:
-    def __init__(self, message_bus=None, ssl_auth=False):
+    def __init__(self, messagebus=None, ssl_auth=False, instance_name=None):
         """ Initializes a new VOLTTRON instance
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory
         for agents that are built.
 
-        :param message_bus: rmq or zmq
+        :param messagebus: rmq or zmq
         :param ssl_auth: if message_bus=rmq, authenticate users if True
         """
 
@@ -216,7 +216,7 @@ class PlatformWrapper:
         self.jsonrpc_endpoint = None
         self.volttron_central_address = None
         self.volttron_central_serverkey = None
-        self.instance_name = None
+        self.instance_name = instance_name
         self.serverkey = None
 
         self.p_process = None
@@ -245,7 +245,7 @@ class PlatformWrapper:
         keystorefile = os.path.join(self.volttron_home, 'keystore')
         self.keystore = KeyStore(keystorefile)
         self.keystore.generate()
-        self.message_bus = message_bus if message_bus else 'zmq'
+        self.message_bus = messagebus if messagebus else 'zmq'
         self.ssl_auth = ssl_auth
         self.rmq_conf_backup = None
         if self.message_bus == 'rmq':
@@ -438,15 +438,9 @@ class PlatformWrapper:
                          instance_name=None,
                          agent_monitor_frequency=600,
                          timeout=60):
-
-        # if not isinstance(vip_address, list):
-        #     self.vip_address = [vip_address]
-        # else:
-        #     self.vip_address = vip_address
-
         self.vip_address = vip_address
         self.mode = mode
-        self.volttron_central_address=volttron_central_address
+        self.volttron_central_address= volttron_central_address
         self.volttron_central_serverkey=volttron_central_serverkey
         if instance_name:
             self.instance_name = instance_name
@@ -494,7 +488,8 @@ class PlatformWrapper:
                      'monitor': True,
                      'autostart': True,
                      'log_level': logging.DEBUG,
-                     'verboseness': logging.DEBUG}
+                     'verboseness': logging.DEBUG,
+                     'instance_name': instance_name}
 
         pconfig = os.path.join(self.volttron_home, 'config')
         config = {}
@@ -529,6 +524,7 @@ class PlatformWrapper:
 
         self.logit(
             "Platform will run on message bus type {} ".format(self.message_bus))
+        self.logit("writing config to: {}".format(pconfig))
         if self.mode == UNRESTRICTED:
             with open(pconfig, 'wb') as cfg:
                 parser.write(cfg)
@@ -624,8 +620,6 @@ class PlatformWrapper:
             tparams = [TWISTED_START, "-n", "smap", tconfig]
             self.t_process = subprocess.Popen(tparams, env=self.env)
             time.sleep(5)
-
-
 
     def is_running(self):
         return utils.is_volttron_running(self.volttron_home)

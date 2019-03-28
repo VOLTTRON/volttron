@@ -49,8 +49,9 @@ def get_rand_ipc_vip():
 
 
 def build_wrapper(vip_address, **kwargs):
-    wrapper = PlatformWrapper(message_bus=kwargs.pop('message_bus', None),
-                              ssl_auth=kwargs.pop('ssl_auth', False))
+    wrapper = PlatformWrapper(messagebus=kwargs.pop('message_bus', None),
+                              ssl_auth=kwargs.pop('ssl_auth', False),
+                              instance_name=kwargs.pop('instance_name', 'volttron_test'))
     print('BUILD_WRAPPER: {}'.format(vip_address))
     wrapper.startup_platform(vip_address=vip_address, **kwargs)
     return wrapper
@@ -71,7 +72,7 @@ def cleanup_wrappers(platforms):
 
 
 @pytest.fixture(scope="module",
-                params=[('zmq', True), ('rmq', True)])
+                params=[('zmq', False), ('rmq', True)])
 def volttron_instance_msgdebug(request):
     print("building msgdebug instance")
     wrapper = build_wrapper(get_rand_vip(),

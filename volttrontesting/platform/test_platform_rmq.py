@@ -58,7 +58,7 @@ from volttron.utils.rmq_setup import stop_rabbit, start_rabbit, restart_ssl
 
 @pytest.fixture(scope="module")
 def instance(request):
-    instance = PlatformWrapper(message_bus='rmq', ssl_auth=True)
+    instance = PlatformWrapper(messagebus='rmq', ssl_auth=True)
     # because tests in the module shutdown and restart instance within test and we don't want
     # all rmq users and queues to be deleted.
     instance.skip_cleanup = True
