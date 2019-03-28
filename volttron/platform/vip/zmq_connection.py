@@ -103,11 +103,11 @@ class ZMQConnection(BaseConnection):
     def register(self, handler):
         self._vip_handler = handler
 
-    def send_vip_object(self, message):
-        self.socket.send_vip_object(message)
+    def send_vip_object(self, message, flags=0, copy=True, track=False):
+        self.socket.send_vip_object(message, flags, copy, track)
 
-    def recv_vip_object(self):
-        return self.socket.recv_vip_object()
+    def recv_vip_object(self, flags=0, copy=True, track=False):
+        return self.socket.recv_vip_object(flags, copy, track)
 
     def disconnect(self):
         self.socket.disconnect(self._url)
