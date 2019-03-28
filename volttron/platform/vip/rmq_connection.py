@@ -294,7 +294,7 @@ class RMQConnection(BaseConnection):
         if self._vip_handler:
             self._vip_handler(msg)
 
-    def send_vip_object(self, message):
+    def send_vip_object(self, message, flags=0, copy=True, track=False):
         """
         Send the VIP message over RabbitMQ message bus.
         Reformat the VIP message object into Pika message object and
