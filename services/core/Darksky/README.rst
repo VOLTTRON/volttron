@@ -60,6 +60,9 @@ Notes
 The Dark Sky agent requires an API key to be configured in order for users to
 request data. A user of the Dark Sky agent must obtain the key themselves.
 
+It is intended that each system running a copy of the Dark Sky agent use its own
+api key. This is to ensure that API call tracking features work as intended.
+
 Each key has the limitation of 1000 daily API calls, after which the service
 indicates "daily usage limit exceeded" and data will not be returned. As the
 VOLTTRON team desires to keep VOLTTRON services free, the agent is limited to

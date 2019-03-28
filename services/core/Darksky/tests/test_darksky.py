@@ -331,10 +331,9 @@ def test_current_fail(weather, query_agent, locations):
     ([{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": -119.2752}],
      'get_hourly_forecast'),
 ])
-@pytest.mark.darksky
+@pytest.mark.dev
 def test_success_forecast(volttron_instance, cleanup_cache, weather,
-                                 query_agent,
-                                 locations, service):
+                          query_agent, locations, service):
     weather_uuid = weather[0]
     identity = weather[1]
     version = query_agent.vip.rpc.call(identity, 'get_version').get(timeout=3)
@@ -503,7 +502,8 @@ def test_forecast_fail(weather, query_agent, locations, service):
       'poll_interval': 5,
       'api_key': API_KEY
       },
-     ['weather/poll/current/all'])
+     ['weather/poll/current/all']),
+
 ])
 def test_polling_locations_valid_config(volttron_instance, query_agent, config,
                                         result_topics):
