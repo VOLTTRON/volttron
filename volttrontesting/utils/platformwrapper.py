@@ -143,7 +143,8 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
     # Please note, if 'with_http'==True, then instance name needs to be provided
     assert not wrapper.is_running()
 
-    vc_http = get_rand_http_address() if with_http else None
+    # Will returen https if messagebus rmq
+    vc_http = get_rand_http_address(wrapper.messagebus=='rmq') if with_http else None
     vc_tcp = get_rand_tcp_address() if with_tcp else None
 
     if add_local_vc_address:
@@ -245,10 +246,10 @@ class PlatformWrapper:
         keystorefile = os.path.join(self.volttron_home, 'keystore')
         self.keystore = KeyStore(keystorefile)
         self.keystore.generate()
-        self.message_bus = messagebus if messagebus else 'zmq'
+        self.messagebus = messagebus if messagebus else 'zmq'
         self.ssl_auth = ssl_auth
         self.rmq_conf_backup = None
-        if self.message_bus == 'rmq':
+        if self.messagebus == 'rmq':
             self.logit("Setting up volttron test environemnt"
                        " {}".format(self.volttron_home))
             self.rmq_conf_backup = create_rmq_volttron_setup(vhome=self.volttron_home,
@@ -311,7 +312,7 @@ class PlatformWrapper:
         conn = Connection(address=address, peer=peer, publickey=publickey,
                           secretkey=secretkey, serverkey=serverkey,
                           instance_name=self.instance_name,
-                          message_bus=self.message_bus,
+                          message_bus=self.messagebus,
                           volttron_home=self.volttron_home)
 
         return conn
@@ -361,7 +362,7 @@ class PlatformWrapper:
                             serverkey=serverkey,
                             instance_name=self.instance_name,
                             volttron_home=self.volttron_home,
-                            message_bus = self.message_bus,
+                            message_bus = self.messagebus,
                             **kwargs)
         self.logit('platformwrapper.build_agent.address: {}'.format(address))
 
@@ -516,14 +517,14 @@ class PlatformWrapper:
         if self.instance_name:
             parser.set('volttron', 'instance-name',
                        self.instance_name)
-        if self.message_bus:
+        if self.messagebus:
             parser.set('volttron', 'message-bus',
-                       self.message_bus)
+                       self.messagebus)
         parser.set('volttron', 'agent-monitor-frequency',
                    agent_monitor_frequency)
 
         self.logit(
-            "Platform will run on message bus type {} ".format(self.message_bus))
+            "Platform will run on message bus type {} ".format(self.messagebus))
         self.logit("writing config to: {}".format(pconfig))
         if self.mode == UNRESTRICTED:
             with open(pconfig, 'wb') as cfg:
@@ -1071,7 +1072,7 @@ class PlatformWrapper:
                     logpath
                 ))
         print(" Skip clean up flag is {}".format(self.skip_cleanup))
-        if not self.skip_cleanup and self.message_bus == 'rmq':
+        if not self.skip_cleanup and self.messagebus == 'rmq':
             cleanup_rmq_volttron_setup(vhome=self.volttron_home,
                                        ssl_auth=self.ssl_auth)
         if not self.skip_cleanup:
@@ -1095,7 +1096,7 @@ class PlatformWrapper:
         Restores orignial rabbitmq.conf if testing with rmq
         :return:
         """
-        if self.message_bus == 'rmq':
+        if self.messagebus == 'rmq':
             cleanup_rmq_volttron_setup(vhome=self.volttron_home,
                                        ssl_auth=self.ssl_auth)
             self.restore_conf()
