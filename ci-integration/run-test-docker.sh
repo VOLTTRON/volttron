@@ -1,48 +1,23 @@
-#!/usr/bin/env bash
+#!/bin/bash
+#Preliminary script to run pytests in separate docker containers
 
+docker build --network=host -t volttron_test_base -f ./ci-integration/virtualization/Dockerfile .
+docker build --network=host -t volttron_test_image -f ./ci-integration/virtualization/Dockerfile.testing .
 
-NUM_PROCESSES=1
+#testdirs="examples services volttron volttrontesting"
+testdirs="services/core/ActuatorAgent"
 
-#do_something_with_line()
-#{
-#    line=$1
-#    #echo "running $line"
-#    docker run -t volttron-test-image pytest -k $line &> "$line.result.txt" &  # ls -la # env/bin/pytest -k $line" &> "$line.results.txt"
-#    #docker run -t volttron-test-image "env/bin/pytest -k $line" &> "$line.results.txt"
-#    #docker run -d -t volttron-test-image pytest -k $linepwd &>$line.results.txt # "/bin/bash && echo \$PATH"
-#    #docker run -t volttron-test-image "which pytest"
-#
-#}
-
-docker build --network=host -t volttron-test-image -f ./virtualization/Dockerfile.testing ../
-
-area2=( test_pubsub_authorized test_pubsub_unauthorized test_agent_)
-count=0
-for line in ${area2[@]}
+for dir in ${testdirs[@]}
 do
-#    while [ `jobs | wc -l` -gt $NUM_PROCESSES ]
-#    do
-#        echo "Number of jobs: " `jobs | wc -l`
-#        sleep 5
-#    done
-
-    docker run -t volttron-test-image pytest -k $line &> "$line.result.txt" &
-    echo $!
-    if [ $count == 0 ] ; then
-        export PID=$!
-        echo $PID
-        count=1
-    else
-        wait $PID
-        count=0
-    fi
+    files=`find $dir -type f -name "*.py"`
+    #echo $files
+    for filename in ${files[@]}
+    do
+        #echo $filename
+        base_filename=`basename $filename`
+        if [[ $base_filename == *"test"* ]]; then
+            echo $filename
+            docker run -e "IGNORE_ENV_CHECK=1" -it volttron_test_image pytest $filename &> "$base_filename.result.txt" &
+        fi
+    done
 done
-
-wait
-#echo "Now here!"
-#
-#while [ `jobs | wc -l` -gt 0 ]
-#do
-#    echo `jobs`
-#    sleep 5
-#done
