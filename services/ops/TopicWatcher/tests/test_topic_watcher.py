@@ -391,7 +391,7 @@ def test_watch_device_new_group(volttron_instance, agent, cleanup_db):
     gevent.sleep(1)
     agent.vip.rpc.call(PLATFORM_TOPIC_WATCHER, 'watch_device', 'group2',
                        'newtopic/all', 5, ['point']).get()
-    gevent.sleep(7)
+    gevent.sleep(6)
 
     assert len(alert_messages) == 2
     assert u"Topic(s) not published within time limit: ['fakedevice', " \
@@ -507,7 +507,7 @@ def test_for_duplicate_logs(volttron_instance, agent, cleanup_db):
         assert r[2] >= non_utc
 
 
-@pytest.mark.dev
+@pytest.mark.alert
 def test_remote_alert_publish(get_volttron_instances):
     """
     Test alert to remote agent
@@ -522,7 +522,7 @@ def test_remote_alert_publish(get_volttron_instances):
     volttron_instance2.allow_all_connections()
 
     gevent.sleep(3)
-    agent = volttron_instance1.build_agent(identity="remote-agent")
+    agent = volttron_instance1.build_agent()
 
     def onmessage(peer, sender, bus, topic, headers, message):
         global alert_messages
@@ -564,7 +564,7 @@ def test_remote_alert_publish(get_volttron_instances):
         vip_identity=PLATFORM_TOPIC_WATCHER
     )
 
-    gevent.sleep(10)
+    gevent.sleep(6)
 
     assert alert_messages
 

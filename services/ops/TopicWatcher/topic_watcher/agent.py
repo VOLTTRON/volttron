@@ -99,7 +99,6 @@ class AlertAgent(Agent):
             if not self._creating_agent:
                 self._creating_agent = True
                 try:
-                    _log.debug("Building remote agent..................")
                     self._remote_agent = build_agent(
                         address=self.remote_address,
                         identity=self.remote_identity,
@@ -107,7 +106,6 @@ class AlertAgent(Agent):
                         publickey=self.core.publickey,
                         serverkey=self.remote_serverkey
                     )
-                    _log.debug("After building remote agent {}".format(self._remote_agent))
                     self._remote_agent.vip.ping("").get(timeout=2)
                     self.vip.health.set_status(STATUS_GOOD)
                 except gevent.Timeout, ZMQError:
@@ -130,8 +128,9 @@ class AlertAgent(Agent):
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
-
-        _log.debug("Setting up log DB.")
+        """
+        Setup database tables for persistent logs
+        """
         self._connection = sqlite3.connect(
             'alert_log.sqlite',
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
@@ -260,9 +259,6 @@ class AlertAgent(Agent):
 
             topics_timedout = set()
             alert_topics = set()
-
-            # if "newtopic" in group.wait_time:
-            #     _log.debug("got new topic")
 
             # Loop through topics in alert group
             for topic in self.group_instances[name].wait_time.iterkeys():
@@ -522,21 +518,16 @@ class AlertGroup():
         :param unseen_topics: List of topics that were expected but not received
         :type unseen_topics: list
         """
-        _log.debug("In Send Alert")
         alert_key = "AlertAgent Timeout for group {}".format(self.group_name)
         context = "Topic(s) not published within time limit: {}".format(
             sorted(unseen_topics))
         status = Status.build(STATUS_BAD, context=context)
-        _log.debug("publish remote {}".format(self.publish_remote))
         if self.publish_remote:
-            _log.debug("Remote publish")
             try:
                 remote_agent = self.main_agent.remote_agent
-                _log.debug("Remote agent")
                 if not remote_agent:
                     raise RuntimeError("Remote agent unavailable")
                 else:
-                    _log.debug("Remote agent send alert")
                     remote_agent.vip.health.send_alert(alert_key, status)
             except gevent.Timeout:
                 self.main_agent.vip.health.send_alert(alert_key, status)
