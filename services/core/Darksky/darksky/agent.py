@@ -95,7 +95,6 @@ SERVICES_MAPPING = {
 
 LAT_LONG_REGEX = re.compile("^-?[0-9]{1,3}(\.[0-9]{1,4})?$")
 
-# TODO handle 403 daily usage limit exceeded
 
 def darksky(config_path, **kwargs):
     """Parses the Agent configuration and returns an instance of

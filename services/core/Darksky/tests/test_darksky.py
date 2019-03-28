@@ -494,7 +494,6 @@ def test_forecast_fail(weather, query_agent, locations, service):
         assert record.get("weather_results") is None
 
 
-# TODO add for specific topics
 @pytest.mark.darksky
 @pytest.mark.parametrize('config, result_topics', [
     ({'poll_locations': [{"lat": 39.7555, "long": -105.2211},
@@ -503,7 +502,13 @@ def test_forecast_fail(weather, query_agent, locations, service):
       'api_key': API_KEY
       },
      ['weather/poll/current/all']),
-
+    ({'poll_locations': [{"lat": 39.7555, "long": -105.2211},
+                         {"lat": 46.2804, "long": 119.2752}],
+      'poll_interval': 5,
+      'api_key': API_KEY,
+      'poll_topic_suffixes': ['test1', 'test2']
+      },
+     ['weather/poll/current/test1', 'weather/poll/current/test2'])
 ])
 def test_polling_locations_valid_config(volttron_instance, query_agent, config,
                                         result_topics):
