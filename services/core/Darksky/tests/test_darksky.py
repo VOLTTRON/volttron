@@ -43,7 +43,8 @@ from mock import MagicMock
 import sqlite3
 import logging
 from volttron.platform.agent import utils
-from datetime import datetime
+from datetime import datetime, timedelta
+from volttron.platform.agent.utils import get_aware_utc_now, format_timestamp
 from volttron.platform.messaging.health import STATUS_GOOD
 
 from volttron.platform import get_services_core
@@ -256,6 +257,50 @@ def test_success_current(volttron_instance, cleanup_cache, weather,
             assert num_records is 0
         else:
             assert num_records is records_amount*len(locations)
+
+
+@pytest.mark.darksky
+def test_calls_exceeded(volttron_instance, cleanup_cache, query_agent,
+                                weather):
+    weather_uuid = weather[0]
+    identity = weather[1]
+    version = query_agent.vip.rpc.call(identity, 'get_version').get(timeout=3)
+    cwd = volttron_instance.volttron_home
+    database_file = "/".join([cwd, "agents", weather_uuid, "darkskyagent-" +
+                              version, "darkskyagent-" + version +
+                              ".agent-data", "weather.sqlite"])
+    sqlite_connection = sqlite3.connect(database_file)
+    cursor = sqlite_connection.cursor()
+
+    for i in range(0, 1000):
+        time = format_timestamp(get_aware_utc_now() + timedelta(seconds=i))
+        insert_query = """INSERT INTO API_CALLS
+                                         (CALL_TIME) VALUES (?);"""
+        cursor.execute(insert_query, (time,))
+    sqlite_connection.commit()
+
+    locations = [{"lat": 39.7555, "long": -105.2211}]
+    query_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
+                                          locations).get(timeout=30)
+
+    assert query_data[0]['weather_error'] == 'No calls currently available ' \
+                                               'for the configured API key'
+    assert not query_data[0].get('weather_results')
+
+    query_data = query_data = query_agent.vip.rpc.call(
+        identity, 'get_hourly_forecast', locations).get(timeout=30)
+
+    assert query_data[0]['weather_error'] == 'No calls currently available ' \
+                                             'for the configured API key'
+    assert not query_data[0].get('weather_results')
+
+    delete_query = "DROP TABLE IF EXISTS API_CALLS;"
+    cursor.execute(delete_query)
+
+    create_query = """CREATE TABLE API_CALLS
+                      (CALL_TIME TIMESTAMP NOT NULL);"""
+    cursor.execute(create_query)
+    sqlite_connection.commit()
 
 
 @pytest.mark.parametrize("locations", [

@@ -512,6 +512,12 @@ class BaseWeatherAgent(Agent):
                 self._api_services[service_name]["description"]
         return features
 
+    def api_call_available(self):
+        return self._cache.api_call_available()
+
+    def add_api_call(self):
+        return self._cache.add_api_call()
+
     @RPC.export
     def get_current_weather(self, locations):
         """
@@ -564,12 +570,12 @@ class BaseWeatherAgent(Agent):
             # if there was no data in cache or if data is old, query api
             if not record_dict.get(WEATHER_RESULTS):
                 _log.debug("Current weather data from api")
-                if self._cache.api_call_available:
+                if self.api_call_available():
                     record_dict = self.get_current_weather_remote(location)
                     # rework this check to catch specific problems (probably
                     # just weather_error)
                     if record_dict:
-                        self._cache.add_api_call()
+                        self.add_api_call()
                     if cache_warning:
                         warnings = record_dict.get(WEATHER_WARN, [])
                         warnings.extend(cache_warning)
@@ -757,7 +763,7 @@ class BaseWeatherAgent(Agent):
             cache_warning = record_dict.get(WEATHER_WARN)
             # if cache didn't work out query remote api
             if not record_dict.get(WEATHER_RESULTS):
-                if self._cache.api_call_available:
+                if self.api_call_available():
                     _log.debug("forecast weather from api")
                     record_dict = self.get_remote_forecast(service, location,
                                                            quantity,
@@ -765,12 +771,17 @@ class BaseWeatherAgent(Agent):
                     # Rework this condition to catch specific problems
                     # contacting the api
                     if record_dict:
-                        self._cache.add_api_call()
+                        self.add_api_call()
                     if cache_warning:
                         warnings = record_dict.get(WEATHER_WARN, [])
                         warnings.extend(cache_warning)
                         record_dict[WEATHER_WARN] = warnings
-                    _log.debug("record_dict from remote : {}".format(record_dict))
+                    _log.debug("record_dict from remote : {}".
+                               format(record_dict))
+                else:
+                    record_dict[WEATHER_ERROR] = "No calls currently " \
+                                                 "available for the " \
+                                                 "configured API key"
             result.append(record_dict)
 
         return result
