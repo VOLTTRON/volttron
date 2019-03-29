@@ -163,9 +163,7 @@ class ZMQProxyRouter(Agent):
                 # ZMQ agent subsystem does not like
                 args = json.loads(args[0])
                 frames.append(json.dumps(args))
-                _log.debug("Outbound message : {}".format(args))
             except ValueError as e:
-                _log.debug("Outbound message ValueError: {}".format(args))
                 if isinstance(args, list):
                     for m in args:
                         frames.append(bytes(m))
