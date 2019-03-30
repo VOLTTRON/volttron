@@ -45,7 +45,7 @@ fi
 # #   exit 1;
 # # fi
 
-if [ ! -n "$@" ]; then
+if [[ $# -lt 1 ]]; then
   echo "Please provide a command to run (e.g. /bin/bash, volttron -vv)";
   exit 1;
 else

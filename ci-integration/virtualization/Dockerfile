@@ -49,17 +49,32 @@ RUN mkdir /code && chown $VOLTTRON_USER.$VOLTTRON_USER /code \
 
 FROM volttron_base AS volttron_core
 
+# Note I couldn't get variable expansion on the chown argument to work here
+# so must hard code the user.  Note this is a feature request for docker
+# https://github.com/moby/moby/issues/35018
+COPY --chown=volttron:volttron . ${VOLTTRON_ROOT}
+
 USER $VOLTTRON_USER
-WORKDIR /code
-RUN git clone https://github.com/VOLTTRON/volttron -b ${VOLTTRON_GIT_BRANCH}
+
+# The following lines ar no longer necesary because of the copy command above.
+#WORKDIR /code
+#RUN git clone https://github.com/VOLTTRON/volttron -b ${VOLTTRON_GIT_BRANCH}
+
 WORKDIR /code/volttron
-RUN pip install --user -r requirements.txt && pip install --user .
+RUN pip install --user -r requirements.txt && pip install -e . --user
 
 ############################################
 # RABBITMQ SPECIFIC INSTALLATION
 ############################################
 USER root
 RUN ./scripts/rabbit_dependencies.sh $OS_TYPE $DIST
+
+RUN mkdir /startup $VOLTTRON_HOME && \
+    chown $VOLTTRON_USER.$VOLTTRON_USER $VOLTTRON_HOME
+COPY ./ci-integration/virtualization/core/entrypoint.sh /startup/entrypoint.sh
+COPY ./ci-integration/virtualization/core/bootstart.sh /startup/bootstart.sh
+RUN chmod +x /startup/entrypoint.sh && \
+    chmod +x /startup/bootstart.sh
 
 USER $VOLTTRON_USER
 RUN mkdir $RMQ_ROOT
@@ -69,12 +84,6 @@ RUN set -eux \
     && $RMQ_HOME/sbin/rabbitmq-plugins enable rabbitmq_management rabbitmq_federation rabbitmq_federation_management rabbitmq_shovel rabbitmq_shovel_management rabbitmq_auth_mechanism_ssl rabbitmq_trust_store
 ############################################
 
-RUN mkdir /startup $VOLTTRON_HOME && \
-    chown $VOLTTRON_USER.$VOLTTRON_USER $VOLTTRON_HOME
-COPY ./core/entrypoint.sh /startup/entrypoint.sh
-COPY ./core/bootstart.sh /startup/bootstart.sh
-RUN chmod +x /startup/entrypoint.sh && \
-    chmod +x /startup/bootstart.sh
 
 ########################################
 # The following lines should be run from any Dockerfile that
