@@ -20,23 +20,20 @@ testdirs=(examples services volttron volttrontesting)
 run_tests() {
     local files=("$@")
     local len=${#files[@]}
-    local cids=()
+    local container_names=()
     local i=0
     local pids=""
     for filename in ${files[@]}
     do
         base_filename=`basename $filename`
-        docker run -e "IGNORE_ENV_CHECK=1" -t volttron_test_image pytest $filename &> "$base_filename.result.txt" &
+        docker run -e "IGNORE_ENV_CHECK=1" --name $base_filename -t volttron_test_image pytest $filename &> "$base_filename.result.txt" &
         pids[$i]=$!
-        sleep 1
-        #Get the container id of the last docker. NOTE: This fails sometimes and returns previous container id
-        #Another option is to set the container name as part of docker run command
-        cids[$i]=`docker ps -l -q`
+        container_names[$i]=$base_filename
         let i++
     done
 
-    echo "INPUT PROC IDs: ${pids[@]}"
-    echo "INPUT CONTAINER IDs: ${cids[@]}"
+    echo "INPUT PROCESS IDs: ${pids[@]}"
+    echo "INPUT CONTAINER NAMESs: ${container_names[@]}"
     echo "INPUT FILES: ${files[@]}"
 
     for ((x=0; x< $len; x++)); do
@@ -47,14 +44,14 @@ run_tests() {
             echo "Job" ${files[$x]} "all tests: PASSED"
         else
             echo "Job" ${files[$x]} "some tests: FAILED"
-            docker logs ${cids[$x]} --tail=50
+            docker logs ${container_names[$x]} --tail=50
             if [ ${FAST_FAIL} ]; then
                 echo "Fast failing!"
-                docker rm ${cids[$x]}
+                docker rm ${container_names[$x]}
                 exit $?
             fi
         fi
-        docker rm ${cids[$x]}
+        docker rm ${container_names[$x]}
     done
 }
 
