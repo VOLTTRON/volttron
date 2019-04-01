@@ -163,6 +163,13 @@ class RMQConfig(object):
         return ssl_auth in ('true', 'True', 'TRUE', True)
 
     @property
+    def use_existing_certs(self):
+        use_existing = self.config_opts.get('use-existing-certs')
+        if use_existing is not None:
+            return use_existing in ('true', 'True', 'TRUE', True)
+        return use_existing
+
+    @property
     def certificate_data(self):
         return self.config_opts.get('certificate-data')
 

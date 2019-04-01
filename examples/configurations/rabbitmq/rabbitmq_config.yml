@@ -42,6 +42,12 @@ mgmt-port-ssl: 15671
 # defaults to true
 ssl: true
 
+# By default if certs exists setup script will prompt to confirm if the same certs should be used.
+# If use-existing-certs is set to True then existing certs would be used without prompting,
+# if set to False new certs will be created
+
+#use-existing-certs: True
+
 # defaults to ~/rabbitmq_server/rabbbitmq_server-3.7.7
 rmq-home: ~/rabbitmq_server/rabbitmq_server-3.7.7
 

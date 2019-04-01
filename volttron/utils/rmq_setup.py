@@ -291,6 +291,7 @@ def _setup_for_ssl_auth(rmq_config):
     if not os.path.exists(white_list_dir):
         os.mkdir(white_list_dir)
 
+
     _create_certs(rmq_config, admin_client_name, server_name)
 
     # if all was well, create the rabbitmq.conf file for user to copy
@@ -366,6 +367,7 @@ trust_store.refresh_interval=0""".format(
                              rmq_config.crts.trusted_ca_name),
                          vhome=vhome))
 
+
 def _create_certs(rmq_config, admin_client_name, server_cert_name):
     """
     Utility method to create certificates
@@ -376,30 +378,36 @@ def _create_certs(rmq_config, admin_client_name, server_cert_name):
     """
 
     crts = rmq_config.crts
+
     if rmq_config.crts.ca_exists():
-        attributes = crts.get_cert_subject(crts.root_ca_name)
-        prompt_str = "Found {} with the following attributes. \n {} \n Do " \
-                     "you want to use this certificate: ".format(
-            crts.cert_file(crts.root_ca_name), attributes)
-        prompt = prompt_response(prompt_str,
-                                 valid_answers=y_or_n,
-                                 default='Y')
-        if prompt in y:
+        if rmq_config.use_existing_certs is None:
+            attributes = crts.get_cert_subject(crts.root_ca_name)
+            prompt_str = "Found {} with the following attributes. \n {} \n Do " \
+                         "you want to use this certificate: ".format(
+                crts.cert_file(crts.root_ca_name), attributes)
+            prompt = prompt_response(prompt_str,
+                                     valid_answers=y_or_n,
+                                     default='Y')
+            if prompt in y:
+                return
+
+        elif rmq_config.use_existing_certs:
             return
 
-        prompt_str = "\n**IMPORTANT:**\nCreating a new Root CA will " \
-                     "invalidate " \
-                     "any existing agent certificate and hence any existing " \
-                     "certificates will be deleted. If you have federation " \
-                     "or shovel setup, you will have to share the new " \
-                     "certificate with the other volttron instance(s) for " \
-                     "the shovel/federation connections to work. " \
-                     "Do you want to create a new Root CA."
-        prompt = prompt_response(prompt_str,
-                                 valid_answers=y_or_n,
-                                 default='N')
-        if prompt not in y:
-            return
+        if rmq_config.use_existing_certs is None:
+            prompt_str = "\n**IMPORTANT:**\nCreating a new Root CA will " \
+                         "invalidate " \
+                         "any existing agent certificate and hence any existing " \
+                         "certificates will be deleted. If you have federation " \
+                         "or shovel setup, you will have to share the new " \
+                         "certificate with the other volttron instance(s) for " \
+                         "the shovel/federation connections to work. " \
+                         "Do you want to create a new Root CA."
+            prompt = prompt_response(prompt_str,
+                                     valid_answers=y_or_n,
+                                     default='N')
+            if prompt not in y:
+                return
 
     # We are creating new CA cert so delete any existing certs.  The user has
     # already been warned
@@ -484,6 +492,8 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
             federation - Setup to connect multiple VOLTTRON instances as
                          a federation
             shovel - Setup shovels to forward local messages to remote instances
+    :param verbose
+    :param prompt
     :return:
     """
     if not instance_name:
