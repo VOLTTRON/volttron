@@ -485,7 +485,6 @@ class BaseHistorianAgent(Agent):
 
     def _configure(self, config_name, action, contents):
         self.vip.heartbeat.start()
-        _log.info("Configuring historian.")
         config = self._default_config.copy()
         config.update(contents)
 
@@ -558,7 +557,7 @@ class BaseHistorianAgent(Agent):
         try:
             self.configure(config)
         except Exception as e:
-            _log.error("Failed to load historian settings.")
+            _log.error("Failed to load historian settings.{}".format(e))
 
         self.start_process_thread()
 

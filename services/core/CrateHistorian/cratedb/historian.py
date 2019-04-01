@@ -146,12 +146,12 @@ class CrateHistorian(BaseHistorian):
         # self._topic_collection = table_names['topics_table']
         # self._agg_topic_collection = table_names['agg_topics_table']
         # self._agg_meta_collection = table_names['agg_meta_table']
-
         self._params = config_connection.get("params", {})
-        self._schema = config_connection.get("schema", "historian")
+        self._schema = schema
         self._error_trace = config_connection.get("error_trace", False)
 
         config = {
+            "schema": schema,
             "connection": config_connection
         }
 
@@ -516,11 +516,13 @@ class CrateHistorian(BaseHistorian):
             query, args = self._build_single_topic_select_query(
                 start, end, agg_type, agg_period, skip, count, order,
                 table_name, topic)
-
+            _log.debug("Query is {}".format(query))
+            _log.debug("args is {}".format(args))
             cursor.execute(query, args)
 
             for _id, ts, value, meta in cursor.fetchall():
                 try:
+                    _log.debug("id: {}, ts {},  value : {}".format(_id, ts, value))
                     value = float(value)
                 except ValueError:
                     pass
