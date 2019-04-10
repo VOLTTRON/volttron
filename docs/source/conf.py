@@ -68,7 +68,18 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
+    # https://www.sphinx-doc.org/en/master/usage/extensions/autosectionlabel.html
+    'sphinx.ext.autosectionlabel',
+    # http://www.sphinx-doc.org/en/master/usage/extensions/todo.html
+    'sphinx.ext.todo',
 ]
+
+# prefix sections with the document so that we can cross link
+# sections from different pages.
+autosectionlabel_prefix_document = True
+autosectionlabel_maxdepth = 5
+
+todo_include_todos = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

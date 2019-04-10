@@ -18,6 +18,11 @@ For the following document we will assume we have two instances volttron-server 
 The volttron-server will be configured to allow certificate requests to be sent to it from the
 volttron-client.
 
+.. todo::
+
+    Add sequence diagram between the volttron-server and volttron-client
+
+
 Configuration
 -------------
 
@@ -49,7 +54,6 @@ private key to reference.  Both are necessary in order to bind the port to the s
 incoming connections.  The `/etc/hosts` file should be modified in order for the dns name
 to be used for the bound address.
 
-
 Agent Example
 -------------
 
@@ -73,11 +77,18 @@ to a remote instance.
                                                   serverkey=self.destination_serverkey)
 
 
-More things going on here!
+
+.. todo::
+
+    Add more content here.
 
 
 Web Server API
 --------------
+
+.. todo::
+
+    Document web api
 
 Creating a CSR Request
 ~~~~~~~~~~~~~~~~~~~~~~
