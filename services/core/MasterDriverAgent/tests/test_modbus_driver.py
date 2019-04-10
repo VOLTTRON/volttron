@@ -57,6 +57,7 @@ registers_dict = {"BigUShort": 2**16-1,
                   "LittleLong": (2**64)/2-1
                   }
 
+
 @pytest.fixture(scope="module")
 def agent(request, volttron_instance):
     """Build MasterDriverAgent, add modbus driver & csv configurations
@@ -134,7 +135,8 @@ class PPSPi32Client (Client):
     LittleLong = Field(
         "LittleLong", 112, helpers.INT64, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
 
-@pytest.fixture(scope='class')
+
+@pytest.fixture
 def modbus_server(request):
     modbus_server = Server(address='127.0.0.1', port=5020)
     modbus_server.define_slave(1, PPSPi32Client, unsigned=True)
@@ -155,11 +157,14 @@ def modbus_server(request):
     modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleFloat"), unpack('<f', pack('>f', 0))[0])
     modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleLong"), unpack('<q', pack('>q', 0))[0])
 
+    def stop():
+        modbus_server.stop()
+
     modbus_server.start()
     time.sleep(1)
     yield modbus_server
-    time.sleep(1)
-    modbus_server.stop()
+    request.addfinalizer(stop)
+
 
 @pytest.mark.usefixtures("modbus_server")
 class TestModbusDriver:
