@@ -100,7 +100,7 @@ class WebSubSystem(SubsystemBase):
         """
         _log.info('Registering route endpoint: {}'.format(endpoint))
         self._endpoints[endpoint] = callback
-        self._rpc().call(MASTER_WEB, 'register_endpoint', endpoint, res_type)
+        self._rpc().call(MASTER_WEB, 'register_endpoint', endpoint, res_type).get(timeout=10)
 
     def register_path(self, prefix, static_path):
         """
@@ -120,7 +120,7 @@ class WebSubSystem(SubsystemBase):
             prefix, static_path
         ))
         self._rpc().call(MASTER_WEB, 'register_path_route', prefix,
-                         static_path)
+                         static_path).get(timeout=10)
 
     def register_websocket(self, endpoint, opened=None, closed=None,
                            received=None):
@@ -165,14 +165,14 @@ class WebSubSystem(SubsystemBase):
         :type closed: function
         :type received: function
         """
+        _log.debug("Client register websocket at: {}".format(endpoint))
         self._ws_endpoint[endpoint] = (opened, closed, received)
         self._rpc().call(MASTER_WEB, 'register_websocket', endpoint).get(
             timeout=5)
 
     def unregister_websocket(self, endpoint):
         self._rpc().call(MASTER_WEB, 'unregister_websocket', endpoint).get(
-            timeout=5
-        )
+            timeout=5)
 
     def send(self, endpoint, message=''):
         """
