@@ -9,7 +9,7 @@
         min-width: 500px;
       }
     </style>
-    <script src="https://code.jquery.com/jquery.min.js"></script>
+    <script src="/js/jquery.min-3.3.1.js"></script>
     <script language="javascript" type="text/javascript">
       $(document).ready(function () {
 
@@ -60,17 +60,18 @@
           var host = $("#host").val();
           var port = $("#port").val();
           var uri = $("#uri").val();
-          var websocket = "ws://";
+          var websocket_url = "ws://";
           if (location.protocol === 'https:'){
-            websocket = "wss://";
+            websocket_url = "wss://";
           }
 
-          websocket = websocket.concat(host + ":" + port + uri); // 'ws://%(host)s:%(port)s/ws';
+          websocket_url = websocket_url.concat(host + ":" + port + uri); // 'ws://%(host)s:%(port)s/ws';
+          console.log(websocket_url);
           if (window.WebSocket) {
-            ws = new WebSocket(websocket);
+            ws = new WebSocket(websocket_url);
           }
           else if (window.MozWebSocket) {
-            ws = MozWebSocket(websocket);
+            ws = MozWebSocket(websocket_url);
           }
           else {
             console.log('WebSocket Not Supported');

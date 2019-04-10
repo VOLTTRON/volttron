@@ -108,6 +108,7 @@ Platform = namedtuple('Platform', ['instance_name', 'serverkey', 'vip_address'])
 RequiredArgs = namedtuple('RequiredArgs', ['id', 'session_user',
                                            'platform_uuid'])
 
+
 def init_volttron_central(config_path, **kwargs):
     # Load the configuration into a dictionary
     config = utils.load_config(config_path)
@@ -251,10 +252,10 @@ class VolttronCentralAgent(Agent):
 
         self.vip.web.register_endpoint(r'/vc/jsonrpc', self.jsonrpc)
 
-        self.vip.web.register_websocket(r'/vc/ws',
-                                        self.open_authenticate_ws_endpoint,
-                                        self._ws_closed,
-                                        self._ws_received)
+        # self.vip.web.register_websocket(r'/vc/ws',
+        #                                 self.open_authenticate_ws_endpoint,
+        #                                 self._ws_closed,
+        #                                 self._ws_received)
 
         self.vip.web.register_path(r'^/vc/.*',
                                    config.get('webroot'))
@@ -290,18 +291,18 @@ class VolttronCentralAgent(Agent):
         if self._platform_scan_event is not None:
             # This won't hurt anything if we are canceling ourselves.
             self._platform_scan_event.cancel()
-        print("PEER LIST IS NOW:\n", self.vip.peerlist().get(timeout=5))
+
         # Identities of all platform agents that are connecting to us should
         # have an identity of platform.md5hash.
         connected_platforms = set([x for x in self.vip.peerlist().get(timeout=5)
-                                   if x.startswith('vcp-')])
+                                   if x.startswith('vcp-') or x.endswith('.platform.agent')])
 
-        disconnected = self._platforms.get_platform_keys() - connected_platforms
+        disconnected = self._platforms.get_platform_vip_identities() - connected_platforms
 
         for vip_id in disconnected:
             self._handle_platform_disconnect(vip_id)
 
-        not_known = connected_platforms - self._platforms.get_platform_keys()
+        not_known = connected_platforms - self._platforms.get_platform_vip_identities()
 
         for vip_id in not_known:
             self._handle_platform_connection(vip_id)
