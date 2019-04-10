@@ -172,22 +172,31 @@ class Auth(SubsystemBase):
 
                 else:  # we are on rmq messagebus
 
+                    # This is if both remote and local are rmq message buses.
                     if info.messagebus_type == 'rmq':
-
+                        _log.debug("Both remote and local are rmq messagebus.")
                         # Discovery info for external platform
                         value = self.request_cert(address)
 
-                        _log.debug("RESPONSE VALUE WAS: {}".format(value))
-                        if not isinstance(value, tuple):
+                        if value is None:
+                            _log.error("there was no response from the server")
+                        elif isinstance(value, tuple):
+                            if value[0] == 'PENDING':
+                                _log.info("Waiting for administrator to accept a CSR request.")
+                            value = None
+                        elif os.path.exists(value):
                             info = DiscoveryInfo.request_discovery_info(address)
                             remote_rmq_user = remote_identity
                             remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
                                 remote_rmq_user,
-                                info.vc_rmq_address)
+                                info.rmq_address)
 
                             value = build_agent(identity=remote_rmq_user,
                                                 address=remote_rmq_address,
-                                                instance_name=info.instance_name)
+                                                instance_name=info.instance_name,
+                                                agent_class=agent_class)
+                        else:
+                            raise ValueError("Unknown path through discovery process!")
 
                     else:
                         # TODO: cache the connection so we don't always have to ping

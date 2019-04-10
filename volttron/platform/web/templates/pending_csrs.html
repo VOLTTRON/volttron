@@ -1,13 +1,105 @@
 {% extends "base.html" %}
 {% block title %}Index{% endblock %}
+{% block js %}
+    <script src="/js/jquery.min-3.3.1.js"></script>
+    <script language="JavaScript">
+        $("#status").hide();
+        $(document).ready(() => {
+            $("#status").hide();
+
+            $('a.approval').each((i, obj)=>{
+                if (obj.getAttribute('data-status') === 'APPROVED'){
+                    obj.setAttribute('hidden', true);
+                }
+                //console.log(obj);
+                //console.log(obj.getAttribute("data-common_name"))//alert($( this ))
+                //alert(item.getAttribute("data-status"));
+                // alert(item.data['status']);
+                // if (item.data('status') === 'APPROVED'){
+                //     item.hide();
+                // }
+            });
+
+            $('a.approval').click(function (e){
+                e.preventDefault();
+                var element = $(this);
+                var common_name = element.data("common_name");
+                var url = "/admin/api/approve_csr/"+ common_name;
+                $.get({
+                    url: url,
+                    success: (data) => {
+                        if (data.hasOwnProperty('status') && data['status'] ==='APPROVED'){
+                            alert("Approved!")
+                        }
+                        alert(JSON.stringify(data));
+                    }
+                });
+                // alert("data-common_name"))
+                // alert(JSON.stringify(e));
+                return false;
+            });
+            // {% for c in csrs %}
+            // $('#{{c.identity}}_approve').click(function (e) {
+            //     e.preventDefault(); /*your_code_here;*/
+            //     alert(e)
+            //     return false;
+            // });
+            // {% endfor %}
+        });
+
+        function approve(common_name) {
+            url = "/admin/api/approve_csr/" + common_name;
+            // Not sure why both the accepts and the dataType parameter
+            // must be set in order for the HTTP_ACCEPT: application/json to
+            // be something other than HTTP_ACCEPT: */*
+            $.ajax({
+                type: 'GET',
+                url: url,
+                headers: {
+                    'Accept': 'application/json'
+                },
+                success: function(content){
+                    alert(content);
+                    $("#response").append(content)
+                },
+                failure: function(content){
+                    alert("failed!");
+                    $('#response').append("FAILURE "+ content.toString());
+                },
+                statusCode: {
+                    401: function(response){
+                        $("#status").show();
+                    },
+                    200: function(response){
+                        document.cookie = "Bearer="+response.responseText+"; secure=True; path=/";
+                        window.location=window.location.origin + "/admin/index.html";
+                    }
+                }
+
+            });
+        }
+    </script>
+{% endblock %}
 {% block content %}
 
     <ul>
     {% for c in csrs %}
-        <li><a href="javascript:approve('{{c}}'); return false;">Approve</a>
-            <a href="javascript:deny('{{c}}'); return false;">Deny</a>
-            <a href="javascript:delete('{{c}}'); return false;">Delete</a>
-            {{c}}</li>
+        <li>
+            <div style="width: 200px; float:left;">
+                <a class="approval"
+                   data-common_name="{{c.identity}}"
+                   data-status="{{c.status}}" href="#">Approve</a>
+                <a id="{{c.identity}}_deny" href="javascript:deny('{{c.identity}}'); return false;">Deny</a>
+                <a id="{{c.identity}}_delete" href="javascript:delete('{{c.identity}}'); return false;">Delete</a>
+            </div>
+            <div style="float: left;">
+                <!-- {{c}}<br /> -->
+                Status: {{c.status}}<br />
+                Common Name: {{c.identity}}<br/>
+                Remote IP: {{c.remote_ip_address}}<br/>
+            </div>
+            <div style="float:none;"></div>
+        </li>
     {% endfor %}
     </ul>
 
