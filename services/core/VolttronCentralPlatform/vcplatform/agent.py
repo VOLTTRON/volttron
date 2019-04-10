@@ -230,10 +230,6 @@ class VolttronCentralPlatform(Agent):
         info = DiscoveryInfo.request_discovery_info(discovery_address)
         return info.vip_address, info.serverkey
 
-    @Core.periodic(5)
-    def _print_peers(self):
-        _log.debug("PEERS:------ {}".format(self.vip.peerlist().get()))
-
     def _configure(self, config_name, action, contents):
         """
         This is the main configuration point for the agent.
@@ -357,6 +353,7 @@ class VolttronCentralPlatform(Agent):
         self._devices = self.get_devices()
         self.vip.pubsub.subscribe('pubsub', 'devices', self._on_device_publish)
         self.vip.pubsub.publish('pubsub', topic='platform/config_updated')
+        self._vc_connection = None
 
         # Begin a connection loop that will automatically attempt to reconnect
         # and publish stats to volttron central if the connection is successful.
@@ -531,6 +528,11 @@ class VolttronCentralPlatform(Agent):
             self._establish_connection_event.cancel()
 
         if self._vc_connection is None:
+            if self._vc_address is None:
+                _log.warning("Invalid volttron-central-address specified.  Please add to the platform.agent config "
+                             "store or to the main instance configuration")
+                return
+
             _log.debug("Attempting to connect with volttron central.")
             _log.debug(
                 "Serverkey is going to be: {}".format(self._vc_serverkey))
