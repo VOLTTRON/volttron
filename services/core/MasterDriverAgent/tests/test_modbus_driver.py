@@ -2,26 +2,30 @@ import pytest
 import gevent
 import logging
 import time
+import json
 
 from volttron.platform import get_services_core
 from master_driver.interfaces.modbus_tk.server import Server
 from master_driver.interfaces.modbus_tk.client import Client, Field
 from master_driver.interfaces.modbus_tk import helpers
+from volttrontesting.utils.utils import get_rand_port
 from struct import pack, unpack
+from random import randint
 
 logger = logging.getLogger(__name__)
 
-DRIVER_CONFIG_STRING = """{
+ip = "127.0.0.{}".format(randint(1, 254))
+DRIVER_CONFIG = {
     "driver_config": {
-        "device_address": "127.0.0.1",
-         "port": 5020,
-         "slave_id": 1
+        "device_address": ip,
+        "port": get_rand_port(ip),
+        "slave_id": 1
     },
     "driver_type": "modbus",
-    "registry_config":"config://modbus.csv",
+    "registry_config": "config://modbus.csv",
     "interval": 120,
     "timezone": "UTC"
-}"""
+}
 
 # This registry configuration contains only required fields
 REGISTRY_CONFIG_STRING = """Volttron Point Name,Units,Modbus Register,Writable,Point Address
@@ -41,20 +45,20 @@ LittleFloat,PPM,<f,TRUE,110
 LittleLong,PPM,<q,TRUE,112"""
 
 # Register values dictionary for testing set_point and get_point
-registers_dict = {"BigUShort": 2**16-1,
-                  "BigUInt": 2**32-1,
-                  "BigULong": 2**64-1,
-                  "BigShort": -(2**16)/2,
-                  "BigInt": -(2**32)/2,
+registers_dict = {"BigUShort": 2 ** 16 - 1,
+                  "BigUInt": 2 ** 32 - 1,
+                  "BigULong": 2 ** 64 - 1,
+                  "BigShort": -(2 ** 16) / 2,
+                  "BigInt": -(2 ** 32) / 2,
                   "BigFloat": -1234.0,
-                  "BigLong": -(2**64)/2,
+                  "BigLong": -(2 ** 64) / 2,
                   "LittleUShort": 0,
                   "LittleUInt": 0,
                   "LittleULong": 0,
-                  "LittleShort": (2**16)/2-1,
-                  "LittleInt": (2**32)/2-1,
+                  "LittleShort": (2 ** 16) / 2 - 1,
+                  "LittleInt": (2 ** 32) / 2 - 1,
                   "LittleFloat": 1.0,
-                  "LittleLong": (2**64)/2-1
+                  "LittleLong": (2 ** 64) / 2 - 1
                   }
 
 
@@ -76,7 +80,7 @@ def agent(request, volttron_instance):
                           'manage_store',
                           'platform.driver',
                           'devices/modbus',
-                          DRIVER_CONFIG_STRING,
+                          json.dumps(DRIVER_CONFIG),
                           config_type='json')
 
     # Add csv configurations
@@ -87,9 +91,10 @@ def agent(request, volttron_instance):
                           REGISTRY_CONFIG_STRING,
                           config_type='csv')
 
-    master_uuid = volttron_instance.install_agent(agent_dir=get_services_core("MasterDriverAgent"),
-                                                   config_file={},
-                                                   start=True)
+    master_uuid = volttron_instance.install_agent(
+        agent_dir=get_services_core("MasterDriverAgent"),
+        config_file={},
+        start=True)
 
     gevent.sleep(10)  # wait for the agent to start and start the devices
 
@@ -102,7 +107,8 @@ def agent(request, volttron_instance):
     request.addfinalizer(stop)
     return md_agent
 
-class PPSPi32Client (Client):
+
+class PPSPi32Client(Client):
     """
         Define some regiesters to PPSPi32Client
     """
@@ -113,32 +119,48 @@ class PPSPi32Client (Client):
     byte_order = helpers.BIG_ENDIAN
     addressing = helpers.ADDRESS_OFFSET
 
-    BigUShort = Field("BigUShort", 0, helpers.USHORT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
-    BigUInt = Field("BigUInt", 1, helpers.UINT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
-    BigULong = Field("BigULong", 3, helpers.UINT64, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
-    BigShort = Field("BigShort", 7, helpers.SHORT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
-    BigInt = Field("BigInt", 8, helpers.INT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
-    BigFloat = Field("BigFloat", 10, helpers.FLOAT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
-    BigLong = Field("BigLong", 12, helpers.INT64, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+    BigUShort = Field("BigUShort", 0, helpers.USHORT, 'PPM', 2, helpers.no_op,
+                      helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+    BigUInt = Field("BigUInt", 1, helpers.UINT, 'PPM', 2, helpers.no_op,
+                    helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+    BigULong = Field("BigULong", 3, helpers.UINT64, 'PPM', 2, helpers.no_op,
+                     helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+    BigShort = Field("BigShort", 7, helpers.SHORT, 'PPM', 2, helpers.no_op,
+                     helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+    BigInt = Field("BigInt", 8, helpers.INT, 'PPM', 2, helpers.no_op,
+                   helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+    BigFloat = Field("BigFloat", 10, helpers.FLOAT, 'PPM', 2, helpers.no_op,
+                     helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+    BigLong = Field("BigLong", 12, helpers.INT64, 'PPM', 2, helpers.no_op,
+                    helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
     LittleUShort = Field(
-        "LittleUShort", 100, helpers.USHORT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+        "LittleUShort", 100, helpers.USHORT, 'PPM', 2, helpers.no_op,
+        helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
     LittleUInt = Field(
-        "LittleUInt", 101, helpers.UINT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+        "LittleUInt", 101, helpers.UINT, 'PPM', 2, helpers.no_op,
+        helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
     LittleULong = Field(
-        "LittleULong", 103, helpers.UINT64, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+        "LittleULong", 103, helpers.UINT64, 'PPM', 2, helpers.no_op,
+        helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
     LittleShort = Field(
-        "LittleShort", 107, helpers.SHORT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+        "LittleShort", 107, helpers.SHORT, 'PPM', 2, helpers.no_op,
+        helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
     LittleInt = Field(
-        "LittleInt", 108, helpers.INT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+        "LittleInt", 108, helpers.INT, 'PPM', 2, helpers.no_op,
+        helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
     LittleFloat = Field(
-        "LittleFloat", 110, helpers.FLOAT, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+        "LittleFloat", 110, helpers.FLOAT, 'PPM', 2, helpers.no_op,
+        helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
     LittleLong = Field(
-        "LittleLong", 112, helpers.INT64, 'PPM', 2, helpers.no_op, helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
+        "LittleLong", 112, helpers.INT64, 'PPM', 2, helpers.no_op,
+        helpers.REGISTER_READ_WRITE, helpers.OP_MODE_READ_WRITE)
 
 
 @pytest.fixture
 def modbus_server(request):
-    modbus_server = Server(address='127.0.0.1', port=5020)
+    modbus_server = Server(address=
+                           DRIVER_CONFIG["driver_config"]["device_address"],
+                           port=DRIVER_CONFIG["driver_config"]["port"])
     modbus_server.define_slave(1, PPSPi32Client, unsigned=True)
 
     # Set values for registers from server as the default values
@@ -149,13 +171,20 @@ def modbus_server(request):
     modbus_server.set_values(1, PPSPi32Client().field_by_name("BigInt"), 0)
     modbus_server.set_values(1, PPSPi32Client().field_by_name("BigFloat"), 0)
     modbus_server.set_values(1, PPSPi32Client().field_by_name("BigLong"), 0)
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleUShort"), unpack('<H', pack('>H', 0))[0])
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleUInt"), unpack('<I', pack('>I', 0))[0])
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleULong"), unpack('<Q', pack('>Q', 0))[0])
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleShort"), unpack('<h', pack('>h', 0))[0])
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleInt"), unpack('<i', pack('>i', 0))[0])
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleFloat"), unpack('<f', pack('>f', 0))[0])
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleLong"), unpack('<q', pack('>q', 0))[0])
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleUShort"),
+                             unpack('<H', pack('>H', 0))[0])
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleUInt"),
+                             unpack('<I', pack('>I', 0))[0])
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleULong"),
+                             unpack('<Q', pack('>Q', 0))[0])
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleShort"),
+                             unpack('<h', pack('>h', 0))[0])
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleInt"),
+                             unpack('<i', pack('>i', 0))[0])
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleFloat"),
+                             unpack('<f', pack('>f', 0))[0])
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleLong"),
+                             unpack('<q', pack('>q', 0))[0])
 
     def stop():
         modbus_server.stop()
@@ -180,7 +209,8 @@ class TestModbusDriver:
         @param point_name: The name of the point to query.
         @return: The returned value from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'get_point', 'modbus', point_name).get(timeout=10)
+        return agent.vip.rpc.call('platform.driver', 'get_point', 'modbus',
+                                  point_name).get(timeout=10)
 
     def set_point(self, agent, point_name, point_value):
         """
@@ -191,7 +221,8 @@ class TestModbusDriver:
         @param value: The value to set on the point.
         @return: The returned value from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'set_point', 'modbus', point_name, point_value).get(timeout=10)
+        return agent.vip.rpc.call('platform.driver', 'set_point', 'modbus',
+                                  point_name, point_value).get(timeout=10)
 
     def scrape_all(self, agent):
         """
@@ -202,7 +233,8 @@ class TestModbusDriver:
         @param: driver_name: The driver name (default: modbus).
         @return: The returned value from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'scrape_all', 'modbus').get(timeout=10)
+        return agent.vip.rpc.call('platform.driver', 'scrape_all',
+                                  'modbus').get(timeout=10)
 
     def test_default_values(self, agent):
         """By default server setting, all registers values are 0
