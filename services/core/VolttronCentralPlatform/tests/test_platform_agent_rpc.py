@@ -31,7 +31,7 @@ _log = logging.getLogger(__name__)
 
 @pytest.fixture(scope="module",
                 params=[("zmq", False),
-                        # ("rmq", True)
+                        ("rmq", True)
                 ])
 def setup_platform(request):
     """
