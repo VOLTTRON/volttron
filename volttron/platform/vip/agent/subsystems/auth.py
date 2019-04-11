@@ -237,8 +237,15 @@ class Auth(SubsystemBase):
         :param csr_server: the http(s) location of the server to connect to.
         :return:
         """
+
+        if get_messagebus() != 'rmq':
+            raise ValueError("Only can create csr for rabbitmq based platform in ssl mode.")
+
         from volttron.platform.web import DiscoveryInfo
         config = RMQConfig()
+
+        if not config.is_ssl():
+            raise ValueError("Only can create csr for rabbitmq based platform in ssl mode.")
 
         info = discovery_info
         if info is None:
