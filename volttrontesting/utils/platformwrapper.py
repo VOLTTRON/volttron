@@ -144,17 +144,24 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
     assert not wrapper.is_running()
 
     # Will returen https if messagebus rmq
-    vc_http = get_rand_http_address(wrapper.messagebus=='rmq') if with_http else None
+    bind_address = get_rand_http_address(wrapper.messagebus == 'rmq') if with_http else None
+    vc_http = bind_address
+    if wrapper.messagebus == 'rmq':
+        spaddr = bind_address.split(':')
+        vc_http = "https://localhost:{}".format(spaddr[2])
     vc_tcp = get_rand_tcp_address() if with_tcp else None
 
     if add_local_vc_address:
         ks = KeyStore(os.path.join(wrapper.volttron_home, 'keystore'))
         ks.generate()
-        volttron_central_address = vc_tcp
-        volttron_central_serverkey = ks.public
+        if wrapper.messagebus == 'rmq':
+            volttron_central_address = vc_http
+        else:
+            volttron_central_address = vc_tcp
+            volttron_central_serverkey = ks.public
 
     wrapper.startup_platform(vip_address=vc_tcp,
-                             bind_web_address=vc_http,
+                             bind_web_address=bind_address,
                              volttron_central_address=volttron_central_address,
                              volttron_central_serverkey=volttron_central_serverkey,
                              instance_name=instance_name)

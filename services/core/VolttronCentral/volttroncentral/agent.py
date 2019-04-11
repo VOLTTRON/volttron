@@ -430,8 +430,7 @@ class VolttronCentralAgent(Agent):
         """
         if env['REQUEST_METHOD'].upper() != 'POST':
             return jsonrpc.json_error('NA', INVALID_REQUEST,
-                                      'Invalid request method, only POST allowed'
-                                      )
+                                      'Invalid request method, only POST allowed')
 
         try:
             rpcdata = self._to_jsonrpc_obj(data)
