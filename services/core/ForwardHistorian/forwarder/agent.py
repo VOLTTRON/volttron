@@ -61,7 +61,7 @@ import os
 FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '5.0'
+__version__ = '5.1'
 
 
 def historian(config_path, **kwargs):
