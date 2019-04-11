@@ -36,32 +36,22 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+import base64
 from collections import defaultdict
 import json
 import logging
 import os
 import re
-
-import base64
-from urlparse import urlparse, urljoin
+import zlib
 
 import gevent
 import gevent.pywsgi
-
-
-from ws4py.server.geventserver import (WebSocketWSGIApplication,
-                                       WSGIServer)
-import zlib
-
+from ws4py.server.geventserver import WSGIServer
 import mimetypes
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
+
 from volttron.utils import is_ip_private
-from webapp import WebApplicationWrapper
-from admin_endpoints import AdminEndpoints
-from authenticate_endpoint import AuthenticateEndpoints
-from csr_endpoints import CSREndpoints
-
 from volttron.platform.agent import json as jsonapi
 from volttron.platform.agent.web import Response
 from volttron.platform.agent.utils import get_fq_identity
@@ -74,6 +64,11 @@ from volttron.platform.jsonrpc import (
 from volttron.platform.vip.socket import encode_key
 from cryptography.hazmat.primitives import serialization
 from volttron.utils.rmq_config_params import RMQConfig
+
+from webapp import WebApplicationWrapper
+from admin_endpoints import AdminEndpoints
+from authenticate_endpoint import AuthenticateEndpoints
+from csr_endpoints import CSREndpoints
 
 _log = logging.getLogger(__name__)
 
