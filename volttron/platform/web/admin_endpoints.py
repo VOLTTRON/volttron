@@ -27,7 +27,6 @@ class AdminEndpoints(object):
 
     def __init__(self, ssl_public_key):
 
-        self._userdict = None
         self._ssl_public_key = ssl_public_key
         self._userdict = None
         self.reload_userdict()
@@ -68,12 +67,10 @@ class AdminEndpoints(object):
                     return Response('', status='302', headers={'Location': '/admin/login.html'})
 
             template = template_env(env).get_template('first.html')
-            resp = template.render()
             return Response(template.render())
 
         if 'login.html' in env.get('PATH_INFO') or '/admin/' == env.get('PATH_INFO'):
             template = template_env(env).get_template('login.html')
-            resp = template.render()
             return Response(template.render())
 
         return self.verify_and_dispatch(env, data)

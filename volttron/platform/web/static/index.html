@@ -2,29 +2,81 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
-    <style type="text/css">
-        body{
-            background-color: black;
-            color: white;
-            font-size: 14pt;
-            font-family: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
-        }
-        #header{
-            padding-bottom: 20px;
-            border-bottom: 20px;
-            text-align: center;
-        }
-        #content{
-            width: 800px;
+    <title>VOLTTRON Default Page</title>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <style>
+        html {
+            font: 100%/1.5 "Open Sans", sans-serif;
         }
 
-        p{
-            padding-bottom:10px;
-            border-bottom:10px;
+        body {
+            background-color: #eee;
         }
+
+        h1, h2, h3, h4, h5, h6 {
+            margin: 0;
+        }
+
+        a {
+            color: #45b;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        input {
+            line-height: 1.5 !important;
+        }
+
+        pre, code {
+            font-family: "Menlo", "Monaco", "Consolas", monospace;
+        }
+
+        .button {
+            background-color: #69b;
+            box-shadow: 0 0.3333rem #479;
+            color: #fff;
+            transition: opacity 150ms ease-out,
+                        transform 20ms ease-out,
+                        box-shadow 20ms ease-out;
+            border: none;
+            border-radius: 0.3333rem;
+            padding: 0.25em 1em;
+        }
+
+        .button:focus {
+            outline: none;
+            box-shadow: 0 0 0.0833rem 0.1667rem rgba(128,128,255,0.5), 0 0.3333rem #479;
+        }
+
+        .button:active:not(:disabled) {
+            transform: translateY(0.3333rem);
+            box-shadow: 0 0 #479;
+        }
+
+        .button:disabled {
+            background-color: #9ab;
+            opacity: 0.5;
+            box-shadow: 0 0 #479;
+        }
+
+        #header {
+            background-color: #000055;
+            text-align: center;
+        }
+
+        #content {
+            padding-top: 20px;
+        }
+
     </style>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script language="JavaScript">
         $(document).ready(() => {
             $("#login_area").hide();
@@ -37,20 +89,21 @@
     </script>
 </head>
 <body>
-    <div id="header"><img height="100" id="logotag" src="logo-tagline.png" /></div>
-    <div id="content">
-        <p>
-            You are accessing the default page of a web enabled volttron node.  This content is
-            located in the volttron/platform/web/static directory in the volttron distribution.
-            You may use or remove this folder to make it un-available.
-        </p>
-        <p id="login_area">
-            Your volttron comes with
-            <ul id="login_area_link">
-                <li><a href="/admin/login.html">Login to Admininstration Area</a></li>
-            </ul>
-        </p>
+    <div class="container">
+        <div id="header"><img height="100" id="logotag" src="logo-tagline.png" /></div>
+        <div id="content">
+            <p>
+                You are accessing the default page of a web enabled volttron node.  This content is
+                located in the volttron/platform/web/static directory in the volttron distribution.
+                You may use or remove this folder to make it un-available.
+            </p>
+            <p id="login_area">
+                Your volttron comes with
+                <ul id="login_area_link">
+                    <li><a href="/admin/login.html">Login to Admininstration Area</a></li>
+                </ul>
+            </p>
+        </div>
     </div>
-
 </body>
 </html>

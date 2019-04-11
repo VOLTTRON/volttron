@@ -1,7 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Index{% endblock %}
+{% block title %}Certificate Requests{% endblock %}
 {% block js %}
-    <script src="/js/jquery.min-3.3.1.js"></script>
     <script language="JavaScript">
         $("#status").hide();
         $(document).ready(() => {
@@ -81,26 +80,30 @@
     </script>
 {% endblock %}
 {% block content %}
-
-    <ul>
-    {% for c in csrs %}
-        <li>
-            <div style="width: 200px; float:left;">
-                <a class="approval"
-                   data-common_name="{{c.identity}}"
-                   data-status="{{c.status}}" href="#">Approve</a>
-                <a id="{{c.identity}}_deny" href="javascript:deny('{{c.identity}}'); return false;">Deny</a>
-                <a id="{{c.identity}}_delete" href="javascript:delete('{{c.identity}}'); return false;">Delete</a>
-            </div>
-            <div style="float: left;">
-                <!-- {{c}}<br /> -->
-                Status: {{c.status}}<br />
-                Common Name: {{c.identity}}<br/>
-                Remote IP: {{c.remote_ip_address}}<br/>
-            </div>
-            <div style="float:none;"></div>
-        </li>
-    {% endfor %}
-    </ul>
+    <h1>Certificate Requests</h1>
+    {% if not csrs %}
+        <div>No Certificate Requests</div>
+    {% else %}
+        <ul>
+        {% for c in csrs %}
+            <li>
+                <div style="width: 200px; float:left;">
+                    <a class="approval"
+                       data-common_name="{{c.identity}}"
+                       data-status="{{c.status}}" href="#">Approve</a>
+                    <a id="{{c.identity}}_deny" href="javascript:deny('{{c.identity}}'); return false;">Deny</a>
+                    <a id="{{c.identity}}_delete" href="javascript:delete('{{c.identity}}'); return false;">Delete</a>
+                </div>
+                <div style="float: left;">
+                    <!-- {{c}}<br /> -->
+                    Status: {{c.status}}<br />
+                    Common Name: {{c.identity}}<br/>
+                    Remote IP: {{c.remote_ip_address}}<br/>
+                </div>
+                <div style="float:none;"></div>
+            </li>
+        {% endfor %}
+        </ul>
+    {% endif %}
 
 {% endblock %}
