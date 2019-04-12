@@ -140,6 +140,11 @@ class AdminEndpoints(object):
 
     def __approve_csr_api(self, common_name):
         try:
+            _log.debug("Creating cert and permissions for user: {}".format(common_name))
+            permissions = self._core().rmq_mgmt.get_default_permissions(common_name)
+            self._core().rmq_mgmt.create_user_with_permissions(common_name,
+                                                               permissions,
+                                                               True)
             self._certs.approve_csr(common_name)
             data = dict(status=self._certs.get_csr_status(common_name),
                         cert=self._certs.get_cert_from_csr(common_name))
