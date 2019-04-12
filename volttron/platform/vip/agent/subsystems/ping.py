@@ -61,17 +61,15 @@ class Ping(SubsystemBase):
         core.register('ping', self._handle_ping, self._handle_error)
 
     def ping(self, peer, *args):
-        #socket = self.core().socket
         result = next(self._results)
         args = list(args)
         args.insert(0, b'ping')
         connection = self.core().connection
         try:
-            connection.send_vip_object(Message(peer=peer,
-                                           subsystem=b'ping',
-                                           args=args,
-                                           id=result.ident))
-            #socket.send_vip(peer, b'ping', args, result.ident)
+            connection.send_vip(b'',
+                                b'peerlist',
+                                args=[b'drop', bytes(peer)],
+                                msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.debug("Socket send on non socket {}".format(self.core().identity))

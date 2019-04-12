@@ -297,8 +297,7 @@ class RMQConnection(BaseConnection):
     def send_vip_object(self, message, flags=0, copy=True, track=False):
         """
         Send the VIP message over RabbitMQ message bus.
-        Reformat the VIP message object into Pika message object and
-        publish it using Pika library
+
         :param message: VIP message object
         :return:
         """
@@ -309,32 +308,71 @@ class RMQConnection(BaseConnection):
             platform = self._instance_name
 
         destination_routing_key = "{0}.{1}".format(platform, message.peer)
+        user = getattr(message, 'user', self._rmq_userid)
+        msg_id = getattr(message, 'id', b'')
+        self._send_via_rmq(destination_routing_key, message.subsystem, message.args, msg_id, user)
 
+    def send_vip(self, peer, subsystem, args = None, msg_id = b'',
+                 user = b'', via = None, flags = 0, copy = True, track = False, platform=None):
+        """
+        Send VIP message over RabbitMQ message bus.
+        :param peer: peer
+        :param subsystem: subsytem type
+        :param args: actual message
+        :param msg_id: message id
+        :param user: user
+        :param via:
+        :param flags: unused
+        :param copy: unused
+        :param track: unused
+        :param platform: instance name
+        :return:
+        """
+        if not platform or platform == b'':
+            platform = self._instance_name
+        if peer == b'':
+            peer = 'router'
+        if user == b'':
+            user = self._rmq_userid
+        destination_routing_key = "{0}.{1}".format(platform, peer)
+        self.send_via_rmq(destination_routing_key, subsystem, args, msg_id, user)
+
+    def _send_via_rmq(self, destination_routing_key, subsystem, args, msg_id, user):
+        """
+        Reformat the VIP message object into Pika message object and
+        publish it using Pika library
+        :param destination_routing_key:
+        :param subsystem:
+        :param args:
+        :param msg_id:
+        :param user:
+        :return:
+        """
         # Fit VIP frames in the PIKA properties dict
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         dct = {
             'user_id': self._rmq_userid,
             'app_id': self.routing_key,  # Routing key of SENDER
             'headers': dict(
-                            recipient=destination_routing_key,  # RECEIVER
-                            proto=b'VIP',  # PROTO
-                            user=getattr(message, 'user', self._rmq_userid),  # USER_ID
-                            ),
-            'message_id': getattr(message, 'id', b''),  # MSG_ID
-            'type': message.subsystem,  # SUBSYS
+                recipient=destination_routing_key,  # RECEIVER
+                proto=b'VIP',  # PROTO
+                user=user,  # USER_ID
+            ),
+            'message_id': msg_id,  # MSG_ID
+            'type': subsystem,  # SUBSYS
             'content_type': 'application/json'
         }
         properties = pika.BasicProperties(**dct)
-        msg = getattr(message, 'args', None)  # ARGS
+        msg = args  # ARGS
         # _log.debug("PUBLISHING TO CHANNEL {0}, {1}, {2}, {3}".format(destination_routing_key,
         #                                                              msg,
         #                                                              properties,
         #                                                              self.routing_key))
         try:
             self.channel.basic_publish(self.exchange,
-                                   destination_routing_key,
-                                   json.dumps(msg, ensure_ascii=False),
-                                   properties)
+                                       destination_routing_key,
+                                       json.dumps(msg, ensure_ascii=False),
+                                       properties)
         except (pika.exceptions.AMQPConnectionError,
                 pika.exceptions.AMQPChannelError) as exc:
             raise Unreachable(errno.EHOSTUNREACH, "Connection to RabbitMQ is lost",

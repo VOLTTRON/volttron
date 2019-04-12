@@ -260,8 +260,7 @@ class ControlService(BaseAgent):
         # Send message to router that agent is shutting down
         frames = [bytes(identity)]
 
-        # self.core.socket.send_vip(b'', 'agentstop', frames, copy=False)
-        self.core.connection.send_vip_object(Message(peer=b'', subsystem='agentstop', args=frames), copy=False)
+        self.core.connection.send_vip(b'', 'agentstop', frames, copy=False)
 
     @RPC.export
     def restart_agent(self, uuid):
@@ -275,8 +274,7 @@ class ControlService(BaseAgent):
     @RPC.export
     def stop_platform(self):
         # XXX: Restrict call as it kills the process
-        # self.core.socket.send_vip(b'', b'quit')
-        self.core.connection.send_vip_object(Message(peer=b'', subsystem=b'quit'))
+        self.core.connection.send_vip(b'', b'quit')
 
     @RPC.export
     def list_agents(self):
@@ -313,7 +311,7 @@ class ControlService(BaseAgent):
         frames = [bytes(identity)]
 
         # Send message to router that agent is shutting down
-        self.core.connection.send_vip_object(Message(peer=b'', subsystem='agentstop', args=frames))
+        self.core.connection.send_vip(b'', 'agentstop', args=frames)
         self._aip.remove_agent(uuid, remove_auth=remove_auth)
 
     @RPC.export
