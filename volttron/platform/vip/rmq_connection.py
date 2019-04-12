@@ -335,7 +335,7 @@ class RMQConnection(BaseConnection):
         if user == b'':
             user = self._rmq_userid
         destination_routing_key = "{0}.{1}".format(platform, peer)
-        self.send_via_rmq(destination_routing_key, subsystem, args, msg_id, user)
+        self._send_via_rmq(destination_routing_key, subsystem, args, msg_id, user)
 
     def _send_via_rmq(self, destination_routing_key, subsystem, args, msg_id, user):
         """
