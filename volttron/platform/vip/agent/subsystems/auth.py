@@ -52,6 +52,7 @@ from volttron.platform.certs import Certs
 from volttron.platform.jsonrpc import RemoteError
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.platform.keystore import KeyStore
+from volttron.platform.vip.agent.subsystems.health import BAD_STATUS, Status
 
 """
 The auth subsystem allows an agent to quickly query authorization state
@@ -244,7 +245,7 @@ class Auth(SubsystemBase):
         from volttron.platform.web import DiscoveryInfo
         config = RMQConfig()
 
-        if not config.is_ssl():
+        if not config.is_ssl:
             raise ValueError("Only can create csr for rabbitmq based platform in ssl mode.")
 
         info = discovery_info
@@ -291,7 +292,14 @@ class Auth(SubsystemBase):
         elif status == 'PENDING':
             _log.debug("Pending CSR request for {}".format(remote_cert_name))
         elif status == 'DENIAL':
-            print("Woops")
+            _log.error("Denied from remote machine.  Shutting down agent.")
+            status = Status.build(BAD_STATUS,
+                                  context="Administrator denied remote connection.  Shutting down")
+            self._owner().health.set_status(status.status, status.context)
+            self._owner().send_alert(self._core().identity+"_DENIED",
+                                     self._owner().health.get_status())
+            self._core().stop()
+            return None
         elif status == 'ERROR':
             err = "Error retrieving certificate from {}\n".format(
                 config.hostname)
