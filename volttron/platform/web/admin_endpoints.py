@@ -25,8 +25,9 @@ def template_env(env):
 
 class AdminEndpoints(object):
 
-    def __init__(self, ssl_public_key):
+    def __init__(self, rmq_mgmt, ssl_public_key):
 
+        self._rmq_mgmt = rmq_mgmt
         self._ssl_public_key = ssl_public_key
         self._userdict = None
         self.reload_userdict()
@@ -141,11 +142,11 @@ class AdminEndpoints(object):
     def __approve_csr_api(self, common_name):
         try:
             _log.debug("Creating cert and permissions for user: {}".format(common_name))
-            permissions = self._core().rmq_mgmt.get_default_permissions(common_name)
-            self._core().rmq_mgmt.create_user_with_permissions(common_name,
-                                                               permissions,
-                                                               True)
             self._certs.approve_csr(common_name)
+            permissions = self._rmq_mgmt.get_default_permissions(common_name)
+            self._rmq_mgmt.create_user_with_permissions(common_name,
+                                                        permissions,
+                                                        True)
             data = dict(status=self._certs.get_csr_status(common_name),
                         cert=self._certs.get_cert_from_csr(common_name))
         except ValueError as e:

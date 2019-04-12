@@ -565,8 +565,8 @@ class MasterWebService(Agent):
         if parsed.scheme == 'https':
             # Admin interface is only availble to rmq at present.
             if self.core.messagebus == 'rmq':
-                self._admin_endpoints = AdminEndpoints(
-                    self._certs.get_cert_public_key(get_fq_identity(self.core.identity)))
+                self._admin_endpoints = AdminEndpoints(self.core.rmq_mgmt,
+                                                       self._certs.get_cert_public_key(get_fq_identity(self.core.identity)))
 
             if ssl_key is None or ssl_cert is None:
                 ssl_cert = self._certs.cert_file(get_fq_identity(self.core.identity))

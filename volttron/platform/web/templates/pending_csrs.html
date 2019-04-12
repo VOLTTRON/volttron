@@ -9,15 +9,20 @@
 {% endblock %}
 {% block js %}
     <script language="JavaScript">
-        $("#status").hide();
+
         function set_status(new_text){
-            console.log("New text: "+new_text);
             $("#status").html(new_text);
             $("#status").show();
         }
 
         $(document).ready(() => {
-            $("#status").hide();
+            if (localStorage.status) {
+                set_status(localStorage.status);
+                localStorage.removeItem("status")
+            }
+            else{
+                $("#status").hide();
+            }
 
             $('a.approve').each((i, obj)=>{
                 if (obj.getAttribute('data-status') === 'APPROVED'){
@@ -39,7 +44,7 @@
                 $.get({
                     url: url,
                     success: (data) => {
-                        set_status(data['status']+ " for "+common_name);
+                        localStorage.status = data['status']+ " for "+common_name;
                         location.reload();
                     }
                 });
@@ -55,7 +60,7 @@
                 $.get({
                     url: url,
                     success: (data) => {
-                        set_status(data['status']+ " for "+common_name);
+                        localStorage.status = data['status']+ " for "+common_name;
                         location.reload();
                     }
                 });
@@ -71,7 +76,7 @@
                 $.get({
                     url: url,
                     success: (data) => {
-                        set_status(data['status']+ " for "+common_name);
+                        localStorage.status = data['status']+ " for "+common_name;
                         location.reload();
                     }
                 });
