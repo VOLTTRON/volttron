@@ -28,7 +28,8 @@ DRIVER_CONFIG = {
 }
 
 # This registry configuration contains only required fields
-REGISTRY_CONFIG_STRING = """Volttron Point Name,Units,Modbus Register,Writable,Point Address
+REGISTRY_CONFIG_STRING = """
+Volttron Point Name,Units,Modbus Register,Writable,Point Address
 BigUShort,PPM,>H,TRUE,0
 BigUInt,PPM,>I,TRUE,1
 BigULong,PPM,>Q,TRUE,3
@@ -64,7 +65,8 @@ registers_dict = {"BigUShort": 2 ** 16 - 1,
 
 @pytest.fixture(scope="module")
 def agent(request, volttron_instance):
-    """Build MasterDriverAgent, add modbus driver & csv configurations
+    """
+    Build MasterDriverAgent, add Modbus driver & csv configurations
     """
 
     # Build master driver agent
@@ -110,7 +112,7 @@ def agent(request, volttron_instance):
 
 class PPSPi32Client(Client):
     """
-        Define some regiesters to PPSPi32Client
+        Define some registers to PPSPi32Client
     """
 
     def __init__(self, *args, **kwargs):
@@ -200,10 +202,12 @@ class TestModbusDriver:
     """
         Regression tests for the modbus driver interface.
     """
+    def __init__(self):
+        pass
 
     def get_point(self, agent, point_name):
         """
-            Issue a get_point RPC call for the named point and return the result.
+        Issue a get_point RPC call for the named point and return the result.
 
         @param agent: The test Agent.
         @param point_name: The name of the point to query.
@@ -214,11 +218,12 @@ class TestModbusDriver:
 
     def set_point(self, agent, point_name, point_value):
         """
-            Issue a set_point RPC call for the named point and value, and return the result.
+        Issue a set_point RPC call for the named point and value, and return
+        the result.
 
         @param agent: The test Agent.
         @param point_name: The name of the point to query.
-        @param value: The value to set on the point.
+        @param point_value: The value to set on the point.
         @return: The returned value from the RPC call.
         """
         return agent.vip.rpc.call('platform.driver', 'set_point', 'modbus',
@@ -226,15 +231,13 @@ class TestModbusDriver:
 
     def scrape_all(self, agent):
         """
-            Issue a get_point RPC call for the named point and return the result.
+        Issue a get_point RPC call for the named point and return the result.
 
         @param agent: The test Agent.
-        @param point_name: The name of the point to query.
-        @param: driver_name: The driver name (default: modbus).
         @return: The returned value from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'scrape_all',
-                                  'modbus').get(timeout=10)
+        return agent.vip.rpc.call('platform.driver', 'scrape_all', 'modbus')\
+            .get(timeout=10)
 
     def test_default_values(self, agent):
         """By default server setting, all registers values are 0
