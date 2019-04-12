@@ -4,7 +4,7 @@
 #export FAST_FAIL=0
 
 if [[ $# -eq 0 ]] ; then
-    NUM_PROCESSES=5
+    NUM_PROCESSES=3
 else
     NUM_PROCESSES=$1
 fi
@@ -14,8 +14,8 @@ echo "RUNNING $NUM_PROCESSES PARALLEL PROCESSESS AT A TIME"
 docker build --network=host -t volttron_test_base -f ./ci-integration/virtualization/Dockerfile .
 docker build --network=host -t volttron_test_image -f ./ci-integration/virtualization/Dockerfile.testing .
 
-testdirs=(examples services volttron volttrontesting)
-
+#testdirs=(examples services volttron volttrontesting)
+testdirs=(services)
 #Funtion to pytests per file in separate docker containers
 run_tests() {
     local files=("$@")
@@ -23,12 +23,15 @@ run_tests() {
     local container_names=()
     local i=0
     local pids=""
+    local full_filenames=()
     for filename in ${files[@]}
     do
         base_filename=`basename $filename`
-        docker run -e "IGNORE_ENV_CHECK=1" --name $base_filename -t volttron_test_image pytest $filename &> "$base_filename.result.txt" &
+        docker run -e "IGNORE_ENV_CHECK=1" --name $base_filename -t volttron_test_image pytest $filename > "$base_filename.result.txt" 2>&1 &
+        sleep 1
         pids[$i]=$!
         container_names[$i]=$base_filename
+        output_files[$i]="$base_filename.result.txt"
         let i++
     done
 
@@ -37,21 +40,25 @@ run_tests() {
     echo "INPUT FILES: ${files[@]}"
 
     for ((x=0; x< $len; x++)); do
-        echo "WAITING ON" ${pids[$x]}
+        echo "WAITING ON" ${container_names[$x]}
         wait ${pids[$x]}
 
         if [ $? -eq 0 ]; then
             echo "Job" ${files[$x]} "all tests: PASSED"
         else
-            echo "Job" ${files[$x]} "some tests: FAILED"
-            docker logs ${container_names[$x]} --tail=50
-            if [ ${FAST_FAIL} ]; then
-                echo "Fast failing!"
-                docker rm ${container_names[$x]}
-                exit $?
+            if [ $? -ne 5 ]; then
+                echo $?
+                echo "Job" ${files[$x]} "some tests: FAILED"
+                docker logs ${container_names[$x]}
+                if [ ${FAST_FAIL} ]; then
+                    echo "Fast failing!"
+                    docker rm ${container_names[$x]}
+                    exit $?
+                fi
             fi
         fi
         docker rm ${container_names[$x]}
+        rm ${output_files[$x]}
     done
 }
 
