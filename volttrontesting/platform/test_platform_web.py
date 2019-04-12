@@ -227,7 +227,9 @@ def test_test_web_agent(web_instance):
     resp = requests.post(rpc, json=payload)
     assert resp.ok
     assert resp.headers['Content-type'] == 'application/json'
-    jsonresp = json.loads(resp.json()['result'])
+    #jsonresp = json.loads(resp.json()['result'])
+    jsonresp = resp.json()['result']
+
     print(jsonresp)
 
     for k, v in payload.items():
