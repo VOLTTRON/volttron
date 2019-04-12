@@ -7,7 +7,4 @@ Using RabbitMQ message bus
     :glob:
     :maxdepth: 1
 
-    RMQ_Multiplatform_Setup
-    Backward_Compatibility
-    Monitoring_RMQ
-    Troubbleshooting_RMQ
+    *

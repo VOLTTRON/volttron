@@ -22,5 +22,3 @@ in few different ways.
    This is the most seamless way to do multi-platform communication. This can be achieved using RabbitMQ's federation
    plugin. Setup for this is described at :ref:`Using Federation Plug-in<federation-plugin>`
 
-RabbitMQ's shovel plugin can be used to replace connection type 2 described above.
-Similarly, RabbitMQ's federation plugin can be used to replace connection type 3.
