@@ -89,15 +89,6 @@ class WebApplicationWrapper(object):
             self.masterweb.vip.rpc.call(identity, 'client.closed', endpoint)
 
     def create_ws_endpoint(self, endpoint, identity):
-        # _log.debug()print(endpoint, identity)
-        # if endpoint in self.endpoint_clients:
-        #     peers = self.masterweb.vip.peerlist.get()
-        #     old_identity = self._wsregistry[endpoint]
-        #     if old_identity not in peers:
-        #         for client in self.endpoint_clients.values():
-        #             client.close()
-        #         r
-
         if endpoint not in self.endpoint_clients:
             self.endpoint_clients[endpoint] = set()
         self._wsregistry[endpoint] = identity
