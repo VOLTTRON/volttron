@@ -1060,7 +1060,6 @@ class BaseHistorianAgent(Agent):
             if not self._setup_failed:
                 wait_for_input = True
                 start_time = datetime.utcnow()
-                _log.debug("Beginning publish loop.")
 
                 while True:
                     to_publish_list = backupdb.get_outstanding_to_publish(
@@ -1128,8 +1127,6 @@ class BaseHistorianAgent(Agent):
                     # Check for a stop for reconfiguration.
                     if self._stop_process_loop:
                         break
-
-                _log.debug("Exiting publish loop.")
 
             # Check for a stop for reconfiguration.
             if self._stop_process_loop:
