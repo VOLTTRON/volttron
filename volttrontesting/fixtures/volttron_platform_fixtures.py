@@ -256,7 +256,7 @@ def volttron_instance_rmq(request):
 
     wrapper = build_wrapper(address,
                             message_bus='rmq',
-                            ssl_auth = True)
+                            ssl_auth=True)
 
     def cleanup():
         print('Shutting down RMQ instance: {}'.format(wrapper.volttron_home))
