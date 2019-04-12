@@ -366,11 +366,11 @@ class MasterWebService(Agent):
         passenv = dict(
             (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)) if envlist[i] in env.keys())
 
-        _log.debug('PATH IS: {}'.format(path_info))
+        _log.debug('path_info is: {}'.format(path_info))
         # Get the peer responsible for dealing with the endpoint.  If there
         # isn't a peer then fall back on the other methods of routing.
         (peer, res_type) = self.endpoints.get(path_info, (None, None))
-        _log.debug('Peer we path_info is associated with: {}'.format(peer))
+        _log.debug('Peer path_info is associated with: {}'.format(peer))
 
         if self.is_json_content(env):
             data = json.loads(data)
