@@ -10,11 +10,19 @@ class NotAuthorized(Exception):
 
 
 def get_bearer(env):
-    cookiestr = env.get('HTTP_COOKIE')
-    if not cookiestr:
-        raise NotAuthorized()
-    cookie = Cookie.SimpleCookie(cookiestr)
-    bearer = cookie.get('Bearer').value.decode('utf-8')
+
+    # Test if HTTP_AUTHORIZATION header is passed
+    http_auth = env.get('HTTP_AUTHORIZATION')
+    if http_auth:
+        auth_type, bearer = http_auth.split(' ')
+        if auth_type.upper() != 'BEARER':
+            raise NotAuthorized("Invalid HTTP_AUTHORIZATION header passed, must be Bearer")
+    else:
+        cookiestr = env.get('HTTP_COOKIE')
+        if not cookiestr:
+            raise NotAuthorized()
+        cookie = Cookie.SimpleCookie(cookiestr)
+        bearer = cookie.get('Bearer').value.decode('utf-8')
     return bearer
 
 

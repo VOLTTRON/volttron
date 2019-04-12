@@ -337,10 +337,10 @@ class MasterWebService(Agent):
             rmq_address = None
             if config.is_ssl:
                 rmq_address = "amqps://{host}:{port}/{vhost}".format(host=config.hostname, port=config.amqp_port_ssl,
-                                                                 vhost=config.virtual_host)
+                                                                     vhost=config.virtual_host)
             else:
                 rmq_address = "amqp://{host}:{port}/{vhost}".format(host=config.hostname, port=config.amqp_port,
-                                                                     vhost=config.virtual_host)
+                                                                    vhost=config.virtual_host)
             return_dict['rmq-address'] = rmq_address
             return_dict['rmq-ca-cert'] = self._certs.cert(self._certs.root_ca_name).public_bytes(serialization.Encoding.PEM)
         return Response(jsonapi.dumps(return_dict), content_type="application/json")
@@ -361,7 +361,7 @@ class MasterWebService(Agent):
         # agents.
         envlist = ['HTTP_USER_AGENT', 'PATH_INFO', 'QUERY_STRING',
                    'REQUEST_METHOD', 'SERVER_PROTOCOL', 'REMOTE_ADDR',
-                   'HTTP_ACCEPT_ENCODING', 'HTTP_COOKIE', 'CONTENT_TYPE']
+                   'HTTP_ACCEPT_ENCODING', 'HTTP_COOKIE', 'CONTENT_TYPE', 'HTTP_AUTHORIZATION']
         data = env['wsgi.input'].read()
         passenv = dict(
             (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)) if envlist[i] in env.keys())

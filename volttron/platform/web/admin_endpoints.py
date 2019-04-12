@@ -5,13 +5,13 @@ import re
 import urlparse
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
-import jwt
+
 from passlib.hash import argon2
 from watchdog_gevent import Observer
 
 from volttron.platform import get_home
 from volttron.platform.agent import json
-from volttron.platform.agent.web import Response
+from volttron.platform.agent.web import Response, get_user_claims, NotAuthorized
 from volttron.utils import FileReloader
 from volttron.utils.persistance import PersistentDict
 from volttron.platform.certs import Certs
@@ -76,16 +76,21 @@ class AdminEndpoints(object):
         return self.verify_and_dispatch(env, data)
 
     def verify_and_dispatch(self, env, data):
+        """ Verify that the user is an admin and dispatch
 
-        bearer = env.get('HTTP_COOKIE')
-        if not bearer:
-            template = template_env(env).get_template('login.html')
-            return Response(template.render(), status='401 Unauthorized')
+        :param env: web environment
+        :param data: data associated with a web form or json/xml request data
+        :return: Response object.
+        """
+        try:
+            claims = get_user_claims(env)
+        except NotAuthorized:
+            _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
+            return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
 
-        cookie = Cookie.SimpleCookie(env.get('HTTP_COOKIE'))
-        bearer = cookie.get('Bearer').value.decode('utf-8')
-
-        claims = jwt.decode(bearer, self._ssl_public_key, algorithms='RS256')
+        # Make sure we have only admins for viewing this.
+        if 'admin' not in claims.get('groups'):
+            return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
 
         # Make sure we have only admins for viewing this.
         if 'admin' not in claims.get('groups'):
