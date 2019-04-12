@@ -5,3 +5,6 @@ mock
 websocket-client
 numpy>1.13<2
 pandas
+pydnp3
+pymongo
+mysql-connector-python-rf
