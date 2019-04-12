@@ -291,13 +291,12 @@ class Auth(SubsystemBase):
 
         elif status == 'PENDING':
             _log.debug("Pending CSR request for {}".format(remote_cert_name))
-        elif status == 'DENIAL':
+        elif status == 'DENIED':
             _log.error("Denied from remote machine.  Shutting down agent.")
             status = Status.build(BAD_STATUS,
                                   context="Administrator denied remote connection.  Shutting down")
-            self._owner().health.set_status(status.status, status.context)
-            self._owner().send_alert(self._core().identity+"_DENIED",
-                                     self._owner().health.get_status())
+            self._owner.vip.health.set_status(status.status, status.context)
+            self._owner.vip.health.send_alert(self._core().identity+"_DENIED", status)
             self._core().stop()
             return None
         elif status == 'ERROR':

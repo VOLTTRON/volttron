@@ -1,25 +1,37 @@
 {% extends "base.html" %}
 {% block title %}Certificate Requests{% endblock %}
+{% block cs %}
+    <style>
+        ul { list-style: none; margin-top:20px;}
+        #status{ color: red; font-weight: bold;}
+        .csr-row{width: 200px; margin-top:10px; float:left;}
+    </style>
+{% endblock %}
 {% block js %}
     <script language="JavaScript">
         $("#status").hide();
+        function set_status(new_text){
+            console.log("New text: "+new_text);
+            $("#status").html(new_text);
+            $("#status").show();
+        }
+
         $(document).ready(() => {
             $("#status").hide();
 
-            $('a.approval').each((i, obj)=>{
+            $('a.approve').each((i, obj)=>{
                 if (obj.getAttribute('data-status') === 'APPROVED'){
                     obj.setAttribute('hidden', true);
                 }
-                //console.log(obj);
-                //console.log(obj.getAttribute("data-common_name"))//alert($( this ))
-                //alert(item.getAttribute("data-status"));
-                // alert(item.data['status']);
-                // if (item.data('status') === 'APPROVED'){
-                //     item.hide();
-                // }
             });
 
-            $('a.approval').click(function (e){
+            $('a.deny').each((i, obj)=>{
+                if (obj.getAttribute('data-status') === 'DENIED'){
+                    obj.setAttribute('hidden', true);
+                }
+            });
+
+            $('a.approve').click(function (e){
                 e.preventDefault();
                 var element = $(this);
                 var common_name = element.data("common_name");
@@ -27,16 +39,46 @@
                 $.get({
                     url: url,
                     success: (data) => {
-                        if (data.hasOwnProperty('status') && data['status'] ==='APPROVED'){
-                            alert("Approved!")
-                        }
-                        alert(JSON.stringify(data));
+                        set_status(data['status']+ " for "+common_name);
+                        location.reload();
                     }
                 });
-                // alert("data-common_name"))
-                // alert(JSON.stringify(e));
+
                 return false;
             });
+
+            $('a.deny').click(function (e){
+                e.preventDefault();
+                var element = $(this);
+                var common_name = element.data("common_name");
+                var url = "/admin/api/deny_csr/"+ common_name;
+                $.get({
+                    url: url,
+                    success: (data) => {
+                        set_status(data['status']+ " for "+common_name);
+                        location.reload();
+                    }
+                });
+
+                return false;
+            });
+
+            $('a.delete').click(function (e){
+                e.preventDefault();
+                var element = $(this);
+                var common_name = element.data("common_name");
+                var url = "/admin/api/delete_csr/"+ common_name;
+                $.get({
+                    url: url,
+                    success: (data) => {
+                        set_status(data['status']+ " for "+common_name);
+                        location.reload();
+                    }
+                });
+
+                return false;
+            });
+
             // {% for c in csrs %}
             // $('#{{c.identity}}_approve').click(function (e) {
             //     e.preventDefault(); /*your_code_here;*/
@@ -45,38 +87,6 @@
             // });
             // {% endfor %}
         });
-
-        function approve(common_name) {
-            url = "/admin/api/approve_csr/" + common_name;
-            // Not sure why both the accepts and the dataType parameter
-            // must be set in order for the HTTP_ACCEPT: application/json to
-            // be something other than HTTP_ACCEPT: */*
-            $.ajax({
-                type: 'GET',
-                url: url,
-                headers: {
-                    'Accept': 'application/json'
-                },
-                success: function(content){
-                    alert(content);
-                    $("#response").append(content)
-                },
-                failure: function(content){
-                    alert("failed!");
-                    $('#response').append("FAILURE "+ content.toString());
-                },
-                statusCode: {
-                    401: function(response){
-                        $("#status").show();
-                    },
-                    200: function(response){
-                        document.cookie = "Bearer="+response.responseText+"; secure=True; path=/";
-                        window.location=window.location.origin + "/admin/index.html";
-                    }
-                }
-
-            });
-        }
     </script>
 {% endblock %}
 {% block content %}
@@ -84,15 +94,20 @@
     {% if not csrs %}
         <div>No Certificate Requests</div>
     {% else %}
+        <div id="status"></div>
         <ul>
         {% for c in csrs %}
             <li>
-                <div style="width: 200px; float:left;">
-                    <a class="approval"
+                <div class="csr-row" data-common_name="{{c.identity}}">
+                    <a class="approve"
                        data-common_name="{{c.identity}}"
                        data-status="{{c.status}}" href="#">Approve</a>
-                    <a id="{{c.identity}}_deny" href="javascript:deny('{{c.identity}}'); return false;">Deny</a>
-                    <a id="{{c.identity}}_delete" href="javascript:delete('{{c.identity}}'); return false;">Delete</a>
+                    <a class="deny"
+                       data-common_name="{{c.identity}}"
+                       data-status="{{c.status}}" href="#">Deny</a>
+                    <a class="delete"
+                       data-common_name="{{c.identity}}"
+                       data-status="{{c.status}}" href="#">Delete</a>
                 </div>
                 <div style="float: left;">
                     <!-- {{c}}<br /> -->

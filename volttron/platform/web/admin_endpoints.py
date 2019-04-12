@@ -129,6 +129,10 @@ class AdminEndpoints(object):
             response = self.__pending_csrs_api()
         elif endpoint.startswith('approve_csr/'):
             response = self.__approve_csr_api(endpoint.split('/')[1])
+        elif endpoint.startswith('deny_csr/'):
+            response = self.__deny_csr_api(endpoint.split('/')[1])
+        elif endpoint.startswith('delete_csr/'):
+            response = self.__delete_csr_api(endpoint.split('/')[1])
         else:
             response = Response('{"status": "Unknown endpoint {}"}'.format(endpoint),
                                 content_type="application/json")
@@ -139,6 +143,26 @@ class AdminEndpoints(object):
             self._certs.approve_csr(common_name)
             data = dict(status=self._certs.get_csr_status(common_name),
                         cert=self._certs.get_cert_from_csr(common_name))
+        except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        return Response(json.dumps(data), content_type="application/json")
+
+    def __deny_csr_api(self, common_name):
+        try:
+            self._certs.deny_csr(common_name)
+            data = dict(status="DENIED",
+                        message="The administrator has denied the request")
+        except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        return Response(json.dumps(data), content_type="application/json")
+
+    def __delete_csr_api(self, common_name):
+        try:
+            self._certs.delete_csr(common_name)
+            data = dict(status="DELETED",
+                        message="The administrator has denied the request")
         except ValueError as e:
             data = dict(status="ERROR", message=e.message)
 
