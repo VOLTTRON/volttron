@@ -72,6 +72,14 @@ if HAVE_POSTGRESQL:
     except (IOError, OSError):
         pass
 
+
+postgres_connection_params = {
+                                'dbname': 'historian_test',
+                                'port': 5433,
+                                'host': '127.0.0.1',
+                                'user' : 'historian',
+                                'password': 'volttron'
+                            }
 def random_uniform(a, b):
     return float('{.13f}'.format(random.uniform(a, b)))
 
@@ -279,9 +287,9 @@ class TestPostgreSql(AggregationSuite):
 
     @contextlib.contextmanager
     def transact(self, truncate_tables, drop_tables):
-        params = {'dbname': 'historian_test'}
-        with self._transact(params, truncate_tables, drop_tables):
-            yield PostgreSqlFuncts, params
+        global postgres_connection_params
+        with self._transact(postgres_connection_params, truncate_tables, drop_tables):
+            yield PostgreSqlFuncts, postgres_connection_params
 
     def test_closing_interfaceerror(self):
         with basedb.closing(FauxConnection(psycopg2.InterfaceError)):

@@ -43,11 +43,11 @@ import gevent
 import os
 import pytest
 
-from volttron.platform import get_ops
+from volttron.platform import get_ops, get_examples
 from volttron.platform.agent.known_identities import PLATFORM_TOPIC_WATCHER
 from volttron.platform.agent.utils import get_aware_utc_now
 
-agent_version = '1.0'
+agent_version = '2.1'
 WATCHER_CONFIG = {
     "group1": {
         "fakedevice": 5,
@@ -74,6 +74,7 @@ def agent(request, volttron_instance):
         config_file=WATCHER_CONFIG,
         vip_identity=PLATFORM_TOPIC_WATCHER
     )
+
     gevent.sleep(2)
     db_path = os.path.join(volttron_instance.volttron_home, 'agents',
                            alert_uuid, 'topic_watcheragent-' + agent_version,
@@ -99,7 +100,7 @@ def agent(request, volttron_instance):
         print("In on message: {}".format(alert_messages))
 
     agent.vip.pubsub.subscribe(peer='pubsub',
-                               prefix='alert',
+                               prefix='alerts',
                                callback=onmessage)
 
     def stop():
@@ -160,6 +161,7 @@ def test_basic(agent):
         assert r[1] is not None
     assert sorted(topics) == sorted([u'fakedevice', u'fakedevice2/all',
                                      u'fakedevice2/point'])
+    gevent.sleep(5)
     assert len(alert_messages) == 1
 
     # c.execute('SELECT * FROM topic_log '
@@ -203,7 +205,7 @@ def test_ignore_topic(agent):
     assert results is not None
     assert len(results) == 1
     assert results[0][0] == u'fakedevice'
-    assert results[0][2] == None
+    assert results[0][2] is None
 
 
 @pytest.mark.alert
@@ -228,7 +230,7 @@ def test_watch_topic_same_group(volttron_instance, agent, cleanup_db):
     agent.vip.pubsub.publish(peer='pubsub',
                              topic='fakedevice2/all',
                              message=[{'point': 'value'}])
-    gevent.sleep(1)
+    gevent.sleep(2)
     agent.vip.rpc.call(PLATFORM_TOPIC_WATCHER, 'watch_topic', 'group1', 'newtopic',
                        5).get()
     gevent.sleep(6)
@@ -246,7 +248,7 @@ def test_watch_topic_same_group(volttron_instance, agent, cleanup_db):
     assert results is not None
     assert len(results) == 1
     assert results[0][0] == u'newtopic'
-    assert results[0][2] == None
+    assert results[0][2] is None
 
     c.execute('SELECT * FROM topic_log '
               'WHERE first_seen_after_timeout is NULL '
@@ -300,7 +302,7 @@ def test_watch_topic_new_group(volttron_instance, agent, cleanup_db):
     assert results is not None
     assert len(results) == 1
     assert results[0][0] == u'newtopic'
-    assert results[0][2] == None
+    assert results[0][2] is None
 
     c.execute('SELECT * FROM topic_log '
               'WHERE first_seen_after_timeout is NULL '
@@ -389,7 +391,7 @@ def test_watch_device_new_group(volttron_instance, agent, cleanup_db):
     gevent.sleep(1)
     agent.vip.rpc.call(PLATFORM_TOPIC_WATCHER, 'watch_device', 'group2',
                        'newtopic/all', 5, ['point']).get()
-    gevent.sleep(7)
+    gevent.sleep(6)
 
     assert len(alert_messages) == 2
     assert u"Topic(s) not published within time limit: ['fakedevice', " \
@@ -503,3 +505,67 @@ def test_for_duplicate_logs(volttron_instance, agent, cleanup_db):
         assert r[1] is None
         non_utc = publish_time.replace(tzinfo=None)
         assert r[2] >= non_utc
+
+
+@pytest.mark.alert
+def test_remote_alert_publish(get_volttron_instances):
+    """
+    Test alert to remote agent
+    :param agent:
+    :param cleanup_db:
+    :return:
+    """
+
+    volttron_instance1, volttron_instance2 = get_volttron_instances(2)
+
+    volttron_instance1.allow_all_connections()
+    volttron_instance2.allow_all_connections()
+
+    gevent.sleep(3)
+    agent = volttron_instance1.build_agent()
+
+    def onmessage(peer, sender, bus, topic, headers, message):
+        global alert_messages
+
+        alert = json.loads(message)["context"]
+
+        try:
+            alert_messages[alert] += 1
+        except KeyError:
+            alert_messages[alert] = 1
+        print("In on message: {}".format(alert_messages))
+
+    agent.vip.pubsub.subscribe(peer='pubsub',
+                               prefix='alerts',
+                               callback=onmessage)
+
+    config = {
+        "group1": {
+            "fakedevice": 5,
+            "fakedevice2/all": {
+                "seconds": 5,
+                "points": ["point"]
+            }
+        },
+        "publish-settings": {
+            "publish-local": False,
+            "publish-remote": True,
+            "remote": {
+                "identity": "remote-agent",
+                "serverkey": volttron_instance1.serverkey,
+                "vip-address": volttron_instance1.vip_address
+            }
+        }
+    }
+
+    alert_uuid = volttron_instance2.install_agent(
+        agent_dir=get_ops("TopicWatcher"),
+        config_file=config,
+        vip_identity=PLATFORM_TOPIC_WATCHER
+    )
+
+    gevent.sleep(6)
+
+    assert alert_messages
+
+

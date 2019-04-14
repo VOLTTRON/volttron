@@ -1,12 +1,10 @@
-.. _Setup-RMQ:
+.. _RabbitMQ-Resources:
 
-======================
-Core Services
-======================
-
-Running VOLTTRON with RabbitMQ requires additional setup steps. Please see README.md at rabbitmq branch at
-https://github.com/VOLTTRON/volttron
-
+==========================
+Using RabbitMQ message bus
+==========================
 .. toctree::
     :glob:
     :maxdepth: 1
+
+    *

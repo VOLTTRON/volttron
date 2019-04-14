@@ -82,7 +82,7 @@ import pytest
 import re
 import pytz
 
-from volttron.platform import get_volttron_root, get_services_core, get_examples
+from volttron.platform import get_volttron_root, get_services_core
 from volttron.platform.agent import utils
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import headers as headers_mod
@@ -99,7 +99,6 @@ try:
 
     sys.path.insert(0, crate_path)
     from volttron.platform.dbutils import crateutils as crate_utils
-    # Once we fix the tests this will be able to be tested here.
     HAS_CRATE_CONNECTOR = True
 except:
     HAS_CRATE_CONNECTOR = False
@@ -225,6 +224,10 @@ postgresql_platform = {
         'type': 'postgresql',
         'params': {
             'dbname': 'historian_test',
+            'port': 5433,
+            'host': '127.0.0.1',
+            'user' : 'historian',
+            'password': 'volttron'
         },
     },
 }
@@ -490,14 +493,11 @@ def historian(request, volttron_instance, query_agent):
     print("agent id: ", historian_uuid)
     identity = 'platform.historian'
 
-    id = volttron_instance.install_agent(agent_dir=get_examples("ListenerAgent"), start=True)
-
     # 3: add a tear down method to stop historian agent
     def stop_agent():
         print("In teardown method of sqlagent")
         if volttron_instance.is_running():
             volttron_instance.stop_agent(historian_uuid)
-            volttron_instance.stop_agent(id)
         volttron_instance.remove_agent(historian_uuid)
 
     request.addfinalizer(stop_agent)

@@ -1,48 +1,84 @@
-#!/usr/bin/env bash
+#!/bin/bash
+#Preliminary script to run pytests in separate docker containers
 
+#export FAST_FAIL=0
 
-NUM_PROCESSES=1
+if [[ $# -eq 0 ]] ; then
+    NUM_PROCESSES=5
+else
+    NUM_PROCESSES=$1
+fi
 
-#do_something_with_line()
-#{
-#    line=$1
-#    #echo "running $line"
-#    docker run -t volttron-test-image pytest -k $line &> "$line.result.txt" &  # ls -la # env/bin/pytest -k $line" &> "$line.results.txt"
-#    #docker run -t volttron-test-image "env/bin/pytest -k $line" &> "$line.results.txt"
-#    #docker run -d -t volttron-test-image pytest -k $linepwd &>$line.results.txt # "/bin/bash && echo \$PATH"
-#    #docker run -t volttron-test-image "which pytest"
-#
-#}
+echo "RUNNING $NUM_PROCESSES PARALLEL PROCESSESS AT A TIME"
 
-docker build --network=host -t volttron-test-image -f ./virtualization/Dockerfile.testing ../
+docker build --network=host -t volttron_test_base -f ./ci-integration/virtualization/Dockerfile .
+docker build --network=host -t volttron_test_image -f ./ci-integration/virtualization/Dockerfile.testing .
 
-area2=( test_pubsub_authorized test_pubsub_unauthorized test_agent_)
-count=0
-for line in ${area2[@]}
+testdirs=(examples services volttron volttrontesting)
+
+#Funtion to pytests per file in separate docker containers
+run_tests() {
+    local files=("$@")
+    local len=${#files[@]}
+    local container_names=()
+    local i=0
+    local pids=""
+    for filename in ${files[@]}
+    do
+        base_filename=`basename $filename`
+        docker run -e "IGNORE_ENV_CHECK=1" --name $base_filename -t volttron_test_image pytest $filename &> "$base_filename.result.txt" &
+        pids[$i]=$!
+        container_names[$i]=$base_filename
+        let i++
+    done
+
+    echo "INPUT PROCESS IDs: ${pids[@]}"
+    echo "INPUT CONTAINER NAMESs: ${container_names[@]}"
+    echo "INPUT FILES: ${files[@]}"
+
+    for ((x=0; x< $len; x++)); do
+        echo "WAITING ON" ${pids[$x]}
+        wait ${pids[$x]}
+
+        if [ $? -eq 0 ]; then
+            echo "Job" ${files[$x]} "all tests: PASSED"
+        else
+            echo "Job" ${files[$x]} "some tests: FAILED"
+            docker logs ${container_names[$x]} --tail=50
+            if [ ${FAST_FAIL} ]; then
+                echo "Fast failing!"
+                docker rm ${container_names[$x]}
+                exit $?
+            fi
+        fi
+        docker rm ${container_names[$x]}
+    done
+}
+
+#LOOP through set of directories and run bunch of test files in parallel
+for dir in ${testdirs[@]}
 do
-#    while [ `jobs | wc -l` -gt $NUM_PROCESSES ]
-#    do
-#        echo "Number of jobs: " `jobs | wc -l`
-#        sleep 5
-#    done
+    test_files=(`find $dir -type f -name "*test*.py"|grep -v "conftest.py"`)
+    echo ${test_files[@]}
+    max_files=${#test_files[@]}
+    echo ${max_files}
 
-    docker run -t volttron-test-image pytest -k $line &> "$line.result.txt" &
-    echo $!
-    if [ $count == 0 ] ; then
-        export PID=$!
-        echo $PID
-        count=1
-    else
-        wait $PID
-        count=0
+    count=$(( max_files/NUM_PROCESSES ))
+    rem=$(( max_files%NUM_PROCESSES ))
+    echo $count $rem
+    c=0
+    files_subset=()
+
+    for ((c=0; c<$count; c++))
+    do
+        offset=$(( c*NUM_PROCESSES ))
+        files_subset=("${test_files[@]:$offset:$NUM_PROCESSES}")
+        run_tests ${files_subset[@]}
+    done
+    if [ $rem -gt 0 ]; then
+        offset=$(( c*NUM_PROCESSES ))
+        files_subset=(${test_files[@]:$offset:$rem})
+        run_tests ${files_subset[@]}
     fi
 done
 
-wait
-#echo "Now here!"
-#
-#while [ `jobs | wc -l` -gt 0 ]
-#do
-#    echo `jobs`
-#    sleep 5
-#done

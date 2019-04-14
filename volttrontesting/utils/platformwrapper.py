@@ -92,7 +92,9 @@ RESTRICTED = 3
 
 MODES = (UNRESTRICTED, VERIFY_ONLY, RESOURCE_CHECK_ONLY, RESTRICTED)
 
-VOLTTRON_ROOT = dirname(dirname(dirname(os.path.realpath(__file__))))
+VOLTTRON_ROOT = os.environ.get("VOLTTRON_ROOT")
+if not VOLTTRON_ROOT:
+    VOLTTRON_ROOT = dirname(dirname(dirname(os.path.realpath(__file__))))
 
 if os.environ.get('CI', None) is None:
     VSTART = os.path.join(VOLTTRON_ROOT, "env/bin/volttron")
@@ -258,6 +260,7 @@ class PlatformWrapper:
                 store_message_bus_config('rmq', instance_name)
             else:
                 self.instance_name = instance_name
+
         self.dynamic_agent = None
 
         self.debug_mode = self.env.get('DEBUG_MODE', False)
@@ -448,6 +451,11 @@ class PlatformWrapper:
         self.volttron_central_serverkey=volttron_central_serverkey
         if instance_name:
             self.instance_name = instance_name
+        elif not self.instance_name:
+            # Set a default instance name. Instance name is mandatory from VOLTTRON 6.0
+            self.instance_name = self.vip_address[6:].replace(".", "_").replace(":", "_")
+            store_message_bus_config(self.message_bus, self.instance_name)
+
         self.bind_web_address = bind_web_address
         if self.bind_web_address:
             self.discovery_address = "{}/discovery/".format(
