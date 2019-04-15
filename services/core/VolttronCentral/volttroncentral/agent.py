@@ -94,7 +94,7 @@ from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 
-__version__ = "4.4"
+__version__ = "5.0"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
