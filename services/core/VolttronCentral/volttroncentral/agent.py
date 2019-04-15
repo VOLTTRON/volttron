@@ -57,18 +57,17 @@ instance with VCA.
    to VCA after being deployed.
 
 """
-import errno
-import hashlib
+
 import logging
 import os
 import os.path as p
 import sys
-from collections import defaultdict, namedtuple
-from copy import deepcopy
-from urlparse import urlparse
-
+from collections import namedtuple
 import datetime
+
 import gevent
+import requests
+
 from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform.agent import json as jsonapi
 
@@ -434,11 +433,32 @@ class VolttronCentralAgent(Agent):
         try:
             rpcdata = self._to_jsonrpc_obj(data)
             _log.info('rpc method: {}'.format(rpcdata.method))
+
             if rpcdata.method == 'get_authorization':
+
+                # Authentication url
+                # This does not need to be local, however for now we are going to
+                # make it so assuming only one level of authentication.
+                auth_url = "{url_scheme}://{HTTP_HOST}/authenticate".format(
+                    url_scheme=env['wsgi.url_scheme'],
+                    HTTP_HOST=env['HTTP_HOST'])
+                user = rpcdata.params['username']
                 args = {'username': rpcdata.params['username'],
                         'password': rpcdata.params['password'],
                         'ip': env['REMOTE_ADDR']}
-                sess = self._authenticated_sessions.authenticate(**args)
+                resp = requests.post(auth_url, json=args, verify=False)
+
+                if resp.ok and resp.text:
+                    claims = self.vip.web.get_user_claims(resp.text)
+                    authentication_token = resp.text
+                    sess=authentication_token
+                    self._authenticated_sessions._add_session(user=user,
+                                                              groups=claims,
+                                                              token=authentication_token,
+                                                              ip=env['REMOTE_ADDR'])
+                else:
+                    sess = self._authenticated_sessions.authenticate(**args)
+
                 if not sess:
                     _log.info('Invalid username/password for {}'.format(
                         rpcdata.params['username']))

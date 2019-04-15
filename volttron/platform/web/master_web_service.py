@@ -150,6 +150,11 @@ class MasterWebService(Agent):
                 del self.peerroutes[p]
 
     @RPC.export
+    def get_user_claims(self, bearer):
+        from volttron.platform.web import get_user_claim_from_bearer
+        return get_user_claim_from_bearer(bearer)
+
+    @RPC.export
     def websocket_send(self, endpoint, message):
         _log.debug("Sending data to {} with message {}".format(endpoint,
                                                                message))
@@ -361,7 +366,9 @@ class MasterWebService(Agent):
         # agents.
         envlist = ['HTTP_USER_AGENT', 'PATH_INFO', 'QUERY_STRING',
                    'REQUEST_METHOD', 'SERVER_PROTOCOL', 'REMOTE_ADDR',
-                   'HTTP_ACCEPT_ENCODING', 'HTTP_COOKIE', 'CONTENT_TYPE', 'HTTP_AUTHORIZATION']
+                   'HTTP_ACCEPT_ENCODING', 'HTTP_COOKIE', 'CONTENT_TYPE',
+                   'HTTP_AUTHORIZATION', 'SERVER_NAME', 'wsgi.url_scheme',
+                   'HTTP_HOST']
         data = env['wsgi.input'].read()
         passenv = dict(
             (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)) if envlist[i] in env.keys())

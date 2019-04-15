@@ -72,8 +72,11 @@ class WebSubSystem(SubsystemBase):
 
         core.onstop.connect(onstop, self)
 
+    def get_user_claims(self, bearer):
+        return self._rpc().call(MASTER_WEB, 'get_user_claims', bearer).get(timeout=10)
+
     def unregister_all_routes(self):
-        self._rpc().call(MASTER_WEB, 'unregister_all_agent_routes')
+        self._rpc().call(MASTER_WEB, 'unregister_all_agent_routes').get(timeout=10)
 
     def register_endpoint(self, endpoint, callback, res_type="jsonrpc"):
         """

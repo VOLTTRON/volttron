@@ -11,7 +11,7 @@ from watchdog_gevent import Observer
 
 from volttron.platform import get_home
 from volttron.platform.agent import json
-from volttron.platform.agent.web import Response, get_user_claims, NotAuthorized
+from volttron.platform.agent.web import Response
 from volttron.utils import FileReloader
 from volttron.utils.persistance import PersistentDict
 from volttron.platform.certs import Certs
@@ -83,6 +83,7 @@ class AdminEndpoints(object):
         :param data: data associated with a web form or json/xml request data
         :return: Response object.
         """
+        from volttron.platform.web import get_user_claims, NotAuthorized
         try:
             claims = get_user_claims(env)
         except NotAuthorized:

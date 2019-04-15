@@ -1,34 +1,4 @@
-from abc import ABCMeta, abstractmethod
 import base64
-import Cookie
-
-import jwt
-
-
-class NotAuthorized(Exception):
-    pass
-
-
-def get_bearer(env):
-
-    # Test if HTTP_AUTHORIZATION header is passed
-    http_auth = env.get('HTTP_AUTHORIZATION')
-    if http_auth:
-        auth_type, bearer = http_auth.split(' ')
-        if auth_type.upper() != 'BEARER':
-            raise NotAuthorized("Invalid HTTP_AUTHORIZATION header passed, must be Bearer")
-    else:
-        cookiestr = env.get('HTTP_COOKIE')
-        if not cookiestr:
-            raise NotAuthorized()
-        cookie = Cookie.SimpleCookie(cookiestr)
-        bearer = cookie.get('Bearer').value.decode('utf-8')
-    return bearer
-
-
-def get_user_claims(env):
-    bearer = get_bearer(env)
-    return jwt.decode(bearer, env['WEB_PUBLIC_KEY'], algorithms='RS256')
 
 
 class Response(object):
