@@ -193,6 +193,10 @@ class ControlService(BaseAgent):
         self.vip.health.send_alert(alert_key, status)
 
     @RPC.export
+    def peerlist(self):
+        return self.vip.peerlist().get(timeout=5)
+
+    @RPC.export
     def serverkey(self):
         q = Query(self.core)
         pk = q.query('serverkey').get(timeout=1)
@@ -738,6 +742,13 @@ def list_agents(opts):
         return opts.aip.agent_priority(agent.uuid) or ''
 
     _show_filtered_agents(opts, 'PRI', get_priority)
+
+
+def list_peers(opts):
+    conn = opts.connection
+    peers = sorted(conn.call('peerlist'))
+    for peer in peers:
+        sys.stdout.write("{}\n".format(peer))
 
 
 def status_agents(opts):
@@ -2124,6 +2135,9 @@ def main(argv=sys.argv):
     remove.add_argument('-f', '--force', action='store_true',
                         help='force removal of multiple agents')
     remove.set_defaults(func=remove_agent, force=False)
+
+    peers = add_parser('peerlist', help='list the peers connected to the platform')
+    peers.set_defaults(func=list_peers)
 
     list_ = add_parser('list', parents=[filterable],
                        help='list installed agent')

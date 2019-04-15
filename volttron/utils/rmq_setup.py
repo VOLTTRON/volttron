@@ -115,8 +115,8 @@ def _start_rabbitmq_without_ssl(rmq_config):
     if rmq_config.amqp_port != 5672 and rmq_config.mgmt_port != 15672:
         # If ports if non ssl ports are not default write a rabbitmq.conf before
         # restarting
-        new_conf = """listeners.tcp.default = 5672
-management.listener.port = 15672"""
+        new_conf = """listeners.tcp.default = {}
+management.listener.port = {}""".format(rmq_config.amqp_port, rmq_config.mgmt_port)
         with open(os.path.join(rmq_config.rmq_home,
                                "etc/rabbitmq", "rabbitmq.conf"),
                   'w+') as r_conf:
@@ -712,7 +712,7 @@ def _create_rabbitmq_config(rmq_config, setup_type):
             prompt = 'http port for the RabbitMQ management plugin:'
             rmq_config.mgmt_port = prompt_port(15672, prompt)
 
-            if rmq_config.is_ssl == "true":
+            if rmq_config.is_ssl:
                 prompt = 'AMQPS (SSL) port RabbitMQ address:'
                 rmq_config.amqp_port_ssl = prompt_port(5671, prompt)
 

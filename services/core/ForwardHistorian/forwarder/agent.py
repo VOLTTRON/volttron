@@ -61,7 +61,7 @@ import os
 FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '5.0'
+__version__ = '5.1'
 
 
 def historian(config_path, **kwargs):
@@ -430,7 +430,7 @@ class ForwardHistorian(BaseHistorian):
             elif self.destination_vip:
                 address = self.destination_vip
 
-            value = self.vip.auth.connect_remote_platform(address, server_key=self.destination_serverkey)
+            value = self.vip.auth.connect_remote_platform(address, serverkey=self.destination_serverkey)
 
         except gevent.Timeout:
             _log.error("Couldn't connect to address: ({})".format(address))

@@ -143,17 +143,25 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
     # Please note, if 'with_http'==True, then instance name needs to be provided
     assert not wrapper.is_running()
 
-    vc_http = get_rand_http_address() if with_http else None
+    # Will returen https if messagebus rmq
+    bind_address = get_rand_http_address(wrapper.messagebus == 'rmq') if with_http else None
+    vc_http = bind_address
+    if wrapper.messagebus == 'rmq':
+        spaddr = bind_address.split(':')
+        vc_http = "https://localhost:{}".format(spaddr[2])
     vc_tcp = get_rand_tcp_address() if with_tcp else None
 
     if add_local_vc_address:
         ks = KeyStore(os.path.join(wrapper.volttron_home, 'keystore'))
         ks.generate()
-        volttron_central_address = vc_tcp
-        volttron_central_serverkey = ks.public
+        if wrapper.messagebus == 'rmq':
+            volttron_central_address = vc_http
+        else:
+            volttron_central_address = vc_tcp
+            volttron_central_serverkey = ks.public
 
     wrapper.startup_platform(vip_address=vc_tcp,
-                             bind_web_address=vc_http,
+                             bind_web_address=bind_address,
                              volttron_central_address=volttron_central_address,
                              volttron_central_serverkey=volttron_central_serverkey,
                              instance_name=instance_name)
@@ -166,13 +174,13 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
 
 
 class PlatformWrapper:
-    def __init__(self, message_bus=None, ssl_auth=False):
+    def __init__(self, messagebus=None, ssl_auth=False, instance_name=None):
         """ Initializes a new VOLTTRON instance
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory
         for agents that are built.
 
-        :param message_bus: rmq or zmq
+        :param messagebus: rmq or zmq
         :param ssl_auth: if message_bus=rmq, authenticate users if True
         """
 
@@ -216,7 +224,7 @@ class PlatformWrapper:
         self.jsonrpc_endpoint = None
         self.volttron_central_address = None
         self.volttron_central_serverkey = None
-        self.instance_name = None
+        self.instance_name = instance_name
         self.serverkey = None
 
         self.p_process = None
@@ -245,10 +253,10 @@ class PlatformWrapper:
         keystorefile = os.path.join(self.volttron_home, 'keystore')
         self.keystore = KeyStore(keystorefile)
         self.keystore.generate()
-        self.message_bus = message_bus if message_bus else 'zmq'
+        self.messagebus = messagebus if messagebus else 'zmq'
         self.ssl_auth = ssl_auth
         self.rmq_conf_backup = None
-        if self.message_bus == 'rmq':
+        if self.messagebus == 'rmq':
             self.logit("Setting up volttron test environemnt"
                        " {}".format(self.volttron_home))
             self.rmq_conf_backup = create_rmq_volttron_setup(vhome=self.volttron_home,
@@ -312,7 +320,7 @@ class PlatformWrapper:
         conn = Connection(address=address, peer=peer, publickey=publickey,
                           secretkey=secretkey, serverkey=serverkey,
                           instance_name=self.instance_name,
-                          message_bus=self.message_bus,
+                          message_bus=self.messagebus,
                           volttron_home=self.volttron_home)
 
         return conn
@@ -362,7 +370,7 @@ class PlatformWrapper:
                             serverkey=serverkey,
                             instance_name=self.instance_name,
                             volttron_home=self.volttron_home,
-                            message_bus = self.message_bus,
+                            message_bus = self.messagebus,
                             **kwargs)
         self.logit('platformwrapper.build_agent.address: {}'.format(address))
 
@@ -439,15 +447,9 @@ class PlatformWrapper:
                          instance_name=None,
                          agent_monitor_frequency=600,
                          timeout=60):
-
-        # if not isinstance(vip_address, list):
-        #     self.vip_address = [vip_address]
-        # else:
-        #     self.vip_address = vip_address
-
         self.vip_address = vip_address
         self.mode = mode
-        self.volttron_central_address=volttron_central_address
+        self.volttron_central_address= volttron_central_address
         self.volttron_central_serverkey=volttron_central_serverkey
         if instance_name:
             self.instance_name = instance_name
@@ -500,7 +502,8 @@ class PlatformWrapper:
                      'monitor': True,
                      'autostart': True,
                      'log_level': logging.DEBUG,
-                     'verboseness': logging.DEBUG}
+                     'verboseness': logging.DEBUG,
+                     'instance_name': instance_name}
 
         pconfig = os.path.join(self.volttron_home, 'config')
         config = {}
@@ -527,14 +530,15 @@ class PlatformWrapper:
         if self.instance_name:
             parser.set('volttron', 'instance-name',
                        self.instance_name)
-        if self.message_bus:
+        if self.messagebus:
             parser.set('volttron', 'message-bus',
-                       self.message_bus)
+                       self.messagebus)
         parser.set('volttron', 'agent-monitor-frequency',
                    agent_monitor_frequency)
 
         self.logit(
-            "Platform will run on message bus type {} ".format(self.message_bus))
+            "Platform will run on message bus type {} ".format(self.messagebus))
+        self.logit("writing config to: {}".format(pconfig))
         if self.mode == UNRESTRICTED:
             with open(pconfig, 'wb') as cfg:
                 parser.write(cfg)
@@ -630,8 +634,6 @@ class PlatformWrapper:
             tparams = [TWISTED_START, "-n", "smap", tconfig]
             self.t_process = subprocess.Popen(tparams, env=self.env)
             time.sleep(5)
-
-
 
     def is_running(self):
         return utils.is_volttron_running(self.volttron_home)
@@ -1083,7 +1085,7 @@ class PlatformWrapper:
                     logpath
                 ))
         print(" Skip clean up flag is {}".format(self.skip_cleanup))
-        if not self.skip_cleanup and self.message_bus == 'rmq':
+        if not self.skip_cleanup and self.messagebus == 'rmq':
             cleanup_rmq_volttron_setup(vhome=self.volttron_home,
                                        ssl_auth=self.ssl_auth)
         if not self.skip_cleanup:
@@ -1107,7 +1109,7 @@ class PlatformWrapper:
         Restores orignial rabbitmq.conf if testing with rmq
         :return:
         """
-        if self.message_bus == 'rmq':
+        if self.messagebus == 'rmq':
             cleanup_rmq_volttron_setup(vhome=self.volttron_home,
                                        ssl_auth=self.ssl_auth)
             self.restore_conf()
