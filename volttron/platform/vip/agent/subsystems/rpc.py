@@ -250,7 +250,7 @@ class RPC(SubsystemBase):
     @spawn
     def _handle_external_rpc_subsystem(self, message):
         ret_msg = dict()
-        #_log.debug("EXT_RPC subsystem handler IN message {0}".format(message))
+        _log.debug("EXT_RPC subsystem handler IN message {0}".format(message))
         op = message.args[0].bytes
         rpc_msg = jsonapi.loads(message.args[1].bytes)
         try:
@@ -283,13 +283,11 @@ class RPC(SubsystemBase):
                 ret_msg = jsonapi.dumps(ret_msg)
                 #_log.debug("EXT_RPC subsystem handler OUT message {}".format(message))
                 try:
-                    self.core().connection.send_vip_object(Message(peer=b'',
-                                                                   subsystem=b'external_rpc',
-                                                                   args=frames,
-                                                                   id=message.id,
-                                                                   user=message.user))
-                    #self.core().socket.send_vip(b'', 'external_rpc', frames,
-                    #                            user=message.user, msg_id=message.id, copy=False)
+                    self.core().connection.send_vip(peer=b'',
+                                                    subsystem=b'external_rpc',
+                                                    args=frames,
+                                                    msg_id=message.id,
+                                                    user=message.user)
                 except ZMQError as ex:
                     _log.error("ZMQ error: {}".format(ex))
                     pass
@@ -306,8 +304,7 @@ class RPC(SubsystemBase):
             message.args = responses
             try:
                 if self._isconnected:
-                    self.core().connection.send_vip_object(message)
-                    #self.core().socket.send_vip_object(message, copy=False)
+                    self.core().connection.send_vip_object(message, copy=False)
             except ZMQError as exc:
                 if exc.errno == ENOTSOCK:
                     _log.debug("Socket send on non socket {}".format(self.core().identity))
@@ -350,11 +347,7 @@ class RPC(SubsystemBase):
         if request:
             if self._isconnected:
                 try:
-                    self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
-                    # self.core().connection.send_vip_object(Message(peer=peer,
-                    #                                                subsystem=b'RPC',
-                    #                                                args=[request],
-                    #                                                id=ident))
+                    self.core().connection.send_vip(peer, b'RPC', [request], msg_id=ident)
                 except ZMQError as exc:
                     if exc.errno == ENOTSOCK:
                         _log.debug("Socket send on non socket {}".format(self.core().identity))
@@ -387,23 +380,22 @@ class RPC(SubsystemBase):
                 peer = b''
 
             try:
-                #self.core().socket.send_vip(peer, 'RPC', frames, msg_id=ident)
                 # _log.debug("peer: {0}, subsytem: {1}, args:{2}, id: {3}".format(peer, subsystem,
                 #                                                                 args, id))
-                self.core().connection.send_vip_object(Message(peer=peer,
-                                                               subsystem=subsystem,
-                                                               args=frames,
-                                                               id=ident))
+                self.core().connection.send_vip(peer,
+                                                subsystem,
+                                                args=frames,
+                                                msg_id=ident)
             except ZMQError as exc:
                 if exc.errno == ENOTSOCK:
                     _log.debug("Socket send on non socket {}".format(self.core().identity))
             #_log.debug("RPC subsystem: External platform RPC msg: {}".format(frames))
         else:
-            self.core().connection.send_vip_object(Message(peer=peer,
-                                                           subsystem=b'RPC',
-                                                           args=[request],
-                                                           id=ident,
-                                                           platform=platform))
+            self.core().connection.send_vip(peer,
+                                            b'RPC',
+                                            args=[request],
+                                            msg_id=ident,
+                                            platform=platform)
 
         return result
 
@@ -431,12 +423,11 @@ class RPC(SubsystemBase):
                 peer = b''
 
             try:
-                _log.debug("peer: {0}, subsytem: {1}, args:{2}".format(peer, subsystem,
-                                                                            frames))
-                self.core().connection.send_vip_object(Message(peer=peer,
-                                                                subsystem=subsystem,
-                                                                args=frames))
-                #self.core().socket.send_vip(peer, 'RPC', frames)
+                # _log.debug("peer: {0}, subsytem: {1}, args:{2}".format(peer, subsystem,
+                #                                                             frames))
+                self.core().connection.send_vip(peer,
+                                                subsystem,
+                                                args=frames)
             except ZMQError as exc:
                 if exc.errno == ENOTSOCK:
                     _log.debug("Socket send on non socket {}".format(self.core().identity))
@@ -451,9 +442,9 @@ class RPC(SubsystemBase):
 
         if self._isconnected:
             try:
-                self.core().connection.send_vip_object(Message(peer=b'',
-                                                               subsystem=b'RPC',
-                                                               args=[request]))
+                self.core().connection.send_vip(b'',
+                                                b'RPC',
+                                                args=[request])
             except ZMQError as exc:
                 if exc.errno == ENOTSOCK:
                     _log.debug("Socket send on non socket {}".format(self.core().identity))

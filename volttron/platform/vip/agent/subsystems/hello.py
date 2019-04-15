@@ -87,11 +87,7 @@ class Hello(SubsystemBase):
         result = next(self._results)
         connection = self.core().connection
         try:
-            connection.send_vip_object(Message(peer=peer,
-                                                    subsystem=b'hello',
-                                                    args=[b'hello'],
-                                                    id=result.ident))
-            #self.core().socket.send_vip(peer, b'hello', [b'hello'], msg_id=result.ident)
+            connection.send_vip(peer, b'hello', args=[b'hello'], msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.error("Socket send on non socket {}".format(self.core().identity))
@@ -108,11 +104,9 @@ class Hello(SubsystemBase):
             _log.error('missing hello subsystem operation')
             return
         if op == b'hello':
-            #socket = self.core().socket
             message.user = b''
             message.args = [b'welcome', b'1.0', self.core.identity, message.peer]
-            #socket.send_vip_object(message, copy=False)
-            self.connection.send_vip_object(message, copy=False)
+            self.core().connection.send_vip_object(message, copy=False)
         elif op == b'welcome':
             try:
                 result = self._results.pop(bytes(message.id))

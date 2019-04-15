@@ -78,7 +78,7 @@ def platform(request, volttron_instance):
             alert_messages[alert] = 1
 
     agent.vip.pubsub.subscribe(peer='pubsub',
-                               prefix='alert',
+                               prefix='alerts',
                                callback=onmessage)
 
     def stop():
