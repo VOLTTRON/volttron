@@ -2,21 +2,24 @@ import pytest
 import gevent
 import logging
 import time
-import threading
-import os.path
-
+import json
+from random import randint
 from volttron.platform import get_services_core
+from volttrontesting.utils.utils import get_rand_port
 from master_driver.interfaces.modbus_tk.server import Server
 from master_driver.interfaces.modbus_tk.maps import Map, Catalog
 
 logger = logging.getLogger(__name__)
 
+IP = "127.0.0.{}".format(randint(1, 254))
+PORT = get_rand_port(IP)
+
 # New modbus_tk driver config
-DRIVER_CONFIG_STRING = """{
+DRIVER_CONFIG = {
     "driver_config": {
         "name": "test",
-        "device_address": "127.0.0.1",
-        "port": 5020,
+        "device_address": IP,
+        "port": PORT,
         "slave_id": 1,
         "addressing": "offset",
         "register_map": "config://modbus_tk_map.csv"
@@ -25,7 +28,7 @@ DRIVER_CONFIG_STRING = """{
     "registry_config": "config://modbus_tk.csv",
     "interval": 60,
     "timezone": "UTC"
-}"""
+}
 
 # New modbus_tk csv config
 REGISTRY_CONFIG_STRING = """Volttron Point Name,Register Name
@@ -267,7 +270,8 @@ registers_dict = {"ACCUMULATED REAL ENERGY NET (IMPORT-EXPORT) (kWh)": 74.0,
 
 @pytest.fixture(scope="module")
 def agent(request, volttron_instance):
-    """Build MasterDriverAgent, add modbus driver & csv configurations
+    """
+    Build MasterDriverAgent, add modbus driver & csv configurations
     """
 
     # Build master driver agent
@@ -283,7 +287,7 @@ def agent(request, volttron_instance):
                           'manage_store',
                           'platform.driver',
                           'devices/modbus_tk',
-                          DRIVER_CONFIG_STRING,
+                          json.dumps(DRIVER_CONFIG),
                           config_type='json')
 
     # Add csv configurations
@@ -301,14 +305,16 @@ def agent(request, volttron_instance):
                           REGISTER_MAP,
                           config_type='csv')
 
-    master_uuid = volttron_instance.install_agent(agent_dir=get_services_core("MasterDriverAgent"),
-                                                   config_file={},
-                                                   start=True)
+    master_uuid = volttron_instance.install_agent(
+        agent_dir=get_services_core("MasterDriverAgent"),
+        config_file={},
+        start=True)
 
     gevent.sleep(10)  # wait for the agent to start and start the devices
 
     def stop():
-        """Stop master driver agent
+        """
+        Stop master driver agent
         """
         volttron_instance.stop_agent(master_uuid)
         md_agent.core.stop()
@@ -319,10 +325,10 @@ def agent(request, volttron_instance):
 
 @pytest.fixture(scope='class')
 def modbus_server(request):
-    ModbusClient = Catalog()['battery_meter'].get_class()
+    modbus_client = Catalog()['battery_meter'].get_class()
 
-    server_process = Server(address='127.0.0.1', port=5020)
-    server_process.define_slave(1, ModbusClient, unsigned=False)
+    server_process = Server(address=IP, port=PORT)
+    server_process.define_slave(1, modbus_client, unsigned=False)
 
     server_process.start()
     time.sleep(1)
@@ -339,26 +345,29 @@ class TestModbusTKDriver:
 
     def get_point(self, agent, device_name, point_name):
         """
-            Issue a get_point RPC call for the named point and return the result.
+        Issue a get_point RPC call for the named point and return the result.
 
         @param agent: The test Agent.
         @param device_name: The driver name, by default: 'devices/device_name'.
         @param point_name: The name of the point to query.
         @return: The actual reading value of the point name from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'get_point', device_name, point_name).get(timeout=10)
+        return agent.vip.rpc.call('platform.driver', 'get_point', device_name,
+                                  point_name).get(timeout=10)
 
     def set_point(self, agent, device_name, point_name, point_value):
         """
-            Issue a set_point RPC call for the named point and value, and return the result.
+        Issue a set_point RPC call for the named point and value, and return the
+        result.
 
         @param agent: The test Agent.
         @param device_name: The driver name, by default: 'devices/device_name'.
         @param point_name: The name of the point to query.
-        @param value: The value to set on the point.
+        @param point_value: The value to set on the point.
         @return:The actual reading value of the point name from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'set_point', device_name, point_name, point_value).get(timeout=10)
+        return agent.vip.rpc.call('platform.driver', 'set_point', device_name,
+                                  point_name, point_value).get(timeout=10)
 
     def scrape_all(self, agent, device_name):
         """
@@ -366,13 +375,16 @@ class TestModbusTKDriver:
 
         @param agent: The test Agent.
         @param device_name: The driver name, by default: 'devices/device_name'.
-        @return: The dictionary mapping point names to their actual values from the RPC call.
+        @return: The dictionary mapping point names to their actual values from
+        the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'scrape_all', device_name).get(timeout=10)
+        return agent.vip.rpc.call('platform.driver', 'scrape_all', device_name)\
+            .get(timeout=10)
 
     def test_scrape_all(self, agent):
         for key in registers_dict.keys():
             self.set_point(agent, 'modbus_tk', key, registers_dict[key])
-            assert self.get_point(agent, 'modbus_tk', key) == registers_dict[key]
+            assert self.get_point(agent, 'modbus_tk', key) == \
+                   registers_dict[key]
 
         assert type(self.scrape_all(agent, 'modbus_tk')) is dict
