@@ -67,10 +67,10 @@ class PeerList(SubsystemBase):
         result = next(self._results)
 
         try:
-            connection.send_vip_object(Message(peer=b'',
-                                               subsystem=b'peerlist',
-                                               args=[b'list'],
-                                               id=result.ident))
+            connection.send_vip(b'',
+                                b'peerlist',
+                                args=[b'list'],
+                                msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.error("Socket send on non socket {}".format(self.core().identity))
@@ -81,10 +81,10 @@ class PeerList(SubsystemBase):
         result = next(self._results)
 
         try:
-            connection.send_vip_object(Message(peer=b'',
-                                               subsystem=b'peerlist',
-                                               args=[b'add', bytes(peer)],
-                                               id=result.ident))
+            connection.send_vip(b'',
+                                b'peerlist',
+                                args=[b'add', bytes(peer)],
+                                msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.error("Socket send on non socket {}".format(self.core().identity))
@@ -95,10 +95,10 @@ class PeerList(SubsystemBase):
         result = next(self._results)
 
         try:
-            connection.send_vip_object(Message(peer=b'',
-                                               subsystem=b'peerlist',
-                                               args=[b'drop', bytes(peer)],
-                                               id=result.ident))
+            connection.send_vip(b'',
+                                b'peerlist',
+                                args=[b'drop', bytes(peer)],
+                                msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.error("Socket send on non socket {}".format(self.core().identity))

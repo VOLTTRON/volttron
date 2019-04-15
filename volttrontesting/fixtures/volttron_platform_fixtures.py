@@ -52,12 +52,12 @@ def build_wrapper(vip_address, **kwargs):
     wrapper = PlatformWrapper(message_bus=kwargs.pop('message_bus', None),
                               ssl_auth=kwargs.pop('ssl_auth', False))
     print('BUILD_WRAPPER: {}'.format(vip_address))
-    wrapper.startup_platform(vip_address=vip_address, **kwargs)
+    wrapper.startup_platform(vip_address=vip_address, instance_name='volttron_test',**kwargs)
     return wrapper
 
 
 def cleanup_wrapper(wrapper):
-    print('Shutting down instance: {}'.format(wrapper.volttron_home))
+    print('Shutting down instance: {0}, MESSAGE BUS: {1}'.format(wrapper.volttron_home, wrapper.message_bus))
     if wrapper.is_running():
         wrapper.remove_all_agents()
     # Shutdown handles case where the platform hasn't started.
@@ -116,7 +116,7 @@ def volttron_instance_web(request):
 
 
 @pytest.fixture(scope="module",
-                params=[('zmq', False), ('rmq', True)])
+                params=[('zmq', False)])
 def volttron_instance_module_web(request):
     print("building module instance (using web)")
     address = get_rand_vip()

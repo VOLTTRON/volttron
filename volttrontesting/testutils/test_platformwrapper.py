@@ -119,8 +119,8 @@ def test_can_install_listener(volttron_instance):
     removed = vi.remove_agent(auuid)
     print('REMOVED: ', removed)
 
-@pytest.mark.xfail(reason="#776 Needs updating")
-@pytest.mark.timeout(1000)
+@pytest.mark.wrapper
+@pytest.mark.skip("Upgrade to fix.")
 def test_resinstall_agent(volttron_instance):
     mysql_config = {
         "connection": {
