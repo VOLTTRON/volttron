@@ -106,8 +106,8 @@ class ZMQConnection(BaseConnection):
     def send_vip_object(self, message, flags=0, copy=True, track=False):
         self.socket.send_vip_object(message, flags, copy, track)
 
-    def send_vip(self, peer, subsystem, args = None, msg_id = b'',
-        user = b'', via = None, flags = 0, copy = True, track = False):
+    def send_vip(self, peer, subsystem, args=None, msg_id=b'',
+                 user=b'', via=None, flags=0, copy=True, track=False):
         self.socket.send_vip(peer, subsystem, args, msg_id, user, via, flags, copy, track)
 
     def recv_vip_object(self, flags=0, copy=True, track=False):

@@ -312,8 +312,8 @@ class RMQConnection(BaseConnection):
         msg_id = getattr(message, 'id', b'')
         self._send_via_rmq(destination_routing_key, message.subsystem, message.args, msg_id, user)
 
-    def send_vip(self, peer, subsystem, args = None, msg_id = b'',
-                 user = b'', via = None, flags = 0, copy = True, track = False, platform=None):
+    def send_vip(self, peer, subsystem, args=None, msg_id=b'',
+                 user=b'', via=None, flags=0, copy=True, track=False, platform=None):
         """
         Send VIP message over RabbitMQ message bus.
         :param peer: peer
