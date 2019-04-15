@@ -3,7 +3,6 @@ import gevent
 import logging
 import time
 import json
-
 from volttron.platform import get_services_core
 from master_driver.interfaces.modbus_tk.server import Server
 from master_driver.interfaces.modbus_tk.client import Client, Field
@@ -202,8 +201,6 @@ class TestModbusDriver:
     """
         Regression tests for the modbus driver interface.
     """
-    def __init__(self):
-        pass
 
     def get_point(self, agent, point_name):
         """
