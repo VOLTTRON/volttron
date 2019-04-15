@@ -233,8 +233,8 @@ class TestModbusDriver:
         @param agent: The test Agent.
         @return: The returned value from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'scrape_all', 'modbus')\
-            .get(timeout=10)
+        return agent.vip.rpc.call('platform.driver', 'scrape_all', 
+                                  'modbus').get(timeout=10)
 
     def test_default_values(self, agent):
         """By default server setting, all registers values are 0
