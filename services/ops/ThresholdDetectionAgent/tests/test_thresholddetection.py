@@ -136,7 +136,7 @@ def test_above_max(threshold_tester_agent):
     """Should get alert because values exceed max"""
     publish(threshold_tester_agent, _test_config, lambda x: x+1)
     check = lambda: threshold_tester_agent.seen_alert_keys == set(['test_max'])
-    assert poll_gevent_sleep(2, check)
+    assert poll_gevent_sleep(3, check)
 
 
 def test_above_min(threshold_tester_agent):
