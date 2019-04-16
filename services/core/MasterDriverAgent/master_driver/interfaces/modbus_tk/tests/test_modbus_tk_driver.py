@@ -4,15 +4,17 @@ import logging
 import time
 import json
 from random import randint
-from volttrontesting.utils.utils import get_rand_port
+from volttrontesting.utils.utils import get_rand_ip_and_port
 from volttron.platform import get_services_core
 from master_driver.interfaces.modbus_tk.server import Server
 from master_driver.interfaces.modbus_tk.maps import Map, Catalog
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 logger = logging.getLogger(__name__)
 
-IP = "127.0.0.{}".format(randint(1, 254))
-PORT = get_rand_port(IP)
+_ip_info = get_rand_ip_and_port().split(":")
+IP = _ip_info[0]
+PORT = int(_ip_info[1])
 
 # New modbus_tk driver config
 DRIVER_CONFIG = {
@@ -108,19 +110,19 @@ def agent(request, volttron_instance):
     # Clean out master driver configurations
     md_agent.vip.rpc.call('config.store',
                           'manage_delete_store',
-                          'platform.driver')
+                          PLATFORM_DRIVER)
 
     # Add driver configurations
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
-                          'platform.driver',
+                          PLATFORM_DRIVER,
                           'devices/modbus_tk',
                           json.dumps(DRIVER_CONFIG),
                           config_type='json')
 
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
-                          'platform.driver',
+                          PLATFORM_DRIVER,
                           'devices/modbus',
                           json.dumps(OLD_VOLTTRON_DRIVER_CONFIG),
                           config_type='json')
@@ -128,21 +130,21 @@ def agent(request, volttron_instance):
     # Add csv configurations
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
-                          'platform.driver',
+                          PLATFORM_DRIVER,
                           'modbus_tk.csv',
                           REGISTRY_CONFIG_STRING,
                           config_type='csv')
 
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
-                          'platform.driver',
+                          PLATFORM_DRIVER,
                           'modbus_tk_map.csv',
                           REGISTER_MAP,
                           config_type='csv')
 
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
-                          'platform.driver',
+                          PLATFORM_DRIVER,
                           'modbus.csv',
                           OLD_VOLTTRON_REGISTRY_CONFIG,
                           config_type='csv')
@@ -201,7 +203,7 @@ class TestModbusTKDriver:
         @param point_name: The name of the point to query.
         @return: The actual reading value of the point name from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'get_point', device_name,
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'get_point', device_name,
                                   point_name).get(timeout=10)
 
     def set_point(self, agent, device_name, point_name, point_value):
@@ -215,7 +217,7 @@ class TestModbusTKDriver:
         @param point_value: The value to set on the point.
         @return:The actual reading value of the point name from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'set_point', device_name,
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'set_point', device_name,
                                   point_name, point_value).get(timeout=10)
 
     def scrape_all(self, agent, device_name):
@@ -227,7 +229,7 @@ class TestModbusTKDriver:
         @return: The dictionary mapping point names to their actual values from
         the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'scrape_all', device_name) \
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all', device_name) \
             .get(timeout=10)
 
     def revert_all(self, agent, device_name):
@@ -238,7 +240,7 @@ class TestModbusTKDriver:
         @param device_name: The driver name, by default: 'devices/device_name'.
         @return: Return value from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'revert_device',
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'revert_device',
                                   device_name).get(timeout=10)
 
     def revert_point(self, agent, device_name, point_name):
@@ -250,7 +252,7 @@ class TestModbusTKDriver:
         @param point_name: The name of the point to query.
         @return: Return value from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'revert_point',
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'revert_point',
                                   device_name, point_name).get(timeout=10)
 
     def test_default_values_old(self, agent):
@@ -298,8 +300,8 @@ class TestModbusTKDriver:
         """
         for key in registers_dict.keys():
             self.set_point(agent, 'modbus_tk', key, registers_dict[key])
-            assert self.get_point(agent, 'modbus_tk', key) \
-                   == registers_dict[key]
+            assert self.get_point(agent, 'modbus_tk', key) == registers_dict[
+                key]
         assert self.scrape_all(agent, 'modbus_tk') == registers_dict
 
     def test_get_point_new(self, agent):
