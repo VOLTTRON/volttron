@@ -3,21 +3,23 @@ import gevent
 import logging
 import time
 import json
+from struct import pack, unpack
 from volttron.platform import get_services_core
 from master_driver.interfaces.modbus_tk.server import Server
 from master_driver.interfaces.modbus_tk.client import Client, Field
 from master_driver.interfaces.modbus_tk import helpers
-from volttrontesting.utils.utils import get_rand_port
-from struct import pack, unpack
-from random import randint
+from volttrontesting.utils.utils import get_rand_ip_and_port
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 logger = logging.getLogger(__name__)
 
-ip = "127.0.0.{}".format(randint(1, 254))
+IP, _port = get_rand_ip_and_port().split(":")
+PORT = int(_port)
+
 DRIVER_CONFIG = {
     "driver_config": {
-        "device_address": ip,
-        "port": get_rand_port(ip),
+        "device_address": IP,
+        "port": PORT,
         "slave_id": 1
     },
     "driver_type": "modbus",
@@ -74,12 +76,12 @@ def agent(request, volttron_instance):
     # Clean out master driver configurations
     md_agent.vip.rpc.call('config.store',
                           'manage_delete_store',
-                          'platform.driver')
+                          PLATFORM_DRIVER)
 
     # Add driver configurations
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
-                          'platform.driver',
+                          PLATFORM_DRIVER,
                           'devices/modbus',
                           json.dumps(DRIVER_CONFIG),
                           config_type='json')
@@ -87,7 +89,7 @@ def agent(request, volttron_instance):
     # Add csv configurations
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
-                          'platform.driver',
+                          PLATFORM_DRIVER,
                           'modbus.csv',
                           REGISTRY_CONFIG_STRING,
                           config_type='csv')
@@ -159,9 +161,7 @@ class PPSPi32Client(Client):
 
 @pytest.fixture
 def modbus_server(request):
-    modbus_server = Server(address=
-                           DRIVER_CONFIG["driver_config"]["device_address"],
-                           port=DRIVER_CONFIG["driver_config"]["port"])
+    modbus_server = Server(address=IP, port=PORT)
     modbus_server.define_slave(1, PPSPi32Client, unsigned=True)
 
     # Set values for registers from server as the default values
@@ -210,7 +210,7 @@ class TestModbusDriver:
         @param point_name: The name of the point to query.
         @return: The returned value from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'get_point', 'modbus',
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'get_point', 'modbus',
                                   point_name).get(timeout=10)
 
     def set_point(self, agent, point_name, point_value):
@@ -223,7 +223,7 @@ class TestModbusDriver:
         @param point_value: The value to set on the point.
         @return: The returned value from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'set_point', 'modbus',
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'set_point', 'modbus',
                                   point_name, point_value).get(timeout=10)
 
     def scrape_all(self, agent):
@@ -233,7 +233,7 @@ class TestModbusDriver:
         @param agent: The test Agent.
         @return: The returned value from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'scrape_all', 
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all', 
                                   'modbus').get(timeout=10)
 
     def test_default_values(self, agent):

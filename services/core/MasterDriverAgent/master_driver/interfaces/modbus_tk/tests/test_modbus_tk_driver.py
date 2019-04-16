@@ -12,9 +12,8 @@ from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 logger = logging.getLogger(__name__)
 
-_ip_info = get_rand_ip_and_port().split(":")
-IP = _ip_info[0]
-PORT = int(_ip_info[1])
+IP, _port = get_rand_ip_and_port().split(":")
+PORT = int(_port)
 
 # New modbus_tk driver config
 DRIVER_CONFIG = {
