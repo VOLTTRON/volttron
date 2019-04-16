@@ -456,7 +456,7 @@ class PlatformWrapper:
         elif not self.instance_name:
             # Set a default instance name. Instance name is mandatory from VOLTTRON 6.0
             self.instance_name = self.vip_address[6:].replace(".", "_").replace(":", "_")
-            store_message_bus_config(self.message_bus, self.instance_name)
+            store_message_bus_config(self.messagebus, self.instance_name)
 
         self.bind_web_address = bind_web_address
         if self.bind_web_address:

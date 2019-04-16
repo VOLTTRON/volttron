@@ -58,7 +58,7 @@ def test_volttron_config_created(volttron_instance):
     # with open(config_file, 'rb') as cfg:
     parser.read(config_file)
     assert volttron_instance.instance_name == parser.get('volttron', 'instance-name')
-    assert volttron_instance.message_bus == parser.get('volttron', 'message-bus')
+    assert volttron_instance.messagebus == parser.get('volttron', 'message-bus')
     assert volttron_instance.vip_address == parser.get('volttron', 'vip-address')
 
     # with open(volttron_instance.)

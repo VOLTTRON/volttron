@@ -137,7 +137,6 @@ def test_list_agents(setup_platform, vc_agent, caplog):
             setup_platform.remove_agent(listener_uuid)
 
 
-@pytest.mark.dev
 @pytest.mark.vcp
 def test_can_inspect_agent(setup_platform, vc_agent, caplog):
 
