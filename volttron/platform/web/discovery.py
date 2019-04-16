@@ -27,8 +27,8 @@ class DiscoveryInfo(object):
     def __init__(self, **kwargs):
 
         self.discovery_address = kwargs.pop('discovery_address')
-        self.vip_address = kwargs.pop('vip-address')
-        self.serverkey = kwargs.pop('serverkey')
+        self.vip_address = kwargs.pop('vip-address', None)
+        self.serverkey = kwargs.pop('serverkey', None)
         self.instance_name = kwargs.pop('instance-name')
         try:
             self.rmq_address = kwargs.pop('rmq-address')

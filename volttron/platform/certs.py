@@ -532,6 +532,32 @@ class Certs(object):
             fp.write(json.dumps(meta))
         return cert
 
+    def delete_csr(self, common_name):
+        metafile = os.path.join(self.csr_pending_dir, common_name + ".json")
+        csrfile = os.path.join(self.csr_pending_dir, common_name + ".csr")
+
+        self.delete_remote_cert(common_name)
+        if os.path.exists(metafile):
+            os.remove(metafile)
+        if os.path.exists(csrfile):
+            os.remove(csrfile)
+
+    def deny_csr(self, common_name):
+        metafile = os.path.join(self.csr_pending_dir, common_name + ".json")
+        csrfile = os.path.join(self.csr_pending_dir, common_name + ".csr")
+
+        if not os.path.isfile(metafile):
+            raise ValueError("Unknown csr for common_name {}".format(common_name))
+        if not os.path.isfile(csrfile):
+            raise ValueError("Bad state unknown CSR for common_name {}".format(common_name))
+
+        self.delete_remote_cert(common_name)
+        meta = json.loads(open(metafile, 'rb').read())
+        meta['status'] = 'DENIED'
+
+        with open(metafile, 'wb') as fp:
+            fp.write(json.dumps(meta))
+
     def sign_csr(self, csr_file):
         ca_crt = self.ca_cert()
         ca_pkey = _load_key(self.private_key_file(self.root_ca_name))
@@ -686,6 +712,11 @@ class Certs(object):
 
         with open(metafile, 'w') as fp:
             fp.write(json.dumps(metadata))
+
+    def delete_remote_cert(self, name):
+        cert_file = self.remote_certs_file(name)
+        if os.path.exists(cert_file):
+            os.remove(cert_file)
 
     def save_remote_cert(self, name, cert_string):
         cert_file = self.remote_certs_file(name)

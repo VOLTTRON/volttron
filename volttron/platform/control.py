@@ -193,6 +193,10 @@ class ControlService(BaseAgent):
         self.vip.health.send_alert(alert_key, status)
 
     @RPC.export
+    def peerlist(self):
+        return self.vip.peerlist().get(timeout=5)
+
+    @RPC.export
     def serverkey(self):
         q = Query(self.core)
         pk = q.query('serverkey').get(timeout=1)
@@ -260,8 +264,7 @@ class ControlService(BaseAgent):
         # Send message to router that agent is shutting down
         frames = [bytes(identity)]
 
-        # self.core.socket.send_vip(b'', 'agentstop', frames, copy=False)
-        self.core.connection.send_vip_object(Message(peer=b'', subsystem='agentstop', args=frames), copy=False)
+        self.core.connection.send_vip(b'', 'agentstop', frames, copy=False)
 
     @RPC.export
     def restart_agent(self, uuid):
@@ -275,8 +278,7 @@ class ControlService(BaseAgent):
     @RPC.export
     def stop_platform(self):
         # XXX: Restrict call as it kills the process
-        # self.core.socket.send_vip(b'', b'quit')
-        self.core.connection.send_vip_object(Message(peer=b'', subsystem=b'quit'))
+        self.core.connection.send_vip(b'', b'quit')
 
     @RPC.export
     def list_agents(self):
@@ -313,7 +315,7 @@ class ControlService(BaseAgent):
         frames = [bytes(identity)]
 
         # Send message to router that agent is shutting down
-        self.core.connection.send_vip_object(Message(peer=b'', subsystem='agentstop', args=frames))
+        self.core.connection.send_vip(b'', 'agentstop', args=frames)
         self._aip.remove_agent(uuid, remove_auth=remove_auth)
 
     @RPC.export
@@ -740,6 +742,13 @@ def list_agents(opts):
         return opts.aip.agent_priority(agent.uuid) or ''
 
     _show_filtered_agents(opts, 'PRI', get_priority)
+
+
+def list_peers(opts):
+    conn = opts.connection
+    peers = sorted(conn.call('peerlist'))
+    for peer in peers:
+        sys.stdout.write("{}\n".format(peer))
 
 
 def status_agents(opts):
@@ -2126,6 +2135,9 @@ def main(argv=sys.argv):
     remove.add_argument('-f', '--force', action='store_true',
                         help='force removal of multiple agents')
     remove.set_defaults(func=remove_agent, force=False)
+
+    peers = add_parser('peerlist', help='list the peers connected to the platform')
+    peers.set_defaults(func=list_peers)
 
     list_ = add_parser('list', parents=[filterable],
                        help='list installed agent')

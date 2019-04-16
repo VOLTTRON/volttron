@@ -1,26 +1,4 @@
-from abc import ABCMeta, abstractmethod
 import base64
-import Cookie
-
-import jwt
-
-
-class NotAuthorized(Exception):
-    pass
-
-
-def get_bearer(env):
-    cookiestr = env.get('HTTP_COOKIE')
-    if not cookiestr:
-        raise NotAuthorized()
-    cookie = Cookie.SimpleCookie(cookiestr)
-    bearer = cookie.get('Bearer').value.decode('utf-8')
-    return bearer
-
-
-def get_user_claims(env):
-    bearer = get_bearer(env)
-    return jwt.decode(bearer, env['WEB_PUBLIC_KEY'], algorithms='RS256')
 
 
 class Response(object):

@@ -87,6 +87,8 @@ class CSREndpoints(object):
                 json_response['cert'] = self._certs.get_cert_from_csr(identity)
             elif status == "PENDING":
                 json_response['message'] = "The request is pending admininstrator approval."
+            elif status == "DENIED":
+                json_response['message'] = "The request has been denied by the administrator."
             elif status == "UNKNOWN":
                 json.response['message'] = "An unknown common name was specified to the server {}".format(identity)
             else:

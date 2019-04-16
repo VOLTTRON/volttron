@@ -81,6 +81,10 @@ class AuthenticateEndpoints(object):
             _log.warning("Authentication must use POST request.")
             return Response('', status='401 Unauthorized')
 
+        if not isinstance(data, dict):
+            raise ValueError(
+                "Invalid data parameters passed must have username and password but string was passed.")
+
         user = self.__get_user(data.get('username'), data.get('password'))
         if user is None:
             return Response('', status='401')

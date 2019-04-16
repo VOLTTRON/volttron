@@ -5,7 +5,7 @@ import re
 import urlparse
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
-import jwt
+
 from passlib.hash import argon2
 from watchdog_gevent import Observer
 
@@ -25,9 +25,9 @@ def template_env(env):
 
 class AdminEndpoints(object):
 
-    def __init__(self, ssl_public_key):
+    def __init__(self, rmq_mgmt, ssl_public_key):
 
-        self._userdict = None
+        self._rmq_mgmt = rmq_mgmt
         self._ssl_public_key = ssl_public_key
         self._userdict = None
         self.reload_userdict()
@@ -68,27 +68,31 @@ class AdminEndpoints(object):
                     return Response('', status='302', headers={'Location': '/admin/login.html'})
 
             template = template_env(env).get_template('first.html')
-            resp = template.render()
             return Response(template.render())
 
         if 'login.html' in env.get('PATH_INFO') or '/admin/' == env.get('PATH_INFO'):
             template = template_env(env).get_template('login.html')
-            resp = template.render()
             return Response(template.render())
 
         return self.verify_and_dispatch(env, data)
 
     def verify_and_dispatch(self, env, data):
+        """ Verify that the user is an admin and dispatch
 
-        bearer = env.get('HTTP_COOKIE')
-        if not bearer:
-            template = template_env(env).get_template('login.html')
-            return Response(template.render(), status='401 Unauthorized')
+        :param env: web environment
+        :param data: data associated with a web form or json/xml request data
+        :return: Response object.
+        """
+        from volttron.platform.web import get_user_claims, NotAuthorized
+        try:
+            claims = get_user_claims(env)
+        except NotAuthorized:
+            _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
+            return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
 
-        cookie = Cookie.SimpleCookie(env.get('HTTP_COOKIE'))
-        bearer = cookie.get('Bearer').value.decode('utf-8')
-
-        claims = jwt.decode(bearer, self._ssl_public_key, algorithms='RS256')
+        # Make sure we have only admins for viewing this.
+        if 'admin' not in claims.get('groups'):
+            return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
 
         # Make sure we have only admins for viewing this.
         if 'admin' not in claims.get('groups'):
@@ -127,6 +131,10 @@ class AdminEndpoints(object):
             response = self.__pending_csrs_api()
         elif endpoint.startswith('approve_csr/'):
             response = self.__approve_csr_api(endpoint.split('/')[1])
+        elif endpoint.startswith('deny_csr/'):
+            response = self.__deny_csr_api(endpoint.split('/')[1])
+        elif endpoint.startswith('delete_csr/'):
+            response = self.__delete_csr_api(endpoint.split('/')[1])
         else:
             response = Response('{"status": "Unknown endpoint {}"}'.format(endpoint),
                                 content_type="application/json")
@@ -134,9 +142,34 @@ class AdminEndpoints(object):
 
     def __approve_csr_api(self, common_name):
         try:
+            _log.debug("Creating cert and permissions for user: {}".format(common_name))
             self._certs.approve_csr(common_name)
+            permissions = self._rmq_mgmt.get_default_permissions(common_name)
+            self._rmq_mgmt.create_user_with_permissions(common_name,
+                                                        permissions,
+                                                        True)
             data = dict(status=self._certs.get_csr_status(common_name),
                         cert=self._certs.get_cert_from_csr(common_name))
+        except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        return Response(json.dumps(data), content_type="application/json")
+
+    def __deny_csr_api(self, common_name):
+        try:
+            self._certs.deny_csr(common_name)
+            data = dict(status="DENIED",
+                        message="The administrator has denied the request")
+        except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        return Response(json.dumps(data), content_type="application/json")
+
+    def __delete_csr_api(self, common_name):
+        try:
+            self._certs.delete_csr(common_name)
+            data = dict(status="DELETED",
+                        message="The administrator has denied the request")
         except ValueError as e:
             data = dict(status="ERROR", message=e.message)
 

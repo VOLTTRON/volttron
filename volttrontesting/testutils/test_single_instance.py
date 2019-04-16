@@ -3,7 +3,6 @@ import pytest
 from volttron.platform import get_examples
 
 
-
 @pytest.mark.wrapper
 def test_can_install_listeners(volttron_instance):
     assert volttron_instance.is_running()
@@ -33,6 +32,7 @@ def test_can_install_listeners(volttron_instance):
                 volttron_instance.remove_agent(x)
             except:
                 print('COULDN"T REMOVE AGENT')
+
 
 @pytest.mark.wrapper
 def test_can_install_listeners_vi(volttron_instance):

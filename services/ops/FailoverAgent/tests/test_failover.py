@@ -5,7 +5,7 @@ from contextlib import contextmanager
 import pytest
 import gevent
 
-from volttron.platform import get_services_core, get_examples
+from volttron.platform import get_services_core, get_examples, get_ops
 from volttron.platform.keystore import KeyStore
 
 primary_config = {
@@ -77,7 +77,7 @@ def failover(request, get_volttron_instances):
                                              start=False)
 
     primary_config["remote_vip"] = tcp_to(secondary)
-    primary_failover = primary.install_agent(agent_dir=get_services_core("FailoverAgent"),
+    primary_failover = primary.install_agent(agent_dir=get_ops("FailoverAgent"),
                                              config_file=primary_config)
 
     # configure secondary
@@ -88,7 +88,7 @@ def failover(request, get_volttron_instances):
                                                  start=False)
 
     secondary_config["remote_vip"] = tcp_to(primary)
-    secondary_failover = secondary.install_agent(agent_dir=get_services_core("FailoverAgent"),
+    secondary_failover = secondary.install_agent(agent_dir=get_ops("FailoverAgent"),
                                                  config_file=secondary_config)
 
     def stop():

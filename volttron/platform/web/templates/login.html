@@ -1,15 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+{% extends "base.html" %}
+{% block title %}Administration Login{% endblock %}
+{% block js %}
     <script language="JavaScript">
         $(document).ready(() => {
             $("#status").hide();
+            $("#top_menu").hide();
             $("form").submit((event) =>{
                 event.preventDefault();
-                url = '/authenticate'
+                url = '/authenticate';
                 data = {
                     'username': $('#username').val(),
                     'password': $('#password').val()
@@ -18,7 +16,7 @@
                 // Not sure why both the accepts and the dataType parameter
                 // must be set in order for the HTTP_ACCEPT: application/json to
                 // be something other than HTTP_ACCEPT: */*
-                $.ajax({
+                jQuery.ajax({
                     type: 'POST',
                     url: url,
                     data: JSON.stringify(data),
@@ -28,11 +26,11 @@
                         'Accept': 'application/json'
                     },
                     success: function(content){
-                        alert(content)
+                        alert(content);
                         $("#response").append(content)
                     },
                     failure: function(content){
-                        alert("failed!")
+                        alert("failed!");
                         $('#response').append("FAILURE "+ content.toString());
                     },
                     statusCode: {
@@ -41,7 +39,7 @@
                         },
                         200: function(response){
                             document.cookie = "Bearer="+response.responseText+"; secure=True; path=/";
-                            window.location=window.location.origin + "/admin/index.html";
+                            window.location=window.location.origin + "/admin/pending_csrs.html";
                         }
                     }
 
@@ -50,8 +48,8 @@
         });
 
     </script>
-</head>
-<body>
+{% endblock %}
+{% block content %}
     <h1>Authentication</h1>
     <form>
         <div id="status">
@@ -65,6 +63,4 @@
         </div>
         <input type="submit" value="Login" />
     </form>
-
-</body>
-</html>
+{% endblock %}

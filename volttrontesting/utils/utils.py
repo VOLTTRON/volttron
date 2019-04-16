@@ -45,8 +45,12 @@ def messages_contains_prefix(prefix, messages):
     return any(map(lambda x: x.startswith(prefix), messages.keys()))
 
 
-def get_rand_http_address():
-    return "http://{}".format(get_rand_ip_and_port())
+def get_rand_http_address(https=False):
+    if https:
+        result = "https://{}".format(get_rand_ip_and_port())
+    else:
+        result = "http://{}".format(get_rand_ip_and_port())
+    return result
 
 
 def get_rand_tcp_address():

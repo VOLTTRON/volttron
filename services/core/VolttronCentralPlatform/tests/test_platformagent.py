@@ -21,7 +21,6 @@ from volttrontesting.utils.platformwrapper import PlatformWrapper, \
 from volttron.platform.agent import json as jsonapi
 
 
-
 def get_new_keypair():
     tf = tempfile.NamedTemporaryFile()
     ks = KeyStore(tf.name)
@@ -96,6 +95,7 @@ class SimulatedVC(Agent):
     def __init__(self, **kwargs):
         super(SimulatedVC, self).__init__(**kwargs)
         self._functioncalls = {}
+
     def add_method_response(self, method_name, response):
         pass
 

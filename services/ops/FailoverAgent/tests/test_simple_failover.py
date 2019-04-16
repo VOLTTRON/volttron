@@ -4,7 +4,7 @@ import pytest
 import gevent
 import json
 
-from volttron.platform import get_services_core, get_examples
+from volttron.platform import get_examples, get_ops
 
 simple_primary_config = {
     "agent_id": "primary",
@@ -57,7 +57,7 @@ def simple_failover(request, get_volttron_instances):
 
     simple_primary_config["remote_vip"] = secondary.vip_address
     simple_primary_config["remote_serverkey"] = secondary.serverkey
-    uuid_primary = primary.install_agent(agent_dir=get_services_core("FailoverAgent"),
+    uuid_primary = primary.install_agent(agent_dir=get_ops("FailoverAgent"),
                                          config_file=simple_primary_config)
 
     # configure secondary
@@ -67,7 +67,7 @@ def simple_failover(request, get_volttron_instances):
 
     simple_secondary_config["remote_vip"] = primary.vip_address
     simple_secondary_config["remote_serverkey"] = primary.serverkey
-    uuid_secondary = secondary.install_agent(agent_dir=get_services_core("FailoverAgent"),
+    uuid_secondary = secondary.install_agent(agent_dir=get_ops("FailoverAgent"),
                                              config_file=simple_secondary_config)
 
     gevent.sleep(SLEEP_TIME)

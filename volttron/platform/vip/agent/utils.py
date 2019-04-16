@@ -100,7 +100,7 @@ def build_agent(address=get_address(), identity=None, publickey=ks.public,
     agent = agent_class(address=address, identity=identity, publickey=publickey,
                         secretkey=secretkey, serverkey=serverkey, volttron_central_address=volttron_central_address,
                         volttron_central_instance_name=volttron_central_instance_name,
-                        message_bus=message_bus, **kwargs)
+                        message_bus=message_bus, enable_store=False, **kwargs)
     event = gevent.event.Event()
     gevent.spawn(agent.core.run, event)
     with gevent.Timeout(timeout):
