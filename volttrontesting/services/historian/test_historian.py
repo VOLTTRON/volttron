@@ -99,9 +99,7 @@ try:
 
     sys.path.insert(0, crate_path)
     from volttron.platform.dbutils import crateutils as crate_utils
-    # Once we fix the tests this will be able to be tested here.
-    # Disable crate tests for now. Till we finish bug fixes.
-    HAS_CRATE_CONNECTOR = False
+    HAS_CRATE_CONNECTOR = True
 except:
     HAS_CRATE_CONNECTOR = False
 
