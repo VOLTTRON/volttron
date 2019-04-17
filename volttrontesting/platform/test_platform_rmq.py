@@ -47,7 +47,6 @@ from shutil import copy
 import gevent
 import pytest
 from gevent import subprocess
-from volttrontesting.fixtures.rmq_test_setup import cleanup_rmq_volttron_setup
 
 from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_vip
 from volttrontesting.utils.platformwrapper import PlatformWrapper

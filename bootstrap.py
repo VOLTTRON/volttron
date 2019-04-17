@@ -329,6 +329,9 @@ def install_rabbit(rmq_install_dir):
            "rabbitmq_trust_store"]
     subprocess.check_call(cmd)
 
+    with open(os.path.expanduser("~/.volttron_rmq_home"), 'w+') as f:
+        f.write(rmq_home)
+
 def main(argv=sys.argv):
     '''Script entry point.'''
 

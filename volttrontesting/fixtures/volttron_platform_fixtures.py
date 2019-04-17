@@ -5,6 +5,7 @@ import socket
 import uuid
 
 from volttrontesting.utils.platformwrapper import PlatformWrapper
+from volttrontesting.utils.utils import get_hostname_and_random_port
 
 PRINT_LOG_ON_SHUTDOWN = False
 
@@ -26,12 +27,13 @@ def get_rand_ip_and_port():
     return ip + ":{}".format(port)
 
 
-def get_rand_port(ip=None):
-    port = randint(5000, 6000)
+def get_rand_port(ip=None, min_ip=5000, max_ip=6000):
+    port = randint(min_ip, max_ip)
     if ip:
         while is_port_open(ip, port):
-            port = randint(5000, 6000)
+            port = randint(min_ip, max_ip)
     return port
+
 
 
 def is_port_open(ip, port):
@@ -53,7 +55,7 @@ def build_wrapper(vip_address, **kwargs):
                               ssl_auth=kwargs.pop('ssl_auth', False),
                               instance_name=kwargs.pop('instance_name', 'volttron_test'))
     print('BUILD_WRAPPER: {}'.format(vip_address))
-    wrapper.startup_platform(vip_address=vip_address, instance_name='volttron_test',**kwargs)
+    wrapper.startup_platform(vip_address=vip_address, instance_name='volttron_test', **kwargs)
     return wrapper
 
 
@@ -63,7 +65,6 @@ def cleanup_wrapper(wrapper):
         wrapper.remove_all_agents()
     # Shutdown handles case where the platform hasn't started.
     wrapper.shutdown_platform()
-    wrapper.restore_conf()
 
 
 def cleanup_wrappers(platforms):
@@ -140,7 +141,7 @@ def volttron_instance_module_web(request):
 # test
 @pytest.fixture(scope="module",
                 params=[
-                    ('zmq', False),
+                    #('zmq', False),
                     ('rmq', True)
                 ])
 def volttron_instance(request, **kwargs):
@@ -264,3 +265,29 @@ def volttron_instance_rmq(request):
 
     request.addfinalizer(cleanup)
     return wrapper
+
+
+@pytest.fixture(scope="module",
+                params=(
+                    dict(messagebus='zmq', ssl_auth=False),
+                    dict(messagebus='rmq', ssl_auth=True)
+                ))
+def volttron_instance_web(request):
+    print("volttron_instance_web (messagebus {messagebus} ssl_auth {ssl_auth})".format(**request.param))
+    address = get_rand_vip()
+
+    if request.param['ssl_auth']:
+        hostname, port = get_hostname_and_random_port()
+        web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
+    else:
+        web_address = "http://{}".format(get_rand_ip_and_port())
+
+    wrapper = build_wrapper(address,
+                            ssl_auth=request.param['ssl_auth'],
+                            message_bus=request.param['messagebus'],
+                            bind_web_address=web_address,
+                            volttron_central_address=web_address)
+
+    yield wrapper
+
+    cleanup_wrapper(wrapper)

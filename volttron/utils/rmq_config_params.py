@@ -181,6 +181,11 @@ class RMQConfig(object):
     def local_password(self):
         return "guest"
 
+    @property
+    def node_name(self):
+        return self.config_opts.get('node-name')
+
+
     def reconnect_delay(self):
         return self.config_opts.get('reconnect-delay')
     @hostname.setter
@@ -226,4 +231,9 @@ class RMQConfig(object):
     @certificate_data.setter
     def certificate_data(self, data):
         self.config_opts['certificate-data'] = data
+
+    @node_name.setter
+    def node_name(self, name):
+        self.config_opts['node-name'] = name
+
 
