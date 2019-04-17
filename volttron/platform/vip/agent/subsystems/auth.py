@@ -52,6 +52,7 @@ from volttron.platform.certs import Certs
 from volttron.platform.jsonrpc import RemoteError
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.platform.keystore import KeyStore
+from volttron.platform.vip.agent.subsystems.health import BAD_STATUS, Status
 
 """
 The auth subsystem allows an agent to quickly query authorization state
@@ -78,8 +79,7 @@ class Auth(SubsystemBase):
 
         core.onsetup.connect(onsetup, self)
 
-    def connect_remote_platform(self, address, server_key=None,
-                                agent_class=None):
+    def connect_remote_platform(self, address, serverkey=None, rmq_ca_cert=None, agent_class=None):
         """
         Atempts to connect to a remote platform to exchange data.
 
@@ -108,6 +108,7 @@ class Auth(SubsystemBase):
             agent_class = Agent
 
         parsed_address = urlparse.urlparse(address)
+        _log.debug("Begining auth.connect_remote_platform: {}".format(address))
 
         value = None
         if parsed_address.scheme == 'tcp':
@@ -116,15 +117,16 @@ class Auth(SubsystemBase):
             temp_serverkey = hosts.serverkey(address)
             if not temp_serverkey:
                 _log.info("Destination serverkey not found in known hosts file, using config")
-                destination_serverkey = server_key
-            elif not server_key:
+                destination_serverkey = serverkey
+            elif not serverkey:
                 destination_serverkey = temp_serverkey
             else:
-                if temp_serverkey != server_key:
+                if temp_serverkey != serverkey:
                     raise ValueError("server_key passed and known hosts serverkey do not match!")
-                destination_serverkey = server_key
+                destination_serverkey = serverkey
 
-            publickey, secretkey = self._core()._get_keys_from_keystore()
+            publickey, secretkey = self._core().publickey, self._core().secretkey
+            _log.debug("Connecting using: {}".format(get_fq_identity(self._core().identity)))
 
             value = build_agent(agent_class=agent_class,
                                 identity=get_fq_identity(self._core().identity),
@@ -148,50 +150,77 @@ class Auth(SubsystemBase):
                 remote_identity = "{}.{}.{}".format(info.instance_name,
                                                     get_platform_instance_name(),
                                                     self._core().identity)
+                # if the current message bus is zmq then we need
+                # to connect a zmq on the remote, whether that be the
+                # rmq router or proxy.  Also note that we are using the fully qualified
+                # version of the identity because there will be conflicts if
+                # volttron central has more than one platform.agent connecting
+                if get_messagebus() == 'zmq':
+                    if not info.vip_address or not info.serverkey:
+                        err = "Discovery from {} did not return serverkey and/or vip_address".format(address)
+                        raise ValueError(err)
 
-                if info.messagebus_type == 'rmq' and get_messagebus() == 'zmq':
-                    ValueError("ZMQ -> RMQ connection not supported at this time.")
+                    publickey, secretkey = self._core().publickey, self._core().secretkey
+                    _log.debug("Connecting using: {}".format(get_fq_identity(self._core().identity)))
 
-                # If this is present we can assume we are going to connect to rabbit
-                if info.messagebus_type == 'rmq':
-
-                    # Discovery info for external platform
-                    value = self.request_cert(address)
-
-                    _log.debug("RESPONSE VALUE WAS: {}".format(value))
-                    if not isinstance(value, tuple):
-                        info = DiscoveryInfo.request_discovery_info(address)
-                        remote_rmq_user = remote_identity
-                        remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
-                            remote_rmq_user,
-                            info.vc_rmq_address)
-
-                        value = build_agent(identity=remote_rmq_user,
-                                            address=remote_rmq_address,
-                                            instance_name=info.instance_name)
-
-                else:
-                    # TODO: cache the connection so we don't always have to ping
-                    #       the server to connect.
-
-                    # This branch happens when the message bus is not the same note
-                    # this writes to the agent-data directory of this agent if the agent
-                    # is installed.
-                    if get_messagebus() == 'rmq':
-                        if not os.path.exists("keystore.json"):
-                            with open("keystore.json", 'w') as fp:
-                                fp.write(json.dumps(KeyStore.generate_keypair_dict()))
-
-                        with open("keystore.json") as fp:
-                            keypair = json.loads(fp.read())
-
-                    value = build_agent(agent_class=agent_class,
-                                        identity=remote_identity,
+                    # use fully qualified identity
+                    value = build_agent(identity=get_fq_identity(self._core().identity),
+                                        address=info.vip_address,
                                         serverkey=info.serverkey,
-                                        publickey=keypair.get('publickey'),
-                                        secretkey=keypair.get('secretekey'),
-                                        message_bus='zmq',
-                                        address=info.vip_address)
+                                        secretkey=self._core().secretkey,
+                                        publickey=self._core().publickey,
+                                        agent_class=agent_class)
+
+                else:  # we are on rmq messagebus
+
+                    # This is if both remote and local are rmq message buses.
+                    if info.messagebus_type == 'rmq':
+                        _log.debug("Both remote and local are rmq messagebus.")
+                        # Discovery info for external platform
+                        value = self.request_cert(address)
+
+                        if value is None:
+                            _log.error("there was no response from the server")
+                        elif isinstance(value, tuple):
+                            if value[0] == 'PENDING':
+                                _log.info("Waiting for administrator to accept a CSR request.")
+                            value = None
+                        elif os.path.exists(value):
+                            info = DiscoveryInfo.request_discovery_info(address)
+                            remote_rmq_user = remote_identity
+                            remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
+                                remote_rmq_user,
+                                info.rmq_address)
+
+                            value = build_agent(identity=remote_rmq_user,
+                                                address=remote_rmq_address,
+                                                instance_name=info.instance_name,
+                                                agent_class=agent_class)
+                        else:
+                            raise ValueError("Unknown path through discovery process!")
+
+                    else:
+                        # TODO: cache the connection so we don't always have to ping
+                        #       the server to connect.
+
+                        # This branch happens when the message bus is not the same note
+                        # this writes to the agent-data directory of this agent if the agent
+                        # is installed.
+                        if get_messagebus() == 'rmq':
+                            if not os.path.exists("keystore.json"):
+                                with open("keystore.json", 'w') as fp:
+                                    fp.write(json.dumps(KeyStore.generate_keypair_dict()))
+
+                            with open("keystore.json") as fp:
+                                keypair = json.loads(fp.read())
+
+                        value = build_agent(agent_class=agent_class,
+                                            identity=remote_identity,
+                                            serverkey=info.serverkey,
+                                            publickey=keypair.get('publickey'),
+                                            secretkey=keypair.get('secretekey'),
+                                            message_bus='zmq',
+                                            address=info.vip_address)
             except DiscoveryError:
                 value = dict(status='UNKNOWN',
                              message="Couldn't connect to {} or incorrect response returned".format(address))
@@ -209,8 +238,15 @@ class Auth(SubsystemBase):
         :param csr_server: the http(s) location of the server to connect to.
         :return:
         """
+
+        if get_messagebus() != 'rmq':
+            raise ValueError("Only can create csr for rabbitmq based platform in ssl mode.")
+
         from volttron.platform.web import DiscoveryInfo
         config = RMQConfig()
+
+        if not config.is_ssl:
+            raise ValueError("Only can create csr for rabbitmq based platform in ssl mode.")
 
         info = discovery_info
         if info is None:
@@ -255,8 +291,14 @@ class Auth(SubsystemBase):
 
         elif status == 'PENDING':
             _log.debug("Pending CSR request for {}".format(remote_cert_name))
-        elif status == 'DENIAL':
-            print("Woops")
+        elif status == 'DENIED':
+            _log.error("Denied from remote machine.  Shutting down agent.")
+            status = Status.build(BAD_STATUS,
+                                  context="Administrator denied remote connection.  Shutting down")
+            self._owner.vip.health.set_status(status.status, status.context)
+            self._owner.vip.health.send_alert(self._core().identity+"_DENIED", status)
+            self._core().stop()
+            return None
         elif status == 'ERROR':
             err = "Error retrieving certificate from {}\n".format(
                 config.hostname)

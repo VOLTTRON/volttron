@@ -195,6 +195,7 @@ def get_platform_instance_name(prompt=False):
             _log.error(err)
             raise KeyError(err)
 
+
     return instance_name
 
 

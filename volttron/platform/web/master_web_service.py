@@ -36,32 +36,22 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+import base64
 from collections import defaultdict
 import json
 import logging
 import os
 import re
-
-import base64
-from urlparse import urlparse, urljoin
+import zlib
 
 import gevent
 import gevent.pywsgi
-
-
-from ws4py.server.geventserver import (WebSocketWSGIApplication,
-                                       WSGIServer)
-import zlib
-
+from ws4py.server.geventserver import WSGIServer
 import mimetypes
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
+
 from volttron.utils import is_ip_private
-from webapp import WebApplicationWrapper
-from admin_endpoints import AdminEndpoints
-from authenticate_endpoint import AuthenticateEndpoints
-from csr_endpoints import CSREndpoints
-
 from volttron.platform.agent import json as jsonapi
 from volttron.platform.agent.web import Response
 from volttron.platform.agent.utils import get_fq_identity
@@ -74,6 +64,11 @@ from volttron.platform.jsonrpc import (
 from volttron.platform.vip.socket import encode_key
 from cryptography.hazmat.primitives import serialization
 from volttron.utils.rmq_config_params import RMQConfig
+
+from webapp import WebApplicationWrapper
+from admin_endpoints import AdminEndpoints
+from authenticate_endpoint import AuthenticateEndpoints
+from csr_endpoints import CSREndpoints
 
 _log = logging.getLogger(__name__)
 
@@ -153,6 +148,11 @@ class MasterWebService(Agent):
         for p in self.peerroutes:
             if p not in peers:
                 del self.peerroutes[p]
+
+    @RPC.export
+    def get_user_claims(self, bearer):
+        from volttron.platform.web import get_user_claim_from_bearer
+        return get_user_claim_from_bearer(bearer)
 
     @RPC.export
     def websocket_send(self, endpoint, message):
@@ -250,7 +250,9 @@ class MasterWebService(Agent):
 
         compiled = re.compile(regex)
         self.pathroutes[peer].append(compiled)
-        self.registeredroutes.append((compiled, 'path', root_dir))
+        # in order for this agent to pass against the default route we want this
+        # to be before the last route which will resolve to .*
+        self.registeredroutes.insert(len(self.registeredroutes) - 1, (compiled, 'path', root_dir))
 
     @RPC.export
     def register_websocket(self, endpoint):
@@ -340,10 +342,10 @@ class MasterWebService(Agent):
             rmq_address = None
             if config.is_ssl:
                 rmq_address = "amqps://{host}:{port}/{vhost}".format(host=config.hostname, port=config.amqp_port_ssl,
-                                                                 vhost=config.virtual_host)
+                                                                     vhost=config.virtual_host)
             else:
                 rmq_address = "amqp://{host}:{port}/{vhost}".format(host=config.hostname, port=config.amqp_port,
-                                                                     vhost=config.virtual_host)
+                                                                    vhost=config.virtual_host)
             return_dict['rmq-address'] = rmq_address
             return_dict['rmq-ca-cert'] = self._certs.cert(self._certs.root_ca_name).public_bytes(serialization.Encoding.PEM)
         return Response(jsonapi.dumps(return_dict), content_type="application/json")
@@ -364,16 +366,18 @@ class MasterWebService(Agent):
         # agents.
         envlist = ['HTTP_USER_AGENT', 'PATH_INFO', 'QUERY_STRING',
                    'REQUEST_METHOD', 'SERVER_PROTOCOL', 'REMOTE_ADDR',
-                   'HTTP_ACCEPT_ENCODING', 'HTTP_COOKIE', 'CONTENT_TYPE']
+                   'HTTP_ACCEPT_ENCODING', 'HTTP_COOKIE', 'CONTENT_TYPE',
+                   'HTTP_AUTHORIZATION', 'SERVER_NAME', 'wsgi.url_scheme',
+                   'HTTP_HOST']
         data = env['wsgi.input'].read()
         passenv = dict(
             (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)) if envlist[i] in env.keys())
 
-        _log.debug('PATH IS: {}'.format(path_info))
+        _log.debug('path_info is: {}'.format(path_info))
         # Get the peer responsible for dealing with the endpoint.  If there
         # isn't a peer then fall back on the other methods of routing.
         (peer, res_type) = self.endpoints.get(path_info, (None, None))
-        _log.debug('Peer we path_info is associated with: {}'.format(peer))
+        _log.debug('Peer path_info is associated with: {}'.format(peer))
 
         if self.is_json_content(env):
             data = json.loads(data)
@@ -400,6 +404,11 @@ class MasterWebService(Agent):
                 return self.create_raw_response(res, start_response)
 
         env['JINJA2_TEMPLATE_ENV'] = tplenv
+
+        # if ws4pi.socket is set then this connection is a web socket
+        # and so we return the websocket response.
+        if 'ws4py.socket' in env:
+            return env['ws4py.socket'](env, start_response)
 
         for k, t, v in self.registeredroutes:
             if k.match(path_info):
@@ -563,8 +572,8 @@ class MasterWebService(Agent):
         if parsed.scheme == 'https':
             # Admin interface is only availble to rmq at present.
             if self.core.messagebus == 'rmq':
-                self._admin_endpoints = AdminEndpoints(
-                    self._certs.get_cert_public_key(get_fq_identity(self.core.identity)))
+                self._admin_endpoints = AdminEndpoints(self.core.rmq_mgmt,
+                                                       self._certs.get_cert_public_key(get_fq_identity(self.core.identity)))
 
             if ssl_key is None or ssl_cert is None:
                 ssl_cert = self._certs.cert_file(get_fq_identity(self.core.identity))
@@ -594,8 +603,8 @@ class MasterWebService(Agent):
             for rt in AuthenticateEndpoints(ssl_private_key).get_routes():
                 self.registeredroutes.append(rt)
 
-            static_dir = os.path.join(os.path.dirname(__file__), "static")
-            self.registeredroutes.append((re.compile('^/.*$'), 'path', static_dir))
+        static_dir = os.path.join(os.path.dirname(__file__), "static")
+        self.registeredroutes.append((re.compile('^/.*$'), 'path', static_dir))
 
         port = int(port)
         vhome = os.environ.get('VOLTTRON_HOME')

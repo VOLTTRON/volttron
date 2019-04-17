@@ -53,20 +53,20 @@ class WebApplicationWrapper(object):
         should_open = self.masterweb.vip.rpc.call(identity, 'client.opened',
                                                   ip, endpoint)
         if not should_open:
-            self._log.error("Authentication failure, closing websocket.")
+            _log.error("Authentication failure, closing websocket.")
             client.close(reason='Authentication failure!')
             return
 
         # In order to get into endpoint_clients create_ws must be called.
         if endpoint not in self.endpoint_clients:
-            self._log.error('Unknown endpoint detected: {}'.format(endpoint))
+            _log.error('Unknown endpoint detected: {}'.format(endpoint))
             client.close(reason="Unknown endpoint! {}".format(endpoint))
             return
 
         if (identity, client) in  self.endpoint_clients[endpoint]:
-            self._log.debug("IDENTITY,CLIENT: {} already in endpoint set".format(identity))
+            _log.debug("IDENTITY,CLIENT: {} already in endpoint set".format(identity))
         else:
-            self._log.debug("IDENTITY,CLIENT: {} added to endpoint set".format(identity))
+            _log.debug("IDENTITY,CLIENT: {} added to endpoint set".format(identity))
             self.endpoint_clients[endpoint].add((identity, client))
 
     def client_received(self, endpoint, message):
@@ -89,15 +89,6 @@ class WebApplicationWrapper(object):
             self.masterweb.vip.rpc.call(identity, 'client.closed', endpoint)
 
     def create_ws_endpoint(self, endpoint, identity):
-        #_log.debug()print(endpoint, identity)
-        # if endpoint in self.endpoint_clients:
-        #     peers = self.masterweb.vip.peerlist.get()
-        #     old_identity = self._wsregistry[endpoint]
-        #     if old_identity not in peers:
-        #         for client in self.endpoint_clients.values():
-        #             client.close()
-        #         r
-
         if endpoint not in self.endpoint_clients:
             self.endpoint_clients[endpoint] = set()
         self._wsregistry[endpoint] = identity
@@ -112,14 +103,14 @@ class WebApplicationWrapper(object):
             pass
 
     def websocket_send(self, endpoint, message):
-        self._log.debug('Sending message to clients!')
+        _log.debug('Sending message to clients!')
         clients = self.endpoint_clients.get(endpoint, [])
         if not clients:
-            self._log.warn("There were no clients for endpoint {}".format(
+            _log.warn("There were no clients for endpoint {}".format(
                 endpoint))
         for c in clients:
             identity, client = c
-            self._log.debug('Sending endpoint&&message {}&&{}'.format(
+            _log.debug('Sending endpoint&&message {}&&{}'.format(
                 endpoint, message))
             client.send(message)
 

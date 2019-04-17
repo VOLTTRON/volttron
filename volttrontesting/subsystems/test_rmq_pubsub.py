@@ -38,10 +38,11 @@
 
 import gevent
 import pytest
-from volttron.platform import get_ops, get_examples
+
 from mock import MagicMock
 
 message_count2 = 0
+
 
 @pytest.fixture(scope="module")
 def publisher_agent(request, volttron_instance):
@@ -74,6 +75,7 @@ def subscriber_agent(request, volttron_instance):
     request.addfinalizer(stop_agent)
 
     return subscriber_agent
+
 
 @pytest.mark.pubsub
 def test_granularity(volttron_instance, publisher_agent, request):

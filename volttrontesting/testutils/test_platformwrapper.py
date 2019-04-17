@@ -35,8 +35,9 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-import requests
 
+
+from ConfigParser import ConfigParser
 import gevent
 import pytest
 import time
@@ -49,6 +50,21 @@ from volttrontesting.utils.platformwrapper import start_wrapper_platform, \
     PlatformWrapper
 
 
+@pytest.mark.wrapper
+def test_volttron_config_created(volttron_instance):
+    config_file = os.path.join(volttron_instance.volttron_home, "config")
+    assert os.path.isfile(config_file)
+    parser = ConfigParser()
+    # with open(config_file, 'rb') as cfg:
+    parser.read(config_file)
+    assert volttron_instance.instance_name == parser.get('volttron', 'instance-name')
+    assert volttron_instance.messagebus == parser.get('volttron', 'message-bus')
+    assert volttron_instance.vip_address == parser.get('volttron', 'vip-address')
+
+    # with open(volttron_instance.)
+
+
+@pytest.mark.wrapper
 def test_can_restart_platform_without_addresses_changing(get_volttron_instances):
 
     inst_forward, inst_target = get_volttron_instances(2)

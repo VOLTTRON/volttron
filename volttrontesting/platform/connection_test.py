@@ -32,7 +32,7 @@ def setup_control_connection(request, get_volttron_instances):
                                           publickey=ks.public,
                                           secretkey=ks.secret,
                                           instance_name=wrapper.instance_name,
-                                          message_bus=wrapper.message_bus)
+                                          message_bus=wrapper.messagebus)
 
     # Sleep a couple seconds to wait for things to startup
     gevent.sleep(2)

@@ -93,7 +93,7 @@ class Health(SubsystemBase):
         self._owner.vip.pubsub.publish("pubsub",
                                        topic=topic.format(),
                                        headers=headers,
-                                       message=statusobj.as_json())
+                                       message=statusobj.as_json()).get(timeout=10)
 
     def add_status_callback(self, fn):
         """
