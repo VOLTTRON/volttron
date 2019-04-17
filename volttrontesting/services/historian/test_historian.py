@@ -99,9 +99,7 @@ try:
 
     sys.path.insert(0, crate_path)
     from volttron.platform.dbutils import crateutils as crate_utils
-    # Once we fix the tests this will be able to be tested here.
-    # Disable crate tests for now. Till we finish bug fixes.
-    HAS_CRATE_CONNECTOR = False
+    HAS_CRATE_CONNECTOR = True
 except:
     HAS_CRATE_CONNECTOR = False
 
@@ -487,11 +485,12 @@ def historian(request, volttron_instance, query_agent):
 
     print ("request.param -- {}".format(request.param))
     # 2. Install agent - historian
-    source = request.param.pop('source_historian')
+    temp_config = copy.copy(request.param)
+    source = temp_config.pop('source_historian')
     historian_uuid = volttron_instance.install_agent(
         vip_identity='platform.historian',
         agent_dir=source,
-        config_file=request.param,
+        config_file=temp_config,
         start=True)
     print("agent id: ", historian_uuid)
     identity = 'platform.historian'

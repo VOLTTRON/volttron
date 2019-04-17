@@ -129,8 +129,6 @@ def weather(request, volttron_instance):
         print("stopping weather service")
         if volttron_instance.is_running():
             volttron_instance.stop_agent(agent)
-        request.param['weather_service'] = get_services_core('WeatherDotGov')
-        # volttron_instance.remove_agent(agent)
 
     request.addfinalizer(stop_agent)
     return agent
