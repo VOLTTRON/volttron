@@ -42,18 +42,18 @@ run_tests() {
     for ((x=0; x< $len; x++)); do
         echo "WAITING ON" ${container_names[$x]}
         wait ${pids[$x]}
-
-        if [ $? -eq 0 ]; then
+        status=$?
+        if [ $status -eq 0 ]; then
             echo "Job" ${files[$x]} "all tests: PASSED"
         else
-            if [ $? -ne 5 ]; then
-                echo $?
+            if [ $status -ne 5 ]; then
+                echo $status
                 echo "Job" ${files[$x]} "some tests: FAILED"
                 docker logs ${container_names[$x]}
                 if [ ${FAST_FAIL} ]; then
                     echo "Fast failing!"
                     docker rm ${container_names[$x]}
-                    exit $?
+                    exit $status
                 fi
             fi
         fi
