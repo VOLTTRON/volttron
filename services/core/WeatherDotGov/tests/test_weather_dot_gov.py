@@ -35,6 +35,7 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+import copy
 
 import pytest
 import gevent
@@ -113,14 +114,14 @@ def query_agent(request, volttron_instance):
 def weather(request, volttron_instance):
     print("** Setting up weather agent module **")
     print("request param", request.param)
-
-    source = request.param.pop('weather_service')
+    config = copy.copy(request.param)
+    source = config.pop('weather_service')
 
     agent = volttron_instance.install_agent(
         vip_identity=identity,
         agent_dir=source,
         start=False,
-        config_file=request.param)
+        config_file=config)
 
     volttron_instance.start_agent(agent)
     gevent.sleep(3)
