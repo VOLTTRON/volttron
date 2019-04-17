@@ -19,17 +19,19 @@ parameter is required while all others are optional.
 
 **Parameters**
 
- 1. 'api_key' - api key string provided by Dark Sky - this is required and will not be provided by the VOLTTRON team
- 2. 'database_file' - sqlite database file for weather data caching. Defaults to 'weather.sqlite' in the agent's data directory
- 3. 'max_size_gb' - maximum size of cache database. When cache exceeds this size, data will get purged from cache till cache is within the configured size.
- 4. 'poll_locations - list of locations to periodically poll for current data
- 5. 'poll_interval' - polling frequency or the number of seconds between each poll.
- 6. 'performance_mode' - If set to true, request response will exclude extra data points (this is primarily useful for reducing network traffic). If set to false, all data points are included in the response, and extra data is cached (to reduce the number of API calls used for future RPC calls).
+ 1. 'api_key' - api key string provided by Dark Sky - this is required and will not be provided by the VOLTTRON team.
+ 2. 'api_calls_limit' - limit of api calls that can be made to the remote before the agent no longer returns weather results. This is primarily used to prevent possible charges. If set to -1, no limit will be applied.
+ 3. 'database_file' - sqlite database file for weather data caching. Defaults to 'weather.sqlite' in the agent's data directory.
+ 4. 'max_size_gb' - maximum size of cache database. When cache exceeds this size, data will get purged from cache till cache is within the configured size.
+ 5. 'poll_locations - list of locations to periodically poll for current data.
+ 6. 'poll_interval' - polling frequency or the number of seconds between each poll.
+ 7. 'performance_mode' - If set to true, request response will exclude extra data points (this is primarily useful for reducing network traffic). If set to false, all data points are included in the response, and extra data is cached (to reduce the number of API calls used for future RPC calls).
 
 ::
 
     {
         'api_key': '<api key string>',
+        'api_calls_limit': 1000,
         'database_file': 'weather.sqlite',
         'max_size_gb': 1,
         'poll_locations': [{"lat": 39.7555, "long": -105.2211},

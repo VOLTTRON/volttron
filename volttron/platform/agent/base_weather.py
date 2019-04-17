@@ -128,6 +128,7 @@ class BaseWeatherAgent(Agent):
                  poll_locations=None,
                  poll_interval=None,
                  poll_topic_suffixes=None,
+                 api_calls_limit=-1,
                  **kwargs):
         # Initial agent configuration
         try:
@@ -136,6 +137,7 @@ class BaseWeatherAgent(Agent):
             self._async_call = AsyncCall()
             self._api_key = api_key
             self._max_size_gb = max_size_gb
+            self._api_calls_limit = api_calls_limit
             self.poll_locations = poll_locations
             self.poll_interval = poll_interval
             self.poll_topic_suffixes = poll_topic_suffixes
@@ -150,13 +152,13 @@ class BaseWeatherAgent(Agent):
                     "database_file": "weather.sqlite",
                     "api_key": self._api_key,
                     "max_size_gb": self._max_size_gb,
+                    "api_calls_limit": self._api_calls_limit,
                     "poll_locations": self.poll_locations,
                     "poll_interval": self.poll_interval,
                     "poll_topic_suffixes": self.poll_topic_suffixes
                 }
             self.unit_registry = pint.UnitRegistry()
-            self._api_calls_period, self._api_calls_limit = \
-                self.get_api_calls_settings()
+            self._api_calls_period = self.get_api_calls_interval()
             self.point_name_mapping = self.parse_point_name_mapping()
             _log.debug("POINT MAP = {}".format(self.point_name_mapping))
             self._api_services = {
@@ -191,14 +193,14 @@ class BaseWeatherAgent(Agent):
 
     # Configuration methods
 
-    def get_api_calls_settings(self):
+    def get_api_calls_interval(self):
         """
         By default sets the api call parameters for cache to None. Should be
         overridden by concrete agents that utilize an api call tracking feature.
         :return: Datetime timedelta representing the period for which api
         calls are measured, Number of api calls allotted for the given period
         """
-        return None, None
+        return None
 
     def register_service(self, service_function_name, interval, service_type,
                          description=None):
@@ -418,6 +420,8 @@ class BaseWeatherAgent(Agent):
             self._max_size_gb = 1
 
         self._api_key = config.get("api_key")
+        self._api_calls_limit = config.get("api_calls_limit",
+                                           self._api_calls_limit)
         self.poll_locations = config.get("poll_locations")
         self.poll_interval = config.get("poll_interval")
         self.poll_topic_suffixes = config.get("poll_topic_suffixes")
@@ -1202,7 +1206,7 @@ class WeatherCache:
         self._api_services = api_services
         self._max_size_gb = max_size_gb
         self._sqlite_conn = None
-        self.max_pages = None
+        self._max_pages = None
         self._setup_cache(check_same_thread)
 
     # cache setup methods
@@ -1228,7 +1232,7 @@ class WeatherCache:
             cursor.execute("PRAGMA page_size")
             page_size = cursor.fetchone()[0]
             max_storage_bytes = self._max_size_gb * 1024 ** 3
-            self.max_pages = int(max_storage_bytes / page_size)
+            self._max_pages = int(max_storage_bytes / page_size)
             self.manage_cache_size()
         cursor.close()
 
@@ -1324,7 +1328,7 @@ class WeatherCache:
         :return: True if the number of calls within the call period is less
         than the api calls limit, false otherwise
         """
-        if not self._calls_limit:
+        if self._calls_limit < 0:
             return True
         cursor = self._sqlite_conn.cursor()
         if self._calls_period:
@@ -1345,7 +1349,7 @@ class WeatherCache:
         the table for tracking
         :return: True if an entry was made successfully, false otherwise
         """
-        if self._calls_limit:
+        if self._calls_limit < 0:
             if self.api_call_available():
                 cursor = self._sqlite_conn.cursor()
                 current_time = get_aware_utc_now()
@@ -1491,7 +1495,7 @@ class WeatherCache:
 
         cache_full = False
         if self._max_size_gb is not None and \
-                self.page_count(cursor) >= self.max_pages:
+                self.page_count(cursor) >= self._max_pages:
             cache_full = True
             self.manage_cache_size()
         cursor.close()
@@ -1520,13 +1524,13 @@ class WeatherCache:
 
             cursor = self._sqlite_conn.cursor()
             page_count = self.page_count(cursor)
-            if page_count < self.max_pages:
+            if page_count < self._max_pages:
                 return
 
             attempt = 1
             records_deleted = 0
             now = datetime.datetime.utcnow()
-            while page_count >= self.max_pages:
+            while page_count >= self._max_pages:
                 if attempt == 1:
                     for table_name, service in self._api_services.iteritems():
                         # Remove all data that is older than update interval
@@ -1562,7 +1566,7 @@ class WeatherCache:
                 page_count = self.page_count(cursor)
 
             # if we still don't have space in cache
-            while page_count >= self.max_pages:
+            while page_count >= self._max_pages:
                 for table_name in self._api_services:
                     query = """DELETE FROM {table} WHERE ID IN 
                                (SELECT ID FROM {table} 

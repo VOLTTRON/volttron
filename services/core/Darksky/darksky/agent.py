@@ -159,13 +159,13 @@ class Darksky(BaseWeatherAgent):
         """
         return __version__
 
-    def get_api_calls_settings(self):
+    def get_api_calls_interval(self):
         """
         :return: Returns a datetime object representing the time period for API
         calls to expire as well as a number representing the number of API calls
         alloted during the period
         """
-        return datetime.timedelta(days=1), 1000
+        return datetime.timedelta(days=1)
 
     def validate_location(self, service_name, location):
         """
