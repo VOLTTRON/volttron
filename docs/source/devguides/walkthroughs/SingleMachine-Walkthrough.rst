@@ -88,10 +88,10 @@ Once this is finished, run VOLTTRON and test the new configuration.
         Though many of the defaults will be acceptable, you must choose a username and password for the volttron central admin account.
 
 Testing VOLTTRON
-~~~~~~~~~~~~~~~~
+----------------
 
 Command Line
-------------
+~~~~~~~~~~~~
 
 To test that everything is functional, start up the platform running in the background:
 
@@ -115,12 +115,14 @@ Since the default ``volttron-cfg`` is used, the listener, master_driver, platfor
 You can further verify functionality with ``tail -f volttron.log``
 
 VOLTTRON Central
-----------------
+~~~~~~~~~~~~~~~~
 
 To verify everything is functional, open a web browser and navigate to localhost:8080/vc/index.html.
 In this case: ``127.0.0.1:8080/vc/index.html``
 
 |vc-login|
+
+.. |vc-login| image:: files/vc-login.png
 
 Login using the username and password you created during the ``volttron-ctl`` prompt.
 
@@ -128,14 +130,21 @@ Once you have logged in, click on the Platforms tab in the upper right corner of
 
 |vc-dashboard|
 
+.. |vc-dashboard| image:: files/vc-dashboard.png
+
 Once in the Platforms screen, click on the name of the platform. If defaults have been left in place, it will be labelled as seen below.
 
 |vc-platform|
+
+.. |vc-platform| image:: files/vc-platform.png
 
 You will now see a list of agents. They should all be running.
 
 |vc-agents|
 
+.. |vc-agents| image:: files/vc-agents.png
+
 For more information on VOLTTRON Central, please see:
-- :ref:`VOLTTRON Central Management <volttron-central-management>`
-- :ref:`VOLTTRON Central Demo <volttron-central-demo>`
+
+* :ref:`VOLTTRON Central Management <volttron-central-management>`
+* :ref:`VOLTTRON Central Demo <volttron-central-demo>`
