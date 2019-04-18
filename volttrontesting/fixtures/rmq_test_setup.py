@@ -42,6 +42,7 @@ def create_rmq_volttron_setup(instance_name, vhome=None, ssl_auth=False):
             - Create virtual host, exchanges, certificates, and users
             - Start rabbitmq server
 
+    :param instance_name: the canonical name for the instance being setup.
     :param vhome: volttron home directory, if None, use default from environment
     :param ssl_auth: ssl authentication, if true, all users of message queue must authenticate
     """
@@ -49,6 +50,13 @@ def create_rmq_volttron_setup(instance_name, vhome=None, ssl_auth=False):
         os.environ['VOLTTRON_HOME'] = vhome
     else:
         vhome = get_home()
+
+    # for docker this will be setup so we can always use this for the home
+    if os.environ.get('RMQ_HOME'):
+        rabbitmq_config['rmq-home'] = os.environ.get('RMQ_HOME')
+    else:
+        with open(os.path.expanduser("~/.volttron_rmq_home"), 'r') as f:
+            rabbitmq_config['rmq-home'] = f.read().strip()
 
     # Create rabbitmq config for test
     start_rabbit(rabbitmq_config['rmq-home'])  # so current ports in use and get_rand_port will not return ports in use
@@ -61,9 +69,6 @@ def create_rmq_volttron_setup(instance_name, vhome=None, ssl_auth=False):
     rabbitmq_config['node-name'] = os.path.basename(vhome)
     rabbitmq_config['host'] = host
     rabbitmq_config['certificate-data']['common-name'] = '{}_root_ca'.format(instance_name)
-    with open(os.path.expanduser("~/.volttron_rmq_home"), 'r') as f:
-        rabbitmq_config['rmq-home'] = f.read().strip()
-
 
     instance_setup._update_config_file()
     vhome_config = os.path.join(vhome, 'rabbitmq_config.yml')

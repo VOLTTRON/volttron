@@ -19,6 +19,7 @@ from agent_additions import add_volttron_central
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging
+from volttron.platform.certs import Certs
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (strip_comments,
                                            load_platform_config,
@@ -257,20 +258,20 @@ class PlatformWrapper:
         self.messagebus = messagebus if messagebus else 'zmq'
         self.ssl_auth = ssl_auth
         self.rmq_conf_backup = None
+        self.instance_name = instance_name
+        # Used with web requests when ssl auth is true.
+        self.platform_ca_file = None
+
         if self.messagebus == 'rmq':
             self.logit("Setting up volttron test environemnt"
                        " {}".format(self.volttron_home))
-            self.rmq_conf_backup = create_rmq_volttron_setup(instance_name=instance_name,
-                                                             vhome=self.volttron_home,
-                                                             ssl_auth=self.ssl_auth)
-            platform_config = load_platform_config()
-            instance_name = platform_config.get('instance-name', '').strip('"')
-            if not instance_name:
-                self.instance_name = instance_name = 'volttron_test'
-                store_message_bus_config('rmq', instance_name)
-            else:
-                self.instance_name = instance_name
+            create_rmq_volttron_setup(instance_name=self.instance_name,
+                                      vhome=self.volttron_home,
+                                      ssl_auth=self.ssl_auth)
 
+        # Adds the instance-name and message-bus to the main volttron config for
+        # this instance.
+        store_message_bus_config(self.instance_name, self.messagebus)
         self.dynamic_agent = None
 
         self.debug_mode = self.env.get('DEBUG_MODE', False)
@@ -451,8 +452,8 @@ class PlatformWrapper:
                          timeout=60):
         self.vip_address = vip_address
         self.mode = mode
-        self.volttron_central_address= volttron_central_address
-        self.volttron_central_serverkey=volttron_central_serverkey
+        self.volttron_central_address = volttron_central_address
+        self.volttron_central_serverkey =volttron_central_serverkey
         if instance_name:
             self.instance_name = instance_name
         elif not self.instance_name:
@@ -541,6 +542,12 @@ class PlatformWrapper:
         self.logit(
             "Platform will run on message bus type {} ".format(self.messagebus))
         self.logit("writing config to: {}".format(pconfig))
+
+        if self.ssl_auth:
+            certsdir = os.path.join(self.volttron_home, 'certificates')
+
+            self.certsobj = Certs(certsdir)
+
         if self.mode == UNRESTRICTED:
             with open(pconfig, 'wb') as cfg:
                 parser.write(cfg)
@@ -552,7 +559,7 @@ class PlatformWrapper:
             certsdir = os.path.join(self.volttron_home, 'certificates')
 
             print ("certsdir", certsdir)
-            self.certsobj = certs.Certs(certsdir)
+            self.certsobj = Certs(certsdir)
 
             with closing(open(pconfig, 'wb')) as cfg:
                 cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
@@ -611,10 +618,14 @@ class PlatformWrapper:
         if bind_web_address:
             times = 0
             has_discovery = False
+            error_was = None
             while times < 10:
                 times += 1
                 try:
-                    resp = requests.get(self.discovery_address)
+                    if self.ssl_auth:
+                        resp = requests.get(self.discovery_address, verify=False)
+                    else:
+                        resp = requests.get(self.discovery_address)
                     if resp.ok:
                         has_discovery = True
                         break
@@ -622,6 +633,8 @@ class PlatformWrapper:
                     gevent.sleep(0.1)
                     self.logit("Connection error found {}".format(e))
             if not has_discovery:
+                if error_was:
+                    raise error_was
                 raise Exception("Couldn't connect to discovery platform.")
 
         self.use_twistd = use_twistd
@@ -1092,7 +1105,6 @@ class PlatformWrapper:
         data.append('volttron_home: {}'.format(self.volttron_home))
         return '\n'.join(data)
 
-
     def cleanup(self):
         """
         Cleanup all resources created for test purpose if debug_mode is false.
@@ -1105,6 +1117,7 @@ class PlatformWrapper:
 
         if not self.debug_mode:
             shutil.rmtree(self.volttron_home, ignore_errors=True)
+
 
 def mergetree(src, dst, symlinks=False, ignore=None):
     if not os.path.exists(dst):
