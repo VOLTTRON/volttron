@@ -132,6 +132,8 @@ def write_env_file(rmq_config, conf_file, env=None):
     if not env:
         env = os.environ
 
+    # If there is a custom node name then we need to write a env file, set amqp port in this env file, and
+    # point to conf file path
     if rmq_config.node_name:
         # Creating a custom node name with custome port. Create a env file and add entry to point to conf file in
         # the env file
@@ -343,7 +345,7 @@ trust_store.refresh_interval=0""".format(
         ca_dir=white_list_dir
     )
 
-    with open(os.path.join(vhome, os.path.basename(rmq_conf_file)), 'w') as rconf:
+    with open(rmq_conf_file, 'w') as rconf:
         rconf.write(new_conf)
 
     write_env_file(rmq_config, rmq_conf_file, env)

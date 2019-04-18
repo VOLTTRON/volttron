@@ -264,7 +264,9 @@ class PlatformWrapper:
 
         if self.messagebus == 'zmq':
             # Set a default instance name. Instance name is mandatory from VOLTTRON 6.0
-            self.instance_name = self.vip_address[6:].replace(".", "_").replace(":", "_")
+            # self.instance_name = self.vip_address[6:].replace(".", "_").replace(":", "_")
+            # vip address might not be set till startup. This is so in many test cases
+            self.instance_name = os.path.basename(self.volttron_home)
 
         store_message_bus_config(self.messagebus, self.instance_name)
 
@@ -1090,8 +1092,7 @@ class PlatformWrapper:
                 ))
         print(" Skip clean up flag is {}".format(self.skip_cleanup))
         if not self.skip_cleanup and self.messagebus == 'rmq':
-            stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home,
-                        env_file=os.path.join(self.volttron_home, os.path.basename(self.volttron_home)+"-rmq-env.conf"))
+            stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home, env=self.env)
         if not self.skip_cleanup:
             self.logit('Removing {}'.format(self.volttron_home))
             shutil.rmtree(self.volttron_home, ignore_errors=True)
@@ -1113,8 +1114,7 @@ class PlatformWrapper:
         :return:
         """
         if self.messagebus == 'rmq':
-            stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home,
-                        env_file=self.rabbitmq_config_obj.rmq_env_file)
+            stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home, env=self.env)
 
         if not self.debug_mode:
             shutil.rmtree(self.volttron_home, ignore_errors=True)

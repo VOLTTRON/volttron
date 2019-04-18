@@ -131,14 +131,15 @@ def create_rmq_volttron_setup(instance_name, vhome=None, ssl_auth=False, env=Non
         os.environ['RMQ_HOME'] = rabbit_config_obj.rmq_home
 
     rabbit_config_obj.node_name = os.path.basename(vhome)
-    rabbit_config_obj.rmq_conf_file = os.path.join(vhome, rabbit_config_obj.node_name + "-rmq.conf")
-    rabbit_config_obj.rmq_env_file = os.path.join(vhome, rabbit_config_obj.node_name + "-rmq-env.conf")
+    os.mkdir(os.path.join(vhome, "rmq_node_data"))
+
+    rabbit_config_obj.rmq_conf_file = os.path.join(vhome, "rmq_node_data", rabbit_config_obj.node_name + "-rmq.conf")
+    rabbit_config_obj.rmq_env_file = os.path.join(vhome, "rmq_node_data", rabbit_config_obj.node_name + "-rmq-env.conf")
 
     env['RABBITMQ_CONF_ENV_FILE'] = rabbit_config_obj.rmq_env_file
 
     # Create rabbitmq config for test
     rabbit_config_obj.rabbitmq_config['ssl'] = str(ssl_auth)
-
     host, rabbit_config_obj.rabbitmq_config['amqp-port'] = get_hostname_and_random_port()
     host, rabbit_config_obj.rabbitmq_config['amqp-port-ssl'] = get_hostname_and_random_port()
     host, rabbit_config_obj.rabbitmq_config['mgmt-port'] = get_hostname_and_random_port(10000, 20000)

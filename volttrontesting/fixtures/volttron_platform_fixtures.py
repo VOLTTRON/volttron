@@ -26,7 +26,7 @@ def build_wrapper(vip_address, **kwargs):
     wrapper = PlatformWrapper(messagebus=kwargs.pop('message_bus', None),
                               ssl_auth=kwargs.pop('ssl_auth', False),
                               instance_name=instance_name)
-    wrapper.startup_platform(vip_address=vip_address, instance_name=instance_name, **kwargs)
+    wrapper.startup_platform(vip_address=vip_address, **kwargs)
     return wrapper
 
 

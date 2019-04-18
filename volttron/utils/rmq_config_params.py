@@ -59,7 +59,8 @@ class RMQConfig(object):
 
     def __init__(self):
         self.instance_name = get_platform_instance_name()
-        self.rabbitmq_server = 'rabbitmq_server-3.7.7'
+        with open(os.path.expanduser("~/.volttron_rmq_home")) as f:
+            self.rabbitmq_server = f.read().strip()
         self.crts = certs.Certs()
         self.volttron_home = get_home()
         self.volttron_rmq_config = \
