@@ -135,13 +135,25 @@ def write_env_file(rmq_config, conf_file, env=None):
     # If there is a custom node name then we need to write a env file, set amqp port in this env file, and
     # point to conf file path
     if rmq_config.node_name:
+
+        nodebase = os.path.dirname(conf_file)
         # Creating a custom node name with custome port. Create a env file and add entry to point to conf file in
         # the env file
         env_entries = """NODENAME={}
 NODE_PORT={}
 MNESIA_DIR={}
-CONFIG_FILE={}""".format(rmq_config.node_name, rmq_config.amqp_port,
-                         os.path.join(get_home(), 'mnesia'), conf_file)
+CONFIG_FILE={}
+LOG_BASE={}
+PLUGINS_EXPAND_DIR={}
+PID_FILE={}
+RABBITMQ_GENERATED_CONFIG_DIR={}""".format(rmq_config.node_name,
+                                           rmq_config.amqp_port,
+                                           os.path.join(nodebase, 'mnesia'),
+                                           conf_file,
+                                           os.path.join(nodebase, 'logs'),
+                                           os.path.join(nodebase, 'plugins-expand'),
+                                           os.path.join(nodebase, 'rabbitmq.pid'),
+                                           os.path.join(nodebase, 'generated_config'))
 
         with open(env.get('RABBITMQ_CONF_ENV_FILE'), 'w+') as env_conf:
             env_conf.write(env_entries)
