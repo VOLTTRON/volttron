@@ -20,8 +20,9 @@ from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging
 from volttron.platform.agent import utils
-from volttron.platform.agent.utils import strip_comments, \
-    load_platform_config, store_message_bus_config
+from volttron.platform.agent.utils import (strip_comments,
+                                           load_platform_config,
+                                           store_message_bus_config)
 from volttron.platform.aip import AIPplatform
 from volttron.platform.auth import (AuthFile, AuthEntry,
                                     AuthFileEntryAlreadyExists)
@@ -31,8 +32,7 @@ from volttron.platform.vip.agent.connection import Connection
 from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttron.platform.agent import json as jsonapi
-from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup, \
-    cleanup_rmq_volttron_setup, rabbitmq_config
+from volttrontesting.fixtures.rmq_test_setup import (create_rmq_volttron_setup, rabbitmq_config)
 from volttron.platform.agent.utils import execute_command
 from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
 
@@ -206,7 +206,8 @@ class PlatformWrapper:
             'HOME': os.environ.get('HOME'),
             # Elixir (rmq pre-req) requires locale to be utf-8
             'LANG': "en_US.UTF-8",
-            'LC_ALL': "en_US.UTF-8"
+            'LC_ALL': "en_US.UTF-8",
+            'PYTHONDONTWRITEBYTECODE': '1'
         }
         self.volttron_root = VOLTTRON_ROOT
 
@@ -259,7 +260,8 @@ class PlatformWrapper:
         if self.messagebus == 'rmq':
             self.logit("Setting up volttron test environemnt"
                        " {}".format(self.volttron_home))
-            self.rmq_conf_backup = create_rmq_volttron_setup(vhome=self.volttron_home,
+            self.rmq_conf_backup = create_rmq_volttron_setup(instance_name=instance_name,
+                                                             vhome=self.volttron_home,
                                                              ssl_auth=self.ssl_auth)
             platform_config = load_platform_config()
             instance_name = platform_config.get('instance-name', '').strip('"')
@@ -834,18 +836,6 @@ class PlatformWrapper:
 
         return agent_uuid
 
-    def restore_conf(self):
-        if self.rmq_conf_backup:
-            _log.debug("Restoring original rabbitmq.conf to server and restarting rmq")
-            #try:
-            shutil.move(self.rmq_conf_backup, os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf'))
-            #except IOError as e:
-            #    _log.exception("rabbitmq.conf missing from path {}".format(self.rmq_conf_backup))
-            stop_rabbit(rabbitmq_config['rmq-home'], quite=True)
-            start_rabbit(rabbitmq_config['rmq-home'])
-        else:
-            _log.debug("No conf file to restore")
-
     def start_agent(self, agent_uuid):
         self.logit('Starting agent {}'.format(agent_uuid))
         self.logit("VOLTTRON_HOME SETTING: {}".format(
@@ -1086,8 +1076,8 @@ class PlatformWrapper:
                 ))
         print(" Skip clean up flag is {}".format(self.skip_cleanup))
         if not self.skip_cleanup and self.messagebus == 'rmq':
-            cleanup_rmq_volttron_setup(vhome=self.volttron_home,
-                                       ssl_auth=self.ssl_auth)
+            stop_rabbit(rmq_home=rabbitmq_config['rmq-home'],
+                        env_file=os.path.join(self.volttron_home, os.path.basename(self.volttron_home)+"-rmq-env.conf"))
         if not self.skip_cleanup:
             self.logit('Removing {}'.format(self.volttron_home))
             shutil.rmtree(self.volttron_home, ignore_errors=True)
@@ -1110,9 +1100,8 @@ class PlatformWrapper:
         :return:
         """
         if self.messagebus == 'rmq':
-            cleanup_rmq_volttron_setup(vhome=self.volttron_home,
-                                       ssl_auth=self.ssl_auth)
-            self.restore_conf()
+            stop_rabbit(rmq_home=rabbitmq_config['rmq-home'],
+                        env_file=os.path.join(self.volttron_home, os.path.basename(self.volttron_home)+"-rmq-env.conf"))
 
         if not self.debug_mode:
             shutil.rmtree(self.volttron_home, ignore_errors=True)

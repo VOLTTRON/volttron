@@ -74,7 +74,6 @@ def setup_platform(request):
         vcp.remove_all_agents()
         # Shutdown handles case where the platform hasn't started.
         vcp.shutdown_platform()
-        vcp.restore_conf()
 
 
 @pytest.fixture(scope="module")

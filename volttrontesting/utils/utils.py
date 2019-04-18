@@ -11,6 +11,24 @@ from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent import utils
 
 
+
+
+def get_hostname_and_random_port(min_ip=5000, max_ip=6000):
+    with open('/etc/hostname') as fp:
+        hostname = fp.read().strip()
+
+    assert hostname
+    try:
+        # socket.getfqdn(hostname)
+        ip = socket.gethostbyname(hostname)
+        port = get_rand_port(ip, min_ip, max_ip)
+    except socket.gaierror:
+        err = "Lookup of hostname {} unssucessful, please verify your /etc/hosts " \
+              "doesn't have a local resolution to hostname".format(hostname)
+        raise StandardError(err)
+    return hostname, port
+
+
 def poll_gevent_sleep(max_seconds, condition=lambda: True, sleep_time=0.2):
     """Sleep until condition is true or max_seconds has passed.
 
@@ -67,11 +85,11 @@ def get_rand_ip_and_port():
     return ip + ":{}".format(port)
 
 
-def get_rand_port(ip=None):
-    port = randint(5000, 6000)
+def get_rand_port(ip=None, min_ip=5000, max_ip=6000):
+    port = randint(min_ip, max_ip)
     if ip:
         while is_port_open(ip, port):
-            port = randint(5000, 6000)
+            port = randint(min_ip, max_ip)
     return port
 
 
