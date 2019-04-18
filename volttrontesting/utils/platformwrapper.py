@@ -33,7 +33,7 @@ from volttron.platform.vip.agent.connection import Connection
 from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttron.platform.agent import json as jsonapi
-from volttrontesting.fixtures.rmq_test_setup import (create_rmq_volttron_setup, rabbitmq_config)
+from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
 from volttron.platform.agent.utils import execute_command
 from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
 
@@ -259,19 +259,28 @@ class PlatformWrapper:
         self.ssl_auth = ssl_auth
         self.rmq_conf_backup = None
         self.instance_name = instance_name
+        if not self.instance_name:
+            self.instance_name = 'volttron_test'
+
+        if self.messagebus == 'zmq':
+            # Set a default instance name. Instance name is mandatory from VOLTTRON 6.0
+            self.instance_name = self.vip_address[6:].replace(".", "_").replace(":", "_")
+
+        store_message_bus_config(self.messagebus, self.instance_name)
+
         # Used with web requests when ssl auth is true.
         self.platform_ca_file = None
 
         if self.messagebus == 'rmq':
             self.logit("Setting up volttron test environemnt"
                        " {}".format(self.volttron_home))
-            create_rmq_volttron_setup(instance_name=self.instance_name,
-                                      vhome=self.volttron_home,
-                                      ssl_auth=self.ssl_auth)
+            self.rabbitmq_config_obj = create_rmq_volttron_setup(instance_name=self.instance_name,
+                                                                 vhome=self.volttron_home,
+                                                                 ssl_auth=self.ssl_auth,
+                                                                 env=self.env)
+            if ssl_auth:
+                self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
 
-        # Adds the instance-name and message-bus to the main volttron config for
-        # this instance.
-        store_message_bus_config(self.instance_name, self.messagebus)
         self.dynamic_agent = None
 
         self.debug_mode = self.env.get('DEBUG_MODE', False)
@@ -447,19 +456,12 @@ class PlatformWrapper:
                          volttron_central_serverkey=None,
                          msgdebug=False,
                          setupmode=False,
-                         instance_name=None,
                          agent_monitor_frequency=600,
                          timeout=60):
         self.vip_address = vip_address
         self.mode = mode
         self.volttron_central_address = volttron_central_address
         self.volttron_central_serverkey =volttron_central_serverkey
-        if instance_name:
-            self.instance_name = instance_name
-        elif not self.instance_name:
-            # Set a default instance name. Instance name is mandatory from VOLTTRON 6.0
-            self.instance_name = self.vip_address[6:].replace(".", "_").replace(":", "_")
-            store_message_bus_config(self.messagebus, self.instance_name)
 
         self.bind_web_address = bind_web_address
         if self.bind_web_address:
@@ -505,8 +507,7 @@ class PlatformWrapper:
                      'monitor': True,
                      'autostart': True,
                      'log_level': logging.DEBUG,
-                     'verboseness': logging.DEBUG,
-                     'instance_name': instance_name}
+                     'verboseness': logging.DEBUG}
 
         pconfig = os.path.join(self.volttron_home, 'config')
         config = {}
@@ -1089,7 +1090,7 @@ class PlatformWrapper:
                 ))
         print(" Skip clean up flag is {}".format(self.skip_cleanup))
         if not self.skip_cleanup and self.messagebus == 'rmq':
-            stop_rabbit(rmq_home=rabbitmq_config['rmq-home'],
+            stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home,
                         env_file=os.path.join(self.volttron_home, os.path.basename(self.volttron_home)+"-rmq-env.conf"))
         if not self.skip_cleanup:
             self.logit('Removing {}'.format(self.volttron_home))
@@ -1112,8 +1113,8 @@ class PlatformWrapper:
         :return:
         """
         if self.messagebus == 'rmq':
-            stop_rabbit(rmq_home=rabbitmq_config['rmq-home'],
-                        env_file=os.path.join(self.volttron_home, os.path.basename(self.volttron_home)+"-rmq-env.conf"))
+            stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home,
+                        env_file=self.rabbitmq_config_obj.rmq_env_file)
 
         if not self.debug_mode:
             shutil.rmtree(self.volttron_home, ignore_errors=True)
