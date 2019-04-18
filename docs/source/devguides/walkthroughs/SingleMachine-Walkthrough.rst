@@ -85,7 +85,8 @@ An example output is included here:
 Once this is finished, run VOLTTRON and test the new configuration.
 
 .. note::
-        Though many of the defaults will be acceptable, you must choose a username and password for the volttron central admin account.
+
+        Though many of the defaults will be acceptable, you must choose a username and password for the VOLTTRON Central admin account.
 
 Testing VOLTTRON
 ----------------
@@ -132,7 +133,7 @@ Once you have logged in, click on the Platforms tab in the upper right corner of
 
 .. |vc-dashboard| image:: files/vc-dashboard.png
 
-Once in the Platforms screen, click on the name of the platform. If defaults have been left in place, it will be labelled as seen below.
+Once in the Platforms screen, click on the name of the platform. If defaults have been left in place, it will be labeled as seen below.
 
 |vc-platform|
 
