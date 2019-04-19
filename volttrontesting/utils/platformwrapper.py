@@ -301,6 +301,12 @@ class PlatformWrapper:
         except AuthFileEntryAlreadyExists:
             pass
 
+    def get_agent_identity(self, agent_uuid):
+        path = os.path.join(self.volttron_home, 'agents/{}/IDENTITY'.format(agent_uuid))
+        with open(path) as f:
+            identity = f.read().strip()
+        return identity
+
     def build_connection(self, peer=None, address=None, identity=None,
                          publickey=None, secretkey=None, serverkey=None,
                          capabilities=[], **kwargs):

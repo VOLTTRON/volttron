@@ -101,8 +101,6 @@ def test_instance_writes_to_instances_file(volttron_instance):
 
 @pytest.mark.wrapper
 def test_can_install_listener(volttron_instance):
-    if volttron_instance.messagebus != 'zmq':
-        pytest.skip("Test not working properly for rmq!")
 
     vi = volttron_instance
     assert vi is not None
@@ -122,7 +120,7 @@ def test_can_install_listener(volttron_instance):
 
     assert listening.core.identity
     listening.vip.pubsub.subscribe(peer='pubsub',
-                                   prefix='heartbeat/listeneragent',
+                                   prefix='heartbeat/{}'.format(vi.get_agent_identity(auuid)),
                                    callback=listening.callback)
 
     # default heartbeat for core listener is 5 seconds.
@@ -135,7 +133,7 @@ def test_can_install_listener(volttron_instance):
     assert call_args[0] == 'pubsub'
     # TODO: This hard coded value should be changed with a platformwrapper call to a function
     # get_agent_identity(uuid)
-    assert call_args[1] == 'listeneragent-3.2_1'
+    assert call_args[1] == vi.get_agent_identity(auuid)
     assert call_args[2] == ''
     assert call_args[3].startswith('heartbeat/listeneragent')
     assert 'max_compatible_version' in call_args[4]

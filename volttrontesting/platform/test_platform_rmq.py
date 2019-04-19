@@ -56,7 +56,8 @@ from volttron.utils.rmq_setup import stop_rabbit, start_rabbit, restart_ssl
 
 fqdn=None
 with open('/etc/hostname', 'r') as f:
-    fqdn=f.read().strip()
+    fqdn = f.read().strip()
+
 
 @pytest.fixture(scope="module")
 def instance(request):

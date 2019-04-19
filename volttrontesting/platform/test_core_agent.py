@@ -24,9 +24,7 @@ def test_agent_can_get_platform_version(volttron_instance):
     assert version == platform_version.get(timeout=2)
 
 
-
 @pytest.mark.agent
-@pytest.mark.xfail(reason="Need to upgrade")
 def test_agent_status_set_when_created(volttron_instance):
     agent = volttron_instance.build_agent()
     assert agent.vip.health.get_status() is not None
@@ -37,7 +35,6 @@ def test_agent_status_set_when_created(volttron_instance):
 
 
 @pytest.mark.agent
-@pytest.mark.xfail(reason="Need to upgrade")
 def test_agent_status_changes(volttron_instance):
     unknown_message = "This is unknown"
     bad_message = "Bad kitty"
@@ -54,7 +51,6 @@ def test_agent_status_changes(volttron_instance):
 
 
 @pytest.mark.agent
-@pytest.mark.xfail(reason="Need to upgrade")
 def test_agent_last_update_increases(volttron_instance):
     agent = volttron_instance.build_agent()
     s = json.loads(agent.vip.health.get_status())
