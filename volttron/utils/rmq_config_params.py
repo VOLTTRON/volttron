@@ -59,12 +59,20 @@ class RMQConfig(object):
 
     def __init__(self):
         self.instance_name = get_platform_instance_name()
-        with open(os.path.expanduser("~/.volttron_rmq_home")) as f:
-            self.rabbitmq_server = f.read().strip()
+        # This is written durn the bootstrap phase of the rabbitmq installation
+        # however for docker we don't write this at all so we need to
+        # use the default location for this
+        rmq_home_file = os.path.expanduser("~/.volttron_rmq_home")
+        if os.path.isfile(rmq_home_file):
+            with open(os.path.expanduser("~/.volttron_rmq_home")) as f:
+                self.rabbitmq_server = f.read().strip()
+        else:
+            self.rabbitmq_server = os.path.expanduser("~/rabbitmq_server/rabbitmq_server-3.7.7/")
+
+        assert os.path.isdir(self.rabbitmq_server), "Missing rabbitmq server directory{}".format(self.rabbitmq_server)
         self.crts = certs.Certs()
         self.volttron_home = get_home()
-        self.volttron_rmq_config = \
-            os.path.join(self.volttron_home, 'rabbitmq_config.yml')
+        self.volttron_rmq_config = os.path.join(self.volttron_home, 'rabbitmq_config.yml')
         self.default_pass = "default_passwd"
         self.config_opts = None
         try:
