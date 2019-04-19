@@ -11,10 +11,10 @@ fi
 
 echo "RUNNING $NUM_PROCESSES PARALLEL PROCESSESS AT A TIME"
 
-#docker build --network=host -t volttron_test_base -f ./ci-integration/virtualization/Dockerfile .
-#docker build --network=host -t volttron_test_image -f ./ci-integration/virtualization/Dockerfile.testing .
+docker build --network=host -t volttron_test_base -f ./ci-integration/virtualization/Dockerfile .
+docker build --network=host -t volttron_test_image -f ./ci-integration/virtualization/Dockerfile.testing .
 
-testdirs=(volttrontesting) # (examples services volttron volttrontesting)
+testdirs=(examples services volttron volttrontesting)
 
 #Funtion to pytests per file in separate docker containers
 run_tests() {
