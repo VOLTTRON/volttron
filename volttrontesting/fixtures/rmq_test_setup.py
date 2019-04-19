@@ -3,12 +3,10 @@ import os
 import shutil
 
 import yaml
-import requests
 
 from volttron.platform import instance_setup, get_home
 from volttron.platform.agent.utils import store_message_bus_config
-from volttron.utils.rmq_mgmt import RabbitMQMgmt
-from volttron.utils.rmq_setup import setup_rabbitmq_volttron, stop_rabbit, start_rabbit
+from volttron.utils.rmq_setup import setup_rabbitmq_volttron
 from volttrontesting.utils.utils import get_hostname_and_random_port
 
 HOME = os.environ.get('HOME')
