@@ -137,8 +137,7 @@ def build_vip_address(dest_wrapper, agent):
 def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
                            volttron_central_address=None,
                            volttron_central_serverkey=None,
-                           add_local_vc_address=False,
-                           instance_name='volttron_test'):
+                           add_local_vc_address=False):
     """ Customize easily customize the platform wrapper before starting it.
     """
     # Please note, if 'with_http'==True, then instance name needs to be provided
@@ -164,8 +163,7 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
     wrapper.startup_platform(vip_address=vc_tcp,
                              bind_web_address=bind_address,
                              volttron_central_address=volttron_central_address,
-                             volttron_central_serverkey=volttron_central_serverkey,
-                             instance_name=instance_name)
+                             volttron_central_serverkey=volttron_central_serverkey)
     if with_http:
         discovery = "{}/discovery/".format(vc_http)
         response = requests.get(discovery)
