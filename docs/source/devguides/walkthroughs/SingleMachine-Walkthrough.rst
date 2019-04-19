@@ -3,13 +3,14 @@
 Single Machine Deployment
 =========================
 
-The purpose of this page is to provide details for the process of 
-setting up an example VOLTTRON setup for use on a single machine.
+The purpose of this demonstration is to show the process of setting up a simple VOLTTRON instance for use on a single machine.
 
 Install and Build VOLTTRON
 --------------------------
 
 First, :ref:`install <VOLTTRON-Prerequisites>` and :ref:`build <Building-VOLTTRON>` VOLTTRON:
+
+For a quick reference: 
 
 .. code-block:: console
         
@@ -30,7 +31,12 @@ After the build is complete, activate the VOLTTRON environment.
         source env/bin/activate
 
 The ``volttron-cfg`` command allows for an easy configuration of the VOLTTRON environment.
-An example output is included here:
+
+.. note::
+        
+        To create a simple instance of VOLTTRON, leave the default response, or select yes (y) if prompted for a yes or no response [Y/N]. You must choose a username and password for the VOLTTRON Central admin account.
+
+A set of example responses are included here:
 
 .. code-block:: console
 
@@ -84,9 +90,6 @@ An example output is included here:
 
 Once this is finished, run VOLTTRON and test the new configuration.
 
-.. note::
-
-        Though many of the defaults will be acceptable, you must choose a username and password for the VOLTTRON Central admin account.
 
 Testing VOLTTRON
 ----------------
@@ -94,13 +97,15 @@ Testing VOLTTRON
 Command Line
 ~~~~~~~~~~~~
 
-To test that everything is functional, start up the platform running in the background:
+To test that the configuration was successful, start an instance of VOLTTRON in the background:
 
 .. code-block:: console
 
         volttron -vv -l volttron.log >/dev/null 2>&1&
 
-Since the default ``volttron-cfg`` is used, the listener, master_driver, platform_historian, vcp, and vc agents should have all started automatically. This can be checked with using ``volttron-ctl status``. An example output:
+If the example ``volttron-cfg`` responses were used, the listener, master_driver, platform_historian, vcp, and vc agents should have all started automatically. This can be checked using ``volttron-ctl status``. 
+
+The output should look similar to this:
 
 .. code-block:: console
 
@@ -113,19 +118,25 @@ Since the default ``volttron-cfg`` is used, the listener, master_driver, platfor
         9 vcplatformagent-4.7      platform.agent      vcp                running [7600]  GOOD
         2 volttroncentralagent-4.2 volttron.central    vc                 running [7601]  GOOD
 
-You can further verify functionality with ``tail -f volttron.log``
+You can further verify that the agents are functioning correctly with ``tail -f volttron.log``
 
 VOLTTRON Central
 ~~~~~~~~~~~~~~~~
 
-To verify everything is functional, open a web browser and navigate to localhost:8080/vc/index.html.
+To test that the configuration was successful, start an instance of VOLTTRON in the background:
+
+.. code-block:: console
+
+        volttron -vv -l volttron.log >/dev/null 2>&1&
+
+Open a web browser and navigate to localhost:8080/vc/index.html.
 In this case: ``127.0.0.1:8080/vc/index.html``
 
 |vc-login|
 
 .. |vc-login| image:: files/vc-login.png
 
-Login using the username and password you created during the ``volttron-ctl`` prompt.
+Log in using the username and password you created during the ``volttron-ctl`` prompt.
 
 Once you have logged in, click on the Platforms tab in the upper right corner of the window.
 
@@ -147,5 +158,5 @@ You will now see a list of agents. They should all be running.
 
 For more information on VOLTTRON Central, please see:
 
-* :ref:`VOLTTRON Central Management <volttron-central-management>`
+* :ref:`VOLTTRON Central Management <VOLTTRON-Central>`
 * :ref:`VOLTTRON Central Demo <volttron-central-demo>`
