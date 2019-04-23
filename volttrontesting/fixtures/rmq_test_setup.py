@@ -3,39 +3,105 @@ import os
 import shutil
 
 import yaml
-import requests
 
 from volttron.platform import instance_setup, get_home
 from volttron.platform.agent.utils import store_message_bus_config
-from volttron.utils.rmq_mgmt import RabbitMQMgmt
-from volttron.utils.rmq_setup import setup_rabbitmq_volttron, stop_rabbit, start_rabbit
+from volttron.utils.rmq_setup import setup_rabbitmq_volttron
 from volttrontesting.utils.utils import get_hostname_and_random_port
 
 HOME = os.environ.get('HOME')
-VOLTTRON_INSTANCE_NAME = 'volttron_test'
 _log = logging.getLogger(__name__)
 
-rabbitmq_config = {
-    'host': 'localhost',
-    'certificate-data': {
-        'country': 'US',
-        'state': 'test-state',
-        'location': 'test-location',
-        'organization': 'test-organization',
-        'organization-unit': 'test-team',
-        'common-name': '{}_root_ca'.format(VOLTTRON_INSTANCE_NAME),
-    },
-    'virtual-host': VOLTTRON_INSTANCE_NAME,
-    'amqp-port': 5672,
-    'amqp-port-ssl': 5671,
-    'mgmt-port': 15672,
-    'mgmt-port-ssl': 15671,
-    'rmq-home': '/home/vdev/multi_node_rmq/rabbitmq_server-3.7.7',
-    'reconnect-delay': 5
-}
+
+class RabbitTestConfig(object):
+    def __init__(self):
+        # Provides defaults for rabbitmq configuration file.
+        self.rabbitmq_config = {
+            'host': 'localhost',
+            'certificate-data': {
+                'country': 'US',
+                'state': 'test-state',
+                'location': 'test-location',
+                'organization': 'test-organization',
+                'organization-unit': 'test-team',
+                'common-name': 'volttron_test_root_ca',
+            },
+            'virtual-host': 'volttron_test',
+            'amqp-port': 5672,
+            'amqp-port-ssl': 5671,
+            'mgmt-port': 15672,
+            'mgmt-port-ssl': 15671,
+            # This is overwritten in the class below during
+            # the create_rmq_volttron_setup function, but is
+            # left here for completeness of the configuration.
+            'rmq-home': '~/rabbitmq_server-3.7.7',
+            'reconnect-delay': 5
+        }
+
+        self._instance_name = 'volttron_test'
+        self._rmq_conf_file = None
+        self._rmq_env_file = None
+
+    @property
+    def rmq_conf_file(self):
+        return self._rmq_conf_file
+
+    @rmq_conf_file.setter
+    def rmq_conf_file(self, value):
+        self._rmq_conf_file = value
+
+    @property
+    def rmq_env_file(self):
+        return self._rmq_env_file
+
+    @rmq_env_file.setter
+    def rmq_env_file(self, value):
+        self._rmq_env_file = value
+
+    @property
+    def common_name(self):
+        return self.rabbitmq_config['certificate-data']['common-name']
+
+    @property
+    def instance_name(self):
+        return self._instance_name
+
+    @instance_name.setter
+    def instance_name(self, value):
+        self._instance_name = value
+        self.rabbitmq_config['certificate-data']['common-name'] = '{}_root_ca'.format(self._instance_name)
+
+    @property
+    def node_name(self):
+        return self.rabbitmq_config['node-name']
+
+    @node_name.setter
+    def node_name(self, value):
+        self.rabbitmq_config['node-name'] = value
+
+    @property
+    def rmq_home(self):
+        return self.rabbitmq_config['rmq-home']
+
+    @rmq_home.setter
+    def rmq_home(self, value):
+        self.rabbitmq_config['rmq-home'] = value
+
+    def update_ports(self, amqp_port=None, amqp_port_ssl=None, mgmt_port=None, mgmt_port_ssl=None):
+        if amqp_port:
+            self.rabbitmq_config['amqp-port'] = amqp_port
+
+        if amqp_port_ssl:
+            self.rabbitmq_config['amqp-port-ssl'] = amqp_port_ssl
+
+        if mgmt_port:
+            self.rabbitmq_config['mgmt-port'] = mgmt_port
+
+        if mgmt_port_ssl:
+            self.rabbitmq_config['mgmt-port-ssl'] = mgmt_port_ssl
 
 
-def create_rmq_volttron_setup(instance_name, vhome=None, ssl_auth=False):
+def create_rmq_volttron_setup(instance_name, vhome=None, ssl_auth=False, env=None):
     """
         Set-up rabbitmq broker for volttron testing:
             - Install config and rabbitmq_config.yml in VOLTTRON_HOME
@@ -51,40 +117,56 @@ def create_rmq_volttron_setup(instance_name, vhome=None, ssl_auth=False):
     else:
         vhome = get_home()
 
+    # Build default config file object, which we will then update to fit the
+    # current context the code is running in.
+    rabbit_config_obj = RabbitTestConfig()
+
     # for docker this will be setup so we can always use this for the home
     if os.environ.get('RMQ_HOME'):
-        rabbitmq_config['rmq-home'] = os.environ.get('RMQ_HOME')
+        rabbit_config_obj.rmq_home = os.environ.get('RMQ_HOME')
     else:
-        with open(os.path.expanduser("~/.volttron_rmq_home"), 'r') as f:
-            rabbitmq_config['rmq-home'] = f.read().strip()
+        rmq_home_env_file = os.path.expanduser("~/.volttron_rmq_home")
+        if not os.path.isfile(rmq_home_env_file):
+            raise ValueError("Rabbitmq home dir can't be found please\n run bootstrap.py --rabbitmq")
+
+        with open(rmq_home_env_file, 'r') as f:
+            rabbit_config_obj.rmq_home = f.read().strip()
+
+        os.environ['RMQ_HOME'] = rabbit_config_obj.rmq_home
+
+    rabbit_config_obj.node_name = os.path.basename(vhome)
+    os.mkdir(os.path.join(vhome, "rmq_node_data"))
+
+    rabbit_config_obj.rmq_conf_file = os.path.join(vhome, "rmq_node_data", rabbit_config_obj.node_name + "-rmq.conf")
+    rabbit_config_obj.rmq_env_file = os.path.join(vhome, "rmq_node_data", rabbit_config_obj.node_name + "-rmq-env.conf")
+
+    env['RABBITMQ_CONF_ENV_FILE'] = rabbit_config_obj.rmq_env_file
 
     # Create rabbitmq config for test
-    start_rabbit(rabbitmq_config['rmq-home'])  # so current ports in use and get_rand_port will not return ports in use
-    rabbitmq_config['ssl'] = str(ssl_auth)
-
-    host, rabbitmq_config['amqp-port'] = get_hostname_and_random_port()
-    host, rabbitmq_config['amqp-port-ssl'] = get_hostname_and_random_port()
-    host, rabbitmq_config['mgmt-port'] = get_hostname_and_random_port(10000, 20000)
-    host, rabbitmq_config['mgmt-port-ssl'] = get_hostname_and_random_port(10000, 20000)
-    rabbitmq_config['node-name'] = os.path.basename(vhome)
-    rabbitmq_config['host'] = host
-    rabbitmq_config['certificate-data']['common-name'] = '{}_root_ca'.format(instance_name)
+    rabbit_config_obj.rabbitmq_config['ssl'] = str(ssl_auth)
+    host, rabbit_config_obj.rabbitmq_config['amqp-port'] = get_hostname_and_random_port()
+    host, rabbit_config_obj.rabbitmq_config['amqp-port-ssl'] = get_hostname_and_random_port()
+    host, rabbit_config_obj.rabbitmq_config['mgmt-port'] = get_hostname_and_random_port(10000, 20000)
+    host, rabbit_config_obj.rabbitmq_config['mgmt-port-ssl'] = get_hostname_and_random_port(10000, 20000)
+    rabbit_config_obj.rabbitmq_config['node-name'] = os.path.basename(vhome)
+    rabbit_config_obj.rabbitmq_config['host'] = host
+    rabbit_config_obj.rabbitmq_config['certificate-data']['common-name'] = '{}_root_ca'.format(instance_name)
 
     instance_setup._update_config_file()
     vhome_config = os.path.join(vhome, 'rabbitmq_config.yml')
 
     if not os.path.isfile(vhome_config):
         with open(vhome_config, 'w') as yml_file:
-            yaml.dump(rabbitmq_config, yml_file, default_flow_style=False)
+            yaml.dump(rabbit_config_obj.rabbitmq_config, yml_file, default_flow_style=False)
 
     store_message_bus_config(message_bus='rmq',
-                             instance_name=VOLTTRON_INSTANCE_NAME)
+                             instance_name=rabbit_config_obj.instance_name)
     setup_rabbitmq_volttron('single',
                             verbose=False,
                             prompt=False,
-                            instance_name=VOLTTRON_INSTANCE_NAME,
-                            rmq_conf_file=os.path.join(vhome, rabbitmq_config['node-name'] + "-rmq.conf"),
-                            rmq_env_file=os.path.join(vhome, rabbitmq_config['node-name'] + "-rmq-env.conf"))
+                            instance_name=rabbit_config_obj.instance_name,
+                            rmq_conf_file=rabbit_config_obj.rmq_conf_file,
+                            env=env)
 
-
+    return rabbit_config_obj
 

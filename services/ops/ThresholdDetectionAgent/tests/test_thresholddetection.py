@@ -38,7 +38,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-#}}}
 
 """
 Pytest test cases for ThresholdDetectionAgent
@@ -74,6 +73,7 @@ _test_config = {
         }
     }
 }
+
 
 class AlertWatcher(Agent):
     """Keep track of seen alerts"""
@@ -173,6 +173,7 @@ def test_remove_from_config_store(threshold_tester_agent):
     # gevent.sleep(1)
     # assert len(threshold_tester_agent.seen_alert_keys) == 0
 
+
 def test_update_config(threshold_tester_agent):
     updated_config = {
         "updated_topic": {
@@ -192,6 +193,7 @@ def test_update_config(threshold_tester_agent):
     publish(threshold_tester_agent, updated_config, lambda x: x+1)
     check = lambda: threshold_tester_agent.seen_alert_keys == set(['updated_topic'])
     assert poll_gevent_sleep(2, check)
+
 
 def test_device_publish(threshold_tester_agent):
     threshold_tester_agent.vip.pubsub.publish('pubsub', 'devices/all',

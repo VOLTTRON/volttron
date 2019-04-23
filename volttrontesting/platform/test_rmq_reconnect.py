@@ -45,9 +45,11 @@ Pytest test cases for testing rabbitmq reconnect cases.
 import gevent
 import pytest
 from mock import MagicMock
+
 from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.platform.vip.agent.errors import Unreachable
+
 
 @pytest.fixture(scope="module")
 def publisher_agent(request, volttron_instance_rmq):
@@ -86,7 +88,7 @@ def subscriber_agent(request, volttron_instance_rmq):
 
 
 @pytest.mark.rmq_reconnect
-def test_on_rmq_reconnect(publisher_agent, subscriber_agent):
+def test_on_rmq_reconnect(volttron_instance_rmq, publisher_agent, subscriber_agent):
     """
     Test the fix for issue# 1702
     :param request:
@@ -102,11 +104,11 @@ def test_on_rmq_reconnect(publisher_agent, subscriber_agent):
 
     # Stop RabbitMQ server
     rmq_cfg = RMQConfig()
-    stop_rabbit(rmq_cfg.rmq_home)
+    stop_rabbit(rmq_cfg.rmq_home, env=volttron_instance_rmq)
 
     gevent.sleep(1)
     # Start RabbitMQ server again
-    start_rabbit(rmq_cfg.rmq_home)
+    start_rabbit(rmq_cfg.rmq_home, env=volttron_instance_rmq)
 
     gevent.sleep(8)
 
@@ -115,11 +117,11 @@ def test_on_rmq_reconnect(publisher_agent, subscriber_agent):
                                        headers={},
                                        message="This is test message after rmq reconnect")
     gevent.sleep(0.1)
-    subscriber_agent.callback.call_count == 2
+    assert subscriber_agent.callback.call_count == 2
 
 
 @pytest.mark.rmq_reconnect
-def test_rmq_reconnect_with_publish(publisher_agent, subscriber_agent):
+def test_rmq_reconnect_with_publish(volttron_instance_rmq, publisher_agent, subscriber_agent):
     """
     Test the fix for issue# 1702
     :param request:
@@ -137,10 +139,10 @@ def test_rmq_reconnect_with_publish(publisher_agent, subscriber_agent):
 
     # Stop RabbitMQ server
     rmq_cfg = RMQConfig()
-    stop_rabbit(rmq_cfg.rmq_home)
+    stop_rabbit(rmq_cfg.rmq_home, env=volttron_instance_rmq.env)
     gevent.sleep(2)
     # Start RabbitMQ server
-    start_rabbit(rmq_cfg.rmq_home)
+    start_rabbit(rmq_cfg.rmq_home, env=volttron_instance_rmq.env)
 
     for i in range(5):
         try:
@@ -152,13 +154,12 @@ def test_rmq_reconnect_with_publish(publisher_agent, subscriber_agent):
             # Apply back pressure and try again after sleep
             gevent.sleep(1)
 
-    #gevent.sleep(1)
     publisher_agent.vip.pubsub.publish(peer='pubsub',
                                        topic='test/test_message',
                                        headers={},
                                        message="This is test message after rmq reconnect")
     gevent.sleep(0.1)
-    subscriber_agent.callback.call_count >= 2
+    assert subscriber_agent.callback.call_count >= 2
 
 
 @pytest.mark.rmq_reconnect

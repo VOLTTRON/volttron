@@ -1537,9 +1537,10 @@ def test_topic_by_tags_condition_errors(volttron_instance, tagging_service,
 def setup_test_specific_agents(volttron_instance, historian_config,
                                tagging_service, table_prefix):
     new_tag_service = copy.copy(tagging_service)
-    if historian_config is None or \
-            historian_config["connection"]["type"] == "sqlite":
-        historian_config = {
+    temp_config = copy.copy(historian_config)
+    if temp_config is None or \
+            temp_config["connection"]["type"] == "sqlite":
+        temp_config = {
             "source": get_services_core("SQLHistorian"),
             "connection":
                 {"type": "sqlite",
@@ -1551,29 +1552,23 @@ def setup_test_specific_agents(volttron_instance, historian_config,
         }
     historian_vip_identity = "platform.historian"
     historian_source = get_services_core("SQLHistorian")
-    if historian_config is not None:
-        historian_vip_identity = historian_config["connection"]["type"] \
+    if temp_config is not None:
+        historian_vip_identity = temp_config["connection"]["type"] \
                                  + ".historian"
-        historian_source = historian_config.pop("source")
+        historian_source = temp_config.pop("source")
         new_tag_service['historian_vip_identity'] = historian_vip_identity
         new_tag_service["table_prefix"] = table_prefix
 
     hist_id = volttron_instance.install_agent(
         vip_identity=historian_vip_identity,
-        agent_dir=historian_source, config_file=historian_config,
+        agent_dir=historian_source, config_file=temp_config,
         start=True)
     gevent.sleep(1)
 
-    # put source back in config after install so that it can be used for next
-    # test case
-    historian_config["source"] = historian_source
-    tagging_source=new_tag_service.pop("source")
     new_tagging_id = volttron_instance.install_agent(
         vip_identity='new_tagging',
-        agent_dir=tagging_source,
+        agent_dir=new_tag_service.pop("source"),
         config_file=new_tag_service,
         start=True)
     gevent.sleep(1)
-    # restore for the next parameterized run
-    new_tag_service["source"] = tagging_source
     return hist_id, historian_vip_identity, new_tagging_id, 'new_tagging'

@@ -24,10 +24,12 @@ run_tests() {
     local i=0
     local pids=""
     local full_filenames=()
+    pwd
     for filename in ${files[@]}
     do
         base_filename=`basename $filename`
-        docker run -e "IGNORE_ENV_CHECK=1" --name $base_filename -t volttron_test_image pytest $filename > "$base_filename.result.txt" 2>&1 &
+        docker run -e "IGNORE_ENV_CHECK=1" --name $base_filename \
+            -t volttron_test_image pytest $filename > "$base_filename.result.txt" 2>&1 &
         sleep 1
         pids[$i]=$!
         container_names[$i]=$base_filename

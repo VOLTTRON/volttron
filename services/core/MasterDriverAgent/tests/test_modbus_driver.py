@@ -29,8 +29,7 @@ DRIVER_CONFIG = {
 }
 
 # This registry configuration contains only required fields
-REGISTRY_CONFIG_STRING = """
-Volttron Point Name,Units,Modbus Register,Writable,Point Address
+REGISTRY_CONFIG_STRING = """Volttron Point Name,Units,Modbus Register,Writable,Point Address
 BigUShort,PPM,>H,TRUE,0
 BigUInt,PPM,>I,TRUE,1
 BigULong,PPM,>Q,TRUE,3
@@ -237,7 +236,8 @@ class TestModbusDriver:
                                   'modbus').get(timeout=10)
 
     def test_default_values(self, agent):
-        """By default server setting, all registers values are 0
+        """
+        By default server setting, all registers values are 0
         """
         default_values = self.scrape_all(agent)
         assert type(default_values) is dict

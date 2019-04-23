@@ -379,12 +379,13 @@ def aggregate_agent(request, volttron_instance):
                 function_name, connection_type))
 
     # 3. Install agents - sqlhistorian, sqlaggregatehistorian
-    source = request.param.pop('source_historian')
-    source_agg = request.param.pop('source_agg_historian')
+    temp_config = copy.copy(request.param)
+    source = temp_config.pop('source_historian')
+    source_agg = temp_config.pop('source_agg_historian')
     historian_uuid = volttron_instance.install_agent(
         vip_identity='platform.historian',
         agent_dir=source,
-        config_file=request.param,
+        config_file=temp_config,
         start=True)
     print("agent id: ", historian_uuid)
     agg_agent_uuid = volttron_instance.install_agent(
@@ -933,7 +934,7 @@ def test_topic_reconfiguration(aggregate_agent, query_agent):
         query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
                                  new_config).get()
-        gevent.sleep(1)
+        gevent.sleep(2)
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
