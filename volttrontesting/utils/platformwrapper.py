@@ -638,6 +638,7 @@ class PlatformWrapper:
                         break
                 except Exception as e:
                     gevent.sleep(0.1)
+                    error_was = e
                     self.logit("Connection error found {}".format(e))
             if not has_discovery:
                 if error_was:
