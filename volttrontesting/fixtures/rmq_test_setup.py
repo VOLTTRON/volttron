@@ -15,6 +15,7 @@ _log = logging.getLogger(__name__)
 
 class RabbitTestConfig(object):
     def __init__(self):
+        # Provides defaults for rabbitmq configuration file.
         self.rabbitmq_config = {
             'host': 'localhost',
             'certificate-data': {
@@ -30,7 +31,10 @@ class RabbitTestConfig(object):
             'amqp-port-ssl': 5671,
             'mgmt-port': 15672,
             'mgmt-port-ssl': 15671,
-            'rmq-home': '/home/vdev/multi_node_rmq/rabbitmq_server-3.7.7',
+            # This is overwritten in the class below during
+            # the create_rmq_volttron_setup function, but is
+            # left here for completeness of the configuration.
+            'rmq-home': '~/rabbitmq_server-3.7.7',
             'reconnect-delay': 5
         }
 
@@ -88,13 +92,13 @@ class RabbitTestConfig(object):
             self.rabbitmq_config['amqp-port'] = amqp_port
 
         if amqp_port_ssl:
-            self.rabbitmq_config['amqp-port-ssl'] = amqp_port
+            self.rabbitmq_config['amqp-port-ssl'] = amqp_port_ssl
 
         if mgmt_port:
             self.rabbitmq_config['mgmt-port'] = amqp_port
 
         if mgmt_port_ssl:
-            self.rabbitmq_config['mgmt-port-ssl'] = amqp_port
+            self.rabbitmq_config['mgmt-port-ssl'] = mgmt_port_ssl
 
 
 def create_rmq_volttron_setup(instance_name, vhome=None, ssl_auth=False, env=None):
@@ -113,6 +117,8 @@ def create_rmq_volttron_setup(instance_name, vhome=None, ssl_auth=False, env=Non
     else:
         vhome = get_home()
 
+    # Build default config file object, which we will then update to fit the
+    # current context the code is running in.
     rabbit_config_obj = RabbitTestConfig()
 
     # for docker this will be setup so we can always use this for the home
