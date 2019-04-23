@@ -613,7 +613,7 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
             os.unlink(log_name)
         os.symlink(os.path.join(rmq_config.rmq_home,
                                 'var/log/rabbitmq',
-                                "rabbit@" +
+                                rmq_config.node_name + "@" +
                                 rmq_config.hostname.split('.')[0] + ".log"),
                        log_name)
 
