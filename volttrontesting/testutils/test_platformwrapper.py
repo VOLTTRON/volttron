@@ -43,11 +43,12 @@ import pytest
 import time
 import os
 
+from mock import MagicMock
+
 from volttron.platform import get_services_core, get_examples
 from volttron.platform.agent import json as jsonapi
 
-from volttrontesting.utils.platformwrapper import start_wrapper_platform, \
-    PlatformWrapper
+from volttrontesting.utils.platformwrapper import PlatformWrapper
 
 
 @pytest.mark.wrapper
@@ -58,10 +59,8 @@ def test_volttron_config_created(volttron_instance):
     # with open(config_file, 'rb') as cfg:
     parser.read(config_file)
     assert volttron_instance.instance_name == parser.get('volttron', 'instance-name')
-    assert volttron_instance.messagebus == parser.get('volttron', 'message-bus')
     assert volttron_instance.vip_address == parser.get('volttron', 'vip-address')
-
-    # with open(volttron_instance.)
+    assert volttron_instance.messagebus == parser.get('volttron', 'message-bus')
 
 
 @pytest.mark.wrapper
@@ -79,7 +78,6 @@ def test_can_restart_platform_without_addresses_changing(get_volttron_instances)
 
 
 @pytest.mark.wrapper
-@pytest.mark.skip("Upgrade to fix.")
 def test_instance_writes_to_instances_file(volttron_instance):
     vi = volttron_instance
     assert vi is not None
@@ -102,63 +100,70 @@ def test_instance_writes_to_instances_file(volttron_instance):
 
 
 @pytest.mark.wrapper
-@pytest.mark.skip("Upgrade to fix.")
 def test_can_install_listener(volttron_instance):
-    clear_messages()
+
     vi = volttron_instance
     assert vi is not None
     assert vi.is_running()
 
+    # agent identity should be
     auuid = vi.install_agent(agent_dir=get_examples("ListenerAgent"),
                              start=False)
     assert auuid is not None
     started = vi.start_agent(auuid)
-    print('STARTED: ', started)
+
+    assert started
+    assert vi.is_agent_running(auuid)
     listening = vi.build_agent()
+    listening.callback = MagicMock(name="callback")
+    listening.callback.reset_mock()
+
+    assert listening.core.identity
     listening.vip.pubsub.subscribe(peer='pubsub',
-                                   prefix='heartbeat/listeneragent',
-                                   callback=onmessage)
-    # sleep for 10 seconds and at least one heartbeat should have been
-    # published
-    # because it's set to 5 seconds.
-    time_start = time.time()
+                                   prefix='heartbeat/{}'.format(vi.get_agent_identity(auuid)),
+                                   callback=listening.callback)
 
-    print('Awaiting heartbeat response.')
-    while not messages_contains_prefix(
-            'heartbeat/listeneragent') and time.time() < time_start + 10:
-        gevent.sleep(0.2)
+    # default heartbeat for core listener is 5 seconds.
+    # sleep for 10 just in case we miss one.
+    gevent.sleep(10)
 
-    assert messages_contains_prefix('heartbeat/listeneragent')
+    assert listening.callback.called
+    call_args = listening.callback.call_args[0]
+    # peer, sender, bus, topic, headers, message
+    assert call_args[0] == 'pubsub'
+    # TODO: This hard coded value should be changed with a platformwrapper call to a function
+    # get_agent_identity(uuid)
+    assert call_args[1] == vi.get_agent_identity(auuid)
+    assert call_args[2] == ''
+    assert call_args[3].startswith('heartbeat/listeneragent')
+    assert 'max_compatible_version' in call_args[4]
+    assert 'min_compatible_version' in call_args[4]
+    assert 'TimeStamp' in call_args[4]
+    assert 'GOOD' in call_args[5]
 
     stopped = vi.stop_agent(auuid)
     print('STOPPED: ', stopped)
     removed = vi.remove_agent(auuid)
     print('REMOVED: ', removed)
+    listening.core.stop()
+
 
 @pytest.mark.wrapper
-@pytest.mark.skip("Upgrade to fix.")
-def test_resinstall_agent(volttron_instance):
-    mysql_config = {
+def test_reinstall_agent(volttron_instance):
+    sqlite_config = {
         "connection": {
-            "type": "mysql",
+            "type": "sqlite",
             "params": {
-                "host": "localhost",
-                "port": 3306,
-                "database": "test_historian",
-                "user": "historian",
-                "passwd": "historian"
+                "database": "data/historian.sqlite"
             }
         }
     }
-    for i in range(0,50):
+    for i in range(0, 5):
         print("Counter: {}".format(i))
-        # auuid = volttron_instance.install_agent(
-        #     agent_dir=get_examples("ListenerAgent",
-        #     vip_identity='test_listener',
-        #     start=True)
+
         auuid = volttron_instance.install_agent(
             agent_dir=get_services_core("SQLHistorian"),
-            config_file=mysql_config,
+            config_file=sqlite_config,
             start=True,
             vip_identity='test_historian')
         assert volttron_instance.is_agent_running(auuid)
@@ -166,7 +171,6 @@ def test_resinstall_agent(volttron_instance):
 
 
 @pytest.mark.wrapper
-@pytest.mark.skip("Upgrade to fix.")
 def test_can_stop_vip_heartbeat(volttron_instance):
     clear_messages()
     vi = volttron_instance
@@ -201,15 +205,16 @@ def test_can_stop_vip_heartbeat(volttron_instance):
 
 
 @pytest.mark.wrapper
-@pytest.mark.skip("Upgrade to fix.")
-def test_can_ping_pubsub(volttron_instance):
+def test_get_peerlist(volttron_instance):
     vi = volttron_instance
     agent = vi.build_agent()
-    resp = agent.vip.ping('', 'hello').get(timeout=5)
-    print('ROUTER RESP: ', resp)
+    assert agent.core.identity
+    resp = agent.vip.peerlist().get(timeout=5)
+    assert isinstance(resp, list)
+    assert len(resp) > 1
+
 
 @pytest.mark.wrapper
-@pytest.mark.skip("Upgrade to fix.")
 def test_can_remove_agent(volttron_instance):
     """ Confirms that 'volttron-ctl remove' removes agent as expected. """
     assert volttron_instance is not None
@@ -250,7 +255,6 @@ def messages_contains_prefix(prefix):
 
 
 @pytest.mark.wrapper
-@pytest.mark.skip("Upgrade to fix.")
 def test_can_publish(volttron_instance):
     global messages
     clear_messages()
@@ -271,23 +275,12 @@ def test_can_publish(volttron_instance):
 
 
 @pytest.mark.wrapper
-@pytest.mark.skip("Upgrade to fix.")
 def test_fixture_returns_single_if_one_requested(get_volttron_instances):
     wrapper = get_volttron_instances(1, False)
     assert isinstance(wrapper, PlatformWrapper)
 
 
-@pytest.mark.skip("Upgrade to fix.")
-def test_can_ping_router(volttron_instance):
-    vi = volttron_instance
-    agent = vi.build_agent()
-    resp = agent.vip.ping('', 'router?').get(timeout=4)
-    # resp = agent.vip.hello().get(timeout=1)
-    print("HELLO RESPONSE!", resp)
-
-
 @pytest.mark.wrapper
-@pytest.mark.skip("Upgrade to fix.")
 def test_can_install_listener_on_two_platforms(get_volttron_instances):
 
     wrapper1, wrapper2 = get_volttron_instances(2)

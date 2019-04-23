@@ -11,8 +11,6 @@ from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent import utils
 
 
-
-
 def get_hostname_and_random_port(min_ip=5000, max_ip=6000):
     with open('/etc/hostname') as fp:
         hostname = fp.read().strip()

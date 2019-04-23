@@ -68,7 +68,7 @@ def get_volttron_instances(request):
                 with open(addr_file, 'w') as f:
                     json.dump(web_addresses, f)
                     gevent.sleep(.1)
-            wrapper.startup_platform(address, bind_web_address=web_address, instance_name=names[i], setupmode=True)
+            wrapper.startup_platform(address, bind_web_address=web_address, setupmode=True)
             wrapper.skip_cleanup = True
             instances.append(wrapper)
 
@@ -82,7 +82,7 @@ def get_volttron_instances(request):
             address = vip_addresses.pop(0)
             web_address = web_addresses.pop(0)
             print address, web_address
-            instances[i].startup_platform(address, bind_web_address=web_address, instance_name=names[i])
+            instances[i].startup_platform(address, bind_web_address=web_address)
             instances[i].allow_all_connections()
         gevent.sleep(11)
         instances = instances if n > 1 else instances[0]
@@ -128,7 +128,7 @@ def build_instances(request):
         for i in range(0, n):
             address = vip_addresses[i]
             wrapper = PlatformWrapper()
-            wrapper.startup_platform(address, instance_name=names[i])
+            wrapper.startup_platform(address)
             wrapper.skip_cleanup = True
             instances.append(wrapper)
 
@@ -157,7 +157,7 @@ def build_instances(request):
         gevent.sleep(1)
         for i in range(0, n):
             address = vip_addresses.pop(0)
-            instances[i].startup_platform(address, instance_name=names[i])
+            instances[i].startup_platform(address)
             instances[i].allow_all_connections()
         gevent.sleep(11)
         instances = instances if n > 1 else instances[0]
