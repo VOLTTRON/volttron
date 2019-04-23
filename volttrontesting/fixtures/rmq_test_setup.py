@@ -95,7 +95,7 @@ class RabbitTestConfig(object):
             self.rabbitmq_config['amqp-port-ssl'] = amqp_port_ssl
 
         if mgmt_port:
-            self.rabbitmq_config['mgmt-port'] = amqp_port
+            self.rabbitmq_config['mgmt-port'] = mgmt_port
 
         if mgmt_port_ssl:
             self.rabbitmq_config['mgmt-port-ssl'] = mgmt_port_ssl
