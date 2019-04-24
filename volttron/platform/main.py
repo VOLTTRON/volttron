@@ -614,6 +614,8 @@ def start_volttron_process(opts):
         raise StandardError("If web-ssl-key is specified web-ssl-cert MUST be specified.")
     if opts.web_ssl_cert and not opts.web_ssl_key:
         raise StandardError("If web-ssl-cert is specified web-ssl-key MUST be specified.")
+    if opts.web_ca_cert and not opts.web_ssl_key and not opts.web_ssl_cert:
+        raise StandardError("If web-ca-cert is specified web-ssl-key and web-ssl-cert MUST be specified.")
 
     os.environ['MESSAGEBUS'] = opts.message_bus
     if opts.instance_name is None:
@@ -927,6 +929,7 @@ def start_volttron_process(opts):
                           message_bus='zmq')
         ]
 
+        # Begin the webserver based options here.
         if opts.bind_web_address is not None:
             if opts.instance_name is None:
                 _update_config_file()
@@ -1082,6 +1085,11 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--bind-web-address', metavar='BINDWEBADDR', default=None,
         help='Bind a web server to the specified ip:port passed')
+    agents.add_argument(
+        '--web-ca-cert', metavar='CAFILE', default=None,
+        help='If using self-signed certificates, this variable will be set globally to allow requests'
+             'to be able to correctly reach the webserver without having to specify verify in all calls.'
+    )
     agents.add_argument(
         '--web-ssl-key', metavar='KEYFILE', default=None,
         help='ssl key file for using https with the volttron server'
