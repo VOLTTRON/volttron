@@ -225,7 +225,7 @@ Steps for RabbitMQ
 Testing the Installation
 ------------------------
 
-We are now ready to start VOLTTRON instance. If configureds with RabbitMQ message bus a config file would have got
+We are now ready to start VOLTTRON instance. If configured with RabbitMQ message bus a config file would have been
 generated in $VOLTTRON_HOME/config with the entry message-bus=rmq. If you need to revert back to ZeroMQ based VOLTTRON,
 you will have to either remove "message-bus" parameter or set it to default "zmq" in $VOLTTRON_HOME/config.
 The following command starts volttron process in the background
