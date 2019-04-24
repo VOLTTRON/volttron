@@ -21,14 +21,18 @@ For a quick reference:
         python2.7 bootstrap.py
 
 
-Configuring VOLTTRON
---------------------
+Activating the  VOLTTRON Environment
+------------------------------------
 
 After the build is complete, activate the VOLTTRON environment.
 
 .. code-block:: console
 
         source env/bin/activate
+
+
+Configuring VOLTTRON
+--------------------
 
 The ``volttron-cfg`` command allows for an easy configuration of the VOLTTRON environment.
 
@@ -44,9 +48,10 @@ A set of example responses are included here:
 
         Your VOLTTRON_HOME currently set to: /home/USER/.volttron
         
-        Is this the volttron you are attempting to setup?  [Y]: y
+        Is this the volttron you are attempting to setup?  [Y]:
         What is the external instance ipv4 address? [tcp://127.0.0.1]: 
-        What is the instance port for the vip address? [22916]: 
+        What is the instance port for the vip address? [22916]:
+        What is type of message bus? [zmq]: 
         Is this instance a volttron central? [N]: y
         Configuring /home/USER/volttron/services/core/VolttronCentral
         
@@ -63,7 +68,7 @@ A set of example responses are included here:
         Should agent autostart? [N]: y
         Will this instance be controlled by volttron central? [Y]: y
         Configuring /home/USER/volttron/services/core/VolttronCentralPlatform
-        Enter the name of this instance. [tcp://127.0.0.1:22916]: 
+        Enter the name of this instance. [volttron1]: 
         Enter volttron central's web address [http://127.0.0.1]: 
         What is the port for volttron central? [8080]: 
         Should agent autostart? [N]: y
@@ -110,13 +115,12 @@ The output should look similar to this:
 .. code-block:: console
 
         (volttron)USER@volttron-pc:~/volttron$ volttron-ctl status
-
-          AGENT                    IDENTITY            TAG                STATUS          HEALTH
-        f listeneragent-3.2        listeneragent-3.2_1 listener           running [7596]  GOOD
-        a master_driveragent-3.2   platform.driver     master_driver      running [7599]  GOOD
-        e sqlhistorianagent-3.7.0  platform.historian  platform_historian running [7598]  GOOD
-        9 vcplatformagent-4.7      platform.agent      vcp                running [7600]  GOOD
-        2 volttroncentralagent-4.2 volttron.central    vc                 running [7601]  GOOD
+           AGENT                    IDENTITY            TAG                STATUS          HEALTH
+        ff listeneragent-3.2        listeneragent-3.2_1 listener           running [3842]  GOOD
+        30 master_driveragent-3.2   platform.driver     master_driver      running [3847]  GOOD
+        76 sqlhistorianagent-3.7.0  platform.historian  platform_historian running [3845]  GOOD
+        f0 vcplatformagent-4.8      platform.agent      vcp                running [3844]  GOOD
+        63 volttroncentralagent-5.0 volttron.central    vc                 running [3846]  GOOD
 
 You can further verify that the agents are functioning correctly with ``tail -f volttron.log``
 
@@ -144,7 +148,7 @@ Once you have logged in, click on the Platforms tab in the upper right corner of
 
 .. |vc-dashboard| image:: files/vc-dashboard.png
 
-Once in the Platforms screen, click on the name of the platform. If defaults have been left in place, it will be labeled as seen below.
+Once in the Platforms screen, click on the name of the platform.
 
 |vc-platform|
 
