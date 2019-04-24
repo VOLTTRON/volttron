@@ -146,9 +146,6 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
     # Will returen https if messagebus rmq
     bind_address = get_rand_http_address(wrapper.messagebus == 'rmq') if with_http else None
     vc_http = bind_address
-    if wrapper.messagebus == 'rmq':
-        spaddr = bind_address.split(':')
-        vc_http = "https://localhost:{}".format(spaddr[2])
     vc_tcp = get_rand_tcp_address() if with_tcp else None
 
     if add_local_vc_address:
@@ -626,18 +623,19 @@ class PlatformWrapper:
             times = 0
             has_discovery = False
             error_was = None
+
             while times < 10:
                 times += 1
                 try:
                     if self.ssl_auth:
-                        resp = requests.get(self.discovery_address, verify=False)
+                        resp = requests.get(self.discovery_address, verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
                     else:
                         resp = requests.get(self.discovery_address)
                     if resp.ok:
                         has_discovery = True
                         break
                 except Exception as e:
-                    gevent.sleep(0.1)
+                    gevent.sleep(0.5)
                     error_was = e
                     self.logit("Connection error found {}".format(e))
             if not has_discovery:
