@@ -57,7 +57,7 @@ run_tests() {
                 if [[ ${FAST_FAIL} ]]; then
                     echo "Fast failing!"
                     docker rm ${container_names[$x]}
-                    exit 500
+                    exit HAS_FAILED=1
                 fi
             fi
         fi
