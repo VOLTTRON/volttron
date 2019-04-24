@@ -931,6 +931,19 @@ def start_volttron_process(opts):
             if opts.instance_name is None:
                 _update_config_file()
 
+            if opts.message_bus == 'rmq':
+                if opts.web_ssl_key is None or opts.web_ssl_cert or \
+                        (not os.path.isfile(opts.web_ssl_key) and not os.path.isfile(opts.web_ssl_cert)):
+                    # This is different than the master.web cert which is used for the client
+                    # to rmq.  This one will be used to server the tls contract between a client
+                    # and the server.
+                    base_webserver_name = MASTER_WEB + "-server"
+                    from volttron.platform.certs import Certs
+                    certs = Certs()
+                    certs.create_ca_signed_cert(base_webserver_name, type='server')
+                    opts.web_ssl_key = certs.private_key_file(base_webserver_name)
+                    opts.web_ssl_cert = certs.cert_file(base_webserver_name)
+
             services.append(MasterWebService(
                 serverkey=publickey, identity=MASTER_WEB,
                 address=address,

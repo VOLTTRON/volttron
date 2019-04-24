@@ -180,7 +180,7 @@ def load_platform_config():
 def get_platform_instance_name(prompt=False):
     platform_config = load_platform_config()
 
-    instance_name = platform_config.get('instance-name')
+    instance_name = platform_config.get('instance-name', None)
     if instance_name is not None:
         instance_name = instance_name.strip('"')
     if prompt:
@@ -190,11 +190,17 @@ def get_platform_instance_name(prompt=False):
                                         mandatory=True, default=instance_name)
     else:
         if not instance_name:
-            err = "No instance-name is configured in $VOLTTRON_HOME/config. Please set instance-name in " \
-                  "$VOLTTRON_HOME/config"
-            _log.error(err)
-            raise KeyError(err)
+            _log.warning("Using hostname as instance name.")
+            if os.path.isfile('/etc/hostname'):
+                with open('/etc/hostname') as f:
+                    instance_name = f.read().strip()
 
+                    store_message_bus_config(get_messagebus(), instance_name)
+            else:
+                err = "No instance-name is configured in $VOLTTRON_HOME/config. Please set instance-name in " \
+                      "$VOLTTRON_HOME/config"
+                _log.error(err)
+                raise KeyError(err)
 
     return instance_name
 
@@ -404,6 +410,11 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         address = get_address()
         agent_uuid = os.environ.get('AGENT_UUID')
         volttron_home = get_home()
+
+        from volttron.platform.certs import Certs
+        certs = Certs()
+        if certs.ca_exists():
+            os.environ['REQUESTS_CA_BUNDLE'] = certs.cert_file(certs.root_ca_name)
 
         agent = agent_class(config_path=config, identity=identity,
                             address=address, agent_uuid=agent_uuid,
