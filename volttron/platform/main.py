@@ -108,6 +108,7 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
 logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.INFO)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 VOLTTRON_INSTANCES = '~/.volttron_instances'
 
 
@@ -929,6 +930,8 @@ def start_volttron_process(opts):
                           message_bus='zmq')
         ]
 
+        _log.debug("_-----------------------------------")
+        #_log.debug("{}".format(opts))
         # Begin the webserver based options here.
         if opts.bind_web_address is not None:
             if opts.instance_name is None:
