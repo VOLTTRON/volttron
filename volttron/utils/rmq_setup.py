@@ -46,8 +46,6 @@ RabbitMQ setup script to
 import argparse
 import logging
 import os
-import shutil
-import time
 from socket import getfqdn
 from shutil import copy
 import gevent
@@ -56,8 +54,8 @@ import yaml
 from rmq_mgmt import RabbitMQMgmt
 from volttron.platform import certs
 from volttron.platform import get_home
-from volttron.platform.agent.utils import store_message_bus_config, \
-    execute_command
+from volttron.platform.agent.utils import (store_message_bus_config,
+                                           execute_command)
 from volttron.utils.prompt import prompt_response, y, y_or_n
 from volttron.platform.agent.utils import get_platform_instance_name
 from rmq_config_params import RMQConfig
@@ -65,7 +63,7 @@ from rmq_config_params import RMQConfig
 _log = logging.getLogger(os.path.basename(__file__))
 
 
-def _start_rabbitmq_without_ssl(rmq_config):
+def _start_rabbitmq_without_ssl(rmq_config, conf_file, env=None):
     """
     Check if basic RabbitMQ configuration is available. Start RabbitMQ in
     non ssl mode so that we can login as guest to create volttron users,
@@ -100,31 +98,65 @@ def _start_rabbitmq_without_ssl(rmq_config):
         else:
             os.environ['RABBITMQ_HOME'] = rmq_home
 
-    rmq_config.set_default_config()
+    # Why do we need the below. This would override any custom tcp and management port and we don't want that
+    # rmq_config.set_default_config()
 
     # attempt to stop
-    stop_rabbit(rmq_home, quite=True)
-    # mv any existing conf file to backup
-    conf = os.path.join(rmq_home, "etc/rabbitmq/rabbitmq.conf")
-    if os.path.exists(conf):
-        os.rename(conf, os.path.join(rmq_home,
-                                     "etc/rabbitmq/rabbitmq.conf_" +
-                                     time.strftime("%Y%m%d-%H%M%S")
-                                     ))
+    stop_rabbit(rmq_home, env, quite=True)
 
     if rmq_config.amqp_port != 5672 and rmq_config.mgmt_port != 15672:
         # If ports if non ssl ports are not default write a rabbitmq.conf before
         # restarting
         new_conf = """listeners.tcp.default = {}
 management.listener.port = {}""".format(rmq_config.amqp_port, rmq_config.mgmt_port)
-        with open(os.path.join(rmq_config.rmq_home,
-                               "etc/rabbitmq", "rabbitmq.conf"),
-                  'w+') as r_conf:
+
+        with open(conf_file, 'w+') as r_conf:
             r_conf.write(new_conf)
+
+    write_env_file(rmq_config, conf_file, env)
 
     # Start RabbitMQ server
     _log.info("Starting RabbitMQ server")
-    start_rabbit(rmq_config.rmq_home)
+    start_rabbit(rmq_config.rmq_home, env=env)
+
+
+def write_env_file(rmq_config, conf_file, env=None):
+    """
+    Write rabbitmq-env.conf file
+    :param conf_file:
+    :param env: Environment to get the RABBITMQ_CONF_ENV_FILE out of.
+    :param rmq_config:
+    :return:
+    """
+
+    if not env:
+        env = os.environ
+
+    # If there is a custom node name then we need to write a env file, set amqp port in this env file, and
+    # point to conf file path
+    if rmq_config.node_name:
+
+        nodebase = os.path.dirname(conf_file)
+        # Creating a custom node name with custome port. Create a env file and add entry to point to conf file in
+        # the env file
+        env_entries = """NODENAME={}
+NODE_PORT={}
+MNESIA_DIR={}
+CONFIG_FILE={}
+LOG_BASE={}
+PLUGINS_EXPAND_DIR={}
+PID_FILE={}
+RABBITMQ_GENERATED_CONFIG_DIR={}""".format(rmq_config.node_name,
+                                           rmq_config.amqp_port,
+                                           os.path.join(nodebase, 'mnesia'),
+                                           conf_file,
+                                           os.path.join(nodebase, 'logs'),
+                                           os.path.join(nodebase, 'plugins-expand'),
+                                           os.path.join(nodebase, 'rabbitmq.pid'),
+                                           os.path.join(nodebase, 'generated_config'))
+
+        with open(env.get('RABBITMQ_CONF_ENV_FILE'), 'w+') as env_conf:
+            env_conf.write(env_entries)
 
 
 def _create_federation_setup(admin_user, admin_password, is_ssl, vhost, vhome):
@@ -272,7 +304,7 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
             exc))
 
 
-def _setup_for_ssl_auth(rmq_config):
+def _setup_for_ssl_auth(rmq_config, rmq_conf_file, env=None):
     """
     Utility method to create
     1. Root CA
@@ -291,12 +323,13 @@ def _setup_for_ssl_auth(rmq_config):
     if not os.path.exists(white_list_dir):
         os.mkdir(white_list_dir)
 
-
     _create_certs(rmq_config, admin_client_name, server_name)
 
     # if all was well, create the rabbitmq.conf file for user to copy
     # /etc/rabbitmq and update VOLTTRON_HOME/rabbitmq_config.json
-    new_conf = """listeners.ssl.default = {amqp_port_ssl}
+    new_conf = """listeners.tcp.default = {tcp_port}
+management.listener.port = {mgmt_port}
+listeners.ssl.default = {amqp_port_ssl}
 ssl_options.cacertfile = {ca}
 ssl_options.certfile = {server_cert}
 ssl_options.keyfile = {server_key}
@@ -314,6 +347,8 @@ management.listener.ssl_opts.certfile = {server_cert}
 management.listener.ssl_opts.keyfile = {server_key}
 trust_store.directory={ca_dir}
 trust_store.refresh_interval=0""".format(
+        tcp_port=rmq_config.amqp_port,
+        mgmt_port=rmq_config.mgmt_port,
         mgmt_port_ssl=rmq_config.mgmt_port_ssl,
         amqp_port_ssl=rmq_config.amqp_port_ssl,
         ca=rmq_config.crts.cert_file(rmq_config.crts.trusted_ca_name),
@@ -322,18 +357,16 @@ trust_store.refresh_interval=0""".format(
         ca_dir=white_list_dir
     )
 
-    with open(os.path.join(vhome, "rabbitmq.conf"), 'w') as rconf:
+    with open(rmq_conf_file, 'w') as rconf:
         rconf.write(new_conf)
 
-    # Stop server, move new config file with ssl params, start server
-    stop_rabbit(rmq_config.rmq_home)
+    write_env_file(rmq_config, rmq_conf_file, env)
 
-    # Leave a copy of the conf in vhome. Useful when running tests in debug mode.
-    # we can see what was the conf with which the tests were run
-    shutil.copy(os.path.join(vhome, "rabbitmq.conf"),
-              os.path.join(rmq_config.rmq_home,
-                           "etc/rabbitmq/rabbitmq.conf"))
-    start_rabbit(rmq_config.rmq_home)
+    # Stop server, move new config file with ssl params, start server
+    stop_rabbit(rmq_config.rmq_home, env=env)
+
+    start_rabbit(rmq_config.rmq_home, env=env)
+
     default_vhome = os.path.abspath(
         os.path.normpath(
             os.path.expanduser(
@@ -484,7 +517,8 @@ def _verify_and_save_instance_ca(rmq_config, instance_ca_path, instance_ca_key):
     return found
 
 
-def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_name=None):
+def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_name=None,
+                            rmq_conf_file=None, env=None):
     """
     Setup VOLTTRON instance to run with RabbitMQ message bus.
     :param setup_type:
@@ -539,12 +573,14 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
                    "to be established. Please refer to example config file "
                    "at examples/configurations/rabbitmq/rabbitmq_config.yml")
         raise
-        return exc
+
+    if not rmq_conf_file:
+        rmq_conf_file = os.path.join(rmq_config.rmq_home, "etc/rabbitmq/rabbitmq.conf")
 
     invalid = True
     if setup_type in ["all", "single"]:
         invalid = False
-        _start_rabbitmq_without_ssl(rmq_config)
+        _start_rabbitmq_without_ssl(rmq_config, rmq_conf_file, env=env)
         _log.debug("Creating rabbitmq virtual hosts and required users for "
                    "volttron")
         # Create local RabbitMQ setup - vhost, exchange etc.
@@ -552,7 +588,7 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
         rmq_mgmt = RabbitMQMgmt()
         success = rmq_mgmt.init_rabbitmq_setup()
         if success and rmq_config.is_ssl:
-            _setup_for_ssl_auth(rmq_config)
+            _setup_for_ssl_auth(rmq_config, rmq_conf_file, env=env)
 
         # Create utility scripts
         script_path = os.path.dirname(os.path.realpath(__file__))
@@ -577,7 +613,7 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
             os.unlink(log_name)
         os.symlink(os.path.join(rmq_config.rmq_home,
                                 'var/log/rabbitmq',
-                                "rabbit@" +
+                                rmq_config.node_name + "@" +
                                 rmq_config.hostname.split('.')[0] + ".log"),
                        log_name)
 
@@ -910,17 +946,18 @@ def _write_to_config_file(filename, data):
         _log.error("Yaml Error: {}".format(filename))
 
 
-def stop_rabbit(rmq_home, quite=False):
+def stop_rabbit(rmq_home, env=None, quite=False):
     """
     Stop RabbitMQ Server
     :param rmq_home: RabbitMQ installation path
+    :param env: Environment to run the RabbitMQ command.
     :param quite:
     :return:
     """
     try:
         cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"),
                "stop"]
-        execute_command(cmd)
+        execute_command(cmd, env=env)
         gevent.sleep(2)
         if not quite:
             _log.info("**Stopped rmq server")
@@ -929,18 +966,19 @@ def stop_rabbit(rmq_home, quite=False):
             raise e
 
 
-def restart_ssl(rmq_home):
+def restart_ssl(rmq_home, env=None):
     """
     Runs rabbitmqctl eval "ssl:stop(), ssl:start()." to make rmq reload ssl certificates. Client connection will get
     dropped and client should reconnect.
     :param rmq_home:
+    :param env: Environment to run the RabbitMQ command.
     :return:
     """
     cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "eval", "ssl:stop(), ssl:start()."]
-    execute_command(cmd, err_prefix="Error reloading ssl certificates")
+    execute_command(cmd, err_prefix="Error reloading ssl certificates", env=env)
 
 
-def check_rabbit_status(rmq_home=None):
+def check_rabbit_status(rmq_home=None, env=None):
     status = True
     if not rmq_home:
         rmq_cfg = RMQConfig()
@@ -948,16 +986,17 @@ def check_rabbit_status(rmq_home=None):
 
     status_cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "shovel_status"]
     try:
-        execute_command(status_cmd)
+        execute_command(status_cmd, env=env)
     except Exception:
         status = False
     return status
 
 
-def start_rabbit(rmq_home):
+def start_rabbit(rmq_home, env=None):
     """
     Start RabbitMQ server
     :param rmq_home: RabbitMQ installation path
+    :param env: Environment to start RabbitMQ with.
     :return:
     """
 
@@ -967,16 +1006,16 @@ def start_rabbit(rmq_home):
     # accept incoming connection.
     # Nor does rabbitmqctl wait, rabbitmqctl await_online_nodes work for this
     #  purpose. shovel_status comes close...
+
     status_cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "shovel_status"]
     start_cmd = [os.path.join(rmq_home, "sbin/rabbitmq-server"), "-detached"]
-
 
     i = 0
     started = False
     start = True
     while not started:
         try:
-            execute_command(status_cmd)
+            execute_command(status_cmd, env=env)
             if not start:
                 # if we have attempted started already
                 gevent.sleep(1)  # give a second just to be sure
@@ -988,7 +1027,7 @@ def start_rabbit(rmq_home):
                 _log.debug("Rabbitmq is not running. Attempting to start")
                 msg = "Error starting rabbitmq at {}".format(rmq_home)
                 # attempt to start once
-                execute_command(start_cmd, err_prefix=msg, logger=_log)
+                execute_command(start_cmd, env=env,  err_prefix=msg, logger=_log)
                 start = False
             else:
                 if i > 60:  # if more than a minute, may be something is wrong

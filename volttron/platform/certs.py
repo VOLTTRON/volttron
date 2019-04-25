@@ -656,7 +656,6 @@ class Certs(object):
                 NameOID.ORGANIZATIONAL_UNIT_NAME)[0].value
         }
 
-
     @staticmethod
     def get_admin_cert_names(instance_name):
         """

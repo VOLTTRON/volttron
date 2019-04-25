@@ -484,11 +484,12 @@ def historian(request, volttron_instance, query_agent):
 
     print ("request.param -- {}".format(request.param))
     # 2. Install agent - historian
-    source = request.param.pop('source_historian')
+    temp_config = copy.copy(request.param)
+    source = temp_config.pop('source_historian')
     historian_uuid = volttron_instance.install_agent(
         vip_identity='platform.historian',
         agent_dir=source,
-        config_file=request.param,
+        config_file=temp_config,
         start=True)
     print("agent id: ", historian_uuid)
     identity = 'platform.historian'

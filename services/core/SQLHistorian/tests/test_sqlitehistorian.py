@@ -216,11 +216,12 @@ def historian(request, volttron_instance, query_agent):
 
     print ("sqlite_platform -- {}".format(sqlite_platform))
     # 2. Install agent - historian
-    source = sqlite_platform.pop('source_historian')
+    temp_config = copy.copy(sqlite_platform)
+    source = temp_config.pop('source_historian')
     historian_uuid = volttron_instance.install_agent(
         vip_identity='platform.historian',
         agent_dir=source,
-        config_file=sqlite_platform,
+        config_file=temp_config,
         start=True)
     print("agent id: ", historian_uuid)
     identity = 'platform.historian'
@@ -233,9 +234,7 @@ def historian(request, volttron_instance, query_agent):
         volttron_instance.remove_agent(historian_uuid)
 
     request.addfinalizer(stop_agent)
-    # put source info back as test cases might use it to installer more
-    # instances of historian
-    sqlite_platform['source_historian'] = source
+
     return sqlite_platform
 
 

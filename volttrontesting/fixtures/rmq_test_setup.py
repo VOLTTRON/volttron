@@ -3,121 +3,170 @@ import os
 import shutil
 
 import yaml
-import requests
 
 from volttron.platform import instance_setup, get_home
 from volttron.platform.agent.utils import store_message_bus_config
-from volttron.utils.rmq_mgmt import RabbitMQMgmt
-from volttron.utils.rmq_setup import setup_rabbitmq_volttron, stop_rabbit
+from volttron.utils.rmq_setup import setup_rabbitmq_volttron
+from volttrontesting.utils.utils import get_hostname_and_random_port
 
 HOME = os.environ.get('HOME')
-VOLTTRON_INSTANCE_NAME = 'volttron_test'
 _log = logging.getLogger(__name__)
 
-rabbitmq_config = {
-    'host': 'localhost',
-    'certificate-data': {
-        'country': 'US',
-        'state': 'test-state',
-        'location': 'test-location',
-        'organization': 'test-organization',
-        'organization-unit': 'test-team',
-        'common-name': '{}_root_ca'.format(VOLTTRON_INSTANCE_NAME),
-    },
-    'virtual-host': 'volttron_test',
-    'amqp-port': 5672,
-    'amqp-port-ssl': 5671,
-    'mgmt-port': 15672,
-    'mgmt-port-ssl': 15671,
-    'rmq-home': os.path.join(HOME, 'rabbitmq_server/rabbitmq_server-3.7.7'),
-    'reconnect-delay': 5
-}
+
+class RabbitTestConfig(object):
+    def __init__(self):
+        # Provides defaults for rabbitmq configuration file.
+        self.rabbitmq_config = {
+            'host': 'localhost',
+            'certificate-data': {
+                'country': 'US',
+                'state': 'test-state',
+                'location': 'test-location',
+                'organization': 'test-organization',
+                'organization-unit': 'test-team',
+                'common-name': 'volttron_test_root_ca',
+            },
+            'virtual-host': 'volttron_test',
+            'amqp-port': 5672,
+            'amqp-port-ssl': 5671,
+            'mgmt-port': 15672,
+            'mgmt-port-ssl': 15671,
+            # This is overwritten in the class below during
+            # the create_rmq_volttron_setup function, but is
+            # left here for completeness of the configuration.
+            'rmq-home': '~/rabbitmq_server-3.7.7',
+            'reconnect-delay': 5
+        }
+
+        self._instance_name = 'volttron_test'
+        self._rmq_conf_file = None
+        self._rmq_env_file = None
+
+    @property
+    def rmq_conf_file(self):
+        return self._rmq_conf_file
+
+    @rmq_conf_file.setter
+    def rmq_conf_file(self, value):
+        self._rmq_conf_file = value
+
+    @property
+    def rmq_env_file(self):
+        return self._rmq_env_file
+
+    @rmq_env_file.setter
+    def rmq_env_file(self, value):
+        self._rmq_env_file = value
+
+    @property
+    def common_name(self):
+        return self.rabbitmq_config['certificate-data']['common-name']
+
+    @property
+    def instance_name(self):
+        return self._instance_name
+
+    @instance_name.setter
+    def instance_name(self, value):
+        self._instance_name = value
+        self.rabbitmq_config['certificate-data']['common-name'] = '{}_root_ca'.format(self._instance_name)
+
+    @property
+    def node_name(self):
+        return self.rabbitmq_config['node-name']
+
+    @node_name.setter
+    def node_name(self, value):
+        self.rabbitmq_config['node-name'] = value
+
+    @property
+    def rmq_home(self):
+        return self.rabbitmq_config['rmq-home']
+
+    @rmq_home.setter
+    def rmq_home(self, value):
+        self.rabbitmq_config['rmq-home'] = value
+
+    def update_ports(self, amqp_port=None, amqp_port_ssl=None, mgmt_port=None, mgmt_port_ssl=None):
+        if amqp_port:
+            self.rabbitmq_config['amqp-port'] = amqp_port
+
+        if amqp_port_ssl:
+            self.rabbitmq_config['amqp-port-ssl'] = amqp_port_ssl
+
+        if mgmt_port:
+            self.rabbitmq_config['mgmt-port'] = mgmt_port
+
+        if mgmt_port_ssl:
+            self.rabbitmq_config['mgmt-port-ssl'] = mgmt_port_ssl
 
 
-def create_rmq_volttron_setup(vhome=None, ssl_auth=False):
+def create_rmq_volttron_setup(instance_name, vhome=None, ssl_auth=False, env=None):
     """
         Set-up rabbitmq broker for volttron testing:
             - Install config and rabbitmq_config.yml in VOLTTRON_HOME
             - Create virtual host, exchanges, certificates, and users
             - Start rabbitmq server
 
+    :param instance_name: the canonical name for the instance being setup.
     :param vhome: volttron home directory, if None, use default from environment
     :param ssl_auth: ssl authentication, if true, all users of message queue must authenticate
     """
     if vhome:
         os.environ['VOLTTRON_HOME'] = vhome
+    else:
+        vhome = get_home()
 
-    rabbitmq_config['ssl'] = str(ssl_auth)
-    vhome = get_home()
+    # Build default config file object, which we will then update to fit the
+    # current context the code is running in.
+    rabbit_config_obj = RabbitTestConfig()
+
+    # for docker this will be setup so we can always use this for the home
+    if os.environ.get('RMQ_HOME'):
+        rabbit_config_obj.rmq_home = os.environ.get('RMQ_HOME')
+    else:
+        rmq_home_env_file = os.path.expanduser("~/.volttron_rmq_home")
+        if not os.path.isfile(rmq_home_env_file):
+            raise ValueError("Rabbitmq home dir can't be found please\n run bootstrap.py --rabbitmq")
+
+        with open(rmq_home_env_file, 'r') as f:
+            rabbit_config_obj.rmq_home = f.read().strip()
+
+        os.environ['RMQ_HOME'] = rabbit_config_obj.rmq_home
+
+    rabbit_config_obj.node_name = os.path.basename(vhome)
+    os.mkdir(os.path.join(vhome, "rmq_node_data"))
+
+    rabbit_config_obj.rmq_conf_file = os.path.join(vhome, "rmq_node_data", rabbit_config_obj.node_name + "-rmq.conf")
+    rabbit_config_obj.rmq_env_file = os.path.join(vhome, "rmq_node_data", rabbit_config_obj.node_name + "-rmq-env.conf")
+
+    env['RABBITMQ_CONF_ENV_FILE'] = rabbit_config_obj.rmq_env_file
+
+    # Create rabbitmq config for test
+    rabbit_config_obj.rabbitmq_config['ssl'] = str(ssl_auth)
+    host, rabbit_config_obj.rabbitmq_config['amqp-port'] = get_hostname_and_random_port()
+    host, rabbit_config_obj.rabbitmq_config['amqp-port-ssl'] = get_hostname_and_random_port()
+    host, rabbit_config_obj.rabbitmq_config['mgmt-port'] = get_hostname_and_random_port(10000, 20000)
+    host, rabbit_config_obj.rabbitmq_config['mgmt-port-ssl'] = get_hostname_and_random_port(10000, 20000)
+    rabbit_config_obj.rabbitmq_config['node-name'] = os.path.basename(vhome)
+    rabbit_config_obj.rabbitmq_config['host'] = host
+    rabbit_config_obj.rabbitmq_config['certificate-data']['common-name'] = '{}_root_ca'.format(instance_name)
+
     instance_setup._update_config_file()
     vhome_config = os.path.join(vhome, 'rabbitmq_config.yml')
 
     if not os.path.isfile(vhome_config):
         with open(vhome_config, 'w') as yml_file:
-            yaml.dump(rabbitmq_config, yml_file, default_flow_style=False)
-    # Backup in parent dir of vhome as vhome will get deleted at time of instnace shutdown if debug=False
-    # and we want to use the backup conf to restore only at fixture teardown and not instance shutdown.
-    # instance can get started and shutdown multiple times within test. But restore should happen only
-    # at end of instance lifetime.
-
-    conf_backup = os.path.join(os.path.dirname(vhome),"backup_rabbitmq_conf_" + os.path.basename(vhome))
-    try:
-        shutil.copy(os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf'), conf_backup)
-    except IOError as e:
-        _log.warn("rabbitmq.conf missing from path {}".
-                      format(os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf')))
-        # Could happen if vcfg --rabbitmq single was never run. Or some test case didn't restore conf correctly
-        # if a test case explicitly sets platform instance.skip_cleanup=True, then the test case should call
-        # cleanup_rmq_volttron_setup() and instance.restore_conf() at the end of the life cycle of the instance
-        conf_backup = None
+            yaml.dump(rabbit_config_obj.rabbitmq_config, yml_file, default_flow_style=False)
 
     store_message_bus_config(message_bus='rmq',
-                             instance_name=VOLTTRON_INSTANCE_NAME)
-
+                             instance_name=rabbit_config_obj.instance_name)
     setup_rabbitmq_volttron('single',
                             verbose=False,
                             prompt=False,
-                            instance_name=VOLTTRON_INSTANCE_NAME)
-    return conf_backup
+                            instance_name=rabbit_config_obj.instance_name,
+                            rmq_conf_file=rabbit_config_obj.rmq_conf_file,
+                            env=env)
 
+    return rabbit_config_obj
 
-def cleanup_rmq_volttron_setup(vhome=None, ssl_auth=False):
-    """
-        Teardown rabbitmq at test end:
-            - The function is called when DEBUG = False
-            - delete test users, exchanges, and virtual host
-            - user volttron_test-admin is deleted last in order to use its credentials to connect
-            to the management interface
-            - remove rabbitmq.conf
-            - delete_exchange, delete_vhost, and stop_rabbit are controversial step, there maybe reason to keep
-            the server running between tests
-    """
-    if vhome:
-        os.environ['VOLTTRON_HOME'] = vhome
-    rmq_mgmt = RabbitMQMgmt()
-    users_to_remove = rmq_mgmt.get_users()
-    users_to_remove.remove('guest')
-    if ssl_auth:
-        users_to_remove.remove('{}-admin'.format(VOLTTRON_INSTANCE_NAME))
-    _log.debug("Test Users to remove: {}".format(users_to_remove))
-    for user in users_to_remove:
-        try:
-            # Delete only users created by test. Those will have the test instance name as prefix
-            if user.startswith(VOLTTRON_INSTANCE_NAME):
-                rmq_mgmt.delete_user(user)
-        except (AttributeError, requests.exceptions.HTTPError):
-            pass
-
-    rmq_mgmt.delete_exchange(exchange='undeliverable',
-                             vhost=rabbitmq_config['virtual-host'])
-    rmq_mgmt.delete_exchange(exchange='volttron',
-                             vhost=rabbitmq_config['virtual-host'])
-    rmq_mgmt.delete_vhost(vhost=rabbitmq_config['virtual-host'])
-
-    if ssl_auth:
-        rmq_mgmt.delete_user('{}-admin'.format(VOLTTRON_INSTANCE_NAME))
-
-    stop_rabbit(rmq_home=rabbitmq_config['rmq-home'])
-
-    if ssl_auth:
-        os.remove(os.path.join(rabbitmq_config['rmq-home'], 'etc/rabbitmq/rabbitmq.conf'))

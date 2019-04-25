@@ -19,9 +19,11 @@ from agent_additions import add_volttron_central
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging
+from volttron.platform.certs import Certs
 from volttron.platform.agent import utils
-from volttron.platform.agent.utils import strip_comments, \
-    load_platform_config, store_message_bus_config
+from volttron.platform.agent.utils import (strip_comments,
+                                           load_platform_config,
+                                           store_message_bus_config)
 from volttron.platform.aip import AIPplatform
 from volttron.platform.auth import (AuthFile, AuthEntry,
                                     AuthFileEntryAlreadyExists)
@@ -31,8 +33,7 @@ from volttron.platform.vip.agent.connection import Connection
 from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttron.platform.agent import json as jsonapi
-from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup, \
-    cleanup_rmq_volttron_setup, rabbitmq_config
+from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
 from volttron.platform.agent.utils import execute_command
 from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
 
@@ -136,8 +137,7 @@ def build_vip_address(dest_wrapper, agent):
 def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
                            volttron_central_address=None,
                            volttron_central_serverkey=None,
-                           add_local_vc_address=False,
-                           instance_name='volttron_test'):
+                           add_local_vc_address=False):
     """ Customize easily customize the platform wrapper before starting it.
     """
     # Please note, if 'with_http'==True, then instance name needs to be provided
@@ -163,8 +163,7 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
     wrapper.startup_platform(vip_address=vc_tcp,
                              bind_web_address=bind_address,
                              volttron_central_address=volttron_central_address,
-                             volttron_central_serverkey=volttron_central_serverkey,
-                             instance_name=instance_name)
+                             volttron_central_serverkey=volttron_central_serverkey)
     if with_http:
         discovery = "{}/discovery/".format(vc_http)
         response = requests.get(discovery)
@@ -206,7 +205,8 @@ class PlatformWrapper:
             'HOME': os.environ.get('HOME'),
             # Elixir (rmq pre-req) requires locale to be utf-8
             'LANG': "en_US.UTF-8",
-            'LC_ALL': "en_US.UTF-8"
+            'LC_ALL': "en_US.UTF-8",
+            'PYTHONDONTWRITEBYTECODE': '1'
         }
         self.volttron_root = VOLTTRON_ROOT
 
@@ -256,18 +256,30 @@ class PlatformWrapper:
         self.messagebus = messagebus if messagebus else 'zmq'
         self.ssl_auth = ssl_auth
         self.rmq_conf_backup = None
+        self.instance_name = instance_name
+        if not self.instance_name:
+            self.instance_name = 'volttron_test'
+
+        if self.messagebus == 'zmq':
+            # Set a default instance name. Instance name is mandatory from VOLTTRON 6.0
+            # self.instance_name = self.vip_address[6:].replace(".", "_").replace(":", "_")
+            # vip address might not be set till startup. This is so in many test cases
+            self.instance_name = os.path.basename(self.volttron_home)
+
+        store_message_bus_config(self.messagebus, self.instance_name)
+
+        # Used with web requests when ssl auth is true.
+        self.platform_ca_file = None
+
         if self.messagebus == 'rmq':
             self.logit("Setting up volttron test environemnt"
                        " {}".format(self.volttron_home))
-            self.rmq_conf_backup = create_rmq_volttron_setup(vhome=self.volttron_home,
-                                                             ssl_auth=self.ssl_auth)
-            platform_config = load_platform_config()
-            instance_name = platform_config.get('instance-name', '').strip('"')
-            if not instance_name:
-                self.instance_name = instance_name = 'volttron_test'
-                store_message_bus_config('rmq', instance_name)
-            else:
-                self.instance_name = instance_name
+            self.rabbitmq_config_obj = create_rmq_volttron_setup(instance_name=self.instance_name,
+                                                                 vhome=self.volttron_home,
+                                                                 ssl_auth=self.ssl_auth,
+                                                                 env=self.env)
+            if ssl_auth:
+                self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
 
         self.dynamic_agent = None
 
@@ -288,6 +300,12 @@ class PlatformWrapper:
             authfile.add(entry)
         except AuthFileEntryAlreadyExists:
             pass
+
+    def get_agent_identity(self, agent_uuid):
+        path = os.path.join(self.volttron_home, 'agents/{}/IDENTITY'.format(agent_uuid))
+        with open(path) as f:
+            identity = f.read().strip()
+        return identity
 
     def build_connection(self, peer=None, address=None, identity=None,
                          publickey=None, secretkey=None, serverkey=None,
@@ -444,19 +462,12 @@ class PlatformWrapper:
                          volttron_central_serverkey=None,
                          msgdebug=False,
                          setupmode=False,
-                         instance_name=None,
                          agent_monitor_frequency=600,
                          timeout=60):
         self.vip_address = vip_address
         self.mode = mode
-        self.volttron_central_address= volttron_central_address
-        self.volttron_central_serverkey=volttron_central_serverkey
-        if instance_name:
-            self.instance_name = instance_name
-        elif not self.instance_name:
-            # Set a default instance name. Instance name is mandatory from VOLTTRON 6.0
-            self.instance_name = self.vip_address[6:].replace(".", "_").replace(":", "_")
-            store_message_bus_config(self.messagebus, self.instance_name)
+        self.volttron_central_address = volttron_central_address
+        self.volttron_central_serverkey =volttron_central_serverkey
 
         self.bind_web_address = bind_web_address
         if self.bind_web_address:
@@ -502,8 +513,7 @@ class PlatformWrapper:
                      'monitor': True,
                      'autostart': True,
                      'log_level': logging.DEBUG,
-                     'verboseness': logging.DEBUG,
-                     'instance_name': instance_name}
+                     'verboseness': logging.DEBUG}
 
         pconfig = os.path.join(self.volttron_home, 'config')
         config = {}
@@ -539,6 +549,12 @@ class PlatformWrapper:
         self.logit(
             "Platform will run on message bus type {} ".format(self.messagebus))
         self.logit("writing config to: {}".format(pconfig))
+
+        if self.ssl_auth:
+            certsdir = os.path.join(self.volttron_home, 'certificates')
+
+            self.certsobj = Certs(certsdir)
+
         if self.mode == UNRESTRICTED:
             with open(pconfig, 'wb') as cfg:
                 parser.write(cfg)
@@ -550,7 +566,7 @@ class PlatformWrapper:
             certsdir = os.path.join(self.volttron_home, 'certificates')
 
             print ("certsdir", certsdir)
-            self.certsobj = certs.Certs(certsdir)
+            self.certsobj = Certs(certsdir)
 
             with closing(open(pconfig, 'wb')) as cfg:
                 cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
@@ -609,17 +625,24 @@ class PlatformWrapper:
         if bind_web_address:
             times = 0
             has_discovery = False
+            error_was = None
             while times < 10:
                 times += 1
                 try:
-                    resp = requests.get(self.discovery_address)
+                    if self.ssl_auth:
+                        resp = requests.get(self.discovery_address, verify=False)
+                    else:
+                        resp = requests.get(self.discovery_address)
                     if resp.ok:
                         has_discovery = True
                         break
                 except Exception as e:
                     gevent.sleep(0.1)
+                    error_was = e
                     self.logit("Connection error found {}".format(e))
             if not has_discovery:
+                if error_was:
+                    raise error_was
                 raise Exception("Couldn't connect to discovery platform.")
 
         self.use_twistd = use_twistd
@@ -833,18 +856,6 @@ class PlatformWrapper:
             assert self.is_agent_running(agent_uuid)
 
         return agent_uuid
-
-    def restore_conf(self):
-        if self.rmq_conf_backup:
-            _log.debug("Restoring original rabbitmq.conf to server and restarting rmq")
-            #try:
-            shutil.move(self.rmq_conf_backup, os.path.join(rabbitmq_config["rmq-home"],'etc/rabbitmq/rabbitmq.conf'))
-            #except IOError as e:
-            #    _log.exception("rabbitmq.conf missing from path {}".format(self.rmq_conf_backup))
-            stop_rabbit(rabbitmq_config['rmq-home'], quite=True)
-            start_rabbit(rabbitmq_config['rmq-home'])
-        else:
-            _log.debug("No conf file to restore")
 
     def start_agent(self, agent_uuid):
         self.logit('Starting agent {}'.format(agent_uuid))
@@ -1086,8 +1097,7 @@ class PlatformWrapper:
                 ))
         print(" Skip clean up flag is {}".format(self.skip_cleanup))
         if not self.skip_cleanup and self.messagebus == 'rmq':
-            cleanup_rmq_volttron_setup(vhome=self.volttron_home,
-                                       ssl_auth=self.ssl_auth)
+            stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home, env=self.env)
         if not self.skip_cleanup:
             self.logit('Removing {}'.format(self.volttron_home))
             shutil.rmtree(self.volttron_home, ignore_errors=True)
@@ -1102,7 +1112,6 @@ class PlatformWrapper:
         data.append('volttron_home: {}'.format(self.volttron_home))
         return '\n'.join(data)
 
-
     def cleanup(self):
         """
         Cleanup all resources created for test purpose if debug_mode is false.
@@ -1110,12 +1119,11 @@ class PlatformWrapper:
         :return:
         """
         if self.messagebus == 'rmq':
-            cleanup_rmq_volttron_setup(vhome=self.volttron_home,
-                                       ssl_auth=self.ssl_auth)
-            self.restore_conf()
+            stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home, env=self.env)
 
         if not self.debug_mode:
             shutil.rmtree(self.volttron_home, ignore_errors=True)
+
 
 def mergetree(src, dst, symlinks=False, ignore=None):
     if not os.path.exists(dst):

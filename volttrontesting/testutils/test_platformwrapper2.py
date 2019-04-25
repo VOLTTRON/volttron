@@ -1,16 +1,15 @@
 import gevent
 import pytest
-import time
 import warnings
 import os
 
 from gevent import subprocess
 
 from volttron.platform import get_examples
-from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_port
+from volttrontesting.utils.utils import get_rand_port
 from volttrontesting.utils.platformwrapper import PlatformWrapper
-from volttron.platform.vip.agent import Agent, PubSub, Core
 from gevent.subprocess import Popen
+
 
 @pytest.mark.wrapper
 def test_can_cleanup_installed_listener():
