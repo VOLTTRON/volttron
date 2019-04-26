@@ -97,10 +97,15 @@ def build_agent(address=get_address(), identity=None, publickey=ks.public,
     except KeyError:
         message_bus = os.environ.get('MESSAGEBUS', 'zmq')
 
+    try:
+        enable_store = kwargs.pop('enable_store')
+    except KeyError:
+        enable_store = False
+
     agent = agent_class(address=address, identity=identity, publickey=publickey,
                         secretkey=secretkey, serverkey=serverkey, volttron_central_address=volttron_central_address,
                         volttron_central_instance_name=volttron_central_instance_name,
-                        message_bus=message_bus, enable_store=False, **kwargs)
+                        message_bus=message_bus, enable_store=enable_store, **kwargs)
     event = gevent.event.Event()
     gevent.spawn(agent.core.run, event)
     with gevent.Timeout(timeout):

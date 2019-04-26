@@ -134,8 +134,7 @@ def write_env_file(rmq_config, conf_file, env=None):
 
     # If there is a custom node name then we need to write a env file, set amqp port in this env file, and
     # point to conf file path
-    if rmq_config.node_name:
-
+    if rmq_config.node_name != 'rabbit':
         nodebase = os.path.dirname(conf_file)
         # Creating a custom node name with custome port. Create a env file and add entry to point to conf file in
         # the env file
@@ -611,11 +610,12 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
         log_name = os.path.join(src_home, 'rabbitmq.log')
         if os.path.lexists(log_name):
             os.unlink(log_name)
+
         os.symlink(os.path.join(rmq_config.rmq_home,
                                 'var/log/rabbitmq',
                                 rmq_config.node_name + "@" +
                                 rmq_config.hostname.split('.')[0] + ".log"),
-                       log_name)
+                   log_name)
 
     if setup_type in ["all", "federation"]:
         # Create a multi-platform federation setup

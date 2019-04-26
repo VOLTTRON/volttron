@@ -192,11 +192,11 @@ class RMQConfig(object):
 
     @property
     def node_name(self):
-        return self.config_opts.get('node-name')
-
+        return self.config_opts.get('node-name', 'rabbit')
 
     def reconnect_delay(self):
         return self.config_opts.get('reconnect-delay')
+
     @hostname.setter
     def hostname(self, host):
         self.config_opts['host'] = host
