@@ -936,7 +936,7 @@ def start_volttron_process(opts):
                 _update_config_file()
 
             if opts.message_bus == 'rmq':
-                if opts.web_ssl_key is None or opts.web_ssl_cert or \
+                if opts.web_ssl_key is None or opts.web_ssl_cert is None or \
                         (not os.path.isfile(opts.web_ssl_key) and not os.path.isfile(opts.web_ssl_cert)):
                     # This is different than the master.web cert which is used for the client
                     # to rmq.  This one will be used to server the tls contract between a client
