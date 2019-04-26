@@ -404,8 +404,8 @@ def get_cert_and_key(vhome):
 
     # Check for existing files first. If present and are valid ask if we are to use that
 
-    master_web_cert = os.path.join(vhome, 'certificates/certs/', MASTER_WEB+".crt")
-    master_web_key = os.path.join(vhome, 'certificates/private/', MASTER_WEB + ".pem")
+    master_web_cert = os.path.join(vhome, 'certificates/certs/', MASTER_WEB+"-server.crt")
+    master_web_key = os.path.join(vhome, 'certificates/private/', MASTER_WEB + "-server.pem")
     cert_error = True
 
     if is_file_readable(master_web_cert, False) and is_file_readable(master_web_key, False):
