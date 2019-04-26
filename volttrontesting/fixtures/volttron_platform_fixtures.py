@@ -80,7 +80,6 @@ def volttron_instance_module_web(request):
     web_address = "http://{}".format(get_rand_ip_and_port())
     wrapper = build_wrapper(address,
                             bind_web_address=web_address,
-                            messagebus=request.param[0],
                             ssl_auth=request.param[1])
 
     def cleanup():
