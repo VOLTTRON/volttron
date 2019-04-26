@@ -929,9 +929,7 @@ def start_volttron_process(opts):
                           enable_store=False,
                           message_bus='zmq')
         ]
-
-        _log.debug("_-----------------------------------")
-        #_log.debug("{}".format(opts))
+        
         # Begin the webserver based options here.
         if opts.bind_web_address is not None:
             if opts.instance_name is None:
