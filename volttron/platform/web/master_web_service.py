@@ -576,8 +576,16 @@ class MasterWebService(Agent):
                                                        self._certs.get_cert_public_key(get_fq_identity(self.core.identity)))
 
             if ssl_key is None or ssl_cert is None:
-                ssl_cert = self._certs.cert_file(get_fq_identity(self.core.identity))
-                ssl_key = self._certs.private_key_file(get_fq_identity(self.core.identity))
+                # Because the master.web service certificate is a client to rabbitmq we
+                # can't use it directly therefore we use the -server on the file to specify
+                # the server based file.
+                base_filename = get_fq_identity(self.core.identity) + "-server"
+                ssl_cert = self._certs.cert_file(base_filename)
+                ssl_key = self._certs.private_key_file(base_filename)
+
+                if not os.path.isfile(ssl_cert) or not os.path.isfile(ssl_key):
+                    self._certs.create_ca_signed_cert(base_filename, type='server')
+
         hostname = parsed.hostname
         port = parsed.port
 

@@ -1,9 +1,9 @@
 #!/bin/bash
 #Preliminary script to run pytests in separate docker containers
 
-#export FAST_FAIL=0
+export FAST_FAIL=0
 
-if [[ $# -eq 0 ]] ; then
+if [[ $# -eq 0 ]]; then
     NUM_PROCESSES=3
 else
     NUM_PROCESSES=$1
@@ -15,6 +15,7 @@ docker build --network=host -t volttron_test_base -f ./ci-integration/virtualiza
 docker build --network=host -t volttron_test_image -f ./ci-integration/virtualization/Dockerfile.testing .
 
 testdirs=(examples services volttron volttrontesting)
+HAS_FAILED=0
 
 #Funtion to pytests per file in separate docker containers
 run_tests() {
@@ -44,18 +45,19 @@ run_tests() {
     for ((x=0; x< $len; x++)); do
         echo "WAITING ON" ${container_names[$x]}
         wait ${pids[$x]}
-        status=$?
-        if [ $status -eq 0 ]; then
+
+        if [[ $? -eq 0 ]]; then
             echo "Job" ${files[$x]} "all tests: PASSED"
         else
-            if [ $status -ne 5 ]; then
-                echo $status
+            if [[ $? -ne 5 ]]; then
+                echo $?
                 echo "Job" ${files[$x]} "some tests: FAILED"
                 docker logs ${container_names[$x]}
-                if [ ${FAST_FAIL} ]; then
+                HAS_FAILED=1
+                if [[ ${FAST_FAIL} ]]; then
                     echo "Fast failing!"
                     docker rm ${container_names[$x]}
-                    exit $status
+                    exit $HAS_FAILED
                 fi
             fi
         fi
@@ -84,10 +86,12 @@ do
         files_subset=("${test_files[@]:$offset:$NUM_PROCESSES}")
         run_tests ${files_subset[@]}
     done
-    if [ $rem -gt 0 ]; then
+    if [[ $rem -gt 0 ]]; then
         offset=$(( c*NUM_PROCESSES ))
         files_subset=(${test_files[@]:$offset:$rem})
         run_tests ${files_subset[@]}
     fi
 done
 
+# if this is set to something besided 0 anywhere in the script then we have failed.
+exit $HAS_FAILED

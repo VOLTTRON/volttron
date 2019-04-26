@@ -21,12 +21,13 @@ def print_log(volttron_home):
                 print('NO LOG FILE AVAILABLE.')
 
 
-def build_wrapper(vip_address, **kwargs):
+def build_wrapper(vip_address, should_start=True, **kwargs):
     instance_name = kwargs.pop('instance_name', 'volttron_test')
     wrapper = PlatformWrapper(messagebus=kwargs.pop('message_bus', None),
                               ssl_auth=kwargs.pop('ssl_auth', False),
                               instance_name=instance_name)
-    wrapper.startup_platform(vip_address=vip_address, **kwargs)
+    if should_start:
+        wrapper.startup_platform(vip_address=vip_address, **kwargs)
     return wrapper
 
 
@@ -44,13 +45,15 @@ def cleanup_wrappers(platforms):
 
 
 @pytest.fixture(scope="module",
-                params=[('zmq', False), ('rmq', True)])
+                params=[dict(messagebus='zmq', ssl_auth=False),
+                        dict(messagebus='rmq', ssl_auth=True)
+                        ])
 def volttron_instance_msgdebug(request):
     print("building msgdebug instance")
     wrapper = build_wrapper(get_rand_vip(),
                             msgdebug=True,
-                            message_bus=request.param[0],
-                            ssl_auth=request.param[1])
+                            message_bus=request.param['messagebus'],
+                            ssl_auth=request.param['ssl_auth'])
 
     yield wrapper
 
@@ -73,7 +76,7 @@ def volttron_instance_encrypt(request):
 
 
 @pytest.fixture(scope="module",
-                params=[('zmq', False)])
+                params=[dict(messagebus='zmq', ssl_auth=False)])
 def volttron_instance_module_web(request):
     print("building module instance (using web)")
     address = get_rand_vip()
@@ -82,11 +85,9 @@ def volttron_instance_module_web(request):
                             bind_web_address=web_address,
                             ssl_auth=request.param[1])
 
-    def cleanup():
-        cleanup_wrapper(wrapper)
+    yield wrapper
 
-    request.addfinalizer(cleanup)
-    return wrapper
+    cleanup_wrapper(wrapper)
 
 
 # Generic fixtures. Ideally we want to use the below instead of
@@ -103,7 +104,6 @@ def volttron_instance(request, **kwargs):
     @param request: pytest request object
     @return: volttron platform instance
     """
-    print("building instance")
     address = kwargs.pop("vip_address", get_rand_vip())
     wrapper = build_wrapper(address,
                             message_bus=request.param['messagebus'],
@@ -119,7 +119,11 @@ def volttron_instance(request, **kwargs):
 # Usage example:
 # def test_function_that_uses_n_instances(request, get_volttron_instances):
 #     instances = get_volttron_instances(3)
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module",
+                params=(
+                    dict(messagebus='zmq', ssl_auth=False),
+                    dict(messagebus='rmq', ssl_auth=True),
+                ))
 def get_volttron_instances(request):
     """ Fixture to get more than 1 volttron instance for test
     Use this fixture to get more than 1 volttron instance for test. This
@@ -143,11 +147,11 @@ def get_volttron_instances(request):
         instances = []
         for i in range(0, n):
             address = kwargs.pop("vip_address", get_rand_vip())
-            wrapper = None
-            if should_start:
-                wrapper = build_wrapper(address, **kwargs)
-            else:
-                wrapper = PlatformWrapper()
+
+            wrapper = build_wrapper(address, should_start=should_start,
+                                    message_bus=request.param['messagebus'],
+                                    ssl_auth=request.param['ssl_auth'],
+                                    **kwargs)
             instances.append(wrapper)
         instances = instances if n > 1 else instances[0]
         # setattr(get_n_volttron_instances, 'instances', instances)
@@ -211,10 +215,10 @@ def volttron_instance_rmq(request):
 
 
 @pytest.fixture(scope="module",
-                params=(
+                params=[
                     dict(messagebus='zmq', ssl_auth=False),
                     dict(messagebus='rmq', ssl_auth=True)
-                ))
+                ])
 def volttron_instance_web(request):
     print("volttron_instance_web (messagebus {messagebus} ssl_auth {ssl_auth})".format(**request.param))
     address = get_rand_vip()
