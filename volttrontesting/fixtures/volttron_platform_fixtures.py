@@ -83,7 +83,7 @@ def volttron_instance_module_web(request):
     web_address = "http://{}".format(get_rand_ip_and_port())
     wrapper = build_wrapper(address,
                             bind_web_address=web_address,
-                            ssl_auth=request.param[1])
+                            ssl_auth=request.param['ssl_auth'])
 
     yield wrapper
 
