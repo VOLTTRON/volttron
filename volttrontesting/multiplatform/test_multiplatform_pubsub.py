@@ -61,7 +61,7 @@ def get_volttron_instances(request):
         for i in range(0, n):
             address = vip_addresses[i]
             web_address = web_addresses[i]
-            wrapper = PlatformWrapper()
+            wrapper = PlatformWrapper(messagebus='zmq', ssl_auth=False)
 
             addr_file = os.path.join(wrapper.volttron_home, 'external_address.json')
             if address_file:
@@ -117,17 +117,14 @@ def build_instances(request):
         vip_addresses = []
         instances = []
         addr_config = dict()
-        names = []
 
         for i in range(0, n):
             address = get_rand_vip()
             vip_addresses.append(address)
-            nm = 'platform{}'.format(i + 1)
-            names.append(nm)
 
         for i in range(0, n):
             address = vip_addresses[i]
-            wrapper = PlatformWrapper()
+            wrapper = PlatformWrapper(messagebus='zmq', ssl_auth=False)
             wrapper.startup_platform(address)
             wrapper.skip_cleanup = True
             instances.append(wrapper)
@@ -140,9 +137,9 @@ def build_instances(request):
             addr_config.clear()
             for j in range(0, n):
                 if j != i or (j==i and add_my_address):
-                    name = names[j]
+                    name = instances[j].instance_name
                     addr_config[name] = dict()
-                    addr_config[name]['instance-name'] = names[j]
+                    addr_config[name]['instance-name'] = name
                     if bad_config:
                         addr_config[name]['vip-address123'] = vip_addresses[j]
                     else:
@@ -166,6 +163,7 @@ def build_instances(request):
         return instances
 
     return build_n_volttron_instances
+
 
 @pytest.fixture(scope="module")
 def multi_platform_connection(request, get_volttron_instances):
@@ -573,7 +571,7 @@ def test_multiplatform_rpc(request, get_volttron_instances):
         }
     }
     test_agent = p2.build_agent()
-    kwargs = {"external_platform": 'platform1'}
+    kwargs = {"external_platform": p1.instance_name}
     test_agent.vip.rpc.call(CONFIGURATION_STORE,
                             'manage_store',
                             'platform.thresholddetection',

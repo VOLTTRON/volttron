@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
@@ -36,42 +37,77 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import psutil
-import gevent
-import pytest
-from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_vip, build_wrapper
-from volttron.platform import get_examples
-from volttron.platform.agent.utils import execute_command
-from volttron.utils.rmq_setup import stop_rabbit
-from volttron.utils.rmq_config_params import RMQConfig
+import json
+import sqlite3
 
-@pytest.mark.rmq_shutdown
-def test_vctl_shutdown_on_rmq_stop(request):
+import gevent
+import os
+import pytest
+
+from volttron.platform import get_ops, get_examples
+from volttron.platform.agent.known_identities import PLATFORM_TOPIC_WATCHER
+from volttron.platform.agent.utils import get_aware_utc_now
+
+alert_messages = {}
+
+@pytest.mark.alert
+def test_remote_alert_publish(get_volttron_instances):
     """
-    Test for fix issue# 1886
-    :param volttron_instance_rmq:
+    Test alert to remote agent
+    :param agent:
+    :param cleanup_db:
     :return:
     """
-    address = get_rand_vip()
-    volttron_instance = build_wrapper(address,
-                                      message_bus='rmq',
-                                      ssl_auth=True)
-    agent_uuid = volttron_instance.install_agent(
-        agent_dir=get_examples("ListenerAgent"), start=True)
-    assert agent_uuid is not None
 
-    agent_pid = volttron_instance.agent_pid(agent_uuid)
-    assert agent_pid is not None and agent_pid > 0
+    volttron_instance1, volttron_instance2 = get_volttron_instances(2)
 
-    # Stop RabbitMQ server
-    rmq_cfg = RMQConfig()
-    stop_rabbit(rmq_home=rmq_cfg.rmq_home, env=volttron_instance.env)
+    volttron_instance1.allow_all_connections()
+    volttron_instance2.allow_all_connections()
 
-    gevent.sleep(5)
-    # Shtudown platform
-    cmd = ['volttron-ctl', 'shutdown', '--platform']
-    execute_command(cmd, env=volttron_instance.env)
-    gevent.sleep(2)
-    # Check that installed agent and platform is not running
-    assert not psutil.pid_exists(agent_pid)
-    assert volttron_instance.is_running() == False
+    gevent.sleep(3)
+    agent = volttron_instance1.build_agent()
+
+    def onmessage(peer, sender, bus, topic, headers, message):
+        global alert_messages
+
+        alert = json.loads(message)["context"]
+
+        try:
+            alert_messages[alert] += 1
+        except KeyError:
+            alert_messages[alert] = 1
+        print("In on message: {}".format(alert_messages))
+
+    agent.vip.pubsub.subscribe(peer='pubsub',
+                               prefix='alerts',
+                               callback=onmessage)
+
+    config = {
+        "group1": {
+            "fakedevice": 5,
+            "fakedevice2/all": {
+                "seconds": 5,
+                "points": ["point"]
+            }
+        },
+        "publish-settings": {
+            "publish-local": False,
+            "publish-remote": True,
+            "remote": {
+                "identity": "remote-agent",
+                "serverkey": volttron_instance1.serverkey,
+                "vip-address": volttron_instance1.vip_address
+            }
+        }
+    }
+
+    alert_uuid = volttron_instance2.install_agent(
+        agent_dir=get_ops("TopicWatcher"),
+        config_file=config,
+        vip_identity=PLATFORM_TOPIC_WATCHER
+    )
+
+    gevent.sleep(6)
+
+    assert alert_messages
+

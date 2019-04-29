@@ -83,7 +83,8 @@ def volttron_instance_module_web(request):
     web_address = "http://{}".format(get_rand_ip_and_port())
     wrapper = build_wrapper(address,
                             bind_web_address=web_address,
-                            ssl_auth=request.param[1])
+                            message_bus=request.param['messagebus'],
+                            ssl_auth=request.param['ssl_auth'])
 
     yield wrapper
 
@@ -122,7 +123,7 @@ def volttron_instance(request, **kwargs):
 @pytest.fixture(scope="module",
                 params=(
                     dict(messagebus='zmq', ssl_auth=False),
-                    dict(messagebus='rmq', ssl_auth=True),
+#                    dict(messagebus='rmq', ssl_auth=True),
                 ))
 def get_volttron_instances(request):
     """ Fixture to get more than 1 volttron instance for test

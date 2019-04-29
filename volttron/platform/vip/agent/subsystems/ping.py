@@ -67,7 +67,7 @@ class Ping(SubsystemBase):
         connection = self.core().connection
         try:
             connection.send_vip(b'',
-                                b'peerlist',
+                                b'ping',
                                 args=[b'drop', bytes(peer)],
                                 msg_id=result.ident)
         except ZMQError as exc:
