@@ -27,8 +27,8 @@ declare -a runningprocs     # Holds the currently running docker processes
 declare -a outputfiles      # Holds the output files from the logs of the docker processes
 declare -a containernames   # Holds the name of the containers that have been started
 
-#docker build --network=host -t volttron_test_base -f ./ci-integration/virtualization/Dockerfile .
-#docker build --network=host -t volttron_test_image -f ./ci-integration/virtualization/Dockerfile.testing .
+docker build --network=host -t volttron_test_base -f ./ci-integration/virtualization/Dockerfile .
+docker build --network=host -t volttron_test_image -f ./ci-integration/virtualization/Dockerfile.testing .
 
 # Specific directories to scan for tests in
 #testdirs=(examples services volttron volttrontesting)
