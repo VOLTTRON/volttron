@@ -21,9 +21,10 @@ def print_log(volttron_home):
                 print('NO LOG FILE AVAILABLE.')
 
 
-def build_wrapper(vip_address, should_start=True, **kwargs):
+def build_wrapper(vip_address, should_start=True, messagebus='zmq', **kwargs):
     instance_name = kwargs.pop('instance_name', 'volttron_test')
     wrapper = PlatformWrapper(ssl_auth=kwargs.pop('ssl_auth', False),
+                              messagebus=messagebus,
                               instance_name=instance_name)
     if should_start:
         wrapper.startup_platform(vip_address=vip_address, **kwargs)
@@ -82,7 +83,7 @@ def volttron_instance_module_web(request):
     web_address = "http://{}".format(get_rand_ip_and_port())
     wrapper = build_wrapper(address,
                             bind_web_address=web_address,
-                            message_bus=request.param['messagebus'],
+                            messagebus=request.param['messagebus'],
                             ssl_auth=request.param['ssl_auth'])
 
     yield wrapper
@@ -106,7 +107,7 @@ def volttron_instance(request, **kwargs):
     """
     address = kwargs.pop("vip_address", get_rand_vip())
     wrapper = build_wrapper(address,
-                            message_bus=request.param['messagebus'],
+                            messagebus=request.param['messagebus'],
                             ssl_auth=request.param['ssl_auth'],
                             **kwargs)
 
@@ -149,7 +150,7 @@ def get_volttron_instances(request):
             address = kwargs.pop("vip_address", get_rand_vip())
 
             wrapper = build_wrapper(address, should_start=should_start,
-                                    message_bus=request.param['messagebus'],
+                                    messagebus=request.param['messagebus'],
                                     ssl_auth=request.param['ssl_auth'],
                                     **kwargs)
             instances.append(wrapper)
@@ -206,7 +207,7 @@ def volttron_instance_rmq(request):
     address = get_rand_vip()
 
     wrapper = build_wrapper(address,
-                            message_bus='rmq',
+                            messagebus='rmq',
                             ssl_auth=True)
 
     yield wrapper
@@ -231,7 +232,7 @@ def volttron_instance_web(request):
 
     wrapper = build_wrapper(address,
                             ssl_auth=request.param['ssl_auth'],
-                            message_bus=request.param['messagebus'],
+                            messagebus=request.param['messagebus'],
                             bind_web_address=web_address,
                             volttron_central_address=web_address)
 
