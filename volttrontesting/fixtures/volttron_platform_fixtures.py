@@ -240,3 +240,57 @@ def volttron_instance_web(request):
     yield wrapper
 
     cleanup_wrapper(wrapper)
+
+
+@pytest.fixture(scope="module",
+                params=[
+                    dict(sink='rmq_web', source='zmq'),
+                    dict(sink='rmq_web', source='rmq'),
+                    dict(sink='zmq_web', source='rmq'),
+                    dict(sink='zmq_web', source='zmq')
+                ])
+def volttron_multi_messagebus(request):
+    """ This fixture allows multiple two message bus types to be configured to work together
+
+    This case will create a source (where data comes from) and a sink (where data goes to) to
+    allow connections from source to sink to be tested for the different cases.  In particular,
+    the case of VolttronCentralPlatform, Forwarder and DataMover agents should use this
+    case.
+
+    :param request:
+    :return:
+    """
+    sink_address = get_rand_vip()
+
+    if request.param['sink'] == 'rmq_web':
+        hostname, port = get_hostname_and_random_port()
+        web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
+        messagebus = 'rmq'
+        ssl_auth = True
+    else:
+        web_address = "http://{}".format(get_rand_ip_and_port())
+        messagebus = 'zmq'
+        ssl_auth = False
+
+    sink = build_wrapper(sink_address,
+                         ssl_auth=ssl_auth,
+                         messagebus=messagebus,
+                         bind_web_address=web_address,
+                         volttron_central_address=web_address)
+
+    source_address = get_rand_vip()
+    messagebus = 'zmq'
+    ssl_auth = False
+    if request.param['source'] == 'rmq':
+        messagebus = 'rmq'
+        ssl_auth = True
+
+    source = build_wrapper(source_address,
+                           ssl_auth=ssl_auth,
+                           messagebus=messagebus,
+                           volttron_central_address=sink.bind_web_address)
+
+    yield source, sink
+
+    cleanup_wrapper(sink)
+    cleanup_wrapper(source)
