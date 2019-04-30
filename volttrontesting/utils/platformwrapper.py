@@ -628,7 +628,8 @@ class PlatformWrapper:
                 times += 1
                 try:
                     if self.ssl_auth:
-                        resp = requests.get(self.discovery_address, verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+                        resp = requests.get(self.discovery_address,
+                                            verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
                     else:
                         resp = requests.get(self.discovery_address)
                     if resp.ok:
@@ -1051,6 +1052,7 @@ class PlatformWrapper:
             if pid is not None and int(pid) > 0:
                 running_pids.append(int(pid))
         gevent.sleep(0.05)
+        self.dynamic_agent.core.stop()
         # First try and nicely shutdown the platform, which should clean all
         # of the agents up automatically.
         cmd = ['volttron-ctl']
@@ -1093,6 +1095,7 @@ class PlatformWrapper:
                 print("######################### No Log Exists: {}".format(
                     logpath
                 ))
+
         print(" Skip clean up flag is {}".format(self.skip_cleanup))
         if not self.skip_cleanup and self.messagebus == 'rmq':
             stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home, env=self.env)
