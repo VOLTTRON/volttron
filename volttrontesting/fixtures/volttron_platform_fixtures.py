@@ -23,8 +23,7 @@ def print_log(volttron_home):
 
 def build_wrapper(vip_address, should_start=True, **kwargs):
     instance_name = kwargs.pop('instance_name', 'volttron_test')
-    wrapper = PlatformWrapper(messagebus=kwargs.pop('message_bus', None),
-                              ssl_auth=kwargs.pop('ssl_auth', False),
+    wrapper = PlatformWrapper(ssl_auth=kwargs.pop('ssl_auth', False),
                               instance_name=instance_name)
     if should_start:
         wrapper.startup_platform(vip_address=vip_address, **kwargs)
@@ -52,7 +51,7 @@ def volttron_instance_msgdebug(request):
     print("building msgdebug instance")
     wrapper = build_wrapper(get_rand_vip(),
                             msgdebug=True,
-                            message_bus=request.param['messagebus'],
+                            messagebus=request.param['messagebus'],
                             ssl_auth=request.param['ssl_auth'])
 
     yield wrapper
