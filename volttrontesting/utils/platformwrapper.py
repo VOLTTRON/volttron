@@ -286,6 +286,12 @@ class PlatformWrapper:
             self.debug_mode = self.env.get('DEBUG', False)
         self.skip_cleanup = self.env.get('SKIP_CLEANUP', False)
 
+        self._web_admin_api = None
+
+    @property
+    def web_admin_api(self):
+        return self._web_admin_api
+
     def logit(self, message):
         print('{}: {}'.format(self.volttron_home, message))
 
@@ -661,6 +667,11 @@ class PlatformWrapper:
                 if error_was:
                     raise error_was
                 raise Exception("Couldn't connect to discovery platform.")
+
+            # Now that we know we have web and we are using ssl then we
+            # can enable the WebAdminApi.
+            if self.ssl_auth:
+                self._web_admin_api = WebAdminApi(self)
 
         self.use_twistd = use_twistd
 
@@ -1152,3 +1163,28 @@ def mergetree(src, dst, symlinks=False, ignore=None):
             if not os.path.exists(d) or os.stat(src).st_mtime - os.stat(
                     dst).st_mtime > 1:
                 shutil.copy2(s, d)
+
+
+class WebAdminApi(object):
+    def __init__(self, platform_wrapper=PlatformWrapper()):
+        assert platform_wrapper.is_running(), "Platform must be running"
+        assert platform_wrapper.bind_web_address, "Platform must have web address"
+        assert platform_wrapper.ssl_auth, "Platform must be ssl enabled"
+
+        self._wrapper = platform_wrapper
+        self.bind_web_address = self._wrapper.bind_web_address
+        self.certsobj = self._wrapper.certsobj
+
+    def create_web_admin(self, username, password):
+        """ Creates a global master user for the platform https interface.
+
+        :param username:
+        :param password:
+        :return:
+        """
+        data = dict(username=username, password1=password, password2=password)
+        url = self.bind_web_address +"/admin/setpassword"
+        resp = requests.post(url, data, verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+        assert resp.ok
+
+        return resp
