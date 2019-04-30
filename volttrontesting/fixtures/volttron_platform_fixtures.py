@@ -120,11 +120,12 @@ def volttron_instance(request, **kwargs):
 # Usage example:
 # def test_function_that_uses_n_instances(request, get_volttron_instances):
 #     instances = get_volttron_instances(3)
+#
+# TODO allow rmq to be added to the multi platform request.
 @pytest.fixture(scope="module",
-                params=(
-                    dict(messagebus='zmq', ssl_auth=False),
-#                    dict(messagebus='rmq', ssl_auth=True),
-                ))
+                params=[
+                    dict(messagebus='zmq', ssl_auth=False)
+                ])
 def get_volttron_instances(request):
     """ Fixture to get more than 1 volttron instance for test
     Use this fixture to get more than 1 volttron instance for test. This
