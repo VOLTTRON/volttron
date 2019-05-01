@@ -1,7 +1,8 @@
 language: python2.7
 
 env:
-  - FAST_FAIL=1
+  - FAST_FAIL=false
+  - NUM_PROCESSES=10
 
 services:
   - docker
