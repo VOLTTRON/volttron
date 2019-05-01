@@ -153,7 +153,7 @@ while [[ ${#testqueue[@]} -gt 0 ]]; do
     while [[ $i -lt ${#runningprocs[@]} ]]; do
         process_pid $i
     done
-    echo "Running ${#runningprocs[@]} processes: ${runningprocs[@]}"
+    # echo "Running ${#runningprocs[@]} processes: ${runningprocs[@]}"
     sleep 10
 done
 
