@@ -15,7 +15,8 @@ from subprocess import CalledProcessError
 import gevent
 import gevent.subprocess as subprocess
 import requests
-from agent_additions import add_volttron_central
+from agent_additions import (add_volttron_central,
+                             add_volttron_central_platform)
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging
@@ -256,12 +257,6 @@ class PlatformWrapper:
         self.rmq_conf_backup = None
         self.instance_name = instance_name
         if not self.instance_name:
-            self.instance_name = 'volttron_test'
-
-        if self.messagebus == 'zmq':
-            # Set a default instance name. Instance name is mandatory from VOLTTRON 6.0
-            # self.instance_name = self.vip_address[6:].replace(".", "_").replace(":", "_")
-            # vip address might not be set till startup. This is so in many test cases
             self.instance_name = os.path.basename(self.volttron_home)
 
         store_message_bus_config(self.messagebus, self.instance_name)
@@ -442,6 +437,9 @@ class PlatformWrapper:
     def add_vc(self):
         return add_volttron_central(self)
 
+    def add_vcp(self):
+        return add_volttron_central_platform(self)
+
     def is_auto_csr_enabled(self):
         assert self.messagebus == 'rmq', 'Only available for rmq messagebus'
         assert self.bind_web_address, 'Must have a web based instance'
@@ -490,7 +488,6 @@ class PlatformWrapper:
         self.mode = mode
         self.volttron_central_address = volttron_central_address
         self.volttron_central_serverkey =volttron_central_serverkey
-
 
         self.bind_web_address = bind_web_address
         if self.bind_web_address:
