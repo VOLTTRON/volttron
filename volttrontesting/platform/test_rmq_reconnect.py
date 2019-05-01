@@ -143,6 +143,7 @@ def test_rmq_reconnect_with_publish(volttron_instance_rmq, publisher_agent, subs
     gevent.sleep(2)
     # Start RabbitMQ server
     start_rabbit(rmq_cfg.rmq_home, env=volttron_instance_rmq.env)
+    gevent.sleep(2)
 
     for i in range(5):
         try:

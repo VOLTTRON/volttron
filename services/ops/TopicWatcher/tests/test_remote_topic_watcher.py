@@ -53,9 +53,7 @@ alert_messages = {}
 @pytest.mark.alert
 def test_remote_alert_publish(get_volttron_instances):
     """
-    Test alert to remote agent
-    :param agent:
-    :param cleanup_db:
+    Test alert to remote agent with 2 ZMQ instances
     :return:
     """
 
@@ -111,3 +109,61 @@ def test_remote_alert_publish(get_volttron_instances):
 
     assert alert_messages
 
+@pytest.mark.alert
+def test_remote_alert_publish(get_volttron_instances):
+    """
+    Test alert to remote agent with multi message bus combinations
+    :return:
+    """
+
+    volttron_instance1, volttron_instance2 = get_volttron_instances(2)
+
+    volttron_instance1.allow_all_connections()
+    volttron_instance2.allow_all_connections()
+
+    gevent.sleep(3)
+    agent = volttron_instance1.build_agent()
+
+    def onmessage(peer, sender, bus, topic, headers, message):
+        global alert_messages
+
+        alert = json.loads(message)["context"]
+
+        try:
+            alert_messages[alert] += 1
+        except KeyError:
+            alert_messages[alert] = 1
+        print("In on message: {}".format(alert_messages))
+
+    agent.vip.pubsub.subscribe(peer='pubsub',
+                               prefix='alerts',
+                               callback=onmessage)
+
+    config = {
+        "group1": {
+            "fakedevice": 5,
+            "fakedevice2/all": {
+                "seconds": 5,
+                "points": ["point"]
+            }
+        },
+        "publish-settings": {
+            "publish-local": False,
+            "publish-remote": True,
+            "remote": {
+                "identity": "remote-agent",
+                "serverkey": volttron_instance1.serverkey,
+                "vip-address": volttron_instance1.vip_address
+            }
+        }
+    }
+
+    alert_uuid = volttron_instance2.install_agent(
+        agent_dir=get_ops("TopicWatcher"),
+        config_file=config,
+        vip_identity=PLATFORM_TOPIC_WATCHER
+    )
+
+    gevent.sleep(6)
+
+    assert alert_messages
