@@ -948,6 +948,7 @@ def start_volttron_process(opts):
                     opts.web_ssl_key = certs.private_key_file(base_webserver_name)
                     opts.web_ssl_cert = certs.cert_file(base_webserver_name)
 
+            _log.error("Starting master web serviceeeeeeeeeeee")
             services.append(MasterWebService(
                 serverkey=publickey, identity=MASTER_WEB,
                 address=address,

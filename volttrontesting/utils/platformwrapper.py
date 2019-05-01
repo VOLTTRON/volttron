@@ -278,6 +278,7 @@ class PlatformWrapper:
                                                                  env=self.env)
             if ssl_auth:
                 self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
+                self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
 
         self.dynamic_agent = None
 
@@ -483,6 +484,7 @@ class PlatformWrapper:
         self.mode = mode
         self.volttron_central_address = volttron_central_address
         self.volttron_central_serverkey =volttron_central_serverkey
+
 
         self.bind_web_address = bind_web_address
         if self.bind_web_address:
