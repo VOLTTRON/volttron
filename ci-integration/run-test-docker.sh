@@ -4,14 +4,15 @@
 # runs each of the test modules inside a docker container based
 # upon the test image.
 
-export FAST_FAIL=true
+# Default to fast faile though allow it to be overwritten.
+export FAST_FAIL=${FAST_FAIL:-true}
 
 # A possible argument passed to the script is the number docker containers
 # to run at a single time.
 if [[ $# -eq 0 ]]; then
-    NUM_PROCESSES=3
+    export NUM_PROCESSES=${NUM_PROCESSES:-3}
 else
-    NUM_PROCESSES=$1
+    export NUM_PROCESSES=$1
 fi
 
 echo "RUNNING $NUM_PROCESSES PARALLEL PROCESSESS AT A TIME"
@@ -31,8 +32,8 @@ docker build --network=host -t volttron_test_base -f ./ci-integration/virtualiza
 docker build --network=host -t volttron_test_image -f ./ci-integration/virtualization/Dockerfile.testing .
 
 # Specific directories to scan for tests in
-#testdirs=(examples services volttron volttrontesting)
-testdirs=(volttrontesting)
+testdirs=(examples services volttrontesting)
+# testdirs=(volttrontesting)
 
 # State variable for when a test has failed the entire set needs to be considered
 # failed.
