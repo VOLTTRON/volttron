@@ -19,6 +19,7 @@ from agent_additions import add_volttron_central
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging
+from volttron.platform.agent.known_identities import MASTER_WEB
 from volttron.platform.certs import Certs
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (strip_comments,
@@ -434,6 +435,23 @@ class PlatformWrapper:
     def add_vc(self):
         return add_volttron_central(self)
 
+    def is_auto_csr_enabled(self):
+        assert self.messagebus == 'rmq', 'Only available for rmq messagebus'
+        assert self.bind_web_address, 'Must have a web based instance'
+        return self.dynamic_agent.vip.rpc(MASTER_WEB, 'is_auto_allow_csr').get()
+
+    def enable_auto_csr(self):
+        assert self.messagebus == 'rmq', 'Only available for rmq messagebus'
+        assert self.bind_web_address, 'Must have a web based instance'
+        self.dynamic_agent.vip.rpc(MASTER_WEB, 'auto_allow_csr', True).get()
+        assert self.is_auto_csr_enabled()
+
+    def disable_auto_csr(self):
+        assert self.messagebus == 'rmq', 'Only available for rmq messagebus'
+        assert self.bind_web_address, 'Must have a web based instance'
+        self.dynamic_agent.vip.rpc(MASTER_WEB, 'auto_allow_csr', False).get()
+        assert not self.is_auto_csr_enabled()
+
     def add_capabilities(self, publickey, capabilities):
         if isinstance(capabilities, basestring):
             capabilities = [capabilities]
@@ -664,7 +682,7 @@ class PlatformWrapper:
         return self.t_process is not None
 
     def direct_sign_agentpackage_creator(self, package):
-        assert (RESTRICTED), "Auth not available"
+        assert RESTRICTED, "Auth not available"
         print ("wrapper.certsobj", self.certsobj.cert_dir)
         assert (
             auth.sign_as_creator(package, 'creator',
@@ -672,14 +690,14 @@ class PlatformWrapper:
             'creator')
 
     def direct_sign_agentpackage_admin(self, package):
-        assert (RESTRICTED), "Auth not available"
+        assert RESTRICTED, "Auth not available"
         assert (auth.sign_as_admin(package, 'admin',
                                    certsobj=self.certsobj)), "Signing as {} failed.".format(
             'admin')
 
     def direct_sign_agentpackage_initiator(self, package, config_file,
                                            contract):
-        assert (RESTRICTED), "Auth not available"
+        assert RESTRICTED, "Auth not available"
         files = {"config_file": config_file, "contract": contract}
         assert (auth.sign_as_initiator(package, 'initiator', files=files,
                                        certsobj=self.certsobj)), "Signing as {} failed.".format(
@@ -712,7 +730,6 @@ class PlatformWrapper:
         return agent_uuid
 
         return agent_uuid
-
 
     def install_multiple_agents(self, agent_configs):
         """
@@ -895,7 +912,6 @@ class PlatformWrapper:
         return self.agent_pid(agent_uuid)
 
     def list_agents(self):
-        print('PEER LIST: {}'.format(self.dynamic_agent.vip.peerlist().get(timeout=10)))
         agent_list = self.dynamic_agent.vip.rpc('control', 'list_agents').get(timeout=10)
         return agent_list
 
@@ -912,11 +928,9 @@ class PlatformWrapper:
     def remove_all_agents(self):
         if self._instance_shutdown:
             return
-        print('PEER LIST: {}'.format(self.dynamic_agent.vip.peerlist().get(timeout=10)))
         agent_list = self.dynamic_agent.vip.rpc('control', 'list_agents').get(timeout=10)
         for agent_props in agent_list:
             self.dynamic_agent.vip.rpc('control', 'remove_agent', agent_props['uuid']).get(timeout=10)
-
 
     def is_agent_running(self, agent_uuid):
         return self.agent_pid(agent_uuid) is not None

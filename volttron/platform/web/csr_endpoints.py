@@ -15,6 +15,15 @@ class CSREndpoints(object):
     def __init__(self, core):
         self._core = weakref.ref(core)
         self._certs = Certs()
+        self._auto_allow_csr = False
+
+    @property
+    def auto_allow_csr(self):
+        return self._auto_allow_csr
+
+    @auto_allow_csr.setter
+    def auto_allow_csr(self, value):
+        self._auto_allow_csr = value
 
     def get_routes(self):
         """
@@ -64,9 +73,7 @@ class CSREndpoints(object):
 
         csr_file = self._certs.save_pending_csr_request(env.get('REMOTE_ADDR'), identity, csr)
 
-        # TODO Allow configuration of this dynamically.
-        auto_accept = False
-        if auto_accept:
+        if self._auto_allow_csr:
             _log.debug("Creating cert and permissions for user: {}".format(identity))
             permissions = self._core().rmq_mgmt.get_default_permissions(identity)
             self._core().rmq_mgmt.create_user_with_permissions(identity,
