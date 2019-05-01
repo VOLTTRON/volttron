@@ -172,7 +172,7 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
 
 
 class PlatformWrapper:
-    def __init__(self, messagebus=None, ssl_auth=False, instance_name=None):
+    def __init__(self, messagebus=None, ssl_auth=False, instance_name=None, web_ca_cert=None):
         """ Initializes a new VOLTTRON instance
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory
@@ -275,6 +275,18 @@ class PlatformWrapper:
                 self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
                 self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
 
+        if web_ca_cert:
+            with open(os.path.join(self.volttron_home, "cat_ca_certs"), 'w') as cf:
+                if self.messagebus == 'rmq':
+                    with open(self.certsobj.cert_file(self.certsobj.root_ca_name)) as f:
+                        cf.write("Rabbitmq root cert\n")
+                        cf.write(f.read())
+                with open(web_ca_cert) as f:
+                    cf.write("Passed ca bundle\n")
+                    cf.write(f.read())
+
+            self.env['REQUESTS_CA_BUNDLE'] = web_ca_cert
+        self.web_ca_cert = web_ca_cert
         self.dynamic_agent = None
 
         self.debug_mode = self.env.get('DEBUG_MODE', False)
@@ -533,7 +545,8 @@ class PlatformWrapper:
                      'monitor': True,
                      'autostart': True,
                      'log_level': logging.DEBUG,
-                     'verboseness': logging.DEBUG}
+                     'verboseness': logging.DEBUG,
+                     'web_ca_cert': self.web_ca_cert}
 
         pconfig = os.path.join(self.volttron_home, 'config')
         config = {}
