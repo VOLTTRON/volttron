@@ -15,7 +15,8 @@ from subprocess import CalledProcessError
 import gevent
 import gevent.subprocess as subprocess
 import requests
-from agent_additions import add_volttron_central
+from agent_additions import (add_volttron_central,
+                             add_volttron_central_platform)
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging
@@ -171,7 +172,7 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
 
 
 class PlatformWrapper:
-    def __init__(self, messagebus=None, ssl_auth=False, instance_name=None):
+    def __init__(self, messagebus=None, ssl_auth=False, instance_name=None, web_ca_cert=None):
         """ Initializes a new VOLTTRON instance
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory
@@ -256,12 +257,6 @@ class PlatformWrapper:
         self.rmq_conf_backup = None
         self.instance_name = instance_name
         if not self.instance_name:
-            self.instance_name = 'volttron_test'
-
-        if self.messagebus == 'zmq':
-            # Set a default instance name. Instance name is mandatory from VOLTTRON 6.0
-            # self.instance_name = self.vip_address[6:].replace(".", "_").replace(":", "_")
-            # vip address might not be set till startup. This is so in many test cases
             self.instance_name = os.path.basename(self.volttron_home)
 
         store_message_bus_config(self.messagebus, self.instance_name)
@@ -280,12 +275,30 @@ class PlatformWrapper:
                 self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
                 self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
 
+        if web_ca_cert:
+            with open(os.path.join(self.volttron_home, "cat_ca_certs"), 'w') as cf:
+                if self.messagebus == 'rmq':
+                    with open(self.certsobj.cert_file(self.certsobj.root_ca_name)) as f:
+                        cf.write("Rabbitmq root cert\n")
+                        cf.write(f.read())
+                with open(web_ca_cert) as f:
+                    cf.write("Passed ca bundle\n")
+                    cf.write(f.read())
+
+            self.env['REQUESTS_CA_BUNDLE'] = web_ca_cert
+        self.web_ca_cert = web_ca_cert
         self.dynamic_agent = None
 
         self.debug_mode = self.env.get('DEBUG_MODE', False)
         if not self.debug_mode:
             self.debug_mode = self.env.get('DEBUG', False)
         self.skip_cleanup = self.env.get('SKIP_CLEANUP', False)
+
+        self._web_admin_api = None
+
+    @property
+    def web_admin_api(self):
+        return self._web_admin_api
 
     def logit(self, message):
         print('{}: {}'.format(self.volttron_home, message))
@@ -436,6 +449,9 @@ class PlatformWrapper:
     def add_vc(self):
         return add_volttron_central(self)
 
+    def add_vcp(self):
+        return add_volttron_central_platform(self)
+
     def is_auto_csr_enabled(self):
         assert self.messagebus == 'rmq', 'Only available for rmq messagebus'
         assert self.bind_web_address, 'Must have a web based instance'
@@ -485,7 +501,6 @@ class PlatformWrapper:
         self.volttron_central_address = volttron_central_address
         self.volttron_central_serverkey =volttron_central_serverkey
 
-
         self.bind_web_address = bind_web_address
         if self.bind_web_address:
             self.discovery_address = "{}/discovery/".format(
@@ -530,7 +545,8 @@ class PlatformWrapper:
                      'monitor': True,
                      'autostart': True,
                      'log_level': logging.DEBUG,
-                     'verboseness': logging.DEBUG}
+                     'verboseness': logging.DEBUG,
+                     'web_ca_cert': self.web_ca_cert}
 
         pconfig = os.path.join(self.volttron_home, 'config')
         config = {}
@@ -663,6 +679,11 @@ class PlatformWrapper:
                 if error_was:
                     raise error_was
                 raise Exception("Couldn't connect to discovery platform.")
+
+            # Now that we know we have web and we are using ssl then we
+            # can enable the WebAdminApi.
+            if self.ssl_auth:
+                self._web_admin_api = WebAdminApi(self)
 
         self.use_twistd = use_twistd
 
@@ -1154,3 +1175,28 @@ def mergetree(src, dst, symlinks=False, ignore=None):
             if not os.path.exists(d) or os.stat(src).st_mtime - os.stat(
                     dst).st_mtime > 1:
                 shutil.copy2(s, d)
+
+
+class WebAdminApi(object):
+    def __init__(self, platform_wrapper=PlatformWrapper()):
+        assert platform_wrapper.is_running(), "Platform must be running"
+        assert platform_wrapper.bind_web_address, "Platform must have web address"
+        assert platform_wrapper.ssl_auth, "Platform must be ssl enabled"
+
+        self._wrapper = platform_wrapper
+        self.bind_web_address = self._wrapper.bind_web_address
+        self.certsobj = self._wrapper.certsobj
+
+    def create_web_admin(self, username, password):
+        """ Creates a global master user for the platform https interface.
+
+        :param username:
+        :param password:
+        :return:
+        """
+        data = dict(username=username, password1=password, password2=password)
+        url = self.bind_web_address +"/admin/setpassword"
+        resp = requests.post(url, data, verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+        assert resp.ok
+
+        return resp

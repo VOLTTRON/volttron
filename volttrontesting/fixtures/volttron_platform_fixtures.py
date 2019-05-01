@@ -281,6 +281,7 @@ def volttron_multi_messagebus(request):
     source_address = get_rand_vip()
     messagebus = 'zmq'
     ssl_auth = False
+
     if request.param['source'] == 'rmq':
         messagebus = 'rmq'
         ssl_auth = True
