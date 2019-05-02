@@ -50,6 +50,7 @@ from volttron.platform.agent.utils import get_aware_utc_now
 
 alert_messages = {}
 
+
 @pytest.mark.alert
 def test_remote_alert_publish(get_volttron_instances):
     """
@@ -108,6 +109,8 @@ def test_remote_alert_publish(get_volttron_instances):
     gevent.sleep(6)
 
     assert alert_messages
+    alert_messages.clear()
+
 
 @pytest.mark.alert
 def test_alert_multi_messagebus_publish(volttron_multi_messagebus):
@@ -171,3 +174,4 @@ def test_alert_multi_messagebus_publish(volttron_multi_messagebus):
     gevent.sleep(6)
 
     assert alert_messages
+    alert_messages.clear()
