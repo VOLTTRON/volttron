@@ -106,7 +106,8 @@ class AlertAgent(Agent):
                     #     publickey=self.core.publickey,
                     #     serverkey=self.remote_serverkey
                     # )
-                    self.vip.auth.connect_remote_platform(self.remote_address, serverkey=self.remote_serverkey)
+                    self._remote_agent = self.vip.auth.connect_remote_platform(self.remote_address,
+                                                                               serverkey=self.remote_serverkey)
                     self._remote_agent.vip.ping("").get(timeout=2)
                     self.vip.health.set_status(STATUS_GOOD)
                 except gevent.Timeout, ZMQError:
