@@ -718,7 +718,6 @@ def main():
         for agent in args.agent:
             try:
                 available_agents[agent]()
-            except KeyError:
                 agent.add_argument(
                     '--web-ca-cert', metavar='CAFILE', default=None,
                     help='If using self-signed certificates, this variable will be set globally to allow requests'
@@ -732,3 +731,5 @@ def main():
                     '--web-ssl-cert', metavar='CERTFILE', default=None,
                     help='ssl certficate file for using https with the volttron server'
                 )
+            except KeyError:
+                pass
