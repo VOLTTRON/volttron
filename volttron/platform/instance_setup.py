@@ -308,9 +308,7 @@ def do_vip():
     config_opts['vip-address'] = '{}:{}'.format(vip_address, vip_port)
     config_opts['message-bus'] = bus_type
 
-
-@installs(get_services_core("VolttronCentral"), 'vc')
-def do_vc(vhome):
+def do_webEnabled(vhome):
     global config_opts
 
     # Full implies that it will have a port on it as well.  Though if it's
@@ -330,13 +328,13 @@ def do_vc(vhome):
 
     print("""
 In order for external clients to connect to volttron central or the instance
-itself, the instance must bind to a tcp address.  If testing this can be an
+itself, the instance must bind to a tcp address.  If testing, this can be an
 internal address such as 127.0.0.1.
 """)
     valid_address = False
     external_ip = None
     while not valid_address:
-        prompt = 'Please enter the external ipv4 address for this instance? '
+        prompt = 'Please enter the external ipv4 address for this instance. '
         new_external_ip = prompt_response(prompt, default=address_only)
         valid_address = is_valid_url(new_external_ip, ['http', 'https'])
         if valid_address:
@@ -345,7 +343,7 @@ internal address such as 127.0.0.1.
     valid_port = False
     vc_port = None
     while not valid_port:
-        prompt = 'What is the port for volttron central?'
+        prompt = 'What is the port for this instance?'
         new_vc_port = prompt_response(prompt, default=port_only)
         valid_port = is_valid_port(new_vc_port)
         if valid_port:
@@ -358,10 +356,13 @@ internal address such as 127.0.0.1.
 
     config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
 
-    resp = vc_config()
-
     if config_opts['message-bus'] == 'zmq' and parsed.scheme == "https":
         get_cert_and_key(vhome)
+
+@installs(get_services_core("VolttronCentral"), 'vc')
+def do_vc(vhome):
+
+    resp = vc_config()
 
     print('Installing volttron central')
     return resp
@@ -575,7 +576,7 @@ def confirm_volttron_home():
             exit(1)
 
 def wizard():
-    """Routine for configuring an insalled volttron instance.
+    """Routine for configuring an installed volttron instance.
 
     The function interactively sets up the instance for working with volttron
     central and the discovery service.
@@ -588,10 +589,15 @@ def wizard():
     do_vip()
     _update_config_file()
 
-    prompt = 'Is this instance a volttron central?'
+    prompt = 'Is this instance web enabled?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
-        do_vc(volttron_home)
+        do_webEnabled(volttron_home)
+
+        prompt = 'Is this an instance of volttron central?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+        if response in y:
+            do_vc(volttron_home)
 
     prompt = 'Will this instance be controlled by volttron central?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
@@ -713,4 +719,16 @@ def main():
             try:
                 available_agents[agent]()
             except KeyError:
-                pass
+                agent.add_argument(
+                    '--web-ca-cert', metavar='CAFILE', default=None,
+                    help='If using self-signed certificates, this variable will be set globally to allow requests'
+                         'to be able to correctly reach the webserver without having to specify verify in all calls.'
+                )
+                agent.add_argument(
+                    '--web-ssl-key', metavar='KEYFILE', default=None,
+                    help='ssl key file for using https with the volttron server'
+                )
+                agent.add_argument(
+                    '--web-ssl-cert', metavar='CERTFILE', default=None,
+                    help='ssl certficate file for using https with the volttron server'
+                )
