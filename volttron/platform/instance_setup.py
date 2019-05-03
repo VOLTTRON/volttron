@@ -202,7 +202,7 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
             if identity is not None:
                 os.environ['AGENT_VIP_IDENTITY'] = identity
 
-            print 'Configuring {}'.format(agent_dir)
+            print 'Configuring {}.'.format(agent_dir)
             config = config_func(*args, **kwargs)
             _update_config_file()
             _start_platform()
@@ -210,7 +210,7 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
             if post_install_func:
                 post_install_func()
 
-            autostart = prompt_response('Should agent autostart?',
+            autostart = prompt_response('Should the agent autostart?',
                                         valid_answers=y_or_n,
                                         default='N')
             if autostart in y:
@@ -269,34 +269,34 @@ def do_vip():
     while not available:
         valid_address = False
         while not valid_address:
-            prompt = 'What is the external instance ipv4 address?'
+            prompt = "What is the vip address?"
 
             new_vip_address = prompt_response(prompt, default=vip_address)
             valid_address = is_valid_url(new_vip_address, ['tcp'])
             if valid_address:
                 vip_address = new_vip_address
             else:
-                print("Address is not valid")
+                print("Address is not valid.")
 
         valid_port = False
         while not valid_port:
-            prompt = 'What is the instance port for the vip address?'
+            prompt = 'What is the port for the vip address?'
             new_vip_port = prompt_response(prompt, default=vip_port)
             valid_port = is_valid_port(new_vip_port)
             if valid_port:
                 vip_port = new_vip_port
             else:
-                print("Port is not valid")
+                print("Port is not valid.")
 
         valid_bus = False
         while not valid_bus:
-            prompt = 'What is type of message bus?'
+            prompt = 'What type of message bus?'
             new_bus = prompt_response(prompt, default='zmq')
             valid_bus = is_valid_bus(new_bus)
             if valid_bus:
                 bus_type = new_bus
             else:
-                print("Message type is not valid. Valid entries are zmq or rmq")
+                print("Message type is not valid. Valid entries are zmq or rmq.")
         while vip_address.endswith('/'):
             vip_address = vip_address[:-1]
 
@@ -308,7 +308,7 @@ def do_vip():
     config_opts['vip-address'] = '{}:{}'.format(vip_address, vip_port)
     config_opts['message-bus'] = bus_type
 
-def do_webEnabled(vhome):
+def do_web_enabled(vhome):
     global config_opts
 
     # Full implies that it will have a port on it as well.  Though if it's
@@ -334,7 +334,7 @@ internal address such as 127.0.0.1.
     valid_address = False
     external_ip = None
     while not valid_address:
-        prompt = 'Please enter the external ipv4 address for this instance. '
+        prompt = 'What is the external ipv4 address for this instance?'
         new_external_ip = prompt_response(prompt, default=address_only)
         valid_address = is_valid_url(new_external_ip, ['http', 'https'])
         if valid_address:
@@ -364,7 +364,7 @@ def do_vc(vhome):
 
     resp = vc_config()
 
-    print('Installing volttron central')
+    print('Installing volttron central.')
     return resp
 
 def vc_config():
@@ -412,15 +412,15 @@ def get_cert_and_key(vhome):
     if is_file_readable(master_web_cert, False) and is_file_readable(master_web_key, False):
         try:
             if certs.Certs.validate_key_pair(master_web_cert, master_web_key):
-                print('\nFollowing certificate and keyfile exists for web access over https: \n{}\n{}'.format(master_web_cert,
+                print('\nThe following certificate and keyfile exists for web access over https: \n{}\n{}'.format(master_web_cert,
                                                                                                               master_web_key))
-                prompt = '\nDo you want to use these certificates for web server? '
+                prompt = '\nDo you want to use these certificates for the web server?'
                 if prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
                     config_opts['web-ssl-cert'] = master_web_cert
                     config_opts['web-ssl-key'] = master_web_key
                     cert_error = False
                 else:
-                    print('\nPlease provide path to cert and key files. '
+                    print('\nPlease provide the path to cert and key files. '
                           'This will overwrite existing files: \n{} and {}'.format(master_web_cert, master_web_key))
             else:
                 print("Existing key pair is not valid. ")
@@ -470,7 +470,7 @@ def is_file_readable(file_path, log=True):
         return True
     else:
         if log:
-            print("\nInvalid file path. Path does not exists or is not readable")
+            print("\nInvalid file path. Path does not exists or is not readable.")
         return False
 
 @installs(get_services_core("VolttronCentralPlatform"), 'vcp')
@@ -484,7 +484,7 @@ def do_vcp():
 
     valid_name = False
     while not valid_name:
-        prompt = 'Enter the name of this instance.'
+        prompt = 'What is the name of this instance?'
         new_instance_name = prompt_response(prompt, default=instance_name)
         if new_instance_name:
             valid_name = True
@@ -506,7 +506,7 @@ def do_vcp():
 
     valid_vc = False
     while not valid_vc:
-        prompt = "Enter volttron central's web address"
+        prompt = "What is the web address for volttron central?"
         new_vc_address = prompt_response(prompt, default=address_only)
         valid_vc = is_valid_url(new_vc_address, ['http', 'https'])
         if valid_vc:
@@ -543,7 +543,7 @@ def do_platform_historian():
 
 
 def add_fake_device_to_configstore():
-    prompt = 'Install a fake device on the master driver?'
+    prompt = 'Would you like to install a fake device on the master driver?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
         _cmd(['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
@@ -568,7 +568,7 @@ def confirm_volttron_home():
     volttron_home = get_home()
     if prompt_vhome:
         print('\nYour VOLTTRON_HOME currently set to: {}'.format(volttron_home))
-        prompt = '\nIs this the volttron you are attempting to setup? '
+        prompt = '\nIs this the volttron you are attempting to setup?'
         if not prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
             print(
                 '\nPlease execute with VOLTRON_HOME=/your/path volttron-cfg to '
@@ -592,7 +592,7 @@ def wizard():
     prompt = 'Is this instance web enabled?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
-        do_webEnabled(volttron_home)
+        do_web_enabled(volttron_home)
 
         prompt = 'Is this an instance of volttron central?'
         response = prompt_response(prompt, valid_answers=y_or_n, default='N')
@@ -619,10 +619,10 @@ def wizard():
     if response in y:
         do_listener()
 
-    print('Finished configuration\n')
+    print('Finished configuration!\n')
     print('You can now start the volttron instance.\n')
     print('If you need to change the instance configuration you can edit')
-    print('the config file at {}/config\n'.format(volttron_home))
+    print('the config file is at {}/config\n'.format(volttron_home))
 
 
 def process_rmq_inputs(args, instance_name=None):
