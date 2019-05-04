@@ -62,7 +62,6 @@ except ImportError:
 # Filenames for the config files which are created during setup and then
 # passed on the command line
 TMP_PLATFORM_CONFIG_FILENAME = "config"
-TMP_SMAP_CONFIG_FILENAME = "test-smap.ini"
 
 # Used to fill in TWISTED_CONFIG template
 TEST_CONFIG_FILE = 'base-platform-test.json'
@@ -226,16 +225,14 @@ class PlatformWrapper:
         self.instance_name = instance_name
         self.serverkey = None
 
+        # The main volttron process will be under this variable
+        # after startup_platform happens.
         self.p_process = None
-        self.t_process = None
 
         self.started_agent_pids = []
         self.local_vip_address = None
         self.vip_address = None
         self.logit('Creating platform wrapper')
-
-        # This was used when we are testing the SMAP historian.
-        self.use_twistd = False
 
         # Added restricted code properties
         self.certsobj = None
@@ -467,7 +464,7 @@ class PlatformWrapper:
             with open(os.path.join(self.volttron_home, 'auth.json'), 'w') as fd:
                 fd.write(json.dumps(auth_dict))
 
-    def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
+    def startup_platform(self, vip_address, auth_dict=None,
                          mode=UNRESTRICTED, bind_web_address=None,
                          volttron_central_address=None,
                          volttron_central_serverkey=None,
@@ -692,24 +689,8 @@ class PlatformWrapper:
             if self.ssl_auth:
                 self._web_admin_api = WebAdminApi(self)
 
-        self.use_twistd = use_twistd
-
-        # TODO: Revise this to start twistd with platform.
-        if self.use_twistd:
-            tconfig = os.path.join(self.volttron_home, TMP_SMAP_CONFIG_FILENAME)
-
-            with closing(open(tconfig, 'w')) as cfg:
-                cfg.write(TWISTED_CONFIG.format(**config))
-
-            tparams = [TWISTED_START, "-n", "smap", tconfig]
-            self.t_process = subprocess.Popen(tparams, env=self.env)
-            time.sleep(5)
-
     def is_running(self):
         return utils.is_volttron_running(self.volttron_home)
-
-    def twistd_is_running(self):
-        return self.t_process is not None
 
     def direct_sign_agentpackage_creator(self, package):
         assert RESTRICTED, "Auth not available"
@@ -1101,35 +1082,22 @@ class PlatformWrapper:
         self.remove_all_agents()
         self.dynamic_agent.vip.rpc(CONTROL, 'shutdown')
         self.dynamic_agent.core.stop()
-        # # First try and nicely shutdown the platform, which should clean all
-        # # of the agents up automatically.
-        # cmd = ['volttron-ctl']
-        # cmd.extend(['shutdown', '--platform'])
-        # try:
-        #     execute_command(cmd, env=self.env, logger=_log,
-        #                     err_prefix="Error shutting down platform")
-        # except RuntimeError:
-        #     if self.p_process is not None:
-        #         try:
-        #             gevent.sleep(0.2)
-        #             self.p_process.terminate()
-        #             gevent.sleep(0.2)
-        #         except OSError:
-        #             self.logit('Platform process was terminated.')
-        #     else:
-        #         self.logit("platform process was null")
+
+        if self.p_process is not None:
+            try:
+                gevent.sleep(0.2)
+                self.p_process.terminate()
+                gevent.sleep(0.2)
+            except OSError:
+                self.logit('Platform process was terminated.')
+        else:
+            self.logit("platform process was null")
 
         for pid in running_pids:
             if psutil.pid_exists(pid):
                 self.logit("TERMINATING: {}".format(pid))
                 proc = psutil.Process(pid)
                 proc.terminate()
-
-        if self.use_twistd and self.t_process is not None:
-            self.t_process.kill()
-            self.t_process.wait()
-        elif self.use_twistd:
-            self.logit("twistd process was null")
 
         if os.environ.get('PRINT_LOG'):
             logpath = os.path.join(self.volttron_home, 'volttron.log')
