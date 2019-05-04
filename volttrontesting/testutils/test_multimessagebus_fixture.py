@@ -1,6 +1,7 @@
 import pytest
 
 
+@pytest.mark.dev
 def test_correct_number_of_instances(volttron_multi_messagebus):
 
     source, sink = volttron_multi_messagebus
@@ -27,6 +28,8 @@ def test_correct_remote_ca_specified(volttron_multi_messagebus):
 
         data = sink.certsobj.ca_cert(pem_encoded=True)
         assert data in requests_ca_content
+        if source.messagebus == 'zmq':
+            assert data == requests_ca_content
 
         if source.messagebus == 'rmq':
             assert data != source.certsobj.ca_cert(pem_encoded=True)
