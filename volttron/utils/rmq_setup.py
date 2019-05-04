@@ -445,7 +445,7 @@ def _create_certs(rmq_config, admin_client_name, server_cert_name):
     # already been warned
     for d in [crts.cert_dir, crts.private_dir, crts.ca_db_dir]:
         for x in os.listdir(d):
-            os.remove(os.path.join(d,x))
+            os.remove(os.path.join(d, x))
 
     _log.info('\n Creating root ca for volttron instance: {}'.format(
         crts.cert_file(crts.root_ca_name)))
@@ -955,8 +955,9 @@ def stop_rabbit(rmq_home, env=None, quite=False):
     :return:
     """
     try:
-        cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"),
-               "stop"]
+        if env:
+            _log.debug("Stop RMQ: {}".format(env.get('VOLTTRON_HOME')))
+        cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "stop"]
         execute_command(cmd, env=env)
         gevent.sleep(2)
         if not quite:
