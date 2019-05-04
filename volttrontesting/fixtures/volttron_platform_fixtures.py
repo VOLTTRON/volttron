@@ -262,6 +262,8 @@ def volttron_multi_messagebus(request):
     :param request:
     :return:
     """
+    print("volttron_multi_messagebus source: {} sink: {}".format(request.param['source'],
+                                                                 request.param['sink']))
     sink_address = get_rand_vip()
 
     if request.param['sink'] == 'rmq_web':

@@ -255,6 +255,11 @@ class PlatformWrapper:
         if not self.instance_name:
             self.instance_name = os.path.basename(self.volttron_home)
 
+        # Set the VOLTTRON_HOME for this process...note this
+        # seems tricky but this platform should start up before
+        # the rest so it should work out ok.
+        os.environ['VOLTTRON_HOME'] = self.volttron_home
+
         # Writes the main volttron config file for this instance.
         store_message_bus_config(self.messagebus, self.instance_name)
 
@@ -650,7 +655,7 @@ class PlatformWrapper:
         while not has_control and times < 10:
             times += 1
             try:
-                has_control = self.dynamic_agent.vip.peerlist().get(timeout=.2)
+                has_control = CONTROL in self.dynamic_agent.vip.peerlist().get(timeout=.2)
                 self.logit("Has control? {}".format(has_control))
             except gevent.Timeout:
                 pass
@@ -673,6 +678,11 @@ class PlatformWrapper:
                     else:
                         resp = requests.get(self.discovery_address)
                     if resp.ok:
+                        self.logit("Has discovery address for {}".format(self.discovery_address))
+                        if self.requests_ca_bundle:
+                            self.logit("Using REQUESTS_CA_BUNDLE: {}".format(self.requests_ca_bundle))
+                        else:
+                            self.logit("Not using requests_ca_bundle for message bus: {}".format(self.messagebus))
                         has_discovery = True
                         break
                 except Exception as e:
