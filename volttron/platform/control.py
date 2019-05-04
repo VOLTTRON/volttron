@@ -887,7 +887,7 @@ def shutdown_agents(opts):
             if not check_rabbit_status():
                 _stderr.write(
                     'RabbitMQ server is still not running.\nShutting down the platform forcefully\n')
-                opts.aip.rmq_shutdown()
+                opts.aip.brute_force_platform_shutdown()
                 return
     opts.connection.call('shutdown')
     _log.debug("Calling stop_platform")

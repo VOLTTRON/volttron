@@ -229,7 +229,7 @@ class AIPplatform(object):
             task.kill()
         _log.debug("I'm done with aip shutdown")
 
-    def rmq_shutdown(self):
+    def brute_force_platform_shutdown(self):
         for agent_uuid in self.agents.iterkeys():
             _log.debug("Stopping agent UUID {}".format(agent_uuid))
             self.stop_agent(agent_uuid)

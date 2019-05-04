@@ -99,17 +99,24 @@ class AlertAgent(Agent):
             if not self._creating_agent:
                 self._creating_agent = True
                 try:
-                    # self._remote_agent = build_agent(
-                    #     address=self.remote_address,
-                    #     identity=self.remote_identity,
-                    #     secretkey=self.core.secretkey,
-                    #     publickey=self.core.publickey,
-                    #     serverkey=self.remote_serverkey
-                    # )
-                    self._remote_agent = self.vip.auth.connect_remote_platform(self.remote_address,
-                                                                               serverkey=self.remote_serverkey)
-                    self._remote_agent.vip.ping("").get(timeout=2)
-                    self.vip.health.set_status(STATUS_GOOD)
+                    # Single method to connect to remote instance in following combinations
+                    # zmq -> zmq
+                    # rmq -> rmq enabled with web
+                    # zmq -> zmq enabled with web
+                    # rmq -> zmq enabled with web
+                    value = self.vip.auth.connect_remote_platform(self.remote_address,
+                                                                  serverkey=self.remote_serverkey)
+
+                    if isinstance(value, Agent):
+                        self._remote_agent = value
+                        self._remote_agent.vip.ping("").get(timeout=2)
+                        self.vip.health.set_status(STATUS_GOOD)
+                    else:
+                        _log.error("Exception creation remote agent")
+                        status_context = "Couldn't connect to remote platform at: {}".format(
+                            self.remote_address)
+                        _log.error(status_context)
+                        self._remote_agent = None
                 except gevent.Timeout, ZMQError:
                     _log.error("Exception creation remote agent")
                     status_context = "Couldn't connect to remote platform at: {}".format(

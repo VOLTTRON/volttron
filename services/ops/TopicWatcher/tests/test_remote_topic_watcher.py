@@ -168,6 +168,6 @@ def test_alert_multi_messagebus_publish(volttron_multi_messagebus):
         vip_identity=PLATFORM_TOPIC_WATCHER
     )
 
-    gevent.sleep(6)
+    gevent.sleep(10)
 
     assert alert_messages
