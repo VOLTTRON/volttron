@@ -2,8 +2,6 @@ import logging
 from urlparse import urlparse, urljoin
 
 import requests
-from requests.packages.urllib3.connection import (ConnectionError,
-                                                  NewConnectionError)
 
 from volttron.platform.agent import json as jsonapi
 from volttron.platform.certs import Certs
@@ -76,7 +74,7 @@ class DiscoveryInfo(object):
                 "Invalid web_address passed {}"
                 .format(web_address)
             )
-        except (ConnectionError, NewConnectionError) as e:
+        except requests.exceptions.RequestException as e:
             raise DiscoveryError(
                 "Connection to {} not available".format(real_url)
             )
