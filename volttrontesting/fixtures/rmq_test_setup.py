@@ -101,7 +101,7 @@ class RabbitTestConfig(object):
             self.rabbitmq_config['mgmt-port-ssl'] = mgmt_port_ssl
 
 
-def create_rmq_volttron_setup(instance_name, vhome=None, ssl_auth=False, env=None):
+def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None):
     """
         Set-up rabbitmq broker for volttron testing:
             - Install config and rabbitmq_config.yml in VOLTTRON_HOME
@@ -134,7 +134,8 @@ def create_rmq_volttron_setup(instance_name, vhome=None, ssl_auth=False, env=Non
 
         os.environ['RMQ_HOME'] = rabbit_config_obj.rmq_home
 
-    rabbit_config_obj.node_name = os.path.basename(vhome)
+    # instance name is the basename of the volttron home now.
+    rabbit_config_obj.instance_name = rabbit_config_obj.node_name = os.path.basename(vhome)
     os.mkdir(os.path.join(vhome, "rmq_node_data"))
 
     rabbit_config_obj.rmq_conf_file = os.path.join(vhome, "rmq_node_data", rabbit_config_obj.node_name + "-rmq.conf")
@@ -148,11 +149,15 @@ def create_rmq_volttron_setup(instance_name, vhome=None, ssl_auth=False, env=Non
     host, rabbit_config_obj.rabbitmq_config['amqp-port-ssl'] = get_hostname_and_random_port()
     host, rabbit_config_obj.rabbitmq_config['mgmt-port'] = get_hostname_and_random_port(10000, 20000)
     host, rabbit_config_obj.rabbitmq_config['mgmt-port-ssl'] = get_hostname_and_random_port(10000, 20000)
-    rabbit_config_obj.rabbitmq_config['node-name'] = os.path.basename(vhome)
     rabbit_config_obj.rabbitmq_config['host'] = host
-    rabbit_config_obj.rabbitmq_config['certificate-data']['common-name'] = '{}_root_ca'.format(instance_name)
+    rabbit_config_obj.rabbitmq_config['certificate-data']['common-name'] = '{}_root_ca'.format(rabbit_config_obj.instance_name)
 
-    instance_setup._update_config_file()
+    from pprint import pprint
+    print("RMQ Node Name: {} env: ".format(rabbit_config_obj.node_name))
+    pprint(env)
+
+    # This is updating the volttron configuration file not the rabbitmq config file.
+    instance_setup._update_config_file(instance_name=rabbit_config_obj.instance_name)
     vhome_config = os.path.join(vhome, 'rabbitmq_config.yml')
 
     if not os.path.isfile(vhome_config):

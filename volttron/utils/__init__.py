@@ -23,6 +23,14 @@ def is_ip_private(vip_address):
         ip) is not None
 
 
+def get_hostname():
+    with open('/etc/hostname') as fp:
+        hostname = fp.read().strip()
+
+    assert hostname
+    return hostname
+
+
 class FileReloader(PatternMatchingEventHandler):
     def __init__(self, filetowatch, callback):
         super(FileReloader, self).__init__(['*/'+filetowatch])

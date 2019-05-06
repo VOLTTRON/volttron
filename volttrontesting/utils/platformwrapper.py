@@ -20,7 +20,7 @@ from agent_additions import (add_volttron_central,
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging
-from volttron.platform.agent.known_identities import MASTER_WEB
+from volttron.platform.agent.known_identities import MASTER_WEB, CONTROL
 from volttron.platform.certs import Certs
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (strip_comments,
@@ -62,7 +62,6 @@ except ImportError:
 # Filenames for the config files which are created during setup and then
 # passed on the command line
 TMP_PLATFORM_CONFIG_FILENAME = "config"
-TMP_SMAP_CONFIG_FILENAME = "test-smap.ini"
 
 # Used to fill in TWISTED_CONFIG template
 TEST_CONFIG_FILE = 'base-platform-test.json'
@@ -172,7 +171,7 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
 
 
 class PlatformWrapper:
-    def __init__(self, messagebus=None, ssl_auth=False, instance_name=None, web_ca_cert=None):
+    def __init__(self, messagebus=None, ssl_auth=False, instance_name=None, remote_platform_ca=None):
         """ Initializes a new VOLTTRON instance
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory
@@ -226,16 +225,14 @@ class PlatformWrapper:
         self.instance_name = instance_name
         self.serverkey = None
 
+        # The main volttron process will be under this variable
+        # after startup_platform happens.
         self.p_process = None
-        self.t_process = None
 
         self.started_agent_pids = []
         self.local_vip_address = None
         self.vip_address = None
         self.logit('Creating platform wrapper')
-
-        # This was used when we are testing the SMAP historian.
-        self.use_twistd = False
 
         # Added restricted code properties
         self.certsobj = None
@@ -254,39 +251,23 @@ class PlatformWrapper:
         self.keystore.generate()
         self.messagebus = messagebus if messagebus else 'zmq'
         self.ssl_auth = ssl_auth
-        self.rmq_conf_backup = None
         self.instance_name = instance_name
         if not self.instance_name:
             self.instance_name = os.path.basename(self.volttron_home)
 
+        # Set the VOLTTRON_HOME for this process...note this
+        # seems tricky but this platform should start up before
+        # the rest so it should work out ok.
+        os.environ['VOLTTRON_HOME'] = self.volttron_home
+
+        # Writes the main volttron config file for this instance.
         store_message_bus_config(self.messagebus, self.instance_name)
 
-        # Used with web requests when ssl auth is true.
-        self.platform_ca_file = None
-
-        if self.messagebus == 'rmq':
-            self.logit("Setting up volttron test environemnt"
-                       " {}".format(self.volttron_home))
-            self.rabbitmq_config_obj = create_rmq_volttron_setup(instance_name=self.instance_name,
-                                                                 vhome=self.volttron_home,
-                                                                 ssl_auth=self.ssl_auth,
-                                                                 env=self.env)
-            if ssl_auth:
-                self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
-                self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
-
-        if web_ca_cert:
-            with open(os.path.join(self.volttron_home, "cat_ca_certs"), 'w') as cf:
-                if self.messagebus == 'rmq':
-                    with open(self.certsobj.cert_file(self.certsobj.root_ca_name)) as f:
-                        cf.write("Rabbitmq root cert\n")
-                        cf.write(f.read())
-                with open(web_ca_cert) as f:
-                    cf.write("Passed ca bundle\n")
-                    cf.write(f.read())
-
-            self.env['REQUESTS_CA_BUNDLE'] = web_ca_cert
-        self.web_ca_cert = web_ca_cert
+        # Necessary for rabbitmq to shutdown the correct rmq messagebus.
+        # This is set during the startup_platform method.
+        self.rabbitmq_config_obj = None
+        self.remote_platform_ca = remote_platform_ca
+        self.requests_ca_bundle = None
         self.dynamic_agent = None
 
         self.debug_mode = self.env.get('DEBUG_MODE', False)
@@ -488,7 +469,7 @@ class PlatformWrapper:
             with open(os.path.join(self.volttron_home, 'auth.json'), 'w') as fd:
                 fd.write(json.dumps(auth_dict))
 
-    def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
+    def startup_platform(self, vip_address, auth_dict=None,
                          mode=UNRESTRICTED, bind_web_address=None,
                          volttron_central_address=None,
                          volttron_central_serverkey=None,
@@ -518,8 +499,7 @@ class PlatformWrapper:
             enable_logging = True
             msgdebug = True
 
-        self.logit(
-            "In start up platform enable_logging is {} ".format(enable_logging))
+        self.logit("Starting Platform: {}".format(self.volttron_home))
         assert self.mode in MODES, 'Invalid platform mode set: ' + str(mode)
         opts = None
 
@@ -529,6 +509,32 @@ class PlatformWrapper:
             self.volttron_home)
         self.local_vip_address = ipc + 'vip.socket'
         self.set_auth_dict(auth_dict)
+
+        if self.messagebus == 'rmq':
+
+            self.rabbitmq_config_obj = create_rmq_volttron_setup(vhome=self.volttron_home,
+                                                                 ssl_auth=self.ssl_auth,
+                                                                 env=self.env)
+
+            self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
+
+            if bind_web_address:
+                self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
+
+        if self.remote_platform_ca:
+            ca_bundle_file = os.path.join(self.volttron_home, "cat_ca_certs")
+            with open(ca_bundle_file, 'w') as cf:
+                if self.messagebus == 'rmq':
+                    with open(self.certsobj.cert_file(self.certsobj.root_ca_name)) as f:
+                        cf.write(f.read())
+                with open(self.remote_platform_ca) as f:
+                    cf.write(f.read())
+
+            self.env['REQUESTS_CA_BUNDLE'] = ca_bundle_file
+
+        # This file will be passed off to the main.py and available when
+        # the platform starts up.
+        self.requests_ca_bundle = self.env.get('REQUESTS_CA_BUNDLE')
 
         self.opts = {'verify_agents': False,
                      'volttron_home': self.volttron_home,
@@ -546,7 +552,7 @@ class PlatformWrapper:
                      'autostart': True,
                      'log_level': logging.DEBUG,
                      'verboseness': logging.DEBUG,
-                     'web_ca_cert': self.web_ca_cert}
+                     'web_ca_cert': self.requests_ca_bundle}
 
         pconfig = os.path.join(self.volttron_home, 'config')
         config = {}
@@ -618,7 +624,9 @@ class PlatformWrapper:
         if setupmode:
             cmd.append('--setup-mode')
 
-        print('process environment: {}'.format(self.env))
+        from pprint import pprint
+        print('process environment: ')
+        pprint(self.env)
         print('popen params: {}'.format(cmd))
         self.p_process = Popen(cmd, env=self.env, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
@@ -640,13 +648,14 @@ class PlatformWrapper:
         self.serverkey = self.keystore.public
         assert self.serverkey
 
-        self.dynamic_agent = self.build_agent()
+        # Use dynamic_agent so we can look and see the agent with peerlist.
+        self.dynamic_agent = self.build_agent(identity="dynamic_agent")
         has_control = False
         times = 0
         while not has_control and times < 10:
             times += 1
             try:
-                has_control = self.dynamic_agent.vip.peerlist().get(timeout=.2)
+                has_control = CONTROL in self.dynamic_agent.vip.peerlist().get(timeout=.2)
                 self.logit("Has control? {}".format(has_control))
             except gevent.Timeout:
                 pass
@@ -669,6 +678,11 @@ class PlatformWrapper:
                     else:
                         resp = requests.get(self.discovery_address)
                     if resp.ok:
+                        self.logit("Has discovery address for {}".format(self.discovery_address))
+                        if self.requests_ca_bundle:
+                            self.logit("Using REQUESTS_CA_BUNDLE: {}".format(self.requests_ca_bundle))
+                        else:
+                            self.logit("Not using requests_ca_bundle for message bus: {}".format(self.messagebus))
                         has_discovery = True
                         break
                 except Exception as e:
@@ -685,24 +699,8 @@ class PlatformWrapper:
             if self.ssl_auth:
                 self._web_admin_api = WebAdminApi(self)
 
-        self.use_twistd = use_twistd
-
-        # TODO: Revise this to start twistd with platform.
-        if self.use_twistd:
-            tconfig = os.path.join(self.volttron_home, TMP_SMAP_CONFIG_FILENAME)
-
-            with closing(open(tconfig, 'w')) as cfg:
-                cfg.write(TWISTED_CONFIG.format(**config))
-
-            tparams = [TWISTED_START, "-n", "smap", tconfig]
-            self.t_process = subprocess.Popen(tparams, env=self.env)
-            time.sleep(5)
-
     def is_running(self):
         return utils.is_volttron_running(self.volttron_home)
-
-    def twistd_is_running(self):
-        return self.t_process is not None
 
     def direct_sign_agentpackage_creator(self, package):
         assert RESTRICTED, "Auth not available"
@@ -1082,43 +1080,34 @@ class PlatformWrapper:
         if self._instance_shutdown:
             return
 
+        if not self.is_running():
+            return
+
         running_pids = []
 
         for agnt in self.list_agents():
             pid = self.agent_pid(agnt['uuid'])
             if pid is not None and int(pid) > 0:
                 running_pids.append(int(pid))
-        gevent.sleep(0.05)
+        self.remove_all_agents()
+        self.dynamic_agent.vip.rpc(CONTROL, 'shutdown')
         self.dynamic_agent.core.stop()
-        # First try and nicely shutdown the platform, which should clean all
-        # of the agents up automatically.
-        cmd = ['volttron-ctl']
-        cmd.extend(['shutdown', '--platform'])
-        try:
-            execute_command(cmd, env=self.env, logger=_log,
-                            err_prefix="Error shutting down platform")
-        except RuntimeError:
-            if self.p_process is not None:
-                try:
-                    gevent.sleep(0.2)
-                    self.p_process.terminate()
-                    gevent.sleep(0.2)
-                except OSError:
-                    self.logit('Platform process was terminated.')
-            else:
-                self.logit("platform process was null")
+
+        if self.p_process is not None:
+            try:
+                gevent.sleep(0.2)
+                self.p_process.terminate()
+                gevent.sleep(0.2)
+            except OSError:
+                self.logit('Platform process was terminated.')
+        else:
+            self.logit("platform process was null")
 
         for pid in running_pids:
             if psutil.pid_exists(pid):
                 self.logit("TERMINATING: {}".format(pid))
                 proc = psutil.Process(pid)
                 proc.terminate()
-
-        if self.use_twistd and self.t_process is not None:
-            self.t_process.kill()
-            self.t_process.wait()
-        elif self.use_twistd:
-            self.logit("twistd process was null")
 
         if os.environ.get('PRINT_LOG'):
             logpath = os.path.join(self.volttron_home, 'volttron.log')
@@ -1134,8 +1123,9 @@ class PlatformWrapper:
                 ))
 
         print(" Skip clean up flag is {}".format(self.skip_cleanup))
-        if not self.skip_cleanup and self.messagebus == 'rmq':
-            stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home, env=self.env)
+        if self.messagebus == 'rmq':
+            print("Calling rabbit shutdown")
+            stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home, env=self.env, quite=True)
         if not self.skip_cleanup:
             self.logit('Removing {}'.format(self.volttron_home))
             shutil.rmtree(self.volttron_home, ignore_errors=True)

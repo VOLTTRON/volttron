@@ -21,11 +21,13 @@ def print_log(volttron_home):
                 print('NO LOG FILE AVAILABLE.')
 
 
-def build_wrapper(vip_address, should_start=True, messagebus='zmq', **kwargs):
-    instance_name = kwargs.pop('instance_name', 'volttron_test')
+def build_wrapper(vip_address, should_start=True, messagebus='zmq', remote_platform_ca=None,
+                  instance_name=None, **kwargs):
+
     wrapper = PlatformWrapper(ssl_auth=kwargs.pop('ssl_auth', False),
                               messagebus=messagebus,
-                              instance_name=instance_name)
+                              instance_name=instance_name,
+                              remote_platform_ca=remote_platform_ca)
     if should_start:
         wrapper.startup_platform(vip_address=vip_address, **kwargs)
     return wrapper
@@ -33,8 +35,8 @@ def build_wrapper(vip_address, should_start=True, messagebus='zmq', **kwargs):
 
 def cleanup_wrapper(wrapper):
     print('Shutting down instance: {0}, MESSAGE BUS: {1}'.format(wrapper.volttron_home, wrapper.messagebus))
-    if wrapper.is_running():
-        wrapper.remove_all_agents()
+    # if wrapper.is_running():
+    #     wrapper.remove_all_agents()
     # Shutdown handles case where the platform hasn't started.
     wrapper.shutdown_platform()
 
@@ -244,10 +246,10 @@ def volttron_instance_web(request):
 
 @pytest.fixture(scope="module",
                 params=[
+                    dict(sink='zmq_web', source='zmq'),
                     dict(sink='rmq_web', source='zmq'),
                     dict(sink='rmq_web', source='rmq'),
-                    dict(sink='zmq_web', source='rmq'),
-                    dict(sink='zmq_web', source='zmq')
+                    dict(sink='zmq_web', source='rmq')
                 ])
 def volttron_multi_messagebus(request):
     """ This fixture allows multiple two message bus types to be configured to work together
@@ -260,6 +262,8 @@ def volttron_multi_messagebus(request):
     :param request:
     :return:
     """
+    print("volttron_multi_messagebus source: {} sink: {}".format(request.param['source'],
+                                                                 request.param['sink']))
     sink_address = get_rand_vip()
 
     if request.param['sink'] == 'rmq_web':
@@ -286,12 +290,20 @@ def volttron_multi_messagebus(request):
         messagebus = 'rmq'
         ssl_auth = True
 
-    source = build_wrapper(source_address,
-                           ssl_auth=ssl_auth,
-                           messagebus=messagebus,
-                           volttron_central_address=sink.bind_web_address)
+    if sink.messagebus == 'rmq':
+        sink_ca_file = sink.certsobj.cert_file(sink.certsobj.root_ca_name)
+        source = build_wrapper(source_address,
+                               ssl_auth=ssl_auth,
+                               messagebus=messagebus,
+                               volttron_central_address=sink.bind_web_address,
+                               remote_platform_ca=sink_ca_file)
+    else:
+        source = build_wrapper(source_address,
+                               ssl_auth=ssl_auth,
+                               messagebus=messagebus,
+                               volttron_central_address=sink.bind_web_address)
 
     yield source, sink
 
-    cleanup_wrapper(sink)
     cleanup_wrapper(source)
+    cleanup_wrapper(sink)
