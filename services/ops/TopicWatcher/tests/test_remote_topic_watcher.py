@@ -129,7 +129,7 @@ def test_alert_multi_messagebus_publish(volttron_multi_messagebus):
         remote_address = destination_instance.vip_address
 
     gevent.sleep(3)
-    agent = source_instance.dynamic_agent
+    agent = destination_instance.dynamic_agent
 
     def onmessage(peer, sender, bus, topic, headers, message):
         global alert_messages
@@ -171,7 +171,7 @@ def test_alert_multi_messagebus_publish(volttron_multi_messagebus):
         vip_identity=PLATFORM_TOPIC_WATCHER
     )
 
-    gevent.sleep(10)
+    gevent.sleep(6)
 
     assert alert_messages
     alert_messages.clear()
