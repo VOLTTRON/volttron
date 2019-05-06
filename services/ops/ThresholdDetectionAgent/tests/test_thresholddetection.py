@@ -166,6 +166,7 @@ def test_above_max(threshold_tester_agent):
     finally:
         threshold_tester_agent.clear_keys()
 
+
 def test_above_min(threshold_tester_agent):
     """Should not get any alerts because values are above min"""
     publish(threshold_tester_agent, _test_config, lambda x: x+1, to_max=False)
@@ -191,7 +192,6 @@ def test_below_min(threshold_tester_agent):
         threshold_tester_agent.clear_keys()
 
 
-@pytest.mark.dev
 def test_update_config(threshold_tester_agent):
     updated_config = {
         "updated_topic": {
