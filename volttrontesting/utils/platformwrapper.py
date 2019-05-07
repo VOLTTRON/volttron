@@ -1,4 +1,5 @@
 import ConfigParser as configparser
+from datetime import datetime
 import json
 import logging
 import os
@@ -36,7 +37,7 @@ from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttron.platform.agent import json as jsonapi
 from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
-from volttron.platform.agent.utils import execute_command
+from volttron.platform.agent.utils import execute_command, execute_command_p
 from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
 
 
@@ -300,6 +301,11 @@ class PlatformWrapper:
             identity = f.read().strip()
         return identity
 
+    def get_agent_by_identity(self, identity):
+        for agent in self.list_agents():
+            if agent.get('identity') == identity:
+                return agent
+
     def build_connection(self, peer=None, address=None, identity=None,
                          publickey=None, secretkey=None, serverkey=None,
                          capabilities=[], **kwargs):
@@ -381,7 +387,7 @@ class PlatformWrapper:
                             serverkey=serverkey,
                             instance_name=self.instance_name,
                             volttron_home=self.volttron_home,
-                            message_bus = self.messagebus,
+                            message_bus=self.messagebus,
                             **kwargs)
         self.logit('platformwrapper.build_agent.address: {}'.format(address))
 
@@ -699,6 +705,19 @@ class PlatformWrapper:
             if self.ssl_auth:
                 self._web_admin_api = WebAdminApi(self)
 
+        def subscribe_to_all(peer, sender, bus, topic, headers, messages):
+            logged = "{} --------------------Pubsub Message--------------------\n".format(
+                utils.format_timestamp(datetime.now()))
+            logged += "PEER: {}\n".format(peer)
+            logged += "SENDER: {}\n".format(sender)
+            logged += "Topic: {}\n".format(topic)
+            logged += "headers: {}\n".format([str(k)+'='+str(v) for k, v in headers.items()])
+            logged += "message: {}\n".format(messages)
+            logged += "-------------------------------------------------------\n"
+            self.logit(logged)
+
+        self.dynamic_agent.vip.pubsub.subscribe('pubsub', '', subscribe_to_all).get()
+
     def is_running(self):
         return utils.is_volttron_running(self.volttron_home)
 
@@ -782,7 +801,7 @@ class PlatformWrapper:
         return results
 
     def install_agent(self, agent_wheel=None, agent_dir=None, config_file=None,
-                      start=True, vip_identity=None):
+                      start=True, vip_identity=None, startup_time=2, force=False):
         """
         Install and optionally start an agent on the instance.
 
@@ -801,11 +820,16 @@ class PlatformWrapper:
         :param config_file:
         :param start:
         :param vip_identity:
+        :param startup_time:
+            How long in seconds is required for the agent to start up fully
+        :param force:
+            Should this overwrite the current or not.
         :return:
         """
 
         assert self.is_running(), "Instance must be running to install agent."
         assert agent_wheel or agent_dir, "Invalid agent_wheel or agent_dir."
+        assert isinstance(startup_time, int), "Startup time should be an integer."
 
         if agent_wheel:
             assert not agent_dir
@@ -846,8 +870,11 @@ class PlatformWrapper:
                    "--volttron-root", self.volttron_root,
                    "--agent-source", agent_dir,
                    "--config", config_file,
-                   "--json"]
+                   "--json",
+                   "--agent-start-time", str(startup_time)]
 
+            if force:
+                cmd.extend(["--force"])
             if vip_identity:
                 cmd.extend(["--vip-identity", vip_identity])
             if start:
@@ -1052,22 +1079,33 @@ class PlatformWrapper:
         if not self.is_running():
             return
 
-        cmd = ['volttron-ctl']
-        cmd.extend(['shutdown', '--platform'])
-        try:
-            execute_command(cmd, env=self.env, logger=_log,
-                            err_prefix="Error shutting down platform")
-        except RuntimeError:
-            if self.p_process is not None:
-                try:
-                    gevent.sleep(0.2)
-                    self.p_process.terminate()
-                    gevent.sleep(0.2)
-                except OSError:
-                    self.logit('Platform process was terminated.')
-            else:
-                self.logit("platform process was null")
-        gevent.sleep(1)
+        self.dynamic_agent.vip.rpc("shutdown").get()
+        if self.p_process is not None:
+            try:
+                gevent.sleep(0.2)
+                self.p_process.terminate()
+                gevent.sleep(0.2)
+            except OSError:
+                self.logit('Platform process was terminated.')
+        else:
+            self.logit("platform process was null")
+        #
+        # cmd = ['volttron-ctl']
+        # cmd.extend(['shutdown', '--platform'])
+        # try:
+        #     execute_command(cmd, env=self.env, logger=_log,
+        #                     err_prefix="Error shutting down platform")
+        # except RuntimeError:
+        #     if self.p_process is not None:
+        #         try:
+        #             gevent.sleep(0.2)
+        #             self.p_process.terminate()
+        #             gevent.sleep(0.2)
+        #         except OSError:
+        #             self.logit('Platform process was terminated.')
+        #     else:
+        #         self.logit("platform process was null")
+        # gevent.sleep(1)
 
     def shutdown_platform(self):
         """
@@ -1090,7 +1128,7 @@ class PlatformWrapper:
             if pid is not None and int(pid) > 0:
                 running_pids.append(int(pid))
         self.remove_all_agents()
-        self.dynamic_agent.vip.rpc(CONTROL, 'shutdown')
+        self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get()
         self.dynamic_agent.core.stop()
 
         if self.p_process is not None:
@@ -1146,8 +1184,24 @@ class PlatformWrapper:
         Restores orignial rabbitmq.conf if testing with rmq
         :return:
         """
+
+        def stop_rabbit_node():
+            """
+            Stop RabbitMQ Server
+            :param rmq_home: RabbitMQ installation path
+            :param env: Environment to run the RabbitMQ command.
+            :param quite:
+            :return:
+            """
+            _log.debug("Stop RMQ: {}".format(self.volttron_home))
+            cmd = [os.path.join(self.rabbitmq_config_obj.rmq_home, "sbin/rabbitmqctl"), "stop",
+                   "-n", self.rabbitmq_config_obj.node_name]
+            execute_command(cmd, env=self.env)
+            gevent.sleep(2)
+            _log.info("**Stopped rmq node: {}".format(self.rabbitmq_config_obj.node_name))
+
         if self.messagebus == 'rmq':
-            stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home, env=self.env)
+            stop_rabbit_node()
 
         if not self.debug_mode:
             shutil.rmtree(self.volttron_home, ignore_errors=True)
