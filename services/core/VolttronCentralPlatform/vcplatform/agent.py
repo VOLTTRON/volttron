@@ -322,7 +322,7 @@ class VolttronCentralPlatform(Agent):
 
         # Begin a connection loop that will automatically attempt to reconnect
         # and publish stats to volttron central if the connection is successful.
-        self.core.spawn_later(2, self._establish_connection_to_vc)
+        self.core.spawn_later(1, self._establish_connection_to_vc)
 
     def _stop_event_timers(self):
         if self._stat_publish_event is not None:
@@ -1041,8 +1041,7 @@ class VolttronCentralPlatform(Agent):
                         'remove_agent', 'restart_agent'):
             _log.debug('We are trying to exectute method {}'.format(method))
             if isinstance(params, list) and len(params) != 1 or \
-                            isinstance(params,
-                                       dict) and 'uuid' not in params.keys():
+                    isinstance(params, dict) and 'uuid' not in params.keys():
                 result = jsonrpc.json_error(ident=id, code=INVALID_PARAMS)
             else:
                 if isinstance(params, list):

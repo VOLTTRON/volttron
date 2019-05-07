@@ -712,6 +712,11 @@ def fix_sqlite3_datetime(sql=None):
 
 
 def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None):
+    _, output = execute_command_p(cmds, env, cwd, logger, err_prefix)
+    return output
+
+
+def execute_command_p(cmds, env=None, cwd=None, logger=None, err_prefix=None):
     """ Executes a given command. If commands return code is 0 return stdout.
     If not logs stderr and raises RuntimeException"""
     process = Popen(cmds, env=env, cwd=cwd, stderr=subprocess.PIPE,
@@ -729,7 +734,7 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None):
             raise RuntimeError()
         else:
             raise RuntimeError(err_message)
-    return output
+    return process.returncode, output
 
 
 def is_volttron_running(volttron_home):
