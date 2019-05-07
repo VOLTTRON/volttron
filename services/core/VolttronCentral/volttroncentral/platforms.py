@@ -228,8 +228,9 @@ class Platforms(object):
         :param default: a default to be returned if not in the collection.
         :return: a :ref:`PlatformHandler` or default
         """
+        encoded = base64.b64encode(platform_uuid)
         self._debug_platform_list()
-        return self._platforms.get(platform_uuid, default)
+        return self._platforms.get(encoded, default)
 
     def register_platform(self, address, address_type, serverkey=None,
                           display_name=None):
