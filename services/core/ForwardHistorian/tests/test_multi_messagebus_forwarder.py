@@ -38,6 +38,7 @@
 
 import pytest
 import gevent
+import os
 from volttron.platform import get_services_core
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent import utils
@@ -46,7 +47,7 @@ from mock import MagicMock
 
 
 @pytest.fixture(scope="module")
-def multi_messagebus_forwarder(request, volttron_multi_messagebus):
+def multi_messagebus_forwarder(volttron_multi_messagebus):
     from_instance, to_instance = volttron_multi_messagebus
     to_instance.allow_all_connections()
     forwarder_config = {"custom_topic_list": ["foo"]}
@@ -54,6 +55,9 @@ def multi_messagebus_forwarder(request, volttron_multi_messagebus):
     if to_instance.messagebus == 'rmq':
         remote_address = to_instance.bind_web_address
         to_instance.enable_auto_csr()
+        print("REQUEST CA: {}".format(os.environ.get('REQUESTS_CA_BUNDLE')))
+        os.environ['REQUESTS_CA_BUNDLE'] = to_instance.requests_ca_bundle
+
         forwarder_config['destination-address'] = remote_address
     else:
         remote_address = to_instance.vip_address
@@ -101,13 +105,16 @@ def test_multi_messagebus_forwarder(multi_messagebus_forwarder):
     subscriber_agent.callback.reset_mock()
     subscriber_agent.vip.pubsub.subscribe(peer='pubsub',
                                prefix='devices',
-                               callback=subscriber_agent.callback)
+                               callback=subscriber_agent.callback).get()
 
     subscriber_agent.analysis_callback = MagicMock(name="analysis_callback")
     subscriber_agent.analysis_callback.reset_mock()
     subscriber_agent.vip.pubsub.subscribe(peer='pubsub',
                                           prefix='analysis',
-                                          callback=subscriber_agent.analysis_callback)
+                                          callback=subscriber_agent.analysis_callback).get()
+    sub_list = subscriber_agent.vip.pubsub.list('pubsub').get()
+    gevent.sleep(3)
+
     # Create timestamp
     now = utils.format_timestamp(datetime.utcnow())
     print("now is ", now)
@@ -123,8 +130,8 @@ def test_multi_messagebus_forwarder(multi_messagebus_forwarder):
         topic = "analysis/PNNL/BUILDING1/WATERHEATER{}/ILCResults".format(i)
         value = {'result': 'passed'}
         publish(publish_agent, topic, headers, value)
+        gevent.sleep(0.5)
 
-    gevent.sleep(4)
     assert subscriber_agent.callback.call_count == 5
     assert subscriber_agent.analysis_callback.call_count == 5
 
