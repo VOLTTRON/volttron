@@ -13,7 +13,7 @@ def test_when_platform_added_disconnected():
     assert len(platforms.get_platform_list(None, None)) == 0
 
     new_platform_vip = "vcp-test_platform"
-    p =  platforms.add_platform(new_platform_vip)
+    platforms.add_platform(new_platform_vip)
     assert len(platforms.get_platform_vip_identities()) == 1
     assert len(platforms.get_platform_list(None, None)) == 1
     encoded_vip = base64.b64encode(new_platform_vip)
