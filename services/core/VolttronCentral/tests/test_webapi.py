@@ -29,6 +29,19 @@ def test_platform_list(auto_registered_local):
 
     assert len(webapi.list_platforms()) == 1
 
+# @pytest.mark.dev
+# def test_platform_inspect(auto_registered_local):
+#     webapi = auto_registered_local
+#     platforms = webapi.list_platforms()
+#     platform_uuid = platforms[0]["uuid"]
+#
+#     agents = webapi.list_agents(platform_uuid)
+#
+#     for agent in agents:
+#         agent_uuid = agent['uuid']
+#         result = webapi.inspect((platform_uuid, agent_uuid))
+#         print result
+#         assert result == False
 
 @pytest.fixture(scope="module")
 def vc_vcp_platforms():
