@@ -246,10 +246,10 @@ def volttron_instance_web(request):
 
 @pytest.fixture(scope="module",
                 params=[
-                    #dict(sink='zmq_web', source='zmq'),
+                    dict(sink='zmq_web', source='zmq'),
                     dict(sink='rmq_web', source='zmq'),
-                    # dict(sink='rmq_web', source='rmq'),
-                    # dict(sink='zmq_web', source='rmq')
+                    dict(sink='rmq_web', source='rmq'),
+                    dict(sink='zmq_web', source='rmq')
                 ])
 def volttron_multi_messagebus(request):
     """ This fixture allows multiple two message bus types to be configured to work together
