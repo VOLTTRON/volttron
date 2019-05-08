@@ -267,6 +267,16 @@ def do_vip():
 
     available = False
     while not available:
+        valid_bus = False
+        while not valid_bus:
+            prompt = 'What type of message bus (rmq/zmq)?'
+            new_bus = prompt_response(prompt, default='zmq')
+            valid_bus = is_valid_bus(new_bus)
+            if valid_bus:
+                bus_type = new_bus
+            else:
+                print("Message type is not valid. Valid entries are zmq or rmq.")
+
         valid_address = False
         while not valid_address:
             prompt = "What is the vip address?"
@@ -288,15 +298,6 @@ def do_vip():
             else:
                 print("Port is not valid.")
 
-        valid_bus = False
-        while not valid_bus:
-            prompt = 'What type of message bus?'
-            new_bus = prompt_response(prompt, default='zmq')
-            valid_bus = is_valid_bus(new_bus)
-            if valid_bus:
-                bus_type = new_bus
-            else:
-                print("Message type is not valid. Valid entries are zmq or rmq.")
         while vip_address.endswith('/'):
             vip_address = vip_address[:-1]
 
@@ -308,8 +309,59 @@ def do_vip():
     config_opts['vip-address'] = '{}:{}'.format(vip_address, vip_port)
     config_opts['message-bus'] = bus_type
 
-def do_web_enabled(vhome):
+def do_web_enabled_rmq(vhome):
     global config_opts
+
+
+    # Full implies that it will have a port on it as well.  Though if it's
+    # not in the address that means that we haven't set it up before.
+    full_bind_web_address = config_opts.get('bind-web-address',
+                                            'http://127.0.0.1')
+
+    parsed = urlparse.urlparse(full_bind_web_address)
+
+    address_only = full_bind_web_address
+    port_only = None
+    if parsed.port is not None:
+        address_only = parsed.scheme + '://' + parsed.hostname
+        port_only = parsed.port
+    else:
+        port_only = 8443
+
+    print("""
+In order for external clients to connect to volttron central or the instance
+itself, the instance must bind to a tcp address.  If testing, this can be an
+internal address such as 127.0.0.1.
+""")
+    valid_address = False
+    external_ip = None
+
+    while not valid_address:
+        prompt = 'What is the external ipv4 address for this instance? (https)'
+        new_external_ip = prompt_response(prompt, default=address_only)
+        valid_address = is_valid_url(new_external_ip, ['https'])
+        if valid_address:
+            external_ip = new_external_ip
+
+    valid_port = False
+    vc_port = None
+    while not valid_port:
+        prompt = 'What is the port for this instance?'
+        new_vc_port = prompt_response(prompt, default=port_only)
+        valid_port = is_valid_port(new_vc_port)
+        if valid_port:
+            vc_port = new_vc_port
+
+    while external_ip.endswith("/"):
+        external_ip = external_ip[:-1]
+
+    parsed = urlparse.urlparse(external_ip)
+
+    config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
+
+def do_web_enabled_zmq(vhome):
+    global config_opts
+
 
     # Full implies that it will have a port on it as well.  Though if it's
     # not in the address that means that we haven't set it up before.
@@ -333,6 +385,7 @@ internal address such as 127.0.0.1.
 """)
     valid_address = False
     external_ip = None
+
     while not valid_address:
         prompt = 'What is the external ipv4 address for this instance?'
         new_external_ip = prompt_response(prompt, default=address_only)
@@ -405,8 +458,8 @@ def get_cert_and_key(vhome):
 
     # Check for existing files first. If present and are valid ask if we are to use that
 
-    master_web_cert = os.path.join(vhome, 'certificates/certs/', MASTER_WEB+".crt")
-    master_web_key = os.path.join(vhome, 'certificates/private/', MASTER_WEB + ".pem")
+    master_web_cert = os.path.join(vhome, 'certificates/certs/', MASTER_WEB+"-server.crt")
+    master_web_key = os.path.join(vhome, 'certificates/private/', MASTER_WEB + "-server.pem")
     cert_error = True
 
     if is_file_readable(master_web_cert, False) and is_file_readable(master_web_key, False):
@@ -576,6 +629,7 @@ def confirm_volttron_home():
             exit(1)
 
 def wizard():
+    global config_opts
     """Routine for configuring an installed volttron instance.
 
     The function interactively sets up the instance for working with volttron
@@ -592,7 +646,14 @@ def wizard():
     prompt = 'Is this instance web enabled?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
-        do_web_enabled(volttron_home)
+        if config_opts['message-bus'] == 'rmq':
+            do_web_enabled_rmq(volttron_home)
+            prompt = 'Allow for zmq backward compatibility?'
+            response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+            if response in y:
+                do_web_enabled_zmq(volttron_home)
+        elif config_opts['message-bus'] == 'zmq':
+            do_web_enabled_zmq(volttron_home)
 
         prompt = 'Is this an instance of volttron central?'
         response = prompt_response(prompt, valid_answers=y_or_n, default='N')
