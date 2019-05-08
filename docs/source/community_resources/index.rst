@@ -14,8 +14,8 @@ learn more, check out :ref:`Contributing <contributing>` and :ref:`Documentation
 Slack Channel
 ^^^^^^^^^^^^^
 
-volttron-community.slack.com is where the VOLTTRON\ :sup:`TM` community at large can ask questions and meet with others
-using VOLTTRON\ :sup:`TM`.  Signup via https://volttron-community.signup.team/
+volttron-community.slack.com is where the |VOLTTRON| community at large can ask questions and meet with others
+using |VOLTTRON| Signup via https://volttron-community.signup.team/
 
 Mailing List
 ^^^^^^^^^^^^
@@ -54,3 +54,5 @@ Contributing Back
    contributing
    documentation
    *
+
+.. |VOLTTRON| unicode:: VOLTTRON U+2122
