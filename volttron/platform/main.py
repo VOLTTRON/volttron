@@ -615,8 +615,13 @@ def start_volttron_process(opts):
         raise StandardError("If web-ssl-key is specified web-ssl-cert MUST be specified.")
     if opts.web_ssl_cert and not opts.web_ssl_key:
         raise StandardError("If web-ssl-cert is specified web-ssl-key MUST be specified.")
-    if opts.web_ca_cert and not opts.web_ssl_key and not opts.web_ssl_cert:
-        raise StandardError("If web-ca-cert is specified web-ssl-key and web-ssl-cert MUST be specified.")
+
+    if opts.web_ca_cert:
+        assert os.path.isfile(opts.web_ca_cert), "web_ca_cert does not exist!"
+        os.environ['REQUESTS_CA_BUNDLE'] = opts.web_ca_cert
+
+    # Removed the check for opts.web_ca_cert to be the same cert that was used to create web_ssl_key
+    # and opts.web_ssl_cert
 
     os.environ['MESSAGEBUS'] = opts.message_bus
     if opts.instance_name is None:
@@ -948,6 +953,7 @@ def start_volttron_process(opts):
                     opts.web_ssl_key = certs.private_key_file(base_webserver_name)
                     opts.web_ssl_cert = certs.cert_file(base_webserver_name)
 
+            _log.info("Starting master web service")
             services.append(MasterWebService(
                 serverkey=publickey, identity=MASTER_WEB,
                 address=address,
@@ -1214,7 +1220,8 @@ def main(argv=sys.argv):
         # Volttron Central in AMQP address format is needed if running on RabbitMQ message bus
         volttron_central_rmq_address=None,
         web_ssl_key=None,
-        web_ssl_cert=None
+        web_ssl_cert=None,
+        web_ca_cert=None
     )
 
     # Parse and expand options

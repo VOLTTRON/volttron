@@ -1,4 +1,5 @@
 import pytest
+import gevent
 
 from volttron.platform import get_examples
 
@@ -18,6 +19,7 @@ def test_can_install_listeners(volttron_instance):
                     "message": "So Happpy"})
             assert auuid
             uuids.append(auuid)
+            gevent.sleep(0.5)
 
         for u in uuids:
             assert volttron_instance.is_agent_running(u)
@@ -51,6 +53,7 @@ def test_can_install_listeners_vi(volttron_instance):
                     "message": "So Happpy"})
             assert auuid
             uuids.append(auuid)
+            gevent.sleep(0.5)
 
         agent = volttron_instance.build_agent()
         agent_list = agent.vip.rpc('control', 'list_agents').get(timeout=5)

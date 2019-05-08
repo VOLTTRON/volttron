@@ -4,14 +4,15 @@
 # runs each of the test modules inside a docker container based
 # upon the test image.
 
-export FAST_FAIL=true
+# Default to fast faile though allow it to be overwritten.
+#export FAST_FAIL=${FAST_FAIL:-true}
 
 # A possible argument passed to the script is the number docker containers
 # to run at a single time.
 if [[ $# -eq 0 ]]; then
-    NUM_PROCESSES=3
+    export NUM_PROCESSES=${NUM_PROCESSES:-3}
 else
-    NUM_PROCESSES=$1
+    export NUM_PROCESSES=$1
 fi
 
 echo "RUNNING $NUM_PROCESSES PARALLEL PROCESSESS AT A TIME"
@@ -31,8 +32,8 @@ docker build --network=host -t volttron_test_base -f ./ci-integration/virtualiza
 docker build --network=host -t volttron_test_image -f ./ci-integration/virtualization/Dockerfile.testing .
 
 # Specific directories to scan for tests in
-#testdirs=(examples services volttron volttrontesting)
-testdirs=(volttrontesting)
+testdirs=(examples services volttrontesting)
+# testdirs=(volttrontesting)
 
 # State variable for when a test has failed the entire set needs to be considered
 # failed.
@@ -72,6 +73,7 @@ run_test(){
 # This method is used to clean up containers when FAST_FAIL is set to true
 # and failed tests are found.
 exit_cleanly(){
+    echo "Cleaning up test containers before exiting!"
     for container in ${containernames[@]}; do
         docker stop $container
         docker container rm $container
@@ -85,7 +87,6 @@ process_pid(){
     local index=$1
     local pid=${runningprocs[$index]}
 
-    echo "Processing $index with $pid"
     # Test whether or not the process id running the docker container
     # is still executing.  If it is not then we need to see what the
     # exit code was of the container.
@@ -93,11 +94,21 @@ process_pid(){
         exitcode=$(docker inspect ${containernames[$index]} --format='{{.State.ExitCode}}')
 
         echo "Exit code is ${exitcode}"
-        if [[ $exitcode -ne 0 ]]; then
-            echo "module ${containernames[$index]} FAILED"
-            HAS_FAILED=1
-            if [[ ${FAST_FAIL} ]]; then
-                exit_cleanly
+        # Exit code 5 is if there are no tests within the file so we filter that out
+        if [[ $exitcode -ne 0  ]]; then
+            if [[ $exitcode -eq 5 ]]; then
+                echo "module ${containernames[$index]} NO TESTS RAN"
+            else
+                echo "module ${containernames[$index]} FAILED"
+                HAS_FAILED=1
+                echo "FAST_FAIL is ${FAST_FAIL} if its 0 should start clean exit procedure."
+                if [[ ${FAST_FAIL} -eq 0 && -n ${CI} ]]; then
+                    docker logs ${containernames[$index]}
+                fi
+                if [[ ${FAST_FAIL} -eq 0 ]]; then
+                    echo "Exiting cleanly now!"
+                    exit_cleanly
+                fi
             fi
         else
             # process passed so cleanup the result file.
@@ -114,8 +125,6 @@ process_pid(){
         containernames=( ${containernames[@]:0:$index} ${containernames[@]:$((index + 1))} )
     fi
     i=$(( i+1 ))
-    sleep 1
-
 }
 
 #LOOP through set of directories and run bunch of test files in parallel
@@ -147,6 +156,8 @@ while [[ ${#testqueue[@]} -gt 0 ]]; do
     while [[ $i -lt ${#runningprocs[@]} ]]; do
         process_pid $i
     done
+    # echo "Running ${#runningprocs[@]} processes: ${runningprocs[@]}"
+    sleep 10
 done
 
 # Final loop to finish the running processes before exiting the script.
@@ -159,6 +170,8 @@ while [[ ${#runningprocs[@]} -gt 0 ]]; do
     while [[ $i -lt ${#runningprocs[@]} ]]; do
         process_pid $i
     done
+    echo "Running ${#runningprocs[@]} processes: ${runningprocs[@]}"
+    sleep 10
 done
 
 docker system prune --force

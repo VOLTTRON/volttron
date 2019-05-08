@@ -891,7 +891,7 @@ class RMQCore(Core):
             self.rmq_user = self.identity
         else:
             self.rmq_user = self.instance_name + '.' + self.identity
-        _log.debug("AGENT RUNNING on RMQ Core {}".format(self.identity))
+        _log.debug("AGENT RUNNING on RMQ Core {}".format(self.rmq_user))
 
         self.messagebus = messagebus
         self.rmq_mgmt = RabbitMQMgmt()

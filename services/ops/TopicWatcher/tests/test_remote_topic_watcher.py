@@ -50,12 +50,11 @@ from volttron.platform.agent.utils import get_aware_utc_now
 
 alert_messages = {}
 
+
 @pytest.mark.alert
 def test_remote_alert_publish(get_volttron_instances):
     """
-    Test alert to remote agent
-    :param agent:
-    :param cleanup_db:
+    Test alert to remote agent with 2 ZMQ instances
     :return:
     """
 
@@ -110,4 +109,69 @@ def test_remote_alert_publish(get_volttron_instances):
     gevent.sleep(6)
 
     assert alert_messages
+    alert_messages.clear()
 
+@pytest.mark.alert
+def test_alert_multi_messagebus_publish(volttron_multi_messagebus):
+    """
+    Test alert to remote agent with multi message bus combinations
+    :return:
+    """
+
+    source_instance, destination_instance = volttron_multi_messagebus
+    destination_instance.allow_all_connections()
+
+    if destination_instance.messagebus == 'rmq':
+        remote_address = destination_instance.bind_web_address
+        destination_instance.enable_auto_csr()
+    else:
+        remote_address = destination_instance.vip_address
+
+    gevent.sleep(3)
+    agent = destination_instance.dynamic_agent
+
+    def onmessage(peer, sender, bus, topic, headers, message):
+        global alert_messages
+
+        alert = json.loads(message)["context"]
+
+        try:
+            alert_messages[alert] += 1
+        except KeyError:
+            alert_messages[alert] = 1
+        print("In on message: {}".format(alert_messages))
+
+    agent.vip.pubsub.subscribe(peer='pubsub',
+                               prefix='alerts',
+                               callback=onmessage)
+
+    config = {
+        "group1": {
+            "fakedevice": 5,
+            "fakedevice2/all": {
+                "seconds": 5,
+                "points": ["point"]
+            }
+        },
+        "publish-settings": {
+            "publish-local": False,
+            "publish-remote": True,
+            "remote": {
+                "identity": "remote-agent",
+                "serverkey": destination_instance.serverkey,
+                "vip-address": remote_address
+            }
+        }
+    }
+
+    alert_uuid = source_instance.install_agent(
+        agent_dir=get_ops("TopicWatcher"),
+        config_file=config,
+        vip_identity=PLATFORM_TOPIC_WATCHER
+    )
+
+    gevent.sleep(6)
+    assert u"Topic(s) not published within time limit: ['fakedevice', " \
+           u"'fakedevice2/all', ('fakedevice2/all', 'point')]" in \
+           alert_messages
+    alert_messages.clear()

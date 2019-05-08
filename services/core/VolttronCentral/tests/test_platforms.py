@@ -1,4 +1,5 @@
 import pytest
+import base64
 from mock import MagicMock
 from volttroncentral.platforms import PlatformHandler, Platforms
 from volttroncentral.agent import VolttronCentralAgent
@@ -15,8 +16,9 @@ def test_when_platform_added_disconnected():
     platforms.add_platform(new_platform_vip)
     assert len(platforms.get_platform_vip_identities()) == 1
     assert len(platforms.get_platform_list(None, None)) == 1
+    encoded_vip = base64.b64encode(new_platform_vip)
+    platform = platforms.get_platform(encoded_vip)
 
-    platform = platforms.get_platform(new_platform_vip)
     assert isinstance(platform, PlatformHandler)
     assert platform.vip_identity == new_platform_vip
 
