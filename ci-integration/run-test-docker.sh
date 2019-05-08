@@ -5,7 +5,7 @@
 # upon the test image.
 
 # Default to fast faile though allow it to be overwritten.
-export FAST_FAIL=${FAST_FAIL:-true}
+#export FAST_FAIL=${FAST_FAIL:-true}
 
 # A possible argument passed to the script is the number docker containers
 # to run at a single time.
@@ -102,6 +102,9 @@ process_pid(){
                 echo "module ${containernames[$index]} FAILED"
                 HAS_FAILED=1
                 echo "FAST_FAIL is ${FAST_FAIL} if its 0 should start clean exit procedure."
+                if [[ ${FAST_FAIL} -eq 0 && -n ${CI} ]]; then
+                    docker logs ${containernames[$index]}
+                fi
                 if [[ ${FAST_FAIL} -eq 0 ]]; then
                     echo "Exiting cleanly now!"
                     exit_cleanly
