@@ -150,7 +150,8 @@ def test_multi_messagebus_custom_topic_forwarder(multi_messagebus_forwarder):
     subscriber_agent.callback.reset_mock()
     subscriber_agent.vip.pubsub.subscribe(peer='pubsub',
                                prefix='foo',
-                               callback=subscriber_agent.callback)
+                               callback=subscriber_agent.callback).get()
+    #subscriber_agent.vip.pubsub.list(subscriber_agent.core.identity)
     # Create timestamp
     now = utils.format_timestamp(datetime.utcnow())
     print("now is ", now)
@@ -158,13 +159,13 @@ def test_multi_messagebus_custom_topic_forwarder(multi_messagebus_forwarder):
         headers_mod.DATE: now,
         headers_mod.TIMESTAMP: now
     }
-
+    gevent.sleep(5)
     for i in range(0, 5):
         topic = "foo/grid_signal"
         value = 78.5 + i
         publish(publish_agent, topic, headers, value)
-
-    gevent.sleep(3)
+        gevent.sleep(0.1)
+    #gevent.sleep(3)
     assert subscriber_agent.callback.call_count == 5
 
 

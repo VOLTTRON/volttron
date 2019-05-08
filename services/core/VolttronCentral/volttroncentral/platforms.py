@@ -296,8 +296,8 @@ class PlatformHandler(object):
         # router.
         self._vc = vc
         # Add some logging information about the vcp platform
-        self._external_vip_addresses = self.call('get_vip_addresses')
         self._instance_name = self.call('get_instance_name')
+        self._external_vip_addresses = self.call('get_vip_addresses')
 
         message = "Building handler for platform: {} from address: {}".format(
             self._instance_name,
