@@ -4,10 +4,10 @@ Service Agents
 
 .. toctree::
     :glob:
-    :maxdepth: 1
+    :maxdepth: 2
 
     actuator/index
-    topic_watcher/index
+    alerter/index
     emailer/index
     failover/index
     file_watch_publisher/index

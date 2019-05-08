@@ -39,8 +39,6 @@
 
 """Component for the instantiation and packaging of agents."""
 
-
-import contextlib
 import errno
 import logging
 import os
@@ -51,11 +49,11 @@ import uuid
 
 import gevent
 import gevent.event
-from gevent.fileobject import FileObject
 from gevent import subprocess
 from gevent.subprocess import PIPE
 from wheel.tool import unpack
-import zmq
+
+from volttron.platform import certs
 
 # Can't use zmq.utils.jsonapi because it is missing the load() method.
 try:
@@ -63,21 +61,20 @@ try:
 except ImportError:
     import json as jsonapi
 
-from . import messaging
-from .agent.utils import is_valid_identity
-from .messaging import topics
+from .agent.utils import is_valid_identity, get_messagebus, \
+    get_platform_instance_name
+from volttron.platform import get_home
 from .packages import UnpackedPackage
 from .vip.agent import Agent
 from .keystore import KeyStore
 from .auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
+from volttron.utils.rmq_mgmt import RabbitMQMgmt
 
 try:
     from volttron.restricted import auth
-    from volttron.restricted import certs
     from volttron.restricted.resmon import ResourceError
 except ImportError:
     auth = None
-
 
 _log = logging.getLogger(__name__)
 
@@ -94,14 +91,14 @@ def process_wait(p):
 
 
 # LOG_* constants from syslog module (not available on Windows)
-_level_map = {7: logging.DEBUG,      # LOG_DEBUG
-              6: logging.INFO,       # LOG_INFO
-              5: logging.INFO,       # LOG_NOTICE
-              4: logging.WARNING,    # LOG_WARNING
-              3: logging.ERROR,      # LOG_ERR
-              2: logging.CRITICAL,   # LOG_CRIT
-              1: logging.CRITICAL,   # LOG_ALERT
-              0: logging.CRITICAL,}  # LOG_EMERG
+_level_map = {7: logging.DEBUG,  # LOG_DEBUG
+              6: logging.INFO,  # LOG_INFO
+              5: logging.INFO,  # LOG_NOTICE
+              4: logging.WARNING,  # LOG_WARNING
+              3: logging.ERROR,  # LOG_ERR
+              2: logging.CRITICAL,  # LOG_CRIT
+              1: logging.CRITICAL,  # LOG_ALERT
+              0: logging.CRITICAL, }  # LOG_EMERG
 
 
 def log_entries(name, agent, pid, level, stream):
@@ -163,6 +160,7 @@ class IgnoreErrno(object):
         except AttributeError:
             pass
 
+
 ignore_enoent = IgnoreErrno(errno.ENOENT)
 
 
@@ -172,6 +170,7 @@ class ExecutionEnvironment(object):
     Deleting ExecutionEnvironment objects should cause the process to
     end and all resources to be returned to the system.
     '''
+
     def __init__(self):
         self.process = None
         self.env = None
@@ -195,6 +194,8 @@ class AIPplatform(object):
     def __init__(self, env, **kwargs):
         self.env = env
         self.agents = {}
+        if get_messagebus() == 'rmq':
+            self.rmq_mgmt = RabbitMQMgmt()
 
     def setup(self):
         '''Creates paths for used directories for the instance.'''
@@ -215,18 +216,32 @@ class AIPplatform(object):
 
     def shutdown(self):
         for agent_uuid in self.agents.iterkeys():
+            _log.debug("Stopping agent UUID {}".format(agent_uuid))
             self.stop_agent(agent_uuid)
         event = gevent.event.Event()
-        agent = Agent(identity='aip', address='inproc://vip')
+        agent = Agent(identity='aip', address='inproc://vip',
+                      message_bus=get_messagebus())
         task = gevent.spawn(agent.core.run, event)
         try:
             event.wait()
-            agent.vip.pubsub.publish(
-                'pubsub', topics.PLATFORM_SHUTDOWN,
-                {'reason': 'Received shutdown command'}).get()
         finally:
             agent.core.stop()
             task.kill()
+        _log.debug("I'm done with aip shutdown")
+
+    def brute_force_platform_shutdown(self):
+        for agent_uuid in self.agents.iterkeys():
+            _log.debug("Stopping agent UUID {}".format(agent_uuid))
+            self.stop_agent(agent_uuid)
+        # kill the platform
+        pid = None
+        pid_file = "{vhome}/VOLTTRON_PID".format(vhome=get_home())
+        with open(pid_file) as f:
+            pid = int(f.read())
+        if pid:
+            os.kill(pid, signal.SIGINT)
+            os.remove(pid_file)
+
 
     subscribe_address = property(lambda me: me.env.subscribe_address)
     publish_address = property(lambda me: me.env.publish_address)
@@ -302,7 +317,7 @@ class AIPplatform(object):
     def _setup_agent_vip_id(self, agent_uuid, vip_identity=None):
         agent_path = os.path.join(self.install_dir, agent_uuid)
         name = self.agent_name(agent_uuid)
-        pkg = UnpackedPackage(os.path.join(agent_path,  name))
+        pkg = UnpackedPackage(os.path.join(agent_path, name))
         identity_template_filename = os.path.join(pkg.distinfo, "IDENTITY_TEMPLATE")
 
         rm_id_template = False
@@ -340,7 +355,7 @@ class AIPplatform(object):
         with open(identity_filename, 'wb') as fp:
             fp.write(final_identity)
 
-        _log.info("Agent {uuid} setup to use VIP ID {vip_identity}". format(
+        _log.info("Agent {uuid} setup to use VIP ID {vip_identity}".format(
             uuid=agent_uuid, vip_identity=final_identity))
 
         # Cleanup IDENTITY_TEMPLATE file.
@@ -393,7 +408,7 @@ class AIPplatform(object):
         return results
 
     def get_all_agent_identities(self):
-       return self.get_agent_identity_to_uuid_mapping().keys()
+        return self.get_agent_identity_to_uuid_mapping().keys()
 
     def _get_available_agent_identity(self, name_template):
         all_agent_identities = self.get_all_agent_identities()
@@ -414,6 +429,13 @@ class AIPplatform(object):
         if agent_uuid not in os.listdir(self.install_dir):
             raise ValueError('invalid agent')
         self.stop_agent(agent_uuid)
+        msg_bus = get_messagebus()
+        if msg_bus == 'rmq':
+            # Delete RabbitMQ user for the agent
+            identity = self.agent_identity(agent_uuid)
+            instance_name = get_platform_instance_name()
+            rmq_user = instance_name + '.' + identity
+            self.rmq_mgmt.delete_user(rmq_user)
         self.agents.pop(agent_uuid, None)
         if remove_auth:
             self._unauthorize_agent_keys(agent_uuid)
@@ -540,7 +562,7 @@ class AIPplatform(object):
         failed_terms = resmon.check_hard_resources(hard_reqs)
         if failed_terms:
             msg = '\n'.join('  {}: {} ({})'.format(
-                             term, hard_reqs[term], avail)
+                term, hard_reqs[term], avail)
                             for term, avail in failed_terms.iteritems())
             _log.error('hard resource requirements not met:\n%s', msg)
             raise ValueError('hard resource requirements not met')
@@ -557,7 +579,7 @@ class AIPplatform(object):
         except ResourceError as exc:
             errmsg, failed_terms = exc.args
         msg = '\n'.join('  {}: {} ({})'.format(
-                         term, requirements.get(term, '<unset>'), avail)
+            term, requirements.get(term, '<unset>'), avail)
                         for term, avail in failed_terms.iteritems())
         _log.error('%s:\n%s', errmsg, msg)
         raise ValueError(errmsg)
@@ -582,7 +604,7 @@ class AIPplatform(object):
                 return jsonapi.load(file)
         except Exception as exc:
             msg = 'error reading execution requirements: {}: {}'.format(
-                   execreqs_json, exc)
+                execreqs_json, exc)
             _log.error(msg)
             raise ValueError(msg)
         _log.warning('missing execution requirements: %s', execreqs_json)
@@ -618,7 +640,6 @@ class AIPplatform(object):
                 raise ValueError('no agent launch class specified in package')
         config = os.path.join(pkg.distinfo, 'config')
         tag = self.agent_tag(agent_uuid)
-
         environ = os.environ.copy()
         environ['PYTHONPATH'] = ':'.join([agent_path] + sys.path)
         environ['PATH'] = (os.path.abspath(os.path.dirname(sys.executable)) +
@@ -636,7 +657,7 @@ class AIPplatform(object):
         environ['AGENT_UUID'] = agent_uuid
         environ['_LAUNCHED_BY_PLATFORM'] = '1'
 
-        #For backwards compatibility create the identity file if it does not exist.
+        # For backwards compatibility create the identity file if it does not exist.
         identity_file = os.path.join(self.install_dir, agent_uuid, "IDENTITY")
         if not os.path.exists(identity_file):
             _log.debug('IDENTITY FILE MISSING: CREATING IDENTITY FILE WITH VALUE: {}'.format(agent_uuid))
@@ -684,8 +705,6 @@ class AIPplatform(object):
             return (None, None)
         return (execenv.process.pid, execenv.process.poll())
 
-
-
     def stop_agent(self, agent_uuid):
         try:
             execenv = self.agents[agent_uuid]
@@ -700,12 +719,12 @@ class AIPplatform(object):
                 _log.warn("First timeout")
                 execenv.process.terminate()
             try:
-                return gevent.with_timeout(3, process_wait, execenv.process)
+                return gevent.with_timeout(30, process_wait, execenv.process)
             except gevent.Timeout:
                 _log.warn("2nd timeout")
                 execenv.process.kill()
             try:
-                return gevent.with_timeout(3, process_wait, execenv.process)
+                return gevent.with_timeout(30, process_wait, execenv.process)
             except gevent.Timeout:
                 _log.error("last timeout")
                 raise ValueError('process is unresponsive')

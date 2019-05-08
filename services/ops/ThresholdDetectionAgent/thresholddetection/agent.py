@@ -214,6 +214,7 @@ class ThresholdDetectionAgent(Agent):
         :param point: Optional point name. Used in alert message.
         :type point: str
         """
+        _log.debug("Sending Alert")
         if point:
             point = '({})'.format(point)
 

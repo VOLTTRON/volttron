@@ -103,8 +103,9 @@ should be different for each instance.
 
     $ volttron -l log1&
 
-.. note:: If you choose to not start your agents with their platforms they will
-need to be started by hand.  List the installed agents with
+.. note:: If you choose to not start your agents with their platforms they will need to be started by hand.  
+
+List the installed agents with
 
 .. code-block:: console
 

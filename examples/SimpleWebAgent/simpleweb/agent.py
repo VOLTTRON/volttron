@@ -102,7 +102,7 @@ class SimpleWebAgent(Agent):
         # this is not required.
         
         # Endpoint will be available at http://localhost:8080/simple/text
-        self.vip.web.register_endpoint("/simple/text", self.text)
+        self.vip.web.register_endpoint("/simple/text", callback=self.text)
         
         # Endpoint will be available at http://localhost:8080/simple/jsonrpc
         self.vip.web.register_endpoint("/simpleweb/jsonrpc", self.rpcendpoint)
@@ -111,7 +111,9 @@ class SimpleWebAgent(Agent):
         """
         Text/html content type specified so the browser can act appropriately.
         """
-        return "This is some text", [("Content-Type", "text/html")]
+        # Response Type 200 OK is normal operation
+        # 404 is not found
+        return "200 OK", "This is some text", [("Content-Type", "text/html")]
 
     def rpcendpoint(self, env, data):
         """

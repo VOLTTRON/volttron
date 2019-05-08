@@ -7,11 +7,8 @@ The VOLTTRON platform has several commands for controlling the lifecycle
 of agents. This page discusses how to use them, for details of operation
 please see :ref:`PlatformConfiguration <PlatformConfiguration>`
 
-.. note::
-
-    These examples assume the VOLTTRON environment has been activated.
-
-    ``source env/bin/activate``
+**These examples assume the VOLTTRON environment has been activated (.
+env/bin/activate). If not, add "bin/" to all commands.**
 
 Agent Packaging
 ===============
@@ -23,10 +20,6 @@ for its packaging and follows the Wheel naming
 `convention <http://legacy.python.org/dev/peps/pep-0427/#file-name-convention>`__.
 
 To create an agent package, call ``volttron-pkg <Agent Dir>``.
-
-.. note::
-
-    The agent directory must contain a properly formatted setup.py file.
 
 For instance: ``volttron-pkg package examples/ListenerAgent``
 
@@ -43,7 +36,7 @@ Agent Configuration
 
 Agent packages are configured with the
 ``volttron-pkg configure <AgentPackage> <ConfigFile>`` command. It is
-suggested that this file use either yaml or json formatting but the agent can be
+suggested that this file use json formatting but the agent can be
 written to interpret any format it requires. The configuration of a
 particular agent is opaque to the VOLTTRON platform. The location of the
 agent config file is passed as an environmental variable "AGENT\_CONFIG"
@@ -51,16 +44,8 @@ which the provided utilities read in and pass to the agent.
 
 An example config file passing in some parameters:
 
-.. code:: YAML
+::
 
-    # YAML based configuration file
-    agentId: listener1
-    message: hello
-
-
-.. code:: JSON
-
-    # JSON based configuration file
     {
 
         "agentid": "listener1",
@@ -112,6 +97,12 @@ After an agent is started, it will show up in
 Similarly, ``volttron-ctl stop <UUID>`` can also operate off the tag and
 name of agent(s). After an agent is stopped, it will show an exit code
 of 0 in :ref:`AgentStatus <AgentStatus>`
+
+Running an agent
+----------------
+
+For testing purposes, an agent package not installed in the platform can
+be run by using: ``volttron-ctl run <PACKAGE>``.
 
 Agent Status
 ============

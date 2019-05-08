@@ -485,7 +485,6 @@ class BaseHistorianAgent(Agent):
 
     def _configure(self, config_name, action, contents):
         self.vip.heartbeat.start()
-        _log.info("Configuring historian.")
         config = self._default_config.copy()
         config.update(contents)
 
@@ -558,7 +557,7 @@ class BaseHistorianAgent(Agent):
         try:
             self.configure(config)
         except Exception as e:
-            _log.error("Failed to load historian settings.")
+            _log.error("Failed to load historian settings.{}".format(e))
 
         self.start_process_thread()
 
@@ -1060,7 +1059,6 @@ class BaseHistorianAgent(Agent):
             if not self._setup_failed:
                 wait_for_input = True
                 start_time = datetime.utcnow()
-                _log.debug("Beginning publish loop.")
 
                 while True:
                     to_publish_list = backupdb.get_outstanding_to_publish(
@@ -1128,8 +1126,6 @@ class BaseHistorianAgent(Agent):
                     # Check for a stop for reconfiguration.
                     if self._stop_process_loop:
                         break
-
-                _log.debug("Exiting publish loop.")
 
             # Check for a stop for reconfiguration.
             if self._stop_process_loop:
@@ -1408,7 +1404,10 @@ class BackupDatabase:
                     WHERE ROWID IN
                     (SELECT ROWID FROM outstanding
                     ORDER BY ROWID ASC LIMIT 100)''')
-                self._record_count -= c.rowcount
+                if self._record_count < c.rowcount:
+                    self._record_count = 0
+                else:
+                    self._record_count -= c.rowcount
                 cache_full = True
 
             # Catch case where we are not adding fast enough to trigger the above
