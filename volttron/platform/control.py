@@ -2608,9 +2608,9 @@ def main(argv=sys.argv):
         if args[0] not in ('list', 'tag', 'auth', 'rabbitmq'):
             # check pid file
             if not utils.is_volttron_running(volttron_home):
-                    _stderr.write("VOLTTRON is not running. This command "
-                                  "requires VOLTTRON platform to be running\n")
-                    return 10
+                _stderr.write("VOLTTRON is not running. This command "
+                              "requires VOLTTRON platform to be running\n")
+                return 10
 
     conf = os.path.join(volttron_home, 'config')
     if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
