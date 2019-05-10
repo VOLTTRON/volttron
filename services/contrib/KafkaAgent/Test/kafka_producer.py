@@ -18,7 +18,7 @@ producer = KafkaProducer(bootstrap_servers=['127.0.0.1:9092'],
 new_new_value = 0
 while True:
     try:
-        menu = int(raw_input('1: Command by user input, 2: Command by json file - '))
+        menu = int(input('1: Command by user input, 2: Command by json file - '))
 
         if menu == 1:
             pass

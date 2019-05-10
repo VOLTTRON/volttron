@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import, print_function
+
 
 from collections import defaultdict
 
@@ -292,12 +292,12 @@ class EmailerAgent(Agent):
         _log.info('Sending email {}'.format(subject))
         _log.debug('Mail from: {}, to: {}'.format(from_address, to_addresses))
         recipients = to_addresses
-        if isinstance(recipients, basestring):
+        if isinstance(recipients, str):
             recipients = [recipients]
 
         # Use unicode to protect against encod error
         # http://stackoverflow.com/questions/25891541/attributeerror-encode
-        msg = MIMEText(unicode(message))
+        msg = MIMEText(str(message))
         msg['To'] = ', '.join(recipients)
         msg['FROM'] = from_address
         msg['Subject'] = subject
@@ -357,7 +357,7 @@ class EmailerAgent(Agent):
 
         from_address = self.current_config['alert_from_address']
         recipients = self.current_config['alert_to_addresses']
-        if isinstance(recipients, basestring):
+        if isinstance(recipients, str):
             recipients = [recipients]
 
         # After here we are going to attempt to send the email out
@@ -365,7 +365,7 @@ class EmailerAgent(Agent):
 
         # Use unicode to protect against encod error
         # http://stackoverflow.com/questions/25891541/attributeerror-encode
-        msg = MIMEText(unicode(message))
+        msg = MIMEText(str(message))
         msg['To'] = ', '.join(recipients)
         msg['FROM'] = from_address
         msg['Subject'] = subject

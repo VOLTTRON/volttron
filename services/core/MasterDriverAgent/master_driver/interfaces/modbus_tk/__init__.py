@@ -259,8 +259,8 @@ class Interface(BasicRevert, BaseInterface):
         """
 
         # Convert keys to lowercase
-        config_dict = dict((k.lower(), v) for k, v in config_dict.iteritems())
-        registry_config_lst = [dict((k.lower(), v) for k, v in i.iteritems()) for i in registry_config_lst]
+        config_dict = dict((k.lower(), v) for k, v in config_dict.items())
+        registry_config_lst = [dict((k.lower(), v) for k, v in i.items()) for i in registry_config_lst]
 
         # Log warning if registry_config_lst is empty
         if not registry_config_lst:
@@ -285,7 +285,7 @@ class Interface(BasicRevert, BaseInterface):
 
         # Get register map and convert everything to lowercase
         register_map = dict((reg['register name'], reg) for reg in
-                            [dict((k.lower(), v) for k, v in i.iteritems()) for i in
+                            [dict((k.lower(), v) for k, v in i.items()) for i in
                              config_dict.get('register_map', registry_config_lst)])
 
         # Log warning for ignored config fields
@@ -295,7 +295,7 @@ class Interface(BasicRevert, BaseInterface):
 
         try:
             # Log warning for ignored register map csv column
-            ignored_register_map_csv_columns = [c for c in register_map.values()[0].keys() if c not in register_map_columns]
+            ignored_register_map_csv_columns = [c for c in list(register_map.values())[0].keys() if c not in register_map_columns]
             if ignored_register_map_csv_columns:
                 _log.warning("%s: Ignored register map csv columns: %s", name, ','.join(ignored_register_map_csv_columns))
         except IndexError:

@@ -30,7 +30,7 @@ def get_env(platform):
 
 def auth_list(platform):
     env = get_env(platform)
-    return subprocess.check_output(['volttron-ctl', 'auth', 'list'], env=env)
+    return subprocess.check_output(['volttron-ctl', 'auth', 'list'], env=env, universal_newlines=True)
 
 
 def auth_list_json(platform):
@@ -62,7 +62,7 @@ def entry_to_input_string(domain='', address='', user_id='', capabilities='',
 def auth_add(platform, entry):
     env = get_env(platform)
     p = subprocess.Popen(['volttron-ctl', 'auth', 'add'], env=env,
-                         stdin=subprocess.PIPE)
+                         stdin=subprocess.PIPE, universal_newlines=True)
     p.communicate(input=entry_to_input_string(**entry.__dict__))
     assert p.returncode == 0
 
@@ -81,7 +81,7 @@ def auth_add_cmd_line(platform, entry):
         args.append('--disabled')
 
     env = get_env(platform)
-    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE)
+    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE, universal_newlines=True)
     p.communicate()
     assert p.returncode == 0
 
@@ -89,7 +89,7 @@ def auth_add_cmd_line(platform, entry):
 def auth_remove(platform, index):
     env = get_env(platform)
     p = subprocess.Popen(['volttron-ctl', 'auth', 'remove', str(index)], env=env,
-                         stdin=subprocess.PIPE)
+                         stdin=subprocess.PIPE, universal_newlines=True)
     p.communicate(input='Y\n')
     assert p.returncode == 0
 
@@ -97,7 +97,7 @@ def auth_remove(platform, index):
 def auth_update(platform, index, **kwargs):
     env = get_env(platform)
     p = subprocess.Popen(['volttron-ctl', 'auth', 'update', str(index)], env=env,
-                         stdin=subprocess.PIPE)
+                         stdin=subprocess.PIPE, universal_newlines=True)
     p.communicate(input=entry_to_input_string(**kwargs))
     assert p.returncode == 0
 
@@ -232,7 +232,7 @@ def _add_group_or_role(platform, cmd, name, list_):
     args = ['volttron-ctl', 'auth', cmd, name]
     args.extend(list_)
     env = get_env(platform)
-    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE)
+    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE, universal_newlines=True)
     p.communicate()
     assert p.returncode == 0
 
@@ -248,8 +248,7 @@ def _add_role(platform, role, capabilities):
 def _list_groups_or_roles(platform, cmd):
     env = get_env(platform)
     output = subprocess.check_output(['volttron-ctl', 'auth', cmd],
-                                    env=env)
-    output = output.decode("utf-8")
+                                    env=env, universal_newlines=True)
     # For these tests don't use names that contain space, [, comma, or '
     output = output.replace('[', '').replace("'", '').replace(']', '')
     output = output.replace(',', '')
@@ -276,7 +275,7 @@ def _update_group_or_role(platform, cmd, key, values, remove):
     if remove:
         args.append('--remove')
     env = get_env(platform)
-    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE)
+    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE, universal_newlines=True)
     p.communicate()
     assert p.returncode == 0
 
@@ -292,7 +291,7 @@ def _update_role(platform, role, caps, remove=False):
 def _remove_group_or_role(platform, cmd, key):
     args = ['volttron-ctl', 'auth', cmd, key]
     env = get_env(platform)
-    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE)
+    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE, universal_newlines=True)
     p.communicate()
     assert p.returncode == 0
 
@@ -325,7 +324,7 @@ def _add_known_host(platform, host, serverkey):
     args.extend(['--host', host])
     args.extend(['--serverkey', serverkey])
     env = get_env(platform)
-    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE)
+    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE, universal_newlines=True)
     p.communicate()
     assert p.returncode == 0
 
@@ -333,9 +332,8 @@ def _add_known_host(platform, host, serverkey):
 def _list_known_hosts(platform):
     env = get_env(platform)
     output = subprocess.check_output(['volttron-ctl', 'auth',
-                                      'list-known-hosts'], env=env)
+                                      'list-known-hosts'], env=env, universal_newlines=True)
 
-    output = output.decode("utf-8")
     lines = output.split('\n')
     dict_ = {}
     for line in lines[2:-1]: # skip two header lines and last (empty) line
@@ -347,6 +345,6 @@ def _list_known_hosts(platform):
 def _remove_known_host(platform, host):
     args = ['volttron-ctl', 'auth', 'remove-known-host', host]
     env = get_env(platform)
-    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE)
+    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE, universal_newlines=True)
     p.communicate()
     assert p.returncode == 0

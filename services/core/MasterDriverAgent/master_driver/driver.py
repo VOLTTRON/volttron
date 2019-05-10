@@ -49,7 +49,7 @@ from volttron.platform.messaging.topics import (DRIVER_TOPIC_BASE,
                                                 DEVICES_PATH)
 
 from volttron.platform.vip.agent.errors import VIPError, Again
-from driver_locks import publish_lock
+from .driver_locks import publish_lock
 import datetime
 
 utils.setup_logging()
@@ -149,9 +149,10 @@ class DriverAgent(BasicAgent):
 
     def get_interface(self, driver_type, config_dict, config_string):
         """Returns an instance of the interface"""
-        module_name = "interfaces." + driver_type
-        module = __import__(module_name,globals(),locals(),[], -1)
-        sub_module = getattr(module, driver_type)
+        module_name = "master_driver.interfaces." + driver_type
+        module = __import__(module_name,globals(),locals(),[], 0)
+        interfaces = module.interfaces
+        sub_module = getattr(interfaces, driver_type)
         klass = getattr(sub_module, "Interface")
         interface = klass(vip=self.vip, core=self.core, device_path=self.device_path)
         interface.configure(config_dict, config_string)
@@ -242,7 +243,7 @@ class DriverAgent(BasicAgent):
         try:
             results = self.interface.scrape_all()
             register_names = self.interface.get_register_names_view()
-            for point in (register_names - results.viewkeys()):
+            for point in (register_names - results.keys()):
                 depth_first_topic = self.base_topic(point=point)
                 _log.error("Failed to scrape point: "+depth_first_topic)
         except (Exception, gevent.Timeout) as ex:
@@ -267,7 +268,7 @@ class DriverAgent(BasicAgent):
 
 
         if self.publish_depth_first or self.publish_breadth_first:
-            for point, value in results.iteritems():
+            for point, value in results.items():
                 depth_first_topic, breadth_first_topic = self.get_paths_for_point(point)
                 message = [value, self.meta_data[point]]
 

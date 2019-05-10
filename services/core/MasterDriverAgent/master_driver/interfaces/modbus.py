@@ -62,7 +62,7 @@ from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert, D
 import struct
 import logging
 from csv import DictReader
-from StringIO import StringIO
+from io import StringIO
 import os.path
 
 from contextlib import contextmanager, closing
@@ -138,7 +138,7 @@ class ModbusByteRegister(ModbusRegisterBase):
         except struct.error:
             raise ValueError("Invalid Modbus Register '" + type_string + "' for point " + pointName)
         
-        struct_types = [type(x) for x in self.parse_struct.unpack('\x00'*self.parse_struct.size)]
+        struct_types = [type(x) for x in self.parse_struct.unpack(b'\x00'*self.parse_struct.size)]
         
         if len(struct_types) != 1:
             raise ValueError("Invalid length Modbus Register '" + type_string + "' for point " + pointName)
@@ -161,7 +161,7 @@ class ModbusByteRegister(ModbusRegisterBase):
 
         if self.mixed_endian:
             register_values = []
-            for i in xrange(0, len(target_bytes), PYMODBUS_REGISTER_STRUCT.size):
+            for i in range(0, len(target_bytes), PYMODBUS_REGISTER_STRUCT.size):
                 register_values.extend(PYMODBUS_REGISTER_STRUCT.unpack_from(target_bytes, i))
             register_values.reverse()
 
@@ -192,7 +192,7 @@ class ModbusByteRegister(ModbusRegisterBase):
         if not self.read_only:
             value_bytes = self.parse_struct.pack(value)
             register_values = []
-            for i in xrange(0, len(value_bytes), PYMODBUS_REGISTER_STRUCT.size):
+            for i in range(0, len(value_bytes), PYMODBUS_REGISTER_STRUCT.size):
                 register_values.extend(PYMODBUS_REGISTER_STRUCT.unpack_from(value_bytes, i))
             if self.mixed_endian:
                 register_values.reverse()
@@ -272,7 +272,7 @@ class Interface(BasicRevert, BaseInterface):
             try:
                 result = register.set_state(client, value)
             except (ConnectionException, ModbusIOException, ModbusInterfaceException) as ex:
-                IOError("Error encountered trying to write to point {}: {}".format(point_name, ex))
+                raise IOError("Error encountered trying to write to point {}: {}".format(point_name, ex))
         return result
     
     def scrape_byte_registers(self, client, read_only):
@@ -283,13 +283,15 @@ class Interface(BasicRevert, BaseInterface):
 
         for register_range in register_ranges:
             start, end, registers = register_range
-            result = ''
+            result = b''
 
-            for group in xrange(start, end + 1, MODBUS_READ_MAX):
+            for group in range(start, end + 1, MODBUS_READ_MAX):
                 count = min(end - group + 1, MODBUS_READ_MAX)
                 response = read_func(group, count, unit=self.slave_id)
                 if response is None:
                     raise ModbusInterfaceException("pymodbus returned None")
+                if isinstance(response, ModbusException):
+                    raise response
                 response_bytes = response.encode()
                 #Trim off length byte.
                 result += response_bytes[1:]
@@ -312,11 +314,13 @@ class Interface(BasicRevert, BaseInterface):
 
             result = []
 
-            for group in xrange(start, end + 1, MODBUS_READ_MAX):
+            for group in range(start, end + 1, MODBUS_READ_MAX):
                 count = min(end - group + 1, MODBUS_READ_MAX)
                 response = client.read_discrete_inputs(group, count, unit=self.slave_id) if read_only else client.read_coils(group, count, unit=self.slave_id)
                 if response is None:
                     raise ModbusInterfaceException("pymodbus returned None")
+                if isinstance(response, ModbusException):
+                    raise response
                 result += response.bits
 
             for register in registers:

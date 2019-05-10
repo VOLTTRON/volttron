@@ -47,7 +47,7 @@ single socket in multiple greenlets without any kind of locking.
 '''
 
 
-from __future__ import absolute_import
+
 
 from contextlib import contextmanager as _contextmanager
 

@@ -199,7 +199,7 @@ class MessageDebuggerAgent(Agent):
                 self.db_session().add(exch)
         try:
             self.db_session().commit()
-        except Exception, err:
+        except Exception as err:
             pass
 
     def allowed_by_filters(self, msg, ignore_session_id=False):
@@ -230,7 +230,7 @@ class MessageDebuggerAgent(Agent):
             elif prop == 'topic' and not str(getattr(msg, prop)).startswith(self._filters[prop]):
                 # Special-case filter: The filter value can be just the prefix portion of the message's topic
                 return False
-            elif prop == 'results_only' and msg.result in [u'', u'None']:
+            elif prop == 'results_only' and msg.result in ['', 'None']:
                 # Special-case filter: Filter out messages that lack a 'result' value
                 return False
             elif prop in msg.filtered_properties():
@@ -264,6 +264,7 @@ class MessageDebuggerAgent(Agent):
         else:
             return True
 
+    # TODO check out the id here
     @RPC.export
     def execute_db_query(self, db_object_name, filters=None):
         """
@@ -280,7 +281,11 @@ class MessageDebuggerAgent(Agent):
             count = self._filtered_query(db_object_name).count()
             if count > MAX_MESSAGES_AT_LOW_VERBOSITY:
                 return '{} results returned. Tighten filtering or raise verbosity to see message details.'.format(count)
+
         query_results = self._filtered_query(db_object_name).all()
+
+        _log.error([obj.as_json_compatible_object() for obj in query_results])
+
         if len(query_results) == 0:
             return 'No query results'
         else:
@@ -290,7 +295,7 @@ class MessageDebuggerAgent(Agent):
         """Set up a filtered database query."""
         db_object = globals()[db_object_name]
         query_results = self.db_session().query(db_object)
-        for key, value in self._filters.iteritems():
+        for key, value in self._filters.items():
             if key == 'starttime' and hasattr(db_object, 'timestamp'):      # for DebugMessage
                 query_results = query_results.filter(getattr(db_object, 'timestamp') >= value)
             if key == 'starttime' and hasattr(db_object, 'sender_time'):    # for DebugMessageExchange
@@ -305,9 +310,10 @@ class MessageDebuggerAgent(Agent):
                     query_results = query_results.filter(getattr(db_object, key).startswith(value))
                 else:
                     query_results = query_results.filter(getattr(db_object, key) == value)
+
         if 'results_only' in self._filters:
-            query_results = query_results.filter(db_object.result != u'')
-            query_results = query_results.filter(db_object.result != u'None')
+            query_results = query_results.filter(db_object.result != '')
+            query_results = query_results.filter(db_object.result != 'None')
         if 'freq' in self._filters and db_object_name != 'DebugSession':
             query_results = query_results.order_by(desc(db_object.rowid)).limit(1)
         return query_results
@@ -374,6 +380,7 @@ class MessageDebuggerAgent(Agent):
         _log.debug('Reporting details for DebugMessageExchange {}'.format(request_id))
         msg_db_object = globals()['DebugMessage']
         query_results = self.db_session().query(msg_db_object).filter(msg_db_object.request_id == request_id).all()
+        _log.error(query_results)
         if len(query_results) == 0:
             return 'No messages found for request ID {}'.format(request_id)
         else:
@@ -489,7 +496,7 @@ class MessageDebuggerAgent(Agent):
             ipc = 'ipc://{}'.format('@' if sys.platform.startswith('linux') else '')
             router_socket_address = ipc + self.vip_config_get('router_path')
             self._router_socket = zmq.Context().socket(zmq.SUB)
-            self._router_socket.setsockopt_string(zmq.SUBSCRIBE, u"")
+            self._router_socket.setsockopt_string(zmq.SUBSCRIBE, "")
             self._router_socket.set_hwm(100)            # Start dropping messages if queue backlog exceeds 100
             self._router_socket.bind(router_socket_address)
             _log.debug('Subscribing to router socket {}'.format(router_socket_address))
@@ -669,7 +676,7 @@ class DebugMessage(ORMBase):
         self.session_id = session_id
         self.timestamp = datetime.datetime.now()
         self.framecount = len(msg_elements)
-        self.direction = self.status_names[int(bytes(msg_elements[0]))]
+        self.direction = self.status_names[msg_elements[0]]
         self.sender = bytes(msg_elements[1])
         self.recipient = bytes(msg_elements[2])
         self.vip_signature = bytes(msg_elements[3])
@@ -757,7 +764,15 @@ class DebugMessage(ORMBase):
         att_dict = {}
         for attname in self.attribute_names:
             val = getattr(self, attname)
-            att_dict[attname] = format_time(val) if attname == 'timestamp' else val
+            if attname == 'timestamp':
+                att_dict[attname] = format_time(val)
+            else:
+                try:
+                    val = str(val, 'utf-8')
+                except TypeError:
+                    pass
+                finally:
+                    att_dict[attname] = val
         return att_dict
 
 

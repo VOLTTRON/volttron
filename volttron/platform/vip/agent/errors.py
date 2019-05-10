@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
+
 
 import errno
 
@@ -53,7 +53,7 @@ class VIPError(Exception):
         self.subsystem = subsystem
 
     def __str__(self):
-        return 'VIP error (%d): %s' % (self.errno, self.msg)
+        return 'VIP error (%d): %s' % (self.errno, self.msg.decode('utf-8'))
 
     def __repr__(self):
         return '%s%r' % (type(self).__name__, self.args)
@@ -70,7 +70,7 @@ class VIPError(Exception):
 
 class Unreachable(VIPError):
     def __str__(self):
-        return '%s: %s' % (super(Unreachable, self).__str__(), self.peer)
+        return '%s: %s' % (super(Unreachable, self).__str__(), self.peer.decode('utf-8'))
 
 
 class Again(VIPError):

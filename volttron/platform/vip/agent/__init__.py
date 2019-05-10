@@ -36,8 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
-
 import os
 import logging as _log
 
@@ -92,23 +90,22 @@ class Agent(object):
             self._version = version
 
             if identity is not None and not is_valid_identity(identity):
-                _log.warn('Deprecation warning')
-                _log.warn(
+                _log.warning('Deprecation warning')
+                _log.warning(
                     'All characters in {identity} are not in the valid set.'.format(
                         identity=identity))
 
-            #_log.debug("MESSAGE TYPE: {0}, IDENITY: {1}".format(message_bus, identity))
             if message_bus == 'rmq':
                 _log.debug("Creating RMQ Core {}".format(identity))
                 self.core = RMQCore(self, identity=identity, address=address,
-                             context=context, publickey=publickey,
-                             secretkey=secretkey, serverkey=serverkey,
-                             instance_name=instance_name,
-                             volttron_home=volttron_home, agent_uuid=agent_uuid,
-                             reconnect_interval=reconnect_interval,
-                             version=version,
-                             volttron_central_address=volttron_central_address,
-                             volttron_central_instance_name=volttron_central_instance_name)
+                                    context=context, publickey=publickey,
+                                    secretkey=secretkey, serverkey=serverkey,
+                                    instance_name=instance_name,
+                                    volttron_home=volttron_home, agent_uuid=agent_uuid,
+                                    reconnect_interval=reconnect_interval,
+                                    version=version,
+                                    volttron_central_address=volttron_central_address,
+                                    volttron_central_instance_name=volttron_central_instance_name)
             else:
                 _log.debug("Creating ZMQ Core {}".format(identity))
                 self.core = ZMQCore(self, identity=identity, address=address,

@@ -296,7 +296,7 @@ class TestOpenADRVenAgent:
         """
         global web_server_address
         xml_filename = get_services_core("OpenADRVenAgent/test/xml/{}.xml".format(xml_filename))
-        with open(xml_filename, 'rb') as xml_file:
+        with open(xml_filename, 'r') as xml_file:
             xml_string = xml_file.read()
             if event_id:
                 # Modify the XML, substituting in a custom event ID, start_time and duration.

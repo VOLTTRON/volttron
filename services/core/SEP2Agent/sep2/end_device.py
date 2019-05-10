@@ -53,13 +53,13 @@
 # }}}
 
 from datetime import datetime, timedelta
-import __init__ as sep2
+import sep2
 import calendar
 import logging
 import pytz
-import StringIO
+import io
 import time
-import xsd_models
+from . import xsd_models
 from volttron.platform.agent import utils
 
 utils.setup_logging()
@@ -204,7 +204,7 @@ class EndDevice:
 
     def b124_WChaMax(self, value):
         now = datetime.utcnow().replace(tzinfo=pytz.utc)
-        mrid = mrid_helper(self.id, long(time.mktime(now.timetuple())))
+        mrid = mrid_helper(self.id, int(time.mktime(now.timetuple())))
         self.der_control.get_DERControlBase().set_opModFixedFlow(xsd_models.SignedPerCent(valueOf_=value))
         self.der_control.set_mRID(xsd_models.mRIDType(valueOf_=mrid))
         self.der_control.set_creationTime(sep2_time(now))
@@ -409,7 +409,7 @@ class SEP2Renderer:
 
         :return: String of XML serialized data.
         """
-        buff = StringIO.StringIO()
+        buff = io.StringIO()
         xsd_object.export(
             buff,
             1,
@@ -455,7 +455,7 @@ def mrid_helper(edev_pk, resource_suffix):
     :param resource_suffix: Suffix to add to hash to create unique ID
     :return: UUID (MRID) value. (In hex-decimal)
     """
-    hex_string = hex(int(edev_pk)*10000000000000L+resource_suffix*100)[2:].upper()
+    hex_string = hex(int(edev_pk)*10000000000000+resource_suffix*100)[2:].upper()
     if hex_string.endswith('L'):
         hex_string = hex_string[:-1]
     if (len(hex_string)) % 2 == 1:

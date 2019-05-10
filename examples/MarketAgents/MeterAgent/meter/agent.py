@@ -61,7 +61,7 @@ def meter_agent(config_path, **kwargs):
     _log.debug("Starting MeterAgent")
     try:
         config = utils.load_config(config_path)
-    except StandardError:
+    except Exception:
         config = {}
 
     if not config:

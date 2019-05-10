@@ -119,7 +119,7 @@ class Socket(object):
         pass
 
     def recv_string(self, flags=0, encoding='utf-8'):
-        return u''
+        return ''
 
     def send_multipart(self, msg_parts, flags=0, copy=True, track=False):
         pass

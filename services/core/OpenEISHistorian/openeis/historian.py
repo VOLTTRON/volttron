@@ -35,28 +35,19 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from __future__ import absolute_import, print_function
+
 
 import datetime
-import errno
 import logging
-import os, os.path
-from pprint import pprint
-import sqlite3
 import sys
-import uuid
 
-import gevent
 import requests
 from requests import ConnectionError
 from volttron.utils.docs import doc_inherit
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 
-from volttron.platform.vip.agent import *
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
-from volttron.platform.messaging import topics, headers as headers_mod
-from twisted.spread.pb import respond
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)

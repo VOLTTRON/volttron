@@ -38,7 +38,7 @@
 
 '''VOLTTRON platform™ messaging classes.'''
 
-from __future__ import absolute_import
+
 
 import collections
 
@@ -90,7 +90,7 @@ class Socket(zmq.Socket):
         data.
         '''
         topic, headers, message = self.recv_message(flags)
-        message = zip(headers['Content-Type'], message)
+        message = list(zip(headers['Content-Type'], message))
         return topic, headers, message
 
     def send_message(self, topic, headers, *msg_parts, **kwargs):
@@ -122,6 +122,6 @@ class Socket(zmq.Socket):
         data as the second element.
         '''
         headers = Headers(headers) if headers else Headers()
-        headers['Content-Type'], msg_parts = zip(*msg_tuples)
+        headers['Content-Type'], msg_parts = list(zip(*msg_tuples))
         self.send_message(topic, headers.dict, *msg_parts, **kwargs)
 

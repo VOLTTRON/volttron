@@ -229,11 +229,11 @@ def ReadPropertyToAny(obj, propertyIdentifier, propertyArrayIndex=None):
         elif issubclass(datatype.subtype, Atomic):
             value = datatype.subtype(value)
         elif not isinstance(value, datatype.subtype):
-            raise TypeError, "invalid result datatype, expecting %s and got %s" \
-                % (datatype.subtype.__name__, type(value).__name__)
+            raise TypeError("invalid result datatype, expecting %s and got %s" \
+                % (datatype.subtype.__name__, type(value).__name__))
     elif not isinstance(value, datatype):
-        raise TypeError, "invalid result datatype, expecting %s and got %s" \
-            % (datatype.__name__, type(value).__name__)
+        raise TypeError("invalid result datatype, expecting %s and got %s" \
+            % (datatype.__name__, type(value).__name__))
     if _debug: ReadPropertyToAny._debug("    - encodeable value: %r", value)
 
     # encode the value
@@ -260,10 +260,10 @@ def ReadPropertyToResultElement(obj, propertyIdentifier, propertyArrayIndex=None
     try:
         read_result.propertyValue = ReadPropertyToAny(obj, propertyIdentifier, propertyArrayIndex)
         if _debug: ReadPropertyToResultElement._debug("    - success")
-    except PropertyError, error:
+    except PropertyError as error:
         if _debug: ReadPropertyToResultElement._debug("    - error: %r", error)
         read_result.propertyAccessError = ErrorType(errorClass='property', errorCode='unknownProperty')
-    except ExecutionError, error:
+    except ExecutionError as error:
         if _debug: ReadPropertyToResultElement._debug("    - error: %r", error)
         read_result.propertyAccessError = ErrorType(errorClass=error.errorClass, errorCode=error.errorCode)
 
@@ -399,7 +399,7 @@ try:
 
     run()
 
-except Exception, e:
+except Exception as e:
     _log.exception("an error has occurred: %s", e)
 finally:
     _log.debug("finally")

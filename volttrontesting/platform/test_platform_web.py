@@ -3,7 +3,7 @@ import logging
 import gevent
 from volttron.platform.vip.agent import Agent
 from volttrontesting.utils.platformwrapper import start_wrapper_platform
-from volttron.platform.agent import json
+from volttron.platform import jsonapi
 import pytest
 import random
 import requests
@@ -104,6 +104,7 @@ import sys
 from volttron.platform.vip.agent import Core, Agent
 from volttron.platform.agent import utils
 from volttron.platform import jsonrpc
+from volttron.platform import jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -123,13 +124,14 @@ class WebAgent(Agent):
         self.vip.web.register_path("/web", WEBROOT)
 
     def text(self, env, data):
-        ret = "200 OK", base64.b64encode("This is some text"), [
-        ('Content-Type', 'text/plain')]
+        ret = ("200 OK", base64.b64encode(b"This is some text").decode("ascii"), [('Content-Type', 'text/plain')])
         _log.debug('returning: {}'.format(ret))
         return ret
 
     def echoendpoint(self, env, data):
-        return jsonrpc.json_result("id", data)
+        ret = jsonrpc.json_result('id', jsonapi.loadb(data))
+        _log.debug('returning: {}'.format(ret))
+        return ret
 
 def main():
     utils.vip_main(WebAgent)
@@ -227,7 +229,6 @@ def test_test_web_agent(web_instance):
     resp = requests.post(rpc, json=payload)
     assert resp.ok
     assert resp.headers['Content-type'] == 'application/json'
-    #jsonresp = json.loads(resp.json()['result'])
     jsonresp = resp.json()['result']
 
     print(jsonresp)

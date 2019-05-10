@@ -45,9 +45,7 @@ import os
 
 from mock import MagicMock
 
-from volttron.platform import get_services_core, get_examples
-from volttron.platform.agent import json as jsonapi
-
+from volttron.platform import get_services_core, get_examples, jsonapi
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 
 
@@ -251,7 +249,7 @@ def clear_messages():
 
 def messages_contains_prefix(prefix):
     global messages
-    return any(map(lambda x: x.startswith(prefix), messages.keys()))
+    return any([x.startswith(prefix) for x in list(messages.keys())])
 
 
 @pytest.mark.wrapper

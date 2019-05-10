@@ -22,7 +22,7 @@ def do_rpc(method, params=None ):
 
     data = json.dumps(json_package)
 
-    return requests.post(url_root, data=json.dumps(json_package))
+    return requests.post(url_root, data=data)
 
 def main(platform_uri, agent_id):
     response = do_rpc("get_authorization", {'username': 'admin',

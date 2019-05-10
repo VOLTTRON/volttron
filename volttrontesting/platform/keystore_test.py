@@ -101,6 +101,6 @@ def test_invalid_unicode_key(keystore_instance1):
     """
     with open(keystore_instance1.filename) as fp:
         keystore_json = json.load(fp)
-    keystore_json['public'] = u'\u0100'
+    keystore_json['public'] = '\u0100'
     keystore_instance1.update(keystore_json)
     assert keystore_instance1.public is None

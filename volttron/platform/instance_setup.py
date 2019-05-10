@@ -36,19 +36,19 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 import shutil
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 import argparse
 import getpass
 import hashlib
 import os
 import sys
-import urlparse
+from urllib.parse import urlparse
 import tempfile
 from shutil import copy
 
 from gevent import subprocess
 from gevent.subprocess import Popen
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 from zmq import green as zmq
 
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
@@ -157,9 +157,9 @@ to stop the instance.
 def fail_if_not_in_src_root():
     in_src_root = os.path.exists("./volttron")
     if not in_src_root:
-        print """
+        print ("""
 volttron-cfg needs to be run from the volttron top level source directory.
-"""
+""")
         sys.exit()
 
 
@@ -202,7 +202,7 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
             if identity is not None:
                 os.environ['AGENT_VIP_IDENTITY'] = identity
 
-            print 'Configuring {}'.format(agent_dir)
+            print(f'Configuring {agent_dir}')
             config = config_func(*args, **kwargs)
             _update_config_file()
             _start_platform()
@@ -229,7 +229,7 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
 def is_valid_url(url, accepted_schemes):
     if url is None:
         return False
-    parsed = urlparse.urlparse(url)
+    parsed = urlparse(url)
     if parsed.scheme not in accepted_schemes:
         return False
     if not parsed.hostname:
@@ -254,8 +254,8 @@ def is_valid_bus(bus_type):
 def do_vip():
     global config_opts
 
-    parsed = urlparse.urlparse(config_opts.get('vip-address',
-                                               'tcp://127.0.0.1:22916'))
+    parsed = urlparse(config_opts.get('vip-address',
+                                        'tcp://127.0.0.1:22916'))
     vip_address = None
     bus_type = None
     if parsed.hostname is not None and parsed.scheme is not None:
@@ -318,7 +318,7 @@ def do_vc(vhome):
     full_bind_web_address = config_opts.get('bind-web-address',
                                             'http://127.0.0.1')
 
-    parsed = urlparse.urlparse(full_bind_web_address)
+    parsed = urlparse(full_bind_web_address)
 
     address_only = full_bind_web_address
     port_only = None
@@ -494,7 +494,7 @@ def do_vcp():
                                  config_opts.get('bind-web-address',
                                                  'http://127.0.0.1'))
 
-    parsed = urlparse.urlparse(vc_address)
+    parsed = urlparse(vc_address)
     address_only = vc_address
     port_only = None
     if parsed.port is not None:
@@ -681,6 +681,7 @@ def main():
         _update_config_file(instance_name=args.instance_name)
     if args.list_agents:
         print "Agents available to configure:{}".format(agent_list)
+
     elif args.rabbitmq:
         if len(args.rabbitmq) > 2:
             print("vcfg --rabbitmq can at most accept 2 arguments")
@@ -697,6 +698,7 @@ def main():
             exit(1)
         else:
             process_rmq_inputs(args.rabbitmq, args.instance_name)
+
     elif not args.agent:
         wizard()
 
@@ -704,7 +706,7 @@ def main():
         # Warn about unknown agents
         for agent in args.agent:
             if agent not in available_agents:
-                print '"{}" not configurable with this tool'.format(agent)
+                print(f'"{agent}" not configurable with this tool')
 
         confirm_volttron_home()
 

@@ -38,7 +38,7 @@
 
 import shutil
 import json
-
+import os
 
 from volttron.platform import get_services_core
 
@@ -58,11 +58,14 @@ import random
 import gevent
 import os
 
+
 class Historian(BaseHistorian):
-    def publish_to_historian(self,_):
+    def publish_to_historian(self, _):
         pass
+
     def query_topic_list(self):
         pass
+
     def query_historian(self):
         pass
 
@@ -88,6 +91,8 @@ def prep_config(volttron_home):
 
 
 foundtopic = False
+
+
 def listener(peer, sender, bus, topic, headers, message):
     global foundtopic
     foundtopic = True
@@ -111,7 +116,7 @@ def test_base_historian(volttron_instance):
 
     agent = v1.build_agent()
     gevent.sleep(2)
-    agent.vip.pubsub.subscribe('pubsub' ,'backupdb/nomore', callback=listener)
+    agent.vip.pubsub.subscribe('pubsub', 'backupdb/nomore', callback=listener)
 
     for _ in range(0, 60):
         gevent.sleep(1)
@@ -128,7 +133,6 @@ class BasicHistorian(BaseHistorian):
         self.publish_sleep = 0
         self.seen = []
 
-
     def publish_to_historian(self, to_publish_list):
         self.seen.extend(to_publish_list)
 
@@ -142,10 +146,11 @@ class BasicHistorian(BaseHistorian):
         self.seen = []
 
     def query_historian(self, topic, start=None, end=None, agg_type=None,
-          agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
+                        agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
         """Not implemented
         """
         raise NotImplemented("query_historian not implimented for null historian")
+
 
 @pytest.fixture(scope="module")
 def client_agent(request, volttron_instance):
@@ -155,7 +160,8 @@ def client_agent(request, volttron_instance):
 
 alert_publishes = []
 
-def message_handler(peer, sender, bus,  topic, headers, message):
+
+def message_handler(peer, sender, bus, topic, headers, message):
     alert_publishes.append(Status.from_json(message))
 
 
@@ -200,7 +206,7 @@ def test_health_stuff(request, volttron_instance, client_agent):
                         }]
 
         # Create timestamp
-        now = utils.format_timestamp( datetime.utcnow() )
+        now = utils.format_timestamp(datetime.utcnow())
 
         # now = '2015-12-02T00:00:00'
         headers = {
@@ -236,6 +242,15 @@ def test_health_stuff(request, volttron_instance, client_agent):
                                              message=all_message).get(timeout=10)
         gevent.sleep(2)
         status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+        for _ in range(10):
+            client_agent.vip.pubsub.publish('pubsub',
+                                            DEVICES_ALL_TOPIC,
+                                            headers=headers,
+                                            message=all_message).get(timeout=10)
+
+        gevent.sleep(2)
+
+        status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
         alert_publish = alert_publishes[0]
 
@@ -258,7 +273,7 @@ def test_health_stuff(request, volttron_instance, client_agent):
         assert not status["context"][STATUS_KEY_CACHE_FULL]
         assert not bool(status["context"][STATUS_KEY_CACHE_COUNT])
 
-        #Test publish slow or backlogged
+        # Test publish slow or backlogged
 
         historian.publish_sleep = 0.75
 
@@ -298,6 +313,7 @@ def test_health_stuff(request, volttron_instance, client_agent):
     finally:
         if historian:
             historian.core.stop()
+
 
 class FailureHistorian(BaseHistorian):
     def __init__(self, **kwargs):
@@ -541,3 +557,241 @@ def test_failing_historian(request, volttron_instance, client_agent):
 
             fail_historian.core.stop()
 
+
+class FailureHistorian(BaseHistorian):
+    def __init__(self, **kwargs):
+        super(FailureHistorian, self).__init__(**kwargs)
+        self.publish_fail = False
+        self.setup_fail = False
+        self.record_fail = False
+        self.teardown_fail = False
+        self.setup_run = False
+        self.record_run = False
+        self.teardown_run = False
+        self.seen = []
+
+    def publish_to_historian(self, to_publish_list):
+        if self.publish_fail:
+            raise Exception("Failed to publish.")
+
+        self.seen.extend(to_publish_list)
+        self.report_all_handled()
+
+    def query_topic_list(self):
+        pass
+
+    def query_historian(self):
+        pass
+
+    def reset(self):
+        self.seen = []
+        self.setup_run = False
+        self.record_run = False
+        self.teardown_run = False
+        self.setup_fail = False
+        self.record_fail = False
+        self.teardown_fail = False
+        self.publish_fail = False
+
+    def historian_setup(self):
+        if self.setup_fail:
+            raise Exception("Failed to setup.")
+
+        self.setup_run = True
+
+    def record_table_definitions(self, meta_table_name):
+        if self.record_fail:
+            raise Exception("Failed to record table definitions")
+        self.record_run = True
+
+    def historian_teardown(self):
+        if self.teardown_fail:
+            raise Exception("Failed to teardown.")
+
+        self.teardown_run = True
+
+
+@pytest.fixture(scope="module")
+def fail_historian(request, volttron_instance):
+    identity = 'platform.historian'
+    agent = volttron_instance.build_agent(agent_class=FailureHistorian,
+                                          identity=identity,
+                                          submit_size_limit=2,
+                                          max_time_publishing=0.5,
+                                          retry_period=1.0,
+                                          backup_storage_limit_gb=0.0001)  # 100K
+    yield agent
+    agent.core.stop()
+
+@pytest.mark.historian
+def test_failing_historian(request, fail_historian, client_agent):
+    """
+    Test basic use of health subsystem in the base historian.
+    """
+
+    assert fail_historian.setup_run
+    assert not fail_historian.teardown_run
+    assert fail_historian._process_thread.is_alive()
+
+    fail_historian.stop_process_thread()
+
+    assert fail_historian.teardown_run
+    assert fail_historian.setup_run
+    assert fail_historian._process_thread is None
+    ###
+    # Test setup failure case
+    ###
+    fail_historian.reset()
+    fail_historian.setup_fail = True
+    fail_historian.start_process_thread()
+    gevent.sleep(0.2)
+
+    assert fail_historian._process_thread.is_alive()
+    assert not fail_historian.setup_run
+    assert not fail_historian.teardown_run
+
+    fail_historian.stop_process_thread()
+
+    assert fail_historian.teardown_run
+    assert not fail_historian.setup_run
+    assert fail_historian._process_thread is None
+    ###
+    # Test failure to record intial table names in db
+    ###
+    fail_historian.reset()
+    fail_historian.record_fail = True
+    fail_historian.start_process_thread()
+
+    gevent.sleep(0.2)
+
+    assert fail_historian._process_thread.is_alive()
+    assert fail_historian.setup_run
+    assert not fail_historian.record_run
+    assert not fail_historian.teardown_run
+
+    fail_historian.stop_process_thread()
+
+    assert fail_historian.teardown_run
+    assert fail_historian.setup_run
+    assert not fail_historian.record_run
+    assert fail_historian._process_thread is None
+    ###
+    # Test failure during teardown
+    ###
+    fail_historian.reset()
+    fail_historian.teardown_fail = True
+    fail_historian.start_process_thread()
+
+    gevent.sleep(0.2)
+
+    assert fail_historian._process_thread.is_alive()
+    assert fail_historian.setup_run
+    assert not fail_historian.teardown_run
+
+    fail_historian.stop_process_thread()
+
+    assert not fail_historian.teardown_run
+    assert fail_historian.setup_run
+    assert fail_historian._process_thread is None
+
+    fail_historian.reset()
+    fail_historian.publish_fail = True
+    fail_historian.start_process_thread()
+
+    gevent.sleep(0.2)
+
+    DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+
+    print("\n** test_basic_function for {}**".format(
+        request.keywords.node.name))
+
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+
+    float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+
+    # Create a message for all points.
+    all_message = [{'OutsideAirTemperature': 32},
+                   {'OutsideAirTemperature': float_meta}]
+
+    # Create timestamp
+    now = utils.format_timestamp(datetime.utcnow())
+
+    # now = '2015-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+    }
+    print("Published time in header: " + now)
+
+    client_agent.vip.pubsub.publish('pubsub',
+                                    DEVICES_ALL_TOPIC,
+                                    headers=headers,
+                                    message=all_message).get(timeout=10)
+
+    gevent.sleep(2.0)
+    assert fail_historian._process_thread.is_alive()
+    assert not fail_historian.seen
+    ###
+    # Test if historian recovers when setup fails initially but is successful
+    # after sometime. This is to test case where db is down when historian
+    # is first started and db is brought back up. Historian should recover
+    # without restart.
+    ###
+    fail_historian.stop_process_thread()
+    fail_historian.reset()
+    fail_historian.setup_fail = True
+    fail_historian.start_process_thread()
+
+    gevent.sleep(0.2)
+
+    DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+
+    print("\n** test_basic_function for {}**".format(
+        request.keywords.node.name))
+
+    float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+
+    # Create a message for all points.
+    all_message = [{'OutsideAirTemperature': 32},
+                   {'OutsideAirTemperature': float_meta}]
+
+    # Create timestamp
+    now = utils.format_timestamp(datetime.utcnow())
+
+    # now = '2015-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+    }
+    print("Published time in header: " + now)
+
+    client_agent.vip.pubsub.publish('pubsub',
+                                    DEVICES_ALL_TOPIC,
+                                    headers=headers,
+                                    message=all_message).get(timeout=10)
+
+    gevent.sleep(6.0)
+    assert fail_historian._process_thread.is_alive()
+    assert not fail_historian.seen
+
+    # now setup fail is false. publish again and see if we recover
+    fail_historian.setup_fail = False
+
+    # Create timestamp
+    now = utils.format_timestamp(datetime.utcnow())
+
+    # now = '2015-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+    }
+    print("Published time in header: " + now)
+
+    client_agent.vip.pubsub.publish('pubsub',
+                                    DEVICES_ALL_TOPIC,
+                                    headers=headers,
+                                    message=all_message).get(timeout=20)
+
+    gevent.sleep(2.0)
+    assert fail_historian._process_thread.is_alive()
+    assert fail_historian.setup_run
+    assert fail_historian.record_run
+    assert len(fail_historian.seen)
+    print(fail_historian.seen)

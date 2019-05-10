@@ -220,7 +220,7 @@ class TestSEP2Driver:
         assert self.get_point(agent, dispatch_point_name) == dispatched_value
 
         # Test that each point has the test value that was posted to it
-        for point_name, expected_value in ASSERTED_VALUES.iteritems():
+        for point_name, expected_value in ASSERTED_VALUES.items():
             assert self.get_point(agent, point_name) == expected_value
 
     @staticmethod

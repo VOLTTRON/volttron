@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import print_function
+
 
 from volttron.platform import get_services_core, get_examples
 

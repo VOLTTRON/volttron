@@ -38,6 +38,8 @@
 
 import numpy as np
 
+def cmp(a, b):
+    return (a > b) - (a < b)
 
 class PolyLine:
     def __init__(self):

@@ -83,7 +83,7 @@ def dict_compare(source_dict, target_dict):
 
        Ignores keys in target_dict that are not in source_dict.
     """
-    for name, source_val in source_dict.iteritems():
+    for name, source_val in source_dict.items():
         target_val = target_dict.get(name, None)
         assert source_val == target_val, "Source value of {}={}, target value={}".format(name, source_val, target_val)
 

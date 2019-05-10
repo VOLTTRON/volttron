@@ -25,7 +25,7 @@ SQLITE_HISTORIAN_CONFIG = {
 }
 
 
-STANDARD_GET_TIMEOUT = 5
+STANDARD_GET_TIMEOUT = 30
 _log = logging.getLogger(__name__)
 
 
@@ -186,7 +186,7 @@ def test_can_get_version(setup_platform, vc_agent):
     args = [python, script]
 
     response = subprocess.check_output(args=[python, script],
-                                       cwd=get_volttron_root())
+                                       cwd=get_volttron_root(), universal_newlines=True)
     expected_version = None
     for line in response.split("\n"):
         agent, version = line.strip().split(',')

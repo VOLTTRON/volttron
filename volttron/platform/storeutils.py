@@ -56,7 +56,7 @@ def list_unique_links(config):
     """Returns a set of config files referenced in this configuration"""
     results = set()
     if isinstance(config, dict):
-        values = config.values()
+        values = list(config.values())
     elif isinstance(config, list):
         values = config
     else:

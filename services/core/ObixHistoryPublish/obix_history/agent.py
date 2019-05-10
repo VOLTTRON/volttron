@@ -69,7 +69,7 @@ def obix_history(config_path, **kwargs):
     """
     try:
         config = utils.load_config(config_path)
-    except StandardError:
+    except Exception:
         config = {}
 
     if not config:
@@ -135,7 +135,7 @@ class Register(object):
     def time_format(self, dt):
         """Format timestamp for becchp.com query"""
         _log.debug("time_format dt: {}".format(dt))
-        return u"%s:%06.3f%s" % (
+        return "%s:%06.3f%s" % (
             dt.strftime('%Y-%m-%dT%H:%M'),
             float("%.3f" % (dt.second + dt.microsecond / 1e6)),
             dt.strftime('%z')[:3] + ':' + dt.strftime('%z')[3:]
@@ -274,7 +274,7 @@ class ObixHistory(Agent):
     def set_last_read(self):
         try:
             last_read = self.vip.config.get('last_read')
-        except (StandardError, gevent.Timeout) as e:
+        except (Exception, gevent.Timeout) as e:
             _log.debug(e)
             last_read = None
 

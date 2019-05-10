@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
+
 
 import logging
 import weakref
@@ -68,7 +68,7 @@ class Hello(SubsystemBase):
         self._results = ResultsDictionary()
         core.register('hello', self._handle_hello, self._handle_error)
 
-    def hello(self, peer=b''):
+    def hello(self, peer=''):
         """ Receives a welcome message from the peer (default to '' router)
 
          The welcome message will respond with a 3 element list:
@@ -87,7 +87,7 @@ class Hello(SubsystemBase):
         result = next(self._results)
         connection = self.core().connection
         try:
-            connection.send_vip(peer, b'hello', args=[b'hello'], msg_id=result.ident)
+            socket.send_vip(peer.encode('utf-8'), b'hello', [b'hello'], msg_id=result.ident.encode('utf-8'))
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.error("Socket send on non socket {}".format(self.core().identity))
@@ -109,7 +109,7 @@ class Hello(SubsystemBase):
             self.core().connection.send_vip_object(message, copy=False)
         elif op == b'welcome':
             try:
-                result = self._results.pop(bytes(message.id))
+                result = self._results.pop(bytes(message.id).decode('utf-8'))
             except KeyError:
                 return
             result.set([bytes(arg) for arg in message.args[1:]])
@@ -118,7 +118,7 @@ class Hello(SubsystemBase):
 
     def _handle_error(self, sender, message, error, **kwargs):
         try:
-            result = self._results.pop(bytes(message.id))
+            result = self._results.pop(bytes(message.id).decode('utf-8'))
         except KeyError:
             return
         result.set_exception(error)

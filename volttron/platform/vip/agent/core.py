@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import, print_function
+
 
 import heapq
 import inspect
@@ -45,7 +45,7 @@ import os
 import signal
 import threading
 import time
-import urlparse
+import urllib.parse
 import uuid
 import warnings
 import weakref
@@ -55,7 +55,7 @@ from errno import ENOENT
 import gevent.event
 from gevent.queue import Queue
 from zmq import green as zmq
-from zmq.green import ZMQError, EAGAIN, ENOTSOCK
+from zmq.green import ZMQError, EAGAIN, ENOTSOCK, EADDRINUSE
 from zmq.utils.monitor import recv_monitor_message
 
 from volttron.platform import certs
@@ -176,6 +176,7 @@ class BasicCore(object):
         self.onstop = Signal()
         self.onfinish = Signal()
         self.oninterrupt = None
+        self.tie_breaker = 0
         prev_int_signal = gevent.signal.getsignal(signal.SIGINT)
         # To avoid a child agent handler overwriting the parent agent handler
         if prev_int_signal in [None, signal.SIG_IGN, signal.SIG_DFL]:
@@ -263,7 +264,7 @@ class BasicCore(object):
                     event.clear()
                 now = time.time()
                 while heap and now >= heap[0][0]:
-                    _, callback = heapq.heappop(heap)
+                    _, _, callback = heapq.heappop(heap)
                     greenlet = gevent.spawn(callback)
                     cur.link(lambda glt: greenlet.kill())
 
@@ -273,10 +274,10 @@ class BasicCore(object):
         current.link(lambda glt: self._async.stop())
 
         looper = self.loop(running_event)
-        looper.next()
+        next(looper)
         self.onsetup.send(self)
 
-        loop = looper.next()
+        loop = next(looper)
         if loop:
             self.spawned_greenlets.add(loop)
         scheduler = gevent.Greenlet(schedule_loop)
@@ -296,10 +297,10 @@ class BasicCore(object):
             pass
 
         scheduler.kill()
-        looper.next()
+        next(looper)
         receivers = self.onstop.sendby(self.link_receiver, self)
         gevent.wait(receivers)
-        looper.next()
+        next(looper)
         self.onfinish.send(self)
 
     def stop(self, timeout=None):
@@ -310,6 +311,7 @@ class BasicCore(object):
 
         if gevent.get_hub() is self._stop_event.hub:
             return halt()
+
         return self.send_async(halt).get()
 
     def _on_sigint_handler(self, signo, *_):
@@ -330,25 +332,25 @@ class BasicCore(object):
 
     def send_async(self, func, *args, **kwargs):
         result = gevent.event.AsyncResult()
-        async = result.hub.loop.async()
+        async_ = gevent.hub.get_hub().loop.async_()
         results = [None, None]
 
         def receiver():
-            async.stop()
+            async_.stop()
             exc, value = results
             if exc is None:
                 result.set(value)
             else:
                 result.set_exception(exc)
 
-        async.start(receiver)
+        async_.start(receiver)
 
         def worker():
             try:
                 results[:] = [None, func(*args, **kwargs)]
             except Exception as exc:  # pylint: disable=broad-except
                 results[:] = [exc, None]
-            async.send()
+            async_.send()
 
         self.send(worker)
         return result
@@ -419,9 +421,13 @@ class BasicCore(object):
             self._schedule_iter(it, event)
         return event
 
+    def get_tie_breaker(self):
+        self.tie_breaker += 1
+        return self.tie_breaker
+
     def _schedule_callback(self, deadline, callback):
         deadline = utils.get_utc_seconds_from_epoch(deadline)
-        heapq.heappush(self._schedule, (deadline, callback))
+        heapq.heappush(self._schedule, (deadline, self.get_tie_breaker(), callback))
         if self._schedule_event:
             self._schedule_event.set()
 
@@ -542,8 +548,9 @@ class Core(BasicCore):
     def register(self, name, handler, error_handler=None):
         self.subsystems[name] = handler
         if error_handler:
+            name_bytes = name.encode("utf-8")
             def onerror(sender, error, **kwargs):
-                if error.subsystem == name:
+                if error.subsystem == name_bytes:
                     error_handler(sender, error=error, **kwargs)
 
             self.onviperror.connect(onerror)
@@ -572,7 +579,7 @@ class Core(BasicCore):
                 self.identity
             ))
 
-            self.stop(timeout=5.0)
+            self.stop(timeout=10.0)
 
         def hello():
             # Send hello message to VIP router to confirm connection with
@@ -765,7 +772,7 @@ class ZMQCore(Core):
                     #     pass
                 finally:
                     try:
-                        url = list(urlparse.urlsplit(self.address))
+                        url = list(urllib.parse.urlsplit(self.address))
                         if url[0] in ['tcp'] and sock is not None:
                             sock.close()
                         if self.socket is not None:
@@ -813,11 +820,12 @@ class ZMQCore(Core):
                                           router=server, identity=identity)
                     continue
 
+                subsystem = subsystem.decode('utf-8')
                 try:
                     handle = self.subsystems[subsystem]
                 except KeyError:
                     _log.error('peer %r requested unknown subsystem %r',
-                               bytes(message.peer), subsystem)
+                               bytes(message.peer).encode("utf-8"), subsystem)
                     message.user = b''
                     message.args = list(router._INVALID_SUBSYSTEM)
                     message.args.append(message.subsystem)

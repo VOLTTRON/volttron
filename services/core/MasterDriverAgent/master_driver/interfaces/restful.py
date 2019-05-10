@@ -38,8 +38,6 @@
 
 import logging
 import requests
-from csv import DictReader
-from StringIO import StringIO
 
 from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 

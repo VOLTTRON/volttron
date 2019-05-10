@@ -43,6 +43,9 @@ import logging
 import os
 import re
 import zlib
+import requests
+import base64
+from urllib.parse import urlparse, urljoin
 
 import gevent
 import gevent.pywsgi
@@ -60,6 +63,14 @@ from volttron.platform.auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExis
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.vip.agent.subsystems import query
 from volttron.platform.jsonrpc import (
+from requests.packages.urllib3.connection import (ConnectionError,
+                                                  NewConnectionError)
+from volttron.platform import jsonapi
+
+from .auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
+from .vip.agent import Agent, Core, RPC
+from .vip.agent.subsystems import query
+from .jsonrpc import (
     json_result, json_validate_request, UNAUTHORIZED)
 from volttron.platform.vip.socket import encode_key
 from cryptography.hazmat.primitives import serialization
@@ -73,11 +84,11 @@ from csr_endpoints import CSREndpoints
 _log = logging.getLogger(__name__)
 
 
-class CouldNotRegister(StandardError):
+class CouldNotRegister(Exception):
     pass
 
 
-class DuplicateEndpointError(StandardError):
+class DuplicateEndpointError(Exception):
     pass
 
 
@@ -201,7 +212,7 @@ class MasterWebService(Agent):
         """
         _log.debug('Registering route with endpoint: {}'.format(endpoint))
         # Get calling peer from the rpc context
-        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
         _log.debug('Route is associated with peer: {}'.format(peer))
 
         if endpoint in self.endpoints:
@@ -221,7 +232,7 @@ class MasterWebService(Agent):
         """
 
         # Get calling peer from the rpc context
-        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
 
         _log.info(
             'Registering agent route expression: {} peer: {} function: {}'
@@ -237,7 +248,7 @@ class MasterWebService(Agent):
     def unregister_all_agent_routes(self):
 
         # Get calling peer from the rpc context
-        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
 
         _log.info('Unregistering agent routes for: {}'.format(peer))
         for regex in self.peerroutes[peer]:
@@ -260,7 +271,7 @@ class MasterWebService(Agent):
         _log.info('Registering path route: {} {}'.format(regex, root_dir))
 
         # Get calling peer from the rpc context
-        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
 
         compiled = re.compile(regex)
         self.pathroutes[peer].append(compiled)
@@ -270,7 +281,7 @@ class MasterWebService(Agent):
 
     @RPC.export
     def register_websocket(self, endpoint):
-        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
         _log.debug('Caller identity: {}'.format(identity))
         _log.debug('REGISTERING ENDPOINT: {}'.format(endpoint))
         if self.appContainer:
@@ -283,7 +294,7 @@ class MasterWebService(Agent):
 
     @RPC.export
     def unregister_websocket(self, endpoint):
-        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
         _log.debug('Caller identity: {}'.format(identity))
         self.appContainer.destroy_ws_endpoint(endpoint)
 
@@ -295,7 +306,7 @@ class MasterWebService(Agent):
         @return:
         """
         start_response('302 Found', [('Location', '/index.html')])
-        return ['1']
+        return [b'1']
 
     def _allow(self, environ, start_response, data=None):
         _log.info('Allowing new vc instance to connect to server.')
@@ -324,9 +335,9 @@ class MasterWebService(Agent):
 
         start_response('200 OK',
                        [('Content-Type', 'application/json')])
-        return jsonapi.dumps(
+        return [jsonapi.dumpb(
             json_result(jsondata['id'], "Added")
-        )
+        )]
 
     def _get_discovery(self, environ, start_response, data=None):
         q = query.Query(self.core)
@@ -487,7 +498,7 @@ class MasterWebService(Agent):
             if len(res) == 3:
                 status, response, headers = res
             start_response(status, headers)
-            return base64.b64decode(response)
+            return [base64.b64decode(response)]
         else:
             start_response("500 Programming Error",
                            [('Content-Type', 'text/html')])
@@ -513,7 +524,7 @@ class MasterWebService(Agent):
 
             start_response('200 OK',
                            [('Content-Type', 'application/json')])
-            return jsonapi.dumps(res)
+            return jsonapi.dumpb(res)
         elif isinstance(res, list):
             _log.debug('list implies [content, headers]')
             if len(res) == 2:
@@ -540,13 +551,13 @@ class MasterWebService(Agent):
                                                  zlib.MAX_WBITS | 16)
                 data = gzip_compress.compress(response) + gzip_compress.flush()
                 start_response('200 OK', headers)
-                return data
+                return [data]
             else:
-                return response
+                return [response]
         else:
             start_response('200 OK',
                            [('Content-Type', 'application/json')])
-            return jsonapi.dumps(res)
+            return [jsonapi.dumpb(res)]
 
     def _sendfile(self, env, start_response, filename):
         from wsgiref.util import FileWrapper
@@ -572,7 +583,7 @@ class MasterWebService(Agent):
         ]
         start_response(status, response_headers)
 
-        return FileWrapper(open(filename, 'r'))
+        return FileWrapper(open(filename, 'rb'))
 
     @Core.receiver('onstart')
     def startupagent(self, sender, **kwargs):

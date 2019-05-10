@@ -109,7 +109,7 @@ if agent_identity:
         os.makedirs(new_dir)
         try:
             output = subprocess.check_output(['vctl', 'auth', 'keypair'],
-                                             env=os.environ.copy())
+                                             env=os.environ.copy(), universal_newlines=True)
         except subprocess.CalledProcessError:
             sys.stderr.write("Couldn't get key pair for identity: {}\n".format(
                 agent_identity
@@ -131,7 +131,7 @@ if agent_identity:
                       '--credentials', "{}".format(pubkey),
                       '--comments', "Added from pycharm-launch.py script."
                       ]
-            output = subprocess.check_output(params, env=os.environ.copy())
+            output = subprocess.check_output(params, env=os.environ.copy(), universal_newlines=True)
         except subprocess.CalledProcessError as e:
             sys.stderr.write(e.message)
             os.rmdir(new_dir)

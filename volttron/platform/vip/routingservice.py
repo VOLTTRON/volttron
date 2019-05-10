@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import print_function, absolute_import
+
 
 import os
 import re
@@ -434,7 +434,7 @@ class RoutingService(object):
             routing_table = jsonapi.loads(routing_table)
             _log.debug("ROUTING SERVICE Ext routing TABLE: {0}, MY {1} ".format(routing_table, self._routing_table))
             for vip_id in routing_table:
-                if vip_id in self._routing_table.keys():
+                if vip_id in self._routing_table:
                     if vip_id != self._my_vip_id:
                         my_route_list = self._routing_table[vip_id]
                         if len(routing_table[vip_id]) > 0 and len(routing_table[vip_id]) < len(my_route_list):

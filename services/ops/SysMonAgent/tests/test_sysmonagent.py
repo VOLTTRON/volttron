@@ -49,6 +49,7 @@ import pytest
 
 import gevent
 
+from volttron.platform import get_ops
 from volttrontesting.utils.utils import poll_gevent_sleep
 from volttron.platform import get_ops
 
@@ -98,8 +99,8 @@ def listen(agent, config):
     agent.vip.pubsub.subscribe('pubsub', base_topic,
                                callback=add_topic)
 
-    max_wait = 1 + max([value for key, value in _test_config.items()
-                        if key.endswith('_interval')])
+    max_wait = 1 + max(value for key, value in _test_config.items()
+                        if key.endswith('_interval'))
 
     all_topics_seen = lambda: set(topics) <= seen_topics
 

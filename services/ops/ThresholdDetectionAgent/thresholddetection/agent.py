@@ -111,7 +111,7 @@ class ThresholdDetectionAgent(Agent):
         Subscribes to configured topics with customized callbacks
         """
         self.config_topics[config_name] = set()
-        for topic, values in contents.iteritems():
+        for topic, values in contents.items():
             self.config_topics[config_name].add(topic)
             _log.info("Subscribing to {}".format(topic))
 
@@ -131,7 +131,7 @@ class ThresholdDetectionAgent(Agent):
         :param device_points: Dictionary of points to thresholds
         :type device_points: dict
         """
-        for point, values in device_points.iteritems():
+        for point, values in device_points.items():
             threshold_max = values.get('threshold_max')
             threshold_min = values.get('threshold_min')
 

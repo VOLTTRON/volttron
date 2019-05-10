@@ -59,7 +59,7 @@ class DDSAgent(Agent):
 
         config = utils.load_config(config_path)
 
-        for typename, type_config in config.iteritems():
+        for typename, type_config in config.items():
             participant_name = type_config['participant_name']
             xml_config_path = type_config['xml_config_path']
             publisher_name = type_config['publisher_name']

@@ -38,7 +38,7 @@
 
 import signxml
 import lxml.etree as etree_
-import StringIO
+import io
 import openadrven.oadr_20b
 
 # Run this experiment from $VOLTTRON_ROOT/services/core/OpenADRVenAgent: "python crypto_experiment.py"

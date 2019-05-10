@@ -104,7 +104,7 @@ def dict_compare(source_dict, target_dict):
 
        Ignores keys in target_dict that are not in source_dict.
     """
-    for name, source_val in source_dict.iteritems():
+    for name, source_val in source_dict.items():
         target_val = target_dict.get(name, None)
         assert source_val == target_val, "Source value of {}={}, target value={}".format(name, source_val, target_val)
 
@@ -193,7 +193,7 @@ class TestDNP3Agent:
     def set_point(agent, point_name, value):
         """Use DNP3Agent to set a point value for a DNP3 resource."""
         response = agent.vip.rpc.call(DNP3_AGENT_ID, 'set_point', point_name, value).get(timeout=10)
-        gevent.sleep(1)     # Give the Master time to receive an echoed point value back from the Outstation.
+        gevent.sleep(5)     # Give the Master time to receive an echoed point value back from the Outstation.
         return response
 
     @staticmethod

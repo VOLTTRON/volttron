@@ -36,8 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import, print_function
-
 import argparse
 import collections
 import json
@@ -209,8 +207,8 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def agent_status(self, uuid):
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
@@ -218,8 +216,8 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def agent_name(self, uuid):
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
@@ -227,8 +225,8 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def agent_version(self, uuid):
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
@@ -244,8 +242,8 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def start_agent(self, uuid):
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
@@ -253,8 +251,8 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def stop_agent(self, uuid):
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
@@ -262,9 +260,9 @@ class ControlService(BaseAgent):
         identity = self.agent_vip_identity(uuid)
         self._aip.stop_agent(uuid)
         # Send message to router that agent is shutting down
-        frames = [bytes(identity)]
+        frames = [identity.encode('utf-8')]
 
-        self.core.connection.send_vip(b'', 'agentstop', frames, copy=False)
+        self.core.socket.send_vip(b'', b'agentstop', frames, copy=False)
 
     @RPC.export
     def restart_agent(self, uuid):
@@ -287,17 +285,17 @@ class ControlService(BaseAgent):
         return [{'name': name, 'uuid': uuid,
                  'tag': tag(uuid), 'priority': priority(uuid),
                  'identity': self.agent_vip_identity(uuid)}
-                for uuid, name in self._aip.list_agents().iteritems()]
+                for uuid, name in self._aip.list_agents().items()]
 
     @RPC.export
     def tag_agent(self, uuid, tag):
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
-        if not isinstance(tag, (type(None), basestring)):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(tag, (type(None), str)):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'tag';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
@@ -305,8 +303,8 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def remove_agent(self, uuid, remove_auth=True):
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
@@ -320,13 +318,13 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def prioritize_agent(self, uuid, priority='50'):
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
-        if not isinstance(priority, (type(None), basestring)):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(priority, (type(None), str)):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string or null for 'priority';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
@@ -339,8 +337,8 @@ class ControlService(BaseAgent):
         @param uuid:
         @return:
         """
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
@@ -427,7 +425,7 @@ class ControlService(BaseAgent):
             Encoded secret key the installed agent will use
         """
 
-        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
         channel = self.vip.channel(peer, channel_name)
 
         try:
@@ -500,7 +498,7 @@ Agent = collections.namedtuple('Agent', 'name tag uuid vip_identity')
 
 def _list_agents(aip):
     return [Agent(name, aip.agent_tag(uuid), uuid, aip.agent_identity(uuid))
-            for uuid, name in aip.list_agents().iteritems()]
+            for uuid, name in aip.list_agents().items()]
 
 
 def escape(pattern):
@@ -760,7 +758,7 @@ def status_agents(opts):
         except KeyError:
             agents[uuid] = agent = Agent(name, None, uuid)
         status[uuid] = stat
-    agents = agents.values()
+    agents = list(agents.values())
 
     def get_status(agent):
         try:
@@ -776,9 +774,9 @@ def status_agents(opts):
 
     def get_health(agent):
         try:
-            return opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4)[
-                'status']
-        except VIPError:
+            return opts.connection.server.vip.rpc.call(agent.vip_identity,
+                                                       'health.get_status_json').get(timeout=4)['status']
+        except (VIPError, gevent.Timeout):
             return ''
 
     _show_filtered_agents_status(opts, get_status, get_health, agents)
@@ -1063,7 +1061,7 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
                 question = '{} {}[{}]: '.format(name, note, default_str)
                 valid = False
                 while not valid:
-                    response = raw_input(question).strip()
+                    response = input(question).strip()
                     if response == '':
                         response = default
                     if response == 'clear':
@@ -1077,7 +1075,7 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
             return {k: self._fields[k]['response'] for k in self._fields}
 
     def to_true_or_false(response):
-        if isinstance(response, basestring):
+        if isinstance(response, str):
             return {'true': True, 'false': False}[response.lower()]
         return response
 
@@ -1122,7 +1120,7 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
 
 
 def _comma_split(line):
-    if not isinstance(line, basestring):
+    if not isinstance(line, str):
         return line
     line = line.strip()
     if not line:
@@ -1173,7 +1171,7 @@ def add_auth(opts):
         auth_file.add(entry, overwrite=False)
         _stdout.write('added entry {}\n'.format(entry))
     except AuthException as err:
-        _stderr.write('ERROR: %s\n' % err.message)
+        _stderr.write('ERROR: %s\n' % str(err))
 
 
 def _ask_yes_no(question, default='yes'):
@@ -1188,7 +1186,7 @@ def _ask_yes_no(question, default='yes'):
     else:
         raise ValueError("invalid default answer: '%s'" % default)
     while True:
-        choice = raw_input('{} [{}/{}] '.format(question, y, n)).lower()
+        choice = input('{} [{}/{}] '.format(question, y, n)).lower()
         if choice == '':
             choice = default
         if choice in yes:
@@ -2623,7 +2621,7 @@ def main(argv=sys.argv):
         opts.log_config = config.expandall(opts.log_config)
     opts.vip_address = config.expandall(opts.vip_address)
     if getattr(opts, 'show_config', False):
-        for name, value in sorted(vars(opts).iteritems()):
+        for name, value in sorted(vars(opts).items()):
             print(name, repr(value))
         return
 
@@ -2656,9 +2654,9 @@ def main(argv=sys.argv):
     except RemoteError as exc:
         print_tb = exc.print_tb
         error = exc.message
-    except Exception as exc:
-        print_tb = traceback.print_exc
-        error = str(exc)
+    # except Exception as exc:
+    #     print_tb = traceback.print_exc
+    #     error = str(exc)
     else:
         return 0
     if opts.debug:

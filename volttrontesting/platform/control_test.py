@@ -24,7 +24,7 @@ def test_agent_versions(volttron_instance):
     versions = agent.vip.rpc.call('control', 'agent_versions').get(timeout=2)
     assert isinstance(versions, dict)
     assert len(versions) == 1
-    k = versions.keys()[0]
+    k = list(versions.keys())[0]
     versions = versions[k]
     assert versions[0] == 'listeneragent-3.2'
     assert versions[1] == '3.2'

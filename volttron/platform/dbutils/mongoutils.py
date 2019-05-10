@@ -58,16 +58,16 @@ def get_mongo_client(connection_params, **kwargs):
                     hosts = ','.join(hosts)
                 else:
                     if len(ports) != len(hosts):
-                        raise StandardError(
+                        raise Exception(
                             'port an hosts must have the same number of items'
                         )
-                    hostports = zip(hosts, ports)
+                    hostports = list(zip(hosts, ports))
                     hostports = [str(e[0]) + ':' + str(e[1]) for e in
                                  hostports]
                     hosts = ','.join(hostports)
             else:
                 if isinstance(ports, list):
-                    raise StandardError(
+                    raise Exception(
                         'port cannot be a list if hosts is not also a list.'
                     )
                 hosts = '{}:{}'.format(hosts, ports)
@@ -171,7 +171,7 @@ def get_tagging_queries_from_ast(tup, tag_refs, sub_queries):
     # Check for negation. negation needs to be handled as special case
     if lower_tup0 == 'not':
         return _negate_condition(right)
-    elif mongo_operators.has_key(lower_tup0):
+    elif lower_tup0 in mongo_operators:
         # if or/and rhs should be array
         return {mongo_operators.get(lower_tup0): [left, right]}
     elif lower_tup0 == 'like':

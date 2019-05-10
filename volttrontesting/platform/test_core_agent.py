@@ -4,7 +4,7 @@ import subprocess
 import gevent
 import pytest
 from dateutil.parser import parse as dateparse
-from volttron.platform.agent import json
+from volttron.platform import jsonapi
 
 from volttron.platform.messaging.health import STATUS_GOOD, STATUS_BAD, \
     STATUS_UNKNOWN
@@ -16,7 +16,7 @@ def test_agent_can_get_platform_version(volttron_instance):
     agent = volttron_instance.build_agent()
     query = Query(agent.core)
     response = subprocess.check_output(['volttron', "--version"],
-                                       stderr=subprocess.STDOUT)
+                                       stderr=subprocess.STDOUT, universal_newlines=True)
     assert response.strip()
     _, version = response.strip().split(" ")
 

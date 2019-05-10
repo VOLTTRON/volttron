@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
+
 
 import logging
 import weakref
@@ -90,7 +90,7 @@ class Ping(SubsystemBase):
             connection.send_vip_object(message, copy=False)
         elif op == b'pong':
             try:
-                result = self._results.pop(bytes(message.id))
+                result = self._results.pop(bytes(message.id).decode('utf-8'))
             except KeyError:
                 return
             result.set([bytes(arg) for arg in message.args[1:]])
@@ -99,7 +99,7 @@ class Ping(SubsystemBase):
 
     def _handle_error(self, sender, message, error, **kwargs):
         try:
-            result = self._results.pop(bytes(message.id))
+            result = self._results.pop(bytes(message.id).decode('utf-8'))
         except KeyError:
             return
         result.set_exception(error)

@@ -97,7 +97,7 @@ def test_heartbeat_sending_status(volttron_instance):
     poll_gevent_sleep(2, lambda: messages_contains_prefix(agent_prefix,
                                                           subscription_results))
 
-    print subscription_results
+    print(subscription_results)
     message = subscription_results[agent_prefix]['message']
     headers = subscription_results[agent_prefix]['headers']
     d = message

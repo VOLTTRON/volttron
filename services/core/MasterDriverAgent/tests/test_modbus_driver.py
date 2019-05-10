@@ -46,20 +46,20 @@ LittleFloat,PPM,<f,TRUE,110
 LittleLong,PPM,<q,TRUE,112"""
 
 # Register values dictionary for testing set_point and get_point
-registers_dict = {"BigUShort": 2 ** 16 - 1,
-                  "BigUInt": 2 ** 32 - 1,
-                  "BigULong": 2 ** 64 - 1,
-                  "BigShort": -(2 ** 16) / 2,
-                  "BigInt": -(2 ** 32) / 2,
+registers_dict = {"BigUShort": 2**16-1,
+                  "BigUInt": 2**32-1,
+                  "BigULong": 2**64-1,
+                  "BigShort": -(2**16)//2,
+                  "BigInt": -(2**32)//2,
                   "BigFloat": -1234.0,
-                  "BigLong": -(2 ** 64) / 2,
+                  "BigLong": -(2**64)//2,
                   "LittleUShort": 0,
                   "LittleUInt": 0,
                   "LittleULong": 0,
-                  "LittleShort": (2 ** 16) / 2 - 1,
-                  "LittleInt": (2 ** 32) / 2 - 1,
+                  "LittleShort": (2**16)//2-1,
+                  "LittleInt": (2**32)//2-1,
                   "LittleFloat": 1.0,
-                  "LittleLong": (2 ** 64) / 2 - 1
+                  "LittleLong": (2**64)//2-1
                   }
 
 
@@ -171,23 +171,13 @@ def modbus_server(request):
     modbus_server.set_values(1, PPSPi32Client().field_by_name("BigInt"), 0)
     modbus_server.set_values(1, PPSPi32Client().field_by_name("BigFloat"), 0)
     modbus_server.set_values(1, PPSPi32Client().field_by_name("BigLong"), 0)
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleUShort"),
-                             unpack('<H', pack('>H', 0))[0])
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleUInt"),
-                             unpack('<I', pack('>I', 0))[0])
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleULong"),
-                             unpack('<Q', pack('>Q', 0))[0])
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleShort"),
-                             unpack('<h', pack('>h', 0))[0])
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleInt"),
-                             unpack('<i', pack('>i', 0))[0])
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleFloat"),
-                             unpack('<f', pack('>f', 0))[0])
-    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleLong"),
-                             unpack('<q', pack('>q', 0))[0])
-
-    def stop():
-        modbus_server.stop()
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleUShort"), unpack('<H', pack('>H', 0)))
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleUInt"), unpack('<HH', pack('>I', 0)))
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleULong"), unpack('<HHHH', pack('>Q', 0)))
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleShort"), unpack('<H', pack('>h', 0)))
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleInt"), unpack('<HH', pack('>i', 0)))
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleFloat"), unpack('<HH', pack('>f', 0)))
+    modbus_server.set_values(1, PPSPi32Client().field_by_name("LittleLong"), unpack('<HHHH', pack('>q', 0)))
 
     modbus_server.start()
     time.sleep(1)
@@ -232,7 +222,7 @@ class TestModbusDriver:
         @param agent: The test Agent.
         @return: The returned value from the RPC call.
         """
-        return agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all', 
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all',
                                   'modbus').get(timeout=10)
 
     def test_default_values(self, agent):

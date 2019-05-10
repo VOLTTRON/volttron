@@ -65,8 +65,7 @@ from test_settings import (virtual_device_host, device_types, config_dir,
                            volttron_install, master_driver_file,
                            host_config_location)
 
-class DeviceConfig(object):
-    __metaclass__ = abc.ABCMeta
+class DeviceConfig(object, metaclass=abc.ABCMeta):
     def __init__(self, host_address, instance_number, registry_config, interval=60, heart_beat_point=None):
         self.configuration = {"registry_config": registry_config,
                               "driver_type": self.device_type(),

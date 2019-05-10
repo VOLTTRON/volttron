@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import print_function
+
 
 from volttron.platform import get_services_core, get_examples
 
@@ -65,8 +65,6 @@ TEST_AGENT = 'test-agent'
 actuator_uuid = None
 REQUEST_CANCEL_SCHEDULE = 'request_cancel_schedule'
 REQUEST_NEW_SCHEDULE = 'request_new_schedule'
-publish_agent_v2 = None
-
 
 @pytest.fixture(scope="function")
 def cancel_schedules(request, publish_agent):
@@ -153,14 +151,14 @@ def publish_agent(request, volttron_instance):
     are run
     :return: an instance of fake agent used for publishing
     """
-    global actuator_uuid, publish_agent_v2
+    global actuator_uuid
 
 
     # Reset master driver config store
     cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
     process = Popen(cmd, env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     result = process.wait()
     print(result)
     assert result == 0
@@ -170,18 +168,18 @@ def publish_agent(request, volttron_instance):
            'fake.csv', 'fake_unit_testing.csv', '--csv']
     process = Popen(cmd, env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     result = process.wait()
     print(result)
     assert result == 0
 
-    for i in xrange(4):
+    for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
                config_name, 'fake_unit_testing.config', '--json']
         process = Popen(cmd, env=volttron_instance.env,
                         cwd='scripts/scalability-testing',
-                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         result = process.wait()
         print(result)
         assert result == 0
@@ -223,11 +221,6 @@ def publish_agent(request, volttron_instance):
         peer='pubsub',
         prefix=topics.ACTUATOR_SCHEDULE_RESULT,
         callback=fake_publish_agent.callback).get()
-    if request.param == 'volttron_2':
-        publish_agent_v2 = PublishMixin(
-            volttron_instance.opts['publish_address'])
-    else:
-        publish_agent_v2 = None
 
     # 4: add a tear down method to stop sqlhistorian agent
     # and the fake agent that published to message bus
@@ -252,14 +245,10 @@ def publish(publish_agent, topic, header, message):
     :param header: header to publish
     :param message: message to publish
     """
-    global publish_agent_v2
-    if publish_agent_v2 is None:
-        publish_agent.vip.pubsub.publish('pubsub',
-                                         topic,
-                                         headers=header,
-                                         message=message).get(timeout=10)
-    else:
-        publish_agent_v2.publish_json(topic, header, message)
+    publish_agent.vip.pubsub.publish('pubsub',
+                                     topic,
+                                     headers=header,
+                                     message=message).get(timeout=10)
 
 
 @pytest.mark.actuator_pubsub
@@ -284,7 +273,6 @@ def test_schedule_response(publish_agent):
     """
     # Mock callback methods
     print("\n**** test_schedule_response ****")
-    global publish_agent_v2
     start = str(datetime.now(tz=tzutc()) + timedelta(seconds=10))
     end = str(datetime.now(tz=tzutc()) + timedelta(seconds=20))
     header = {
@@ -350,10 +338,7 @@ def test_schedule_announce(publish_agent, volttron_instance):
     :param volttron_instance: Volttron instance on which test is run
     """
     print("\n**** test_schedule_announce ****")
-    global actuator_uuid, publish_agent_v2
-
-    if publish_agent_v2 is not None:
-        pytest.skip('No difference between 2.0 and 3.0 agent. Skip for 2.0')
+    global actuator_uuid
 
     alternate_actuator_vip_id = "my_actuator"
     # Use a actuator that publishes frequently
@@ -1598,9 +1583,7 @@ def test_set_value_array(publish_agent, cancel_schedules, revert_devices):
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     # assert result_header['requesterID'] == agentid
-    assert result_message['type'] == 'TypeError'
-    assert result_message['value'] == \
-        "['float() argument must be a string or a number']"
+    assert result_message['type'] == 'builtins.TypeError'
 
 
 @pytest.mark.actuator_pubsub
@@ -1628,7 +1611,6 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
     :param revert_devices: Cleanup method to revert device state
     """
     print("\n**** test_set_value_float ****")
-    global publish_agent_v2
     agentid = TEST_AGENT
     taskid = 'task_set_float_value'
     device = 'fakedriver2'
@@ -2017,7 +1999,7 @@ def test_set_read_only_point(publish_agent, cancel_schedules):
     result_header = publish_agent.callback.call_args[0][4]
     # assert result_header['requesterID'] == agentid
     result_message = publish_agent.callback.call_args[0][5]
-    assert result_message['type'] == 'IOError'
+    assert result_message['type'] == 'builtins.RuntimeError'
     assert result_message['value'] == "['Trying to write to a point " \
                                       "configured read only: " \
                                       "OutsideAirTemperature1']"
@@ -2183,6 +2165,6 @@ def test_set_value_error(publish_agent, cancel_schedules):
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     # assert result_header['requesterID'] == agentid
-    assert result_message['type'] == 'ValueError'
+    assert result_message['type'] == 'builtins.ValueError'
     assert result_message['value'] == \
-        "['could not convert string to float: abcd']"
+        '["could not convert string to float: \'abcd\'"]'

@@ -35,7 +35,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from __future__ import absolute_import, print_function
 
 import datetime
 import logging
@@ -160,9 +159,7 @@ class DataMover(BaseHistorian):
         try:
             if isinstance(data, dict):
                 data = data
-            elif isinstance(data, int) or \
-                    isinstance(data, float) or \
-                    isinstance(data, long):
+            elif isinstance(data, int) or isinstance(data, float):
                 data = data
         except ValueError as e:
             log_message = "message for {topic} bad message string:" \

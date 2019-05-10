@@ -37,7 +37,7 @@
 # }}}
 
 
-from __future__ import absolute_import, print_function
+
 
 import base64
 import datetime
@@ -48,7 +48,7 @@ import re
 import shutil
 import sys
 import tempfile
-import urlparse
+import urllib.parse
 from collections import defaultdict
 
 import gevent
@@ -286,11 +286,6 @@ class VolttronCentralPlatform(Agent):
 
         self._registration_state = RegistrationStates.NotRegistered
 
-        # if not self._vc_address and not self._vc_serverkey:
-        #     _log.error("vc address and serverkey could not be determined. "
-        #                "registration is not allowed.")
-        #     return
-
         cfg_instance_name = config.get("instance-name")
         if cfg_instance_name is not None:
             self._instance_name = cfg_instance_name
@@ -376,7 +371,7 @@ class VolttronCentralPlatform(Agent):
         :return: The scheme of the address
         """
         parsed_type = None
-        parsed = urlparse.urlparse(address)
+        parsed = urllib.parse.urlparse(address)
         if parsed.scheme not in ('http', 'https', 'ipc', 'tcp'):
             raise ValueError('Invalid volttron central address.')
 
@@ -805,7 +800,7 @@ class VolttronCentralPlatform(Agent):
                             identity, a['uuid']
                         ))
         for a in agents:
-            if a['uuid'] in uuid_to_status.keys():
+            if a['uuid'] in uuid_to_status:
                 _log.debug('UPDATING STATUS OF: {}'.format(a['uuid']))
                 a.update(uuid_to_status[a['uuid']])
         return agents
@@ -873,7 +868,7 @@ class VolttronCentralPlatform(Agent):
         device_dict = self._devices[device_topic]
 
         if not device_dict.get('points', None):
-            points = message[0].keys() # [k for k, v in message[0].items()]
+            points = list(message[0].keys())  # [k for k, v in message[0].items()]
             device_dict['points'] = points
 
         device_dict['health'] = status.as_dict()
@@ -912,7 +907,7 @@ class VolttronCentralPlatform(Agent):
         # Only if we have some topics to replace.
         if self._topic_replace_map:
             # if we have already cached the topic then return it.
-            if input_topic_lower in self._topic_replacement.keys():
+            if input_topic_lower in self._topic_replacement:
                 output_topic = self._topic_replacement[input_topic_lower]
             else:
                 self._topic_replacement[input_topic_lower] = input_topic
@@ -959,7 +954,7 @@ class VolttronCentralPlatform(Agent):
 
         if not config_changed:
             # The stat times of the config files are unchanged. Return the device list that's already in memory.
-            keys = list(self._devices.keys())
+            keys = self._devices.keys()
 
             for k in keys:
                 new_key = self.get_renamed_topic(k)
@@ -1141,7 +1136,7 @@ class VolttronCentralPlatform(Agent):
         try:
             _log.debug('Installing agent FILEARGS: {}'.format(fileargs))
             vip_identity = fileargs.get('vip_identity', None)
-            if 'local' in fileargs.keys():
+            if 'local' in fileargs:
                 path = fileargs['file_name']
             else:
                 path = os.path.join(tmpdir, fileargs['file_name'])
@@ -1187,8 +1182,6 @@ class VolttronCentralPlatform(Agent):
         #     self._device_status_event = self.core.schedule(
         #         next_update_time, self._publish_device_health)
 
-
-
     def _publish_stats(self):
         """
         Publish the platform statistics to the bus.
@@ -1201,7 +1194,7 @@ class VolttronCentralPlatform(Agent):
 
         points = {}
 
-        for k, v in psutil.cpu_times_percent().__dict__.items():
+        for k, v in psutil.cpu_times_percent()._asdict().items():
             points['times_percent/' + k] = {'Readings': v,
                                             'Units': 'double'}
 
@@ -1211,7 +1204,7 @@ class VolttronCentralPlatform(Agent):
             self.vip.pubsub.publish('pubsub', topic.format(), message=points)
 
         except Exception as e:
-            _log.warn("Failed to publish to topic {}".format(topic.format()))
+            _log.warning("Failed to publish to topic {}".format(topic.format()))
         finally:
             # The stats publisher publishes both to the local bus and the vc
             # bus the platform specific topics.

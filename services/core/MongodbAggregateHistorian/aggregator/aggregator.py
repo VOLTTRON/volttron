@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
+
 
 import logging
 import sys
@@ -194,7 +194,7 @@ class MongodbAggregateHistorian(AggregateHistorian):
         _log.debug("collect_aggregate: pipeline: {}".format(pipeline))
         cursor = db[self._data_collection].aggregate(pipeline)
         try:
-            row = cursor.next()
+            row = next(cursor)
             _log.debug("collect_aggregate: got result as {}".format(row))
             return row['aggregate'], row['count']
         except StopIteration:

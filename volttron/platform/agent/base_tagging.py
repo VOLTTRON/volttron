@@ -66,7 +66,7 @@ condition for querying topics based on tags. Please see documentation of
 
 """
 
-from __future__ import absolute_import, print_function
+
 
 import logging
 import os
@@ -431,10 +431,8 @@ class BaseTaggingService(Agent):
                 raise ValueError("Invalid data type ({}) for "
                                  "param or_condition.  Expecting list or "
                                  "dict".format(type(or_condition)))
-
             condition = self._process_and_or_param(and_condition,
                                                    or_condition)
-
         ast = parse_query(condition, self.valid_tags, self.tag_refs)
         return self.query_topics_by_tags(ast=ast, skip=skip, count=count,
                                          order=order)
@@ -597,7 +595,7 @@ class BaseTaggingService(Agent):
                 self.historian_vip_identity,
                 "get_topics_by_pattern",
                 topic_pattern=topic_pattern).get(timeout=5)
-            point_topics = topic_map.keys()
+            point_topics = list(topic_map.keys())
             if len(point_topics) == 1 and point_topics[0] == topic_pattern:
                 # fixed string topic name
                 topic_prefixes.add(topic_pattern)
@@ -792,7 +790,7 @@ def t_ID(t):
             child_tag = tags[0]
         elif len(tags) == 2:
             child_tag = tags[1]
-            if not tag_refs.has_key(tags[0]):
+            if tags[0] not in tag_refs:
                 raise ValueError("{} is not a valid reference tag. Only "
                                  "reference tags (kind/type=Ref) can be "
                                  "parent tags. Also make sure "
@@ -806,7 +804,7 @@ def t_ID(t):
                              "parent_tag should be a valid tag with "
                              "type/kind as Ref")
 
-        if not valid_tags.has_key(child_tag):
+        if child_tag not in valid_tags:
             raise ValueError("Invalid tag {} at line number {} and column "
                              "number {}".format(child_tag,
                                                 t.lineno,

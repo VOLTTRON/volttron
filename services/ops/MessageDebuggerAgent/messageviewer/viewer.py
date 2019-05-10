@@ -130,46 +130,46 @@ class MessageViewerCmd(Cmd):
         self._streaming = False
 
     def startup(self):
-        print 'Welcome to the MessageViewer command line. Supported commands include:'
-        print '\t display_message_stream'
-        print '\t display_messages'
-        print '\t display_exchanges'
-        print '\t display_exchange_details'
-        print '\t display_session_details_by_agent <session_id>'
-        print '\t display_session_details_by_topic <session_id>'
-        print
-        print '\t list_sessions'
-        print '\t set_verbosity <level>'
-        print '\t list_filters'
-        print '\t set_filter <filter_name> <value>'
-        print '\t clear_filters'
-        print '\t clear_filter <filter_name>'
-        print
-        print '\t start_streaming'
-        print '\t stop_streaming'
-        print '\t start_session'
-        print '\t stop_session'
-        print '\t delete_session <session_id>'
-        print '\t delete_database'
-        print
-        print '\t help'
-        print '\t quit'
+        print('Welcome to the MessageViewer command line. Supported commands include:')
+        print('\t display_message_stream')
+        print('\t display_messages')
+        print('\t display_exchanges')
+        print('\t display_exchange_details')
+        print('\t display_session_details_by_agent <session_id>')
+        print('\t display_session_details_by_topic <session_id>')
+        print()
+        print('\t list_sessions')
+        print('\t set_verbosity <level>')
+        print('\t list_filters')
+        print('\t set_filter <filter_name> <value>')
+        print('\t clear_filters')
+        print('\t clear_filter <filter_name>')
+        print()
+        print('\t start_streaming')
+        print('\t stop_streaming')
+        print('\t start_session')
+        print('\t stop_session')
+        print('\t delete_session <session_id>')
+        print('\t delete_database')
+        print()
+        print('\t help')
+        print('\t quit')
         self.cmdloop('Please enter a command.')
         exit()
 
     def do_clear_filters(self, line):
         """Clear all database query filters."""
         self._filters = {}
-        print MessageViewer.set_filters(self._filters)
+        print(MessageViewer.set_filters(self._filters))
 
     def do_set_verbosity(self, line):
         """Set the verbosity level for MessageDebuggerAgent responses; syntax is: set_verbosity <level>"""
         level = self.first_parameter(line)
         if level:
             self._verbosity = level
-            print MessageViewer.set_verbosity(level)
+            print(MessageViewer.set_verbosity(level))
         else:
-            print 'Please enter a verbosity level'
+            print('Please enter a verbosity level')
 
     def do_display_message_stream(self, line):
         """Display the DebugMessage stream in realtime (subject to filters) as messages are routed."""
@@ -226,12 +226,12 @@ class MessageViewerCmd(Cmd):
             try:
                 session_id = int(session_id_str)
             except ValueError:
-                print 'Please enter a session ID'
+                print('Please enter a session ID')
                 session_id = None
             if session_id:
                 self.print_stats('Receiving Agent', MessageViewer.session_details_by_agent(session_id))
         else:
-            print 'Please enter a session ID'
+            print('Please enter a session ID')
 
     def do_display_session_details_by_topic(self, line):
         """Display message counts by topic; syntax is: display_session_details_by_topic <session_id>"""
@@ -240,12 +240,12 @@ class MessageViewerCmd(Cmd):
             try:
                 session_id = int(session_id_str)
             except ValueError:
-                print 'Please enter a session ID'
+                print('Please enter a session ID')
                 session_id = None
             if session_id:
                 self.print_stats('Topic', MessageViewer.session_details_by_topic(session_id))
         else:
-            print 'Please enter a session ID'
+            print('Please enter a session ID')
 
     def do_display_exchange_details(self, line):
         """Display details for a single DebugMessageExchange; syntax is: display_exchange_details <message_id>"""
@@ -254,25 +254,25 @@ class MessageViewerCmd(Cmd):
             response = MessageViewer.message_exchange_details(message_id)
             if type(response) == str:
                 # Got back an error/status message, so just print it
-                print response
+                print(response)
             else:
                 if self._verbosity == 'high':
                     # At high verbosity, print the details in spread-out fashion.
                     if len(response['results']) > 0:
                         for msg in response['results']:
-                            print
-                            print json.dumps(msg, indent=4, sort_keys=2)
+                            print()
+                            print(json.dumps(msg, indent=4, sort_keys=2))
                     else:
-                        print 'No data in filtered output, consider relaxing filters'
+                        print('No data in filtered output, consider relaxing filters')
                 else:
                     # At lower verbosity, print the details as a table.
                     self.print_response_dict('DebugMessage', response)
         else:
-            print 'Please enter a message ID'
+            print('Please enter a message ID')
 
     def do_list_filters(self, line):
         """Display the database query filters that are currently in effect"""
-        print self._filters
+        print(self._filters)
 
     def do_list_sessions(self, line):
         """Display a list of DebugSessions"""
@@ -304,26 +304,26 @@ class MessageViewerCmd(Cmd):
         filter_value = self.second_parameter(line)
         if filter_name and filter_value:
             self._filters[filter_name] = filter_value
-            print MessageViewer.set_filters(self._filters)
+            print(MessageViewer.set_filters(self._filters))
         else:
-            print 'Please enter a filter name and a filter value'
+            print('Please enter a filter name and a filter value')
 
     def do_clear_filter(self, line):
         """Clear a single filter value; syntax is: clear_filter <filter_name>"""
         filter_name = self.first_parameter(line)
         if filter_name:
             self._filters.pop(filter_name, None)
-            print MessageViewer.set_filters(self._filters)
+            print(MessageViewer.set_filters(self._filters))
         else:
-            print 'Please enter a filter name'
+            print('Please enter a filter name')
 
     def do_start_session(self, line):
         """Start a DebugSession"""
-        print MessageViewer.enable_message_debugging()
+        print(MessageViewer.enable_message_debugging())
 
     def do_stop_session(self, line):
         """Stop the current DebugSession"""
-        print MessageViewer.disable_message_debugging()
+        print(MessageViewer.disable_message_debugging())
 
     def do_start_streaming(self, line):
         """Start publishing DebugMessage strings to the monitor socket"""
@@ -331,11 +331,11 @@ class MessageViewerCmd(Cmd):
 
     def start_streaming(self):
         self._streaming = True
-        print MessageViewer.start_streaming(filters=self._filters)
+        print(MessageViewer.start_streaming(filters=self._filters))
 
     def do_stop_streaming(self, line):
         """Stop publishing DebugMessage strings to the monitor socket"""
-        print MessageViewer.stop_streaming()
+        print(MessageViewer.stop_streaming())
         self._streaming = False
 
     def do_delete_session(self, line):
@@ -343,15 +343,15 @@ class MessageViewerCmd(Cmd):
         session_id_str = self.first_parameter(line)
         if session_id_str:
             try:
-                print MessageViewer.delete_debugging_session(int(session_id_str))
+                print(MessageViewer.delete_debugging_session(int(session_id_str)))
             except ValueError:
-                print 'Please enter an integer session ID'
+                print('Please enter an integer session ID')
         else:
-            print 'Please enter a session ID'
+            print('Please enter a session ID')
 
     def do_delete_database(self, line):
         """Delete the message debugger SQLite database (it will be re-created during the next DebugSession)"""
-        print MessageViewer.delete_debugging_db()
+        print(MessageViewer.delete_debugging_db())
 
     def first_parameter(self, line):
         split_line = self.split_line(line)
@@ -396,7 +396,7 @@ class MessageViewerCmd(Cmd):
                 elif type(response) == str:
                     sys.stdout.write(str)
         except KeyboardInterrupt:
-            print 'Execution interrupted'
+            print('Execution interrupted')
 
     def print_stats(self, stat_type, response):
         """
@@ -410,16 +410,16 @@ class MessageViewerCmd(Cmd):
         """
         if type(response) == str:
             # Got back an error/status message, so just print it
-            print response
+            print(response)
         elif response['message_count'] == 0:
-            print 'No messages found for session'
+            print('No messages found for session')
         else:
             response_items = response['stats']
             if len(response_items) > 0:
                 # Gather the data into rows and columns.
                 # Collect a set of all column titles (the original data may have been sparse).
                 all_columns_set = set()
-                for row, inner_dict in response_items.iteritems():
+                for row, inner_dict in response_items.items():
                     for column in inner_dict.keys():
                         all_columns_set.add(column)
                 # Alpha-sort row and column labels.
@@ -451,7 +451,7 @@ class MessageViewerCmd(Cmd):
                 for row in data_rows:
                     sys.stdout.write(formatter.compose(row))
             else:
-                print 'No stats in filtered output, consider relaxing filters'
+                print('No stats in filtered output, consider relaxing filters')
 
     def print_response_dict(self, object_type, response):
         """
@@ -462,7 +462,7 @@ class MessageViewerCmd(Cmd):
         """
         if type(response) == str:
             # Got back an error/status message, so just print it
-            print response
+            print(response)
         else:
             response_list = response['results']
             if len(response_list) > 0:
@@ -472,7 +472,7 @@ class MessageViewerCmd(Cmd):
                 for row in data_rows:
                     sys.stdout.write(formatter.compose(row))
             else:
-                print 'No data in filtered output, consider relaxing filters'
+                print('No data in filtered output, consider relaxing filters')
 
     def data_rows_for_obj_list(self, obj_list, column_labels, formatter=None):
         """
@@ -551,7 +551,7 @@ class MessageViewerCmd(Cmd):
         monitor_socket = zmq.Context().socket(zmq.SUB)
         monitor_socket_address = 'ipc://{}'.format('@' if sys.platform.startswith('linux') else '') + monitor_path
         monitor_socket.bind(monitor_socket_address)
-        monitor_socket.setsockopt_string(zmq.SUBSCRIBE, u"")
+        monitor_socket.setsockopt_string(zmq.SUBSCRIBE, "")
         _log.debug('Subscribing to monitor socket {}'.format(monitor_socket_address))
         return monitor_socket
 
@@ -610,12 +610,12 @@ class MessageViewer(object):
         monitor_socket = zmq.Context().socket(zmq.SUB)
         monitor_socket_address = 'ipc://{}'.format('@' if sys.platform.startswith('linux') else '') + monitor_path
         monitor_socket.bind(monitor_socket_address)
-        monitor_socket.setsockopt_string(zmq.SUBSCRIBE, u"")
+        monitor_socket.setsockopt_string(zmq.SUBSCRIBE, "")
         _log.debug('Subscribing to monitor socket {}'.format(monitor_socket_address))
         try:
             while True:
                 json_string = monitor_socket.recv()
-                print json.loads(json_string)
+                print(json.loads(json_string))
         except KeyboardInterrupt:
             _log.debug('Execution interrupted')
 
@@ -724,7 +724,7 @@ class ViewerConnection(object):
             self._greenlet.kill(*args, **kwargs)
 
 
-LEFT, CENTER, RIGHT = range(3)
+LEFT, CENTER, RIGHT = list(range(3))
 
 
 class TextFormatter(object):
@@ -836,13 +836,13 @@ class TextFormatter(object):
             return len(self.lines)
 
     def __init__(self, colspeclist):
-        self.columns = [apply(TextFormatter.Column, (), colspec) for colspec in colspeclist]
+        self.columns = [TextFormatter.Column(*(), **colspec) for colspec in colspeclist]
 
     def compose(self, textlist, include_newline=True, wrap_text=True):
         numlines = 0
         textlist = list(textlist)
         if len(textlist) != len(self.columns):
-            raise IndexError, "Number of text items {} does not match columns {}".format(len(textlist), len(self.columns))
+            raise IndexError("Number of text items {} does not match columns {}".format(len(textlist), len(self.columns)))
         for text, column in map(None, textlist, self.columns):
             column.wrap(text) if wrap_text else column.truncate(text)
             numlines = max(numlines, column.numlines())

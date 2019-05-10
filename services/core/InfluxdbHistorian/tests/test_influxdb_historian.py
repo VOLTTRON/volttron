@@ -656,7 +656,7 @@ def test_query_historian_all_topics(volttron_instance, influxdb_client):
 
         actual = publisher.vip.rpc.call('influxdb.historian',
                                         'query',
-                                        topic=query_topics.values(),
+                                        topic=list(query_topics.values()),
                                         count=30,
                                         order="FIRST_TO_LAST").get(timeout=60)
 
@@ -812,7 +812,7 @@ def test_query_historian_all_topics_with_time(volttron_instance, influxdb_client
 
         actual = publisher.vip.rpc.call('influxdb.historian',
                                         'query',
-                                        topic=query_topics.values(),
+                                        topic=list(query_topics.values()),
                                         start=format_timestamp(start_time),
                                         end=format_timestamp(end_time),
                                         skip=2,
@@ -935,7 +935,7 @@ def test_query_topics_by_pattern(volttron_instance, influxdb_client):
     assert agent_uuid is not None
     assert volttron_instance.is_agent_running(agent_uuid)
 
-    pattern_1 = 'Building\/LAB\/Device.*'
+    pattern_1 = r'Building\/LAB\/Device.*'
     expected_1 = [{topic: topic.lower()} for topic in query_topics.values()]
 
     pattern_2 = 'Building.*MixedAir'
@@ -1045,7 +1045,7 @@ def test_query_aggregate_with_calendar_period(volttron_instance, influxdb_client
 
         actual = publisher.vip.rpc.call('influxdb.historian',
                                         'query',
-                                        topic=query_topics.values(),
+                                        topic=list(query_topics.values()),
                                         start=format_timestamp(start_time),
                                         end=format_timestamp(end_time),
                                         agg_type="SUM",
@@ -1068,7 +1068,7 @@ def test_query_aggregate_with_calendar_period(volttron_instance, influxdb_client
 
         actual = publisher.vip.rpc.call('influxdb.historian',
                                         'query',
-                                        topic=query_topics.values(),
+                                        topic=list(query_topics.values()),
                                         start=format_timestamp(start_time),
                                         end=format_timestamp(end_time),
                                         agg_type="MAX",

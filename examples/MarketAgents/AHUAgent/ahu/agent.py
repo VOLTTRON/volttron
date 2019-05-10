@@ -64,7 +64,7 @@ def ahu_agent(config_path, **kwargs):
     """   
     try:
         config = utils.load_config(config_path)
-    except StandardError:
+    except Exception:
         config = {}
 
     if not config:
@@ -180,9 +180,7 @@ class AHUAgent(MarketAgent, AhuChiller):
         '''Subscribe to device data from message bus
         '''
         _log.debug('Received one new dataset')
-        info = {}
-        for key, value in message[0].items():
-            info[key] = value
+        info = message[0].copy()
         tAirMixed= info['MixedAirTemperature']
         tAirReturn= info['ReturnAirTemperature']
         tAirSupply= info['DischargeAirTemperature']

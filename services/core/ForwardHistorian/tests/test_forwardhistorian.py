@@ -45,14 +45,10 @@ import pytest
 from pytest import approx
 
 from volttron.platform import get_services_core
-from volttron.platform.agent import PublishMixin, utils
+from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
-from volttron.platform.messaging import topics
 from volttron.platform.vip.agent import Agent
 from volttron.platform.keystore import KnownHostsStore
-from gevent.subprocess import Popen
-import gevent.subprocess as subprocess
-from mock import MagicMock
 
 # import types
 

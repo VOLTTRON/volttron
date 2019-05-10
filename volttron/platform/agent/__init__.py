@@ -37,4 +37,3 @@
 # }}}
 
 from . import matching
-from .base import *

@@ -184,8 +184,10 @@ import logging
 
 _log = logging.getLogger(__name__)
 
+
 class DriverInterfaceError(Exception):
     pass
+
 
 class BaseRegister(object):
     """
@@ -247,8 +249,9 @@ class BaseRegister(object):
         :rtype: str
         """
         return self.description
-    
-class BaseInterface(object):
+
+
+class BaseInterface(object, metaclass=abc.ABCMeta):
     """
     Main class for implementing support for new devices.
 
@@ -258,12 +261,11 @@ class BaseInterface(object):
     :param core: A reference to the parent driver agent's core subsystem.
 
     """
-    __metaclass__ = abc.ABCMeta
-    def __init__(self, vip=None, core=None, device_path=None, **kwargs):
+    def __init__(self, vip=None, core=None, **kwargs):
         super(BaseInterface, self).__init__(**kwargs)
         self.vip = vip
         self.core = core
-        self.device_path = device_path
+        
         self.point_map = {}
         
         self.build_register_map()
@@ -311,7 +313,7 @@ class BaseInterface(object):
         :return: List of names
         :rtype: list
         """
-        return self.point_map.keys()
+        return list(self.point_map.keys())
 
     def get_register_names_view(self):
         """
@@ -319,7 +321,7 @@ class BaseInterface(object):
         :return: Dictview of names
         :rtype: dictview
         """
-        return self.point_map.viewkeys()
+        return self.point_map.keys()
         
     def get_registers_by_type(self, reg_type, read_only):
         """
@@ -475,7 +477,7 @@ class RevertTracker(object):
         :type points: dict
         """
         clean_values = {}
-        for k, v in points.iteritems():
+        for k, v in points.items():
             if k not in self.dirty_points and k not in self.defaults:
                 clean_values[k] = v
         self.clean_values.update(clean_values)
@@ -553,8 +555,9 @@ class RevertTracker(object):
                 results[point] = DriverInterfaceError()
             
         return results
-    
-class BasicRevert(object):
+
+
+class BasicRevert(object, metaclass=abc.ABCMeta):
     """
     A mixin that implements the :py:meth:`BaseInterface.revert_all`
     and :py:meth:`BaseInterface.revert_point` methods on an
@@ -580,7 +583,6 @@ class BasicRevert(object):
     should be set in the :py:meth:`BaseInterface.configure` call.
 
     """
-    __metaclass__ = abc.ABCMeta
     def __init__(self, **kwargs):
         super(BasicRevert, self).__init__(**kwargs)
         self._tracker = RevertTracker()
@@ -597,8 +599,7 @@ class BasicRevert(object):
         :type point: str
         """
         self._tracker.set_default(point, value)
-        
-    
+
     def set_point(self, point_name, value):
         """
         Implementation of :py:meth:`BaseInterface.set_point`
@@ -668,15 +669,14 @@ class BasicRevert(object):
         """
         """Revert entire device to it's default state"""
         points = self._tracker.get_all_revert_values()
-        for point_name, value in points.iteritems():
+        for point_name, value in points.items():
             if not isinstance(value, DriverInterfaceError):
                 try:
                     self._set_point(point_name, value)
                     self._tracker.clear_dirty_point(point_name)
                 except Exception as e:
                     _log.warning("Error while reverting point {}: {}".format(point_name, str(e)))
-                
-          
+
     def revert_point(self, point_name, **kwargs):
         """
         Implementation of :py:meth:`BaseInterface.revert_point`

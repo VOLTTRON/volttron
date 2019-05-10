@@ -74,7 +74,7 @@ password=args.password
 url=args.url
 
 while not username:
-    username = raw_input("Username: ")
+    username = input("Username: ")
 
 while not password:
     password = getpass.getpass("Password: ")

@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
+
 
 import logging
 import weakref
@@ -84,7 +84,7 @@ class PeerList(SubsystemBase):
             connection.send_vip(b'',
                                 b'peerlist',
                                 args=[b'add', bytes(peer)],
-                                msg_id=result.ident)
+                                msg_id=result.ident.encode('utf-8'))
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.error("Socket send on non socket {}".format(self.core().identity))
@@ -118,19 +118,19 @@ class PeerList(SubsystemBase):
             except IndexError:
                 _log.error('missing peerlist identity in %s operation', op)
                 return
-            getattr(self, 'on' + op).send(self, peer=peer)
+            getattr(self, 'on' + op.decode('utf-8')).send(self, peer=peer.decode('utf-8'))
         elif op == b'listing':
             try:
-                result = self._results.pop(bytes(message.id))
+                result = self._results.pop(bytes(message.id).decode('utf-8'))
             except KeyError:
                 return
-            result.set([bytes(arg) for arg in message.args[1:]])
+            result.set([bytes(arg).decode('utf-8') for arg in message.args[1:]])
         else:
             _log.error('unknown peerlist subsystem operation == {}'.format(op))
 
     def _handle_error(self, sender, message, error, **kwargs):
         try:
-            result = self._results.pop(bytes(message.id))
+            result = self._results.pop(bytes(message.id).decode('utf-8'))
         except KeyError:
             return
         result.set_exception(error)

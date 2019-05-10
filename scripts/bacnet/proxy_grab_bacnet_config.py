@@ -173,7 +173,7 @@ def main():
 
 try:
     main()
-except Exception, e:
+except Exception as e:
     _log.exception("an error has occurred: %s", e)
 finally:
     _log.debug("finally")

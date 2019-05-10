@@ -56,14 +56,14 @@ class _subscriber_agent(Agent):
         self.publish_results = set()
 
     def reset_results(self):
-        print "Resetting results"
+        print("Resetting results")
         self.publish_results.clear()
 
     def get_results(self):
         return self.publish_results.copy()
 
     def add_result(self, peer, sender, bus, topic, headers, message):
-        print "message published to", topic
+        print("message published to", topic)
         self.publish_results.add(topic)
 
 
@@ -179,12 +179,12 @@ def config_store_connection(request, volttron_instance):
 @pytest.fixture(scope="function")
 def config_store(request, config_store_connection):
     #Always have fake.csv ready to go.
-    print "Adding fake.csv into store"
+    print("Adding fake.csv into store")
     config_store_connection.call("manage_store", PLATFORM_DRIVER, "fake.csv", registry_config_string, config_type="csv")
 
     def cleanup():
         # Reset master driver config store
-        print "Wiping out store."
+        print("Wiping out store.")
         config_store_connection.call("manage_delete_store", PLATFORM_DRIVER)
         gevent.sleep(0.1)
 
@@ -194,7 +194,7 @@ def config_store(request, config_store_connection):
 
 def setup_config(config_store, config_name, config_string, **kwargs):
     config = config_string.format(**kwargs)
-    print "Adding", config_name, "to store"
+    print("Adding", config_name, "to store")
     config_store.call("manage_store", PLATFORM_DRIVER, config_name, config, config_type="json")
 
 

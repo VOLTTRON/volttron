@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __builtin__ import property as _property, tuple as _tuple
+from builtins import property as _property, tuple as _tuple
 from operator import itemgetter as _itemgetter
 from collections import OrderedDict
 
@@ -76,7 +76,7 @@ class Point(tuple):
         'Return a new Point object replacing specified fields with new values'
         result = _self._make(map(kwds.pop, ('quantity', 'price'), _self))
         if kwds:
-            raise ValueError('Got unexpected field names: %r' % kwds.keys())
+            raise ValueError('Got unexpected field names: %r' % list(kwds.keys()))
         return result
 
     def __getnewargs__(self):

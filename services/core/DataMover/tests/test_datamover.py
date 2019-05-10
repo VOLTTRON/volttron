@@ -37,23 +37,18 @@
 # }}}
 import os
 import random
-import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import gevent
 import pytest
 from pytest import approx
 
 from volttron.platform import get_services_core
-from volttron.platform.agent import PublishMixin, utils
+from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
 from volttron.platform.vip.agent import Agent
-from volttron.platform.auth import AuthEntry, AuthFile
-from volttron.platform.keystore import KeyStore, KnownHostsStore
-from gevent.subprocess import Popen
-import gevent.subprocess as subprocess
-from mock import MagicMock
+from volttron.platform.keystore import KnownHostsStore
 
 # import types
 

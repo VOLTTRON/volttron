@@ -48,7 +48,7 @@ defined in green.py.
 '''
 
 
-from __future__ import absolute_import
+
 
 import base64
 import binascii
@@ -56,12 +56,12 @@ from contextlib import contextmanager
 import logging
 import re
 import sys
-import urllib
-import urlparse
+import urllib.request, urllib.parse, urllib.error
+import urllib.parse
 import uuid
 
 from zmq import (SNDMORE, RCVMORE, NOBLOCK, POLLOUT, DEALER, ROUTER,
-                 curve_keypair, ZMQError)
+                 curve_keypair, Frame, ZMQError)
 from zmq.error import Again
 from zmq.utils import z85
 
@@ -86,20 +86,22 @@ def encode_key(key):
     assert len(key) in (32, 40)
     if len(key) == 40:
         key = z85.decode(key)
-    return base64.urlsafe_b64encode(key)[:-1]
+    return base64.urlsafe_b64encode(key)[:-1].decode("ASCII")
 
 
 def decode_key(key):
     '''Parse and return a Z85 encoded key from other encodings.'''
+    if isinstance(key, str):
+        key = key.encode("ASCII")
     length = len(key)
     if length == 40:
         return key
     elif length == 43:
-        return z85.encode(base64.urlsafe_b64decode(key + '='))
+        return z85.encode(base64.urlsafe_b64decode(key + '='.encode("ASCII")))
     elif length == 44:
         return z85.encode(base64.urlsafe_b64decode(key))
     elif length == 54:
-        return base64.urlsafe_b64decode(key + '==')
+        return base64.urlsafe_b64decode(key + '=='.encode("ASCII"))
     elif length == 56:
         return base64.urlsafe_b64decode(key)
     elif length == 64:
@@ -135,10 +137,10 @@ class Address(object):
     def __init__(self, address, **defaults):
         for name in self._KEYS:
             setattr(self, name, None)
-        for name, value in defaults.iteritems():
+        for name, value in defaults.items():
             setattr(self, name, value)
 
-        url = urlparse.urlparse(address, 'tcp')
+        url = urllib.parse.urlparse(address, 'tcp')
 
         # Old versions of python don't correctly parse queries for unknown
         # schemes. This can cause ipc failures on outdated installations.
@@ -156,7 +158,7 @@ class Address(object):
             self.identity = defaults.get('identity')
         if url.scheme not in ['tcp', 'ipc', 'inproc']:
             raise ValueError('unknown address scheme: %s' % url.scheme)
-        for name, value in urlparse.parse_qsl(url.query, True):
+        for name, value in urllib.parse.parse_qsl(url.query, True):
             name = name.lower()
             if name in self._KEYS:
                 if value and name.endswith('key'):
@@ -174,7 +176,7 @@ class Address(object):
     @property
     def qs(self):
         params = ((name, getattr(self, name)) for name in self._KEYS)
-        return urllib.urlencode(
+        return urllib.parse.urlencode(
             {name: ('XXXXX' if name in self._MASK_KEYS and value else value)
              for name, value in params if value is not None})
 
@@ -184,22 +186,31 @@ class Address(object):
         if qs:
             parts.extend(['?', qs])
         if self.identity is not None:
-            parts.extend(['#', urllib.quote(self.identity)])
+            parts.extend(['#', urllib.parse.quote(self.identity)])
+
+        print(parts)
         return ''.join(parts)
 
     def __repr__(self):
         return '%s.%s(%r)' % (
             self.__class__.__module__, self.__class__.__name__, str(self))
 
+    def _set_sock_identity(self, sock):
+        if self.identity:
+            if isinstance(self.identity, str):
+                sock.identity = self.identity.encode('utf-8')
+            else:
+                sock.identity = self.identity
+        elif not sock.identity:
+            self.identity = str(uuid.uuid4())
+            sock.identity = self.identity.encode('utf-8')
+
     def bind(self, sock, bind_fn=None):
         '''Extended zmq.Socket.bind() to include options in the address.'''
         if not self.domain:
             raise ValueError('Address domain must be set')
-        sock.zap_domain = self.domain or ''
-        if self.identity:
-            sock.identity = self.identity
-        elif not sock.identity:
-            sock.identity = self.identity = bytes(uuid.uuid4())
+        sock.zap_domain = self.domain.encode("utf-8") or b''
+        self._set_sock_identity(sock)
         sock.ipv6 = self.ipv6 or False
         if self.server == 'CURVE':
             if not self.secretkey:
@@ -222,7 +233,7 @@ class Address(object):
                 sock.plain_password = self.password or b''
         try:
             (bind_fn or sock.bind)(self.base)
-            self.base = sock.last_endpoint
+            self.base = sock.last_endpoint.decode("utf-8")
         except ZMQError:
             message = 'Attempted to bind Volttron to already bound address {}, stopping'
             message = message.format(self.base)
@@ -232,10 +243,7 @@ class Address(object):
 
     def connect(self, sock, connect_fn=None):
         '''Extended zmq.Socket.connect() to include options in the address.'''
-        if self.identity:
-            sock.identity = self.identity
-        elif not sock.identity:
-            sock.identity = self.identity = bytes(uuid.uuid4())
+        self._set_sock_identity(sock)
         sock.ipv6 = self.ipv6 or False
         if self.serverkey:
             sock.curve_serverkey = self.serverkey
@@ -249,7 +257,7 @@ class Address(object):
         (connect_fn or sock.connect)(self.base)
 
     def reset(self, sock):
-        sock.zap_domain = ''
+        sock.zap_domain = b''
         sock.ipv6 = False
         sock.curve_server = False
         sock.plain_server = False
@@ -269,7 +277,7 @@ class Message(object):
             name, [bytes(x) for x in value]
             if isinstance(value, (list, tuple))
             else bytes(value)) for name, value in
-                self.__dict__.iteritems())
+                self.__dict__.items())
         return '%s(**{%s})' % (self.__class__.__name__, attrs)
 
 
@@ -401,6 +409,8 @@ class _Socket(object):
         constraints are violated. If SNDMORE flag is used, additional
         arguments may be sent. via is required for ROUTER sockets.
         '''
+        peer = peer.encode('utf-8') if isinstance(peer, str) else peer
+
         with self._sending(flags) as flags:
             state = self._send_state
             if state > 0:
@@ -418,7 +428,7 @@ class _Socket(object):
             self.send_multipart([peer, user, msg_id, subsystem],
                                 flags=flags|more, copy=copy, track=track)
             if args:
-                send = (self.send if isinstance(args, basestring)
+                send = (self.send if isinstance(args, (bytes, str))
                         else self.send_multipart)
                 send(args, flags=flags, copy=copy, track=track)
 

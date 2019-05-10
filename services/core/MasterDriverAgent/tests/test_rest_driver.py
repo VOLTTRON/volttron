@@ -50,7 +50,7 @@ from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFO
 server_addr = get_rand_http_address()
 no_scheme = server_addr[7:]
 ip, port = no_scheme.split(':')
-point = 'forty two'
+point = b'forty two'
 
 driver_config_dict_string = """{
     "driver_config": {"device_address": "%s"},
@@ -70,11 +70,11 @@ def handle(env, start_response):
 
     if env['REQUEST_METHOD'] == 'POST':
         data = env['wsgi.input']
-        length = env['CONTENT_LENGTH']
+        length = int(env['CONTENT_LENGTH'])
         point = data.read(length)
 
     start_response('200 OK', [('Content-Type', 'text/html')])
-    return point
+    return [point]
 
 
 @pytest.fixture(scope='module')

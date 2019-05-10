@@ -2,7 +2,7 @@
 # http://code.activestate.com/recipes/576642-persistent-dict-with-multiple-standard-file-format/
 import pickle, json, csv, os, shutil, shelve, logging
 from threading import Thread
-from Queue import Queue
+from queue import Queue
 from copy import deepcopy
 
 _log = logging.getLogger(__name__)

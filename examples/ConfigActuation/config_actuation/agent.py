@@ -86,7 +86,7 @@ class ConfigActuation(Agent):
             return
 
         topics_values = []
-        for point, value in contents.iteritems():
+        for point, value in contents.items():
             full_topic = os.path.join(device, point)
             topics_values.append((full_topic, value))
 

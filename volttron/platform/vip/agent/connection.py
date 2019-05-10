@@ -37,7 +37,7 @@
 # }}}
 
 import logging
-import urlparse
+import urllib.parse
 import uuid
 import os
 
@@ -80,9 +80,9 @@ class Connection(object):
         if address.startswith('ipc'):
             full_address = address
         else:
-            parsed = urlparse.urlparse(address)
+            parsed = urllib.parse.urlparse(address)
             if parsed.scheme == 'tcp':
-                qs = urlparse.parse_qs(parsed.query)
+                qs = urllib.parse.parse_qs(parsed.query)
                 self._log.debug('QS IS: {}'.format(qs))
                 if 'serverkey' in qs:
                     self._serverkey = qs.get('serverkey')
@@ -90,8 +90,8 @@ class Connection(object):
                     self._serverkey = serverkey
 
                 # Handle case when the address has all the information in it.
-                if 'serverkey' in qs.keys() and 'publickey' in qs.keys() and \
-                                'secretkey' in qs.keys():
+                if 'serverkey' in qs and 'publickey' in qs and \
+                                'secretkey' in qs:
                     full_address = address
                 else:
                     full_address = build_vip_address_string(

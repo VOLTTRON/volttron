@@ -45,8 +45,8 @@ import uuid
 
 from volttron.platform.agent import utils
 
-import oadr_20b
-from oadr_common import *
+from . import oadr_20b
+from .oadr_common import *
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)

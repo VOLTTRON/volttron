@@ -221,10 +221,10 @@ def test_pubsub_authorized_regex1(volttron_instance_encrypt):
 @pytest.mark.auth
 def test_pubsub_unauthorized_regex2(volttron_instance_encrypt):
     pubsub_unauthorized(volttron_instance_encrypt,
-                        topic='foo/bar', regex='/foo\/.*/')
+                        topic='foo/bar', regex=r'/foo\/.*/')
 
 
 @pytest.mark.auth
 def test_pubsub_authorized_regex2(volttron_instance_encrypt):
     pubsub_authorized(volttron_instance_encrypt,
-                      topic='foo/bar', regex='/foo\/.*/')
+                      topic='foo/bar', regex=r'/foo\/.*/')

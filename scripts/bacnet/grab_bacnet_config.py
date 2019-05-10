@@ -225,7 +225,7 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
     
     if issubclass(present_value_type, Enumerated):
         object_units = 'Enum'
-        values=present_value_type.enumerations.values()
+        values=list(present_value_type.enumerations.values())
         min_value = min(values)
         max_value = max(values)
         
@@ -308,7 +308,7 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
         except:
             _log.debug(traceback.format_exc())
             
-        if isinstance(object_units, (int, long)):
+        if isinstance(object_units, int):
             object_units = 'UNKNOWN UNIT ENUM VALUE: ' + str(object_units)
             
         if obj_type.startswith('analog') or obj_type in ('largeAnalogValue', 'integerValue', 'positiveIntegerValue'):
@@ -486,7 +486,7 @@ def main():
     
     _log.debug('objectCount = ' + str(objectCount))
     
-    for object_index in xrange(1,objectCount+1):
+    for object_index in range(1,objectCount+1):
         _log.debug('object_device_index = ' + repr(object_index))
         
         bac_object = read_prop(this_application, 
@@ -508,7 +508,7 @@ def main():
         
 try:
     main()
-except Exception, e:
+except Exception as e:
     _log.exception("an error has occurred: %s", e)
 finally:
     _log.debug("finally")

@@ -1,5 +1,4 @@
-import ConfigParser as configparser
-from datetime import datetime
+import configparser as configparser
 import json
 import logging
 import os
@@ -16,11 +15,11 @@ from subprocess import CalledProcessError
 import gevent
 import gevent.subprocess as subprocess
 import requests
-from agent_additions import (add_volttron_central,
-                             add_volttron_central_platform)
+from .agent_additions import (add_volttron_central,
+                              add_volttron_central_platform)
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
-from volttron.platform import packaging
+from volttron.platform import packaging, jsonapi
 from volttron.platform.agent.known_identities import MASTER_WEB, CONTROL
 from volttron.platform.certs import Certs
 from volttron.platform.agent import utils
@@ -35,7 +34,6 @@ from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.connection import Connection
 from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
-from volttron.platform.agent import json as jsonapi
 from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
 from volttron.platform.agent.utils import execute_command, execute_command_p
 from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
@@ -115,7 +113,7 @@ PUBLISH_TO = RUN_DIR + '/publish'
 SUBSCRIBE_TO = RUN_DIR + '/subscribe'
 
 
-class PlatformWrapperError(StandardError):
+class PlatformWrapperError(Exception):
     pass
 
 
@@ -406,7 +404,6 @@ class PlatformWrapper:
             gevent.sleep(1)
             hello = agent.vip.hello().get(timeout=5)
 
-            #self.logit('Got hello response {}'.format(hello))
         agent.publickey = publickey
         return agent
 
@@ -414,7 +411,7 @@ class PlatformWrapper:
         auth_path = os.path.join(self.volttron_home, 'auth.json')
         try:
             with open(auth_path, 'r') as fd:
-                data = strip_comments(FileObject(fd, close=False).read())
+                data = strip_comments(FileObject(fd, close=False).read().decode('utf-8'))
                 if data:
                     auth = jsonapi.loads(data)
                 else:
@@ -457,7 +454,7 @@ class PlatformWrapper:
         assert not self.is_auto_csr_enabled()
 
     def add_capabilities(self, publickey, capabilities):
-        if isinstance(capabilities, basestring):
+        if isinstance(capabilities, str):
             capabilities = [capabilities]
         auth, auth_path = self._read_auth_file()
         cred = publickey
@@ -601,7 +598,7 @@ class PlatformWrapper:
             self.certsobj = Certs(certsdir)
 
         if self.mode == UNRESTRICTED:
-            with open(pconfig, 'wb') as cfg:
+            with open(pconfig, 'w') as cfg:
                 parser.write(cfg)
 
         elif self.mode == RESTRICTED:
@@ -613,7 +610,7 @@ class PlatformWrapper:
             print ("certsdir", certsdir)
             self.certsobj = Certs(certsdir)
 
-            with closing(open(pconfig, 'wb')) as cfg:
+            with closing(open(pconfig, 'w')) as cfg:
                 cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
         else:
             raise PlatformWrapperError(
@@ -635,7 +632,7 @@ class PlatformWrapper:
         pprint(self.env)
         print('popen params: {}'.format(cmd))
         self.p_process = Popen(cmd, env=self.env, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
+                               stderr=subprocess.PIPE, universal_newlines=True)
 
         assert self.p_process is not None
         # A None value means that the process is still running.
@@ -767,8 +764,6 @@ class PlatformWrapper:
 
         if start:
             self.start_agent(agent_uuid)
-        return agent_uuid
-
         return agent_uuid
 
     def install_multiple_agents(self, agent_configs):
@@ -928,7 +923,7 @@ class PlatformWrapper:
         cmd = ['volttron-ctl']
         cmd.extend(['start', agent_uuid])
         p = Popen(cmd, env=self.env,
-                  stdout=sys.stdout, stderr=sys.stderr)
+                  stdout=sys.stdout, stderr=sys.stderr, universal_newlines=True)
         p.wait()
 
         # Confirm agent running

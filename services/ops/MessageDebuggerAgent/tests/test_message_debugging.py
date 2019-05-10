@@ -60,8 +60,9 @@ import pytest
 import sys
 import time
 import zmq
+from volttron.platform import get_ops
 
-from volttrontesting.fixtures.volttron_platform_fixtures import build_wrapper, get_rand_vip, cleanup_wrapper
+# from volttrontesting.fixtures.volttron_platform_fixtures import build_wrapper, get_rand_vip, cleanup_wrapper
 
 DEBUGGER_CONFIG = {
     "agent": {
@@ -76,7 +77,7 @@ DEBUGGER_CONFIG = {
 
 @pytest.fixture(scope='module')
 def agent(request, volttron_instance_msgdebug):
-    master_uuid = volttron_instance_msgdebug.install_agent(agent_dir=get_services_core("MessageDebuggerAgent"),
+    master_uuid = volttron_instance_msgdebug.install_agent(agent_dir=get_ops("MessageDebuggerAgent"),
                                                            config_file=DEBUGGER_CONFIG,
                                                            start=True)
     gevent.sleep(2)
@@ -97,7 +98,7 @@ class TestMessageDebugger:
         Regression tests for the MessageDebuggerAgent.
     """
 
-    @pytest.mark.skip(reason="Dependency on SQLAlchemy library")
+    # @pytest.mark.skip(reason="Dependency on SQLAlchemy library")
     def test_rpc_calls(self, agent):
         """Test the full range of RPC calls to the MessageDebuggerAgent, except those related to streaming."""
 
@@ -232,5 +233,5 @@ class TestMessageDebugger:
         monitor_socket = zmq.Context().socket(zmq.SUB)
         monitor_socket_address = 'ipc://{}'.format('@' if sys.platform.startswith('linux') else '') + monitor_path
         monitor_socket.bind(monitor_socket_address)
-        monitor_socket.setsockopt_string(zmq.SUBSCRIBE, u"")
+        monitor_socket.setsockopt_string(zmq.SUBSCRIBE, "")
         return monitor_socket

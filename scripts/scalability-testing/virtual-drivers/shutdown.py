@@ -76,7 +76,7 @@ def stop_modbus():
                 
         for opt in proc.cmdline():              
             if 'modbus' in opt:
-                print('Killing: ', opt)
+                print('Killing:', opt)
                 os.kill(pid, signal.SIGTERM)
                 break
     
@@ -88,7 +88,7 @@ def stop_bacnet():
         
         for opt in proc.cmdline():                
             if 'bacnet' in opt:
-                print('Killing: ', opt)
+                print('Killing:', opt)
                 os.kill(pid, signal.SIGTERM)
                 break
             

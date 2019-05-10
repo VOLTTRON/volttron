@@ -45,7 +45,7 @@ import time
 
 from volttron.platform.agent import utils
 
-from oadr_common import *
+from .oadr_common import *
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -70,14 +70,14 @@ class OadrExtractor(object):
             start_time = interval.properties.dtstart.date_time
             assert start_time is not None
             assert start_time.tzinfo is not None
-        except Exception, err:
+        except Exception as err:
             error_msg = 'Missing/Invalid interval properties.dtstart.date_time: {} {}'.format(start_time, err)
             raise OpenADRInterfaceException(error_msg, OADR_BAD_DATA)
 
         try:
             duration = interval.properties.duration.duration
             parsed_duration = isodate.parse_duration(duration)
-        except Exception, err:
+        except Exception as err:
             error_msg = 'Missing/Invalid interval properties.duration.duration: {} {}'.format(duration, err)
             raise OpenADRInterfaceException(error_msg, OADR_BAD_DATA)
 
@@ -147,14 +147,14 @@ class OadrEventExtractor(OadrExtractor):
             self.event.dtstart = properties.dtstart.date_time
             assert self.event.dtstart is not None
             assert self.event.dtstart.tzinfo is not None
-        except Exception, err:
+        except Exception as err:
             error_msg = 'Missing/Invalid properties.dtstart.date_time: {} {}'.format(properties.dtstart.date_time, err)
             raise OpenADRInterfaceException(error_msg, OADR_BAD_DATA)
 
         try:
             self.event.duration = properties.duration.duration
             event_length = isodate.parse_duration(properties.duration.duration)
-        except Exception, err:
+        except Exception as err:
             error_msg = 'Missing/Invalid properties.duration.duration: {} {}'.format(properties.duration.duration, err)
             raise OpenADRInterfaceException(error_msg, OADR_BAD_DATA)
 
@@ -170,7 +170,7 @@ class OadrEventExtractor(OadrExtractor):
                 max_offset = isodate.parse_duration(self.event.start_after)
                 # OADR rule 30: Randomize start_time and end_time if start_after is provided.
                 self.event.start_time = self.event.dtstart + timedelta(seconds=(max_offset.seconds * random.random()))
-            except Exception, err:
+            except Exception as err:
                 error_msg = 'Invalid activePeriod tolerance.tolerate.startafter: {}'.format(err)
                 raise OpenADRInterfaceException(error_msg, OADR_BAD_DATA)
         else:
@@ -271,14 +271,14 @@ class OadrReportExtractor(OadrExtractor):
             start_time = report_interval.properties.dtstart.date_time
             assert start_time is not None
             assert start_time.tzinfo is not None
-        except Exception, err:
+        except Exception as err:
             error_msg = 'Missing/Invalid interval properties.dtstart.date_time: {} {}'.format(start_time, err)
             raise OpenADRInterfaceException(error_msg, OADR_BAD_DATA)
 
         try:
             duration = report_interval.properties.duration.duration
             end_time = start_time + isodate.parse_duration(duration)
-        except Exception, err:
+        except Exception as err:
             # To accommodate the Kisensum VTN server, a report interval with a missing/null duration
             # has a special meaning to the VEN: the report request continues indefinitely,
             # with no scheduled completion time.
@@ -298,7 +298,7 @@ class OadrReportExtractor(OadrExtractor):
         if iso_duration is not None:
             try:
                 self.report.interval_secs = int(isodate.parse_duration(iso_duration.duration).total_seconds())
-            except Exception, err:
+            except Exception as err:
                 error_msg = 'reportBackDuration {} has unparsable duration: {}'.format(dur, err)
                 raise OpenADRInterfaceException(error_msg, OADR_BAD_DATA)
         elif default is not None:

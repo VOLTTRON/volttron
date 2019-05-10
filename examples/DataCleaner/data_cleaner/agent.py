@@ -63,7 +63,7 @@ def data_cleaner(config_path, **kwargs):
     """
     try:
         config = utils.load_config(config_path)
-    except StandardError:
+    except Exception:
         config = {}
 
     if not config:
@@ -131,7 +131,7 @@ class DataCleaner(Agent):
 
     def process_points(self):
         now = utils.get_aware_utc_now()
-        for topic, settings in self.points.iteritems():
+        for topic, settings in self.points.items():
             self.process_point(now, topic, **settings)
 
     def process_point(self, now, topic, min_value=None, max_value=None, output_topic=None,

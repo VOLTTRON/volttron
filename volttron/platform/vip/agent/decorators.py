@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import, print_function
+
 
 import functools
 from types import MethodType
@@ -146,13 +146,13 @@ class dualmethod(object):
             if self.fclass is None:
                 if self.finstance is None:
                     raise AttributeError('no instance or class method is set')
-                return MethodType(self.finstance, instance, owner)
-            return MethodType(self.fclass, owner, owner)
+                return MethodType(self.finstance, instance)
+            return MethodType(self.fclass, owner)
         if self.finstance is None:
             if self.fclass is None:
                 raise AttributeError('no instance or class method is set')
-            return MethodType(self.fclass, owner, owner)
-        return MethodType(self.finstance, instance, owner)
+            return MethodType(self.fclass, owner)
+        return MethodType(self.finstance, instance)
 
     def instancemethod(self, finstance):
         '''Descriptor to set the instance method.'''

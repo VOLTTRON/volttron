@@ -112,10 +112,10 @@ def get_client(connection_params):
         if {"name": db} not in dbs:
             _log.error("Database {} does not exist.".format(db))
             return None
-    except ConnectionError, err:
+    except ConnectionError as err:
         _log.error("Cannot connect to host {}. {}".format(host, err))
         return None
-    except InfluxDBClientError, err:
+    except InfluxDBClientError as err:
         _log.error(err)
         return None
 

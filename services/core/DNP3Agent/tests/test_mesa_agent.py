@@ -85,7 +85,7 @@ def dict_compare(source_dict, target_dict):
 
        Ignores keys in target_dict that are not in source_dict.
     """
-    for name, source_val in source_dict.iteritems():
+    for name, source_val in source_dict.items():
         target_val = target_dict.get(name, None)
         assert source_val == target_val, "Source value of {}={}, target value={}".format(name, source_val, target_val)
 
@@ -490,7 +490,7 @@ class TestMesaAgent:
             self.set_point(agent, "DCHD.WinTms (in)", True)
             assert False, "Input point with invalid value failed to cause an exception"
         except Exception as err:
-            assert str(err) == "dnp3.points.DNP3Exception(\"Received <type 'bool'> value for PointDefinition " \
+            assert str(err) == "dnp3.points.DNP3Exception(\"Received <class 'bool'> value for PointDefinition " \
                                "DCHD.WinTms (in) (30.1, index=91, type=Analog Input).\")"
 
     def test_set_points(self, run_master, agent, reset):

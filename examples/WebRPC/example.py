@@ -51,5 +51,5 @@ result = volttron.do_rpc('historian.query',
                          count=100,
                          order='LAST_TO_FIRST')
 
-print result
+print(result)
 

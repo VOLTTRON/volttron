@@ -81,7 +81,7 @@ def get_volttron_instances(request):
         for i in range(0, n):
             address = vip_addresses.pop(0)
             web_address = web_addresses.pop(0)
-            print address, web_address
+            print(address, web_address)
             instances[i].startup_platform(address, bind_web_address=web_address)
             instances[i].allow_all_connections()
         gevent.sleep(11)
@@ -231,17 +231,17 @@ def test_multiplatform_pubsub(request, multi_platform_connection):
     p1_publisher, p2_listener, p3_listener = multi_platform_connection
 
     def callback2(peer, sender, bus, topicdr, headers, message):
-        print message
+        print(message)
         assert message == [{'point': 'value'}]
 
     def callback3(peer, sender, bus, topic, headers, message):
-        print message
+        print(message)
 
     def callback4(peer, sender, bus, topic, headers, message):
-        print message
+        print(message)
 
     def callback5(peer, sender, bus, topic, headers, message):
-        print message
+        print(message)
 
     p2_listener.vip.pubsub.subscribe(peer='pubsub',
                                      prefix='devices',
@@ -252,7 +252,7 @@ def test_multiplatform_pubsub(request, multi_platform_connection):
                                      prefix='devices',
                                      callback=onmessage)
 
-    print "publish"
+    print("publish")
     prefix = 'devices'
     for i in range(10):
         p1_publisher.vip.pubsub.publish(peer='pubsub',
@@ -312,7 +312,7 @@ def test_multiplatform_2_publishers(request, five_platform_connection):
                                       prefix='analysis',
                                       callback=callback5)
     gevent.sleep(2)
-    print "publish"
+    print("publish")
     prefix = 'devices'
     for i in range(5):
         p1_publisher.vip.pubsub.publish(peer='pubsub', topic='devices/campus/building1', message=[{'point': 'value'}])
@@ -373,7 +373,7 @@ def test_multiplatform_subscribe_unsubscribe(request, multi_platform_connection)
         assert message == [{'point': 'value' + str(i)}]
         message = subscription_results3['devices/campus/building1']['message']
         assert message == [{'point': 'value' + str(i)}]
-        print "pass"
+        print("pass")
 
     # Listener agent on platform 2 unsubscribes frm prefix='devices'
     p2_listener.vip.pubsub.unsubscribe(peer='pubsub', prefix='devices', callback=callback2, all_platforms=True)
@@ -425,7 +425,7 @@ def test_multiplatform_stop_subscriber(request, multi_platform_connection):
         assert message == [{'point': 'value' + str(i)}]
         message = subscription_results3['devices/campus/building1']['message']
         assert message == [{'point': 'value' + str(i)}]
-        print "pass"
+        print("pass")
 
     # Stop listener agent on platform 2
     p2_listener.core.stop()

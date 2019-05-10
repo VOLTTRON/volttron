@@ -41,11 +41,11 @@ from collections import defaultdict
 
 import pytz
 import re
-from basedb import DbDriver
+from .basedb import DbDriver
 from mysql.connector import Error as MysqlError
 from mysql.connector import errorcode as mysql_errorcodes
 from volttron.platform.agent import utils
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)

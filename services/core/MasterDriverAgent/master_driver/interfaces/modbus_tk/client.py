@@ -87,7 +87,7 @@ import modbus_tk.modbus_tcp as modbus_tcp
 import modbus_tk.modbus_rtu as modbus_rtu
 from modbus_tk.exceptions import ModbusError
 
-import helpers
+from . import helpers
 
 logger = logging.getLogger(__name__)
 
@@ -321,7 +321,7 @@ class Field(object):
 
         value_bytes = parse_struct.pack(value)
         register_values = []
-        for i in xrange(0, len(value_bytes), 2):
+        for i in range(0, len(value_bytes), 2):
             register_values.extend(struct.unpack(">H", value_bytes[i:i + 2]))
         register_values.reverse()
         convert_bytes = ''.join([struct.pack(">H", i) for i in register_values])
@@ -376,7 +376,7 @@ class Request (object):
             return "UNKNOWN"
 
     def __str__(self):
-        return u"<Request: {0} - {1}[{2}] x {3} | {4}".format(
+        return "<Request: {0} - {1}[{2}] x {3} | {4}".format(
             self._name,
             self.table_name(),
             self._address,
@@ -466,9 +466,9 @@ class Request (object):
             struct_size += 1
         self._data_format += struct_format
         # current_request.count += f.type[SIZE] * f.type[LENGTH]
-        self._count += struct_size / 2
+        self._count += struct_size // 2 # We need count to remain a int
         self._fields.append(field)
-        self._next_address += struct_size / 2
+        self._next_address += struct_size // 2 # We need count to remain a int
 
     def block_info(self):
         return self._name, self._table, self._address, self._count
@@ -643,7 +643,7 @@ class Client (object):
         return self
 
     def __str__(self):
-        return u'data: {0}\npending_writes: {1}'.format(self._data, self._pending_writes)
+        return 'data: {0}\npending_writes: {1}'.format(self._data, self._pending_writes)
 
     def pprint(self):
         response = "pending writes: \n"

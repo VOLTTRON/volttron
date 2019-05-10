@@ -52,16 +52,16 @@
 #
 # }}}
 
-from end_device import EndDevice, MUP, SEP2Renderer, sep2_time
+from .end_device import EndDevice, MUP, SEP2Renderer, sep2_time
 from datetime import datetime, timedelta
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent, Core, RPC
-import __init__ as sep2
+import sep2
 import base64
 import logging
 import pytz
 import sys
-import xsd_models
+from . import xsd_models
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -84,7 +84,7 @@ def sep2_agent(config_path, **kwargs):
     """
     try:
         config = utils.load_config(config_path)
-    except StandardError:
+    except Exception:
         config = {}
 
     if not config:
@@ -136,7 +136,7 @@ class SEP2Agent(Agent):
         self.timezone = timezone
         self.devices = {}
 
-        self.default_config = {"device_config": device_config,
+        self.default_config = {"devices": device_config,
                                "sep2_server_sfdi": sep2_server_sfdi,
                                "sep2_server_lfdi": sep2_server_lfdi,
                                "load_shed_device_category": load_shed_device_category,
@@ -179,11 +179,11 @@ class SEP2Agent(Agent):
                 pass
 
         _log.debug("Registering Endpoints: {}".format(self.__class__.__name__))
-        for _, endpoint in sep2.SEP2_ENDPOINTS.iteritems():
+        for _, endpoint in sep2.SEP2_ENDPOINTS.items():
             if endpoint.url not in self.vip.web._endpoints:
                 self.vip.web.register_endpoint(endpoint.url, getattr(self, endpoint.callback), "raw")
-        for device_id, device in self.devices.iteritems():
-            for _, endpoint in sep2.SEP2_EDEV_ENDPOINTS.iteritems():
+        for device_id, device in self.devices.items():
+            for _, endpoint in sep2.SEP2_EDEV_ENDPOINTS.items():
                 if endpoint.url.format(device_id) not in self.vip.web._endpoints:
                     self.vip.web.register_endpoint(endpoint.url.format(device_id),
                                                    getattr(self, endpoint.callback), "raw")
@@ -212,7 +212,7 @@ class SEP2Agent(Agent):
                 d.pin_code = device['pin_code']
 
         old_indices = []
-        for index, d in end_devices.iteritems():
+        for index, d in end_devices.items():
             if d.sfdi not in [device['sfdi'] for device in devices]:
                 old_indices.append(index)
         for i in old_indices:
@@ -294,7 +294,7 @@ class SEP2Agent(Agent):
         :return: Tuple of (Status Code, Response Data, Headers)
         """
         return (sep2.STATUS_CODES[200],
-                base64.b64encode(SEP2Renderer.render(render_dict)),
+                base64.b64encode(SEP2Renderer.render(render_dict)).decode('ascii'),
                 sep2.XML_HEADERS)
 
     @RPC.export
@@ -314,7 +314,7 @@ class SEP2Agent(Agent):
         end_device = self.get_end_device(sfdi=sfdi)
         try:
             end_device_points = {}
-            for volttron_point_name, point_definition in end_device.mappings.iteritems():
+            for volttron_point_name, point_definition in end_device.mappings.items():
                 field_value = end_device.field_value(point_definition['SEP2 Resource Name'],
                                                      point_definition['SEP2 Field Name'])
                 end_device_points[volttron_point_name] = field_value
@@ -405,11 +405,11 @@ class SEP2Agent(Agent):
         device_list = xsd_models.EndDeviceList()
         start, limit = parse_list_query(env['QUERY_STRING'].encode('ascii', 'ignore'), len(self.devices))
 
-        for i in xrange(start, limit):
+        for i in range(start, limit):
             device_list.add_EndDevice(self.devices[i].end_device)
 
         device_list.set_href(sep2.SEP2_ENDPOINTS["edev-list"].url)
-        device_list.set_results(max(0, len(xrange(start, limit))))
+        device_list.set_results(max(0, len(range(start, limit))))
         device_list.set_all(len(self.devices))
 
         return SEP2Agent.prep_200_response({'received_data': data, 'result': device_list})
@@ -515,11 +515,11 @@ class SEP2Agent(Agent):
 
             start, limit = parse_list_query(env['QUERY_STRING'].encode('ascii', 'ignore'), len(self.mups))
 
-            for i in xrange(start, limit):
+            for i in range(start, limit):
                 mup_list.add_MirrorUsagePoint(self.mups[i].mup_xsd)
 
             mup_list.set_href(sep2.SEP2_ENDPOINTS["mup-list"].url)
-            mup_list.set_results(max(0, len(xrange(start, limit))))
+            mup_list.set_results(max(0, len(range(start, limit))))
             mup_list.set_all(len(self.mups))
 
             return SEP2Agent.prep_200_response({"result": mup_list})
@@ -556,7 +556,7 @@ def parse_list_query(query, length):
     :param length: Length of the list
     :return: (start index 0 based, limit) - xrange style
     """
-    params = {a[0]: a[1] for a in map(lambda x: x.split('='), query.split("&"))} if len(query) > 0 else {}
+    params = {a[0]: a[1] for a in [x.split('=') for x in query.split("&")]} if len(query) > 0 else {}
     start = max(0, int(params.get('s', '0')))
     limit = max(0, min(length, start + int(params.get('l', '255'))))
     return start, limit

@@ -52,7 +52,7 @@
 #
 # }}}
 
-from __future__ import absolute_import, print_function
+
 
 import logging
 import sys
@@ -289,9 +289,9 @@ class InfluxdbHistorian(BaseHistorian):
             self.report_all_handled()
             _log.info("Store ALL data in to_publish_list to InfluxDB client")
 
-        except ConnectionError, err:
+        except ConnectionError as err:
             raise err
-        except InfluxDBClientError, err:
+        except InfluxDBClientError as err:
             _log.error("Stored [:{}] data in to_publish_list to InfluxDB client".format(stored_index-1))
             self.report_handled(to_publish_list[:stored_index-1])
             raise err
@@ -299,7 +299,7 @@ class InfluxdbHistorian(BaseHistorian):
     @doc_inherit
     def query_topic_list(self):
         _log.debug("Querying topic list")
-        return self._topic_id_map.values()
+        return list(self._topic_id_map.values())
 
     @doc_inherit
     def query_historian(self, topic, start=None, end=None, agg_type=None,

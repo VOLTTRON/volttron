@@ -159,9 +159,8 @@ def test_basic(agent):
     for r in results:
         topics.append(r[0])
         assert r[1] is not None
-    assert sorted(topics) == sorted([u'fakedevice', u'fakedevice2/all',
-                                     u'fakedevice2/point'])
-    gevent.sleep(5)
+    assert sorted(topics) == sorted(['fakedevice', 'fakedevice2/all',
+                                     'fakedevice2/point'])
     assert len(alert_messages) == 1
 
     # c.execute('SELECT * FROM topic_log '
@@ -194,7 +193,7 @@ def test_ignore_topic(agent):
     print("Alert messages {}".format(alert_messages))
     gevent.sleep(7)
     assert len(alert_messages) == 1
-    assert u"Topic(s) not published within time limit: ['fakedevice']" in \
+    assert "Topic(s) not published within time limit: ['fakedevice']" in \
            alert_messages
     c = db_connection.cursor()
     c.execute('SELECT * FROM topic_log '
@@ -205,7 +204,7 @@ def test_ignore_topic(agent):
     assert results is not None
     assert len(results) == 1
     assert results[0][0] == u'fakedevice'
-    assert results[0][2] is None
+    assert results[0][2] == None
 
 
 @pytest.mark.alert
@@ -235,8 +234,8 @@ def test_watch_topic_same_group(volttron_instance, agent, cleanup_db):
                        5).get()
     gevent.sleep(6)
 
-    assert u"Topic(s) not published within time limit: ['fakedevice', " \
-           u"'fakedevice2/all', 'newtopic', ('fakedevice2/all', 'point')]" in \
+    assert "Topic(s) not published within time limit: ['fakedevice', " \
+           "'fakedevice2/all', 'newtopic', ('fakedevice2/all', 'point')]" in \
            alert_messages
 
     c = db_connection.cursor()
@@ -248,7 +247,7 @@ def test_watch_topic_same_group(volttron_instance, agent, cleanup_db):
     assert results is not None
     assert len(results) == 1
     assert results[0][0] == u'newtopic'
-    assert results[0][2] is None
+    assert results[0][2] == None
 
     c.execute('SELECT * FROM topic_log '
               'WHERE first_seen_after_timeout is NULL '
@@ -287,10 +286,10 @@ def test_watch_topic_new_group(volttron_instance, agent, cleanup_db):
     gevent.sleep(6)
 
     assert len(alert_messages) == 2
-    assert u"Topic(s) not published within time limit: ['fakedevice', " \
-           u"'fakedevice2/all', ('fakedevice2/all', 'point')]" in \
+    assert "Topic(s) not published within time limit: ['fakedevice', " \
+           "'fakedevice2/all', ('fakedevice2/all', 'point')]" in \
            alert_messages
-    assert u"Topic(s) not published within time limit: ['newtopic']" in \
+    assert "Topic(s) not published within time limit: ['newtopic']" in \
            alert_messages
 
     c = db_connection.cursor()
@@ -302,7 +301,7 @@ def test_watch_topic_new_group(volttron_instance, agent, cleanup_db):
     assert results is not None
     assert len(results) == 1
     assert results[0][0] == u'newtopic'
-    assert results[0][2] is None
+    assert results[0][2] == None
 
     c.execute('SELECT * FROM topic_log '
               'WHERE first_seen_after_timeout is NULL '
@@ -340,9 +339,9 @@ def test_watch_device_same_group(volttron_instance, agent, cleanup_db):
                        'newtopic/all', 5, ['point']).get()
     gevent.sleep(6)
 
-    assert u"Topic(s) not published within time limit: ['fakedevice', " \
-           u"'fakedevice2/all', 'newtopic/all', ('fakedevice2/all', " \
-           u"'point'), ('newtopic/all', 'point')]" in \
+    assert "Topic(s) not published within time limit: ['fakedevice', " \
+           "'fakedevice2/all', 'newtopic/all', ('fakedevice2/all', " \
+           "'point'), ('newtopic/all', 'point')]" in \
            alert_messages
 
     c = db_connection.cursor()
@@ -353,8 +352,8 @@ def test_watch_device_same_group(volttron_instance, agent, cleanup_db):
     topics = []
     assert results is not None
     assert len(results) == 2
-    assert {results[0][0], results[1][0]} == {u'newtopic/all',
-                                              u'newtopic/point'}
+    assert {results[0][0], results[1][0]} == {'newtopic/all',
+                                              'newtopic/point'}
     assert results[0][2] == results[1][2] is None
 
     c.execute('SELECT * FROM topic_log '
@@ -394,11 +393,11 @@ def test_watch_device_new_group(volttron_instance, agent, cleanup_db):
     gevent.sleep(6)
 
     assert len(alert_messages) == 2
-    assert u"Topic(s) not published within time limit: ['fakedevice', " \
-           u"'fakedevice2/all', ('fakedevice2/all', 'point')]" in \
+    assert "Topic(s) not published within time limit: ['fakedevice', " \
+           "'fakedevice2/all', ('fakedevice2/all', 'point')]" in \
            alert_messages
-    assert u"Topic(s) not published within time limit: ['newtopic/all', " \
-           u"('newtopic/all', 'point')]" in \
+    assert "Topic(s) not published within time limit: ['newtopic/all', " \
+           "('newtopic/all', 'point')]" in \
            alert_messages
 
     c = db_connection.cursor()
@@ -409,8 +408,8 @@ def test_watch_device_new_group(volttron_instance, agent, cleanup_db):
     topics = []
     assert results is not None
     assert len(results) == 2
-    assert {results[0][0], results[1][0]} == {u'newtopic/all',
-                                              u'newtopic/point'}
+    assert {results[0][0], results[1][0]} == {'newtopic/all',
+                                              'newtopic/point'}
     assert results[0][2] == results[1][2] is None
 
     c.execute('SELECT * FROM topic_log '

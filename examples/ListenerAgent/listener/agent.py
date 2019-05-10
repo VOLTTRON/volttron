@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
+
 
 from datetime import datetime
 import logging
@@ -46,6 +46,7 @@ from pprint import pformat
 
 from volttron.platform.messaging.health import STATUS_GOOD
 from volttron.platform.vip.agent import Agent, Core, PubSub, compat
+from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 
@@ -63,7 +64,7 @@ class ListenerAgent(Agent):
     """
 
     def __init__(self, config_path, **kwargs):
-        super(ListenerAgent, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.config = utils.load_config(config_path)
         self._agent_id = self.config.get('agentid', DEFAULT_AGENTID)
         self._message = self.config.get('message', DEFAULT_MESSAGE)
@@ -72,7 +73,7 @@ class ListenerAgent(Agent):
         try:
             self._heartbeat_period = int(self._heartbeat_period)
         except:
-            _log.warn('Invalid heartbeat period specified setting to default')
+            _log.warning('Invalid heartbeat period specified setting to default')
             self._heartbeat_period = DEFAULT_HEARTBEAT_PERIOD
         log_level = self.config.get('log-level', 'INFO')
         if log_level == 'ERROR':
@@ -96,6 +97,8 @@ class ListenerAgent(Agent):
         if self._heartbeat_period != 0:
             self.vip.heartbeat.start_with_period(self._heartbeat_period)
             self.vip.health.set_status(STATUS_GOOD, self._message)
+        query = Query(self.core)
+        _log.info('query: %r', query.query('serverkey').get())
 
     @PubSub.subscribe('pubsub', '')
     def on_match(self, peer, sender, bus,  topic, headers, message):

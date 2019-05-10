@@ -50,12 +50,12 @@ def exec_method(platform_uuid, agent_uuid, method, params):
     return do_rpc(method, params)
 
 def register_platform(address, identity):
-    print "Registering platform platform"
+    print("Registering platform platform")
     return do_rpc('register_platform', {'address': address,
                                         'identity': identity});
 
 def register_instance(discovery_address):
-    print "Registering platform instance"
+    print("Registering platform instance")
     return do_rpc(
         'register_instance', {'discovery_address': discovery_address})
 

@@ -44,10 +44,10 @@
 """Module for storing local public and secret keys and remote public keys"""
 
 
-import json
+from volttron.platform import jsonapi
 import logging
 import os
-import urlparse
+import urllib.parse
 
 from zmq import curve_keypair
 
@@ -71,16 +71,16 @@ class BaseJSONStore(object):
         fd = os.open(self.filename, os.O_CREAT | os.O_WRONLY | os.O_TRUNC,
                      self.permissions)
         try:
-            os.write(fd, json.dumps(data, indent=4))
+            os.write(fd, jsonapi.dumpb(data, indent=4))
         finally:
             os.close(fd)
 
     def load(self):
         try:
             with open(self.filename, 'r') as json_file:
-                return json.load(json_file)
+                return jsonapi.load(json_file)
         except ValueError:
-            # If the file is empty json.load will raise ValueError
+            # If the file is empty jsonapi.load will raise ValueError
             return {}
 
     def remove(self, key):
@@ -128,14 +128,14 @@ class KeyStore(BaseJSONStore):
         """Get key and make sure it's type is str (not unicode)
 
         The json module returns all strings as unicode type, but base64
-        decode expects str type as input. The conversion from unicode
+        decode expects byte type as input. The conversion from unicode
         type to str type is safe in this case, because encode_key
         returns str type (ASCII characters only).
         """
         key = self.load().get(keyname, None)
         if key:
             try:
-                key = str(key)
+                key.encode('ascii')
             except UnicodeEncodeError:
                 _log.warning(
                     'Non-ASCII character found for key {} in {}'
@@ -182,7 +182,7 @@ class KnownHostsStore(BaseJSONStore):
 
     @staticmethod
     def _parse_addr(addr):
-        url = urlparse.urlparse(addr)
+        url = urllib.parse.urlparse(addr)
         if url.netloc:
             return url.netloc
         return url.path

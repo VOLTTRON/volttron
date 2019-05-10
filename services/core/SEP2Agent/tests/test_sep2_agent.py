@@ -58,7 +58,7 @@ import requests
 import time
 
 from volttron.platform import get_services_core
-from ..sep2.end_device import SEP2Parser
+from sep2.end_device import SEP2Parser
 
 DRIVER_NAME = 'sep2'
 DEVICE_ID = "097935300833"

@@ -207,7 +207,7 @@ class Interface(BasicRevert, BaseInterface):
 
     def _scrape_all(self):
         """Scrape the values of all registers, fetching them from SEP2Agent."""
-        for point_name, point_value in self.call_agent_rpc('get_points').iteritems():
+        for point_name, point_value in self.call_agent_rpc('get_points').items():
             if point_name in self.point_map.keys():
                 self.get_register_by_name(point_name).set_value(point_value)
         read_registers = self.get_registers_by_type('byte', True)
@@ -234,7 +234,7 @@ class Interface(BasicRevert, BaseInterface):
                     response = self.vip.rpc.call(self.sep2_agent_id, rpc_name, self.sfdi)
                 result = response.get(timeout=10)
                 _log.debug('{0}, received {1}'.format(debug_line, str(result)))
-            except Exception, err:
+            except Exception as err:
                 self.points_configured = False      # Force a fresh config_points() call on the next iteration
                 result = {}
                 _log.error('{0}, received error: {1}'.format(debug_line, str(err)))
@@ -250,6 +250,6 @@ class Interface(BasicRevert, BaseInterface):
             response.get(timeout=10)
             _log.debug('EndDevice {0}: Sent config_points'.format(self.sfdi))
             self.points_configured = True
-        except Exception, err:
+        except Exception as err:
             _log.error('EndDevice {0}: Failed to config_points: {1}'.format(self.sfdi, str(err)))
             self.points_configured = False      # Force a fresh config_points() call on the next iteration

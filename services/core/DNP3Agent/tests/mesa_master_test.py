@@ -124,7 +124,7 @@ class MesaMasterTest(MesaMaster):
         if send_json_path:
             send_json = json.load(open(send_json_path), object_pairs_hook=OrderedDict)
         step = 1
-        for name, value in send_json.iteritems():
+        for name, value in send_json.items():
             if name not in ['name', 'function_id', 'function_name']:
                 self.send_point(pdefs, func_def_path, name, value, step)
                 step += 1

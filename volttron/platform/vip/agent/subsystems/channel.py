@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
+
 
 import functools
 import logging
@@ -75,22 +75,18 @@ class Channel(SubsystemBase):
             vip_sock = core.socket
             chan_sock = self.socket
             chan_sock.bind(self.ADDRESS)
-            release = []
             while True:
                 message = chan_sock.recv_multipart(copy=False)
                 if not message:
                     continue
                 ident = bytes(message[0])
-                if ident == b'release':
-                    release.append([bytes(x) for x in message])
-                    continue
                 try:
                     peer, name = self._channels[ident]
                 except KeyError:
                     # XXX: Handle channel not found
                     continue
                 message[0] = name
-                vip_sock.send_vip(peer, 'channel', message, copy=False)
+                vip_sock.send_vip(peer, b'channel', message, copy=False)
         core.onstart.connect(start, self)
 
         def stop(sender, **kwargs):
@@ -123,22 +119,22 @@ class Channel(SubsystemBase):
             while True:
                 name = ''.join(random.choice(string.printable[:-5])
                                for i in range(30))
-                channel = (peer, name)
+                channel = (peer.encode('utf-8'), name.encode('utf-8'))
                 if channel not in self._channels:
                     break
         else:
-            channel = (peer, name)
+            channel = (peer.encode('utf-8'), name.encode('utf-8'))
             if channel in self._channels:
                 raise ValueError('channel %r is unavailable' % (name,))
         sock = self.context.socket(zmq.DEALER)
         sock.hwm = 1
-        sock.identity = ident = '%s.%s' % (hash(channel), hash(sock))
+        sock.identity = ident = ('%s.%s' % (hash(channel), hash(sock))).encode('utf-8')
         sockref = weakref.ref(sock, self._destroy)
         object.__setattr__(sock, 'peer', peer)
         object.__setattr__(sock, 'name', name)
         self._channels[channel] = ident
         self._channels[ident] = channel
-        self._channels[sockref] = (ident, peer, name)
+        self._channels[sockref] = (ident, peer.encode('utf-8'), name.encode('utf-8'))
         close_socket = sock.close
         @functools.wraps(close_socket)
         def close(linger=None):

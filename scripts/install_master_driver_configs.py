@@ -89,13 +89,13 @@ def install_configs(input_directory, keep=False):
     event.wait()
 
     if not keep:
-        print "Deleting old Master Driver store"
+        print("Deleting old Master Driver store")
         agent.vip.rpc.call(CONFIGURATION_STORE,
                            'manage_delete_store',
                            PLATFORM_DRIVER).get(timeout=10)
 
     with open("config") as f:
-        print "Storing main configuration"
+        print("Storing main configuration")
         agent.vip.rpc.call(CONFIGURATION_STORE,
                            'manage_store',
                            PLATFORM_DRIVER,
@@ -106,7 +106,7 @@ def install_configs(input_directory, keep=False):
 
     for name in glob.iglob("registry_configs/*"):
         with open(name) as f:
-            print "Storing configuration:", name
+            print("Storing configuration:", name)
             agent.vip.rpc.call(CONFIGURATION_STORE,
                                'manage_store',
                                PLATFORM_DRIVER,
@@ -118,7 +118,7 @@ def install_configs(input_directory, keep=False):
         for file_name in files:
             name = os.path.join(dir_path, file_name)
             with open(name) as f:
-                print "Storing configuration:", name
+                print("Storing configuration:", name)
                 agent.vip.rpc.call(CONFIGURATION_STORE,
                                    'manage_store',
                                    PLATFORM_DRIVER,

@@ -37,7 +37,7 @@
 # }}}
 
 
-from __future__ import absolute_import
+
 
 import os
 import logging
@@ -64,8 +64,6 @@ _INVALID_SUBSYSTEM = (
     zmq.Frame(str(zmq.EPROTONOSUPPORT).encode('ascii')),
     zmq.Frame(os.strerror(zmq.EPROTONOSUPPORT).encode('ascii'))
 )
-
-_log = logging.getLogger(__name__)
 
 class BaseRouter(object):
     '''Abstract base class of VIP router implementation.

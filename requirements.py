@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2018, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,37 +36,79 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from os import path
-from setuptools import setup, find_packages
+# These need to be importable by bootstrap.py. If we put them in
+# setup.py the import may fail if setuptools in not installed
+# in the global python3.
 
-MAIN_MODULE = 'agent'
+option_requirements = [
+    ('pyzmq', ['--zmq=bundled']),
+]
 
-# Find the agent package that contains the main module
-packages = find_packages('.')
-agent_package = ''
-for package in find_packages():
-    # Because there could be other packages such as tests
-    if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
-        agent_package = package
-if not agent_package:
-    raise RuntimeError('None of the packages under {dir} contain the file '
-                       '{main_module}'.format(main_module=MAIN_MODULE + '.py',
-                                              dir=path.abspath('.')))
+install_requires = [
+    'gevent',
+    'grequests',
+    'requests',
+    'ply',
+    'psutil',
+    'python-dateutil',
+    'pytz',
+    'pyyaml',
+    'pyzmq',
+    'setuptools',
+    'tzlocal',
+    'wheel==0.30',
+    'ws4py'
+]
 
-# Find the version number from the main module
-agent_module = agent_package + '.' + MAIN_MODULE
-_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
-__version__ = _temp.__version__
-
-# Setup
-setup(
-    name=agent_package + 'agent',
-    version=__version__,
-    install_requires=['volttron'],
-    packages=packages,
-    entry_points={
-        'setuptools.installation': [
-            'eggsecutable = ' + agent_module + ':main',
-        ]
-    }
-)
+extras_require = {
+    'crate': [  # crate databases
+        'crate'
+    ],
+    'databases': [  # Support for all known databases
+        'mysql-connector-python-rf',
+        'pymongo',
+        'crate',
+        'influxdb',
+    ],
+    'drivers': [
+        'pymodbus',
+        'bacpypes',
+        'modbus-tk',
+        'pyserial'
+    ],
+    'documentation': [  # Requirements for building the documentation
+        'mock',
+        'mysql-connector-python-rf',
+        'psutil',
+        'pymongo',
+        'sphinx',
+        'recommonmark',
+        'sphinx_rtd_theme'
+    ],
+    'market': [  # Requirements for the market service
+        'numpy',
+        'transitions',
+    ],
+    'mongo': [  # mongo databases
+        'pymongo',
+    ],
+    'mysql': [  # mysql databases
+        'mysql-connector-python-rf',
+    ],
+    'pandas': [  # numpy and pandas for applications
+        'numpy',
+        'pandas',
+    ],
+    'testing': [  # Testing infrastructure dependencies
+        'mock',
+        'pytest',
+        'pytest-timeout',
+        'websocket-client',
+    ],
+    'dnp3': [  # dnp3 agent requirements.
+        'pydnp3'
+    ],
+    'influxdb': [  # influxdb historian requirements.
+        'influxdb'
+    ],
+}

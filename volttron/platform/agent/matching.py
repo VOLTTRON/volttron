@@ -302,7 +302,7 @@ def match_headers(required_headers):
     '''
     def decorator(func):
         def wrapper(self, topic, headers, message, match):
-            for key, required_value in required_headers.iteritems():
+            for key, required_value in required_headers.items():
                 try:
                     value = headers[key]
                 except KeyError:

@@ -130,7 +130,7 @@ class ExecutionEnvironment(object):
 
     def execute(self, *args, **kwargs):
         try:
-            self.process = subprocess.Popen(*args, **kwargs)
+            self.process = subprocess.Popen(*args, **kwargs, universal_newlines=True)
         except OSError as e:
             if e.filename:
                 raise
@@ -189,7 +189,7 @@ class ResourceMonitor(object):
         '''
         resources = self.get_static_resources()
         failed = {}
-        for name, value in contract.iteritems():
+        for name, value in contract.items():
             local_value = resources.get(name)
             if local_value != value:
                 failed[name] = local_value

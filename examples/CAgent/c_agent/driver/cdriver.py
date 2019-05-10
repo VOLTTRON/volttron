@@ -60,7 +60,7 @@ master_driver/interfaces directory. The shared object will
 need to be somewhere it can be found by this file.
 """
 
-from StringIO import StringIO
+from io import StringIO
 from csv import DictReader
 
 from master_driver.interfaces import BasicRevert, BaseInterface, BaseRegister

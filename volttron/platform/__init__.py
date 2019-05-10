@@ -134,7 +134,7 @@ def get_examples(agent_dir):
 
 
 def is_instance_running(volttron_home=None):
-    from volttron.platform.agent import json as jsonapi
+    from volttron.platform import jsonapi
 
     if volttron_home is None:
         volttron_home = get_home()

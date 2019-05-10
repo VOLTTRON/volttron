@@ -78,7 +78,7 @@ def get_configs(config_id, output_directory):
                            config_id).get(timeout=10)
 
     if not config_list:
-        print "Config store", config_id, "does not exist."
+        print("Config store", config_id, "does not exist.")
         return
 
     ensure_dir(output_directory)
@@ -86,7 +86,7 @@ def get_configs(config_id, output_directory):
     os.chdir(output_directory)
 
     for config in config_list:
-        print "Retrieving configuration", config
+        print("Retrieving configuration", config)
         raw_config = agent.vip.rpc.call(CONFIGURATION_STORE,
                            'manage_get',
                            config_id,

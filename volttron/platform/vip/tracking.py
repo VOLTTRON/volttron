@@ -43,7 +43,7 @@
 '''Utilities for tracking VIP message statistics at the router.'''
 
 
-from __future__ import absolute_import, print_function
+
 
 import gevent
 

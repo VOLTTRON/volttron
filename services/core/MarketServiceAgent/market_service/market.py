@@ -57,7 +57,7 @@ _tlog.setLevel(logging.WARNING)
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 
-class MarketFailureError(StandardError):
+class MarketFailureError(Exception):
     """Base class for exceptions in this module."""
     def __init__(self, market_name, market_state, object_type):
         super(MarketFailureError, self).__init__('The market {} is not accepting {} '

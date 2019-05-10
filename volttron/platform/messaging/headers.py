@@ -78,7 +78,7 @@ class Headers(dict):
     def __init__(self, *args, **kwargs):
         Key = self.__class__.Key
         obj = super(Headers, self).__init__(((Key(key), value)
-               for key, value in dict(*args, **kwargs).iteritems()))
+               for key, value in dict(*args, **kwargs).items()))
     def __contains__(self, key):
         return super(Headers, self).__contains__(str(key).lower())
     def get(self, key, default=None):
@@ -94,13 +94,13 @@ class Headers(dict):
     @property
     def dict(self):
         '''Return a dictionary with originally-cased keys.'''
-        return {str(k): v for k, v in self.iteritems()}
+        return {str(k): v for k, v in self.items()}
     def setdefault(self, key, value):
         return super(Headers, self).setdefault(self.__class__.Key(key), value)
     def update(self, *args, **kwargs):
         Key = self.__class__.Key
         obj = super(Headers, self).update(((Key(key), value)
-               for key, value in dict(*args, **kwargs).iteritems()))
+               for key, value in dict(*args, **kwargs).items()))
     def __repr__(self):
         return '%s(%s)' % (self.__class__.__name__,
                            super(Headers, self).__repr__())

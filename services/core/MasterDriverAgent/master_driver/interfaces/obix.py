@@ -139,7 +139,7 @@ class Interface(BasicRevert, BaseInterface):
             try:
                 result.raise_for_status()
                 results[register.point_name] = register.parse_result(result.text)
-            except StandardError as e:
+            except Exception as e:
                 _log.error("Error reading point: {}".format(repr(e)))
 
         return results

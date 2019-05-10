@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import, print_function
+
 
 import weakref
 
@@ -70,5 +70,5 @@ class Signal(object):
         self.connect(func)
         return func
 
-    def __nonzero__(self):
+    def __bool__(self):
         return bool(self._receivers)

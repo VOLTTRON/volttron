@@ -114,6 +114,6 @@ class Queue(object):
         deadline, _ = self._queue[0]
         return deadline - time if deadline > time else 0
 
-    def __nonzero__(self):
+    def __bool__(self):
         return bool(self._queue)
 

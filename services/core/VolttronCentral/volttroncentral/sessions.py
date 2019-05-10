@@ -3,8 +3,6 @@ import os
 import uuid
 from copy import deepcopy
 
-from volttron.platform.agent import json as jsonapi
-
 class SessionHandler:
     """A handler for dealing with authentication of sessions
 

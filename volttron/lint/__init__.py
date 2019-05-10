@@ -68,7 +68,7 @@ def transform(module):
         return
     # If the file exists, add fakes to the module's namespace
     fake = AstroidBuilder(MANAGER).file_build(path)
-    for name, obj in fake.locals.iteritems():
+    for name, obj in fake.locals.items():
         module.locals.setdefault(name, []).extend(obj)
 
 

@@ -108,7 +108,7 @@ def test_market_participants_market_bad_seller_argument():
     with pytest.raises(ValueError) as error_info:
         bad_participant = MarketParticipant('bob is cool', 'agent_id')
         market_list.make_reservation(market_name, bad_participant)
-    assert 'bob is cool' in error_info.value.message
+    assert 'bob is cool' in error_info.value.args[0]
 
 
 @pytest.mark.market

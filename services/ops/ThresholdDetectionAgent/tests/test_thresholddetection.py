@@ -145,7 +145,7 @@ def threshold_tester_agent(volttron_instance):
 
 
 def publish(agent, config, operation, to_max=True):
-    for topic, value in config.iteritems():
+    for topic, value in config.items():
 
         if to_max is True and value.get('threshold_max') is not None:
             threshold = value['threshold_max']

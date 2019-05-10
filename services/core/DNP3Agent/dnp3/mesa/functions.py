@@ -91,7 +91,7 @@ class FunctionDefinitions(collections.Mapping):
         return step_list[0]
 
     def all_function_names(self):
-        return self._functions_dictionary().keys()
+        return list(self._functions_dictionary().keys())
 
     def support_point_names(self):
         """Return a dictionary of FunctionDefinitions keyed by their (non-null) support_point_names."""
@@ -117,7 +117,7 @@ class FunctionDefinitions(collections.Mapping):
                     self.load_functions(yaml.load(f)['functions'])
             except Exception as err:
                 raise ValueError("Problem parsing {}. Error={}".format(fdef_path, err))
-        _log.debug('Loaded {} FunctionDefinitions'.format(len(self._functions.keys())))
+        _log.debug('Loaded {} FunctionDefinitions'.format(len(self._functions)))
 
     def load_functions(self, function_definitions_json):
         """Load and cache a JSON dictionary of FunctionDefinitions. Index them by function name."""
@@ -140,7 +140,7 @@ class FunctionDefinitions(collections.Mapping):
                 self._named_step_definitions = {}
         except Exception as err:
             raise ValueError("Problem parsing FunctionDefinitions. Error={}".format(err))
-        _log.debug('Loaded {} FunctionDefinitions'.format(len(self._functions.keys())))
+        _log.debug('Loaded {} FunctionDefinitions'.format(len(self._functions)))
 
     def _step_definitions_by_name(self):
         """Return a (cached) dictionary of lists of StepDefinitions for each step name."""
@@ -211,7 +211,7 @@ class FunctionDefinition(object):
         return 'Function {}: {}'.format(self.name, [s.__str__() for s in self.steps])
 
     def all_point_defs(self):
-        return self._point_steps_map.keys()
+        return list(self._point_steps_map.keys())
 
     def all_points(self):
         return [step_def.point_def for step_def in self.steps]
@@ -472,7 +472,7 @@ def validate_definitions(point_definitions, function_definitions):
                                                                pt.index,
                                                                pt.array_last_index,
                                                                len(pt.array_points)))
-        for other_pt, other_bounds in array_bounds.iteritems():
+        for other_pt, other_bounds in array_bounds.items():
             if pt.name != other_pt.name:
                 if other_bounds[0] <= pt.index <= other_bounds[1]:
                     print('\tERROR: Overlapping array definition in {} and {}'.format(pt, other_pt))
@@ -489,7 +489,7 @@ def validate_definitions(point_definitions, function_definitions):
                                                   pt.point_type,
                                                   pt.selector_block_start,
                                                   pt.selector_block_end))
-        for other_pt, other_bounds in selector_block_bounds.iteritems():
+        for other_pt, other_bounds in selector_block_bounds.items():
             if pt.name != other_pt.name:
                 if other_bounds[0] <= pt.selector_block_start <= other_bounds[1]:
                     print('\tERROR: Overlapping selector blocks in {} and {}'.format(pt, other_pt))

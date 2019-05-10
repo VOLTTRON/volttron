@@ -178,7 +178,7 @@ class AlertAgent(Agent):
                            main_agent=self,
                            publish_local=self.publish_local,
                            publish_remote=self.publish_remote)
-        
+
         return group
 
     @Core.receiver('onstop')
@@ -325,7 +325,7 @@ class AlertGroup():
     def parse_config(self):
         _log.info("Listening for alert group {}".format(self.group_name))
         config = self.config
-        for topic in config.iterkeys():
+        for topic in config.keys():
 
             # Optional config option with a list of points that
             # might not be published.
@@ -400,7 +400,6 @@ class AlertGroup():
             for point in self.point_ttl[topic]:
                 self.point_ttl[topic][point] = self.wait_time[topic]
 
-
     def reset_time(self, peer, sender, bus, topic, headers, message):
         """Callback for topic subscriptions
 
@@ -435,7 +434,7 @@ class AlertGroup():
 
         # Reset timeouts on volatile points
         if topic in self.point_ttl:
-            received_points = set(message[0].keys())
+            received_points = message[0].keys()
             expected_points = self.point_ttl[topic].keys()
             for point in expected_points:
                 if point in received_points:

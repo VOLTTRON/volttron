@@ -60,7 +60,7 @@ from volttron.utils.prompt import prompt_response
 from dateutil.parser import parse
 from dateutil.tz import tzutc, tzoffset
 from tzlocal import get_localzone
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 from ConfigParser import ConfigParser
 import subprocess
 from subprocess import Popen
@@ -645,9 +645,11 @@ def watch_file(fullpath, callback):
         Not available on OS X/MacOS.
     """
     dirname, filename = os.path.split(fullpath)
+    filename = filename.encode('utf-8')
     if inotify is None:
         _log.warning("Runtime changes to: %s not supported on this platform.", fullpath)
     else:
+        _log.info("Added file watch for %s", fullpath)
         with inotify() as inot:
             inot.add_watch(dirname, IN_MODIFY)
             for event in inot:
@@ -689,7 +691,7 @@ def create_file_if_missing(path, permission=0o660, contents=None):
         fd = os.open(path, os.O_CREAT | os.O_WRONLY, permission)
         try:
             if contents:
-                os.write(fd, contents)
+                os.write(fd, contents if isinstance(contents, bytes) else contents.encode("utf-8"))
         finally:
             os.close(fd)
 
@@ -707,8 +709,11 @@ def fix_sqlite3_datetime(sql=None):
     """
     if sql is None:
         import sqlite3 as sql
+
+    def parse(time_stamp_bytes):
+        return parse_timestamp_string(time_stamp_bytes.decode("utf-8"))
     sql.register_adapter(datetime, format_timestamp)
-    sql.register_converter("timestamp", parse_timestamp_string)
+    sql.register_converter("timestamp", parse)
 
 
 def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None):
