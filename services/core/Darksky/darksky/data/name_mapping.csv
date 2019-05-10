@@ -3,7 +3,7 @@ nearestStormDistance,,kilometer,
 nearestStormBearing,,,
 precipIntensity,lwe_precipitation_rate,millimeter / hour,meter / second
 precipProbability,,,
-temperature,surface_temperature,degC,degK
+temperature,surface_temperature,degC,degF
 apparentTemperature,,,
 dewPoint,dew_point_temperature,degC,degK
 humidity,relative_humidity,,

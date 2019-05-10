@@ -354,7 +354,7 @@ class BaseWeatherAgent(Agent):
         Service_Point_Name to an optional Standard_Point_Name.
         May also optionally provide Service_Units (a Pint-parsable unit name
         for a point, provided by the service) to
-        Standardized_Units (units specified for the Standard_Point_Name by
+        Standard_Units (units specified for the Standard_Point_Name by
         the CF standards). Should return None if
         the concrete agent does not require point name mapping and/or unit
         conversion.
@@ -363,7 +363,7 @@ class BaseWeatherAgent(Agent):
     def parse_point_name_mapping(self):
         """
         Parses point name mapping, which should contain a mapping of service
-        points to standardized points, with specified units.
+        points to standard points, with specified units.
         """
         point_name_mapping = {}
         try:
@@ -382,11 +382,11 @@ class BaseWeatherAgent(Agent):
                     if service_point_name:
                         standard_point_name = map_item.get(
                             "Standard_Point_Name")
-                        standardized_units = map_item.get("Standardized_Units")
+                        standard_units = map_item.get("Standard_Units")
                         service_units = map_item.get("Service_Units")
                         point_name_mapping[service_point_name] = \
                             {"Standard_Point_Name": standard_point_name,
-                             "Standardized_Units": standardized_units,
+                             "Standard_Units": standard_units,
                              "Service_Units": service_units}
             except IOError as error:
                 _log.error("Error parsing standard point name mapping: "
@@ -969,11 +969,10 @@ class BaseWeatherAgent(Agent):
     def apply_mapping(self, record_dict):
         """
         Alters the weather dictionary returned by a provider to use
-        standardized point names specified in the agent's
+        standard point names specified in the agent's
         registry configuration file.
         (see http://cfconventions.org/Data/cf-standard-names/57/build/cf
-        -standard-name-table.html for standardized
-        weather terminology)
+        -standard-name-table.html for standardized weather terminology)
         :param record_dict: dictionary of weather points
         :return: dictionary of weather points containing names updated to
         match the standard point names provided.
@@ -986,13 +985,13 @@ class BaseWeatherAgent(Agent):
                 point_name = self.point_name_mapping[point][
                     "Standard_Point_Name"]
                 mapped_data[point_name] = value
-                if (self.point_name_mapping[point]["Service_Units"] and
-                        self.point_name_mapping[point]["Standardized_Units"]):
+                if (self.point_name_mapping[point].get("Service_Units") and
+                        self.point_name_mapping[point].get("Standard_Units")):
                     mapped_data[point_name] = self.manage_unit_conversion(
                         self.point_name_mapping[point]["Service_Units"],
                         value,
                         self.point_name_mapping[point][
-                            "Standardized_Units"])
+                            "Standard_Units"])
             else:
                 mapped_data[point] = value
         return mapped_data
@@ -1100,7 +1099,7 @@ class BaseWeatherAgent(Agent):
     def manage_unit_conversion(self, from_units, value, to_units):
         """
         Used to convert units from a query response to the expected
-        standardized units
+        standard units
         :param from_units: pint formatted unit string for the current value
         :param value: magnitude of a measurement prior to conversion
         :param to_units: pint formatted unit string for the output value
@@ -1208,6 +1207,7 @@ class WeatherCache:
         self._sqlite_conn = None
         self._max_pages = None
         self._setup_cache(check_same_thread)
+        self.pending_calls = []
 
     # cache setup methods
 
@@ -1330,18 +1330,24 @@ class WeatherCache:
         """
         if self._calls_limit < 0:
             return True
-        cursor = self._sqlite_conn.cursor()
-        if self._calls_period:
-            current_time = get_aware_utc_now()
-            expiry_time = current_time - self._calls_period
-            delete_query = """DELETE FROM API_CALLS WHERE CALL_TIME <= ?;"""
-            cursor.execute(delete_query, (expiry_time,))
-            self._sqlite_conn.commit()
-        active_calls_query = """SELECT COUNT(*) FROM API_CALLS;"""
-        cursor.execute(active_calls_query)
-        active_calls = cursor.fetchone()[0]
-        cursor.close()
-        return active_calls < self._calls_limit
+        try:
+            cursor = self._sqlite_conn.cursor()
+            if self._calls_period:
+                current_time = get_aware_utc_now()
+                expiry_time = current_time - self._calls_period
+                delete_query = """DELETE FROM API_CALLS WHERE CALL_TIME <= ?;"""
+                cursor.execute(delete_query, (expiry_time,))
+                self._sqlite_conn.commit()
+            active_calls_query = """SELECT COUNT(*) FROM API_CALLS;"""
+            cursor.execute(active_calls_query)
+            active_calls = cursor.fetchone()[0]
+            cursor.close()
+            return active_calls < self._calls_limit
+        except AttributeError as error:
+            _log.error(error.message)
+            # Add a call to the pending queue so we can track it later
+            self.pending_calls.append(get_aware_utc_now())
+            return True
 
     def add_api_call(self):
         """
@@ -1349,7 +1355,14 @@ class WeatherCache:
         the table for tracking
         :return: True if an entry was made successfully, false otherwise
         """
-        if self._calls_limit < 0:
+        try:
+            cursor = self._sqlite_conn.cursor()
+            insert_query = """INSERT INTO API_CALLS
+                                         (CALL_TIME) VALUES (?);"""
+            # Account for calls that went through to the API but did not get added
+            # to the SQLite table due to an error
+            cursor.executemany(insert_query, [(call,) for
+                                               call in self.pending_calls])
             if self.api_call_available():
                 cursor = self._sqlite_conn.cursor()
                 current_time = get_aware_utc_now()
@@ -1359,7 +1372,11 @@ class WeatherCache:
                 self._sqlite_conn.commit()
                 cursor.close()
                 return True
-        return False
+            return False
+        except (AttributeError, sqlite3.Error) as error:
+            _log.error(error)
+            return False
+
 
     def get_current_data(self, service_name, location):
         """

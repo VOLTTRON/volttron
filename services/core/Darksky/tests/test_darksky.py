@@ -63,7 +63,8 @@ darksky_service = {
     'api_key': API_KEY,
     'poll_locations': [],
     'poll_interval': 5,
-    'performance_mode': False
+    'performance_mode': False,
+    'api_calls_limit': 100
 }
 
 darksky_perf = {
@@ -73,7 +74,8 @@ darksky_perf = {
     'api_key': API_KEY,
     'poll_locations': [],
     'poll_interval': 5,
-    'performance_mode': True
+    'performance_mode': True,
+    'api_calls_limit': 100
 }
 
 polling_service = {
@@ -161,7 +163,7 @@ def weather(request, volttron_instance):
     [{"lat": 39.7555, "long": -105.2211}],
     [{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": -119.2752}]
 ])
-@pytest.mark.darksky
+@pytest.mark.dev
 def test_success_current(volttron_instance, cleanup_cache, weather,
                          query_agent,
                          locations):
@@ -272,7 +274,7 @@ def test_calls_exceeded(volttron_instance, cleanup_cache, query_agent,
     sqlite_connection = sqlite3.connect(database_file)
     cursor = sqlite_connection.cursor()
 
-    for i in range(0, 1000):
+    for i in range(0, 100):
         time = format_timestamp(get_aware_utc_now() + timedelta(seconds=i))
         insert_query = """INSERT INTO API_CALLS
                                          (CALL_TIME) VALUES (?);"""
@@ -331,7 +333,7 @@ def test_current_fail(weather, query_agent, locations):
     ([{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": -119.2752}],
      'get_hourly_forecast'),
 ])
-@pytest.mark.dev
+@pytest.mark.darksky
 def test_success_forecast(volttron_instance, cleanup_cache, weather,
                           query_agent, locations, service):
     weather_uuid = weather[0]
