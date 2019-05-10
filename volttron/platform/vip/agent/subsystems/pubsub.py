@@ -44,13 +44,13 @@ import logging
 import random
 import re
 import weakref
-
+import sys
 import gevent
+
 from zmq import green as zmq
 from zmq import SNDMORE
 from volttron.platform.agent import json as jsonapi
-
-from .base import SubsystemBase
+from .base import BasePubSub
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..errors import Unreachable, VIPError, UnknownSubsystem
 from .... import jsonrpc
@@ -60,18 +60,20 @@ from gevent.queue import Queue, Empty
 from collections import defaultdict
 from datetime import timedelta
 
-
 __all__ = ['PubSub']
+
 min_compatible_version = '3.0'
 max_compatible_version = ''
 
-#utils.setup_logging()
+# utils.setup_logging()
 _log = logging.getLogger(__name__)
+
 
 def encode_peer(peer):
     if peer.startswith('\x00'):
         return peer[:1] + b64encode(peer[1:])
     return peer
+
 
 def decode_peer(peer):
     if peer.startswith('\x00'):
@@ -79,7 +81,11 @@ def decode_peer(peer):
     return peer
 
 
-class PubSub(SubsystemBase):
+class PubSub(BasePubSub):
+    """
+    Pubsub subsystem concrete class implementation for ZMQ message bus.
+    """
+
     def __init__(self, core, rpc_subsys, peerlist_subsys, owner):
         self.core = weakref.ref(core)
         self.rpc = weakref.ref(rpc_subsys)
@@ -104,19 +110,23 @@ class PubSub(SubsystemBase):
         self._event_queue = Queue()
         self._retry_period = 300.0
         self._processgreenlet = None
+        self._channel = None
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
             self._processgreenlet = gevent.spawn(self._process_loop)
             core.onconnected.connect(self._connected)
-            self.vip_socket = self.core().socket
-            def subscribe(member):   # pylint: disable=redefined-outer-name
-                for peer, bus, prefix, all_platforms in annotations(
+            self.vip_socket = self.core().connection.socket
+
+            def subscribe(member):  # pylint: disable=redefined-outer-name
+                for peer, bus, prefix, all_platforms, queue in annotations(
                         member, set, 'pubsub.subscriptions'):
                     # XXX: needs updated in light of onconnected signal
                     self._add_subscription(prefix, member, bus, all_platforms)
-                    #_log.debug("SYNC: all_platforms {}".format(self._my_subscriptions['internal'][bus][prefix]))
+                    #_log.debug("SYNC ZMQ: all_platforms {}".format(self._my_subscriptions['internal'][bus][prefix]))
+
             inspect.getmembers(owner, subscribe)
+
         core.onsetup.connect(setup, self)
 
     def _connected(self, sender, **kwargs):
@@ -147,7 +157,7 @@ class PubSub(SubsystemBase):
 
         handled = 0
         for platform in self._my_subscriptions:
-            #_log.debug("SYNC: process callback subscriptions: {}".format(self._my_subscriptions[platform][bus]))
+            # _log.debug("SYNC: process callback subscriptions: {}".format(self._my_subscriptions[platform][bus]))
             buses = self._my_subscriptions[platform]
             if bus in buses:
                 subscriptions = buses[bus]
@@ -292,12 +302,13 @@ class PubSub(SubsystemBase):
         """Synchronize local subscriptions with the PubSubService.
         """
         result = next(self._results)
-        items = [{platform: {bus: subscriptions.keys()} for platform, bus_subscriptions in self._my_subscriptions.items()
-                  for bus, subscriptions in bus_subscriptions.items()}]
+        items = [
+            {platform: {bus: subscriptions.keys()} for platform, bus_subscriptions in self._my_subscriptions.items()
+             for bus, subscriptions in bus_subscriptions.items()}]
         for subscriptions in items:
             sync_msg = jsonapi.dumps(
-                        dict(subscriptions=subscriptions)
-                        )
+                dict(subscriptions=subscriptions)
+            )
             frames = [b'synchronize', b'connected', sync_msg]
             # For backward compatibility with old pubsub
             if self._send_via_rpc:
@@ -322,8 +333,8 @@ class PubSub(SubsystemBase):
         type subscribed: boolean
         param reverse: reverse
         type reverse:
-        :returns: List of subscriptions, i.e, list of tuples of bus, topic and flag to indicate if peer is a
-        subscriber or not
+        :returns: List of subscriptions, i.e, list of tuples of bus, topic and
+        flag to indicate if peer is a subscriber or not
         :rtype: list of tuples
 
         :Return Values:
@@ -354,13 +365,13 @@ class PubSub(SubsystemBase):
                 self._my_subscriptions['internal'][bus][prefix].add(callback)
             else:
                 self._my_subscriptions['all'][bus][prefix].add(callback)
-            #_log.debug("SYNC: add subscriptions: {}".format(self._my_subscriptions['internal'][bus][prefix]))
+                # _log.debug("SYNC: add subscriptions: {}".format(self._my_subscriptions['internal'][bus][prefix]))
         except KeyError:
             _log.error("PUBSUB something went wrong in add subscriptions")
 
     @dualmethod
     @spawn
-    def subscribe(self, peer, prefix, callback, bus='', all_platforms=False):
+    def subscribe(self, peer, prefix, callback, bus='', all_platforms=False, persistent_queue=None):
         """Subscribe to topic and register callback.
 
         Subscribes to topics beginning with prefix. If callback is
@@ -406,10 +417,11 @@ class PubSub(SubsystemBase):
             return result
 
     @subscribe.classmethod
-    def subscribe(cls, peer, prefix, bus='', all_platforms=False):
+    def subscribe(cls, peer, prefix, bus='', all_platforms=False, persistent_queue=None):
         def decorate(method):
-            annotate(method, set, 'pubsub.subscriptions', (peer, bus, prefix, all_platforms))
+            annotate(method, set, 'pubsub.subscriptions', (peer, bus, prefix, all_platforms, persistent_queue))
             return method
+
         return decorate
 
     def _peer_push(self, sender, bus, topic, headers, message):
@@ -478,6 +490,8 @@ class PubSub(SubsystemBase):
                         del bus_subscriptions[bus]
                     if not bus_subscriptions:
                         del self._my_subscriptions[platform]
+            if not topics:
+                raise KeyError('no such subscription')
         else:
             _log.debug("PUSUB unsubscribe my subscriptions: {0} {1}".format(prefix, self._my_subscriptions))
             if platform in self._my_subscriptions:
@@ -603,7 +617,7 @@ class PubSub(SubsystemBase):
 
             json_msg = jsonapi.dumps(dict(bus=bus, headers=headers, message=message))
             frames = [zmq.Frame(b'publish'), zmq.Frame(str(topic)), zmq.Frame(str(json_msg))]
-            #<recipient, subsystem, args, msg_id, flags>
+            # <recipient, subsystem, args, msg_id, flags>
             self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
             return result
 
@@ -614,8 +628,8 @@ class PubSub(SubsystemBase):
             caps = self._owner.vip.auth.get_capabilities(user)
             if not set(required_caps) <= set(caps):
                 msg = ('to publish to topic "{}" requires capabilities {},'
-                      ' but capability list {} was'
-                      ' provided').format(topic, required_caps, caps)
+                       ' but capability list {} was'
+                       ' provided').format(topic, required_caps, caps)
                 raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)
 
     def _handle_subsystem(self, message):
@@ -646,7 +660,7 @@ class PubSub(SubsystemBase):
                 self._pubsubwithrpc.clear_parameters()
                 del self._pubsubwithrpc
             response = message.args[1].bytes
-            #_log.debug("Message result: {}".format(response))
+            # _log.debug("Message result: {}".format(response))
             if result:
                 result.set(response)
 
@@ -666,6 +680,16 @@ class PubSub(SubsystemBase):
                 _log.error("Missing keys in pubsub message: {}".format(exc))
             else:
                 self._process_callback(sender, bus, topic, headers, message)
+
+        elif op == 'list_response':
+            result = None
+            try:
+                result = self._results.pop(bytes(message.id))
+                response = jsonapi.loads(message.args[1].bytes)
+                if result:
+                    result.set(response)
+            except KeyError:
+                pass
         else:
             _log.error("Unknown operation ({})".format(op))
 
@@ -685,7 +709,7 @@ class PubSub(SubsystemBase):
         type **kwargs: dict
         """
         if isinstance(error, UnknownSubsystem):
-            #Must be connected to OLD pubsub. Try sending using RPC
+            # Must be connected to OLD pubsub. Try sending using RPC
             self._send_via_rpc = True
             self._pubsubwithrpc.send(self._results, message)
         else:
@@ -731,6 +755,7 @@ class PubSubWithRPC(object):
     """For backward compatibility with old PubSub. The input parameters for each pubsub call is stored for short period
     till we establish that the agent is connected to platform with old pubsub or not. Once this is established, the
     parameters are no longer stored and this class is longer used."""
+
     def __init__(self, core, rpc):
         self.parameters = dict()
         self._rpc = rpc
@@ -835,7 +860,7 @@ class PubSubWithRPC(object):
             return
         try:
             response = self._rpc().call('pubsub', 'pubsub.list', prefix,
-                                  bus, subscribed, reverse).get(timeout=5)
+                                        bus, subscribed, reverse).get(timeout=5)
             if result is not None:
                 result.set(response)
         except gevent.Timeout as exc:
@@ -910,8 +935,10 @@ class PubSubWithRPC(object):
         except KeyError:
             return
 
+
 class ProtectedPubSubTopics(object):
     """Simple class to contain protected pubsub topics"""
+
     def __init__(self):
         self._dict = {}
         self._re_list = []
@@ -932,4 +959,3 @@ class ProtectedPubSubTopics(object):
             if regex.match(topic):
                 return capabilities
         return None
-

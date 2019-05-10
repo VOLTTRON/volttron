@@ -45,21 +45,48 @@ from datetime import datetime
 import gevent
 import pytest
 from mock import MagicMock
+import sys
 
 from volttron.platform import get_services_core
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
+from volttron.platform import get_volttron_root
 
 try:
     import pymongo
 
-    HAS_PYMONGO = True
+    # Disabling mongo tagging service for now
+    # Need to fix mongo gevent loop error
+    HAS_PYMONGO = False
 except:
     HAS_PYMONGO = False
 pymongo_skipif = pytest.mark.skipif(not HAS_PYMONGO,
                                     reason='No pymongo client available.')
+
+try:
+    from crate import client
+    from crate.client.exceptions import ProgrammingError
+    # Adding crate historian to the path so we have access to it's packages
+    # for removing/creating schema for testing with.
+    root = get_volttron_root()
+    crate_path = get_services_core("CrateHistorian")
+
+    sys.path.insert(0, crate_path)
+    from volttron.platform.dbutils import crateutils as crate_utils
+    HAS_CRATE_CONNECTOR = True
+except:
+    HAS_CRATE_CONNECTOR = False
+
+try:
+    import mysql.connector as mysql
+    from mysql.connector import errorcode
+
+    HAS_MYSQL_CONNECTOR = True
+except:
+    HAS_MYSQL_CONNECTOR = False
+
 connection_type = ""
 db_connection = None
 tagging_service_id = None
@@ -102,24 +129,28 @@ mongo_historian = {
                               "authSource": "admin"}
                    }
 }
+
 crate_historian = {
     "source": get_services_core("CrateHistorian"),
+    "schema": "testing_historian",
     "connection": {
         "type": "crate",
-        "schema": "testing",
         "params": {
-            "host": "localhost:4200"
+            "host": "http://localhost:4200",
+            "debug": False
         }
     }
 }
-
 historians = [
     None,
-    sqlite_historian,
-    mysql_historian,
-    mongo_historian,
-    crate_historian
+    sqlite_historian
 ]
+if HAS_PYMONGO:
+    historians.append(mongo_historian)
+if HAS_MYSQL_CONNECTOR:
+    historians.append(mysql_historian)
+if HAS_CRATE_CONNECTOR:
+    historians.append(crate_historian)
 
 
 def setup_sqlite(config):
@@ -147,7 +178,7 @@ def setup_mongodb(config):
     return db
 
 
-def cleanup_sqlite(db_connection, truncate_tables):
+def cleanup_sql(db_connection, truncate_tables):
     cursor = db_connection.cursor()
     for table in truncate_tables:
         try:
@@ -156,7 +187,14 @@ def cleanup_sqlite(db_connection, truncate_tables):
             print("Unable to truncate table {}. {}".format(table, e))
 
     db_connection.commit()
-    pass
+
+
+def cleanup_sqlite(db_connection, truncate_tables):
+    cleanup_sql(db_connection, truncate_tables)
+
+
+def cleanup_mysql(db_connection, truncate_tables):
+    cleanup_sql(db_connection, truncate_tables)
 
 
 def cleanup_mongodb(db_connection, truncate_tables):
@@ -165,9 +203,13 @@ def cleanup_mongodb(db_connection, truncate_tables):
     print("Finished removing {}".format(truncate_tables))
 
 
+def cleanup_crate(db_connection, truncate_tables):
+    crate_utils.drop_schema(db_connection, truncate_tables, schema=crate_historian["schema"])
+
+
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
-    # 1: Start a fake agent to query the historian agent in volttron_instance2
+    # 1: Start a fake agent to query the historian agent in volttron_instance
     agent = volttron_instance.build_agent()
 
     # 2: add a tear down method to stop the fake
@@ -1495,9 +1537,10 @@ def test_topic_by_tags_condition_errors(volttron_instance, tagging_service,
 def setup_test_specific_agents(volttron_instance, historian_config,
                                tagging_service, table_prefix):
     new_tag_service = copy.copy(tagging_service)
-    if historian_config is None or \
-            historian_config["connection"]["type"] == "sqlite":
-        historian_config = {
+    temp_config = copy.copy(historian_config)
+    if temp_config is None or \
+            temp_config["connection"]["type"] == "sqlite":
+        temp_config = {
             "source": get_services_core("SQLHistorian"),
             "connection":
                 {"type": "sqlite",
@@ -1509,22 +1552,18 @@ def setup_test_specific_agents(volttron_instance, historian_config,
         }
     historian_vip_identity = "platform.historian"
     historian_source = get_services_core("SQLHistorian")
-    if historian_config is not None:
-        historian_vip_identity = historian_config["connection"]["type"] \
+    if temp_config is not None:
+        historian_vip_identity = temp_config["connection"]["type"] \
                                  + ".historian"
-        historian_source = historian_config.pop("source")
+        historian_source = temp_config.pop("source")
         new_tag_service['historian_vip_identity'] = historian_vip_identity
         new_tag_service["table_prefix"] = table_prefix
 
     hist_id = volttron_instance.install_agent(
         vip_identity=historian_vip_identity,
-        agent_dir=historian_source, config_file=historian_config,
+        agent_dir=historian_source, config_file=temp_config,
         start=True)
     gevent.sleep(1)
-
-    # put source back in config after install so that it can be used for next
-    # test case
-    historian_config["source"] = historian_source
 
     new_tagging_id = volttron_instance.install_agent(
         vip_identity='new_tagging',

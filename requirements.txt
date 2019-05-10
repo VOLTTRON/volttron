@@ -1,3 +1,4 @@
+# Flask==1.0.2
 bacpypes==0.16.4
 enum34==1.1.6
 funcsigs==1.0.2
@@ -10,10 +11,9 @@ psutil==4.3.1
 pymodbus==1.2.0
 pyserial==3.1.1
 python-dateutil==2.5.3
-pytz==2016.6.1
+pytz==2018.9
 pyzmq==15.4.0
-PyYAML==3.12
-requests==2.11.1
+requests[security]==2.21.0
 grequests==0.3.0
 simplejson==3.8.2
 six==1.10.0
@@ -23,4 +23,14 @@ ujson==1.35
 ws4py==0.3.5
 zope.interface==4.3.2
 modbus-tk==0.5.8
+PyYAML==3.12
+cryptography==2.2.2
+service-identity==17.0.0
+git+https://github.com/shwethanidd/pika.git@gevent_connection_adapter#egg=pika
+wget==3.2
+argon2_cffi==19.1.0
+passlib==1.7.1
+pyjwt==1.7.1
 pint==0.8.1
+watchdog_gevent==0.1.1
+jinja2==2.10

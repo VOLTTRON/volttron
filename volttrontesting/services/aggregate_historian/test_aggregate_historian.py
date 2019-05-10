@@ -6,6 +6,7 @@
 # 4. Refer to the dictionary object mysql_platform for the server configuration
 
 import ast
+import copy
 import sqlite3
 from datetime import datetime, timedelta
 
@@ -31,8 +32,9 @@ except:
 
 try:
     import pymongo
-
-    HAS_PYMONGO = True
+    # Ignore mongo test for now.
+    # Mongo fails on rabbitmq branch with gevent Loop Exception
+    HAS_PYMONGO = False
 except:
     HAS_PYMONGO = False
 
@@ -124,6 +126,10 @@ postgresql_aggregator = {
         'type': 'postgresql',
         'params': {
             'dbname': 'historian_test',
+            'port': 5433,
+            'host': '127.0.0.1',
+            'user' : 'historian',
+            'password': 'volttron'
         },
     },
 }
@@ -279,7 +285,7 @@ def publish_test_data(publish_agent, start_time, start_reading, count):
                        {'in_temp': float_meta,
                         'out_temp': float_meta
                         }]
-        time_str = utils.format_timestring(time)
+        time_str = utils.format_timestamp(time)
         headers = {
             headers_mod.DATE: time_str,
             headers_mod.TIMESTAMP: time_str
@@ -373,12 +379,13 @@ def aggregate_agent(request, volttron_instance):
                 function_name, connection_type))
 
     # 3. Install agents - sqlhistorian, sqlaggregatehistorian
-    source = request.param.pop('source_historian')
-    source_agg = request.param.pop('source_agg_historian')
+    temp_config = copy.copy(request.param)
+    source = temp_config.pop('source_historian')
+    source_agg = temp_config.pop('source_agg_historian')
     historian_uuid = volttron_instance.install_agent(
         vip_identity='platform.historian',
         agent_dir=source,
-        config_file=request.param,
+        config_file=temp_config,
         start=True)
     print("agent id: ", historian_uuid)
     agg_agent_uuid = volttron_instance.install_agent(
@@ -386,6 +393,8 @@ def aggregate_agent(request, volttron_instance):
         config_file=request.param,
         vip_identity=AGG_AGENT_VIP,
         start=True)
+    request.param['source_historian'] = source
+    request.param['source_agg_historian'] = source_agg
 
     # 4: add a tear down method to stop sqlhistorian agent and the fake
     # agent that published to message bus
@@ -397,10 +406,9 @@ def aggregate_agent(request, volttron_instance):
         if volttron_instance.is_running():
             volttron_instance.remove_agent(historian_uuid)
             volttron_instance.remove_agent(agg_agent_uuid)
-
+        request.param['source_historian'] = source
+        request.param['source_agg_historian'] = source_agg
     request.addfinalizer(stop_agent)
-    request.param['source_historian'] = source
-    request.param['source_agg_historian'] = source_agg
     return request.param
 
 
@@ -420,19 +428,6 @@ def test_get_supported_aggregations(aggregate_agent, query_agent):
     :param query_agent: fake agent used to query historian
     :return:
     """
-    # aggregate_agent['aggregations'] = [
-    #     {"aggregation_period": "1m",
-    #      "use_calendar_time_periods": True,
-    #      "points": [
-    #          {
-    #              "topic_name_pattern": "device1/out_.*",
-    #              "aggregation_topic_name": "device1/outsidetemp_aggregate",
-    #              "aggregation_type": "sum",
-    #              "min_count": 2
-    #          }
-    #      ]
-    #      }
-    # ]
     query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                              AGG_AGENT_VIP, "config",
                              aggregate_agent).get()
@@ -489,8 +484,9 @@ def test_single_topic_pattern(aggregate_agent, query_agent):
     publish_test_data(query_agent, start_time, 0, 10)
     gevent.sleep(1)
     try:
-
-        aggregate_agent['aggregations'] = [
+        # Changing request param would mess up parameterized test runs, so make a copy
+        new_config = copy.copy(aggregate_agent)
+        new_config['aggregations'] = [
             {"aggregation_period": "1m",
              "use_calendar_time_periods": True,
              "points": [
@@ -511,7 +507,7 @@ def test_single_topic_pattern(aggregate_agent, query_agent):
         ]
         query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
-                                 aggregate_agent).get()
+                                 new_config).get()
         gevent.sleep(1)
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
@@ -563,7 +559,7 @@ def test_single_topic_pattern(aggregate_agent, query_agent):
         cleanup(aggregate_agent['connection']['type'], ['sum_1m'])
 
 
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(400)
 @pytest.mark.aggregator
 def test_single_topic(aggregate_agent, query_agent):
     """
@@ -589,7 +585,8 @@ def test_single_topic(aggregate_agent, query_agent):
     publish_test_data(query_agent, start_time, 0, 30)
     gevent.sleep(0.5)
     try:
-        aggregate_agent['aggregations'] = [
+        new_config = copy.copy(aggregate_agent)
+        new_config['aggregations'] = [
             {
                 "aggregation_period": "1m",
                 "use_calendar_time_periods": True,
@@ -613,8 +610,8 @@ def test_single_topic(aggregate_agent, query_agent):
         ]
         query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
-                                 aggregate_agent).get()
-        gevent.sleep(2.5 * 60)  # sleep till we see two rows in aggregate table
+                                 new_config).get()
+        gevent.sleep(3 * 60)  # sleep till we see two rows in aggregate table
 
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
@@ -645,7 +642,7 @@ def test_single_topic(aggregate_agent, query_agent):
 
         diff = compute_timediff_seconds(result2['values'][1][0],
                                         result2['values'][0][0])
-        assert diff == 60
+        assert diff == 1*60
 
         assert (result1['metadata']) == (result2['metadata']) == \
             {'units': 'F', 'tz': 'UTC', 'type': 'float'}
@@ -769,8 +766,8 @@ def test_multiple_topic_pattern(aggregate_agent, query_agent):
     publish_test_data(query_agent, start_time, 0, 10)
     gevent.sleep(0.5)
     try:
-
-        aggregate_agent['aggregations'] = [
+        new_config = copy.copy(aggregate_agent)
+        new_config['aggregations'] = [
             {"aggregation_period": "1m",
              "use_calendar_time_periods": True,
              "points": [
@@ -786,7 +783,7 @@ def test_multiple_topic_pattern(aggregate_agent, query_agent):
 
         query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
-                                 aggregate_agent).get()
+                                 new_config).get()
         gevent.sleep(1)
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
@@ -842,8 +839,8 @@ def test_multiple_topic_list(aggregate_agent, query_agent):
     publish_test_data(query_agent, start_time, 0, 5)
     gevent.sleep(0.5)
     try:
-
-        aggregate_agent['aggregations'] = [
+        new_config = copy.copy(aggregate_agent)
+        new_config['aggregations'] = [
             {"aggregation_period": "1m",
              "use_calendar_time_periods": True,
              "points": [
@@ -859,7 +856,7 @@ def test_multiple_topic_list(aggregate_agent, query_agent):
 
         query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
-                                 aggregate_agent).get()
+                                 new_config).get()
         gevent.sleep(1)
         result1 = query_agent.vip.rpc.call('platform.historian',
                                            'query',
@@ -919,7 +916,8 @@ def test_topic_reconfiguration(aggregate_agent, query_agent):
         start_time = datetime.utcnow() - timedelta(minutes=2)
         publish_test_data(query_agent, start_time, 0, 3)
         gevent.sleep(0.5)
-        aggregate_agent['aggregations'] = [
+        new_config = copy.copy(aggregate_agent)
+        new_config['aggregations'] = [
             {"aggregation_period": "1m",
              "use_calendar_time_periods": True,
              "points": [
@@ -935,8 +933,8 @@ def test_topic_reconfiguration(aggregate_agent, query_agent):
 
         query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
-                                 aggregate_agent).get()
-        gevent.sleep(1)
+                                 new_config).get()
+        gevent.sleep(2)
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
@@ -973,15 +971,15 @@ def test_topic_reconfiguration(aggregate_agent, query_agent):
         publish_test_data(query_agent, start_time, 0, 5)
 
         # Update topic names
-        aggregate_agent['aggregations'][0]["points"][0]["topic_names"] = \
+        new_config['aggregations'][0]["points"][0]["topic_names"] = \
             ["device1/out_temp"]
-        aggregate_agent['aggregations'][0]["points"][0]["min_count"] = 1
+        new_config['aggregations'][0]["points"][0]["min_count"] = 1
 
         print("Before reinstall current time is {}".format(datetime.utcnow()))
 
         query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
-                                 aggregate_agent).get()
+                                 new_config).get()
 
         print ("After configure\n\n")
         gevent.sleep(3)

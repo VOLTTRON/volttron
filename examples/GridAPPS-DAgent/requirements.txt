@@ -1,0 +1,5 @@
+git+https://github.com/GRIDAPPSD/gridappsd-python.git@volttron_enabled
+stomp.py==4.1.21
+PyYAML==3.12
+pytz==2018.9
+dateutils==0.6.6

@@ -61,6 +61,7 @@ import logging
 import re
 import sys
 import json
+import requests
 import grequests
 import datetime
 import pkg_resources
@@ -310,7 +311,8 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             raise ValueError('Invalid location. Expected format is:'
                              '{"station":"station_id_value"}')
-        grequest = [grequests.get(url, headers=self.headers, timeout=3)]
+        grequest = [grequests.get(url, verify=requests.certs.where(),
+                                  headers=self.headers, timeout=5)]
         gresponse = grequests.map(grequest)[0]
         if gresponse is None:
             raise RuntimeError("get request did not return any "
@@ -355,7 +357,8 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             raise ValueError("Improperly formatted station ID was passed.")
         _log.debug("Request Url: {}".format(url))
-        grequest = [grequests.get(url, headers=self.headers, timeout=3)]
+        grequest = [grequests.get(url, verify=requests.certs.where(),
+                                  headers=self.headers, timeout=3)]
         gresponse = grequests.map(grequest)[0]
         if gresponse is None:
             raise RuntimeError("get request did not return any "

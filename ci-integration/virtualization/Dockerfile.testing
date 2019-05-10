@@ -1,0 +1,17 @@
+FROM volttron_test_base as test_core
+
+WORKDIR ${VOLTTRON_ROOT}
+#COPY ./ci-integration/virtualization/requirements_test.txt ./requirements_test.txt
+USER $VOLTTRON_USER
+RUN pwd
+#RUN ls -a
+RUN pip install --user -r ./ci-integration/virtualization/requirements_test.txt
+
+RUN echo "export VOLTTRON_ROOT=${VOLTTRON_ROOT}" > /home/volttron/.bashrc && \
+    echo "export VOLTTRON_USER_HOME=${VOLTTRON_USER_HOME}" >> /home/volttron/.bashrc && \
+    echo "export IGNORE_ENV_CHECK=1" >> /home/volttron/.baschrc
+
+USER root
+WORKDIR ${VOLTTRON_ROOT}
+ENTRYPOINT ["/startup/entrypoint.sh"]
+#CMD ["/startup/bootstart.sh"]

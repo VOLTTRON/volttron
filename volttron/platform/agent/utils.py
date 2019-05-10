@@ -47,6 +47,7 @@ import syslog
 import traceback
 from datetime import datetime, tzinfo, timedelta
 
+import psutil
 import gevent
 import os
 import pytz
@@ -55,10 +56,12 @@ import stat
 import time
 import yaml
 from volttron.platform import get_home, get_address
+from volttron.utils.prompt import prompt_response
 from dateutil.parser import parse
 from dateutil.tz import tzutc, tzoffset
 from tzlocal import get_localzone
 from volttron.platform.agent import json as jsonapi
+from ConfigParser import ConfigParser
 import subprocess
 from subprocess import Popen
 
@@ -71,7 +74,8 @@ except AttributeError:
     IN_MODIFY = None
 
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
-           'is_valid_identity', 'execute_command']
+           'is_valid_identity', 'load_platform_config', 'get_messagebus',
+           'get_fq_identity', 'execute_command']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
@@ -158,6 +162,104 @@ def load_config(config_path):
         except StandardError as e:
             _log.error("Problem parsing agent configuration")
             raise
+
+
+def load_platform_config():
+    """Loads the platform config file if the path exists."""
+    config_opts = {}
+    path = os.path.join(get_home(), 'config')
+    if os.path.exists(path):
+        parser = ConfigParser()
+        parser.read(path)
+        options = parser.options('volttron')
+        for option in options:
+            config_opts[option] = parser.get('volttron', option)
+    return config_opts
+
+
+def get_platform_instance_name(prompt=False):
+    platform_config = load_platform_config()
+
+    instance_name = platform_config.get('instance-name', None)
+    if instance_name is not None:
+        instance_name = instance_name.strip('"')
+    if prompt:
+        if not instance_name:
+            instance_name = 'volttron1'
+        instance_name = prompt_response("Name of this volttron instance:",
+                                        mandatory=True, default=instance_name)
+    else:
+        if not instance_name:
+            _log.warning("Using hostname as instance name.")
+            if os.path.isfile('/etc/hostname'):
+                with open('/etc/hostname') as f:
+                    instance_name = f.read().strip()
+
+                    store_message_bus_config(get_messagebus(), instance_name)
+            else:
+                err = "No instance-name is configured in $VOLTTRON_HOME/config. Please set instance-name in " \
+                      "$VOLTTRON_HOME/config"
+                _log.error(err)
+                raise KeyError(err)
+
+    return instance_name
+
+
+def get_fq_identity(identity, platform_instance_name=None):
+    """
+    Return the fully qualified identity for the passed core identity.
+
+    Fully qualified identities are instance_name.identity
+
+    :param identity:
+    :param platform_instance_name: str The name of the platform.
+    :return:
+    """
+    if not platform_instance_name:
+        platform_instance_name = get_platform_instance_name()
+    return "{}.{}".format(platform_instance_name, identity)
+
+
+def get_messagebus():
+    """Get type of message bus - zeromq or rabbbitmq."""
+    message_bus = os.environ.get('MESSAGEBUS')
+    if not message_bus:
+        config = load_platform_config()
+        message_bus = config.get('message-bus', 'zmq')
+    return message_bus
+
+
+def store_message_bus_config(message_bus, instance_name):
+    # If there is no config file or home directory yet, create volttron_home
+    # and config file
+    if not instance_name:
+        raise ValueError("Instance name should be a valid string and should "
+                         "be unique within a network of volttron instances "
+                         "that communicate with each other. start volttron "
+                         "process with '--instance-name <your instance>' if "
+                         "you are running this instance for the first time. "
+                         "Or add instance-name = <instance name> in "
+                         "vhome/config")
+    v_home= get_home()
+    config_path = os.path.join(v_home, "config")
+    if os.path.exists(config_path):
+        config = ConfigParser()
+        config.read(config_path)
+        config.set('volttron', 'message-bus', message_bus)
+        config.set('volttron','instance-name', instance_name)
+        with open(config_path, 'w') as configfile:
+            config.write(configfile)
+    else:
+        if not os.path.exists(v_home):
+            os.makedirs(v_home, 0o755)
+        config = ConfigParser()
+        config.add_section('volttron')
+        config.set('volttron', 'message-bus', message_bus)
+        config.set('volttron', 'instance-name', instance_name)
+
+        with open(config_path, 'w') as configfile:
+            config.write(configfile)
+
 
 def update_kwargs_with_config(kwargs, config):
     """
@@ -297,6 +399,7 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
 
         config = os.environ.get('AGENT_CONFIG')
         identity = os.environ.get('AGENT_VIP_IDENTITY', identity)
+        message_bus = os.environ.get('MESSAGEBUS', 'zmq')
         if identity is not None:
             if not is_valid_identity(identity):
                 _log.warn('Deprecation warining')
@@ -308,10 +411,16 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         agent_uuid = os.environ.get('AGENT_UUID')
         volttron_home = get_home()
 
+        from volttron.platform.certs import Certs
+        certs = Certs()
+        if certs.ca_exists():
+            os.environ['REQUESTS_CA_BUNDLE'] = certs.cert_file(certs.root_ca_name)
+
         agent = agent_class(config_path=config, identity=identity,
                             address=address, agent_uuid=agent_uuid,
                             volttron_home=volttron_home,
-                            version=version, **kwargs)
+                            version=version,
+                            message_bus=message_bus, **kwargs)
         
         try:
             run = agent.run
@@ -603,6 +712,11 @@ def fix_sqlite3_datetime(sql=None):
 
 
 def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None):
+    _, output = execute_command_p(cmds, env, cwd, logger, err_prefix)
+    return output
+
+
+def execute_command_p(cmds, env=None, cwd=None, logger=None, err_prefix=None):
     """ Executes a given command. If commands return code is 0 return stdout.
     If not logs stderr and raises RuntimeException"""
     process = Popen(cmds, env=env, cwd=cwd, stderr=subprocess.PIPE,
@@ -620,4 +734,23 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None):
             raise RuntimeError()
         else:
             raise RuntimeError(err_message)
-    return output
+    return process.returncode, output
+
+
+def is_volttron_running(volttron_home):
+    """
+    Checks if volttron is running for the given volttron home. Checks if a VOLTTRON_PID file exist and if it does
+    check if the PID in the file corresponds to a running process. If so, returns True else returns False
+    :param vhome: volttron home
+    :return: True if VOLTTRON_PID file exists and points to a valid process id
+    """
+
+    pid_file = os.path.join(volttron_home, 'VOLTTRON_PID')
+    if os.path.exists(pid_file):
+        running = False
+        with open(pid_file, 'r') as pf:
+            pid = int(pf.read().strip())
+            running = psutil.pid_exists(pid)
+        return running
+    else:
+        return False
