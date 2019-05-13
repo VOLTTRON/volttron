@@ -404,7 +404,6 @@ class Darksky(BaseWeatherAgent):
         :return: List of minutely forecast weather dictionaries
         """
         # maximum of 60 minutes plus the current minute of forecast available
-        # TODO check that this is the desired behavior
         if minutes > 60:
             minutes = 60
         return self.get_forecast_by_service(locations, SERVICES_MAPPING[
@@ -420,8 +419,6 @@ class Darksky(BaseWeatherAgent):
         :param days: Number of minutes of weather data to be returned
         :return: List of daily forecast weather dictionaries
         """
-        # maximum of 8 days including the current day provided by the API
-        # TODO check that this is the desired behavior
         if days > 7:
             days = 7
         return self.get_forecast_by_service(locations,
