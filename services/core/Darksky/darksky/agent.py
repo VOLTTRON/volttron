@@ -63,6 +63,7 @@ import pytz
 import sys
 import re
 import json
+import requests
 import grequests
 import pkg_resources
 from volttron.platform.agent import utils
@@ -264,7 +265,8 @@ class Darksky(BaseWeatherAgent):
         else:
             raise ValueError('Invalid location. Expected format is: '
                              '"{"lat": "xxx.xxxx", "long": "xxx.xxxx"}"')
-        grequest = [grequests.get(url, headers=self.headers, timeout=3)]
+        grequest = [grequests.get(url, verify=requests.certs.where(),
+                                  headers=self.headers, timeout=3)]
         gresponse = grequests.map(grequest)[0]
         if gresponse is None:
             raise RuntimeError("get request did not return any "
