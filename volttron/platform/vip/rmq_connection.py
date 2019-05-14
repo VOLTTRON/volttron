@@ -102,7 +102,11 @@ class RMQConnection(BaseConnection):
         self._queue_properties = dict()
         self._explicitly_closed = False
         self._reconnect_delay = reconnect_delay
-        #_log.debug("ROUTING KEY: {}".format(self.routing_key))
+        self._vip_handler = None
+        self._error_handler = None
+        self._instance_name = instance_name
+        self._identity = identity
+        #_log.debug("identity KEY: {}".format(self.routing_key))
 
     def open_connection(self):
         """
@@ -259,13 +263,14 @@ class RMQConnection(BaseConnection):
         self._connect_error_callback = connection_error_callback
         self.open_connection()
 
-    def register(self, handler):
+    def register(self, vip_handler, error_handler=None):
         """
         Register VIP handler to be invoked to handle incoming messages
         :param handler: VIP handler callback method
         :return:
         """
-        self._vip_handler = handler
+        self._vip_handler = vip_handler
+        self._error_handler = error_handler
 
     def rmq_message_handler(self, channel, method, props, body):
         """
@@ -373,6 +378,53 @@ class RMQConnection(BaseConnection):
                                        destination_routing_key,
                                        json.dumps(msg, ensure_ascii=False),
                                        properties)
+        except (pika.exceptions.AMQPConnectionError,
+                pika.exceptions.AMQPChannelError) as exc:
+            raise Unreachable(errno.EHOSTUNREACH, "Connection to RabbitMQ is lost",
+                              'rabbitmq broker', 'rmq_connection')
+
+    def send_via_proxy(self, peer, subsystem, args=None, msg_id=b'', user=b'',
+                        via=None, flags=0, copy=False, track=False):
+        rkey = self._instance_name + '.proxy.router.zmq.outbound.subsystem'
+        # Reformat the message into ZMQ VIP message frames
+        # VIP format - [TO, FROM, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
+        frames = [peer, self._identity, b'VIP1', user, msg_id, subsystem]
+        for arg in args:
+            frames.append(arg)
+
+        try:
+            # Publish to proxy router agent
+            self.channel.basic_publish(exchange=self.exchange,
+                                             routing_key=rkey,
+                                             body=json.dumps(frames, ensure_ascii=False))
+        except (pika.exceptions.AMQPConnectionError,
+                pika.exceptions.AMQPChannelError) as exc:
+            raise Unreachable(errno.EHOSTUNREACH, "Connection to RabbitMQ is lost",
+                              'rabbitmq broker', 'rmq_connection')
+
+    def send_vip_object_via_proxy(self, vip_object):
+        """
+        Send the VIP object to proxy router agent
+        :param vip_object: VIP message
+        :return:
+        """
+        rkey = self._instance_name + '.proxy.router.zmq.outbound.subsystem'
+
+        msg_id = getattr(vip_object, 'id', b'')
+        user = getattr(vip_object, 'user', b'')
+
+        # Reformat the message into ZMQ VIP message frames
+        # VIP format - [TO, FROM, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
+        frames = [vip_object.peer, self._identity,
+                  b'VIP1', user, msg_id, vip_object.subsystem]
+        for arg in vip_object.args:
+            frames.append(arg)
+
+        try:
+            # Publish to proxy router agent
+            self.channel.basic_publish(exchange=self.exchange,
+                                             routing_key=rkey,
+                                             body=json.dumps(frames, ensure_ascii=False))
         except (pika.exceptions.AMQPConnectionError,
                 pika.exceptions.AMQPChannelError) as exc:
             raise Unreachable(errno.EHOSTUNREACH, "Connection to RabbitMQ is lost",

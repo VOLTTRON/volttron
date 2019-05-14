@@ -400,7 +400,6 @@ class VolttronCentralPlatform(Agent):
                 self._vc_connection = self.vip.auth.connect_remote_platform(
                     address=self._vc_address,
                     serverkey=self._vc_serverkey,
-                    rmq_ca_cert=self._vc_rmq_ca_cert,
                     agent_class=VCConnection
                 )
 
@@ -416,7 +415,7 @@ class VolttronCentralPlatform(Agent):
 
             # Break out of the loop if we have successfully connect to the
             # remote platform.
-            if self._vc_connection is not None:
+            if self._vc_connection is not None and isinstance(self._vc_connection, Agent):
                 self._vc_connection.set_main_agent(self)
                 self._still_connected()
                 self._publish_stats()

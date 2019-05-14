@@ -356,7 +356,8 @@ class RMQPubSub(BasePubSub):
                 topic = item[1]
                 if test(topic):
                     member = self.core().identity in peer
-                    results.append(('', topic, member))
+                    if not subscribed or member:
+                        results.append(('', topic, member))
         self.core().spawn_later(0.01, self.set_result, async_result.ident, results)
         return async_result
 

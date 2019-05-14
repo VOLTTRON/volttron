@@ -828,6 +828,9 @@ class ZMQCore(Core):
 
         yield gevent.spawn(vip_loop)
         # pre-stop
+        if self.connected:
+            frames = [bytes(self.identity)]
+            self.connection.send_vip(b'', 'agentstop', args=frames)
         yield
         # pre-finish
         try:
