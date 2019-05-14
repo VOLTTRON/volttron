@@ -255,7 +255,6 @@ def test_list_subscribed_reverse(volttron_instance, request):
     test_topic1 = "testtopic1/test/foo/bar"
     test_topic2 = "testtopic1/test/foo"
     test_topic3 = "testtopic1"
-    bus_topic = ""
 
     topic_result_index = 1
     member_result_index = 2
@@ -277,8 +276,8 @@ def test_list_subscribed_reverse(volttron_instance, request):
 
     for result in list_results:
         topic = result[topic_result_index]
-        topics = [test_topic1, test_topic2, test_topic3]
-        assert result[member_result_index] is (True if topic in topics else False)
+        assert topic in [test_topic1, test_topic2, test_topic3]
+        assert result[member_result_index] is True
 
 
 @pytest.mark.pubsub
