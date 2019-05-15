@@ -303,6 +303,7 @@ class BasicCore(object):
         self.onfinish.send(self)
 
     def stop(self, timeout=None):
+        _log.debug("Stop: XXX")
         def halt():
             self._stop_event.set()
             self.greenlet.join(timeout)
@@ -773,6 +774,7 @@ class ZMQCore(Core):
                     except Exception as exc:
                         _log.debug("Error in closing the socket: {}".format(exc.message))
 
+
         self.onconnected.connect(hello_response)
         self.ondisconnected.connect(close_socket)
 
@@ -830,7 +832,7 @@ class ZMQCore(Core):
         # pre-stop
         if self.connected:
             frames = [bytes(self.identity)]
-            self.connection.send_vip(b'', 'agentstop', args=frames)
+            gevent.spawn(self.connection.send_vip, b'', 'agentstop', args=frames)
         yield
         # pre-finish
         try:
@@ -1029,6 +1031,9 @@ class RMQCore(Core):
                             handle(message)
 
         yield gevent.spawn(vip_loop)
+        if self.connected:
+            frames = [bytes(self.identity)]
+            self.connection.send_vip(b'', 'agentstop', args=frames)
         # pre-stop
         yield
         # pre-finish

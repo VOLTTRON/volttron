@@ -62,7 +62,7 @@ import green as vip
 
 from volttron.platform.vip.rmq_connection import BaseConnection
 from volttron.platform.vip.socket import Message
-
+_log = logging.getLogger(__name__)
 
 class ZMQConnection(BaseConnection):
     """
@@ -119,4 +119,7 @@ class ZMQConnection(BaseConnection):
     def close_connection(self, linger=1):
         """This method closes ZeroMQ socket"""
         self.socket.close(linger)
+        _log.debug("********************************************************************")
+        _log.debug("Closing connection to ZMQ: {}".format(self._identity))
+        _log.debug("********************************************************************")
 
