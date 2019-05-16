@@ -1230,7 +1230,7 @@ class VolttronCentralPlatform(Agent):
                     self.get_instance_uuid()))
             gevent.sleep(1)
             try:
-                self._vc_connection.core.stop(timeput=5)
+                self._vc_connection.core.stop(timeout=5)
             except:
                 _log.error("killing _vc_connection connection")
             finally:

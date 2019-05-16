@@ -303,7 +303,6 @@ class BasicCore(object):
         self.onfinish.send(self)
 
     def stop(self, timeout=None):
-        _log.debug("BASICCORE STOP METHOD called")
 
         def halt():
             self._stop_event.set()

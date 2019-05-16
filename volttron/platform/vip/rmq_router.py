@@ -175,7 +175,6 @@ class RMQRouter(BaseRouter):
         pass
 
     def _add_peer(self, peer, message_bus='rmq'):
-        _log.debug("NEW PEER: {}".format(peer))
         if peer == self._identity:
             return
         if peer in self._peers:

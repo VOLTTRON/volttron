@@ -210,7 +210,7 @@ class ZMQProxyRouter(Agent):
         """
         zmq_frames = []
         frames = jsonapi.loads(body)
-        _log.debug("Frames: {}".format(frames))
+
         for frame in frames:
             zmq_frames.append(bytes(frame))
         try:
