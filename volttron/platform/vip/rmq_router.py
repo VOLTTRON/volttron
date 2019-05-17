@@ -96,6 +96,7 @@ class RMQRouter(BaseRouter):
         """
         self.default_user_id = default_user_id
         self._peers = set()
+        self._peers_with_messagebus = dict()
         self.addresses = [Address(addr) for addr in set(addresses)]
         self.local_address = Address(local_address)
         self._address = address
@@ -173,20 +174,22 @@ class RMQRouter(BaseRouter):
     def issue(self, topic, frames, extra=None):
         pass
 
-    def _add_peer(self, peer):
+    def _add_peer(self, peer, message_bus='rmq'):
         if peer == self._identity:
             return
         if peer in self._peers:
             return
-        self._distribute(b'peerlist', b'add', peer)
+        self._distribute(b'peerlist', b'add', peer, message_bus)
         self._peers.add(peer)
+        self._peers_with_messagebus[peer] = message_bus
 
-    def _drop_peer(self, peer):
+    def _drop_peer(self, peer, message_bus='rmq'):
         try:
             self._peers.remove(peer)
+            self._peers_with_messagebus[peer] = message_bus
         except KeyError:
             return
-        self._distribute(b'peerlist', b'drop', peer)
+        self._distribute(b'peerlist', b'drop', peer, message_bus)
 
     def route(self, message):
         '''Route one message and return.
@@ -229,12 +232,26 @@ class RMQRouter(BaseRouter):
                 del message.args[:]
                 message.args = [b'listing']
                 message.args.extend(self._peers)
+            if op == b'list_with_messagebus':
+                _log.debug("Router peerlist request op: list_with_messagebus, {}, {}".format(sender, self._peers))
+                del message.args[:]
+                message.args = [b'listing_with_messagebus']
+                message.args.append(jsonapi.dumps(self._peers_with_messagebus))
+                _log.debug("Router peerlist request op: list_with_messagebus, {}, {}".format(sender, self._peers))
             elif op == b'add':
                 peer = message.args[1]
-                self._add_peer(peer=peer)
+                try:
+                    message_bus = message.args[2]
+                except IndexError:
+                    message_bus = 'rmq'
+                self._add_peer(peer=peer, message_bus=message_bus)
             elif op == b'drop':
                 peer = message.args[1]
-                self._drop_peer(peer=peer)
+                try:
+                    message_bus = message.args[2]
+                except IndexError:
+                    message_bus = 'rmq'
+                self._drop_peer(peer=peer, message_bus=message_bus)
             else:
                 error = (b'unknown' if op else b'missing') + b' operation'
                 message.args.extend([b'error', error])
@@ -243,6 +260,7 @@ class RMQRouter(BaseRouter):
                 self.stop()
                 raise KeyboardInterrupt()
         elif subsystem == b'agentstop':
+            _log.debug("ROUTER received agent stop {}".format(sender))
             try:
                 drop = message.args[0]
                 self._drop_peer(drop)
@@ -310,7 +328,10 @@ class RMQRouter(BaseRouter):
         message = Message(peer=None, subsystem=parts[0], args=parts[1:])
         for peer in self._peers:
             message.peer = peer
-            self.connection.send_vip_object(message)
+            if self._peers_with_messagebus[peer] == 'rmq':
+                self.connection.send_vip_object(message)
+            else:
+                self.connection.send_vip_object_via_proxy(message)
 
     def _make_user_access_tokens(self, identity):
         tokens = dict()

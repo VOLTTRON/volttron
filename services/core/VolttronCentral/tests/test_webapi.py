@@ -23,25 +23,28 @@ def auto_registered_local(vc_and_vcp_together):
     yield webapi
 
 
-@pytest.mark.dev
 def test_platform_list(auto_registered_local):
     webapi = auto_registered_local
 
     assert len(webapi.list_platforms()) == 1
 
-# @pytest.mark.dev
-# def test_platform_inspect(auto_registered_local):
-#     webapi = auto_registered_local
-#     platforms = webapi.list_platforms()
-#     platform_uuid = platforms[0]["uuid"]
-#
-#     agents = webapi.list_agents(platform_uuid)
-#
-#     for agent in agents:
-#         agent_uuid = agent['uuid']
-#         result = webapi.inspect((platform_uuid, agent_uuid))
-#         print result
-#         assert result == False
+
+def test_platform_inspect(auto_registered_local):
+    webapi = auto_registered_local
+    platforms = webapi.list_platforms()
+    platform_uuid = platforms[0]["uuid"]
+
+    agents = webapi.list_agents(platform_uuid)
+
+    for agent in agents:
+        agent_uuid = agent['uuid']
+        result = webapi.inspect(platform_uuid, agent_uuid)
+        print result
+        method = 'health.get_status'
+        assert method in result['methods']
+        # status = webapi.do_rpc('platforms.uuid.{}.agents.uuid.{}.methods.{}'.format(platform_uuid, agent_uuid, method))
+        # assert status['status'] == 'BAD'
+
 
 @pytest.fixture(scope="module")
 def vc_vcp_platforms():
