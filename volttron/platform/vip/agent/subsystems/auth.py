@@ -39,7 +39,8 @@
 import logging
 import os
 import requests
-import urlparse
+
+from urllib.parse import urlparse
 import weakref
 
 from .base import SubsystemBase

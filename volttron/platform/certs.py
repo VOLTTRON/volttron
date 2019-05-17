@@ -731,20 +731,20 @@ class Certs(object):
             file_path))[0])
         directory = os.path.dirname(cert_file)
         if not os.path.exists(directory):
-            os.makedirs(directory, mode=0750)
+            os.makedirs(directory, mode=0o750)
         if file_path != cert_file:
             copyfile(file_path, cert_file)
-        os.chmod(cert_file,0644)
+        os.chmod(cert_file, 0o644)
 
     def save_key(self, file_path):
         key_file = self.private_key_file(os.path.splitext(os.path.basename(
             file_path))[0])
         directory = os.path.dirname(key_file)
         if not os.path.exists(directory):
-            os.makedirs(directory, mode=0750)
+            os.makedirs(directory, mode=0o750)
         if file_path != key_file:
             copyfile(file_path, key_file)
-            os.chmod(key_file, 0600)
+            os.chmod(key_file, 0o600)
 
     def create_ca_signed_cert(self, name, type='client', ca_name=None,
                               overwrite=True, valid_days=DEFAULT_DAYS,

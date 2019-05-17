@@ -60,7 +60,10 @@ install_requires = [
     # https://github.com/Bogdanp/watchdog_gevent
     'watchdog_gevent',
     'wheel==0.30',
-    'ws4py'
+    'ws4py',
+
+    # Web stuff probably needs to be in optional
+    'jwt'
 ]
 
 extras_require = {

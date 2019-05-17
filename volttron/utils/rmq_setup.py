@@ -52,13 +52,14 @@ import gevent
 import yaml
 
 from . rmq_mgmt import RabbitMQMgmt
+from . rmq_config_params import RMQConfig
+
 from volttron.platform import certs
 from volttron.platform import get_home
 from volttron.platform.agent.utils import (store_message_bus_config,
                                            execute_command)
 from volttron.utils.prompt import prompt_response, y, y_or_n
 from volttron.platform.agent.utils import get_platform_instance_name
-from rmq_config_params import RMQConfig
 
 _log = logging.getLogger(os.path.basename(__file__))
 

@@ -14,7 +14,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+#green
 # This material was prepared as an account of work sponsored by an agency of
 # the United States Government. Neither the United States Government nor the
 # United States Department of Energy, nor Battelle, nor any of their
@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-'''VIP - VOLTTRON™ Interconnect Protocol implementation
+"""VIP - VOLTTRON™ Interconnect Protocol implementation
 
 See https://github.com/VOLTTRON/volttron/wiki/VIP for protocol
 specification.
@@ -45,12 +45,7 @@ This module is useful for using VIP outside of gevent. Please understand
 that ZeroMQ sockets are not thread-safe and care must be used when using
 across threads (or avoided all together). There is no locking around the
 state as there is with the gevent version in the green sub-module.
-'''
-
-
-
-
-
+"""
 
 from threading import local as _local
 

@@ -1,16 +1,17 @@
-import Cookie
+from http.cookiejar import Cookie
 import logging
-from urlparse import urlparse
+from urllib.parse import urlparse
+
 from volttron.platform.certs import Certs
 from volttron.platform.agent.known_identities import MASTER_WEB
 from volttron.platform.agent.utils import get_fq_identity
 
 import jwt
 
-from discovery import DiscoveryInfo, DiscoveryError
+from . discovery import DiscoveryInfo, DiscoveryError
 
 # Used outside so we make it available through this file.
-from master_web_service import MasterWebService
+from . master_web_service import MasterWebService
 
 _log = logging.getLogger(__name__)
 

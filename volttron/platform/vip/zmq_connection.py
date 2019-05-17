@@ -56,12 +56,10 @@
 # }}}
 
 import zmq
-import gevent
 import logging
-import green as vip
 
-from volttron.platform.vip.rmq_connection import BaseConnection
-from volttron.platform.vip.socket import Message
+from .green import Socket as GreenSocket
+from .rmq_connection import BaseConnection
 
 
 class ZMQConnection(BaseConnection):
@@ -79,7 +77,7 @@ class ZMQConnection(BaseConnection):
 
     def open_connection(self, type):
         if type == zmq.DEALER:
-            self.socket = vip.Socket(self.context)
+            self.socket = GreenSocket(self.context)
             if self._identity:
                 self.socket.identity = self._identity
         else:
