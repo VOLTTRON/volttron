@@ -1,5 +1,4 @@
 import argparse
-import json
 import logging
 import os
 import sys
@@ -128,7 +127,6 @@ def install_agent(opts, package, config):
     try:
         with open(config_file) as fp:
             data = yaml.safe_load(fp)
-            # data = json.load(fp)
     except:
         log.error("Invalid yaml/json config file.")
         sys.exit(-10)
@@ -209,7 +207,7 @@ def install_agent(opts, package, config):
             output_dict['agent_pid'] = int(outputdata[pidpos: pidend])
 
     if opts.json:
-        sys.stdout.write("%s\n" % json.dumps(output_dict, indent=4))
+        sys.stdout.write("%s\n" % jsonapi.dumps(output_dict, indent=4))
     if opts.csv:
         keylen = len(output_dict)
         keyline = ''

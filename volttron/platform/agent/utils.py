@@ -61,7 +61,7 @@ from dateutil.parser import parse
 from dateutil.tz import tzutc, tzoffset
 from tzlocal import get_localzone
 from volttron.platform import jsonapi
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 import subprocess
 from subprocess import Popen
 

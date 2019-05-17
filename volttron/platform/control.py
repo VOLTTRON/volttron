@@ -38,7 +38,7 @@
 
 import argparse
 import collections
-import json
+from volttron.platform import jsonapi
 import logging
 import logging.handlers
 import os
@@ -790,7 +790,7 @@ def agent_health(opts):
         return
     agent = agents.pop()
     try:
-        _stderr.write(json.dumps(
+        _stderr.write(jsonapi.dumps(
             opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4),
             indent=4) + '\n'
                       )
@@ -937,7 +937,7 @@ def send_agent(opts):
 
 def gen_keypair(opts):
     keypair = KeyStore.generate_keypair_dict()
-    _stdout.write('{}\n'.format(json.dumps(keypair, indent=2)))
+    _stdout.write('{}\n'.format(jsonapi.dumps(keypair, indent=2)))
 
 
 def add_server_key(opts):
@@ -1027,7 +1027,7 @@ def list_auth(opts, indices=None):
             if indices is None or index in indices:
                 _stdout.write('\nINDEX: {}\n'.format(index))
                 _stdout.write(
-                    '{}\n'.format(json.dumps(vars(entry), indent=2)))
+                    '{}\n'.format(jsonapi.dumps(vars(entry), indent=2)))
     else:
         _stdout.write('No entries in {}\n'.format(auth_file.auth_file))
 
@@ -1509,7 +1509,7 @@ def get_config(opts):
         if isinstance(results, str):
             _stdout.write(results)
         else:
-            _stdout.write(json.dumps(results, indent=2))
+            _stdout.write(jsonapi.dumps(results, indent=2))
             _stdout.write("\n")
 
 

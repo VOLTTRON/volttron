@@ -55,7 +55,6 @@
 # }}}
 from collections import namedtuple
 import datetime
-import json
 import logging
 import os
 import six
@@ -72,6 +71,7 @@ from cryptography.x509.general_name import DNSName
 from cryptography.x509.name import RelativeDistinguishedName
 from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
 
+from volttron.platform import jsonapi
 from volttron.platform import get_home
 from volttron.platform.agent.utils import (get_platform_instance_name,
                                            get_fq_identity,
@@ -450,7 +450,7 @@ class Certs(object):
         for c in os.listdir(self.csr_pending_dir):
             if c.endswith('.json'):
                 with open(os.path.join(self.csr_pending_dir, c)) as fp:
-                    pending_csr.append(json.loads(fp.read()))
+                    pending_csr.append(jsonapi.loads(fp.read()))
 
         return pending_csr
 
@@ -480,7 +480,7 @@ class Certs(object):
             _log.debug("csr file already exists, not saving")
         else:
             with open(metafile, 'w') as fp:
-                fp.write(json.dumps(meta))
+                fp.write(jsonapi.dumps(meta))
             with open(csrfile, "wb") as fw:
                 fw.write(csr)
         return csrfile
@@ -512,7 +512,7 @@ class Certs(object):
         if not os.path.isfile(metafile):
             return "UNKNOWN"
 
-        meta = json.loads(open(metafile, 'rb').read())
+        meta = jsonapi.loads(open(metafile, 'rb').read())
         return meta.get("status")
 
     def get_cert_from_csr(self, common_name):
@@ -530,10 +530,10 @@ class Certs(object):
 
         cert = self.sign_csr(csrfile)
         self.save_remote_cert(common_name, cert)
-        meta = json.loads(open(metafile, 'rb').read())
+        meta = jsonapi.loads(open(metafile, 'rb').read())
         meta['status'] = 'APPROVED'
         with open(metafile, 'wb') as fp:
-            fp.write(json.dumps(meta))
+            fp.write(jsonapi.dumps(meta))
         return cert
 
     def delete_csr(self, common_name):
@@ -556,11 +556,11 @@ class Certs(object):
             raise ValueError("Bad state unknown CSR for common_name {}".format(common_name))
 
         self.delete_remote_cert(common_name)
-        meta = json.loads(open(metafile, 'rb').read())
+        meta = jsonapi.loads(open(metafile, 'rb').read())
         meta['status'] = 'DENIED'
 
         with open(metafile, 'wb') as fp:
-            fp.write(json.dumps(meta))
+            fp.write(jsonapi.dumps(meta))
 
     def sign_csr(self, csr_file):
         ca_crt = self.ca_cert()
@@ -714,7 +714,7 @@ class Certs(object):
         metafile = self.remote_certs_file(remote_name)[:-4] + ".json"
 
         with open(metafile, 'w') as fp:
-            fp.write(json.dumps(metadata))
+            fp.write(jsonapi.dumps(metadata))
 
     def delete_remote_cert(self, name):
         cert_file = self.remote_certs_file(name)
@@ -944,7 +944,7 @@ class Certs(object):
             _get_cert_attribute_value(cert, NameOID.COMMON_NAME))
         if os.path.exists(db_file):
             with open(db_file, "r") as f:
-                ca_db = json.load(f)
+                ca_db = jsonapi.load(f)
         entries = ca_db.get(dn, {})
         entries['status'] = "valid"
         entries['expiry'] = cert.not_valid_after.strftime("%Y-%m-%d "
@@ -952,7 +952,7 @@ class Certs(object):
         entries['serial_number'] = cert.serial_number
         ca_db[dn] = entries
         with open(db_file, 'w+') as outfile:
-            json.dump(ca_db, outfile, indent=4)
+            jsonapi.dump(ca_db, outfile, indent=4)
 
         with open(self.ca_serial_file(ca_name), "w+") as f:
             f.write(str(serial+1))  # next available serial is current + 1

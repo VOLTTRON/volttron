@@ -38,7 +38,7 @@
 
 import base64
 from collections import defaultdict
-import json
+
 import logging
 import os
 import re
@@ -55,16 +55,12 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 
 from volttron.utils import is_ip_private
-from volttron.platform.agent import json as jsonapi
 from volttron.platform.agent.web import Response
 from volttron.platform.agent.utils import get_fq_identity
 from volttron.platform.certs import Certs
 from volttron.platform.auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
-from volttron.platform.vip.agent import Agent, Core, RPC
+
 from volttron.platform.vip.agent.subsystems import query
-from volttron.platform.jsonrpc import (
-from requests.packages.urllib3.connection import (ConnectionError,
-                                                  NewConnectionError)
 from volttron.platform import jsonapi
 
 from .auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
@@ -405,7 +401,7 @@ class MasterWebService(Agent):
         _log.debug('Peer path_info is associated with: {}'.format(peer))
 
         if self.is_json_content(env):
-            data = json.loads(data)
+            data = jsonapi.loads(data)
 
         # Only if https available and rmq for the admin area.
         if env['wsgi.url_scheme'] == 'https' and self.core.messagebus == 'rmq':

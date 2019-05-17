@@ -26,7 +26,7 @@ from psycopg2 import InterfaceError, ProgrammingError, errorcodes
 from psycopg2.sql import Identifier, Literal, SQL
 
 from volttron.platform.agent import utils
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 
 from .basedb import DbDriver
 

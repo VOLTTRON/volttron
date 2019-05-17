@@ -39,10 +39,9 @@
 from __future__ import print_function, absolute_import
 import logging
 import pika
-import json
 from .agent import Agent, Core, RPC
 from . import green as vip
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 from .socket import Message
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN, ENOTSOCK, EADDRINUSE
@@ -157,18 +156,18 @@ class ZMQProxyRouter(Agent):
         frames = [bytes(to_identity), bytes(from_identity), b'VIP1', bytes(userid),
                   bytes(props.message_id), bytes(props.type)]
         try:
-            args = json.loads(body)
+            args = jsonapi.loads(body)
             try:
                 # This is necessary because jsonrpc request/response is inside a list which the
                 # ZMQ agent subsystem does not like
-                args = json.loads(args[0])
-                frames.append(json.dumps(args))
+                args = jsonapi.loads(args[0])
+                frames.append(jsonapi.dumps(args))
             except ValueError as e:
                 if isinstance(args, list):
                     for m in args:
                         frames.append(bytes(m))
                 else:
-                    frames.append(json.dumps(args))
+                    frames.append(jsonapi.dumps(args))
         except TypeError as e:
             _log.error("Invalid json format {}".format(e))
             return

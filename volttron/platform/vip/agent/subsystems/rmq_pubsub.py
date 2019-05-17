@@ -64,7 +64,7 @@ import logging
 import weakref
 import pika
 import uuid
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 import requests
 import errno
 

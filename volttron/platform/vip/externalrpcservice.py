@@ -41,7 +41,7 @@
 import os
 import zmq
 import logging
-from zmq.utils import jsonapi
+from volttron.platform import jsonapi
 from zmq import SNDMORE, EHOSTUNREACH, ZMQError, EAGAIN, NOBLOCK
 
 _log = logging.getLogger(__name__)

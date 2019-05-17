@@ -2,8 +2,8 @@ import os
 
 import gevent
 import pytest
-import json
 
+from volttron.platform import jsonapi
 from volttron.platform import get_ops
 from volttrontesting.utils.utils import (poll_gevent_sleep,
                                          messages_contains_prefix)
@@ -15,6 +15,7 @@ from volttron.platform.agent.known_identities import PLATFORM_DRIVER, CONFIGURAT
 
 subscription_results = {}
 count = 0
+
 
 def onmessage(peer, sender, bus, topic, headers, message):
     global subscription_results
@@ -66,7 +67,7 @@ def get_volttron_instances(request):
             addr_file = os.path.join(wrapper.volttron_home, 'external_address.json')
             if address_file:
                 with open(addr_file, 'w') as f:
-                    json.dump(web_addresses, f)
+                    jsonapi.dump(web_addresses, f)
                     gevent.sleep(.1)
             wrapper.startup_platform(address, bind_web_address=web_address, setupmode=True)
             wrapper.skip_cleanup = True
@@ -149,7 +150,7 @@ def build_instances(request):
             address_file = os.path.join(instances[i].volttron_home, 'external_platform_discovery.json')
             if address_file:
                 with open(address_file, 'w') as f:
-                    json.dump(addr_config, f)
+                    jsonapi.dump(addr_config, f)
 
         gevent.sleep(1)
         for i in range(0, n):
@@ -576,7 +577,7 @@ def test_multiplatform_rpc(request, get_volttron_instances):
                             'manage_store',
                             'platform.thresholddetection',
                             'config',
-                            json.dumps(updated_config),
+                            jsonapi.dumps(updated_config),
                             'json',
                             **kwargs).get(timeout=10)
     config = test_agent.vip.rpc.call(CONFIGURATION_STORE,
@@ -585,7 +586,7 @@ def test_multiplatform_rpc(request, get_volttron_instances):
                                      'config',
                                      raw=True,
                                      **kwargs).get(timeout=10)
-    config = json.loads(config)
+    config = jsonapi.loads(config)
     try:
         assert config == updated_config
     except KeyError:

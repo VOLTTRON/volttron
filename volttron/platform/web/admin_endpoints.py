@@ -10,7 +10,7 @@ from passlib.hash import argon2
 from watchdog_gevent import Observer
 
 from volttron.platform import get_home
-from volttron.platform.agent import json
+from volttron.platform import jsonapi
 from volttron.platform.agent.web import Response
 from volttron.utils import FileReloader
 from volttron.utils.persistance import PersistentDict
@@ -153,7 +153,7 @@ class AdminEndpoints(object):
         except ValueError as e:
             data = dict(status="ERROR", message=e.message)
 
-        return Response(json.dumps(data), content_type="application/json")
+        return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __deny_csr_api(self, common_name):
         try:
@@ -163,7 +163,7 @@ class AdminEndpoints(object):
         except ValueError as e:
             data = dict(status="ERROR", message=e.message)
 
-        return Response(json.dumps(data), content_type="application/json")
+        return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __delete_csr_api(self, common_name):
         try:
@@ -173,17 +173,17 @@ class AdminEndpoints(object):
         except ValueError as e:
             data = dict(status="ERROR", message=e.message)
 
-        return Response(json.dumps(data), content_type="application/json")
+        return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __pending_csrs_api(self):
         csrs = [c for c in self._certs.get_pending_csr_requests()]
-        return Response(json.dumps(csrs), content_type="application/json")
+        return Response(jsonapi.dumps(csrs), content_type="application/json")
 
     def __cert_list_api(self):
 
         subjects = [dict(common_name=x.common_name)
                     for x in self._certs.get_all_cert_subjects()]
-        return Response(json.dumps(subjects), content_type="application/json")
+        return Response(jsonapi.dumps(subjects), content_type="application/json")
 
     def add_user(self, username, unencrypted_pw, groups=[], overwrite=False):
         if self._userdict.get(username):

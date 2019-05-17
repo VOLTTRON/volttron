@@ -60,7 +60,6 @@ used in:
 """
 
 import logging
-import json
 import re
 from requests.exceptions import ConnectionError
 
@@ -68,6 +67,7 @@ from dateutil import parser
 from influxdb import InfluxDBClient
 from influxdb.exceptions import InfluxDBClientError
 
+from volttron.platform import jsonapi
 from volttron.platform.agent.utils import format_timestamp
 
 _log = logging.getLogger(__name__)
@@ -243,7 +243,7 @@ def get_topic_meta(client, topic_id):
     rs = client.query(query)
     rs = list(rs.get_points())
     meta = rs[0]['meta_dict'].replace("u'", "\"").replace("'", "\"")
-    return json.loads(meta)
+    return jsonapi.loads(meta)
 
 
 def get_all_topic_id_and_meta(client):
@@ -266,7 +266,7 @@ def get_all_topic_id_and_meta(client):
     for point in rs:
         topic_id_map[point['topic_id']] = point['topic']
         meta = point['meta_dict'].replace("u'", "\"").replace("'", "\"")
-        meta_dicts[point['topic_id']] = json.loads(meta)
+        meta_dicts[point['topic_id']] = jsonapi.loads(meta)
 
     return topic_id_map, meta_dicts
 
@@ -334,7 +334,7 @@ def insert_data_point(client, time, topic_id, source, value, value_string):
     try:
         client.write_points(json_body)
     except InfluxDBClientError as e:
-        matching = re.findall('type \w+', json.loads(e.content)["error"])
+        matching = re.findall('type \w+', jsonapi.loads(e.content)["error"])
         inserted_type = matching[1]
         existed_type = matching[2]
         _log.warning('{} value exists as {}, while inserted value={} has {}'.format(measurement,

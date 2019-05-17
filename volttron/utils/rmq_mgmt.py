@@ -48,7 +48,7 @@ import requests
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 from volttron.platform import certs
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 from . rmq_config_params import RMQConfig
 
 _log = logging.getLogger(__name__)
@@ -698,7 +698,7 @@ class RabbitMQMgmt(object):
             # Wait for few more seconds and retry again
             gevent.sleep(5)
             response = self.create_vhost(vhost, ssl_auth=False)
-            print "Cannot create vhost {}".format(vhost)
+            print(f"Cannot create vhost {vhost}")
             return response
 
         # Create admin user for the instance

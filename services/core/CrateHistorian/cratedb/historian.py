@@ -75,7 +75,7 @@ from volttron.platform.agent.utils import get_utc_seconds_from_epoch
 from volttron.utils.docs import doc_inherit
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 
 
 __version__ = '3.0'

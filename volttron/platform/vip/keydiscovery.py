@@ -45,7 +45,7 @@ import os
 import grequests
 from datetime import datetime, timedelta
 from zmq import ZMQError
-from zmq.utils import jsonapi
+from volttron.platform import jsonapi
 from gevent.lock import Semaphore
 
 from volttron.platform.agent import utils

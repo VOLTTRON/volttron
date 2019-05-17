@@ -69,7 +69,7 @@ from .router import BaseRouter
 from Queue import Queue
 from ..keystore import KeyStore
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 
 __all__ = ['RMQRouter']
 

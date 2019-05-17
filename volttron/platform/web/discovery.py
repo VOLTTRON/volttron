@@ -3,7 +3,7 @@ from urlparse import urlparse, urljoin
 
 import requests
 
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 from volttron.platform.certs import Certs
 
 _log = logging.getLogger(__name__)

@@ -43,7 +43,7 @@
 import collections
 
 import zmq
-from zmq.utils import jsonapi
+from volttron.platform import jsonapi
 
 from .headers import Headers
 

@@ -55,13 +55,14 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import json
+
 import logging
 import os
 
 import pika
 import errno
 
+from volttron.platform import jsonapi
 from volttron.platform.agent.utils import get_fq_identity
 from volttron.platform.vip.socket import Message
 from volttron.platform.vip import BaseConnection
@@ -290,7 +291,7 @@ class RMQConnection(BaseConnection):
         msg.platform = platform
         msg.id = props.message_id
         msg.subsystem = props.type
-        msg.args = json.loads(body)
+        msg.args = jsonapi.loads(body)
         if self._vip_handler:
             self._vip_handler(msg)
 
@@ -371,7 +372,7 @@ class RMQConnection(BaseConnection):
         try:
             self.channel.basic_publish(self.exchange,
                                        destination_routing_key,
-                                       json.dumps(msg, ensure_ascii=False),
+                                       jsonapi.dumps(msg, ensure_ascii=False),
                                        properties)
         except (pika.exceptions.AMQPConnectionError,
                 pika.exceptions.AMQPChannelError) as exc:
@@ -529,7 +530,7 @@ class RMQRouterConnection(RMQConnection):
         try:
             self.channel.basic_publish(self.exchange,
                                        sender,
-                                       json.dumps(message, ensure_ascii=False),
+                                       jsonapi.dumps(message, ensure_ascii=False),
                                        props)
         except AssertionError:
             pass
