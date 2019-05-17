@@ -23,7 +23,7 @@ def get_hostname_and_random_port(min_ip=5000, max_ip=6000):
     except socket.gaierror:
         err = "Lookup of hostname {} unssucessful, please verify your /etc/hosts " \
               "doesn't have a local resolution to hostname".format(hostname)
-        raise StandardError(err)
+        raise Exception(err)
     return hostname, port
 
 

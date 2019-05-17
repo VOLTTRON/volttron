@@ -57,19 +57,21 @@
 
 
 from __future__ import absolute_import
-import logging
-import pika
-import os
+
 import errno
+import logging
+import os
+from queue import Queue
+
+import pika
 
 from .rmq_connection import RMQRouterConnection
-from .socket import Message, Address
-from ..main import __version__
 from .router import BaseRouter
-from Queue import Queue
+from .socket import Message, Address
 from ..keystore import KeyStore
-from volttron.utils.rmq_mgmt import RabbitMQMgmt
-from volttron.platform import jsonapi
+from ..main import __version__
+from ...platform import jsonapi
+from ...utils.rmq_mgmt import RabbitMQMgmt
 
 __all__ = ['RMQRouter']
 

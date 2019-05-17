@@ -37,7 +37,6 @@
 # }}}
 
 
-
 import heapq
 import inspect
 import logging
@@ -51,14 +50,15 @@ import warnings
 import weakref
 from contextlib import contextmanager
 from errno import ENOENT
+from urllib.parse import urlsplit, parse_qs
 
 import gevent.event
+import pika
 from gevent.queue import Queue
 from zmq import green as zmq
-from zmq.green import ZMQError, EAGAIN, ENOTSOCK, EADDRINUSE
+from zmq.green import ZMQError, EAGAIN, ENOTSOCK
 from zmq.utils.monitor import recv_monitor_message
 
-from volttron.platform import certs
 from volttron.platform import get_address
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import load_platform_config, get_platform_instance_name
@@ -72,7 +72,6 @@ from ..rmq_connection import RMQConnection
 from ..socket import Message
 from ..zmq_connection import ZMQConnection
 from .... import platform
-import pika
 
 __all__ = ['BasicCore', 'Core', 'RMQCore', 'ZMQCore', 'killing']
 
@@ -696,8 +695,8 @@ class ZMQCore(Core):
         return known_hosts.serverkey(self.address)
 
     def _get_keys_from_addr(self):
-        url = list(urlparse.urlsplit(self.address))
-        query = urlparse.parse_qs(url[3])
+        url = list(urlsplit(self.address))
+        query = parse_qs(url[3])
         publickey = query.get('publickey', [None])[0]
         secretkey = query.get('secretkey', [None])[0]
         serverkey = query.get('serverkey', [None])[0]

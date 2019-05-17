@@ -63,7 +63,10 @@ install_requires = [
     'ws4py',
 
     # Web stuff probably needs to be in optional
-    'jwt'
+    'jwt',
+    'jinja2',
+    'parselib',
+    'argon2_cffi'
 ]
 
 extras_require = {

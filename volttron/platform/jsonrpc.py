@@ -46,7 +46,8 @@ from contextlib import contextmanager
 
 from volttron.platform import jsonapi
 
-__all__ = ['Error', 'MethodNotFound', 'RemoteError', 'Dispatcher']
+__all__ = ['Error', 'MethodNotFound', 'RemoteError', 'Dispatcher',
+           'json_result', 'json_validate_request', 'json_validate_response']
 
 
 PARSE_ERROR = -32700

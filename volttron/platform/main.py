@@ -615,9 +615,9 @@ def start_volttron_process(opts):
         opts.web_ssl_cert = config.expandall(opts.web_ssl_cert)
 
     if opts.web_ssl_key and not opts.web_ssl_cert:
-        raise StandardError("If web-ssl-key is specified web-ssl-cert MUST be specified.")
+        raise Exception("If web-ssl-key is specified web-ssl-cert MUST be specified.")
     if opts.web_ssl_cert and not opts.web_ssl_key:
-        raise StandardError("If web-ssl-cert is specified web-ssl-key MUST be specified.")
+        raise Exception("If web-ssl-cert is specified web-ssl-key MUST be specified.")
 
     if opts.web_ca_cert:
         assert os.path.isfile(opts.web_ca_cert), "web_ca_cert does not exist!"
@@ -641,13 +641,13 @@ def start_volttron_process(opts):
         opts.bind_web_address = config.expandall(opts.bind_web_address)
         if opts.message_bus == 'zmq' and parsed.scheme == 'https':
             if not opts.web_ssl_key or not opts.web_ssl_cert:
-                raise StandardError("zmq https requires a web-ssl-key and a web-ssl-cert file.")
+                raise Exception("zmq https requires a web-ssl-key and a web-ssl-cert file.")
             if not os.path.isfile(opts.web_ssl_key) or not os.path.isfile(opts.web_ssl_cert):
-                raise StandardError("zmq https requires a web-ssl-key and a web-ssl-cert file.")
+                raise Exception("zmq https requires a web-ssl-key and a web-ssl-cert file.")
     if opts.volttron_central_address:
         parsed = urlparse.urlparse(opts.volttron_central_address)
         if parsed.scheme not in ('http', 'https', 'tcp', 'amqp', 'amqps'):
-            raise StandardError(
+            raise Exception(
                 'volttron-central-address must begin with tcp, amqp, amqps, http or https.')
         opts.volttron_central_address = config.expandall(
             opts.volttron_central_address)

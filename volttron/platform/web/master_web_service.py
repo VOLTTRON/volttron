@@ -37,45 +37,36 @@
 # }}}
 
 import base64
-from collections import defaultdict
-
 import logging
+import mimetypes
 import os
 import re
 import zlib
-import requests
-import base64
-from urllib.parse import urlparse, urljoin
+from collections import defaultdict
 
 import gevent
 import gevent.pywsgi
-from ws4py.server.geventserver import WSGIServer
-import mimetypes
-from jinja2 import Environment, FileSystemLoader, select_autoescape
-
-
-from volttron.utils import is_ip_private
-from volttron.platform.agent.web import Response
-from volttron.platform.agent.utils import get_fq_identity
-from volttron.platform.certs import Certs
-from volttron.platform.auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
-
-from volttron.platform.vip.agent.subsystems import query
-from volttron.platform import jsonapi
-
-from .auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
-from .vip.agent import Agent, Core, RPC
-from .vip.agent.subsystems import query
-from .jsonrpc import (
-    json_result, json_validate_request, UNAUTHORIZED)
-from volttron.platform.vip.socket import encode_key
 from cryptography.hazmat.primitives import serialization
-from volttron.utils.rmq_config_params import RMQConfig
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+from ws4py.server.geventserver import WSGIServer
 
-from webapp import WebApplicationWrapper
-from admin_endpoints import AdminEndpoints
-from authenticate_endpoint import AuthenticateEndpoints
-from csr_endpoints import CSREndpoints
+from .admin_endpoints import AdminEndpoints
+from .authenticate_endpoint import AuthenticateEndpoints
+from .csr_endpoints import CSREndpoints
+from .webapp import WebApplicationWrapper
+from ..agent.utils import get_fq_identity
+from ..agent.web import Response
+from ..auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
+from ..certs import Certs
+from ..jsonrpc import (json_result,
+                       json_validate_request,
+                       UNAUTHORIZED)
+from ..vip.agent import Agent, Core, RPC
+from ..vip.agent.subsystems import query
+from ..vip.socket import encode_key
+from ...platform import jsonapi
+from ...utils import is_ip_private
+from ...utils.rmq_config_params import RMQConfig
 
 _log = logging.getLogger(__name__)
 

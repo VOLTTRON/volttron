@@ -76,7 +76,7 @@ def dnp3_agent(config_path, **kwargs):
     """
     try:
         config = utils.load_config(config_path)
-    except StandardError:
+    except Exception:
         config = {}
     return DNP3Agent(points=config.get('points', None),
                      point_topic=config.get('point_topic', 'dnp3/point'),

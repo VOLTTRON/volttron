@@ -159,7 +159,7 @@ def load_config(config_path):
         try:
             with open(config_path) as f:
                 return parse_json_config(f.read())
-        except StandardError as e:
+        except Exception as e:
             _log.error("Problem parsing agent configuration")
             raise
 

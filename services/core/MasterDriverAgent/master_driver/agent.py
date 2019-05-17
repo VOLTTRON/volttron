@@ -348,7 +348,7 @@ class MasterDriverAgent(Agent):
 
         try:
             driver.core.stop(timeout=5.0)
-        except StandardError as e:
+        except Exception as e:
             _log.error("Failure during {} driver shutdown: {}".format(real_name, e))
 
         bisect.insort(self.freed_time_slots[driver.group], driver.time_slot)

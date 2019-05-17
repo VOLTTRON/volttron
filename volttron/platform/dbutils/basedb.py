@@ -70,7 +70,7 @@ def closing(obj):
             if exc.__class__.__module__ == 'builtins':
                 # Don't ignore built-in exceptions because they likely indicate
                 # a bug that should stop execution. psycopg2.Error subclasses
-                # StandardError, so the module must also be checked. :-(
+                # Exception, so the module must also be checked. :-(
                 raise
             _log.exception('An exception was raised while closing '
                            'the cursor and is being ignored.')
