@@ -463,10 +463,13 @@ class PubSub(BasePubSub):
         bus_subscriptions = dict()
         if prefix is None:
             if callback is None:
-                if platform in self._my_subscriptions:
+                if len(self._my_subscriptions) and platform in \
+                        self._my_subscriptions:
                     bus_subscriptions = self._my_subscriptions[platform]
-                if bus in bus_subscriptions:
-                    topics.extend(bus_subscriptions[bus].keys())
+                    if bus in bus_subscriptions:
+                        topics.extend(bus_subscriptions[bus].keys())
+                if not len(topics):
+                    return []
             else:
                 if platform in self._my_subscriptions:
                     bus_subscriptions = self._my_subscriptions[platform]

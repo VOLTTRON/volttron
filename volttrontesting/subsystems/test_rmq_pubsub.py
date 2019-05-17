@@ -287,6 +287,10 @@ def test_multi_unsubscribe(volttron_instance):
         callback='subscription_callback')
     subscriber_agent.subscription_callback.reset_mock()
 
+    # test unsubscribe all when there are no subscriptions
+    subscriber_agent.vip.pubsub.unsubscribe("pubsub", prefix=None,
+                                            callback=None)
+
     publisher_agent = volttron_instance.build_agent()
 
     topic_to_check = "testtopic1/test/foo/bar/one"
