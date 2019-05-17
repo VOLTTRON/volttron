@@ -9,7 +9,7 @@ import yaml
 
 from volttron.platform.agent.utils import execute_command
 
-logging.basicConfig(level=logging.WARN)
+logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(os.path.basename(__file__))
 
 # determine whether or not the script is being run from an activated environment
@@ -94,14 +94,16 @@ def remove_agent(opts, agent_uuid):
 
 def install_requirements(agent_source):
     req_file = os.path.join(agent_source, "requirements.txt")
+
     if os.path.exists(req_file):
-        log.info("Installing requirements for agent.")
+        log.info(f"Installing requirements for agent from {req_file}.")
         cmds = ["pip", "install", "-r", req_file]
         try:
             execute_command(cmds, logger=log,
                             err_prefix="Error installing requirements")
         except RuntimeError:
             sys.exit(1)
+
 
 def install_agent(opts, package, config):
     """
