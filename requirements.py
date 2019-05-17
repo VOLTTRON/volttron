@@ -65,7 +65,7 @@ install_requires = [
     # Web stuff probably needs to be in optional
     'jwt',
     'jinja2',
-    'parselib',
+    'passlib',
     'argon2_cffi'
 ]
 
