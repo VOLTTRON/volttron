@@ -276,8 +276,7 @@ class Auth(SubsystemBase):
                                  verify=False)
 
         _log.debug("The response: {}".format(response))
-        # from pprint import pprint
-        # pprint(response.json())
+
         j = response.json()
         status = j.get('status')
         cert = j.get('cert')

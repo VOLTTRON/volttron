@@ -680,7 +680,7 @@ def main():
     if args.instance_name:
         _update_config_file(instance_name=args.instance_name)
     if args.list_agents:
-        print "Agents available to configure:{}".format(agent_list)
+        print(f"Agents available to configure: {agent_list}")
 
     elif args.rabbitmq:
         if len(args.rabbitmq) > 2:

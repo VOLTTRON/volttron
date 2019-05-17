@@ -108,10 +108,10 @@ class dualmethod(object):
     >>> class Foo(object):
     ...     @dualmethod
     ...     def bar(self):
-    ...         print 'instance method for', self
+    ...         print('instance method for', self)
     ...     @bar.classmethod
     ...     def bar(cls):
-    ...         print 'class method for', cls
+    ...         print('class method for', cls)
     ...
     >>> Foo.bar()
     class method for <class '__main__.Foo'>

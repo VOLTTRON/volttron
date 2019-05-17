@@ -1722,7 +1722,6 @@ def test_revert_point(publish_agent, cancel_schedules):
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    # print result
     assert result['result'] == 'SUCCESS'
 
     revert_topic = topics.ACTUATOR_REVERT_POINT(campus='', building='',
@@ -1970,7 +1969,6 @@ def test_set_read_only_point(publish_agent, cancel_schedules):
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    # print result
     assert result['result'] == 'SUCCESS'
     # set value
     header = {

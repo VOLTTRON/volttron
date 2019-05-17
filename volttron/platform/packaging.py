@@ -89,6 +89,7 @@ class AgentPackageError(Exception):
     """Raised for errors during packaging, extraction and signing."""
     pass
 
+
 def _get_agent_template_list():
     data_root = get_volttron_data()
     template_path = os.path.join(data_root, AGENT_TEMPLATE_PATH)
@@ -123,6 +124,7 @@ def _load_agent_template(template_name):
 
     return setup_template, agent_template, config_template
 
+
 def _get_agent_metadata(silent):
     results = {
         "version": "0.1",
@@ -143,6 +145,7 @@ def _get_agent_metadata(silent):
 
     return results
 
+
 def _get_setup_py(template, agent_package, metadata):
     metadata_strings = []
 
@@ -156,6 +159,7 @@ def _get_setup_py(template, agent_package, metadata):
     template = template.replace("__meta_data__", metadata_string)
 
     return template
+
 
 def _get_agent_py(template, module_name, class_name, version, agent_id):
     template = template.replace("__version_string__", version)
@@ -636,29 +640,10 @@ def main(argv=sys.argv):
         sign_cmd.add_argument('package', metavar='PACKAGE',
                               help='agent package to sign')
 
-        #restricted = subparsers.add_parser('sign')
-        #         restricted.add_argument('package',
-        #             help='The agent package to sign (whl).')
-
         verify_cmd = subparsers.add_parser('verify',
                                            help='verify an agent package')
         verify_cmd.add_argument('package', metavar='PACKAGE',
                                 help='agent package to verify')
-
-    #         enable_restricted_parser = subparsers.add_parser('enable-restricted',
-    #             help='Enable the restricted features of VOLTTRON')
-    #
-    #         creator_key_parser = subparsers.add_parser('set-creator-key',
-    #             help='Set the key for the creator of the agent code')
-    #
-    #         soi_admin_key_parser = subparsers.add_parser('set-SOI-admin-key',
-    #             help='Set the key for administrator of this Scope of Influence')
-    #
-    #         initiator_key_parser = subparsers.add_parser('set-initiator-key',
-    #             help='Set the key for the initator of this agent')
-    #
-    #         source_key_parser = subparsers.add_parser('set-source-key',
-    #             help='Set the key for the most recent host of this agent')
 
     opts = parser.parse_args(argv[1:])
 
@@ -719,17 +704,12 @@ def main(argv=sys.argv):
                             _create_cert(name=opts.name, **user_type)
                 except auth.AuthError as e:
                     _log.error(e.message)
-                    #print(e.message)
 
-
-    #         elif opts.subparser_name == 'create_cert':
-    #             _create_cert(name=opts.name, **)
     except AgentPackageError as e:
         _log.error(e.message)
-        #print(e.message)
+
     except Exception as e:
         _log.error(str(e))
-        #print e
 
     if whl_path:
         print("Package created at: {whl_path}")

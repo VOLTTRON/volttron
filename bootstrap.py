@@ -373,8 +373,8 @@ def main(argv=sys.argv):
         args = [env_exe, __file__]
         if options.verbose is not None:
             args.append('--verbose' if options.verbose else '--quiet')
-        if options.rabbitmq is not None:
-            args.append('--rabbitmq={}'.format(options.rabbitmq))
+        # if options.rabbitmq is not None:
+        #     args.append('--rabbitmq={}'.format(options.rabbitmq))
         # Transfer dynamic properties to the subprocess call 'update'.
         # Clip off the first two characters expecting long parameter form.
         for arg in options.optional_args:

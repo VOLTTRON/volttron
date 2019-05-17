@@ -177,28 +177,6 @@ class ThermostatInterface(object):
             return json.dumps(parsed)
         except Exception as parsed:
             return parsed
-    #
-    # def save_energy(self,point='',data=''):
-    #     '''  energy svaing feature'''
-    #     url = self.urladdress+"/save_energy"
-    #     if data == '':
-    #         try:
-    #             mode =  (urllib2.urlopen(url))
-    #             parsed = json.loadb(mode.read())
-    #
-    #             return json.dumps(parsed)
-    #         except Exception as parsed:
-    #             return parsed
-    #     else:
-    #         msg = { point : data}
-    #         value = json.dumps(msg)
-    #         try:
-    #             mode =  (urllib2.urlopen(url))
-    #             parsed = json.loadb(mode.read())
-    #             print json.dumps(parsed)
-    #             return json.dumps(parsed)
-    #         except Exception as parsed:
-    #             return parsed
 
     def get_heat_pgm(self,day=''):
         ''' get heat program for a week or a specific day
@@ -223,7 +201,6 @@ class ThermostatInterface(object):
 
         except Exception as parsed:
             return parsed
-
 
     def get_cool_pgm(self,day=''):
         ''' get cool program for a week or a specific day
@@ -289,7 +266,6 @@ class ThermostatInterface(object):
                 return json.dumps(parsed)
             except Exception as parsed:
                 return parsed
-
 
     def set_heat_pgm(self,schedules,day=''):
         """

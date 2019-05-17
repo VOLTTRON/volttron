@@ -56,6 +56,9 @@ install_requires = [
     'pyzmq',
     'setuptools',
     'tzlocal',
+    # Cross platform way of handling changes in file/directories.
+    # https://github.com/Bogdanp/watchdog_gevent
+    'watchdog_gevent',
     'wheel==0.30',
     'ws4py'
 ]
@@ -70,11 +73,8 @@ extras_require = {
         'crate',
         'influxdb',
     ],
-    'drivers': [
-        'pymodbus',
-        'bacpypes',
-        'modbus-tk',
-        'pyserial'
+    'dnp3': [  # dnp3 agent requirements.
+        'pydnp3'
     ],
     'documentation': [  # Requirements for building the documentation
         'mock',
@@ -84,6 +84,15 @@ extras_require = {
         'sphinx',
         'recommonmark',
         'sphinx_rtd_theme'
+    ],
+    'drivers': [
+        'pymodbus',
+        'bacpypes',
+        'modbus-tk',
+        'pyserial'
+    ],
+    'influxdb': [  # influxdb historian requirements.
+        'influxdb'
     ],
     'market': [  # Requirements for the market service
         'numpy',
@@ -105,10 +114,9 @@ extras_require = {
         'pytest-timeout',
         'websocket-client',
     ],
-    'dnp3': [  # dnp3 agent requirements.
-        'pydnp3'
-    ],
-    'influxdb': [  # influxdb historian requirements.
-        'influxdb'
+    'rabbitmq': [
+        'wget',
+        'cryptography',
+        'pika'
     ],
 }

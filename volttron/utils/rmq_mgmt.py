@@ -37,16 +37,10 @@
 # }}}
 
 import logging
-import os
 import ssl
 import pika
 
 from volttron.platform.agent.utils import get_fq_identity
-
-try:
-    import yaml
-except ImportError:
-    raise RuntimeError('PyYAML must be installed before running this script ')
 
 import grequests
 import gevent
@@ -55,7 +49,7 @@ from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 from volttron.platform import certs
 from volttron.platform.agent import json as jsonapi
-from rmq_config_params import RMQConfig
+from . rmq_config_params import RMQConfig
 
 _log = logging.getLogger(__name__)
 
@@ -233,7 +227,6 @@ class RabbitMQMgmt(object):
         if not password:
             password = self.rmq_config.default_pass
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
-        # print "Creating new USER: {}, ssl {}".format(user, ssl)
 
         body = dict(password=password, tags=tags)
 

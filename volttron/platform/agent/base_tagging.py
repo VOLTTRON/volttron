@@ -1051,13 +1051,7 @@ if __name__ == "__main__":
 
     print("USER QUERY:\n{}".format(query))
     print("pretty print:\n{}".format(pretty_print(ast)))
-    # print ("MONGO QUERY AND SUB QUERIES")
-    # sub = list()
-    # c = mongoutils.get_tagging_queries_from_ast(ast, tag_refs, sub)
-    # print("Main query: {}".format(c))
-    # print("Sub query:{}".format(sub))
-
-    print ("SQLITE QUERY:")
+    print("SQLITE QUERY:")
     print(SqlLiteFuncts.get_tagging_query_from_ast("topic_tags", ast,
                                                    tag_refs))
 

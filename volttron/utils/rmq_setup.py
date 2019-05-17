@@ -51,7 +51,7 @@ from shutil import copy
 import gevent
 import yaml
 
-from rmq_mgmt import RabbitMQMgmt
+from . rmq_mgmt import RabbitMQMgmt
 from volttron.platform import certs
 from volttron.platform import get_home
 from volttron.platform.agent.utils import (store_message_bus_config,
