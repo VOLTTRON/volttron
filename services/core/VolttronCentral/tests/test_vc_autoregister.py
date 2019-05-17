@@ -42,15 +42,15 @@ def multi_messagebus_vc_vcp(volttron_multi_messagebus):
                                             "json").get()
     # "manage_store", opts.identity, opts.name, file_contents, config_type = opts.config_type
 
-    yield vcp_instance, vc_instance
+    yield vcp_instance, vc_instance, vcp_uuid
 
     vcp_instance.remove_agent(vcp_uuid)
     vc_instance.remove_agent(vc_uuid)
 
 
-def test_able_to_register(multi_messagebus_vc_vcp):
+def test_able_to_register_unregister(multi_messagebus_vc_vcp):
     gevent.sleep(10)
-    vcp_instance, vc_instance = multi_messagebus_vc_vcp
+    vcp_instance, vc_instance, vcp_uuid = multi_messagebus_vc_vcp
 
     apitester = APITester(vc_instance)
 
@@ -61,3 +61,10 @@ def test_able_to_register(multi_messagebus_vc_vcp):
 
     assert platform['name'] == vcp_instance.instance_name
 
+    vcp_instance.stop_agent(vcp_uuid)
+
+    gevent.sleep(12)
+    assert not vcp_instance.is_agent_running(vcp_uuid)
+#    print(vc_instance.dynamic_agent.vip.peerlist().get(timeout=10))
+    platforms = apitester.list_platforms()
+    assert len(platforms) == 0

@@ -303,6 +303,7 @@ class BasicCore(object):
         self.onfinish.send(self)
 
     def stop(self, timeout=None):
+
         def halt():
             self._stop_event.set()
             self.greenlet.join(timeout)
@@ -515,6 +516,13 @@ class Core(BasicCore):
                          fset=lambda self, v: self.set_connected(v)
                          )
 
+    def stop(self, timeout=None, platform_shutdown=False):
+        # Send message to router that this agent is stopping
+        if self.__connected and not platform_shutdown:
+            frames = [bytes(self.identity)]
+            self.connection.send_vip(b'', 'agentstop', args=frames, copy=False)
+        super(Core, self).stop(timeout=timeout)
+
     # This function moved directly from the zmqcore agent.  it is included here because
     # when we are attempting to connect to a zmq bus from a rmq bus this will be used
     # to create the public and secret key for that connection or use it if it was already
@@ -597,6 +605,7 @@ class Core(BasicCore):
                 running_event.set()
 
         return connection_failed_check, hello, hello_response
+
 
 class ZMQCore(Core):
     """
@@ -772,6 +781,7 @@ class ZMQCore(Core):
                             self.socket.monitor(None, 0)
                     except Exception as exc:
                         _log.debug("Error in closing the socket: {}".format(exc.message))
+
 
         self.onconnected.connect(hello_response)
         self.ondisconnected.connect(close_socket)
