@@ -724,22 +724,23 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None):
 def execute_command_p(cmds, env=None, cwd=None, logger=None, err_prefix=None):
     """ Executes a given command. If commands return code is 0 return stdout.
     If not logs stderr and raises RuntimeException"""
-    process = Popen(cmds, env=env, cwd=cwd, stderr=subprocess.PIPE,
-                    stdout=subprocess.PIPE)
-    (output, error) = process.communicate()
-    if not err_prefix:
+    if cwd is None:
+        cwd = os.getcwd()
+
+    results = subprocess.run(cmds, env=env, cwd=cwd,
+                             stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    if results.returncode != 0:
         err_prefix = "Error executing command"
-    if process.returncode != 0:
         err_message = "\n{}: Below Command failed with non zero exit code.\n" \
                       "Command:{} \nStderr:\n{}\n".format(err_prefix,
-                                                          " ".join(cmds),
-                                                          error)
+                                                          results.args,
+                                                          results.stderr)
         if logger:
             logger.exception(err_message)
             raise RuntimeError()
         else:
             raise RuntimeError(err_message)
-    return process.returncode, output
+    return results.returncode, results.stdout
 
 
 def is_volttron_running(volttron_home):
