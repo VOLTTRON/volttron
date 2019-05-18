@@ -79,7 +79,7 @@ class ZMQConnection(BaseConnection):
         if type == zmq.DEALER:
             self.socket = GreenSocket(self.context)
             if self._identity:
-                self.socket.identity = self._identity
+                self.socket.identity = self._identity.encode('utf-8')
         else:
             self.socket = zmq.Socket()
 

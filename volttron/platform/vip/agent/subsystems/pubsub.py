@@ -324,20 +324,20 @@ class PubSub(BasePubSub):
             {platform: {bus: subscriptions.keys()} for platform, bus_subscriptions in self._my_subscriptions.items()
              for bus, subscriptions in bus_subscriptions.items()}]
         for subscriptions in items:
-            sync_msg = jsonapi.dumps(
+            sync_msg = jsonapi.dumpb(
                 dict(subscriptions=subscriptions)
             )
             frames = [b'synchronize', b'connected', sync_msg]
             # For backward compatibility with old pubsub
             if self._send_via_rpc:
                 delay = random.random()
-                self.core().spawn_later(delay, self.rpc().notify, 'pubsub', 'pubsub.sync', subscriptions)
+                self.core().spawn_later(delay, self.rpc().notify, b'pubsub', b'pubsub.sync', subscriptions)
             else:
                 # Parameters are stored initially, in case remote agent/platform is using old pubsub
                 if self._parameters_needed:
-                    kwargs = dict(op='synchronize', subscriptions=subscriptions)
+                    kwargs = dict(op=b'synchronize', subscriptions=subscriptions)
                     self._save_parameters(result.ident, **kwargs)
-                self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
+                self.vip_socket.send_vip(b'', b'pubsub', frames, result.ident.encode('utf-8'), copy=False)
 
     def list(self, peer, prefix='', bus='', subscribed=True, reverse=False, all_platforms=False):
         """Gets list of subscriptions matching the prefix and bus for the specified peer.
@@ -416,7 +416,7 @@ class PubSub(BasePubSub):
         Success or Failure
         """
         # For backward compatibility with old pubsub
-        if self._send_via_rpc == True:
+        if self._send_via_rpc:
             self._add_subscription(prefix, callback, bus)
             return self.rpc().call(peer, 'pubsub.subscribe', prefix, bus=bus)
         else:
@@ -588,7 +588,7 @@ class PubSub(BasePubSub):
             self.vip_socket.send_vip(b'', b'pubsub', frames, result.ident.encode('utf-8'), copy=False)
             return result
 
-    def publish(self, peer, topic, headers=None, message=None, bus=''):
+    def publish(self, peer: str, topic: str, headers=None, message=None, bus=''):
         """Publish a message to a given topic via a peer.
 
         Publish headers and message to all subscribers of topic on bus.
@@ -633,14 +633,10 @@ class PubSub(BasePubSub):
                               headers=headers, message=message)
                 self._save_parameters(result.ident, **kwargs)
             # TODO: Look at this!
-            json_msg = jsonapi.dumpb(dict(bus=bus, headers=headers, message=message))
-            frames = [zmq.Frame(b'publish'), zmq.Frame(topic.encode('utf-8')), zmq.Frame(json_msg)]
-            #<recipient, subsystem, args, msg_id, flags>
-            self.vip_socket.send_vip(b'', b'pubsub', frames, result.ident.encode('utf-8'), copy=False)
-            json_msg = jsonapi.dumps(dict(bus=bus, headers=headers, message=message))
-            frames = [zmq.Frame(b'publish'), zmq.Frame(str(topic)), zmq.Frame(str(json_msg))]
+            json_bytes = jsonapi.dumpb(dict(bus=bus, headers=headers, message=message))
+            frames = [zmq.Frame(b'publish'), zmq.Frame(topic.encode('utf-8')), zmq.Frame(json_bytes)]
             # <recipient, subsystem, args, msg_id, flags>
-            self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
+            self.vip_socket.send_vip(b'', b'pubsub', frames, result.ident.encode('utf-8'), copy=False)
             return result
 
     def _check_if_protected_topic(self, topic):

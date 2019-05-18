@@ -50,7 +50,7 @@ import warnings
 import weakref
 from contextlib import contextmanager
 from errno import ENOENT
-from urllib.parse import urlsplit, parse_qs
+from urllib.parse import urlsplit, parse_qs, urlunsplit
 
 import gevent.event
 import pika
@@ -653,18 +653,18 @@ class ZMQCore(Core):
         they are not already present'''
 
         def add_param(query_str, key, value):
-            query_dict = urlparse.parse_qs(query_str)
+            query_dict = parse_qs(query_str)
             if not value or key in query_dict:
                 return ''
             # urlparse automatically adds '?', but we need to add the '&'s
             return '{}{}={}'.format('&' if query_str else '', key, value)
 
-        url = list(urlparse.urlsplit(self.address))
+        url = list(urlsplit(self.address))
         if url[0] in ['tcp', 'ipc']:
             url[3] += add_param(url[3], 'publickey', self.publickey)
             url[3] += add_param(url[3], 'secretkey', self.secretkey)
             url[3] += add_param(url[3], 'serverkey', self.serverkey)
-            self.address = str(urlparse.urlunsplit(url))
+            self.address = str(urlunsplit(url))
 
     def _set_public_and_secret_keys(self):
         if self.publickey is None or self.secretkey is None:

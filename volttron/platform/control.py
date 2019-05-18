@@ -72,7 +72,7 @@ from volttron.platform.auth import AuthEntry, AuthFile, AuthException
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.socket import Message
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
-from .vip.agent.errors import VIPError
+from volttron.platform.vip.agent.errors import VIPError
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import check_rabbit_status
 from volttron.utils.rmq_config_params import RMQConfig

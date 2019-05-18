@@ -346,13 +346,19 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
 
     Returns The path and file name of the packaged whl file.
     """
-    tmpdir = tempfile.mkdtemp()
     try:
+        tmpdir = tempfile.mkdtemp()
+
         builddir = os.path.join(tmpdir, 'pkg')
         distdir = os.path.join(builddir, 'dist')
         shutil.copytree(agent_dir_to_package, builddir)
         cmd = [sys.executable, 'setup.py', '--no-user-cfg', 'bdist_wheel']
-        execute_command(cmd, cwd=builddir, logger=_log)
+        response = subprocess.run(cmd, cwd=builddir, stderr=subprocess.PIPE,
+                                  stdout=subprocess.PIPE)
+        if response.returncode != 0:
+            print(response.stderr)
+            return None
+
         wheel_name = os.listdir(distdir)[0]
         wheel_path = os.path.join(distdir, wheel_name)
 
@@ -372,11 +378,8 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
         wheel_dest = os.path.join(wheelhouse, wheel_name)
         shutil.move(wheel_path, wheel_dest)
         return wheel_dest
-    except subprocess.CalledProcessError as ex:
-        traceback.print_last()
     finally:
         shutil.rmtree(tmpdir, True)
-        pass
 
 
 def _files_from_kwargs(**kwargs):
@@ -538,7 +541,7 @@ def main(argv=sys.argv):
         prog=progname,
         description='VOLTTRON packaging and signing utility',
     )
-    parser.set_defaults(log_config=None)
+    parser.set_defaults(log_config=None, verboseness=logging.INFO)
 
     parser.add_argument('-l', '--log', metavar='FILE', default=None,
                         help='send log output to FILE instead of stderr')
@@ -706,13 +709,13 @@ def main(argv=sys.argv):
                     _log.error(e.message)
 
     except AgentPackageError as e:
-        _log.error(e.message)
+        print(e)
 
     except Exception as e:
-        _log.error(str(e))
+        _log.exception(e)
 
     if whl_path:
-        print("Package created at: {whl_path}")
+        print(f"Package created at: {whl_path}")
 
 
 def _main():

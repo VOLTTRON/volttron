@@ -356,7 +356,7 @@ class RPC(SubsystemBase):
     def call(self, peer, method, *args, **kwargs):
         platform = kwargs.pop('external_platform', b'')
         request, result = self._dispatcher.call(method, args, kwargs)
-        ident = f'{next(self._counter)}.{hash(result)}'
+        ident = f'{next(self._counter)}.{hash(result)}'.encode('utf-8')
         self._outstanding[ident] = result
         subsystem = None
         frames = []
@@ -365,16 +365,17 @@ class RPC(SubsystemBase):
             return
 
         if self._message_bus == 'zmq':
-            if platform == '':#local platform
+            if platform == b'':#local platform
                 subsystem = b'RPC'
                 frames.append(request)
                 #self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
             else:
                 frames = []
-                op = b'send_platform'
-                subsystem = b'external_rpc'
+                op = 'send_platform'
+                subsystem = 'external_rpc'
                 frames.append(op)
-                msg = jsonapi.dumps(dict(to_platform=platform, to_peer=peer,
+                request = request.decode('utf-8') if isinstance(request, bytes) else request
+                msg = jsonapi.dumpb(dict(to_platform=platform, to_peer=peer,
                                          from_platform='', from_peer='', args=[request]))
                 frames.append(msg)
                 peer = b''

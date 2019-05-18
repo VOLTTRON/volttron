@@ -393,7 +393,7 @@ class PubSubService(object):
         """
         publisher, receiver, proto, _, msg_id, subsystem, op, topic, data = frames[0:9]
         # Check if peer is authorized to publish the topic
-        errmsg = self._check_if_protected_topic(user_id.bytes.decode("utf-8"), topic.bytes.decode("utf-8"))
+        errmsg = self._check_if_protected_topic(user_id, topic)
 
         # Send error message as peer is not authorized to publish to the topic
         if errmsg is not None:
