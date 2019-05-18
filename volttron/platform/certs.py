@@ -143,8 +143,7 @@ def _create_subject(**kwargs):
     for key in ('C', 'ST', 'L', 'O', 'OU', 'CN'):
         if key in kwargs:
             attributes.append(x509.NameAttribute(nameoid_map[key],
-                                                 kwargs[key].decode(
-                                                     'utf-8')))
+                                                 kwargs[key]))
 
     subject = x509.Name(attributes)
     return subject
@@ -799,9 +798,9 @@ class Certs(object):
                     if type == 'server':
                         # TODO: Also add SubjectAltName
                         if fqdn:
-                            hostname = fqdn.decode('utf-8')
+                            hostname = fqdn
                         else:
-                            hostname = getfqdn().decode('utf-8')
+                            hostname = getfqdn()
                             fqdn = hostname
                         new_attrs.append(RelativeDistinguishedName(
                             [x509.NameAttribute(
@@ -810,7 +809,7 @@ class Certs(object):
                     else:
                         new_attrs.append(RelativeDistinguishedName(
                             [x509.NameAttribute(NameOID.COMMON_NAME,
-                                                name.decode('utf-8'))]))
+                                                name)]))
                 else:
                     new_attrs.append(i)
             subject = x509.Name(new_attrs)
@@ -860,7 +859,7 @@ class Certs(object):
                 critical=False
             )
             cert_builder = cert_builder.add_extension(
-                x509.SubjectAlternativeName((DNSName(fqdn.decode('utf-8')),)),
+                x509.SubjectAlternativeName((DNSName(fqdn),)),
                 critical=True
             )
         elif type == 'client':
