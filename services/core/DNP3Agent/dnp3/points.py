@@ -40,170 +40,11 @@ import pytz
 import re
 
 from pydnp3 import opendnp3
-
-DEFAULT_POINT_TOPIC = 'dnp3/point'
-DEFAULT_OUTSTATION_STATUS_TOPIC = 'mesa/outstation_status'
-DEFAULT_LOCAL_IP = "0.0.0.0"
-DEFAULT_PORT = 20000
-
-# PointDefinition.fcodes values:
-DIRECT_OPERATE = 'direct_operate'       # This is actually DIRECT OPERATE / RESPONSE
-SELECT = 'select'                       # This is actually SELECT / RESPONSE
-OPERATE = 'operate'                     # This is actually OPERATE / RESPONSE
-
-# PointDefinition.action values:
-PUBLISH = 'publish'
-PUBLISH_AND_RESPOND = 'publish_and_respond'
-
-# Some PointDefinition.point_type values:
-POINT_TYPE_ANALOG_INPUT = 'Analog Input'
-POINT_TYPE_ANALOG_OUTPUT = 'Analog Output'
-POINT_TYPE_BINARY_INPUT = 'Binary Input'
-POINT_TYPE_BINARY_OUTPUT = 'Binary Output'
-
-# Default event group and variation for each of these types, in case they weren't spec'd for a point in the data file.
-EVENT_DEFAULTS_BY_POINT_TYPE = {
-    POINT_TYPE_ANALOG_INPUT: {"group": 32, "variation": 3},
-    POINT_TYPE_ANALOG_OUTPUT: {"group": 42, "variation": 3},
-    POINT_TYPE_BINARY_INPUT: {"group": 2, "variation": 1},
-    POINT_TYPE_BINARY_OUTPUT: {"group": 11, "variation": 1}
-}
-
-EVENT_CLASSES = {
-    1: opendnp3.PointClass.Class1,
-    2: opendnp3.PointClass.Class2,
-    3: opendnp3.PointClass.Class3
-}
-
-GROUP_AND_VARIATIONS = {
-    '1.1': opendnp3.StaticBinaryVariation.Group1Var1,
-    '1.2': opendnp3.StaticBinaryVariation.Group1Var2,
-    '2.1': opendnp3.EventBinaryVariation.Group2Var1,
-    '2.2': opendnp3.EventBinaryVariation.Group2Var2,
-    '2.3': opendnp3.EventBinaryVariation.Group2Var3,
-    '3.2': opendnp3.StaticDoubleBinaryVariation.Group3Var2,
-    '4.1': opendnp3.EventDoubleBinaryVariation.Group4Var1,
-    '4.2': opendnp3.EventDoubleBinaryVariation.Group4Var2,
-    '4.3': opendnp3.EventDoubleBinaryVariation.Group4Var3,
-    '10.2': opendnp3.StaticBinaryOutputStatusVariation.Group10Var2,
-    '11.1': opendnp3.EventBinaryOutputStatusVariation.Group11Var1,
-    '11.2': opendnp3.EventBinaryOutputStatusVariation.Group11Var2,
-    '20.1': opendnp3.StaticCounterVariation.Group20Var1,
-    '20.2': opendnp3.StaticCounterVariation.Group20Var2,
-    '20.5': opendnp3.StaticCounterVariation.Group20Var5,
-    '20.6': opendnp3.StaticCounterVariation.Group20Var6,
-    '21.1': opendnp3.StaticFrozenCounterVariation.Group21Var1,
-    '21.2': opendnp3.StaticFrozenCounterVariation.Group21Var2,
-    '21.5': opendnp3.StaticFrozenCounterVariation.Group21Var5,
-    '21.6': opendnp3.StaticFrozenCounterVariation.Group21Var6,
-    '21.9': opendnp3.StaticFrozenCounterVariation.Group21Var9,
-    '21.10': opendnp3.StaticFrozenCounterVariation.Group21Var10,
-    '22.1': opendnp3.EventCounterVariation.Group22Var1,
-    '22.2': opendnp3.EventCounterVariation.Group22Var2,
-    '22.5': opendnp3.EventCounterVariation.Group22Var5,
-    '22.6': opendnp3.EventCounterVariation.Group22Var6,
-    '23.1': opendnp3.EventFrozenCounterVariation.Group23Var1,
-    '23.2': opendnp3.EventFrozenCounterVariation.Group23Var2,
-    '23.5': opendnp3.EventFrozenCounterVariation.Group23Var5,
-    '23.6': opendnp3.EventFrozenCounterVariation.Group23Var6,
-    '30.1': opendnp3.StaticAnalogVariation.Group30Var1,
-    '30.2': opendnp3.StaticAnalogVariation.Group30Var2,
-    '30.3': opendnp3.StaticAnalogVariation.Group30Var3,
-    '30.4': opendnp3.StaticAnalogVariation.Group30Var4,
-    '30.5': opendnp3.StaticAnalogVariation.Group30Var5,
-    '30.6': opendnp3.StaticAnalogVariation.Group30Var6,
-    '32.1': opendnp3.EventAnalogVariation.Group32Var1,
-    '32.2': opendnp3.EventAnalogVariation.Group32Var2,
-    '32.3': opendnp3.EventAnalogVariation.Group32Var3,
-    '32.4': opendnp3.EventAnalogVariation.Group32Var4,
-    '32.5': opendnp3.EventAnalogVariation.Group32Var5,
-    '32.6': opendnp3.EventAnalogVariation.Group32Var6,
-    '32.7': opendnp3.EventAnalogVariation.Group32Var7,
-    '32.8': opendnp3.EventAnalogVariation.Group32Var8,
-    '40.1': opendnp3.StaticAnalogOutputStatusVariation.Group40Var1,
-    '40.2': opendnp3.StaticAnalogOutputStatusVariation.Group40Var2,
-    '40.3': opendnp3.StaticAnalogOutputStatusVariation.Group40Var3,
-    '40.4': opendnp3.StaticAnalogOutputStatusVariation.Group40Var4,
-    '42.1': opendnp3.EventAnalogOutputStatusVariation.Group42Var1,
-    '42.2': opendnp3.EventAnalogOutputStatusVariation.Group42Var2,
-    '42.3': opendnp3.EventAnalogOutputStatusVariation.Group42Var3,
-    '42.4': opendnp3.EventAnalogOutputStatusVariation.Group42Var4,
-    '42.5': opendnp3.EventAnalogOutputStatusVariation.Group42Var5,
-    '42.6': opendnp3.EventAnalogOutputStatusVariation.Group42Var6,
-    '42.7': opendnp3.EventAnalogOutputStatusVariation.Group42Var7,
-    '42.8': opendnp3.EventAnalogOutputStatusVariation.Group42Var8,
-    '50.4': opendnp3.StaticTimeAndIntervalVariation.Group50Var4,
-    '121.1': opendnp3.StaticSecurityStatVariation.Group121Var1,
-    '122.1': opendnp3.EventSecurityStatVariation.Group122Var1,
-    '122.2': opendnp3.EventSecurityStatVariation.Group122Var2
-}
-
-POINT_TYPES_BY_GROUP = {
-    # Single-Bit Binary: See DNP3 spec, Section A.2-A.5 and Table 11-17
-    1: POINT_TYPE_BINARY_INPUT,         # Binary Input (static): Reporting the present value of a single-bit binary object
-    2: POINT_TYPE_BINARY_INPUT,         # Binary Input Event: Reporting single-bit binary input events and flag bit changes
-    # Double-Bit Binary: See DNP3 spec, Section A.4 and Table 11-15
-    3: 'Double Bit Binary',             # Double-Bit Binary Input (static): Reporting present state value
-    4: 'Double Bit Binary',             # Double-Bit Binary Input Event: Reporting double-bit binary input events and flag bit changes
-    # Binary Output: See DNP3 spec, Section A.6-A.9 and Table 11-12
-    10: POINT_TYPE_BINARY_OUTPUT,       # Binary Output (static): Reporting the present output status
-    11: POINT_TYPE_BINARY_OUTPUT,       # Binary Output Event: Reporting changes to the output status or flag bits
-    12: POINT_TYPE_BINARY_OUTPUT,       # Binary Output Command: Issuing control commands
-    13: POINT_TYPE_BINARY_OUTPUT,       # Binary Output Command Event: Reporting control command was issued regardless of its source
-    # Counter: See DNP3 spec, Section A.10-A.13 and Table 11-13
-    20: 'Counter',                      # Counter: Reporting the count value
-    21: 'Counter',                      # Frozen Counter: Reporting the frozen count value or changed flag bits
-    22: 'Counter',                      # Counter Event: Reporting counter events
-    23: 'Counter',                      # Frozen Counter Event: Reporting frozen counter events
-    # Analog Input: See DNP3 spec, Section A.14-A.18 and Table 11-9
-    30: POINT_TYPE_ANALOG_INPUT,        # Analog Input (static): Reporting the present value
-    31: POINT_TYPE_ANALOG_INPUT,        # Frozen Analog Input (static): Reporting the frozen value
-    32: POINT_TYPE_ANALOG_INPUT,        # Analog Input Event: Reporting analog input events or changes to the flag bits
-    33: POINT_TYPE_ANALOG_INPUT,        # Frozen Analog Input Event: Reporting frozen analog input events
-    34: POINT_TYPE_ANALOG_INPUT,        # Analog Input Reporting Deadband (static): Reading and writing analog deadband values
-    # Analog Output: See DNP3 spec, Section A.19-A.22 and Table 11-10
-    40: POINT_TYPE_ANALOG_OUTPUT,       # Analog Output Status (static): Reporting present value of analog outputs
-    41: POINT_TYPE_ANALOG_OUTPUT,       # Analog Output (command): Controlling analog output values
-    42: POINT_TYPE_ANALOG_OUTPUT,       # Analog Output Event: Reporting changes to the analog output or flag bits
-    43: POINT_TYPE_ANALOG_OUTPUT,       # Analog Output Command Event: Reporting output points being commanded from any source
-    # Time and Date: See DNP3 spec, Section A.23-A.25
-    50: 'Time And Date',
-    51: 'Time And Date',                # Time and Date Common Time-of-Occurrence
-    52: 'Time And Date',                # Time Delay
-    # Class Objects: See DNP3 spec, Section A.26
-    60: 'Class Objects',
-    # File-Control: See DNP3 spec, Section A.27
-    70: 'File-Control',
-    # Information Objects: See DNP3 spec, Section A.28-A.31
-    80: 'Internal Indications',
-    81: 'Device Storage',
-    82: 'Device Profile',
-    83: 'Data Set Registration',
-    # Data Set Objects: See DNP3 spec, Section A.32-A.35
-    85: 'Data Set Prototype',
-    86: 'Data Set Descriptor',
-    87: 'Data Set',
-    88: 'Data Set Event',
-    # Application & Status of Operation Information Objects: See DNP3 spec, Section A.36-A.37
-    90: 'Application',
-    91: 'Status of Requested Operation',
-    # Floating-Point (Obsolete): See DNP3 spec, Section A.38
-    100: 'Floating-Point',
-    # Numeric Static Objects: See DNP3 spec, Section A.39-A.40
-    101: 'BCD',                         # Device-dependent values in Binary-Coded Decimal form (Table 11-11)
-    102: 'Unsigned Integer',
-    # Octet String: See DNP3 spec, Section A.41-A.42 and Table 11-16
-    110: 'Octet String',                # To convey the present value
-    111: 'Octet String',                # Reporting an octet string event
-    # Virtual Terminal: See DNP3 spec, Section A.43-A.44 and Table 11-18
-    112: 'Virtual Terminal',            # Conveying data to the command interpreter at the outstation
-    113: 'Virtual Terminal',            # Conveying data from the command interpreter at the outstation
-    # Security: See DNP3 spec, Section A.45
-    120: 'Authentication',
-    # Security Statistic: See DNP3 spec, Section A.46-A.47 and Table 11-20
-    121: 'Security Statistic',          # Reporting the current value of the statistics
-    122: 'Security Statistic'           # Reporting changes to the statistics
-}
+from dnp3 import POINT_TYPES, POINT_TYPE_SELECTOR_BLOCK, POINT_TYPE_ENUMERATED, POINT_TYPE_ARRAY
+from dnp3 import DATA_TYPE_ANALOG_INPUT, DATA_TYPE_ANALOG_OUTPUT, DATA_TYPE_BINARY_INPUT, DATA_TYPE_BINARY_OUTPUT
+from dnp3 import EVENT_CLASSES, DATA_TYPES_BY_GROUP
+from dnp3 import DEFAULT_GROUP_BY_DATA_TYPE, DEFAULT_EVENT_CLASS
+from dnp3 import PUBLISH_AND_RESPOND
 
 _log = logging.getLogger(__name__)
 
@@ -217,15 +58,16 @@ class PointDefinitions(object):
     """In-memory repository of PointDefinitions."""
 
     def __init__(self, point_definitions_path=None):
-        self._points = {}
-        self._point_variation_dict = {}
-        self._point_name_dict = {}
+        self._points = {}           # {data_type: {point_index: PointDefinition}}
+        self._point_name_dict = {}  # {point_name: [PointDefinition]}
         if point_definitions_path:
             file_path = os.path.expandvars(os.path.expanduser(point_definitions_path))
             self.load_points_from_json_file(file_path)
 
     def __getitem__(self, name):
         """Return the PointDefinition associated with this name. Must be unique."""
+        if name in [None, 'n/a']:
+            return None
         return self.get_point_named(name)
 
     def load_points_from_json_file(self, point_definitions_path):
@@ -263,36 +105,39 @@ class PointDefinitions(object):
                 # Load a PointDefinition (or subclass) from JSON, and add it to the dictionary of points.
                 # If the point defines an array, load additional definitions for each interior point in the array.
                 try:
-                    if element.get('type', None) != 'array':
+                    if element.get('type', None) != POINT_TYPE_ARRAY:
                         point_def = PointDefinition(element)
-                        self.index_point(point_def)
+                        self.update_point(point_def)
                     else:
                         point_def = ArrayHeadPointDefinition(element)
-                        self.index_point(point_def)
+                        self.update_point(point_def)
                         # Load a separate ArrayPointDefinition for each interior point in the array.
                         for pt in point_def.create_array_point_definitions(element):
-                            self.index_point(pt)
+                            self.update_point(pt)
                 except ValueError as err:
                     raise DNP3Exception('Validation error for point with json: {}: {}'.format(element, err))
         except Exception as err:
             raise ValueError('Problem parsing PointDefinitions. Error={}'.format(err))
         _log.debug('Loaded {} PointDefinitions'.format(len(self.all_points())))
 
-    def index_point(self, point_def):
-        """Add a PointDefinition to the dictionary of points."""
-        point_type_dict = self._points.setdefault(point_def.point_type, {})
-        if point_def.index in point_type_dict:
-            error_message = 'Discarding DNP3 duplicate {0} (conflicting {1})'
-            raise DNP3Exception(error_message.format(point_def, point_type_dict[point_def.index]))
-        else:
-            point_type_dict[point_def.index] = point_def
-
-    def _points_dictionary(self):
-        """Return a (cached) dictionary of PointDefinitions, indexed by point_type and point index."""
-        return self._points
+    def update_point(self, point_def):
+        """Add a PointDefinition to self._points and self._point_name_dict."""
+        data_type, name, index = point_def.data_type, point_def.name, point_def.index
+        data_type_dict = self._points.setdefault(data_type, {})
+        name_lst = self._point_name_dict.setdefault(name, [])
+        if index in data_type_dict:
+            raise ValueError('Duplicate index {} for data type {}'.format(index, data_type))
+        if name_lst and point_def.type != 'array':
+            raise ValueError('Duplicated point name {}'.format(name))
+        data_type_dict[index] = point_def
+        name_lst.append(point_def)
 
     def for_group_and_index(self, group, index):
-        return self._points_dictionary().get(PointDefinition.point_type_for_group(group), {}).get(index, None)
+        """Return a PointDefinition for given group and index"""
+        data_type = DATA_TYPES_BY_GROUP.get(group, None)
+        if not data_type:
+            _log.error('No DNP3 point type found for group {}'.format(group))
+        return self._points.get(data_type, {}).get(index, None)
 
     def point_value_for_command(self, command_type, command, index, op_type):
         """
@@ -305,11 +150,10 @@ class PointDefinitions(object):
         :return: An instance of PointValue
         """
         function_code = command.functionCode if type(command) == opendnp3.ControlRelayOutputBlock else None
-        point_type = POINT_TYPE_BINARY_OUTPUT if function_code else POINT_TYPE_ANALOG_OUTPUT
-        point_def = self.for_point_type_and_index(point_type, index)
+        data_type = DATA_TYPE_BINARY_OUTPUT if function_code else DATA_TYPE_ANALOG_OUTPUT
+        point_def = self.for_data_type_and_index(data_type, index)
         if not point_def:
-            raise DNP3Exception('No DNP3 PointDefinition found for point type {0} and index {1}'.format(point_type,
-                                                                                                        index))
+            raise DNP3Exception('No DNP3 PointDefinition found for point type {} and index {}'.format(data_type, index))
         point_value = PointValue(command_type,
                                  function_code,
                                  command.value if not function_code else None,
@@ -319,52 +163,23 @@ class PointDefinitions(object):
         _log.debug('Received DNP3 {}'.format(point_value))
         return point_value
 
-    def for_point_type_and_index(self, point_type, index):
+    def for_data_type_and_index(self, data_type, index):
         """
-            Return a PointDefinition for a given data type and index.
+            Return a PointDefinition for given data type and index.
 
-        @param point_type: A point type (string).
+        @param data_type: A data type (string).
         @param index: Unique integer index of the PointDefinition to be looked up.
-        @return: A PointDefinition.
         """
-        return self._points_dictionary().get(point_type, {}).get(index, None)
-
-    def _points_by_variation(self):
-        """Return a (cached) dictionary of PointDefinitions, indexed by group, variation and index."""
-        if not self._point_variation_dict:
-            for point_type, inner_dict in self._points_dictionary().items():
-                for index, point_def in inner_dict.items():
-                    if self._point_variation_dict.get(point_def.group, None):
-                        self._point_variation_dict[point_def.group] = {}
-                    if self._point_variation_dict[point_def.group].get(point_def.variation, None):
-                        self._point_variation_dict[point_def.group][point_def.variation] = {}
-                    self._point_variation_dict[point_def.group][point_def.variation][index] = point_def
-        return self._point_variation_dict
-
-    def point_for_variation_and_index(self, group, variation, index):
-        """Return a PointDefinition for a given group, variation and index."""
-        return self._points_by_variation().get(group, {}).get(variation, {}).get(index, None)
-
-    def points_by_name(self):
-        """Return a (cached) dictionary of PointDefinition lists, indexed by name."""
-        if not self._point_name_dict:
-            for point_type, inner_dict in self._points_dictionary().items():
-                for index, point_def in inner_dict.items():
-                    point_name = point_def.name
-                    if point_name not in self._point_name_dict:
-                        self._point_name_dict[point_name] = []
-                    self._point_name_dict[point_name].append(point_def)
-        return self._point_name_dict
+        return self._points.get(data_type, {}).get(index, None)
 
     def point_named(self, name, index=None):
         """
-            Return the PointDefinition with the indicated name and (optionally) index.
+            Return the PointDefinition with the indicated name and (optionally) index, or None if no match.
 
         :param name: (string) The point's name.
         :param index: (integer) An optional index value. If supplied, search for an array point at this DNP3 index.
-        :return A PointDefinition, or None if no match.
         """
-        point_def_list = self.points_by_name().get(name, None)
+        point_def_list = self._point_name_dict.get(name, None)
         if point_def_list is None:
             return None                     # No points with that name
 
@@ -401,12 +216,9 @@ class PointDefinitions(object):
     def all_points(self):
         """Return a flat list of all PointDefinitions."""
         point_list = []
-        for inner_dict in self._points_dictionary().values():
+        for inner_dict in self._points.values():
             point_list.extend(inner_dict.values())
         return point_list
-
-    def all_point_names(self):
-        return self.points_by_name().keys()
 
 
 class BasePointDefinition(object):
@@ -415,22 +227,29 @@ class BasePointDefinition(object):
     def __init__(self, element_def):
         """Initialize an instance of the PointDefinition from a dictionary of point attributes."""
         self.name = str(element_def.get('name', ''))
-        self.type = element_def.get('type', None)
-        self.group = element_def.get('group', None)
-        self.variation = element_def.get('variation', None)
+        self.data_type = element_def.get('data_type', None)
         self.index = element_def.get('index', None)
+        self.type = element_def.get('type', None)
         self.description = element_def.get('description', '')
-        self.scaling_multiplier = element_def.get('scaling_multiplier', 1)
+        self.scaling_multiplier = element_def.get('scaling_multiplier', 1)  # Only used for Analog data_type
         self.units = element_def.get('units', '')
-        self.event_class = element_def.get('event_class', 2)
-        self.event_group = element_def.get('event_group', None)
-        self.event_variation = element_def.get('event_variation', None)
+        self.event_class = element_def.get('event_class', DEFAULT_EVENT_CLASS)
         self.selector_block_start = element_def.get('selector_block_start', None)
         self.selector_block_end = element_def.get('selector_block_end', None)
-        self.save_on_write = element_def.get('save_on_write', None)
         self.action = element_def.get('action', None)
         self.response = element_def.get('response', None)
         self.category = element_def.get('category', None)
+        self.ln_class = element_def.get('ln_class', None)
+        self.data_object = element_def.get('data_object', None)
+        self.common_data_class = element_def.get('common_data_class', None)
+        self.minimum = element_def.get('minimum', -2147483648)              # Only used for Analog data_type
+        self.maximum = element_def.get('maximum', 2147483647)               # Only used for Analog data_type
+        self.scaling_offset = element_def.get('scaling_offset', 0)          # Only used for Analog data_type
+        self.allowed_values = self.convert_allowed_values(element_def.get('allowed_values', None))
+
+    @property
+    def is_enumerated(self):
+        return self.type == POINT_TYPE_ENUMERATED
 
     @property
     def is_array_point(self):
@@ -444,32 +263,32 @@ class BasePointDefinition(object):
     def is_array(self):
         return self.is_array_point or self.is_array_head_point
 
+    def convert_allowed_values(self, allowed_values):
+        if allowed_values:
+            return {int(str_val): description for str_val, description in allowed_values.items()}
+        return None
+
     def validate_point(self):
         """A PointDefinition has been created. Perform a variety of validations on it."""
-        if self.type is not None and self.type not in ['array', 'selector_block']:
-            raise ValueError('Invalid type for {}: {}'.format(self.name, self.type))
-        if self.group is None:
-            raise ValueError('Missing group for {}'.format(self.name))
-        if self.variation is None:
-            raise ValueError('Missing variation for {}'.format(self.name))
+        if not self.name:
+            raise ValueError('Missing point name')
         if self.index is None:
-            raise ValueError('Missing index for {}'.format(self.name))
-
-        # Use intelligent defaults for event_group and event_variation based on data type
-        if self.event_group is None:
-            if self.point_type in EVENT_DEFAULTS_BY_POINT_TYPE:
-                self.event_group = EVENT_DEFAULTS_BY_POINT_TYPE[self.point_type]["group"]
-            else:
-                raise ValueError('Missing event group for {}'.format(self.name))
-        if self.event_variation is None:
-            if self.point_type in EVENT_DEFAULTS_BY_POINT_TYPE:
-                self.event_variation = EVENT_DEFAULTS_BY_POINT_TYPE[self.point_type]["variation"]
-            else:
-                raise ValueError('Missing event variation for {}'.format(self.name))
-
+            raise ValueError('Missing index for point {}'.format(self.name))
+        if not self.data_type:
+            raise ValueError('Missing data type for point {}'.format(self.name))
+        if self.data_type not in DEFAULT_GROUP_BY_DATA_TYPE:
+            raise ValueError('Invalid data type {} for point {}'.format(self.data_type, self.name))
+        if not self.eclass:
+            raise ValueError('Invalid event class {} for point {}'.format(self.event_class, self.name))
+        if self.type and self.type not in POINT_TYPES:
+            raise ValueError('Invalid type {} for point {}'.format(self.type, self.name))
+        if self.action == PUBLISH_AND_RESPOND and not self.response:
+            raise ValueError('Missing response point name for point {}'.format(self.name))
+        if self.is_enumerated and not self.allowed_values:
+            raise ValueError('Missing allowed values mapping for point {}'.format(self.name))
         if self.is_selector_block:
             if self.selector_block_start is None:
-                raise ValueError('Missing selector_block_end for block named {}'.format(self.name))
+                raise ValueError('Missing selector_block_start for block named {}'.format(self.name))
             if self.selector_block_end is None:
                 raise ValueError('Missing selector_block_end for block named {}'.format(self.name))
             if self.selector_block_start > self.selector_block_end:
@@ -484,97 +303,81 @@ class BasePointDefinition(object):
         """Return a json description of the PointDefinition."""
         point_json = {
             "name": self.name,
-            "group": self.group,
-            "variation": self.variation,
+            "data_type": self.data_type,
             "index": self.index,
-            "scaling_multiplier": self.scaling_multiplier,
+            "group": self.group,
             "event_class": self.event_class
         }
-        if self.type is not None:
+        if self.type:
             point_json["type"] = self.type
-        if self.description is not None:
+        if self.description:
             point_json["description"] = self.description
-        if self.units is not None:
+        if self.units:
             point_json["units"] = self.units
-        if self.event_group is not None:
-            point_json["event_group"] = self.event_group
-        if self.event_variation is not None:
-            point_json["event_variation"] = self.event_variation
         if self.selector_block_start is not None:
             point_json["selector_block_start"] = self.selector_block_start
         if self.selector_block_end is not None:
             point_json["selector_block_end"] = self.selector_block_end
-        if self.save_on_write is not None:
-            point_json["save_on_write"] = self.save_on_write
+        if self.allowed_values:
+            point_json["allowed_values"] = self.allowed_values
+        if self.action:
+            point_json["action"] = self.action
+        if self.response:
+            point_json["response"] = self.response
+        if self.category:
+            point_json["category"] = self.category
+        if self.ln_class:
+            point_json["ln_class"] = self.ln_class
+        if self.data_object:
+            point_json["data_object"] = self.data_object
+        if self.common_data_class:
+            point_json["common_data_class"] = self.common_data_class
+        if self.data_type in [DATA_TYPE_ANALOG_INPUT, DATA_TYPE_ANALOG_OUTPUT]:
+            point_json.update({
+                "scaling_multiplier": self.scaling_multiplier,
+                "scaling_offset": self.scaling_offset,
+                "minimum": self.minimum,
+                "maximum": self.maximum
+            })
+
         return point_json
 
     def __str__(self):
         """Return a string description of the PointDefinition."""
         try:
-            return '{0} {1} ({2}, index={3}, type={4})'.format(self.__class__.__name__,
-                                                               self.name,
-                                                               self.group_and_variation,
-                                                               self.index,
-                                                               self.point_type)
+            return '{0} {1} (event_class={2}, index={3}, type={4})'.format(
+                self.__class__.__name__,
+                self.name,
+                self.event_class,
+                self.index,
+                self.data_type
+            )
         except UnicodeEncodeError as err:
             _log.error('Unable to convert point definition to string, err = {}'.format(err))
             return ''
 
     @property
-    def group_and_variation(self):
-        """Return a string representation of the PointDefinition's group and variation."""
-        return '{0}.{1}'.format(self.group, self.variation)
-
-    @property
-    def event_group_and_variation(self):
-        """Return a string representation of the PointDefinition's event group and event variation."""
-        return '{0}.{1}'.format(self.event_group, self.event_variation)
-
-    @property
-    def point_type(self):
-        """Return the PointDefinition's point type, derived from its group (indexing is within point type)."""
-        return self.point_type_for_group(self.group)
+    def group(self):
+        return DEFAULT_GROUP_BY_DATA_TYPE.get(self.data_type, None)
 
     @property
     def is_input(self):
         """Return True if the PointDefinition is a Binary or Analog input point (i.e., sent by the Outstation)."""
-        return self.point_type in [POINT_TYPE_ANALOG_INPUT, POINT_TYPE_BINARY_INPUT]
+        return self.data_type in [DATA_TYPE_ANALOG_INPUT, DATA_TYPE_BINARY_INPUT]
 
     @property
     def is_output(self):
         """Return True if the PointDefinition is a Binary or Analog output point (i.e., sent by the Master)."""
-        return self.point_type in [POINT_TYPE_ANALOG_OUTPUT, POINT_TYPE_BINARY_OUTPUT]
-
-    @property
-    def is_refid(self):
-        return True if 'RefId' in self.name else False
+        return self.data_type in [DATA_TYPE_ANALOG_OUTPUT, DATA_TYPE_BINARY_OUTPUT]
 
     @property
     def is_selector_block(self):
-        return self.type == 'selector_block'
+        return self.type == POINT_TYPE_SELECTOR_BLOCK
 
     @property
     def eclass(self):
         """Return the PointDefinition's event class, or the default (2) if no event class was defined for the point."""
-        return EVENT_CLASSES.get(self.event_class, 2)
-
-    @property
-    def svariation(self):
-        """Return the PointDefinition's group-and-variation enumerated type."""
-        return GROUP_AND_VARIATIONS.get(self.group_and_variation)
-
-    @property
-    def evariation(self):
-        """Return the PointDefinition's event group-and-variation enumerated type."""
-        return GROUP_AND_VARIATIONS.get(self.event_group_and_variation)
-
-    @classmethod
-    def point_type_for_group(cls, group):
-        """Return the point type for a group value."""
-        ptype = POINT_TYPES_BY_GROUP.get(group, None)
-        if ptype is None:
-            _log.error('No DNP3 point type found for group {}'.format(group))
-        return ptype
+        return EVENT_CLASSES.get(self.event_class, None)
 
 
 class PointDefinition(BasePointDefinition):
@@ -588,7 +391,7 @@ class PointDefinition(BasePointDefinition):
     def validate_point(self):
         """A PointDefinition has been created. Perform a variety of validations on it."""
         super(PointDefinition, self).validate_point()
-        if self.type is not None and self.type != 'selector_block':
+        if self.type and self.type not in ['selector_block', 'enumerated']:
             raise ValueError('Invalid type for {}: {}'.format(self.name, self.type))
 
 
@@ -733,7 +536,7 @@ class PointValue(object):
         str_desc = 'Point value {0} ({1}, {2}.{3}, {4})'
         return str_desc.format(self.value or self.function_code,
                                self.name,
-                               self.point_def.group_and_variation,
+                               self.point_def.event_class,
                                self.index,
                                self.command_type)
 

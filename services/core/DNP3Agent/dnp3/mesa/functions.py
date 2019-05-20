@@ -37,15 +37,17 @@ from dnp3.points import PointDefinitions, PointDefinition, DNP3Exception
 DEFAULT_FUNCTION_TOPIC = 'mesa/function'
 
 # Values of StepDefinition.optional
-OPTIONAL = "O"
-MANDATORY = "M"
-CONDITIONAL = "C"
-ALL_OMC = [OPTIONAL, MANDATORY, CONDITIONAL]
+OPTIONAL = 'O'
+MANDATORY = 'M'
+INITIALIZE = 'I'
+ALL_OPTIONALITY = [OPTIONAL, MANDATORY, INITIALIZE]
 
 # Values of the elements of StepDefinition.fcodes:
 DIRECT_OPERATE = 'direct_operate'       # This is actually DIRECT OPERATE / RESPONSE
 SELECT = 'select'                       # This is actually SELECT / RESPONSE
 OPERATE = 'operate'                     # This is actually OPERATE / RESPONSE
+READ = 'read'
+RESPONSE = 'response'
 
 # Values of StepDefinition.action:
 ACTION_ECHO = 'echo'
@@ -61,50 +63,44 @@ class FunctionDefinitions(collections.Mapping):
     """In-memory repository of FunctionDefinitions."""
 
     def __init__(self, point_definitions, function_definitions_path=None):
+        """Data holder for all MESA-ESS functions."""
         self._point_definitions = point_definitions
-        self._point_function_map = {}
-        self._functions = {}
-        self._functions_by_id = {}
-        self._named_step_definitions = {}
+        self._functions = dict()          # {function_id: FunctionDefinition}
+        self._pdef_function_map = dict()  # {PointDefinition: [FunctionDefinition]}
         if function_definitions_path:
             file_path = os.path.expandvars(os.path.expanduser(function_definitions_path))
             self.load_functions_from_yaml_file(file_path)
 
-    def __getitem__(self, point_def):
-        """Return the function associated with this point. Must be unique."""
-        return self._point_function_map[point_def]
+    def __getitem__(self, function_id):
+        """Return the function associated with this function_id. Must be unique."""
+        return self._functions[function_id]
 
     def __iter__(self):
-        return iter(self._point_function_map)
+        return iter(self._functions)
 
     def __len__(self):
-        return len(self._point_function_map)
+        """Return the total number of functions from FunctionDefinitions."""
+        return len(self._functions)
 
-    def step_definition_for_point(self, point_definition):
-        """Return a StepDefinition for a given point. If there isn't exactly one matching StepDefinition, complain."""
-        name = point_definition.name
-        step_list = self._step_definitions_by_name().get(name, [])
-        if not step_list:
-            raise DNP3Exception('No StepDefinition named {}'.format(name))
-        if len(step_list) > 1:
-            raise DNP3Exception('Found multiple StepDefinitions named {}'.format(name))
-        return step_list[0]
+    @property
+    def all_function_ids(self):
+        """Return all function_id from FunctionDefinitions."""
+        return self._functions.keys()
 
-    def all_function_names(self):
-        return self._functions_dictionary().keys()
+    @property
+    def function_def_lst(self):
+        """Return a list of all FunctionDefinition in the FunctionDefinitions."""
+        return self._functions.values()
 
     def support_point_names(self):
         """Return a dictionary of FunctionDefinitions keyed by their (non-null) support_point_names."""
         return {f.support_point_name: f
-                for _, f in self._functions_dictionary().items()
+                for f_id, f in self._functions.items()
                 if f.support_point_name is not None}
 
-    def functions(self):
-        return list(self._functions.values())
-
-    def _functions_dictionary(self):
-        """Return a (cached) dictionary of FunctionDefinitions, indexed by function name."""
-        return self._functions
+    def function_for_id(self, function_id):
+        """Return a specific function definition from (cached) dictionary of FunctionDefinitions."""
+        return self._functions.get(function_id, None)
 
     def load_functions_from_yaml_file(self, function_definitions_path):
         """Load and cache a YAML file of FunctionDefinitions. Index them by function name."""
@@ -116,55 +112,49 @@ class FunctionDefinitions(collections.Mapping):
                 with open(fdef_path, 'r') as f:
                     self.load_functions(yaml.load(f)['functions'])
             except Exception as err:
-                raise ValueError("Problem parsing {}. Error={}".format(fdef_path, err))
+                raise ValueError('Problem parsing {}. Error={}'.format(fdef_path, err))
         _log.debug('Loaded {} FunctionDefinitions'.format(len(self._functions.keys())))
 
+    def get_fdef_for_pdef(self, pdef):
+        """
+            Return a list of FunctionDefinition that contains the PointDefinition or None otherwise.
+
+        :param pdef: PointDefinition
+        """
+        return self._pdef_function_map.get(pdef, None)
+
     def load_functions(self, function_definitions_json):
-        """Load and cache a JSON dictionary of FunctionDefinitions. Index them by function name."""
-        _log.debug('Loading MESA-ESS FunctionDefinitions.')
+        """
+            Load and cache a JSON dictionary of FunctionDefinitions. Index them by function ID.
+            Check if function_id is unique and func_ref in steps are valid.
+        """
         self._functions = {}
         try:
             for function_def in function_definitions_json:
                 new_function = FunctionDefinition(self._point_definitions, function_def)
-                self._functions[new_function.name] = new_function
-
-                new_function_point_defs = set(new_function.all_point_defs())
-                if new_function_point_defs & set(self._point_function_map.keys()):
-                    raise ValueError("Point definition referenced by two functions")
-                else:
-                    self._point_function_map.update(
-                        {point_def: new_function for point_def in new_function_point_defs}
-                    )
-                # Ensure that the other function caches get rebuilt
-                self._functions_by_id = {}
-                self._named_step_definitions = {}
+                function_id = new_function.function_id
+                if self._functions.get(function_id, None):
+                    raise ValueError('There are multiple functions for function id {}'.format(function_id))
+                self._functions[function_id] = new_function
+                for pdef in new_function.all_point_defs():
+                    try:
+                        self._pdef_function_map[pdef].append(new_function)
+                    except KeyError:
+                        self._pdef_function_map[pdef] = [new_function]
         except Exception as err:
-            raise ValueError("Problem parsing FunctionDefinitions. Error={}".format(err))
-        _log.debug('Loaded {} FunctionDefinitions'.format(len(self._functions.keys())))
+            raise ValueError('Problem parsing FunctionDefinitions. Error={}'.format(err))
 
-    def _step_definitions_by_name(self):
-        """Return a (cached) dictionary of lists of StepDefinitions for each step name."""
-        if not self._named_step_definitions:
-            for func in self._functions_dictionary().values():
-                for s in func.steps:
-                    if self._named_step_definitions.get(s.name, None):
-                        self._named_step_definitions[s.name].append(s)
-                    else:
-                        self._named_step_definitions[s.name] = [s]
-        return self._named_step_definitions
+        for fdef in self.function_def_lst:
+            for step in fdef.steps:
+                func_ref = step.func_ref
+                if func_ref and func_ref not in self.all_function_ids:
+                    raise ValueError('Invalid Function Reference {} for Step {} in Function {}'. format(
+                        func_ref,
+                        step.step_number,
+                        fdef.function_id
+                    ))
 
-    def functions_by_id(self):
-        """Return a (cached) dictionary of FunctionDefinitions, indexed by function ID."""
-        if not self._functions_by_id:
-            self._functions_by_id = {func.function_id: func for func in self._functions_dictionary().values()}
-        return self._functions_by_id
-
-    def point_function_map(self):
-        return self._point_function_map
-
-    def function_for_id(self, function_id):
-        """Return a specific function definition from (cached) dictionary of FunctionDefinitions."""
-        return self.functions_by_id().get(function_id, None)
+        _log.debug('Loaded {} FunctionDefinitions'.format(len(self)))
 
 
 class FunctionDefinition(object):
@@ -172,26 +162,51 @@ class FunctionDefinition(object):
 
     def __init__(self, point_definitions, function_def_dict):
         """
-            Data holder for the definition of a MESA-ESS function.
-
-        :param function_def_dict: A dictionary of data from which to create the FunctionDefinition.
+            Data holder for the definition of a MESA-ESS function. Including parsing data validation.
+            self._point_steps_map: dictionary mapping PointDefinition including all Array points to StepDefinition
+            self.steps: a list of all StepDefinition (not including array points) in the function
         """
+        self.function_id = function_def_dict.get('id', None)  # Must be unique
+        self.name = function_def_dict.get('name', None)
+        self.mode_types = function_def_dict.get('mode_types', {})
+        self.ref = function_def_dict.get('ref', None)
+        self.support_point_name = function_def_dict.get('support_point', None)
+        self._point_steps_map = {}
+
+        # function_id and steps validation
+        if not self.function_id:
+            raise ValueError('Missing function ID')
+        json_steps = function_def_dict.get('steps', None)
+        if not json_steps:
+            raise ValueError('Missing steps for function {}'.format(self.function_id))
+
+        step_numbers = list()
         try:
-            self.function_id = function_def_dict["id"]
-            self.name = function_def_dict["name"]
-            self.ref = function_def_dict.get("ref", None)
-            self.support_point_name = function_def_dict.get("support_point", None)
-            self.steps = [StepDefinition(point_definitions, self, step_def) for step_def in function_def_dict["steps"]]
-            self._point_steps_map = {}
+            self.steps = [StepDefinition(point_definitions, self.function_id, step_def) for step_def in json_steps]
+            is_selector_block = self.is_selector_block
             for step in self.steps:
+                step_number = step.step_number
+
+                # Check if there are duplicated step number
+                if step_number in step_numbers:
+                    raise ValueError('Duplicated step number {} for function {}'.format(step_number, self.function_id))
+                step_numbers.append(step_number)
+
+                # If function is selector block (curve or schedule), all steps must be mandatory or initialize
+                if is_selector_block and step.optional not in [INITIALIZE, MANDATORY]:
+                    raise ValueError(
+                        'Function {} - Step {}: optionality must be either INITIALIZE or MANDATORY'.format(
+                            self.function_id, step_number))
+
+                # Update self._point_steps_map
                 for pd in step.all_point_defs():
                     self._point_steps_map[pd] = step
-
-            # Set supported to False if the Function has a defined support_point_name -- the Control Agent must set it.
-            # To override this (support all functions), set config all_functions_supported_by_default = "True".
-            self.supported = not self.support_point_name
         except AttributeError as err:
             raise AttributeError('Error creating FunctionDefinition {}, err={}'.format(self.name, err))
+
+        # Check is there is missing steps
+        if set([i for i in range(1, len(self.steps) + 1)]) != set(step_numbers):
+            raise ValueError('There are missing steps for function {}'.format(self.function_id))
 
     def __str__(self):
         return 'Function {}'.format(self.name)
@@ -202,6 +217,34 @@ class FunctionDefinition(object):
     def __getitem__(self, point_def):
         return self._point_steps_map[point_def]
 
+    @property
+    def supported(self):
+        """
+            Set supported to False if the Function has a defined support_point_name -- the Control Agent must set it.
+            To override this (support all functions), set config all_functions_supported_by_default = "True".
+        """
+        return not self.support_point_name
+
+    @property
+    def first_step(self):
+        """First step of the function. Mainly used for Selector Block."""
+        for step in self.steps:
+            if step.step_number == 1:
+                return step
+        return None
+
+    @property
+    def last_step(self):
+        """Last step of the function. Mainly used for Selector Block."""
+        for step in self.steps:
+            if step.step_number == len(self.steps):
+                return step
+        return None
+
+    @property
+    def is_selector_block(self):
+        return self.first_step.point_def and self.first_step.point_def.is_selector_block
+
     def instance(self):
         """Return an instance of this FunctionDefinition."""
         return Function(self)
@@ -211,71 +254,88 @@ class FunctionDefinition(object):
         return 'Function {}: {}'.format(self.name, [s.__str__() for s in self.steps])
 
     def all_point_defs(self):
+        """Return all point definition including array points."""
         return self._point_steps_map.keys()
 
     def all_points(self):
-        return [step_def.point_def for step_def in self.steps]
+        """Return all point definition not including array points and None points."""
+        return [step_def.point_def for step_def in self.steps if step_def]
 
     def is_mode(self):
+        """Return True if there is mode enable point in the function, False otherwise."""
         for point in self.all_points():
-            if 'ModEna' in point.name:
+            if point and point.category == 'mode_enable':
                 return True
         return False
 
     def get_mode_enable(self):
-        for point in self.all_points():
-            if 'ModEna' in point.name:
-                return point
-        return False
+        """Return a list of all mode enable points in the function."""
+        return [point for point in self.all_points() if point and point.category == 'mode_enable']
 
 
 class StepDefinition(object):
     """Step definition in a MESA-ESS FunctionDefinition."""
 
-    def __init__(self, point_definitions, function_def, step_def=None):
+    def __init__(self, point_definitions, function_id, step_def=None):
         """
             Data holder for the definition of a step in a MESA-ESS FunctionDefinition.
 
         :param function_def: The FunctionDefinition to which the StepDefinition belongs.
         :param step_def: A dictionary of data from which to create the StepDefinition.
         """
-        self.function = function_def
-        self.point_def = point_definitions[step_def.get('point_name', None)]
+        self.function_id = function_id
+        self.name = step_def.get('point_name', None)
+        self.point_def = point_definitions[self.name]
         self.step_number = step_def.get('step_number', None)
         self.optional = step_def.get('optional', OPTIONAL)
         self.fcodes = step_def.get('fcodes', [])
-        self.response = step_def.get('response', None)
         self.action = step_def.get('action', None)
+        self.func_ref = step_def.get('func_ref', None)
+        self.description = step_def.get('description', None)
         self.validate()
 
-    def __str__(self):
-        return '{} Step {}: {}'.format(self.function, self.step_number, self.name)
+        try:
+            self.response = point_definitions[step_def.get('response', None)]
+        except Exception as err:
+            raise AttributeError('Response point in function {} step {} does not match point definition. Error={}'.format(
+                self.function_id,
+                self.step_number,
+                err
+            ))
 
-    @property
-    def name(self):
-        if self.point_def:
-            return self.point_def.name
-        else:
-            return '<Step has no point_def>'
+    def __str__(self):
+        return '{} Step {}: {}'.format(self.function_id, self.step_number, self.name)
 
     def all_point_defs(self):
+        """Return a list of all PointDefinition including all Array points"""
         all_defs = [self.point_def]
-        if self.point_def.is_array_head_point:
+        if self.point_def and self.point_def.is_array_head_point:
             all_defs.extend(self.point_def.array_point_definitions)
         return all_defs
 
     def validate(self):
         if self.step_number is None:
-            raise AttributeError('Missing step number in {}'.format(self))
-        if self.name is None:
-            raise AttributeError('Missing name in {}'.format(self))
-        if self.optional not in ALL_OMC:
-            raise AttributeError('Invalid optional value in {}: {}'.format(self, self.optional))
+            raise AttributeError('Missing step number in function {}'.format(self.function_id))
+        if not self.name:
+            raise AttributeError('Missing name in function {} step {}'.format(self.function_id, self.step_number))
+        if self.optional not in ALL_OPTIONALITY:
+            raise AttributeError('Invalid optional value in function {} step {}: {}'.format(self.function_id,
+                                                                                            self.step_number,
+                                                                                            self.optional))
         if type(self.fcodes) != list:
-            raise ValueError('Invalid fcode for {}, type={}'.format(self.name, type(self.fcodes)))
+            raise AttributeError('Invalid fcodes in function {} step {}, type={}'.format(self.function_id,
+                                                                                         self.step_number,
+                                                                                         type(self.fcodes)))
         for fc in self.fcodes:
-            if fc not in [DIRECT_OPERATE, SELECT, OPERATE]:
-                raise ValueError('Invalid fcode for {}, fcode={}'.format(self.name, type(self.fcodes)))
+            if fc not in [DIRECT_OPERATE, SELECT, OPERATE, READ, RESPONSE]:
+                raise AttributeError('Invalid fcode in function {} step {}, fcode={}'.format(self.function_id,
+                                                                                             self.step_number,
+                                                                                             fc))
+            if fc == READ and self.optional != OPTIONAL:
+                raise AttributeError('Invalid optionality in function {} step {}: must be OPTIONAL'.format(
+                    self.function_id,
+                    self.step_number
+                ))
 
 
 class Step(object):
@@ -295,7 +355,7 @@ class Step(object):
     def __str__(self):
         return '{}: {}'.format(self.definition, self.value)
 
-    def as_json(self, point_type):
+    def as_json(self):
         return self.value.as_json() if self.definition.point_def.is_array_head_point else self.value.unwrapped_value()
 
     def echoes_input(self):
@@ -326,7 +386,6 @@ class Function(object):
         """
         self.definition = definition
         self.steps = []
-        self.complete = False
 
     def __str__(self):
         return 'Function {}'.format(self.definition.name)
@@ -344,6 +403,15 @@ class Function(object):
         return self.steps[-1] if self.steps else None
 
     @property
+    def complete(self):
+        """
+            Return True if function is completed, False otherwise.
+        """
+        if self.next_remaining_mandatory_step_number:
+            return False
+        return True
+
+    @property
     def next_remaining_mandatory_step_number(self):
         """
             Return next remaining mandatory step number of the function if there is one existed, None otherwise.
@@ -351,7 +419,7 @@ class Function(object):
         last_received_step_number = 0 if not self.last_step else self.last_step.definition.step_number
         for step_def in self.definition.steps:
             step_number = step_def.step_number
-            if step_number > last_received_step_number and step_def.optional == MANDATORY:
+            if step_number > last_received_step_number and step_def.optional in [MANDATORY, INITIALIZE]:
                 return step_number
         return None
 
@@ -468,7 +536,7 @@ def validate_definitions(point_definitions, function_definitions):
     for pt in array_head_points:
         # Print each array's definition. Also, check for overlapping array bounds.
         print('\t{} ({}): indexes=({},{}), elements={}'.format(pt.name,
-                                                               pt.point_type,
+                                                               pt.data_type,
                                                                pt.index,
                                                                pt.array_last_index,
                                                                len(pt.array_points)))
@@ -486,7 +554,7 @@ def validate_definitions(point_definitions, function_definitions):
     for pt in selector_block_points:
         # Print each selector block's definition. Also, check for overlapping selector block bounds.
         print('\t{} ({}): indexes=({},{})'.format(pt.name,
-                                                  pt.point_type,
+                                                  pt.data_type,
                                                   pt.selector_block_start,
                                                   pt.selector_block_end))
         for other_pt, other_bounds in selector_block_bounds.iteritems():
@@ -496,13 +564,7 @@ def validate_definitions(point_definitions, function_definitions):
                 if other_bounds[0] <= pt.selector_block_end <= other_bounds[1]:
                     print('\tERROR: Overlapping selector blocks in {} and {}'.format(pt, other_pt))
     # Check that each save_on_write point references a selector_block_point
-    save_on_write_points = [pt for pt in all_points if pt.save_on_write]
-    selector_block_point_names = [pt.name for pt in selector_block_points]
-    for pt in save_on_write_points:
-        if pt.save_on_write not in selector_block_point_names:
-            print('\tERROR: {} save_on_write value {} is not a selector block name'.format(pt.name, pt.save_on_write))
     print('\t{} selector block definitions'.format(len(selector_block_points)))
-
     print('\nValidating Function definitions...')
-    functions = function_definitions.all_function_names()
+    functions = function_definitions.all_function_ids
     print('\t{} function definitions'.format(len(functions)))

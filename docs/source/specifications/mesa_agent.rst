@@ -55,11 +55,11 @@ MesaAgent exposes the following VOLTTRON RPC calls:
         @return: The (unwrapped) value of a received point.
         """
 
-    def get_point_by_index(self, group, index):
+    def get_point_by_index(self, data_type, index):
         """
             Look up the most-recently-received value for a given point.
 
-        @param group: The group number of a DNP3 point.
+        @param data_type: The data_type of a DNP3 point.
         @param index: The index of a DNP3 point.
         @return: The (unwrapped) value of a received point.
         """
@@ -67,6 +67,13 @@ MesaAgent exposes the following VOLTTRON RPC calls:
     def get_points(self):
         """
             Look up the most-recently-received value of each configured output point.
+
+        @return: A dictionary of point values, indexed by their point names.
+        """
+
+    def get_configured_points(self):
+        """
+            Look up the most-recently-received value of each configured point.
 
         @return: A dictionary of point values, indexed by their point names.
         """
@@ -127,12 +134,17 @@ MesaAgent exposes the following VOLTTRON RPC calls:
         :return: A dictionary of point values.
         """
 
+    def reset(self):
+        """
+            Reset the agent's internal state, emptying point value caches. Used during iterative testing.
+        """
+
 Pub/Sub Calls
 ~~~~~~~~~~~~~
 
 MesaAgent uses three topics when publishing data to the VOLTTRON message bus:
 
- *  **Point Values (default topic: mesa/point)**: As MesaAgent communicates with the Master,
+ *  **Point Values (default topic: dnp3/point)**: As MesaAgent communicates with the Master,
     it publishes received point values on the VOLTTRON message bus.
 
  * **Functions (default topic: mesa/function)**: When MesaAgent receives a function step
@@ -180,6 +192,12 @@ The MesaAgent configuration specifies the following fields:
    When deciding whether to reject points for unsupported
    functions, ignore the values of their 'supported' points: simply treat all functions as
    supported. Used primarily during testing.
+   Default: False.
+ - **function_validation**: (boolean)
+   When deciding whether to support sending single points to MesaAgent.
+   If function_validation is True, MesaAgent will raise an exception when receiving any
+   invalid point in current function. If function_validation is False, MesaAgent will
+   reset current function to None instead of raising the exception.
    Default: False.
  - **outstation_config**: (dictionary)
    Outstation configuration parameters. All are optional. Parameters include:
@@ -242,4 +260,4 @@ For Further Information
 
 Questions? Please contact:
 
-    -   Rob Calvert at Kisensum (rob@kisensum.com)
+    -   Anh Nguyen at ChargePoint (anh.nguyen@chargepoint.com)

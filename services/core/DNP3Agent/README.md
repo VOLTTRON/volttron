@@ -73,3 +73,14 @@ Regression tests can be run from a command-line shell as follows:
 
     (volttron) $ cd $VOLTTRON_ROOT
     (volttron) $ pytest services/core/DNP3Agent/tests/test_dnp3_agent.py
+    
+Maintaining mesa_points.config and mesa_functions.yaml
+------------------------------------------------------
+
+mesa_points.config is installed in $DNP3_ROOT/dnp3/mesa_points.config
+
+mesa_functions.yaml is installed in $DNP3_ROOT/dnp3/mesa/mesa_functions.yaml
+
+To update Mesa points and functions config files, please follow instructions for 
+[mesa_points.config](https://docs.google.com/document/d/1WgiGkNCtILLvNKSm0ZsNo0HrqY0akIQIiGQNZP1PBP0/edit#heading=h.5224t5rtcb0g)
+and [mesa_functions.yaml](https://docs.google.com/document/d/1WgiGkNCtILLvNKSm0ZsNo0HrqY0akIQIiGQNZP1PBP0/edit#heading=h.qhuvbxq207n2)

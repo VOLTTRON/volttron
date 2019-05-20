@@ -33,7 +33,8 @@ import sys
 
 from pydnp3 import opendnp3
 
-from dnp3.points import PointDefinitions, DIRECT_OPERATE
+from dnp3.points import PointDefinitions
+from dnp3 import DIRECT_OPERATE
 from mesa_master import MesaMaster
 from function_test import FunctionTest
 
