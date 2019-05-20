@@ -316,7 +316,7 @@ def do_web_enabled_rmq(vhome):
     # Full implies that it will have a port on it as well.  Though if it's
     # not in the address that means that we haven't set it up before.
     full_bind_web_address = config_opts.get('bind-web-address',
-                                            'http://127.0.0.1')
+                                            'https://127.0.0.1')
 
     parsed = urlparse.urlparse(full_bind_web_address)
 
@@ -410,6 +410,59 @@ internal address such as 127.0.0.1.
     config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
 
     if config_opts['message-bus'] == 'zmq' and parsed.scheme == "https":
+        get_cert_and_key(vhome)
+
+def do_web_enabled_zmq_bc(vhome):
+    global config_opts
+
+
+    # Full implies that it will have a port on it as well.  Though if it's
+    # not in the address that means that we haven't set it up before.
+    full_bind_web_address = config_opts.get('bind-web-address-bc',
+                                            'http://127.0.0.1')
+
+    parsed = urlparse.urlparse(full_bind_web_address)
+
+    address_only = full_bind_web_address
+    port_only = None
+    if parsed.port is not None:
+        address_only = parsed.scheme + '://' + parsed.hostname
+        port_only = parsed.port
+    else:
+        port_only = 8080
+
+    print("""
+In order for external clients to connect to volttron central or the instance
+itself, the instance must bind to a tcp address.  If testing, this can be an
+internal address such as 127.0.0.1.
+""")
+    valid_address = False
+    external_ip = None
+
+    while not valid_address:
+        prompt = 'What is the external ipv4 address for this instance?'
+        new_external_ip = prompt_response(prompt, default=address_only)
+        valid_address = is_valid_url(new_external_ip, ['http', 'https'])
+        if valid_address:
+            external_ip = new_external_ip
+
+    valid_port = False
+    vc_port = None
+    while not valid_port:
+        prompt = 'What is the port for this instance?'
+        new_vc_port = prompt_response(prompt, default=port_only)
+        valid_port = is_valid_port(new_vc_port)
+        if valid_port:
+            vc_port = new_vc_port
+
+    while external_ip.endswith("/"):
+        external_ip = external_ip[:-1]
+
+    parsed = urlparse.urlparse(external_ip)
+
+    config_opts['bind-web-address-bc'] = '{}:{}'.format(external_ip, vc_port)
+
+    if config_opts['message-bus-bc'] == 'zmq' and parsed.scheme == "https":
         get_cert_and_key(vhome)
 
 @installs(get_services_core("VolttronCentral"), 'vc')
@@ -651,7 +704,8 @@ def wizard():
             prompt = 'Allow for zmq backward compatibility?'
             response = prompt_response(prompt, valid_answers=y_or_n, default='N')
             if response in y:
-                do_web_enabled_zmq(volttron_home)
+                config_opts['message-bus-bc'] = 'zmq'
+                do_web_enabled_zmq_bc(volttron_home)
         elif config_opts['message-bus'] == 'zmq':
             do_web_enabled_zmq(volttron_home)
 
