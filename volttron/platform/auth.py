@@ -501,22 +501,25 @@ class AuthEntry(object):
 
     @staticmethod
     def _build_capabilities_field(value):
-        _log.debug("_build_capabilities {}".format(value))
+        #_log.debug("_build_capabilities {}".format(value))
+
         if not value:
             return None
-        field = AuthEntry._get_capability(value)
-        if isinstance(field, list):
+
+        if isinstance(value, list):
             result = dict()
             for elem in value:
                 # update if it is not there or if existing entry doesn't have args.
                 # i.e. capability with args can override capability str
                 _log.debug("In loop elem {}".format(elem))
-                if elem not in result or result[elem] is None:
-                    result.update(AuthEntry._get_capability(elem))
+                temp = result.update(AuthEntry._get_capability(elem))
+                if temp and result[next(iter(temp))] is None:
+                    result.update(temp)
             _log.debug("Returning field _build_capabilities {}".format(result))
             return result
-        _log.debug("Returning field _build_capabilities {}".format(field))
-        return field
+        else:
+            return AuthEntry._get_capability(value)
+
 
     @staticmethod
     def _get_capability(value):
@@ -524,15 +527,14 @@ class AuthEntry(object):
                       "dictionary or list containing string/dictionary. " \
                       "dictionaries should be of the format {'capability_name':None} or " \
                       "{'capability_name':{'arg1':'value',...}"
-
         if isinstance(value, basestring):
             return {value: None}
-        elif isinstance(value, list) or isinstance(value, dict):
+        elif isinstance(value, dict):
             return value
-        raise AuthEntryInvalid(err_message.format(value, type(value)))
+        else:
+            raise AuthEntryInvalid(err_message.format(value, type(value)))
 
     def add_capabilities(self, capabilities):
-        _log.debug("In add_capabilities- {}".format(capabilities))
         temp = AuthEntry._build_capabilities_field(capabilities)
         if temp:
             self.capabilities.update(temp)

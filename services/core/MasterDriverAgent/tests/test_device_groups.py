@@ -122,8 +122,8 @@ FloatNoDefault,FloatNoDefault,F,-100 to 300,TRUE,,float,CO2 Reading 0.00-2000.0 
 
 @pytest.fixture(scope="module")
 def config_store_connection(request, volttron_instance1):
-
-    connection = volttron_instance1.build_connection(peer=CONFIGURATION_STORE)
+    capabilities = [{'edit_config_store': {'identity': PLATFORM_DRIVER}}]
+    connection = volttron_instance1.build_connection(peer=CONFIGURATION_STORE, capabilities=capabilities)
     # Reset master driver config store
     connection.call("manage_delete_store", PLATFORM_DRIVER)
 
@@ -164,7 +164,6 @@ def setup_config(config_store, config_name, config_string, **kwargs):
 def remove_config(config_store, config_name):
     print "Removing", config_name, "from store"
     config_store.call("manage_delete_config", PLATFORM_DRIVER, config_name)
-
 
 @pytest.mark.driver
 def test_no_groups(config_store, subscriber_agent):

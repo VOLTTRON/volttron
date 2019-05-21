@@ -541,6 +541,7 @@ def test_multiplatform_bad_discovery_file(request, build_instances):
     p2.shutdown_platform()
     p3.shutdown_platform()
 
+@pytest.mark.dev
 def test_multiplatform_rpc(request, get_volttron_instances):
     p1, p2 = get_volttron_instances(2)
     _default_config = {
@@ -560,6 +561,8 @@ def test_multiplatform_rpc(request, get_volttron_instances):
         }
     }
     test_agent = p2.build_agent()
+    # p2.add_capabilities(test_agent.core.publickey,
+    #                     {'edit_config_store': {'identity': 'platform.thresholddetection'}})
     kwargs = {"external_platform": 'platform1'}
     test_agent.vip.rpc.call(CONFIGURATION_STORE,
                             'manage_store',

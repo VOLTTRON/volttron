@@ -1421,7 +1421,7 @@ def get_agent_publickey(opts):
 #                client.send_and_start_agent(file)
 
 def add_config_to_store(opts):
-    opts.connection.peer = CONFIGURATION_STORE
+    #opts.connection.peer = 'platform'
     call = opts.connection.call
 
     file_contents = opts.infile.read()
@@ -1518,10 +1518,16 @@ def edit_config(opts):
 
 
 class ControlConnection(object):
-    def __init__(self, address, peer='control',
+    def __init__(self, address, volttron_home, peer='control',
                  publickey=None, secretkey=None, serverkey=None):
         self.address = address
         self.peer = peer
+        # entry = AuthEntry(capabilities=[{'edit_config_store': {'identity': '*'}}],
+        #                   comments="Added by test",
+        #                   credentials=publickey)
+        # print("AuthEntry is {}".format(entry))
+        # file = AuthFile(volttron_home + "/auth.json")
+        # file.add(entry)
         self._server = BaseAgent(address=self.address, publickey=publickey,
                                  secretkey=secretkey, serverkey=serverkey,
                                  enable_store=False,
@@ -2055,7 +2061,10 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = ControlConnection(opts.vip_address,
+
+    print("\n opts is  {}".format(opts))
+    print("\n Creating control connection with {}".format(get_keys(opts)))
+    opts.connection = ControlConnection(opts.vip_address, opts.volttron_home,
                                         **get_keys(opts))
 
     try:

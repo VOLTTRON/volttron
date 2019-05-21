@@ -2,6 +2,8 @@ import ConfigParser as configparser
 import json
 import logging
 import os
+import uuid
+
 import psutil
 import shutil
 import sys
@@ -252,7 +254,6 @@ class PlatformWrapper:
         if serverkey is None:
             self.logit("serverkey wasn't set but the address was.")
             raise Exception("Invalid state.")
-
         if publickey is None or secretkey is None:
             self.logit('generating new public secret key pair')
             keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
@@ -260,6 +261,7 @@ class PlatformWrapper:
             keys.generate()
             publickey = keys.public
             secretkey = keys.secret
+
             entry = AuthEntry(capabilities=capabilities,
                               comments="Added by test",
                               credentials=keys.public)
@@ -322,7 +324,7 @@ class PlatformWrapper:
         # Automatically add agent's credentials to auth.json file
         if publickey:
             self.logit('Adding publickey to auth.json')
-            gevent.spawn(self._append_allow_curve_key, publickey)
+            gevent.spawn(self._append_allow_curve_key, publickey, agent.core.identity)
             gevent.sleep(0.1)
 
         if should_spawn:
@@ -351,8 +353,11 @@ class PlatformWrapper:
             auth['allow'] = []
         return auth, auth_path
 
-    def _append_allow_curve_key(self, publickey):
-        entry = AuthEntry(credentials=publickey)
+    def _append_allow_curve_key(self, publickey, identity):
+        if identity:
+            entry = AuthEntry(credentials=publickey, capabilities={'edit_config_store': {'identity': identity}})
+        else:
+            entry = AuthEntry(credentials=publickey)
         authfile = AuthFile(self.volttron_home + "/auth.json")
         try:
             authfile.add(entry)
@@ -365,26 +370,33 @@ class PlatformWrapper:
     def add_capabilities(self, publickey, capabilities):
         if isinstance(capabilities, basestring) or isinstance(capabilities, dict):
             capabilities = [capabilities]
-        auth, auth_path = self._read_auth_file()
+        auth_dict, auth_path = self._read_auth_file()
         cred = publickey
-        allow = auth['allow']
+        allow = auth_dict['allow']
         entry = next((item for item in allow if item['credentials'] == cred),
                      {})
         caps = entry.get('capabilities', {})
+        if isinstance(capabilities, list):
+            for c in capabilities:
+                self.add_capability(c, caps)
+        else:
+            self.add_capability(capabilities, caps)
 
-        for c in capabilities:
-            if isinstance(c, basestring):
-                if c not in caps:
-                    caps[c] = {}
-            elif isinstance(c, dict):
-                caps.update(c)
-            else:
-                raise ValueError("Invalid capability {}. Capability should be string or dictionary or list of string"
-                                 "and dictionary.")
         entry['capabilities'] = caps
 
         with open(auth_path, 'w+') as fd:
-            json.dump(auth, fd)
+            json.dump(auth_dict, fd)
+
+    @staticmethod
+    def add_capability(entry, capabilites):
+        if isinstance(entry, basestring):
+            if entry not in capabilites:
+                capabilites[entry] = None
+        elif isinstance(entry, dict):
+            capabilites.update(entry)
+        else:
+            raise ValueError("Invalid capability {}. Capability should be string or dictionary or list of string"
+                             "and dictionary.")
 
     def set_auth_dict(self, auth_dict):
         if auth_dict:

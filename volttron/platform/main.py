@@ -622,6 +622,7 @@ def start_volttron_process(opts):
         # Authorize the platform key:
         entry = AuthEntry(credentials=encode_key(publickey),
                           user_id='platform',
+                          capabilities=[{'edit_config_store': {'identity': '*'}}],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
         # Add platform key to known-hosts file:

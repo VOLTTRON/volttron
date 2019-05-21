@@ -148,16 +148,19 @@ class ConfigStoreService(Agent):
                                           "lock": Semaphore()}
 
     @RPC.export
+    @RPC.allow('edit_config_store')
     def manage_store(self, identity, config_name, raw_contents, config_type="raw"):
         contents = process_raw_config(raw_contents, config_type)
         self._add_config_to_store(identity, config_name, raw_contents, contents, config_type,
                                   trigger_callback=True)
 
     @RPC.export
+    @RPC.allow('edit_config_store')
     def manage_delete_config(self, identity, config_name):
         self.delete(identity, config_name, trigger_callback=True)
 
     @RPC.export
+    @RPC.allow('edit_config_store')
     def manage_delete_store(self, identity):
         agent_store = self.store.get(identity)
         if agent_store is None:
