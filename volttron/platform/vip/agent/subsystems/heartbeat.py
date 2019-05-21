@@ -112,7 +112,12 @@ class Heartbeat(SubsystemBase):
         Stop an agent's heartbeat.
         """
         if self.enabled:
-            self.scheduled.cancel()
+            # Trap the fact that scheduled may not have been
+            # set yet if the start hasn't been called.
+            try:
+                self.scheduled.cancel()
+            except AttributeError:
+                pass
             self.enabled = False
 
     def restart(self):
