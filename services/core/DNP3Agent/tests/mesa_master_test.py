@@ -27,6 +27,12 @@
 # favoring by 8minutenergy or Kisensum.
 # }}}
 
+import pytest
+try:
+    import dnp3
+except ImportError:
+    pytest.skip("pydnp3 not found!", allow_module_level=True)
+
 import json
 
 from collections import OrderedDict

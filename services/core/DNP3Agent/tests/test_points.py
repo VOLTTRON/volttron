@@ -1,3 +1,9 @@
+import pytest
+try:
+    import dnp3
+except ImportError:
+    pytest.skip("pydnp3 not found!", allow_module_level=True)
+
 import copy
 
 from dnp3.points import PointDefinition, ArrayHeadPointDefinition, PointDefinitions, PointValue
