@@ -1,0 +1,13 @@
+{
+  "function_id": "enable_schedules",
+  "function_name": "Enable Watt-Var Schedule",
+  "FSCHxx.Mod.BO42": true,
+  "FSCC.Schd.AO461": 2,
+  "FSCHxx.SchdReuse.BO43": true,
+  "FSCHxx.SchdReuse.BO44": false,
+  "FSCHxx.SchdReuse.BO45": false,
+  "FSCHxx.SchdReuse.BO46": false,
+  "FSCHxx.SchdReuse.BO47": false,
+  "FSCHxx.SchdReuse.BO48": false,
+  "FSCHxx.SchdReuse.BO49": false
+}
