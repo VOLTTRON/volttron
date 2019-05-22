@@ -4,12 +4,12 @@
 Darksky Agent
 =============
 
-Powered by Dark Sky
+Powered by `Dark Sky <https://darksky.net/dev>`_
 
 This agent provides the ability to query for current and forecast weather
 data from Dark Sky. The agent extends BaseWeatherAgent that provides caching of
 recently requested data, API call tracking, as well as mapping of weather
-point names from NOAA's naming scheme to the standardized CF-conventions scheme.
+point names from Darksky's naming scheme to the standardized CF-conventions scheme.
 
 Configuration
 -------------
@@ -20,12 +20,20 @@ parameter is required while all others are optional.
 **Parameters**
 
  1. 'api_key' - api key string provided by Dark Sky - this is required and will not be provided by the VOLTTRON team.
- 2. 'api_calls_limit' - limit of api calls that can be made to the remote before the agent no longer returns weather results. This is primarily used to prevent possible charges. If set to -1, no limit will be applied.
+ 2. 'api_calls_limit' - limit of api calls that can be made to the remote before the agent no longer returns weather
+    results. The agent will keep track of number of api calls and return an error when the limit is reached without
+    attempting a connection to dark sky server. This is primarily used to prevent possible charges. If set to -1, no
+    limit will be applied by the agent. Dark sky api might return a error after limit is exceeded. Defaults to -1
  3. 'database_file' - sqlite database file for weather data caching. Defaults to 'weather.sqlite' in the agent's data directory.
- 4. 'max_size_gb' - maximum size of cache database. When cache exceeds this size, data will get purged from cache till cache is within the configured size.
+ 4. 'max_size_gb' - maximum size of cache database. When cache exceeds this size, data will get purged from cache till
+    cache is within the configured size.
  5. 'poll_locations - list of locations to periodically poll for current data.
  6. 'poll_interval' - polling frequency or the number of seconds between each poll.
- 7. 'performance_mode' - If set to true, request response will exclude extra data points (this is primarily useful for reducing network traffic). If set to false, all data points are included in the response, and extra data is cached (to reduce the number of API calls used for future RPC calls).
+ 7. 'performance_mode' - If set to true, request response will exclude extra data points (this is primarily useful for
+    reducing network traffic). If set to false, all data points are included in the response, and extra data is cached
+    (to reduce the number of API calls used for future RPC calls). Defaults to True.
+
+Example configuration:
 
 ::
 
@@ -62,14 +70,13 @@ Notes
 The Dark Sky agent requires an API key to be configured in order for users to
 request data. A user of the Dark Sky agent must obtain the key themselves.
 
-It is intended that each system running a copy of the Dark Sky agent use its own
-api key. This is to ensure that API call tracking features work as intended.
+API call tracking features will work only when each agent instance uses its own api key. 
+If API key is shared across multiple dark sky agent instances, disable this feature 
+by setting  api_calls_limit = -1.
 
-Each key has the limitation of 1000 daily API calls, after which the service
-indicates "daily usage limit exceeded" and data will not be returned. As the
-VOLTTRON team desires to keep VOLTTRON services free, the agent is limited to
-1000 API calls.
+As of writing, dark sky gives 1000 daily API calls free for a trial account. Once this limit is reached,
+the error "daily usage limit exceeded" is returned. See https://darksky.net/dev for details
 
-To help with data availability, data is cached for reuse in later RPC requests.
-By default performance mode is set to False to ensure that the maximum amount of
-data is cached.
+By default performance mode is set to True and for a given location and time period only the requested
+data points are returned. Set performance_mode to False to query all available data for a given location
+and time period if you want to cache all the data points for future retrieval there by reducing number of API calls.

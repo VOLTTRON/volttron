@@ -86,6 +86,7 @@ polling_service = {
     'poll_interval': 5
 }
 
+# global variable. Set to skip the module
 pytestmark = pytest.mark.skipif(not API_KEY, reason="No API key found. "
                                                     "Darksky weather API "
                                                     "key needs to be set in "
@@ -164,7 +165,7 @@ def weather(request, volttron_instance):
     [{"lat": 39.7555, "long": -105.2211}],
     [{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": -119.2752}]
 ])
-@pytest.mark.dev
+@pytest.mark.darksky
 def test_success_current(volttron_instance, cleanup_cache, weather,
                          query_agent,
                          locations):
@@ -186,28 +187,6 @@ def test_success_current(volttron_instance, cleanup_cache, weather,
             pytest.skip("API key has exceeded daily call limit")
 
     print(query_data)
-
-    expected_minutely = 0 if identity == 'platform.darksky_perf' else \
-        61*len(locations)
-    expected_hourly = 0 if identity == 'platform.darksky_perf' else \
-        49*len(locations)
-    expected_daily = 0 if identity == 'platform.darksky_perf' else \
-        8*len(locations)
-
-    count_query = "SELECT COUNT(*) FROM get_minutely_forecast;"
-    cursor.execute(count_query)
-    forecast_count = cursor.fetchone()[0]
-    assert forecast_count == expected_minutely
-
-    count_query = "SELECT COUNT(*) FROM get_hourly_forecast;"
-    cursor.execute(count_query)
-    forecast_count = cursor.fetchone()[0]
-    assert forecast_count == expected_hourly
-
-    count_query = "SELECT COUNT(*) FROM get_daily_forecast;"
-    cursor.execute(count_query)
-    forecast_count = cursor.fetchone()[0]
-    assert forecast_count == expected_daily
 
     assert len(query_data) == len(locations)
     for record in query_data:
@@ -370,11 +349,13 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
                 "get_daily_forecast": 8}
 
     for service_name, records_amount in services.items():
-        if not service_name == service:
-            query = 'SELECT COUNT(*) FROM {service}'.format(service=service_name)
-            print(query)
-            cursor.execute(query)
-            num_records = cursor.fetchone()[0]
+        query = 'SELECT COUNT(*) FROM {service}'.format(service=service_name)
+        print(query)
+        cursor.execute(query)
+        num_records = cursor.fetchone()[0]
+        if service_name == service:
+            assert num_records is records_amount * len(locations)
+        else:
             if identity == 'platform.darksky_perf':
                 assert num_records is 0
             else:

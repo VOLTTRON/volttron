@@ -130,7 +130,7 @@ class Darksky(BaseWeatherAgent):
     ***Powered by Dark Sky***
     """
 
-    def __init__(self, performance_mode=False, **kwargs):
+    def __init__(self, performance_mode=True, **kwargs):
         super(Darksky, self).__init__(**kwargs)
         self.performance_mode = performance_mode
         if self.performance_mode:
@@ -144,12 +144,12 @@ class Darksky(BaseWeatherAgent):
         self.register_service(minutely_service,
                               self.get_update_interval(minutely_service),
                               'forecast', description=
-                              "Params: locations ([{type: value},...])")
+                              "Params: locations ([{'lat': <value>, 'long': <value>},...])")
         daily_service = SERVICES_MAPPING['SERVICE_DAILY_FORECAST']['service']
         self.register_service(daily_service,
                               self.get_update_interval(daily_service),
                               'forecast', description=
-                              "Params: locations ([{type: value},...])")
+                              "Params: locations ([{'lat': <value>, 'long': <value>},...])")
         self.remove_service("get_hourly_historical")
 
     @RPC.export
