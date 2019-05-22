@@ -461,14 +461,15 @@ class PubSub(BasePubSub):
         """
         topics = []
         bus_subscriptions = dict()
-        subscriptions = dict()
         if prefix is None:
             if callback is None:
-                if platform in self._my_subscriptions:
+                if len(self._my_subscriptions) and platform in \
+                        self._my_subscriptions:
                     bus_subscriptions = self._my_subscriptions[platform]
-                if bus in bus_subscriptions:
-                    subscriptions = bus_subscriptions.pop(bus)
-                    topics = subscriptions.keys()
+                    if bus in bus_subscriptions:
+                        topics.extend(bus_subscriptions[bus].keys())
+                if not len(topics):
+                    return []
             else:
                 if platform in self._my_subscriptions:
                     bus_subscriptions = self._my_subscriptions[platform]
@@ -493,7 +494,8 @@ class PubSub(BasePubSub):
             if not topics:
                 raise KeyError('no such subscription')
         else:
-            _log.debug("PUSUB unsubscribe my subscriptions: {0} {1}".format(prefix, self._my_subscriptions))
+            _log.debug("PUSUB unsubscribe my subscriptions: {0} {1}".format(
+                prefix, self._my_subscriptions))
             if platform in self._my_subscriptions:
                 bus_subscriptions = self._my_subscriptions[platform]
                 if bus in bus_subscriptions:

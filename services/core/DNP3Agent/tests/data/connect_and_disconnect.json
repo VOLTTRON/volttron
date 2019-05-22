@@ -1,0 +1,7 @@
+{
+    "function_id": "connect_and_disconnect",
+    "function_name": "Connect and Disconnect",
+    "DCTE.WinTms.AO16": 10,
+    "DCTE.RvrtTms.AO17": 12,
+    "CSWI.Pos.BO5": true
+}

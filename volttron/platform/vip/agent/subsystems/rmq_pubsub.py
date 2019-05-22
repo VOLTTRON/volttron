@@ -356,7 +356,8 @@ class RMQPubSub(BasePubSub):
                 topic = item[1]
                 if test(topic):
                     member = self.core().identity in peer
-                    results.append(('', topic, member))
+                    if not subscribed or member:
+                        results.append(('', topic, member))
         self.core().spawn_later(0.01, self.set_result, async_result.ident, results)
         return async_result
 
@@ -511,11 +512,16 @@ class RMQPubSub(BasePubSub):
         self._logger.debug("DROP subscriptions: {}".format(routing_key))
         topics = []
         remove = []
-        subscriptions = dict()
         remove_topics = []
         if routing_key is None:
             if callback is None:
-                return []
+                for prefix in self._my_subscriptions:
+                    subscriptions = self._my_subscriptions[prefix]
+                    for queue_name in subscriptions.keys():
+                        self.core().connection.channel.queue_delete(
+                            callback=None, queue=queue_name)
+                        subscriptions.pop(queue_name)
+                    topics.append(prefix)
             else:
                 # Traverse through all subscriptions to find the callback
                 for prefix in self._my_subscriptions:

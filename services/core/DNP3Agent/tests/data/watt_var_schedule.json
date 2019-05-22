@@ -1,0 +1,30 @@
+{
+  "function_id": "schedule",
+  "function_name": "Watt-Var Schedule",
+  "FSCC.Schd.AO461": 2,
+  "FSCC.Schd.AO462": 1,
+  "FSCH1.SchdPrio.AO463": 1,
+  "FSCH.SchdVal.valEq.AO464": 28,
+  "FSCH.StrTm.AO465": 19,
+  "FSCH.StrTm.AO466": 5,
+  "FSCH.NxtStrTm.AO467": 0,
+  "FSCH.SchdReuse.AO468": 0,
+  "FSCHn.SchdEntr.AO470": [
+      {"FSCHn.SchdEntr.AO470.time": 1,
+       "FSCHn.SchdEntr.AO470.val": 2
+      },
+      {"FSCHn.SchdEntr.AO470.time": 3,
+       "FSCHn.SchdEntr.AO470.val": 4
+      },
+      {"FSCHn.SchdEntr.AO470.time": 5,
+       "FSCHn.SchdEntr.AO470.val": 6
+      },
+      {"FSCHn.SchdEntr.AO470.time": 7,
+       "FSCHn.SchdEntr.AO470.val": 8
+      },
+      {"FSCHn.SchdEntr.AO470.time": 9,
+       "FSCHn.SchdEntr.AO470.val": 10
+      }
+  ],
+  "FSCH.NumEntr.AO469": 5
+}

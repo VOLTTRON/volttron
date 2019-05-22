@@ -733,7 +733,7 @@ def start_volttron_process(opts):
                              "and attempts to restart. {}".format(e))
 
     # Main loops
-    def router(stop):
+    def zmq_router(stop):
         try:
             Router(opts.vip_local_address, opts.vip_address,
                    secretkey=secretkey, publickey=publickey,
@@ -753,7 +753,7 @@ def start_volttron_process(opts):
             pass
         finally:
             _log.debug("In finally")
-            stop()
+            stop(platform_shutdown=True)
 
     # RMQ router
     def rmq_router(stop):
@@ -769,7 +769,7 @@ def start_volttron_process(opts):
             pass
         finally:
             _log.debug("In RMQ router finally")
-            stop()
+            stop(platform_shutdown=True)
 
     address = 'inproc://vip'
     pid_file = os.path.join(opts.volttron_home, "VOLTTRON_PID")
@@ -811,8 +811,8 @@ def start_volttron_process(opts):
 
             protected_topics = auth.get_protected_topics()
             _log.debug("MAIN: protected topics content {}".format(protected_topics))
-            # Start router in separate thread to remain responsive
-            thread = threading.Thread(target=router, args=(config_store.core.stop,))
+            # Start ZMQ router in separate thread to remain responsive
+            thread = threading.Thread(target=zmq_router, args=(config_store.core.stop,))
             thread.daemon = True
             thread.start()
 
@@ -857,9 +857,10 @@ def start_volttron_process(opts):
 
             # Ensure auth service is running before router
             auth_file = os.path.join(opts.volttron_home, 'auth.json')
-            auth = AuthService(
-                auth_file, protected_topics_file, opts.setup_mode, opts.aip, address=address, identity=AUTH,
-                enable_store=False, message_bus='rmq')
+            auth = AuthService(auth_file, protected_topics_file,
+                               opts.setup_mode, opts.aip,
+                               address=address, identity=AUTH,
+                               enable_store=False, message_bus='rmq')
 
             event = gevent.event.Event()
             auth_task = gevent.spawn(auth.core.run, event)
@@ -868,7 +869,8 @@ def start_volttron_process(opts):
 
             protected_topics = auth.get_protected_topics()
 
-            # Start router in separate thread to remain responsive
+            # Spawn Greenlet friendly ZMQ router
+            # Necessary for backward compatibility with ZMQ message bus
             green_router = GreenRouter(opts.vip_local_address, opts.vip_address,
                                        secretkey=secretkey, publickey=publickey,
                                        default_user_id=b'vip.service', monitor=opts.monitor,
@@ -889,6 +891,7 @@ def start_volttron_process(opts):
             proxy_router_task = gevent.spawn(proxy_router.core.run, event)
             event.wait()
             del event
+
         # The instance file is where we are going to record the instance and
         # its details according to
         instance_file = os.path.expanduser(VOLTTRON_INSTANCES)
@@ -995,7 +998,7 @@ def start_volttron_process(opts):
             sys.stderr.write('Shutting down.\n')
             if proxy_router_task:
                 proxy_router.core.stop()
-            _log.debug("Kill all tasks")
+            _log.debug("Kill all service agent tasks")
             for task in tasks:
                 task.kill(block=False)
             gevent.wait(tasks)
