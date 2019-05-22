@@ -58,23 +58,27 @@
 
 from __future__ import absolute_import
 
+import errno
 import inspect
 import logging
-
-import weakref
-import pika
 import uuid
-from volttron.platform.agent import json as jsonapi
-import requests
-import errno
-
-from ..decorators import annotate, annotations, dualmethod, spawn
-from .base import BasePubSub
+import weakref
 from collections import defaultdict
-from ..results import ResultsDictionary
+
+import requests
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
+
+from volttron.platform import is_rabbitmq_available
+from volttron.platform.agent import json as jsonapi
+from .base import BasePubSub
+from ..decorators import annotate, annotations, dualmethod, spawn
 from ..errors import Unreachable
+from ..results import ResultsDictionary
+
+if is_rabbitmq_available():
+    import pika
+
 
 __all__ = ['RMQPubSub']
 min_compatible_version = '5.0'
