@@ -69,7 +69,7 @@ import requests
 import errno
 
 from ..decorators import annotate, annotations, dualmethod, spawn
-from .base import BasePubSub
+from .base import SubsystemBase
 from collections import defaultdict
 from ..results import ResultsDictionary
 from requests.packages.urllib3.connection import (ConnectionError,
@@ -81,7 +81,7 @@ min_compatible_version = '5.0'
 max_compatible_version = ''
 
 
-class RMQPubSub(BasePubSub):
+class RMQPubSub(SubsystemBase):
     """
     Pubsub subsystem concrete class implementation for RabbitMQ message bus.
     """

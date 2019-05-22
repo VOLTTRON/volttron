@@ -36,30 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+
 class SubsystemBase(object):
     pass
 
-
-class BasePubSub(SubsystemBase):
-    """
-    Abstract Base class for pubsub subsystem. Concrete implementations of PubSub shall vary
-    depending on the underlying message bus
-    """
-
-    def __init_(self, core, rpc_subsys, peerlist_subsys, owner):
-        self._instance_name = core.instance_name
-
-    def synchronize(self):
-        raise NotImplementedError()
-
-    def subscribe(self, prefix, callback, bus='', all_platforms=False, persistent_queue=None):
-        raise NotImplementedError()
-
-    def publish(self):
-        raise NotImplementedError()
-
-    def list(self, peer, prefix='', bus='', subscribed=True, reverse=False, all_platforms=False):
-        raise NotImplementedError()
-
-    def unsubscribe(self, peer, prefix, callback, bus='', all_platforms=False):
-        raise NotImplementedError()
