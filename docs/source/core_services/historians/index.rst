@@ -89,8 +89,10 @@ All historians support the following settings:
         # Allow for the custom topics or for limiting topics picked up by a historian instance.
         # the key for each entry in custom topics is the data handler.  The topic and data must
         # conform to the syntax the handler expects (e.g., the capture_device_data handler expects
-        # data the driver framework).  The list associated with the handler is a list of custom
-        # topics to associated with that handler.
+        # data the driver framework). Handlers that expect specific data format are
+        # capture_device_data, capture_log_data, and capture_analysis_data. All other handlers will be  
+        # treated as record data. The list associated with the handler is a list of custom
+        # topics to be associated with that handler.
         #
         # To restrict collection to only the custom topics, set the following config variables to False
         # capture_device_data
