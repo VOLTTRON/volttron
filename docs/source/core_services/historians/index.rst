@@ -91,6 +91,12 @@ All historians support the following settings:
         # conform to the syntax the handler expects (e.g., the capture_device_data handler expects
         # data the driver framework).  The list associated with the handler is a list of custom
         # topics to associated with that handler.
+        #
+        # To restrict collection to only the custom topics, set the following config variables to False
+        # capture_device_data
+        # capture_analysis_data
+        # capture_log_data
+        # capture_record_data
         "custom_topics": {
             "capture_device_data": ["devices/campus/building/device/all"],
             "capture_analysis_data": ["analysis/application_data/example"],
