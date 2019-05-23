@@ -717,9 +717,7 @@ class ZMQCore(Core):
         self.connection.open_connection(zmq.DEALER)
         flags = dict(hwm=6000, reconnect_interval=self.reconnect_interval)
         self.connection.set_properties(flags)
-        connection_hdle = self.connection
         self.socket = self.connection.socket
-        #self.connection = self.socket
         yield
 
         # pre-start
@@ -793,7 +791,7 @@ class ZMQCore(Core):
 
         if self.address[:4] in ['tcp:', 'ipc:']:
             self.spawn(monitor).join(0)
-        connection_hdle.connect()
+        self.connection.connect()
         if self.address.startswith('inproc:'):
             hello()
 
@@ -846,9 +844,9 @@ class ZMQCore(Core):
         yield
         # pre-finish
         try:
-            connection_hdle.disconnect()
+            self.connection.disconnect()
             self.socket.monitor(None, 0)
-            connection_hdle.close_connection(1)
+            self.connection.close_connection(1)
         except AttributeError:
             pass
         except ZMQError as exc:
