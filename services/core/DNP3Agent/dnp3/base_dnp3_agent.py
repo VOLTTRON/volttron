@@ -32,25 +32,22 @@
 # United States Government or any agency thereof.
 # }}}
 
-import json
 import logging
 import numbers
 import os
 
 from pydnp3 import opendnp3
 
-from volttron.platform.vip.agent import RPC, Core
+from volttron.platform.vip.agent import RPC
 from volttron.platform.agent import utils
-from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 from volttron.platform.messaging import headers
 from volttron.platform.vip.agent import Agent
-from volttron.platform.storeutils import check_for_config_link
 
 from outstation import DNP3Outstation
-from points import DEFAULT_POINT_TOPIC, DEFAULT_OUTSTATION_STATUS_TOPIC
-from points import DEFAULT_LOCAL_IP, DEFAULT_PORT
-from points import POINT_TYPE_ANALOG_INPUT, POINT_TYPE_BINARY_INPUT
-from dnp3.points import PUBLISH_AND_RESPOND
+from dnp3 import DEFAULT_POINT_TOPIC, DEFAULT_OUTSTATION_STATUS_TOPIC
+from dnp3 import DEFAULT_LOCAL_IP, DEFAULT_PORT
+from dnp3 import DATA_TYPE_ANALOG_INPUT, DATA_TYPE_BINARY_INPUT
+from dnp3 import PUBLISH_AND_RESPOND
 from points import PointDefinitions, PointDefinition, PointArray
 from points import DNP3Exception
 
@@ -98,7 +95,6 @@ class BaseDNP3Agent(Agent):
         self._current_point_values = {}
         self._current_array = None
         self._local_point_definitions_path = local_point_definitions_path
-        self._selector_block_points = {}
 
         self.vip.config.set_default('config', self.default_config)
         self.vip.config.subscribe(self._configure, actions=['NEW', 'UPDATE'], pattern='config')
@@ -124,14 +120,8 @@ class BaseDNP3Agent(Agent):
             else:
                 raise DNP3Exception("Failed to load point definitions from config store: {}".format(err))
 
-    @Core.receiver('onstop')
-    def onstop(self, sender, **kwargs):
-        """Stop the DNP3Outstation instance for agent shutdown."""
-        self.stop_outstation()
-
     def start_outstation(self):
         """Start the DNP3Outstation instance, kicking off communication with the DNP3 Master."""
-        self.stop_outstation()
         _log.info('Starting DNP3Outstation')
         self.publish_outstation_status('starting')
         self.application = DNP3Outstation(self.local_ip, self.port, self.outstation_config)
@@ -139,12 +129,12 @@ class BaseDNP3Agent(Agent):
         self.publish_outstation_status('running')
 
     def stop_outstation(self):
-        if self.application is not None:
-            _log.info('Stopping DNP3Outstation')
-            self.publish_outstation_status('stopping')
-            self.application.shutdown()
-            self.publish_outstation_status('stopped')
-            self.application = None
+        """Shutdown the DNP3Outstation application."""
+        _log.info('Stopping DNP3Outstation')
+        self.publish_outstation_status('stopping')
+        self.application.shutdown()
+        self.publish_outstation_status('stopped')
+        self.application = None
 
     def _configure_parameters(self, contents):
         """
@@ -196,7 +186,17 @@ class BaseDNP3Agent(Agent):
         _log.debug('\toutstation_config={}'.format(self.outstation_config))
         self.load_point_definitions()
         DNP3Outstation.set_agent(self)
-        self.start_outstation()
+
+        # Stop outstation if DNP3 config has been changed
+        if self.application and (
+            self.application.local_ip, self.application.port, self.application.outstation_config) != (
+                self.local_ip, self.port, self.outstation_config):
+            self.stop_outstation()
+
+        # Start outstation if the DNP3 application has not started
+        if not self.application:
+            self.start_outstation()
+
         return config
 
     @RPC.export
@@ -205,47 +205,13 @@ class BaseDNP3Agent(Agent):
         _log.info('Resetting agent state.')
         self._current_point_values = {}
         self._current_array = {}
-        self._selector_block_points = {}
 
-    def _get_point(self, point_name):
-        """
-            (Internal) Look up the most-recently-received value for a given point (no debug trace).
-
-        @param point_name: The name of a DNP3 PointDefinition.
-        @return: The (unwrapped) value of a received point.
-        """
-        try:
-            point_def = self.point_definitions.get_point_named(point_name)
-            point_value = self.get_current_point_value(point_def.point_type, point_def.index)
-            return point_value.unwrapped_value() if point_value else None
-        except Exception as e:
-            raise DNP3Exception(e.message)
-
-    def _get_point_by_index(self, group, index):
-        """
-            (Internal) Look up the most-recently-received value for a given point (no debug trace).
-
-        @param group: The group number of a DNP3 point.
-        @param index: The index of a DNP3 point.
-        @return: The (unwrapped) value of a received point.
-        """
-        try:
-            point_value = self.get_current_point_value(PointDefinition.point_type_for_group(group), index)
-            return point_value.unwrapped_value() if point_value else None
-        except Exception as e:
-            raise DNP3Exception(e.message)
-
-    def get_current_point_value_for_def(self, point_def):
-        return self.get_current_point_value(point_def.point_type, point_def.index)
-
-    def get_current_point_value(self, point_type, index):
+    def get_current_point_value(self, data_type, index):
         """Return the most-recently-received PointValue for a given PointDefinition."""
-        if point_type not in self._current_point_values:
-            return None
-        elif index not in self._current_point_values[point_type]:
+        if data_type not in self._current_point_values or index not in self._current_point_values[data_type]:
             return None
         else:
-            return self._current_point_values[point_type][index]
+            return self._current_point_values[data_type][index]
 
     def _set_point(self, point_name, value):
         """
@@ -255,13 +221,12 @@ class BaseDNP3Agent(Agent):
         @param value: The value to set. The value's data type must match the one in the DNP3 PointDefinition.
         """
         point_properties = self.volttron_points.get(point_name, {})
-        group = point_properties.get('group', None)
+        data_type = point_properties.get('data_type', None)
         index = point_properties.get('index', None)
-        point_type = PointDefinition.point_type_for_group(group)
         try:
-            if point_type == POINT_TYPE_ANALOG_INPUT:
+            if data_type == DATA_TYPE_ANALOG_INPUT:
                 wrapped_value = opendnp3.Analog(value)
-            elif point_type == POINT_TYPE_BINARY_INPUT:
+            elif data_type == DATA_TYPE_BINARY_INPUT:
                 wrapped_value = opendnp3.Binary(value)
             else:
                 raise Exception('Unexpected data type for DNP3 point named {0}'.format(point_name))
@@ -291,7 +256,11 @@ class BaseDNP3Agent(Agent):
             self._process_point_value(point_value)
         except Exception as ex:
             _log.error('Error processing DNP3 command: {}'.format(ex))
-            self.discard_cached_point_value(point_value)
+            # Delete a cached point value (typically occurs only if an error is being handled).
+            try:
+                self._current_point_values.get(point_value.point_def.data_type, {}).pop(int(point_value.index), None)
+            except Exception as err:
+                _log.error('Error discarding cached value {}'.format(point_value))
             return opendnp3.CommandStatus.DOWNSTREAM_FAIL
 
         return opendnp3.CommandStatus.SUCCESS
@@ -302,107 +271,13 @@ class BaseDNP3Agent(Agent):
             # Perform any needed validation now, then wait for the subsequent Operate command.
             return None
         else:
-            self.add_to_current_values(point_value)
-            if point_value.point_def.is_selector_block:
-                self.start_selector_block(point_value)
-            if point_value.point_def.save_on_write:
-                self.save_selector_block(point_value)
+            # Update a dictionary that holds the most-recently-received value of each point.
+            self._current_point_values.setdefault(point_value.point_def.data_type, {})[
+                int(point_value.index)] = point_value
             return point_value
-
-    def add_to_current_values(self, value):
-        """Update a dictionary that holds the most-recently-received value of each point."""
-        self._current_point_values.setdefault(value.point_def.point_type, {})[int(value.index)] = value
 
     def get_point_named(self, point_name):
         return self.point_definitions.get_point_named(point_name)
-
-    def for_point_type_and_index(self, point_type, index):
-        return self.point_definitions.for_point_type_and_index(point_type, index)
-
-    def discard_cached_point_value(self, point_value):
-        """Delete a cached point value (typically occurs only if an error is being handled)."""
-        try:
-            self._current_point_values.get(point_value.point_def.point_type, {}).pop(int(point_value.index), None)
-        except Exception as err:
-            _log.error('Error discarding cached value {}'.format(point_value))
-
-    @RPC.export
-    def get_selector_block(self, point_name, edit_selector):
-        """
-            Return a dictionary of point values for a given selector block.
-
-        :param point_name: Name of the first point in the selector block.
-        :param edit_selector: The index (edit selector) of the block.
-        :return: A dictionary of point values.
-        """
-        _log.info('Get point values for selector block {}, index {}'.format(point_name, edit_selector))
-        point_values = {}
-        try:
-            # Create a dictionary of all point values in the block, indexed by name. Expand any arrays.
-            for pt in self._get_selector_block_points(point_name, edit_selector):
-                point_def = pt.point_def
-                point_value = pt.unwrapped_value()
-                if point_def.is_array_point:
-                    head_point_def = self.point_definitions.point_named(pt.name)
-                    # Construct array JSON
-                    row = 0 if point_def.is_array_head_point else point_def.row
-                    col = 0 if point_def.is_array_head_point else point_def.column
-                    col_name = head_point_def.array_points[col]['name']
-                    # Expand the JSON structure as needed
-                    if pt.name not in point_values:
-                        point_values[pt.name] = []
-                    if row + 1 > len(point_values[pt.name]):
-                        point_values[pt.name].append({})
-                    point_values[pt.name][row][col_name] = point_value
-                else:
-                    point_values[pt.name] = point_value
-        except Exception as e:
-            raise DNP3Exception(e.message)
-        return point_values
-
-    def start_selector_block(self, point_value):
-        """
-            Fetch PointValues from self._selector_block_points for the point_value's Block and Edit Selector.
-            Transfer the fetched PointValues to self._current_point_values.
-            If an index in the block has no PointValue, null out that index in self._current_point_values, too.
-
-        :param point_value: A PointValue that is the start of a selector block.
-        """
-        _log.debug('Starting to receive a selector block: {}'.format(point_value.name))
-        point_def = point_value.point_def
-        block_points = self._get_selector_block_points(point_value.name, point_value.unwrapped_value())
-        pt_dict = {pt.index: pt for pt in block_points}
-        for ind in range(point_def.selector_block_start, point_def.selector_block_end):
-            if ind == point_def.index:
-                pass                # Don't overwrite the selector block's main point (i.e., its edit selector)
-            elif ind in pt_dict:
-                self.add_to_current_values(pt_dict[ind])
-            else:
-                cached_points = self._current_point_values.setdefault(point_def.point_type, {})
-                if ind in cached_points:
-                    del cached_points[ind]
-
-    def _get_selector_block_points(self, point_name, edit_selector):
-        """Return cached selector block points for point_name and edit_selector."""
-        return self._selector_block_points.get(point_name, {}).get(edit_selector, [])
-
-    def save_selector_block(self, point_value):
-        """
-            Save a copy of the selector block that is referenced by point_value's save_on_write property.
-        """
-        block_name = point_value.point_def.save_on_write
-        selector_block_point = self.get_point_named(block_name)
-        edit_selector = self.get_current_point_value_for_def(selector_block_point).unwrapped_value()
-        pt_vals_for_range = [self.get_current_point_value(selector_block_point.point_type, ind)
-                             for ind in range(selector_block_point.selector_block_start,
-                                              selector_block_point.selector_block_end)]
-        if block_name not in self._selector_block_points:
-            self._selector_block_points[block_name] = {}
-        block_points = [val for val in pt_vals_for_range if val is not None]
-        _log.debug('Saving {} points for {} at edit selector {}'.format(len(block_points),
-                                                                        block_name,
-                                                                        edit_selector))
-        self._selector_block_points[block_name][edit_selector] = block_points
 
     def update_array_for_point(self, point_value):
         """A received point belongs to a PointArray. Update it."""
@@ -442,20 +317,20 @@ class BaseDNP3Agent(Agent):
         :param point_index: A numeric index for the point.
         :param value: A value to send (unwrapped, simple data type).
         """
-        point_type = PointDefinition.point_type_for_group(point_def.group)
-        if point_type == POINT_TYPE_ANALOG_INPUT:
+        data_type = point_def.data_type
+        if data_type == DATA_TYPE_ANALOG_INPUT:
             wrapped_val = opendnp3.Analog(float(value))
             if isinstance(value, bool) or not isinstance(value, numbers.Number):
                 # Invalid data type
                 raise DNP3Exception('Received {} value for {}.'.format(type(value), point_def))
-        elif point_type == POINT_TYPE_BINARY_INPUT:
+        elif data_type == DATA_TYPE_BINARY_INPUT:
             wrapped_val = opendnp3.Binary(value)
             if not isinstance(value, bool):
                 # Invalid data type
                 raise DNP3Exception('Received {} value for {}.'.format(type(value), point_def))
         else:
             # The agent supports only DNP3's Analog and Binary point types at this time.
-            raise DNP3Exception('Unsupported point type {}'.format(point_type))
+            raise DNP3Exception('Unsupported point type {}'.format(data_type))
         if wrapped_val is not None:
             DNP3Outstation.apply_update(wrapped_val, point_index)
         _log.debug('Sent DNP3 point {}, value={}'.format(point_def, wrapped_val.value))
@@ -512,20 +387,29 @@ class BaseDNP3Agent(Agent):
         @return: The (unwrapped) value of a received point.
         """
         _log.info('Getting point value for {}'.format(point_name))
-        val = self._get_point(self.dnp3_point_name(point_name))
-        return val
+        try:
+            point_name = self.dnp3_point_name(point_name)
+            point_def = self.point_definitions.get_point_named(point_name)
+            point_value = self.get_current_point_value(point_def.data_type, point_def.index)
+            return point_value.unwrapped_value() if point_value else None
+        except Exception as e:
+            raise DNP3Exception(e.message)
 
     @RPC.export
-    def get_point_by_index(self, group, index):
+    def get_point_by_index(self, data_type, index):
         """
             Look up the most-recently-received value for a given point.
 
-        @param group: The group number of a DNP3 point.
+        @param data_type: The data_type of a DNP3 point.
         @param index: The index of a DNP3 point.
         @return: The (unwrapped) value of a received point.
         """
-        _log.info('Getting point value for group {} and index {}'.format(group, index))
-        return self._get_point_by_index(group, index)
+        _log.info('Getting point value for data_type {} and index {}'.format(data_type, index))
+        try:
+            point_value = self.get_current_point_value(data_type, index)
+            return point_value.unwrapped_value() if point_value else None
+        except Exception as e:
+            raise DNP3Exception(e.message)
 
     @RPC.export
     def get_points(self, point_list):
@@ -537,7 +421,7 @@ class BaseDNP3Agent(Agent):
         """
         _log.info('Getting values for the following points: {}'.format(point_list))
         try:
-            return {name: self._get_point(self.dnp3_point_name(name)) for name in point_list}
+            return {name: self.get_point(name) for name in point_list}
         except Exception as e:
             raise DNP3Exception(e.message)
 
@@ -553,7 +437,7 @@ class BaseDNP3Agent(Agent):
 
         _log.info('Getting all DNP3 configured point values')
         try:
-            return {name: self._get_point(self.dnp3_point_name(name)) for name in self.volttron_points}
+            return {name: self.get_point(name) for name in self.volttron_points}
         except Exception as e:
             raise DNP3Exception(e.message)
 

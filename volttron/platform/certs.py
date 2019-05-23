@@ -367,7 +367,7 @@ class Certs(object):
             if not os.path.exists(p):
                 os.makedirs(p, 0o755)
 
-    def ca_cert(self):
+    def ca_cert(self, pem_encoded=False):
         """
         Get the X509 CA certificate.
         :return: the CA certificate of current volttron instance
@@ -375,9 +375,9 @@ class Certs(object):
         if not self.ca_exists():
             raise CertError("ca certificate doesn't exist")
 
-        return self.cert(self.root_ca_name)
+        return self.cert(self.root_ca_name, pem_encoded=pem_encoded)
 
-    def cert(self, name, remote=False):
+    def cert(self, name, remote=False, pem_encoded=False):
         """
         Get the X509 certificate based upon the name
         :param name: name of the certificate to be loaded
@@ -394,6 +394,10 @@ class Certs(object):
         if not os.path.exists(cert_file):
             raise CertError("invalid certificate path {}".format(
                 cert_file))
+        cert = _load_cert(cert_file)
+        if pem_encoded:
+            return cert.public_bytes(serialization.Encoding.PEM)
+
         return _load_cert(cert_file)
 
     def get_all_cert_subjects(self):

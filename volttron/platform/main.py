@@ -108,6 +108,7 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
 logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.INFO)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 VOLTTRON_INSTANCES = '~/.volttron_instances'
 
 
@@ -615,6 +616,13 @@ def start_volttron_process(opts):
     if opts.web_ssl_cert and not opts.web_ssl_key:
         raise StandardError("If web-ssl-cert is specified web-ssl-key MUST be specified.")
 
+    if opts.web_ca_cert:
+        assert os.path.isfile(opts.web_ca_cert), "web_ca_cert does not exist!"
+        os.environ['REQUESTS_CA_BUNDLE'] = opts.web_ca_cert
+
+    # Removed the check for opts.web_ca_cert to be the same cert that was used to create web_ssl_key
+    # and opts.web_ssl_cert
+
     os.environ['MESSAGEBUS'] = opts.message_bus
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
@@ -725,7 +733,7 @@ def start_volttron_process(opts):
                              "and attempts to restart. {}".format(e))
 
     # Main loops
-    def router(stop):
+    def zmq_router(stop):
         try:
             Router(opts.vip_local_address, opts.vip_address,
                    secretkey=secretkey, publickey=publickey,
@@ -745,7 +753,7 @@ def start_volttron_process(opts):
             pass
         finally:
             _log.debug("In finally")
-            stop()
+            stop(platform_shutdown=True)
 
     # RMQ router
     def rmq_router(stop):
@@ -761,7 +769,7 @@ def start_volttron_process(opts):
             pass
         finally:
             _log.debug("In RMQ router finally")
-            stop()
+            stop(platform_shutdown=True)
 
     address = 'inproc://vip'
     pid_file = os.path.join(opts.volttron_home, "VOLTTRON_PID")
@@ -803,8 +811,8 @@ def start_volttron_process(opts):
 
             protected_topics = auth.get_protected_topics()
             _log.debug("MAIN: protected topics content {}".format(protected_topics))
-            # Start router in separate thread to remain responsive
-            thread = threading.Thread(target=router, args=(config_store.core.stop,))
+            # Start ZMQ router in separate thread to remain responsive
+            thread = threading.Thread(target=zmq_router, args=(config_store.core.stop,))
             thread.daemon = True
             thread.start()
 
@@ -849,9 +857,10 @@ def start_volttron_process(opts):
 
             # Ensure auth service is running before router
             auth_file = os.path.join(opts.volttron_home, 'auth.json')
-            auth = AuthService(
-                auth_file, protected_topics_file, opts.setup_mode, opts.aip, address=address, identity=AUTH,
-                enable_store=False, message_bus='rmq')
+            auth = AuthService(auth_file, protected_topics_file,
+                               opts.setup_mode, opts.aip,
+                               address=address, identity=AUTH,
+                               enable_store=False, message_bus='rmq')
 
             event = gevent.event.Event()
             auth_task = gevent.spawn(auth.core.run, event)
@@ -860,7 +869,8 @@ def start_volttron_process(opts):
 
             protected_topics = auth.get_protected_topics()
 
-            # Start router in separate thread to remain responsive
+            # Spawn Greenlet friendly ZMQ router
+            # Necessary for backward compatibility with ZMQ message bus
             green_router = GreenRouter(opts.vip_local_address, opts.vip_address,
                                        secretkey=secretkey, publickey=publickey,
                                        default_user_id=b'vip.service', monitor=opts.monitor,
@@ -881,6 +891,7 @@ def start_volttron_process(opts):
             proxy_router_task = gevent.spawn(proxy_router.core.run, event)
             event.wait()
             del event
+
         # The instance file is where we are going to record the instance and
         # its details according to
         instance_file = os.path.expanduser(VOLTTRON_INSTANCES)
@@ -926,11 +937,26 @@ def start_volttron_process(opts):
                           enable_store=False,
                           message_bus='zmq')
         ]
-
+        
+        # Begin the webserver based options here.
         if opts.bind_web_address is not None:
             if opts.instance_name is None:
                 _update_config_file()
 
+            if opts.message_bus == 'rmq':
+                if opts.web_ssl_key is None or opts.web_ssl_cert is None or \
+                        (not os.path.isfile(opts.web_ssl_key) and not os.path.isfile(opts.web_ssl_cert)):
+                    # This is different than the master.web cert which is used for the agent to connect 
+                    # to rmq server.  The master.web-server certificate will be used for the master web
+                    # services.
+                    base_webserver_name = MASTER_WEB + "-server"
+                    from volttron.platform.certs import Certs
+                    certs = Certs()
+                    certs.create_ca_signed_cert(base_webserver_name, type='server')
+                    opts.web_ssl_key = certs.private_key_file(base_webserver_name)
+                    opts.web_ssl_cert = certs.cert_file(base_webserver_name)
+
+            _log.info("Starting master web service")
             services.append(MasterWebService(
                 serverkey=publickey, identity=MASTER_WEB,
                 address=address,
@@ -972,7 +998,7 @@ def start_volttron_process(opts):
             sys.stderr.write('Shutting down.\n')
             if proxy_router_task:
                 proxy_router.core.stop()
-            _log.debug("Kill all tasks")
+            _log.debug("Kill all service agent tasks")
             for task in tasks:
                 task.kill(block=False)
             gevent.wait(tasks)
@@ -1069,6 +1095,11 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--bind-web-address', metavar='BINDWEBADDR', default=None,
         help='Bind a web server to the specified ip:port passed')
+    agents.add_argument(
+        '--web-ca-cert', metavar='CAFILE', default=None,
+        help='If using self-signed certificates, this variable will be set globally to allow requests'
+             'to be able to correctly reach the webserver without having to specify verify in all calls.'
+    )
     agents.add_argument(
         '--web-ssl-key', metavar='KEYFILE', default=None,
         help='ssl key file for using https with the volttron server'
@@ -1192,7 +1223,8 @@ def main(argv=sys.argv):
         # Volttron Central in AMQP address format is needed if running on RabbitMQ message bus
         volttron_central_rmq_address=None,
         web_ssl_key=None,
-        web_ssl_cert=None
+        web_ssl_cert=None,
+        web_ca_cert=None
     )
 
     # Parse and expand options

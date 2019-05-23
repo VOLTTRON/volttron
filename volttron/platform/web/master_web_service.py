@@ -138,9 +138,23 @@ class MasterWebService(Agent):
             mimetypes.init()
 
         self._certs = Certs()
+        self._csr_endpoints = None
         self.appContainer = None
         self._server_greenlet = None
         self._admin_endpoints = None
+
+    # pylint: disable=unused-argument
+    @Core.receiver('onsetup')
+    def onsetup(self, sender, **kwargs):
+        self.vip.rpc.export(self._auto_allow_csr, 'auto_allow_csr')
+        self.vip.rpc.export(self._is_auto_allow_csr, 'is_auto_allow_csr')
+
+
+    def _is_auto_allow_csr(self):
+        return self._csr_endpoints.auto_allow_csr
+
+    def _auto_allow_csr(self, auto_allow_csr):
+        self._csr_endpoints.auto_allow_csr = auto_allow_csr
 
     def remove_unconnnected_routes(self):
         peers = self.vip.peerlist().get()
@@ -211,7 +225,7 @@ class MasterWebService(Agent):
 
         _log.info(
             'Registering agent route expression: {} peer: {} function: {}'
-            .format(regex, peer, fn))
+                .format(regex, peer, fn))
 
         # TODO: inspect peer for function
 
@@ -336,7 +350,7 @@ class MasterWebService(Agent):
 
         if self.instance_name:
             return_dict['instance-name'] = self.instance_name
-        
+
         if self.core.messagebus == 'rmq':
             config = RMQConfig()
             rmq_address = None
@@ -495,7 +509,7 @@ class MasterWebService(Agent):
                     message = res['error']['message']
                     code = res['error']['code']
                     return [b'<h1>{}</h1>\n<h2>CODE:{}</h2>'
-                            .format(message, code)]
+                                .format(message, code)]
 
             start_response('200 OK',
                            [('Content-Type', 'application/json')])
@@ -576,8 +590,16 @@ class MasterWebService(Agent):
                                                        self._certs.get_cert_public_key(get_fq_identity(self.core.identity)))
 
             if ssl_key is None or ssl_cert is None:
-                ssl_cert = self._certs.cert_file(get_fq_identity(self.core.identity))
-                ssl_key = self._certs.private_key_file(get_fq_identity(self.core.identity))
+                # Because the master.web service certificate is a client to rabbitmq we
+                # can't use it directly therefore we use the -server on the file to specify
+                # the server based file.
+                base_filename = get_fq_identity(self.core.identity) + "-server"
+                ssl_cert = self._certs.cert_file(base_filename)
+                ssl_key = self._certs.private_key_file(base_filename)
+
+                if not os.path.isfile(ssl_cert) or not os.path.isfile(ssl_key):
+                    self._certs.create_ca_signed_cert(base_filename, type='server')
+
         hostname = parsed.hostname
         port = parsed.port
 
@@ -592,7 +614,10 @@ class MasterWebService(Agent):
         # these routes are only available for rmq based message bus
         # at present.
         if self.core.messagebus == 'rmq':
-            for rt in CSREndpoints(self.core).get_routes():
+            # We need reference to the object so we can change the behavior of
+            # whether or not to have auto certs be created or not.
+            self._csr_endpoints = CSREndpoints(self.core)
+            for rt in self._csr_endpoints.get_routes():
                 self.registeredroutes.append(rt)
 
             for rt in self._admin_endpoints.get_routes():

@@ -21,19 +21,22 @@ def print_log(volttron_home):
                 print('NO LOG FILE AVAILABLE.')
 
 
-def build_wrapper(vip_address, **kwargs):
-    instance_name = kwargs.pop('instance_name', 'volttron_test')
-    wrapper = PlatformWrapper(messagebus=kwargs.pop('message_bus', None),
-                              ssl_auth=kwargs.pop('ssl_auth', False),
-                              instance_name=instance_name)
-    wrapper.startup_platform(vip_address=vip_address, **kwargs)
+def build_wrapper(vip_address, should_start=True, messagebus='zmq', remote_platform_ca=None,
+                  instance_name=None, **kwargs):
+
+    wrapper = PlatformWrapper(ssl_auth=kwargs.pop('ssl_auth', False),
+                              messagebus=messagebus,
+                              instance_name=instance_name,
+                              remote_platform_ca=remote_platform_ca)
+    if should_start:
+        wrapper.startup_platform(vip_address=vip_address, **kwargs)
     return wrapper
 
 
 def cleanup_wrapper(wrapper):
     print('Shutting down instance: {0}, MESSAGE BUS: {1}'.format(wrapper.volttron_home, wrapper.messagebus))
-    if wrapper.is_running():
-        wrapper.remove_all_agents()
+    # if wrapper.is_running():
+    #     wrapper.remove_all_agents()
     # Shutdown handles case where the platform hasn't started.
     wrapper.shutdown_platform()
 
@@ -44,13 +47,15 @@ def cleanup_wrappers(platforms):
 
 
 @pytest.fixture(scope="module",
-                params=[('zmq', False), ('rmq', True)])
+                params=[dict(messagebus='zmq', ssl_auth=False),
+                        dict(messagebus='rmq', ssl_auth=True)
+                        ])
 def volttron_instance_msgdebug(request):
     print("building msgdebug instance")
     wrapper = build_wrapper(get_rand_vip(),
                             msgdebug=True,
-                            message_bus=request.param[0],
-                            ssl_auth=request.param[1])
+                            messagebus=request.param['messagebus'],
+                            ssl_auth=request.param['ssl_auth'])
 
     yield wrapper
 
@@ -73,21 +78,19 @@ def volttron_instance_encrypt(request):
 
 
 @pytest.fixture(scope="module",
-                params=[('zmq', False)])
+                params=[dict(messagebus='zmq', ssl_auth=False)])
 def volttron_instance_module_web(request):
     print("building module instance (using web)")
     address = get_rand_vip()
     web_address = "http://{}".format(get_rand_ip_and_port())
     wrapper = build_wrapper(address,
                             bind_web_address=web_address,
-                            messagebus=request.param[0],
-                            ssl_auth=request.param[1])
+                            messagebus=request.param['messagebus'],
+                            ssl_auth=request.param['ssl_auth'])
 
-    def cleanup():
-        cleanup_wrapper(wrapper)
+    yield wrapper
 
-    request.addfinalizer(cleanup)
-    return wrapper
+    cleanup_wrapper(wrapper)
 
 
 # Generic fixtures. Ideally we want to use the below instead of
@@ -104,10 +107,9 @@ def volttron_instance(request, **kwargs):
     @param request: pytest request object
     @return: volttron platform instance
     """
-    print("building instance")
     address = kwargs.pop("vip_address", get_rand_vip())
     wrapper = build_wrapper(address,
-                            message_bus=request.param['messagebus'],
+                            messagebus=request.param['messagebus'],
                             ssl_auth=request.param['ssl_auth'],
                             **kwargs)
 
@@ -120,7 +122,12 @@ def volttron_instance(request, **kwargs):
 # Usage example:
 # def test_function_that_uses_n_instances(request, get_volttron_instances):
 #     instances = get_volttron_instances(3)
-@pytest.fixture(scope="module")
+#
+# TODO allow rmq to be added to the multi platform request.
+@pytest.fixture(scope="module",
+                params=[
+                    dict(messagebus='zmq', ssl_auth=False)
+                ])
 def get_volttron_instances(request):
     """ Fixture to get more than 1 volttron instance for test
     Use this fixture to get more than 1 volttron instance for test. This
@@ -144,11 +151,11 @@ def get_volttron_instances(request):
         instances = []
         for i in range(0, n):
             address = kwargs.pop("vip_address", get_rand_vip())
-            wrapper = None
-            if should_start:
-                wrapper = build_wrapper(address, **kwargs)
-            else:
-                wrapper = PlatformWrapper()
+
+            wrapper = build_wrapper(address, should_start=should_start,
+                                    messagebus=request.param['messagebus'],
+                                    ssl_auth=request.param['ssl_auth'],
+                                    **kwargs)
             instances.append(wrapper)
         instances = instances if n > 1 else instances[0]
         # setattr(get_n_volttron_instances, 'instances', instances)
@@ -203,7 +210,7 @@ def volttron_instance_rmq(request):
     address = get_rand_vip()
 
     wrapper = build_wrapper(address,
-                            message_bus='rmq',
+                            messagebus='rmq',
                             ssl_auth=True)
 
     yield wrapper
@@ -212,10 +219,10 @@ def volttron_instance_rmq(request):
 
 
 @pytest.fixture(scope="module",
-                params=(
+                params=[
                     dict(messagebus='zmq', ssl_auth=False),
                     dict(messagebus='rmq', ssl_auth=True)
-                ))
+                ])
 def volttron_instance_web(request):
     print("volttron_instance_web (messagebus {messagebus} ssl_auth {ssl_auth})".format(**request.param))
     address = get_rand_vip()
@@ -228,10 +235,75 @@ def volttron_instance_web(request):
 
     wrapper = build_wrapper(address,
                             ssl_auth=request.param['ssl_auth'],
-                            message_bus=request.param['messagebus'],
+                            messagebus=request.param['messagebus'],
                             bind_web_address=web_address,
                             volttron_central_address=web_address)
 
     yield wrapper
 
     cleanup_wrapper(wrapper)
+
+
+@pytest.fixture(scope="module",
+                params=[
+                    dict(sink='zmq_web', source='zmq'),
+                    dict(sink='rmq_web', source='zmq'),
+                    dict(sink='rmq_web', source='rmq'),
+                    dict(sink='zmq_web', source='rmq')
+                ])
+def volttron_multi_messagebus(request):
+    """ This fixture allows multiple two message bus types to be configured to work together
+
+    This case will create a source (where data comes from) and a sink (where data goes to) to
+    allow connections from source to sink to be tested for the different cases.  In particular,
+    the case of VolttronCentralPlatform, Forwarder and DataMover agents should use this
+    case.
+
+    :param request:
+    :return:
+    """
+    print("volttron_multi_messagebus source: {} sink: {}".format(request.param['source'],
+                                                                 request.param['sink']))
+    sink_address = get_rand_vip()
+
+    if request.param['sink'] == 'rmq_web':
+        hostname, port = get_hostname_and_random_port()
+        web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
+        messagebus = 'rmq'
+        ssl_auth = True
+    else:
+        web_address = "http://{}".format(get_rand_ip_and_port())
+        messagebus = 'zmq'
+        ssl_auth = False
+
+    sink = build_wrapper(sink_address,
+                         ssl_auth=ssl_auth,
+                         messagebus=messagebus,
+                         bind_web_address=web_address,
+                         volttron_central_address=web_address)
+
+    source_address = get_rand_vip()
+    messagebus = 'zmq'
+    ssl_auth = False
+
+    if request.param['source'] == 'rmq':
+        messagebus = 'rmq'
+        ssl_auth = True
+
+    if sink.messagebus == 'rmq':
+        sink_ca_file = sink.certsobj.cert_file(sink.certsobj.root_ca_name)
+        source = build_wrapper(source_address,
+                               ssl_auth=ssl_auth,
+                               messagebus=messagebus,
+                               volttron_central_address=sink.bind_web_address,
+                               remote_platform_ca=sink_ca_file)
+    else:
+        source = build_wrapper(source_address,
+                               ssl_auth=ssl_auth,
+                               messagebus=messagebus,
+                               volttron_central_address=sink.bind_web_address)
+
+    yield source, sink
+
+    cleanup_wrapper(source)
+    cleanup_wrapper(sink)

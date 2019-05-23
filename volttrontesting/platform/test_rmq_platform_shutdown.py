@@ -65,7 +65,7 @@ def test_vctl_shutdown_on_rmq_stop(request):
 
     # Stop RabbitMQ server
     rmq_cfg = RMQConfig()
-    stop_rabbit(rmq_home=rmq_cfg.rmq_home)
+    stop_rabbit(rmq_home=rmq_cfg.rmq_home, env=volttron_instance.env)
 
     gevent.sleep(5)
     # Shtudown platform

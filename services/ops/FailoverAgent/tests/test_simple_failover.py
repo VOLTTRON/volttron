@@ -32,10 +32,12 @@ uuid_primary = None
 uuid_secondary = None
 listener_primary = None
 
+
 def all_agents_running(instance):
     agents = instance.list_agents()
     uuids = [a['uuid'] for a in agents]
     return all([instance.is_agent_running(uuid) for uuid in uuids])
+
 
 @pytest.fixture
 def simple_failover(request, get_volttron_instances):
@@ -46,6 +48,10 @@ def simple_failover(request, get_volttron_instances):
     global listener_primary
 
     primary, secondary = get_volttron_instances(2)
+
+    if primary.messagebus != 'zmq':
+        pytest.skip("Failover only valid for zmq instances.")
+        return
 
     primary.allow_all_connections()
     secondary.allow_all_connections()

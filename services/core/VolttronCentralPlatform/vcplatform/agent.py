@@ -322,7 +322,7 @@ class VolttronCentralPlatform(Agent):
 
         # Begin a connection loop that will automatically attempt to reconnect
         # and publish stats to volttron central if the connection is successful.
-        self.core.spawn_later(2, self._establish_connection_to_vc)
+        self.core.spawn_later(1, self._establish_connection_to_vc)
 
     def _stop_event_timers(self):
         if self._stat_publish_event is not None:
@@ -400,7 +400,6 @@ class VolttronCentralPlatform(Agent):
                 self._vc_connection = self.vip.auth.connect_remote_platform(
                     address=self._vc_address,
                     serverkey=self._vc_serverkey,
-                    rmq_ca_cert=self._vc_rmq_ca_cert,
                     agent_class=VCConnection
                 )
 
@@ -416,7 +415,7 @@ class VolttronCentralPlatform(Agent):
 
             # Break out of the loop if we have successfully connect to the
             # remote platform.
-            if self._vc_connection is not None:
+            if self._vc_connection is not None and isinstance(self._vc_connection, Agent):
                 self._vc_connection.set_main_agent(self)
                 self._still_connected()
                 self._publish_stats()
@@ -1041,8 +1040,7 @@ class VolttronCentralPlatform(Agent):
                         'remove_agent', 'restart_agent'):
             _log.debug('We are trying to exectute method {}'.format(method))
             if isinstance(params, list) and len(params) != 1 or \
-                            isinstance(params,
-                                       dict) and 'uuid' not in params.keys():
+                    isinstance(params, dict) and 'uuid' not in params.keys():
                 result = jsonrpc.json_error(ident=id, code=INVALID_PARAMS)
             else:
                 if isinstance(params, list):
@@ -1232,7 +1230,7 @@ class VolttronCentralPlatform(Agent):
                     self.get_instance_uuid()))
             gevent.sleep(1)
             try:
-                self._vc_connection.core.stop(timeput=5)
+                self._vc_connection.core.stop(timeout=5)
             except:
                 _log.error("killing _vc_connection connection")
             finally:

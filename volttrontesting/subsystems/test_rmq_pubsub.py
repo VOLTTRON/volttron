@@ -66,7 +66,8 @@ def subscriber_agent(request, volttron_instance):
 
     test_topic = "testtopic1/test/foo/bar"
     # Agent subscribes to both the desired topic and a topic that is not going to ever be published
-    subscriber_agent.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic, callback=subscriber_agent.callback)
+    subscriber_agent.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic,
+                                          callback=subscriber_agent.callback)
 
     def stop_agent():
         print("In teardown method of publisher_agent")
@@ -99,16 +100,24 @@ def test_granularity(volttron_instance, publisher_agent, request):
         new_agent1_sub.core.stop()
         new_agent2_sub.core.stop()
         new_agent3_sub.core.stop()
+
     request.addfinalizer(stop)
 
-    new_agent1_sub.vip.pubsub.subscribe(peer='pubsub', prefix='testtopic1', callback=new_agent1_sub.callback)
-    new_agent2_sub.vip.pubsub.subscribe(peer='pubsub', prefix='testtopic1/test', callback=new_agent2_sub.callback)
-    new_agent3_sub.vip.pubsub.subscribe(peer='pubsub', prefix='testtopic1/test/foo', callback=new_agent3_sub.callback)
+    new_agent1_sub.vip.pubsub.subscribe(peer='pubsub', prefix='testtopic1',
+                                        callback=new_agent1_sub.callback)
+    new_agent2_sub.vip.pubsub.subscribe(peer='pubsub', prefix='testtopic1/test',
+                                        callback=new_agent2_sub.callback)
+    new_agent3_sub.vip.pubsub.subscribe(peer='pubsub',
+                                        prefix='testtopic1/test/foo',
+                                        callback=new_agent3_sub.callback)
     gevent.sleep(1)
 
-    publisher_agent.vip.pubsub.publish(peer="pubsub", topic=g1_topic, headers=None, message="Test G1 Message")
-    publisher_agent.vip.pubsub.publish(peer="pubsub", topic=g2_topic, headers=None, message="Test G2 Message")
-    publisher_agent.vip.pubsub.publish(peer="pubsub", topic=g3_topic, headers=None, message="Test G3 Message")
+    publisher_agent.vip.pubsub.publish(peer="pubsub", topic=g1_topic,
+                                       headers=None, message="Test G1 Message")
+    publisher_agent.vip.pubsub.publish(peer="pubsub", topic=g2_topic,
+                                       headers=None, message="Test G2 Message")
+    publisher_agent.vip.pubsub.publish(peer="pubsub", topic=g3_topic,
+                                       headers=None, message="Test G3 Message")
     gevent.sleep(1)
 
     assert new_agent1_sub.callback.call_count == 3
@@ -123,11 +132,13 @@ def test_incorrect_topic(publisher_agent, subscriber_agent):
 
     test_topic = "testtopic1/test/foo/bar"
 
-    subscriber_agent.vip.pubsub.subscribe(peer='pubsub', prefix='incorrecttopic',
+    subscriber_agent.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix='incorrecttopic',
                                           callback=subscriber_agent.callback)
     gevent.sleep(.5)
 
-    publisher_agent.vip.pubsub.publish(peer="pubsub", topic=test_topic, headers=None, message="Test message")
+    publisher_agent.vip.pubsub.publish(peer="pubsub", topic=test_topic,
+                                       headers=None, message="Test message")
     gevent.sleep(.5)
 
     # Should get messages from the topic that has messages being published but not from the topic that
@@ -143,17 +154,20 @@ def test_unsubscribe(publisher_agent, subscriber_agent):
 
     # Messages should be recieved by new_agent1 since it has subscribed to test_topic
     for i in range(0, 5):
-        publisher_agent.vip.pubsub.publish(peer="pubsub", topic=test_topic, headers=None, message="Test message")
+        publisher_agent.vip.pubsub.publish(peer="pubsub", topic=test_topic,
+                                           headers=None, message="Test message")
         gevent.sleep(0.01)
         print("count:{}".format(i))
 
     gevent.sleep(0.5)
-    subscriber_agent.vip.pubsub.unsubscribe(peer='pubsub', prefix=test_topic, callback=subscriber_agent.callback)
+    subscriber_agent.vip.pubsub.unsubscribe(peer='pubsub', prefix=test_topic,
+                                            callback=subscriber_agent.callback)
     gevent.sleep(0.5)
 
     # Since agent has unsubscribed from test_topic, these messages should not be recieved
     for x in range(0, 5):
-        publisher_agent.vip.pubsub.publish(peer="pubsub", topic=test_topic, headers=None, message="Test message")
+        publisher_agent.vip.pubsub.publish(peer="pubsub", topic=test_topic,
+                                           headers=None, message="Test message")
         gevent.sleep(0.01)
 
     assert subscriber_agent.callback.call_count <= 5
@@ -169,15 +183,15 @@ def test_irrelevant_unsubscribe(subscriber_agent):
     # Agent has never subscribed to this topic but is attempting to unsubscribe anyway
     # Nothing should happen as a result
     subscriber_agent.vip.pubsub.unsubscribe(peer='pubsub',
-                                      prefix=not_subscribed_topic,
-                                      callback=subscriber_agent.wrong_callback)
+                                            prefix=not_subscribed_topic,
+                                            callback=subscriber_agent.wrong_callback)
     gevent.sleep(0.01)
 
     for i in range(0, 5):
         subscriber_agent.vip.pubsub.publish(peer="pubsub",
-                                      topic=not_subscribed_topic,
-                                      headers=None,
-                                      message="Test message")
+                                            topic=not_subscribed_topic,
+                                            headers=None,
+                                            message="Test message")
         gevent.sleep(0.01)
 
     # Confirm that no messages were ever recieved from the not_subscribed_topic
@@ -201,9 +215,12 @@ def test_list_subscribed(volttron_instance, request):
     test_topic2 = "testtopic1/test/foo/bar/two"
     test_topic3 = "testtopic1/test/foo/bar/three"
 
-    new_agent1.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic1, callback=new_agent1.list_callback)
-    new_agent1.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic2, callback=new_agent1.list_callback)
-    new_agent1.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic3, callback=new_agent1.list_callback)
+    new_agent1.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic1,
+                                    callback=new_agent1.list_callback)
+    new_agent1.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic2,
+                                    callback=new_agent1.list_callback)
+    new_agent1.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic3,
+                                    callback=new_agent1.list_callback)
 
     gevent.sleep(1)
     topic_result_index = 1
@@ -242,9 +259,12 @@ def test_list_subscribed_reverse(volttron_instance, request):
     topic_result_index = 1
     member_result_index = 2
 
-    new_agent2.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic1, callback=new_agent2.list_callback)
-    new_agent2.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic2, callback=new_agent2.list_callback)
-    new_agent2.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic3, callback=new_agent2.list_callback)
+    new_agent2.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic1,
+                                    callback=new_agent2.list_callback)
+    new_agent2.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic2,
+                                    callback=new_agent2.list_callback)
+    new_agent2.vip.pubsub.subscribe(peer='pubsub', prefix=test_topic3,
+                                    callback=new_agent2.list_callback)
 
     gevent.sleep(1)
     list_results = new_agent2.vip.pubsub.list(peer='pubsub',
@@ -257,5 +277,52 @@ def test_list_subscribed_reverse(volttron_instance, request):
     for result in list_results:
         topic = result[topic_result_index]
         assert topic in [test_topic1, test_topic2, test_topic3]
-        assert result[member_result_index] == True
+        assert result[member_result_index] is True
 
+
+@pytest.mark.pubsub
+def test_multi_unsubscribe(volttron_instance):
+    subscriber_agent = volttron_instance.build_agent()
+    subscriber_agent.subscription_callback = MagicMock(
+        callback='subscription_callback')
+    subscriber_agent.subscription_callback.reset_mock()
+
+    # test unsubscribe all when there are no subscriptions
+    subscriber_agent.vip.pubsub.unsubscribe("pubsub", prefix=None,
+                                            callback=None)
+
+    publisher_agent = volttron_instance.build_agent()
+
+    topic_to_check = "testtopic1/test/foo/bar/one"
+    test_topic1 = "testtopic1/test/foo/bar"
+    test_topic2 = "testtopic1/test/foo"
+    test_topic3 = "testtopic1"
+
+    subscriber_agent.vip.pubsub.subscribe(
+        peer='pubsub', prefix=test_topic1,
+        callback=subscriber_agent.subscription_callback)
+    subscriber_agent.vip.pubsub.subscribe(
+        peer='pubsub', prefix=test_topic2,
+        callback=subscriber_agent.subscription_callback)
+    subscriber_agent.vip.pubsub.subscribe(
+        peer='pubsub', prefix=test_topic3,
+        callback=subscriber_agent.subscription_callback)
+    gevent.sleep(1)
+
+    publisher_agent.vip.pubsub.publish(peer="pubsub",
+                                       topic=topic_to_check,
+                                       message="test message 1")
+    gevent.sleep(1)
+
+    assert subscriber_agent.subscription_callback.call_count == 3
+    subscriber_agent.subscription_callback.reset_mock()
+
+    subscriber_agent.vip.pubsub.unsubscribe("pubsub", prefix=None,
+                                            callback=None)
+    gevent.sleep(1)
+
+    publisher_agent.vip.pubsub.publish(peer="pubsub", topic=topic_to_check,
+                                       message="test message 3")
+    gevent.sleep(1)
+
+    assert subscriber_agent.subscription_callback.call_count == 0

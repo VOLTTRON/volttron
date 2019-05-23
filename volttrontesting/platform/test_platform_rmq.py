@@ -83,6 +83,13 @@ def instance(request):
 
 
 @pytest.mark.wrapper
+def test_instance_name_is_basename_of_home(instance):
+
+    assert instance.instance_name == os.path.basename(instance.volttron_home), \
+        "instance name doesn't match volttron_home basename"
+
+
+@pytest.mark.wrapper
 def test_vstart_without_rmq_init(request, instance):
     """
     Test error where volttron is started with message bus as rmq but without

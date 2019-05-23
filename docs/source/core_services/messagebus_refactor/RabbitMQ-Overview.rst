@@ -87,6 +87,7 @@ For more detailed information about clustering, please refer to RabbitMQ documen
 `Clustering plugin <https://www.rabbitmq.com/clustering.html>`_.
 
 .. _Federation:
+
 Federation
 ----------
 Federation plugin is used in applications that does not require as much of tight coupling as clustering.
@@ -165,6 +166,7 @@ For more information about federated queues, please read
 `Federated Queues <https://www.rabbitmq.com/federated-queues.html>`_.
 
 .. _Shovel:
+
 Shovel
 ------
 Shovel plugin allows you to reliably and continually move messages from a source in one

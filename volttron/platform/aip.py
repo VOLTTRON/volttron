@@ -229,7 +229,7 @@ class AIPplatform(object):
             task.kill()
         _log.debug("I'm done with aip shutdown")
 
-    def rmq_shutdown(self):
+    def brute_force_platform_shutdown(self):
         for agent_uuid in self.agents.iterkeys():
             _log.debug("Stopping agent UUID {}".format(agent_uuid))
             self.stop_agent(agent_uuid)
@@ -719,12 +719,12 @@ class AIPplatform(object):
                 _log.warn("First timeout")
                 execenv.process.terminate()
             try:
-                return gevent.with_timeout(3, process_wait, execenv.process)
+                return gevent.with_timeout(30, process_wait, execenv.process)
             except gevent.Timeout:
                 _log.warn("2nd timeout")
                 execenv.process.kill()
             try:
-                return gevent.with_timeout(3, process_wait, execenv.process)
+                return gevent.with_timeout(30, process_wait, execenv.process)
             except gevent.Timeout:
                 _log.error("last timeout")
                 raise ValueError('process is unresponsive')

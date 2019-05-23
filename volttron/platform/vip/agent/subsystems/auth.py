@@ -79,7 +79,7 @@ class Auth(SubsystemBase):
 
         core.onsetup.connect(onsetup, self)
 
-    def connect_remote_platform(self, address, serverkey=None, rmq_ca_cert=None, agent_class=None):
+    def connect_remote_platform(self, address, serverkey=None, agent_class=None):
         """
         Atempts to connect to a remote platform to exchange data.
 
@@ -135,11 +135,6 @@ class Auth(SubsystemBase):
                                 secretkey=secretkey,
                                 message_bus='zmq',
                                 address=address)
-
-        elif parsed_address.scheme in ('amqp', 'amqps'):
-            # Rabbitmq connection
-            # TODO use known host rather than
-            pass
         elif parsed_address.scheme in ('https', 'http'):
             try:
                 # TODO: Use known host instead of looking up for discovery info if possible.

@@ -104,11 +104,11 @@ def test_on_rmq_reconnect(volttron_instance_rmq, publisher_agent, subscriber_age
 
     # Stop RabbitMQ server
     rmq_cfg = RMQConfig()
-    stop_rabbit(rmq_cfg.rmq_home, env=volttron_instance_rmq)
+    stop_rabbit(rmq_cfg.rmq_home, env=volttron_instance_rmq.env)
 
     gevent.sleep(1)
     # Start RabbitMQ server again
-    start_rabbit(rmq_cfg.rmq_home, env=volttron_instance_rmq)
+    start_rabbit(rmq_cfg.rmq_home, env=volttron_instance_rmq.env)
 
     gevent.sleep(8)
 
@@ -143,6 +143,7 @@ def test_rmq_reconnect_with_publish(volttron_instance_rmq, publisher_agent, subs
     gevent.sleep(2)
     # Start RabbitMQ server
     start_rabbit(rmq_cfg.rmq_home, env=volttron_instance_rmq.env)
+    gevent.sleep(2)
 
     for i in range(5):
         try:

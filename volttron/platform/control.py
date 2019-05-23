@@ -264,7 +264,7 @@ class ControlService(BaseAgent):
         # Send message to router that agent is shutting down
         frames = [bytes(identity)]
 
-        self.core.connection.send_vip(b'', 'agentstop', frames, copy=False)
+        self.core.connection.send_vip(b'', 'agentstop', args=frames, copy=False)
 
     @RPC.export
     def restart_agent(self, uuid):
@@ -315,7 +315,7 @@ class ControlService(BaseAgent):
         frames = [bytes(identity)]
 
         # Send message to router that agent is shutting down
-        self.core.connection.send_vip(b'', 'agentstop', args=frames)
+        self.core.connection.send_vip(b'', 'agentstop', args=frames, copy=False)
         self._aip.remove_agent(uuid, remove_auth=remove_auth)
 
     @RPC.export
@@ -887,7 +887,7 @@ def shutdown_agents(opts):
             if not check_rabbit_status():
                 _stderr.write(
                     'RabbitMQ server is still not running.\nShutting down the platform forcefully\n')
-                opts.aip.rmq_shutdown()
+                opts.aip.brute_force_platform_shutdown()
                 return
     opts.connection.call('shutdown')
     _log.debug("Calling stop_platform")
@@ -2604,9 +2604,10 @@ def main(argv=sys.argv):
     # function
     # Below vctl commands can work even when volttron is not up. For others
     # volttron need to be up.
-    if args[0] not in ('list', 'tag', 'auth', 'rabbitmq'):
-        # check pid file
-        if not utils.is_volttron_running(volttron_home):
+    if len(args) > 0:
+        if args[0] not in ('list', 'tag', 'auth', 'rabbitmq'):
+            # check pid file
+            if not utils.is_volttron_running(volttron_home):
                 _stderr.write("VOLTTRON is not running. This command "
                               "requires VOLTTRON platform to be running\n")
                 return 10

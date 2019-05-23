@@ -260,7 +260,7 @@ class VolttronCentralAgent(Agent):
 
         # Start scanning for new platforms connections as well as for
         # disconnects that happen.
-        self._scan_platform_connect_disconnect()
+        gevent.spawn_later(1, self._scan_platform_connect_disconnect)
 
     @staticmethod
     def _get_next_time_seconds(seconds=10):
@@ -286,6 +286,7 @@ class VolttronCentralAgent(Agent):
         Scan the local bus for peers that start with 'vcp-'.  Handle the
         connection and disconnection events here.
         """
+        _log.debug("Scanning for connection/disconnection")
         if self._platform_scan_event is not None:
             # This won't hurt anything if we are canceling ourselves.
             self._platform_scan_event.cancel()
@@ -295,6 +296,7 @@ class VolttronCentralAgent(Agent):
         connected_platforms = set([x for x in self.vip.peerlist().get(timeout=5)
                                    if x.startswith('vcp-') or x.endswith('.platform.agent')])
 
+        _log.debug("Connected: {}".format(connected_platforms))
         disconnected = self._platforms.get_platform_vip_identities() - connected_platforms
 
         for vip_id in disconnected:
@@ -378,33 +380,6 @@ class VolttronCentralAgent(Agent):
         :rtype: str
         """
         return self.core.publickey
-
-    @RPC.export
-    def unregister_platform(self, platform_uuid):
-        _log.debug('unregister_platform')
-
-        platform = self._registered_platforms.get(platform_uuid)
-        if platform:
-            connected = self._platform_connections.get(platform_uuid)
-            if connected is not None:
-                connected.call('unmanage')
-                connected.kill()
-            address = None
-            for v in self._address_to_uuid.values():
-                if v == platform_uuid:
-                    address = v
-                    break
-            if address:
-                del self._address_to_uuid[address]
-            del self._platform_connections[platform_uuid]
-            del self._registered_platforms[platform_uuid]
-            self._registered_platforms.sync()
-            context = 'Unregistered platform {}'.format(platform_uuid)
-            return {'status': 'SUCCESS', 'context': context}
-        else:
-            msg = 'Unable to unregistered platform {}'.format(platform_uuid)
-            return {'error': {'code': UNABLE_TO_UNREGISTER_INSTANCE,
-                              'message': msg}}
 
     def _to_jsonrpc_obj(self, jsonrpcstr):
         """ Convert data string into a JsonRpcData named tuple.

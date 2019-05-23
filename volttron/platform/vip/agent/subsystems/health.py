@@ -40,6 +40,7 @@ import logging
 import os
 import weakref
 
+from volttron.platform.agent.utils import get_fq_identity
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.headers import DATE
 from volttron.platform.messaging.health import *
@@ -86,8 +87,10 @@ class Health(SubsystemBase):
         if not isinstance(statusobj, Status):
             raise ValueError('statusobj must be a Status object.')
         agent_class = self._owner.__class__.__name__
-        agent_uuid = os.environ.get('AGENT_UUID', '')
-        topic = topics.ALERTS(agent_class=agent_class, agent_uuid=agent_uuid)
+        fq_identity = get_fq_identity(self._core().identity)
+        # RMQ and other message buses can't handle '.' because it's used as the separator.  This
+        # causes us to change the alert topic's agent_identity to have '_' rather than '.'.
+        topic = topics.ALERTS(agent_class=agent_class, agent_identity=fq_identity.replace('.', '_'))
         headers = dict(alert_key=alert_key)
 
         self._owner.vip.pubsub.publish("pubsub",
