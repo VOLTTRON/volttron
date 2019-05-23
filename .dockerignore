@@ -1,0 +1,5 @@
+.git
+.github
+env/
+volttron.egg-info/
+*.pyc

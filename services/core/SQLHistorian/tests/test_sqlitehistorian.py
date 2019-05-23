@@ -183,7 +183,7 @@ def publish_agent(request, volttron_instance):
 
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
-    # 1: Start a fake agent to query the historian agent in volttron_instance2
+    # 1: Start a fake agent to query the historian agent in volttron_instance
     agent = volttron_instance.build_agent()
 
     # 2: add a tear down method to stop the fake
@@ -216,11 +216,12 @@ def historian(request, volttron_instance, query_agent):
 
     print ("sqlite_platform -- {}".format(sqlite_platform))
     # 2. Install agent - historian
-    source = sqlite_platform.pop('source_historian')
+    temp_config = copy.copy(sqlite_platform)
+    source = temp_config.pop('source_historian')
     historian_uuid = volttron_instance.install_agent(
         vip_identity='platform.historian',
         agent_dir=source,
-        config_file=sqlite_platform,
+        config_file=temp_config,
         start=True)
     print("agent id: ", historian_uuid)
     identity = 'platform.historian'
@@ -233,9 +234,7 @@ def historian(request, volttron_instance, query_agent):
         volttron_instance.remove_agent(historian_uuid)
 
     request.addfinalizer(stop_agent)
-    # put source info back as test cases might use it to installer more
-    # instances of historian
-    sqlite_platform['source_historian'] = source
+
     return sqlite_platform
 
 

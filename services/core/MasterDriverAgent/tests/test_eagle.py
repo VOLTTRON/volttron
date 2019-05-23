@@ -194,8 +194,8 @@ def handle(env, start_response):
 
 
 @pytest.fixture(scope='module')
-def agent(volttron_instance1):
-    agent = volttron_instance1.build_agent()
+def agent(volttron_instance):
+    agent = volttron_instance.build_agent()
     # Clean out master driver configurations.
     agent.vip.rpc.call(CONFIGURATION_STORE,
                        'manage_delete_store',
@@ -216,7 +216,7 @@ def agent(volttron_instance1):
                        register_config_string,
                        "json").get(timeout=10)
 
-    master_uuid = volttron_instance1.install_agent(
+    master_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
         start=True)
@@ -228,7 +228,7 @@ def agent(volttron_instance1):
 
     yield agent
 
-    volttron_instance1.stop_agent(master_uuid)
+    volttron_instance.stop_agent(master_uuid)
     agent.core.stop()
     server.stop()
 

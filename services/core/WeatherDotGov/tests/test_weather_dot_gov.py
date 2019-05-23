@@ -35,6 +35,7 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+import copy
 
 import pytest
 import gevent
@@ -90,7 +91,7 @@ def cleanup_cache(volttron_instance, query_agent, weather):
 
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
-    # 1: Start a fake agent to query the historian agent in volttron_instance2
+    # 1: Start a fake agent to query the historian agent in volttron_instance
     agent = volttron_instance.build_agent()
     agent.poll_callback = MagicMock(name="poll_callback")
     # subscribe to weather poll results
@@ -113,14 +114,14 @@ def query_agent(request, volttron_instance):
 def weather(request, volttron_instance):
     print("** Setting up weather agent module **")
     print("request param", request.param)
-
-    source = request.param.pop('weather_service')
+    config = copy.copy(request.param)
+    source = config.pop('weather_service')
 
     agent = volttron_instance.install_agent(
         vip_identity=identity,
         agent_dir=source,
         start=False,
-        config_file=request.param)
+        config_file=config)
 
     volttron_instance.start_agent(agent)
     gevent.sleep(3)
@@ -129,7 +130,6 @@ def weather(request, volttron_instance):
         print("stopping weather service")
         if volttron_instance.is_running():
             volttron_instance.stop_agent(agent)
-        # volttron_instance.remove_agent(agent)
 
     request.addfinalizer(stop_agent)
     return agent

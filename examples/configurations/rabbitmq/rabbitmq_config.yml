@@ -1,0 +1,56 @@
+#host parameter is mandatory parameter. fully qualified domain name
+host: mymachine.pnl.gov
+
+# mandatory. certificate data used to create root ca certificate. Each volttron
+# instance must have unique common-name for root ca certificate
+certificate-data:
+  country: US
+  state: Washington
+  location: Richland
+  organization: PNNL
+  organization-unit: VOLTTRON Team
+  # volttron_instance has to be replaced with actual instance name of the VOLTTRON
+  common-name: volttron_instance_root_ca
+# certificate data could also point to existing public and private key files
+# of a CA. In that case, use the below certificate-data parameters instead of
+# the above. Note. public and private should be pem encoded and use rsa
+#  encryption
+#
+#certificate-data:
+#  ca-public-key: /path/to/ca/public/key/ca_pub.crt
+#  ca-private-key: /path/to/ca/private/key/ca_private.pem
+
+
+#
+# optional parameters for single instance setup
+#
+virtual-host: volttron #defaults to volttron
+
+# use the below four port variables if using custom rabbitmq ports
+# defaults to 5672
+amqp-port: 5672
+
+# defaults to 5671
+amqp-port-ssl: 5671
+
+# defaults to 15672
+mgmt-port: 15672
+
+# defaults to 15671
+mgmt-port-ssl: 15671
+
+# defaults to true
+ssl: true
+
+# By default if certs exists setup script will prompt to confirm if the same certs should be used.
+# If use-existing-certs is set to True then existing certs would be used without prompting,
+# if set to False new certs will be created
+
+#use-existing-certs: True
+
+# defaults to ~/rabbitmq_server/rabbbitmq_server-3.7.7
+rmq-home: ~/rabbitmq_server/rabbitmq_server-3.7.7
+
+# RabbitMQ reconnect retry delay (in seconds)
+reconnect-delay: 30
+

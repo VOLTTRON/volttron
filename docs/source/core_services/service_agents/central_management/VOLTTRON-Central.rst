@@ -18,7 +18,7 @@ VOLTTRON Central will allow you to
 -  Create dynamic graphs from the historians based upon points.
 -  Execute functions on remote platforms.
 
-.note::
+.. note::
 
     see :ref:`VCM json-rpc web api <VCM-Webservice-API>` for how the web interface
     works.

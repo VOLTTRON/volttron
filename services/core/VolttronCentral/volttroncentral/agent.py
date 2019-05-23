@@ -57,18 +57,17 @@ instance with VCA.
    to VCA after being deployed.
 
 """
-import errno
-import hashlib
+
 import logging
 import os
 import os.path as p
 import sys
-from collections import defaultdict, namedtuple
-from copy import deepcopy
-from urlparse import urlparse
-
+from collections import namedtuple
 import datetime
+
 import gevent
+import requests
+
 from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform.agent import json as jsonapi
 
@@ -95,7 +94,7 @@ from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 
-__version__ = "4.2"
+__version__ = "5.0"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -107,6 +106,7 @@ DEFAULT_WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot/'))
 Platform = namedtuple('Platform', ['instance_name', 'serverkey', 'vip_address'])
 RequiredArgs = namedtuple('RequiredArgs', ['id', 'session_user',
                                            'platform_uuid'])
+
 
 def init_volttron_central(config_path, **kwargs):
     # Load the configuration into a dictionary
@@ -255,13 +255,12 @@ class VolttronCentralAgent(Agent):
                                         self.open_authenticate_ws_endpoint,
                                         self._ws_closed,
                                         self._ws_received)
-
         self.vip.web.register_path(r'^/vc/.*',
                                    config.get('webroot'))
 
         # Start scanning for new platforms connections as well as for
         # disconnects that happen.
-        self._scan_platform_connect_disconnect()
+        gevent.spawn_later(1, self._scan_platform_connect_disconnect)
 
     @staticmethod
     def _get_next_time_seconds(seconds=10):
@@ -287,6 +286,7 @@ class VolttronCentralAgent(Agent):
         Scan the local bus for peers that start with 'vcp-'.  Handle the
         connection and disconnection events here.
         """
+        _log.debug("Scanning for connection/disconnection")
         if self._platform_scan_event is not None:
             # This won't hurt anything if we are canceling ourselves.
             self._platform_scan_event.cancel()
@@ -294,14 +294,15 @@ class VolttronCentralAgent(Agent):
         # Identities of all platform agents that are connecting to us should
         # have an identity of platform.md5hash.
         connected_platforms = set([x for x in self.vip.peerlist().get(timeout=5)
-                                   if x.startswith('vcp-')])
+                                   if x.startswith('vcp-') or x.endswith('.platform.agent')])
 
-        disconnected = self._platforms.get_platform_keys() - connected_platforms
+        _log.debug("Connected: {}".format(connected_platforms))
+        disconnected = self._platforms.get_platform_vip_identities() - connected_platforms
 
         for vip_id in disconnected:
             self._handle_platform_disconnect(vip_id)
 
-        not_known = connected_platforms - self._platforms.get_platform_keys()
+        not_known = connected_platforms - self._platforms.get_platform_vip_identities()
 
         for vip_id in not_known:
             self._handle_platform_connection(vip_id)
@@ -311,7 +312,6 @@ class VolttronCentralAgent(Agent):
         # reschedule the next scan.
         self._platform_scan_event = self.core.schedule(
             next_platform_scan, self._scan_platform_connect_disconnect)
-
 
     def configure_platforms(self, config_name, action, contents):
         _log.debug('Platform configuration updated.')
@@ -381,33 +381,6 @@ class VolttronCentralAgent(Agent):
         """
         return self.core.publickey
 
-    @RPC.export
-    def unregister_platform(self, platform_uuid):
-        _log.debug('unregister_platform')
-
-        platform = self._registered_platforms.get(platform_uuid)
-        if platform:
-            connected = self._platform_connections.get(platform_uuid)
-            if connected is not None:
-                connected.call('unmanage')
-                connected.kill()
-            address = None
-            for v in self._address_to_uuid.values():
-                if v == platform_uuid:
-                    address = v
-                    break
-            if address:
-                del self._address_to_uuid[address]
-            del self._platform_connections[platform_uuid]
-            del self._registered_platforms[platform_uuid]
-            self._registered_platforms.sync()
-            context = 'Unregistered platform {}'.format(platform_uuid)
-            return {'status': 'SUCCESS', 'context': context}
-        else:
-            msg = 'Unable to unregistered platform {}'.format(platform_uuid)
-            return {'error': {'code': UNABLE_TO_UNREGISTER_INSTANCE,
-                              'message': msg}}
-
     def _to_jsonrpc_obj(self, jsonrpcstr):
         """ Convert data string into a JsonRpcData named tuple.
 
@@ -430,17 +403,37 @@ class VolttronCentralAgent(Agent):
         """
         if env['REQUEST_METHOD'].upper() != 'POST':
             return jsonrpc.json_error('NA', INVALID_REQUEST,
-                                      'Invalid request method, only POST allowed'
-                                      )
+                                      'Invalid request method, only POST allowed')
 
         try:
             rpcdata = self._to_jsonrpc_obj(data)
             _log.info('rpc method: {}'.format(rpcdata.method))
+
             if rpcdata.method == 'get_authorization':
+
+                # Authentication url
+                # This does not need to be local, however for now we are going to
+                # make it so assuming only one level of authentication.
+                auth_url = "{url_scheme}://{HTTP_HOST}/authenticate".format(
+                    url_scheme=env['wsgi.url_scheme'],
+                    HTTP_HOST=env['HTTP_HOST'])
+                user = rpcdata.params['username']
                 args = {'username': rpcdata.params['username'],
                         'password': rpcdata.params['password'],
                         'ip': env['REMOTE_ADDR']}
-                sess = self._authenticated_sessions.authenticate(**args)
+                resp = requests.post(auth_url, json=args, verify=False)
+
+                if resp.ok and resp.text:
+                    claims = self.vip.web.get_user_claims(resp.text)
+                    authentication_token = resp.text
+                    sess=authentication_token
+                    self._authenticated_sessions._add_session(user=user,
+                                                              groups=claims,
+                                                              token=authentication_token,
+                                                              ip=env['REMOTE_ADDR'])
+                else:
+                    sess = self._authenticated_sessions.authenticate(**args)
+
                 if not sess:
                     _log.info('Invalid username/password for {}'.format(
                         rpcdata.params['username']))

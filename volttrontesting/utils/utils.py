@@ -11,6 +11,22 @@ from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent import utils
 
 
+def get_hostname_and_random_port(min_ip=5000, max_ip=6000):
+    with open('/etc/hostname') as fp:
+        hostname = fp.read().strip()
+
+    assert hostname
+    try:
+        # socket.getfqdn(hostname)
+        ip = socket.gethostbyname(hostname)
+        port = get_rand_port(ip, min_ip, max_ip)
+    except socket.gaierror:
+        err = "Lookup of hostname {} unssucessful, please verify your /etc/hosts " \
+              "doesn't have a local resolution to hostname".format(hostname)
+        raise StandardError(err)
+    return hostname, port
+
+
 def poll_gevent_sleep(max_seconds, condition=lambda: True, sleep_time=0.2):
     """Sleep until condition is true or max_seconds has passed.
 
@@ -45,8 +61,13 @@ def messages_contains_prefix(prefix, messages):
     return any(map(lambda x: x.startswith(prefix), messages.keys()))
 
 
-def get_rand_http_address():
-    return "http://{}".format(get_rand_ip_and_port())
+def get_rand_http_address(https=False):
+    if https:
+        host, port = get_hostname_and_random_port()
+        result = "https://{}:{}".format(host, port)
+    else:
+        result = "http://{}".format(get_rand_ip_and_port())
+    return result
 
 
 def get_rand_tcp_address():
@@ -63,11 +84,11 @@ def get_rand_ip_and_port():
     return ip + ":{}".format(port)
 
 
-def get_rand_port(ip=None):
-    port = randint(5000, 6000)
+def get_rand_port(ip=None, min_ip=5000, max_ip=6000):
+    port = randint(min_ip, max_ip)
     if ip:
         while is_port_open(ip, port):
-            port = randint(5000, 6000)
+            port = randint(min_ip, max_ip)
     return port
 
 
@@ -134,4 +155,5 @@ def validate_published_device_data(expected_headers, expected_message,
 
     for k, v in expected_message[0].items():
         assert k in message[0]
-        assert message[0][k] == pytest.approx(v, abs=1e-6)
+        # pytest.approx gives 10^-6 (one millionth accuracy)
+        assert message[0][k] == pytest.approx(v)

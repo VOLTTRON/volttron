@@ -74,9 +74,9 @@ class _subscriber_agent(Agent):
 
 
 @pytest.fixture(scope="module")
-def subscriber_agent(request, volttron_instance1):
+def subscriber_agent(request, volttron_instance):
 
-    agent = volttron_instance1.build_agent(identity='subscriber_agent',
+    agent = volttron_instance.build_agent(identity='subscriber_agent',
                                           agent_class=_subscriber_agent)
 
     agent.vip.pubsub.subscribe(peer='pubsub',
@@ -121,15 +121,15 @@ FloatNoDefault,FloatNoDefault,F,-100 to 300,TRUE,,float,CO2 Reading 0.00-2000.0 
 
 
 @pytest.fixture(scope="module")
-def config_store_connection(request, volttron_instance1):
+def config_store_connection(request, volttron_instance):
 
-    connection = volttron_instance1.build_connection(peer=CONFIGURATION_STORE)
+    connection = volttron_instance.build_connection(peer=CONFIGURATION_STORE)
     # Reset master driver config store
     connection.call("manage_delete_store", PLATFORM_DRIVER)
 
     # Start the master driver agent which would in turn start the fake driver
     #  using the configs created above
-    master_uuid = volttron_instance1.install_agent(
+    master_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
         start=True)
@@ -138,8 +138,8 @@ def config_store_connection(request, volttron_instance1):
 
     yield connection
 
-    volttron_instance1.stop_agent(master_uuid)
-    volttron_instance1.remove_agent(master_uuid)
+    volttron_instance.stop_agent(master_uuid)
+    volttron_instance.remove_agent(master_uuid)
     connection.kill()
 
 

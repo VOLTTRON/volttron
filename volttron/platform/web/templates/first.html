@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Master Password Creation</title>
+    <style>
+        html {
+            font: 100%/1.5 "Open Sans", sans-serif;
+        }
+
+        body {
+            background-color: #eee;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            margin: 0;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        a {
+            color: #45b;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        input {
+            line-height: 1.5 !important;
+        }
+
+        pre, code {
+            font-family: "Menlo", "Monaco", "Consolas", monospace;
+        }
+
+        .button {
+            background-color: #69b;
+            box-shadow: 0 0.3333rem #479;
+            color: #fff;
+            transition: opacity 150ms ease-out,
+                        transform 20ms ease-out,
+                        box-shadow 20ms ease-out;
+            border: none;
+            border-radius: 0.3333rem;
+            padding: 0.25em 1em;
+        }
+
+        .button:focus {
+            outline: none;
+            box-shadow: 0 0 0.0833rem 0.1667rem rgba(128,128,255,0.5), 0 0.3333rem #479;
+        }
+
+        .button:active:not(:disabled) {
+            transform: translateY(0.3333rem);
+            box-shadow: 0 0 #479;
+        }
+
+        .button:disabled {
+            background-color: #9ab;
+            opacity: 0.5;
+            box-shadow: 0 0 #479;
+        }
+
+        #header {
+            background-color: #000055;
+            text-align: center;
+        }
+
+        #content {
+            padding-top: 20px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="header"><img height="100" id="logotag" src="/logo-tagline.png" /></div>
+        <div id="content">
+            <h1 class="center">Master Administration Password</h1>
+            <div id="form-container">
+                <form action="/admin/setpassword" method="post">
+                    <div>
+                        <label>Username:</label><input type="text" name="username" />
+                    </div>
+                    <div>
+                        <label>Password:</label><input type="password" name="password1" />
+                    </div>
+                    <div>
+                        <label>Re-Password:</label><input type="password" name="password2" />
+                    </div>
+                    <input type="submit" value="Set Master Password" />
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

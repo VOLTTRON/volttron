@@ -46,7 +46,7 @@ from volttron.platform.agent import json as jsonapi
 from .base import SubsystemBase
 from ..errors import VIPError
 from ..results import ResultsDictionary
-
+from volttron.platform.vip.socket import Message
 
 __all__ = ['Query']
 
@@ -58,9 +58,9 @@ class Query(SubsystemBase):
         core.register('query', self._handle_result, self._handle_error)
 
     def query(self, prop, peer=b''):
-        socket = self.core().socket
+        connection = self.core().connection
         result = next(self._results)
-        socket.send_vip(peer, b'query', [prop], msg_id=result.ident)
+        connection.send_vip(peer, b'query', args=[prop], msg_id=result.ident)
         return result
 
     __call__ = query

@@ -1,0 +1,7 @@
+more-itertools>=4.0.0
+pytest==3.6.4
+pytest-timeout
+mock
+websocket-client
+numpy>1.13<2
+pandas

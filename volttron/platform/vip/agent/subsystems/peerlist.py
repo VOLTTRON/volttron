@@ -44,7 +44,10 @@ import weakref
 from .base import SubsystemBase
 from ..dispatch import Signal
 from ..results import ResultsDictionary
-
+from volttron.platform.vip.socket import Message
+from volttron.platform.agent import json as jsonapi
+from zmq import ZMQError
+from zmq.green import ENOTSOCK
 
 __all__ = ['PeerList']
 
@@ -61,9 +64,61 @@ class PeerList(SubsystemBase):
         self.ondrop = Signal()
 
     def list(self):
-        socket = self.core().socket
+        connection = self.core().connection
         result = next(self._results)
-        socket.send_vip(b'', b'peerlist', [b'list'], result.ident)
+
+        try:
+            connection.send_vip(b'',
+                                b'peerlist',
+                                args=[b'list'],
+                                msg_id=result.ident)
+        except ZMQError as exc:
+            if exc.errno == ENOTSOCK:
+                _log.error("Socket send on non socket {}".format(self.core().identity))
+        return result
+
+    def add_peer(self, peer, message_bus=None):
+        connection = self.core().connection
+        result = next(self._results)
+        if not message_bus:
+            message_bus = self.core().messagebus
+        try:
+            connection.send_vip(b'',
+                                b'peerlist',
+                                args=[b'add', bytes(peer), bytes(message_bus)],
+                                msg_id=result.ident)
+        except ZMQError as exc:
+            if exc.errno == ENOTSOCK:
+                _log.error("Socket send on non socket {}".format(self.core().identity))
+        return result
+
+    def drop_peer(self, peer, message_bus=None):
+        connection = self.core().connection
+        result = next(self._results)
+        if not message_bus:
+            message_bus = self.core().messagebus
+        try:
+            connection.send_vip(b'',
+                                b'peerlist',
+                                args=[b'drop', bytes(peer), bytes(message_bus)],
+                                msg_id=result.ident)
+        except ZMQError as exc:
+            if exc.errno == ENOTSOCK:
+                _log.error("Socket send on non socket {}".format(self.core().identity))
+        return result
+
+    def list_with_messagebus(self):
+        connection = self.core().connection
+        result = next(self._results)
+
+        try:
+            connection.send_vip(b'',
+                                b'peerlist',
+                                args=[b'list_with_messagebus'],
+                                msg_id=result.ident)
+        except ZMQError as exc:
+            if exc.errno == ENOTSOCK:
+                _log.error("Socket send on non socket {}".format(self.core().identity))
         return result
 
     __call__ = list
@@ -80,15 +135,29 @@ class PeerList(SubsystemBase):
             except IndexError:
                 _log.error('missing peerlist identity in %s operation', op)
                 return
-            getattr(self, 'on' + op).send(self, peer=peer)
+            message_bus = None
+            try:
+                message_bus = bytes(message.args[2])
+            except IndexError:
+                pass
+            if message_bus:
+                getattr(self, 'on' + op).send(self, peer=peer, message_bus=message_bus)
+            else:
+                getattr(self, 'on' + op).send(self, peer=peer)
         elif op == b'listing':
             try:
                 result = self._results.pop(bytes(message.id))
             except KeyError:
                 return
             result.set([bytes(arg) for arg in message.args[1:]])
+        elif op == b'listing_with_messagebus':
+            try:
+                result = self._results.pop(bytes(message.id))
+            except KeyError:
+                return
+            result.set(jsonapi.loads(message.args[1]))
         else:
-            _log.error('unknown peerlist subsystem operation')
+            _log.error('unknown peerlist subsystem operation == {}'.format(op))
 
     def _handle_error(self, sender, message, error, **kwargs):
         try:

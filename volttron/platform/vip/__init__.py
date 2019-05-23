@@ -63,3 +63,14 @@ from .socket import _Socket
 class Socket(_Socket, _zmq.Socket):
     _context_class = _zmq.Context
     _local_class = _local
+
+
+class BaseConnection(object):
+    """
+    Base connection class for message bus connection.
+    """
+    def __init__(self, url, identity, instance_name):
+        self._url = url
+        self._identity = identity
+        self._instance_name = instance_name
+        self._vip_handler = None

@@ -42,9 +42,8 @@ from __future__ import absolute_import
 import os
 import logging
 import zmq
-from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
+from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH, green
 
-from .pubsubservice import PubSubService
 
 __all__ = ['BaseRouter', 'OUTGOING', 'INCOMING', 'UNROUTABLE', 'ERROR']
 
@@ -85,6 +84,7 @@ class BaseRouter(object):
 
     _context_class = zmq.Context
     _socket_class = zmq.Socket
+    _poller_class = zmq.Poller
 
     def __init__(self, context=None, default_user_id=None):
         '''Initialize the object instance.
@@ -96,7 +96,7 @@ class BaseRouter(object):
         self.default_user_id = default_user_id
         self.socket = None
         self._peers = set()
-        self._poller = zmq.Poller()
+        self._poller = self._poller_class()
         self._ext_sockets = []
         self._socket_id_mapping = {}
 
@@ -123,9 +123,6 @@ class BaseRouter(object):
         sock.tcp_keepalive_intvl = 20
         sock.tcp_keepalive_cnt = 6
         self.context.set(zmq.MAX_SOCKETS, 30690)
-        # sock.setsockopt(zmq.SNDBUF, 40000)
-        # sock.setsockopt(zmq.RCVBUF, 40000)
-        # sock.set_hwm(60000)
         sock.set_hwm(6000)
         _log.debug("ROUTER SENDBUF: {0}, {1}".format(sock.getsockopt(zmq.SNDBUF), sock.getsockopt(zmq.RCVBUF)))
         self.setup()
@@ -238,7 +235,7 @@ class BaseRouter(object):
         self._distribute(b'peerlist', b'drop', peer)
         self._drop_pubsub_peers(peer)
 
-    def route(self):
+    def route(self, frames):
         '''Route one message and return.
 
         One message is read from the socket and processed. If the
@@ -249,12 +246,10 @@ class BaseRouter(object):
         '''
         socket = self.socket
         issue = self.issue
-        # Expecting incoming frames:
-        #   [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
-        frames = socket.recv_multipart(copy=False)
+
         issue(INCOMING, frames)
         # for f in frames:
-        #    _log.debug("ROUTER Receiving frames: {}".format(bytes(f)))
+        #     _log.debug("ROUTER Receiving frames: {}".format(bytes(f)))
         if len(frames) < 6:
             # Cannot route if there are insufficient frames, such as
             # might happen with a router probe.
@@ -303,7 +298,6 @@ class BaseRouter(object):
                 if response is None:
                     # Handler does not know of the subsystem
                     errnum, errmsg = error = _INVALID_SUBSYSTEM
-                    _log.debug("ROUTER proto unsupported")
                     issue(ERROR, frames, error)
                     frames = [sender, recipient, proto, b'', msg_id,
                               b'error', errnum, errmsg, b'', subsystem]
@@ -318,6 +312,7 @@ class BaseRouter(object):
         for peer in self._send(frames):
             self._drop_peer(peer)
 
+
     def _send(self, frames):
         issue = self.issue
         socket = self.socket
@@ -325,8 +320,8 @@ class BaseRouter(object):
         recipient, sender = frames[:2]
         # Expecting outgoing frames:
         #   [RECIPIENT, SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
-        #for f in frames:
-        #    _log.debug("ROUTER sending frames: {}".format(bytes(f)))
+        # for f in frames:
+        #     _log.debug("ROUTER sending frames: {}".format(bytes(f)))
         try:
             # Try sending the message to its recipient
             socket.send_multipart(frames, flags=NOBLOCK, copy=False)

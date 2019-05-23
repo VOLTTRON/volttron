@@ -80,7 +80,7 @@ __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
 ALERTS_BASE = _('alerts')
-ALERTS = _('alerts/{agent_class}/{agent_uuid}') #/{agent_class}/{publickey}/{alert_key}')
+ALERTS = _('alerts/{agent_class}/{agent_identity}') #/{agent_class}/{publickey}/{alert_key}')
 
 HEARTBEAT = _('heartbeats')
 PLATFORM_BASE = _('platform')

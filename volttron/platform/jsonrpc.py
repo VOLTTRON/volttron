@@ -124,7 +124,12 @@ class JsonRpcData(object):
 
     @staticmethod
     def parse(jsonstr):
-        data = jsonapi.loads(jsonstr)
+        # Allow parse to handle dictionary data instead
+        # of just string data.
+        if isinstance(jsonstr, dict):
+            data = jsonstr.copy()
+        else:
+            data = jsonapi.loads(jsonstr)
         id = data.get('id', None)
         version = data.get('jsonrpc', None)
         method = data.get('method', None)
