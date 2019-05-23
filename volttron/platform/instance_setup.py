@@ -54,6 +54,7 @@ from zmq import green as zmq
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.utils.rmq_setup import setup_rabbitmq_volttron
+from volttron.utils import get_hostname
 from . import get_home, get_services_core, set_home
 from volttron.platform import certs
 from volttron.platform.agent.known_identities import MASTER_WEB
@@ -250,6 +251,19 @@ def is_valid_port(port):
 def is_valid_bus(bus_type):
     return bus_type in ['zmq', 'rmq']
 
+def do_message_bus():
+    global config_opts
+    bus_type = None
+    valid_bus = False
+    while not valid_bus:
+        prompt = 'What type of message bus (rmq/zmq)?'
+        new_bus = prompt_response(prompt, default='zmq')
+        valid_bus = is_valid_bus(new_bus)
+        if valid_bus:
+            bus_type = new_bus
+        else:
+            print("Message type is not valid. Valid entries are zmq or rmq.")
+    config_opts['message-bus'] = bus_type
 
 def do_vip():
     global config_opts
@@ -257,7 +271,6 @@ def do_vip():
     parsed = urlparse.urlparse(config_opts.get('vip-address',
                                                'tcp://127.0.0.1:22916'))
     vip_address = None
-    bus_type = None
     if parsed.hostname is not None and parsed.scheme is not None:
         vip_address = parsed.scheme + '://' + parsed.hostname
         vip_port = parsed.port
@@ -267,19 +280,15 @@ def do_vip():
 
     available = False
     while not available:
-        valid_bus = False
-        while not valid_bus:
-            prompt = 'What type of message bus (rmq/zmq)?'
-            new_bus = prompt_response(prompt, default='zmq')
-            valid_bus = is_valid_bus(new_bus)
-            if valid_bus:
-                bus_type = new_bus
-            else:
-                print("Message type is not valid. Valid entries are zmq or rmq.")
-
         valid_address = False
         while not valid_address:
-            prompt = "What is the vip address?"
+            if config_opts['message-bus'] == 'rmq':
+                prompt = """
+The rmq message bus has a backward compatibility 
+layer with current zmq instances. What is the 
+zmq bus's vip address?"""
+            else:
+                prompt = "What is the vip address?"
 
             new_vip_address = prompt_response(prompt, default=vip_address)
             valid_address = is_valid_url(new_vip_address, ['tcp'])
@@ -307,7 +316,6 @@ def do_vip():
         else:
             print('\nERROR: That address has already been bound to.')
     config_opts['vip-address'] = '{}:{}'.format(vip_address, vip_port)
-    config_opts['message-bus'] = bus_type
 
 def do_web_enabled_rmq(vhome):
     global config_opts
@@ -316,7 +324,7 @@ def do_web_enabled_rmq(vhome):
     # Full implies that it will have a port on it as well.  Though if it's
     # not in the address that means that we haven't set it up before.
     full_bind_web_address = config_opts.get('bind-web-address',
-                                            'https://127.0.0.1')
+            'https://' + get_hostname())
 
     parsed = urlparse.urlparse(full_bind_web_address)
 
@@ -328,16 +336,11 @@ def do_web_enabled_rmq(vhome):
     else:
         port_only = 8443
 
-    print("""
-In order for external clients to connect to volttron central or the instance
-itself, the instance must bind to a tcp address.  If testing, this can be an
-internal address such as 127.0.0.1.
-""")
     valid_address = False
     external_ip = None
 
     while not valid_address:
-        prompt = 'What is the external ipv4 address for this instance? (https)'
+        prompt = 'What is the hostname for this instance? (https)'
         new_external_ip = prompt_response(prompt, default=address_only)
         valid_address = is_valid_url(new_external_ip, ['https'])
         if valid_address:
@@ -366,7 +369,7 @@ def do_web_enabled_zmq(vhome):
     # Full implies that it will have a port on it as well.  Though if it's
     # not in the address that means that we haven't set it up before.
     full_bind_web_address = config_opts.get('bind-web-address',
-                                            'http://127.0.0.1')
+            'http://' + get_hostname())
 
     parsed = urlparse.urlparse(full_bind_web_address)
 
@@ -378,16 +381,11 @@ def do_web_enabled_zmq(vhome):
     else:
         port_only = 8080
 
-    print("""
-In order for external clients to connect to volttron central or the instance
-itself, the instance must bind to a tcp address.  If testing, this can be an
-internal address such as 127.0.0.1.
-""")
     valid_address = False
     external_ip = None
 
     while not valid_address:
-        prompt = 'What is the external ipv4 address for this instance?'
+        prompt = 'What is the hostname for this instance?'
         new_external_ip = prompt_response(prompt, default=address_only)
         valid_address = is_valid_url(new_external_ip, ['http', 'https'])
         if valid_address:
@@ -410,59 +408,6 @@ internal address such as 127.0.0.1.
     config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
 
     if config_opts['message-bus'] == 'zmq' and parsed.scheme == "https":
-        get_cert_and_key(vhome)
-
-def do_web_enabled_zmq_bc(vhome):
-    global config_opts
-
-
-    # Full implies that it will have a port on it as well.  Though if it's
-    # not in the address that means that we haven't set it up before.
-    full_bind_web_address = config_opts.get('bind-web-address-bc',
-                                            'http://127.0.0.1')
-
-    parsed = urlparse.urlparse(full_bind_web_address)
-
-    address_only = full_bind_web_address
-    port_only = None
-    if parsed.port is not None:
-        address_only = parsed.scheme + '://' + parsed.hostname
-        port_only = parsed.port
-    else:
-        port_only = 8080
-
-    print("""
-In order for external clients to connect to volttron central or the instance
-itself, the instance must bind to a tcp address.  If testing, this can be an
-internal address such as 127.0.0.1.
-""")
-    valid_address = False
-    external_ip = None
-
-    while not valid_address:
-        prompt = 'What is the external ipv4 address for this instance?'
-        new_external_ip = prompt_response(prompt, default=address_only)
-        valid_address = is_valid_url(new_external_ip, ['http', 'https'])
-        if valid_address:
-            external_ip = new_external_ip
-
-    valid_port = False
-    vc_port = None
-    while not valid_port:
-        prompt = 'What is the port for this instance?'
-        new_vc_port = prompt_response(prompt, default=port_only)
-        valid_port = is_valid_port(new_vc_port)
-        if valid_port:
-            vc_port = new_vc_port
-
-    while external_ip.endswith("/"):
-        external_ip = external_ip[:-1]
-
-    parsed = urlparse.urlparse(external_ip)
-
-    config_opts['bind-web-address-bc'] = '{}:{}'.format(external_ip, vc_port)
-
-    if config_opts['message-bus-bc'] == 'zmq' and parsed.scheme == "https":
         get_cert_and_key(vhome)
 
 @installs(get_services_core("VolttronCentral"), 'vc')
@@ -599,7 +544,7 @@ def do_vcp():
 
     vc_address = config_opts.get('volttron-central-address',
                                  config_opts.get('bind-web-address',
-                                                 'http://127.0.0.1'))
+                                     'http://' + get_hostname()))
 
     parsed = urlparse.urlparse(vc_address)
     address_only = vc_address
@@ -612,7 +557,7 @@ def do_vcp():
 
     valid_vc = False
     while not valid_vc:
-        prompt = "What is the web address for volttron central?"
+        prompt = "What is the hostname for volttron central?"
         new_vc_address = prompt_response(prompt, default=address_only)
         valid_vc = is_valid_url(new_vc_address, ['http', 'https'])
         if valid_vc:
@@ -693,6 +638,7 @@ def wizard():
     volttron_home = get_home()
     confirm_volttron_home()
     _load_config()
+    do_message_bus()
     do_vip()
     _update_config_file()
 
@@ -701,11 +647,6 @@ def wizard():
     if response in y:
         if config_opts['message-bus'] == 'rmq':
             do_web_enabled_rmq(volttron_home)
-            prompt = 'Allow for zmq backward compatibility?'
-            response = prompt_response(prompt, valid_answers=y_or_n, default='N')
-            if response in y:
-                config_opts['message-bus-bc'] = 'zmq'
-                do_web_enabled_zmq_bc(volttron_home)
         elif config_opts['message-bus'] == 'zmq':
             do_web_enabled_zmq(volttron_home)
 
