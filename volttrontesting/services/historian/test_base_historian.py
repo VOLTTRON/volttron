@@ -713,3 +713,4 @@ def test_restricting_topics(request, volttron_instance, client_agent):
     finally:
         if historian:
             historian.core.stop()
+            
