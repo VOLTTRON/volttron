@@ -160,7 +160,6 @@ class BaseWeatherAgent(Agent):
             self.unit_registry = pint.UnitRegistry()
             self._api_calls_period = self.get_api_calls_interval()
             self.point_name_mapping = self.parse_point_name_mapping()
-            _log.debug("POINT MAP = {}".format(self.point_name_mapping))
             self._api_services = {
                 SERVICE_CURRENT_WEATHER:
                     {"type": "current",
@@ -647,7 +646,6 @@ class BaseWeatherAgent(Agent):
             observation_time, oldtz = process_timestamp(
                 observation_time)
             if self.point_name_mapping:
-                _log.debug("Got point name mapping")
                 data = self.apply_mapping(data)
             if observation_time is not None:
                 storage_record = [json.dumps(location),
@@ -902,9 +900,6 @@ class BaseWeatherAgent(Agent):
             # also makes retrieval from cache simpler
             generation_time, response = self.query_forecast_service(
                 service, location)
-            _log.debug("Current time {}".format(datetime.datetime.utcnow()))
-            _log.debug(" response from forecast generation_time : {}".format(
-                generation_time))
             _log.debug(" response from forecast : {}".format(response[0]))
             if not generation_time:
                 # in case api does not return details on when this
@@ -913,8 +908,6 @@ class BaseWeatherAgent(Agent):
             else:
                 generation_time, oldtz = process_timestamp(
                     generation_time)
-            _log.debug(" generation time after process : {}".format(
-                generation_time))
             if self.point_name_mapping:
                 response = [[item[0],
                              self.apply_mapping(item[1])] for item in response]

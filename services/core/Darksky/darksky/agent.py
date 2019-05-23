@@ -287,17 +287,7 @@ class Darksky(BaseWeatherAgent):
         :return: formatted response data by service
         """
         data = []
-        generation_time = get_aware_utc_now()
-        if service == "get_minutely_forecast":
-            interval_minutes = self.get_update_interval(
-                'get_minutely_forecast').seconds / 60
-            gen_minutes = (generation_time.minute / interval_minutes)\
-                * interval_minutes
-            generation_time = format_timestamp(generation_time.replace(
-                microsecond=0, second=0, minute=gen_minutes))
-        else:
-            generation_time = format_timestamp(generation_time.replace(
-                microsecond=0, second=0, minute=0))
+        generation_time = self.get_generation_time_for_service(service)
         for entry in response['data']:
             entry_time = datetime.datetime.fromtimestamp(entry['time'],
                                                          pytz.utc)
@@ -339,6 +329,20 @@ class Darksky(BaseWeatherAgent):
                                                    'service'], service_data)
         return format_timestamp(current_time), current_response
 
+    def get_generation_time_for_service(self, service):
+        # "Next-hour minutely forecast data is updated every five minutes.
+        # Hourly and daily forecast data are updated every hour.
+        # (https://darksky.net/dev/docs/faq#data-update)"
+        generation_time = get_aware_utc_now().replace(microsecond=0, second=0)
+        # if the update interval for the service is a minute
+        if self.get_update_interval(service).total_seconds() / 60 == 1:
+            gen_minutes = generation_time.minute / 5 * 5
+            generation_time = generation_time.replace(minute=gen_minutes)
+        # if the update interval for the service is an hour or greater
+        elif self.get_update_interval(service).total_seconds() / 3600 >= 1:
+            generation_time = generation_time.replace(minute=0)
+        return format_timestamp(generation_time)
+
     def query_forecast_service(self, service, location):
         """
         Generic method for requesting forecast data from the various RPC
@@ -366,15 +370,8 @@ class Darksky(BaseWeatherAgent):
             # Darksky required attribution
             entry["attribution"] = "Powered by Dark Sky"
             forecast_data.append([format_timestamp(entry_time), entry])
-
-        now = get_aware_utc_now()
-        if service == "get_minutely_forecast":
-            gen_minutes = now.minute / 5 * 5
-            generation_time = format_timestamp(
-                now.replace(microsecond=0, second=0, minute=gen_minutes))
-        else:
-            generation_time = format_timestamp(
-                now.replace(microsecond=0, second=0, minute=0))
+        # get the generation time of the requested forecast service
+        generation_time = self.get_generation_time_for_service(service)
         if not self.performance_mode:
             # if performance mode isn't running we'll be receiving extra data
             # that we can store to help with conserving daily api calls
