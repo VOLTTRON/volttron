@@ -7,9 +7,13 @@ setting up the platform configuration, historian, VOLTTRON Central UI, and platf
 
 example volttron-cfg output:
 
+.. note:: 
+
+        In this example, <user> represents the user's home directory, and <localhost> represents the machine's localhost.
+
 .. code-block:: console 
 
-        Your VOLTTRON_HOME currently set to: /home/USER/.volttron
+        Your VOLTTRON_HOME currently set to: /home/<user>/.volttron
 
         Is this the volttron you are attempting to setup? [Y]: y
         What type of message bus (rmq/zmq)? [zmq]: rmq
@@ -19,26 +23,26 @@ example volttron-cfg output:
         zmq bus's vip address? [tcp://127.0.0.1]: 
         What is the port for the vip address? [22916]: 
         Is this instance web enabled? [N]: y
-        What is the hostname for this instance? (https) [https://LOCALHOST]: 
+        What is the hostname for this instance? (https) [https://<localhost>]: 
         What is the port for this instance? [8443]: 
         Is this an instance of volttron central? [N]: y
-        Configuring /home/USER/volttron/services/core/VolttronCentral.
+        Configuring /home/<user>/volttron/services/core/VolttronCentral.
         Enter volttron central admin user name: admin
         Enter volttron central admin password:
         Retype password:
         Installing volttron central.
         Should the agent autostart? [N]: y
         Will this instance be controlled by volttron central? [Y]: 
-        Configuring /home/USER/volttron/services/core/VolttronCentralPlatform.
+        Configuring /home/<user>/volttron/services/core/VolttronCentralPlatform.
         What is the name of this instance? [volttron1]: 
-        What is the hostname for volttron central? [https://LOCALHOST]: 
+        What is the hostname for volttron central? [https://<localhost>]: 
         What is the port for volttron central? [8443]: 
         Should the agent autostart? [N]: y
         Would you like to install a platform historian? [N]: y
-        Configuring /home/USER/volttron/services/core/SQLHistorian.
+        Configuring /home/<user>/volttron/services/core/SQLHistorian.
         Should the agent autostart? [N]: y
         Would you like to install a master driver? [N]: y
-        Configuring /home/USER/volttron/services/core/MasterDriverAgent.
+        Configuring /home/<user>/volttron/services/core/MasterDriverAgent.
         Would you like to install a fake device on the master driver? [N]: y
         Should the agent autostart? [N]: y
         Would you like to install a listener agent? [N]: y
@@ -49,8 +53,5 @@ example volttron-cfg output:
         You can now start the volttron instance.
 
         If you need to change the instance configuration you can edit
-        the config file is at /home/USER/.volttron/config
+        the config file is at /home/<user>/.volttron/config
 
-.. note:: 
-
-        In this example, USER represents the user's home directory, and LOCALHOST represents the machine's localhost.
