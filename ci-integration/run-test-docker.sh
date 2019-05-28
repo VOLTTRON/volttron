@@ -33,7 +33,7 @@ docker build --network=host -t volttron_test_image -f ./ci-integration/virtualiz
 
 # Specific directories to scan for tests in
 testdirs=(services volttrontesting)
-ignoredirs=(services/core/DNP3Agent services/core/SEP2Agent)
+ignoredirs=(services/core/DNP3Agent services/core/SEP2Agent services/core/OpenADRVenAgent)
 # testdirs=(volttrontesting)
 
 # State variable for when a test has failed the entire set needs to be considered
