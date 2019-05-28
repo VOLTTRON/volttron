@@ -7,23 +7,50 @@ setting up the platform configuration, historian, VOLTTRON Central UI, and platf
 
 example volttron-cfg output:
 
-Is this instance discoverable (Y/N)? [N] y
+.. code-block:: console 
 
-What is the external ipv4 address for this instance? [127.0.0.1]: 
-What is the vip port this instance? [22916] 
+        Your VOLTTRON_HOME currently set to: /home/USER/.volttron
 
-What is the port for discovery? [8080] 
+        Is this the volttron you are attempting to setup? [Y]: y
+        What type of message bus (rmq/zmq)? [zmq]: rmq
 
-Which IP addresses are allowed to discover this instance? [/127.*/] 
+        The rmq message bus has a backward compatibility 
+        layer with current zmq instances. What is the 
+        zmq bus's vip address? [tcp://127.0.0.1]: 
+        What is the port for the vip address? [22916]: 
+        Is this instance web enabled? [N]: y
+        What is the hostname for this instance? (https) [https://LOCALHOST]: 
+        What is the port for this instance? [8443]: 
+        Is this an instance of volttron central? [N]: y
+        Configuring /home/USER/volttron/services/core/VolttronCentral.
+        Enter volttron central admin user name: admin
+        Enter volttron central admin password:
+        Retype password:
+        Installing volttron central.
+        Should the agent autostart? [N]: y
+        Will this instance be controlled by volttron central? [Y]: 
+        Configuring /home/USER/volttron/services/core/VolttronCentralPlatform.
+        What is the name of this instance? [volttron1]: 
+        What is the hostname for volttron central? [https://LOCALHOST]: 
+        What is the port for volttron central? [8443]: 
+        Should the agent autostart? [N]: y
+        Would you like to install a platform historian? [N]: y
+        Configuring /home/USER/volttron/services/core/SQLHistorian.
+        Should the agent autostart? [N]: y
+        Would you like to install a master driver? [N]: y
+        Configuring /home/USER/volttron/services/core/MasterDriverAgent.
+        Would you like to install a fake device on the master driver? [N]: y
+        Should the agent autostart? [N]: y
+        Would you like to install a listener agent? [N]: y
+        Configuring examples/ListenerAgent.
+        Should the agent autostart? [N]: y
+        Finished configuration!
 
-Is this instance a volttron central (Y/N)? [N] y
+        You can now start the volttron instance.
 
-Should volttron central autostart(Y/N)? [Y] 
+        If you need to change the instance configuration you can edit
+        the config file is at /home/USER/.volttron/config
 
-Include volttron central platform agent on volttron central? [Y]
+.. note:: 
 
-Should platform agent autostart(Y/N)? [Y] 
-
-Should install sqlite platform historian? [N]y
-
-Should historian agent autostart(Y/N)? [Y] 
+        In this example, USER represents the user's home directory, and LOCALHOST represents the machine's localhost.
