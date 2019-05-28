@@ -117,7 +117,7 @@ class PubSub(SubsystemBase):
             core.onconnected.connect(self._connected)
             self.vip_socket = self.core().socket
             def subscribe(member):   # pylint: disable=redefined-outer-name
-                for peer, bus, prefix, all_platforms in annotations(
+                for peer, bus, prefix, all_platforms, queue in annotations(
                         member, set, 'pubsub.subscriptions'):
                     # XXX: needs updated in light of onconnected signal
                     self._add_subscription(prefix, member, bus, all_platforms)
