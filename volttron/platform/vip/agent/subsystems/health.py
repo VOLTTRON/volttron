@@ -88,7 +88,9 @@ class Health(SubsystemBase):
             raise ValueError('statusobj must be a Status object.')
         agent_class = self._owner.__class__.__name__
         fq_identity = get_fq_identity(self._core().identity)
-        topic = topics.ALERTS(agent_class=agent_class, identity=fq_identity)
+        # RMQ and other message buses can't handle '.' because it's used as the separator.  This
+        # causes us to change the alert topic's agent_identity to have '_' rather than '.'.
+        topic = topics.ALERTS(agent_class=agent_class, agent_identity=fq_identity.replace('.', '_'))
         headers = dict(alert_key=alert_key)
 
         self._owner.vip.pubsub.publish("pubsub",

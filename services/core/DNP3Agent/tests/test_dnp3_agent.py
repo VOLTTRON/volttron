@@ -32,6 +32,12 @@
 # United States Government or any agency thereof.
 # }}}
 
+import pytest
+try:
+    import dnp3
+except ImportError:
+    pytest.skip("pydnp3 not found!", allow_module_level=True)
+
 import gevent
 import json
 import os
