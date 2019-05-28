@@ -305,7 +305,7 @@ def test_manage_cache_size(volttron_instance):
     total_size = page_size * num_pages
     assert total_size <= 40960
 
-@pytest.mark.dev
+@pytest.mark.weather2
 def test_api_call_tracking(weather):
     cache = weather._cache
     connection = cache._sqlite_conn
@@ -478,7 +478,7 @@ def test_set_update_interval_fail(weather, service_name, interval):
     assert not passed
 
 
-@pytest.mark.dev
+@pytest.mark.weather2
 @pytest.mark.parametrize("from_units, start, to_units, end", [
     ("inch", 1, "cm", 2.54),
     ("celsius", 100, "fahrenheit", 212),
