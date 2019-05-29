@@ -54,6 +54,7 @@ from zmq import green as zmq
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.utils.rmq_setup import setup_rabbitmq_volttron
+from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils import get_hostname
 from . import get_home, get_services_core, set_home
 from volttron.platform import certs
@@ -256,13 +257,20 @@ def do_message_bus():
     bus_type = None
     valid_bus = False
     while not valid_bus:
-        prompt = 'What type of message bus (rmq/zmq)?'
-        new_bus = prompt_response(prompt, default='zmq')
-        valid_bus = is_valid_bus(new_bus)
-        if valid_bus:
-            bus_type = new_bus
-        else:
-            print("Message type is not valid. Valid entries are zmq or rmq.")
+        try:
+            rmq_config = RMQConfig()
+            prompt = 'What type of message bus (rmq/zmq)?'
+            new_bus = prompt_response(prompt, default='zmq')
+            valid_bus = is_valid_bus(new_bus)
+            if valid_bus:
+                bus_type = new_bus
+            else:
+                print("Message type is not valid. Valid entries are zmq or rmq.")
+        except AssertionError:
+            bus_type = 'zmq'
+            print("Message bus set to zmq")
+
+    
     config_opts['message-bus'] = bus_type
 
 def do_vip():
@@ -319,6 +327,8 @@ zmq bus's vip address?"""
 
 def do_web_enabled_rmq(vhome):
     global config_opts
+
+    setup_rabbitmq_volttron('single',prompt=True)
 
 
     # Full implies that it will have a port on it as well.  Though if it's
@@ -641,7 +651,6 @@ def wizard():
     do_message_bus()
     do_vip()
     _update_config_file()
-
     prompt = 'Is this instance web enabled?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
