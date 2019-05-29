@@ -53,7 +53,7 @@ from zmq import green as zmq
 
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
-from volttron.utils.rmq_setup import setup_rabbitmq_volttron
+from volttron.utils.rmq_setup import setup_rabbitmq_volttron, _create_certs
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils import get_hostname
 from . import get_home, get_services_core, set_home
@@ -350,11 +350,11 @@ def do_web_enabled_rmq(vhome):
     external_ip = None
 
     while not valid_address:
-        prompt = 'What is the hostname for this instance? (https)'
-        new_external_ip = prompt_response(prompt, default=address_only)
+        new_external_ip = address_only
         valid_address = is_valid_url(new_external_ip, ['https'])
         if valid_address:
             external_ip = new_external_ip
+    print("Web address set to: {}".format(external_ip))
 
     valid_port = False
     vc_port = None
@@ -379,7 +379,7 @@ def do_web_enabled_zmq(vhome):
     # Full implies that it will have a port on it as well.  Though if it's
     # not in the address that means that we haven't set it up before.
     full_bind_web_address = config_opts.get('bind-web-address',
-            'http://' + get_hostname())
+            'https://' + get_hostname())
 
     parsed = urlparse.urlparse(full_bind_web_address)
 
@@ -389,22 +389,26 @@ def do_web_enabled_zmq(vhome):
         address_only = parsed.scheme + '://' + parsed.hostname
         port_only = parsed.port
     else:
-        port_only = 8080
+        port_only = 8443
 
     valid_address = False
     external_ip = None
 
     while not valid_address:
-        prompt = 'What is the hostname for this instance?'
-        new_external_ip = prompt_response(prompt, default=address_only)
+        prompt = 'What is the protocol for this instance?'
+        new_scheme = prompt_response(prompt, default=parsed.scheme)
+        new_external_ip = new_scheme + '://' + parsed.hostname
         valid_address = is_valid_url(new_external_ip, ['http', 'https'])
         if valid_address:
             external_ip = new_external_ip
+    print("Web address set to: {}".format(external_ip))
 
     valid_port = False
     vc_port = None
     while not valid_port:
         prompt = 'What is the port for this instance?'
+        if new_scheme == 'http' and port_only == 8443:
+            port_only = 8080
         new_vc_port = prompt_response(prompt, default=port_only)
         valid_port = is_valid_port(new_vc_port)
         if valid_port:
@@ -494,36 +498,41 @@ def get_cert_and_key(vhome):
     # Either are there no valid existing certs or user decided to overwrite the existing file.
     # Prompt for new files
     while cert_error:
-        while True:
-            prompt = 'Enter the SSL certificate public key file:'
-            cert_file = prompt_response(prompt, mandatory=True)
-            if is_file_readable(cert_file):
-                break
-            else:
-                print("Unable to read file {}".format(cert_file))
-        while True:
-            prompt = \
-                'Enter the SSL certificate private key file:'
-            key_file = prompt_response(prompt, mandatory=True)
-            if is_file_readable(key_file):
-                break
-            else:
-                print("Unable to read file {}".format(key_file))
-        try:
-            if certs.Certs.validate_key_pair(cert_file, key_file):
-                cert_error = False
-                config_opts['web-ssl-cert'] = cert_file
-                config_opts['web-ssl-key'] = key_file
-            else:
+        prompt = "No existing certs. Enter certificates? (y/n)"
+        if prompt_response(prompt, valid_answers=y_or_n, default='N') in y:
+            while True:
+                prompt = 'Enter the SSL certificate public key file:'
+                cert_file = prompt_response(prompt, mandatory=True)
+                if is_file_readable(cert_file):
+                    break
+                else:
+                    print("Unable to read file {}".format(cert_file))
+            while True:
+                prompt = \
+                    'Enter the SSL certificate private key file:'
+                key_file = prompt_response(prompt, mandatory=True)
+                if is_file_readable(key_file):
+                    break
+                else:
+                    print("Unable to read file {}".format(key_file))
+            try:
+                if certs.Certs.validate_key_pair(cert_file, key_file):
+                    cert_error = False
+                    config_opts['web-ssl-cert'] = cert_file
+                    config_opts['web-ssl-key'] = key_file
+                else:
+                    print("ERROR:\n Given public key and private key do not "
+                          "match or is invalid. public and private key "
+                          "files should be PEM encoded and private key "
+                          "should use RSA encryption")
+            except RuntimeError:
                 print("ERROR:\n Given public key and private key do not "
                       "match or is invalid. public and private key "
                       "files should be PEM encoded and private key "
                       "should use RSA encryption")
-        except RuntimeError:
-            print("ERROR:\n Given public key and private key do not "
-                  "match or is invalid. public and private key "
-                  "files should be PEM encoded and private key "
-                  "should use RSA encryption")
+        else:
+            pass
+            #_create_certs()
 
 def is_file_readable(file_path, log=True):
     file_path = os.path.expanduser(os.path.expandvars(file_path))
