@@ -4,7 +4,7 @@
 # runs each of the test modules inside a docker container based
 # upon the test image.
 
-# Default to fast faile though allow it to be overwritten.
+# Default to fast fail though allow it to be overwritten.
 #export FAST_FAIL=${FAST_FAIL:-true}
 
 # A possible argument passed to the script is the number docker containers
@@ -32,7 +32,8 @@ docker build --network=host -t volttron_test_base -f ./ci-integration/virtualiza
 docker build --network=host -t volttron_test_image -f ./ci-integration/virtualization/Dockerfile.testing .
 
 # Specific directories to scan for tests in
-testdirs=(examples services volttrontesting)
+testdirs=(services volttrontesting)
+ignoredirs=(services/core/DNP3Agent services/core/SEP2Agent services/core/OpenADRVenAgent)
 # testdirs=(volttrontesting)
 
 # State variable for when a test has failed the entire set needs to be considered
@@ -133,13 +134,23 @@ do
     for file in $( find $dir -type f -name "*test*.py"|grep -v "conftest.py")
     do
         echo $file;
-        push_test $file;
+        ignore=0
+        for pattern in ${ignoredirs[@]}; do
+            if [[ $file == *"$pattern"* ]]; then
+                echo $file "IGNORED"
+                ignore=1
+                break
+            fi
+        done
+        if [[ $ignore == 0 ]]; then
+            push_test $file;
+        fi
     done
 done
 
 echo "There are ${#testqueue[@]} test modules to run";
 
-# Lopo through the queue until there isn't any left
+# Loop through the queue until there isn't any left
 while [[ ${#testqueue[@]} -gt 0 ]]; do
 
     # Start the number of processes requested
