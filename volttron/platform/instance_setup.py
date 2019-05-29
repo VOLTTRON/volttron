@@ -267,8 +267,11 @@ def do_message_bus():
             else:
                 print("Message type is not valid. Valid entries are zmq or rmq.")
         except AssertionError:
-            bus_type = 'zmq'
-            print("Message bus set to zmq")
+            new_bus = 'zmq'
+            valid_bus = is_valid_bus(new_bus)
+            if valid_bus:
+                bus_type = new_bus
+                print("Message bus set to zmq")
 
     
     config_opts['message-bus'] = bus_type
