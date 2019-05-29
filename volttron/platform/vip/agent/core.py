@@ -501,7 +501,7 @@ class Core(BasicCore):
         self.connection = None
 
         _log.debug('address: %s', address)
-        _log.debug('identity: %s', identity)
+        _log.debug('identity: %s', self.identity)
         _log.debug('agent_uuid: %s', agent_uuid)
         _log.debug('serverkey: %s', serverkey)
 
