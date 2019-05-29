@@ -2051,7 +2051,7 @@ def main(argv=sys.argv):
 
     global_args.set_defaults(
         vip_address=get_address(),
-        timeout=60,
+        timeout=90,
     )
 
     filterable = config.ArgumentParser(add_help=False)

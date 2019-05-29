@@ -716,7 +716,7 @@ class AIPplatform(object):
             try:
                 return gevent.with_timeout(60, process_wait, execenv.process)
             except gevent.Timeout:
-                _log.warn("First timeout")
+                _log.warn("First timeout {}".format(execenv.name))
                 execenv.process.terminate()
             try:
                 return gevent.with_timeout(30, process_wait, execenv.process)

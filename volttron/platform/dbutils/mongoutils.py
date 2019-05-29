@@ -36,9 +36,9 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import _sre
+from gevent import monkey
+monkey.patch_all()
 import re
-
 import pymongo
 import logging
 
@@ -46,7 +46,7 @@ _log = logging.getLogger(__name__)
 __version__ = '0.1'
 
 def get_mongo_client(connection_params, **kwargs):
-
+            _log.debug(" In mongoutil  gevent - is socket patched. {}".format(monkey.is_module_patched("socket")))
             database_name = connection_params['database']
             hosts = connection_params['host']
             ports = connection_params['port']

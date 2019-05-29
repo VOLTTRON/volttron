@@ -116,7 +116,7 @@ try:
 
     # Disabling mongo historian for now
     # Need to fix mongo gevent loop error
-    HAS_PYMONGO = False
+    HAS_PYMONGO = True
 except:
     HAS_PYMONGO = False
 
@@ -448,12 +448,12 @@ def query_agent(request, volttron_instance):
 # Fixtures for setup and teardown of historian agent
 @pytest.fixture(scope="module",
                 params=[
-                    crate_skipif(crate_platform),
-                    mysql_skipif(mysql_platform),
-                    sqlite_platform,
+                    # crate_skipif(crate_platform),
+                    # mysql_skipif(mysql_platform),
+                    # sqlite_platform,
                     pymongo_skipif(mongo_platform),
-                    postgresql_skipif(postgresql_platform),
-                    redshift_skipif(redshift_platform),
+                    # postgresql_skipif(postgresql_platform),
+                    # redshift_skipif(redshift_platform),
                 ])
 def historian(request, volttron_instance, query_agent):
     global db_connection, MICROSECOND_PRECISION, table_names, \
@@ -497,7 +497,7 @@ def historian(request, volttron_instance, query_agent):
     # 3: add a tear down method to stop historian agent
     def stop_agent():
         print("In teardown method of sqlagent")
-        if volttron_instance.is_running():
+        if volttron_instance.is_running() and volttron_instance.is_agent_running(historian_uuid):
             volttron_instance.stop_agent(historian_uuid)
         volttron_instance.remove_agent(historian_uuid)
 
@@ -548,7 +548,7 @@ def assert_timestamp(result, expected_date, expected_time):
         assert (result == expected_date + 'T' + expected_time[:-7] +
                 '.000000+00:00')
 
-
+@pytest.mark.dev
 @pytest.mark.historian
 def test_basic_function(request, historian, publish_agent, query_agent,
                         clean_db_rows):
