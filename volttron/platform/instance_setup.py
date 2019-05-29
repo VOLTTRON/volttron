@@ -328,9 +328,6 @@ zmq bus's vip address?"""
 def do_web_enabled_rmq(vhome):
     global config_opts
 
-    setup_rabbitmq_volttron('single',prompt=True)
-
-
     # Full implies that it will have a port on it as well.  Though if it's
     # not in the address that means that we haven't set it up before.
     full_bind_web_address = config_opts.get('bind-web-address',
