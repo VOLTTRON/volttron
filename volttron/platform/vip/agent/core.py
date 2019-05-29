@@ -58,6 +58,7 @@ from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN, ENOTSOCK
 from zmq.utils.monitor import recv_monitor_message
 
+from volttron.platform import certs
 from volttron.platform import get_address
 from volttron.platform import is_rabbitmq_available
 from volttron.platform.agent import utils
@@ -75,6 +76,7 @@ from .... import platform
 
 if is_rabbitmq_available():
     import pika
+from .. import green as vip
 
 __all__ = ['BasicCore', 'Core', 'RMQCore', 'ZMQCore', 'killing']
 
@@ -494,11 +496,12 @@ class Core(BasicCore):
         self.reconnect_interval = reconnect_interval
         self._reconnect_attempt = 0
         self.instance_name = instance_name
-        self.connection = None
         self.messagebus = messagebus
         self.subsystems = {'error': self.handle_error}
         self.__connected = False
         self._version = version
+        self.socket = None
+        self.connection = None
 
         _log.debug('address: %s', address)
         _log.debug('identity: %s', identity)
@@ -715,13 +718,14 @@ class ZMQCore(Core):
                                         self.instance_name,
                                         context=self.context)
         self.connection.open_connection(zmq.DEALER)
-        flags = dict(hwm=True, reconnect_interval=self.reconnect_interval)
+        flags = dict(hwm=6000, reconnect_interval=self.reconnect_interval)
         self.connection.set_properties(flags)
         self.socket = self.connection.socket
         yield
 
         # pre-start
         state = type('HelloState', (), {'count': 0, 'ident': None})
+
         hello_response_event = gevent.event.Event()
         connection_failed_check, hello, hello_response = \
             self.create_event_handlers(state, hello_response_event, running_event)
@@ -980,8 +984,8 @@ class RMQCore(Core):
                         router_connected = True
                         break
             # Connection retry attempt issue #1702.
-            # If the agent detects that RabbitMQ broker is reconnected before the router, wait for the router to
-            # connect before sending hello()
+            # If the agent detects that RabbitMQ broker is reconnected before the router, wait
+            # for the router to connect before sending hello()
             if router_connected:
                 hello()
             else:

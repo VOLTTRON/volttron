@@ -58,11 +58,17 @@
 
 from __future__ import absolute_import
 
-import errno
 import inspect
 import logging
-import uuid
+
 import weakref
+import uuid
+from volttron.platform.agent import json as jsonapi
+import requests
+import errno
+
+from ..decorators import annotate, annotations, dualmethod, spawn
+from .base import SubsystemBase
 from collections import defaultdict
 
 import requests
@@ -71,7 +77,6 @@ from requests.packages.urllib3.connection import (ConnectionError,
 
 from volttron.platform import is_rabbitmq_available
 from volttron.platform.agent import json as jsonapi
-from .base import BasePubSub
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..errors import Unreachable
 from ..results import ResultsDictionary
@@ -85,7 +90,7 @@ min_compatible_version = '5.0'
 max_compatible_version = ''
 
 
-class RMQPubSub(BasePubSub):
+class RMQPubSub(SubsystemBase):
     """
     Pubsub subsystem concrete class implementation for RabbitMQ message bus.
     """
