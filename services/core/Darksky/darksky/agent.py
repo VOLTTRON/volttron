@@ -277,20 +277,22 @@ class Darksky(BaseWeatherAgent):
         except ValueError:
             self.generate_response_error(url, gresponse.status_code)
 
-    def format_multientry_response(self, location, response, service):
+    def format_multientry_response(self, location, response, service, timezone):
         """
         Used to extract the data not used by the RPC method, and store it in
         the cache, helping to limit the number of API calls used to obtain data
         :param location: location dictionary to include with cached data
         :param response: Darksky forecast response
         :param service:
+        :param timezone: timezone string extracted from Darksky response
         :return: formatted response data by service
         """
         data = []
         generation_time = self.get_generation_time_for_service(service)
         for entry in response['data']:
-            entry_time = datetime.datetime.fromtimestamp(entry['time'],
-                                                         pytz.utc)
+            entry_time = datetime.datetime.fromtimestamp(
+                entry['time'], pytz.timezone(timezone))
+            entry_time = entry_time.astimezone(pytz.utc)
             if 'forecast' in service:
                 data.append([json.dumps(location), generation_time, entry_time,
                              json.dumps(entry)])
@@ -312,7 +314,9 @@ class Darksky(BaseWeatherAgent):
         # Darksky required attribution
         current_response["attribution"] = "Powered by Dark Sky"
         current_time = datetime.datetime.fromtimestamp(
-            current_response['time'], pytz.utc)
+            current_response['time'],
+            pytz.timezone(darksky_response['timezone']))
+        current_time = current_time.astimezone(pytz.utc)
         if not self.performance_mode:
             # if performance mode isn't running we'll be receiving extra data
             # that we can store to help with conserving daily api calls
@@ -324,7 +328,7 @@ class Darksky(BaseWeatherAgent):
                         SERVICES_MAPPING[service]['json_name'])
                     service_data = self.format_multientry_response(
                         location, service_response, SERVICES_MAPPING[
-                            service]['service'])
+                            service]['service'], darksky_response['timezone'])
                     self.store_weather_records(SERVICES_MAPPING[service][
                                                    'service'], service_data)
         return format_timestamp(current_time), current_response
@@ -365,8 +369,9 @@ class Darksky(BaseWeatherAgent):
                                                  ['json_name'])
         forecast_data = []
         for entry in forecast_response['data']:
-            entry_time = datetime.datetime.fromtimestamp(entry['time'],
-                                                         pytz.utc)
+            entry_time = datetime.datetime.fromtimestamp(
+                entry['time'], pytz.timezone(darksky_response['timezone']))
+            entry_time = entry_time.astimezone(pytz.utc)
             # Darksky required attribution
             entry["attribution"] = "Powered by Dark Sky"
             forecast_data.append([format_timestamp(entry_time), entry])
@@ -383,12 +388,15 @@ class Darksky(BaseWeatherAgent):
                         SERVICES_MAPPING[service_code]['json_name'])
                     if SERVICES_MAPPING[service_code]['type'] is not 'current':
                         service_data = self.format_multientry_response(
-                            location, service_response, SERVICES_MAPPING[
-                                service_code]['service'])
+                            location, service_response,
+                            SERVICES_MAPPING[service_code]['service'],
+                            darksky_response['timezone'])
                     else:
                         service_data = \
-                            [json.dumps(location), datetime.datetime.
-                                fromtimestamp(service_response['time']),
+                            [json.dumps(location),
+                             datetime.datetime.fromtimestamp(
+                                 service_response['time'],
+                                 pytz.timezone(darksky_response['timezone'])),
                              json.dumps(service_response)]
                     self.store_weather_records(SERVICES_MAPPING[service_code][
                                                    'service'], service_data)
