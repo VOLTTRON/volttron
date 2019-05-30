@@ -261,6 +261,14 @@ class PlatformWrapper:
         # the rest so it should work out ok.
         os.environ['VOLTTRON_HOME'] = self.volttron_home
 
+        if self.messagebus == 'rmq':
+
+            self.rabbitmq_config_obj = create_rmq_volttron_setup(vhome=self.volttron_home,
+                                                                 ssl_auth=self.ssl_auth,
+                                                                 env=self.env)
+
+            self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
+
         # Writes the main volttron config file for this instance.
         store_message_bus_config(self.messagebus, self.instance_name)
 
@@ -517,12 +525,6 @@ class PlatformWrapper:
         self.set_auth_dict(auth_dict)
 
         if self.messagebus == 'rmq':
-
-            self.rabbitmq_config_obj = create_rmq_volttron_setup(vhome=self.volttron_home,
-                                                                 ssl_auth=self.ssl_auth,
-                                                                 env=self.env)
-
-            self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
 
             if bind_web_address:
                 self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
