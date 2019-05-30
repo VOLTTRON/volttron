@@ -52,6 +52,7 @@ from volttron.platform.agent import json as jsonapi
 from zmq import green as zmq
 
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
+from volttron.platform.agent.utils import get_platform_instance_name
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.utils.rmq_setup import setup_rabbitmq_volttron, _create_certs
 from volttron.utils.rmq_config_params import RMQConfig
@@ -251,6 +252,59 @@ def is_valid_port(port):
 
 def is_valid_bus(bus_type):
     return bus_type in ['zmq', 'rmq']
+
+def _create_web_certs():
+    global config_opts
+    """
+    Utility to create web server certificates
+    Designed to be used in conjecture with get_cert_and_key
+    As such, it assumes that the program has already checked
+    for existing certs, and prompted the user to enter in 
+    certificates that they have generated separately.
+    """
+    crts = certs.Certs()
+    try:
+        crts.ca_cert()
+    except certs.CertError:
+        print("WARNING! CA certificate does not exist.")
+        prompt_str = "Create new root CA?"
+        prompt = prompt_response(prompt_str, valid_answers=y_or_n, default='Y')
+        if prompt in y:
+            cert_data = {}
+            print("\nPlease enter the following details for web server certificate:")
+            prompt = '\tCountry:'
+            cert_data['country'] = prompt_response(prompt, default='US')
+            prompt = '\tState:'
+            cert_data['state'] = prompt_response(prompt, mandatory=True)
+            prompt = '\tLocation:'
+            cert_data['location'] = prompt_response(prompt, mandatory=True)
+            prompt = '\tOrganization:'
+            cert_data['organization'] = prompt_response(prompt, mandatory=True)
+            prompt = '\tOrganization Unit:'
+            cert_data['organization-unit'] = prompt_response(prompt,mandatory=True)
+            prompt = '\tCommon Name:'
+            cert_data['common-name'] = prompt_response(
+                prompt, default=get_platform_instance_name() + '-root-ca')
+            data = {'C': cert_data.get('country'),
+                    'ST': cert_data.get('state'),
+                    'L': cert_data.get('location'),
+                    'O': cert_data.get('organization'),
+                    'OU': cert_data.get('organization-unit'),
+                    'CN': cert_data.get('common-name')}
+            crts.create_root_ca(overwrite=False, **data)
+            copy(crts.cert_file(crts.root_ca_name),crts.cert_file(crts.trusted_ca_name))
+        else:
+            return 1
+    
+    print("Creating new web server certificate.")
+    prompt_str = "Creating a new web server certificate will overwrite\n" \
+            "any existing web server certificates. Continue?"
+    prompt = prompt_response(prompt_str, valid_answers=y_or_n, default='N')
+    if prompt not in y:
+        return 1
+    else:
+        crts.create_ca_signed_cert(name=MASTER_WEB+"-server",type='server',ca_name=crts.root_ca_name, fqdn=get_hostname())
+    return 0
 
 def do_message_bus():
     global config_opts
@@ -477,8 +531,7 @@ def get_cert_and_key(vhome):
     if is_file_readable(master_web_cert, False) and is_file_readable(master_web_key, False):
         try:
             if certs.Certs.validate_key_pair(master_web_cert, master_web_key):
-                print('\nThe following certificate and keyfile exists for web access over https: \n{}\n{}'.format(master_web_cert,
-                                                                                                              master_web_key))
+                print('\nThe following certificate and keyfile exists for web access over https: \n{}\n{}'.format(master_web_cert,master_web_key))
                 prompt = '\nDo you want to use these certificates for the web server?'
                 if prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
                     config_opts['web-ssl-cert'] = master_web_cert
@@ -498,7 +551,11 @@ def get_cert_and_key(vhome):
     # Either are there no valid existing certs or user decided to overwrite the existing file.
     # Prompt for new files
     while cert_error:
-        prompt = "No existing certs. Enter certificates? (y/n)"
+        prompt = "No existing web server certificates.\nIf you " \
+                "have already generated your certificate, you may " \
+                "enter it in now.\nOtherwise, you will be prompted " \
+                "to generate a new web server certificate.\nWould you like to " \
+                "enter in the certificate? (y/n)"
         if prompt_response(prompt, valid_answers=y_or_n, default='N') in y:
             while True:
                 prompt = 'Enter the SSL certificate public key file:'
@@ -531,8 +588,14 @@ def get_cert_and_key(vhome):
                       "files should be PEM encoded and private key "
                       "should use RSA encryption")
         else:
-            pass
-            #_create_certs()
+            cert_error = _create_web_certs()
+            if not cert_error: 
+                master_web_cert = os.path.join(vhome, 'certificates/certs/', 
+                        MASTER_WEB+"-server.crt")
+                master_web_key = os.path.join(vhome, 'certificates/private/', 
+                        MASTER_WEB + "-server.pem")
+                config_opts['web-ssl-cert'] = master_web_cert
+                config_opts['web-ssl-key'] = master_web_key
 
 def is_file_readable(file_path, log=True):
     file_path = os.path.expanduser(os.path.expandvars(file_path))
