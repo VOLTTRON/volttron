@@ -1154,20 +1154,7 @@ class PlatformWrapper:
                 self.logit("TERMINATING: {}".format(pid))
                 proc = psutil.Process(pid)
                 proc.terminate()
-
-        if os.environ.get('PRINT_LOG'):
-            logpath = os.path.join(self.volttron_home, 'volttron.log')
-            if os.path.exists(logpath):
-                print("************************* Begin {}".format(logpath))
-                with open(logpath) as f:
-                    for l in f.readlines():
-                        print(l)
-                print("************************* End {}".format(logpath))
-            else:
-                print("######################### No Log Exists: {}".format(
-                    logpath
-                ))
-
+                
         print(" Skip clean up flag is {}".format(self.skip_cleanup))
         if self.messagebus == 'rmq':
             print("Calling rabbit shutdown")
