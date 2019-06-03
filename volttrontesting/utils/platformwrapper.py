@@ -1125,7 +1125,8 @@ class PlatformWrapper:
             if pid is not None and int(pid) > 0:
                 running_pids.append(int(pid))
         self.remove_all_agents()
-        self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get()
+        # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
+        self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
         self.dynamic_agent.core.stop()
 
         if self.p_process is not None:
