@@ -50,7 +50,7 @@ import gevent
 from zmq import green as zmq
 from zmq import SNDMORE
 from volttron.platform.agent import json as jsonapi
-from .base import BasePubSub
+from .base import SubsystemBase
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..errors import Unreachable, VIPError, UnknownSubsystem
 from .... import jsonrpc
@@ -81,7 +81,7 @@ def decode_peer(peer):
     return peer
 
 
-class PubSub(BasePubSub):
+class PubSub(SubsystemBase):
     """
     Pubsub subsystem concrete class implementation for ZMQ message bus.
     """
@@ -110,15 +110,13 @@ class PubSub(BasePubSub):
         self._event_queue = Queue()
         self._retry_period = 300.0
         self._processgreenlet = None
-        self._channel = None
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
             self._processgreenlet = gevent.spawn(self._process_loop)
             core.onconnected.connect(self._connected)
-            self.vip_socket = self.core().connection.socket
-
-            def subscribe(member):  # pylint: disable=redefined-outer-name
+            self.vip_socket = self.core().socket
+            def subscribe(member):   # pylint: disable=redefined-outer-name
                 for peer, bus, prefix, all_platforms, queue in annotations(
                         member, set, 'pubsub.subscriptions'):
                     # XXX: needs updated in light of onconnected signal
@@ -461,14 +459,15 @@ class PubSub(BasePubSub):
         """
         topics = []
         bus_subscriptions = dict()
-        subscriptions = dict()
         if prefix is None:
             if callback is None:
-                if platform in self._my_subscriptions:
+                if len(self._my_subscriptions) and platform in \
+                        self._my_subscriptions:
                     bus_subscriptions = self._my_subscriptions[platform]
-                if bus in bus_subscriptions:
-                    subscriptions = bus_subscriptions.pop(bus)
-                    topics = subscriptions.keys()
+                    if bus in bus_subscriptions:
+                        topics.extend(bus_subscriptions[bus].keys())
+                if not len(topics):
+                    return []
             else:
                 if platform in self._my_subscriptions:
                     bus_subscriptions = self._my_subscriptions[platform]
@@ -493,7 +492,8 @@ class PubSub(BasePubSub):
             if not topics:
                 raise KeyError('no such subscription')
         else:
-            _log.debug("PUSUB unsubscribe my subscriptions: {0} {1}".format(prefix, self._my_subscriptions))
+            _log.debug("PUSUB unsubscribe my subscriptions: {0} {1}".format(
+                prefix, self._my_subscriptions))
             if platform in self._my_subscriptions:
                 bus_subscriptions = self._my_subscriptions[platform]
                 if bus in bus_subscriptions:
