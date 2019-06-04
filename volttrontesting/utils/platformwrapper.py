@@ -264,12 +264,16 @@ class PlatformWrapper:
         # Writes the main volttron config file for this instance.
         store_message_bus_config(self.messagebus, self.instance_name)
 
-        # Necessary for rabbitmq to shutdown the correct rmq messagebus.
-        # This is set during the startup_platform method.
-        self.rabbitmq_config_obj = None
         self.remote_platform_ca = remote_platform_ca
         self.requests_ca_bundle = None
         self.dynamic_agent = None
+
+        if self.messagebus == 'rmq':
+            self.rabbitmq_config_obj = create_rmq_volttron_setup(vhome=self.volttron_home,
+                                                                 ssl_auth=self.ssl_auth,
+                                                                 env=self.env)
+
+            self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
 
         self.debug_mode = self.env.get('DEBUG_MODE', False)
         if not self.debug_mode:
@@ -516,15 +520,7 @@ class PlatformWrapper:
         self.local_vip_address = ipc + 'vip.socket'
         self.set_auth_dict(auth_dict)
 
-        if self.messagebus == 'rmq':
-
-            self.rabbitmq_config_obj = create_rmq_volttron_setup(vhome=self.volttron_home,
-                                                                 ssl_auth=self.ssl_auth,
-                                                                 env=self.env)
-
-            self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
-
-            if bind_web_address:
+        if self.messagebus == 'rmq' and bind_web_address:
                 self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
 
         if self.remote_platform_ca:
@@ -1129,7 +1125,8 @@ class PlatformWrapper:
             if pid is not None and int(pid) > 0:
                 running_pids.append(int(pid))
         self.remove_all_agents()
-        self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get()
+        # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
+        self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
         self.dynamic_agent.core.stop()
 
         if self.p_process is not None:
