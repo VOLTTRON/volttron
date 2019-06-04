@@ -78,6 +78,30 @@ def test_can_restart_platform_without_addresses_changing(get_volttron_instances)
 
 
 @pytest.mark.wrapper
+def test_can_restart_platform(volttron_instance):
+
+    orig_vip = volttron_instance.vip_address
+    orig_vhome = volttron_instance.volttron_home
+    orig_bus = volttron_instance.messagebus
+    orig_bind = volttron_instance.bind_web_address
+    orig_proc = volttron_instance.p_process.pid
+
+    assert volttron_instance.is_running()
+    volttron_instance.stop_platform()
+    assert not volttron_instance.is_running()
+    assert len(volttron_instance.dynamic_agent.vip.peerlist().get()) > 0
+    volttron_instance.restart_platform()
+    assert volttron_instance.is_running()
+    assert orig_vip == volttron_instance.vip_address
+    assert orig_vhome == volttron_instance.volttron_home
+    assert orig_bus == volttron_instance.messagebus
+    assert orig_bind == volttron_instance.bind_web_address
+    # Expecation that we won't have the same pid after we restart the platform.
+    assert orig_proc != volttron_instance.p_process.pid
+    assert len(volttron_instance.dynamic_agent.vip.peerlist().get()) > 0
+
+
+@pytest.mark.wrapper
 def test_instance_writes_to_instances_file(volttron_instance):
     vi = volttron_instance
     assert vi is not None
