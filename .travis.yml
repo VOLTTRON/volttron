@@ -2,7 +2,7 @@ language: python2.7
 
 # Each array entry will execute 1 job.
 env:
-  - FAST_FAIL=true NUM_PROCESSES=10 CI="travis"
+  - NUM_PROCESSES=10 CI="travis"
 
 services:
   - docker

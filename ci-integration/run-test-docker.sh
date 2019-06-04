@@ -15,6 +15,8 @@ else
     export NUM_PROCESSES=$1
 fi
 
+export FAST_FAIL=${FAST_FAIL: true}
+
 echo "RUNNING $NUM_PROCESSES PARALLEL PROCESSESS AT A TIME"
 
 # Before actually running odcker containers prune all dangling images
