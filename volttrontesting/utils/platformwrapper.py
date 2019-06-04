@@ -261,6 +261,10 @@ class PlatformWrapper:
         # the rest so it should work out ok.
         os.environ['VOLTTRON_HOME'] = self.volttron_home
 
+        # Necessary for rabbitmq to shutdown the correct rmq messagebus.
+        # This is set during the startup_platform method.
+        self.rabbitmq_config_obj = None
+
         if self.messagebus == 'rmq':
 
             self.rabbitmq_config_obj = create_rmq_volttron_setup(vhome=self.volttron_home,
@@ -272,9 +276,6 @@ class PlatformWrapper:
         # Writes the main volttron config file for this instance.
         store_message_bus_config(self.messagebus, self.instance_name)
 
-        # Necessary for rabbitmq to shutdown the correct rmq messagebus.
-        # This is set during the startup_platform method.
-        self.rabbitmq_config_obj = None
         self.remote_platform_ca = remote_platform_ca
         self.requests_ca_bundle = None
         self.dynamic_agent = None
@@ -302,6 +303,10 @@ class PlatformWrapper:
             authfile.add(entry)
         except AuthFileEntryAlreadyExists:
             pass
+
+        if self.messagebus == 'rmq':
+            self.enable_auto_csr()
+            self.web_admin_api.create_web_admin('admin', 'admin')
 
     def get_agent_identity(self, agent_uuid):
         path = os.path.join(self.volttron_home, 'agents/{}/IDENTITY'.format(agent_uuid))
@@ -1154,7 +1159,7 @@ class PlatformWrapper:
                 self.logit("TERMINATING: {}".format(pid))
                 proc = psutil.Process(pid)
                 proc.terminate()
-                
+
         print(" Skip clean up flag is {}".format(self.skip_cleanup))
         if self.messagebus == 'rmq':
             print("Calling rabbit shutdown")
@@ -1235,7 +1240,15 @@ class WebAdminApi(object):
         """
         data = dict(username=username, password1=password, password2=password)
         url = self.bind_web_address +"/admin/setpassword"
-        resp = requests.post(url, data, verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+        resp = requests.post(url, data, verify=self.certsobj.remote_cert_bundle_file())
+        assert resp.ok
+
+        return resp
+
+    def authenticate(self, username, password):
+        data = dict(username=username, password=password)
+        url = self.bind_web_address+"/authenticate"
+        resp = requests.post(url, data, verify=self.certsobj.remote_cert_bundle_file())
         assert resp.ok
 
         return resp

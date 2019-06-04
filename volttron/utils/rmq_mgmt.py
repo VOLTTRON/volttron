@@ -767,6 +767,7 @@ class RabbitMQMgmt(object):
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
         crt = self.rmq_config.crts
         heartbeat_interval = 20 #sec
+
         try:
             if ssl_auth:
                 ssl_options = dict(

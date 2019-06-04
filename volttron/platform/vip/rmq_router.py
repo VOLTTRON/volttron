@@ -186,7 +186,7 @@ class RMQRouter(BaseRouter):
     def _drop_peer(self, peer, message_bus='rmq'):
         try:
             self._peers.remove(peer)
-            self._peers_with_messagebus[peer] = message_bus
+            del self._peers_with_messagebus[peer]
         except KeyError:
             return
         self._distribute(b'peerlist', b'drop', peer, message_bus)

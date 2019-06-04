@@ -75,15 +75,21 @@ class CSREndpoints(object):
 
         if self._auto_allow_csr:
             _log.debug("Creating cert and permissions for user: {}".format(identity))
-            permissions = self._core().rmq_mgmt.get_default_permissions(identity)
-            self._core().rmq_mgmt.create_user_with_permissions(identity,
-                                                               permissions,
-                                                               True)
-            cert = self._certs.sign_csr(csr_file)
-            json_response = dict(
-                status="SUCCESSFUL",
-                cert=cert
-            )
+            status = self._certs.get_csr_status(identity)
+            json_response = dict(status=status)
+            if status == 'APPROVED':
+                json_response['cert'] = self._certs.get_cert_from_csr(identity)
+
+            else:
+                cert = self._certs.approve_csr(identity)
+                permissions = self._core().rmq_mgmt.get_default_permissions(identity)
+                self._core().rmq_mgmt.create_user_with_permissions(identity,
+                                                                   permissions,
+                                                                   True)
+                json_response = dict(
+                    status="SUCCESSFUL",
+                    cert=cert
+                )
         else:
 
             status = self._certs.get_csr_status(identity)

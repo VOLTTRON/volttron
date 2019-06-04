@@ -900,8 +900,10 @@ class RMQCore(Core):
 
         # self._event_queue = gevent.queue.Queue
         self._event_queue = Queue()
+        # if address is a pika.ConnectionParameters then this is a remote connection to this
+        # rabbitmq so we let the identity be the user.
         if isinstance(self.address, pika.ConnectionParameters):
-            self.rmq_user = self.identity
+            self.rmq_user = '.'.join([instance_name, self.identity])
         else:
             self.rmq_user = self.instance_name + '.' + self.identity
         _log.debug("AGENT RUNNING on RMQ Core {}".format(self.rmq_user))
