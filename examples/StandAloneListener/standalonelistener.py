@@ -57,6 +57,8 @@
     contains context around the point data and the "Date" header.
 '''
 from datetime import datetime
+from scriptwrapper import script_runner
+
 import os
 import sys
 
@@ -89,38 +91,12 @@ class StandAloneListener(Agent):
         d = {'topic': topic, 'headers': headers, 'message': message}
         sys.stdout.write(json.dumps(d)+'\n')
 
-    @Core.receiver('onstart')
-    def start(self, sender, **kwargs):
-        '''Handle the starting of the agent.
-        
-        Subscribe to all points in the topics_prefix_to_watch tuple
-        defined in settings.py.
-        '''
+    @PubSub.subscribe('pubsub','matlab/to_agent/1')
+    def print_message(self, peer, sender, bus, topic, headers, message):
+        print('The Message is: ' + str(message))
+        messageOut = script_runner(message)
+        self.vip.pubsub.publish('pubsub', 'matlab/from_agent/1', message=messageOut)
 
-        for prefix in topics_prefixes_to_watch:
-            sys.stdout.write('connecting to prefix: {}\n'.format(prefix))
-            self.vip.pubsub.subscribe(peer='pubsub', 
-                       prefix=prefix,
-                       callback=self.onmessage).get(timeout=5)
-
-    # Demonstrate periodic decorator and settings access
-    @Core.schedule(periodic(heartbeat_period))
-    def publish_heartbeat(self):
-        '''Send heartbeat message every heartbeat_period seconds.
-
-        heartbeat_period is set and can be adjusted in the settings module.
-        '''
-        sys.stdout.write('publishing heartbeat.\n')
-        now = utils.format_timestamp(datetime.utcnow())
-        headers = {
-            #'AgentID': self._agent_id,
-            headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.PLAIN_TEXT,
-            headers_mod.DATE: now,
-            headers_mod.TIMESTAMP: now
-        }
-        self.vip.pubsub.publish(
-            'pubsub', 'heartbeat/standalonelistener', headers,
-            now).get(timeout=5)
 
 
 if __name__ == '__main__':

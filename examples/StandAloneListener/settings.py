@@ -14,7 +14,7 @@ _params = {
 	# Note:
 	# 1. volttron instance should be configured to use tcp. use command vcfg
 	# to configure
-	'vip_address': 'tcp://127.0.0.1',
+	'vip_address': 'tcp://192.168.56.101',
 	'port': 22916,
 	
 	# public and secret key for the standalonelistener agent.
@@ -30,7 +30,7 @@ _params = {
 	# Public server key from the remote platform.  This can be
 	# obtained using the command:
 	# volttron-ctl auth serverkey
-	'server_key': 'IyeU43nMmB2SfKTtSArCMfR6YWTMKLPjD1G6j93DVHA'
+	'server_key': 'QTIzrRGQ0-b-37AbEYDuMA0l2ETrythM2V1ac0v9CTA'
 }
 
 def remote_url():
