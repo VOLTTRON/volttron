@@ -42,8 +42,6 @@ def test_platform_inspect(auto_registered_local):
         print result
         method = 'health.get_status'
         assert method in result['methods']
-        # status = webapi.do_rpc('platforms.uuid.{}.agents.uuid.{}.methods.{}'.format(platform_uuid, agent_uuid, method))
-        # assert status['status'] == 'BAD'
 
 
 @pytest.fixture(scope="module")
@@ -199,16 +197,17 @@ def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(auto_registered_
     for agent in agent_list:
         for p in permissions:
             assert p in agent['permissions']
+            permissions = agent['permissions']
 
             if agent['identity'] in ('platform.agent', 'volttron.central') or \
-                    agent['identity'].endswith('platform.agent'):
+                    agent['identity'].endswith('.platform.agent'):
                 if p in ('can_restart', 'can_start'):
-                    assert agent['permissions'][p]
+                    assert permissions[p]
                 else:
-                    assert not agent['permissions'][p]
+                    assert not permissions[p]
             else:
                 # for admin all should be true if not vcp or vc.
-                assert agent['permissions'][p]
+                assert permissions[p]
 
     apitester.remove_agent(platform['uuid'], listener_uuid)
     agent_list = apitester.list_agents(platform_uuid=platform['uuid'])

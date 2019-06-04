@@ -85,6 +85,27 @@ class RMQConnection(BaseConnection):
     3. Sends and receives messages using Pika library APIs
     """
     def __init__(self, url, identity, instance_name, reconnect_delay=30, vc_url=None):
+        """
+        The `RMQConnection` class provides  a connection to the rabbitmq message bus for both local and
+        remote VOLTTRON instances.  The idenity parameter must be non qualified from the reference
+        of the VOLTTRON instance this class is connecting to.  In other words
+        if this is a local connection the non qualified identity should be used.  But in the case of a remote
+        connection the identity should be prefixed with the <localinstancename.>.  An example is as follows:
+
+        With the following:
+            - local agent identity: platform.agent
+            - local instance name: v1
+            - remote instance name: v2
+
+        For the local connection to v1, platform.agent should be passed as the identy parameter to this class.  For
+        a remote connection to v2, v1.platform.agent should be passed to the identity parameter.
+
+        :param url:
+        :param identity:
+        :param instance_name:
+        :param reconnect_delay:
+        :param vc_url:
+        """
         super(RMQConnection, self).__init__(url, identity, instance_name)
         self._connection = None
         self.channel = None
@@ -96,10 +117,8 @@ class RMQConnection(BaseConnection):
             self._url = url
 
         self._connection_param = url
-        if identity.startswith(instance_name):
-            self.routing_key = self._vip_queue_name = self._rmq_userid = identity
-        else:
-            self.routing_key = self._vip_queue_name = self._rmq_userid = get_fq_identity(identity)
+
+        self.routing_key = self._vip_queue_name = self._rmq_userid = get_fq_identity(identity, instance_name)
         self.exchange = 'volttron'
         self._connect_callback = None
         self._connect_error_callback = None
@@ -110,7 +129,7 @@ class RMQConnection(BaseConnection):
         self._error_handler = None
         self._instance_name = instance_name
         self._identity = identity
-        #_log.debug("identity KEY: {}".format(self.routing_key))
+        # _log.debug("identity KEY: {}".format(self.routing_key))
 
     def open_connection(self):
         """

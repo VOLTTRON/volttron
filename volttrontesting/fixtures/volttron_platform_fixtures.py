@@ -292,12 +292,17 @@ def volttron_multi_messagebus(request):
         ssl_auth = True
 
     if sink.messagebus == 'rmq':
-        sink_ca_file = sink.certsobj.cert_file(sink.certsobj.root_ca_name)
+        # sink_ca_file = sink.certsobj.cert_file(sink.certsobj.root_ca_name)
+
         source = build_wrapper(source_address,
                                ssl_auth=ssl_auth,
                                messagebus=messagebus,
                                volttron_central_address=sink.bind_web_address,
-                               remote_platform_ca=sink_ca_file)
+                               remote_platform_ca=sink.certsobj.cert_file(sink.certsobj.root_ca_name))
+        if source.messagebus == 'rmq':
+            # The _ca is how the auth subsystem saves the remote cert from discovery.  We
+            # are effectively doing that here instead of making the discovery call.
+            source.certsobj.save_remote_cert(sink.certsobj.root_ca_name+"_ca", sink.certsobj.ca_cert(pem_encoded=True))
     else:
         source = build_wrapper(source_address,
                                ssl_auth=ssl_auth,
