@@ -236,7 +236,7 @@ class RMQRouter(BaseRouter):
                 del message.args[:]
                 message.args = [b'listing']
                 message.args.extend(self._peers)
-            if op == b'list_with_messagebus':
+            elif op == b'list_with_messagebus':
                 _log.debug("Router peerlist request op: list_with_messagebus, {}, {}".format(sender, self._peers))
                 del message.args[:]
                 message.args = [b'listing_with_messagebus']

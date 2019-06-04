@@ -63,6 +63,14 @@ import inspect
 import logging
 import uuid
 import weakref
+
+from volttron.platform.agent import json as jsonapi
+import requests
+import errno
+
+from ..decorators import annotate, annotations, dualmethod, spawn
+from .base import SubsystemBase
+
 from collections import defaultdict
 
 import requests
@@ -85,7 +93,7 @@ min_compatible_version = '5.0'
 max_compatible_version = ''
 
 
-class RMQPubSub(BasePubSub):
+class RMQPubSub(SubsystemBase):
     """
     Pubsub subsystem concrete class implementation for RabbitMQ message bus.
     """
@@ -516,11 +524,16 @@ class RMQPubSub(BasePubSub):
         self._logger.debug("DROP subscriptions: {}".format(routing_key))
         topics = []
         remove = []
-        subscriptions = dict()
         remove_topics = []
         if routing_key is None:
             if callback is None:
-                return []
+                for prefix in self._my_subscriptions:
+                    subscriptions = self._my_subscriptions[prefix]
+                    for queue_name in subscriptions.keys():
+                        self.core().connection.channel.queue_delete(
+                            callback=None, queue=queue_name)
+                        subscriptions.pop(queue_name)
+                    topics.append(prefix)
             else:
                 # Traverse through all subscriptions to find the callback
                 for prefix in self._my_subscriptions:

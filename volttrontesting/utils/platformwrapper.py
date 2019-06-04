@@ -1079,7 +1079,8 @@ class PlatformWrapper:
         if not self.is_running():
             return
 
-        self.dynamic_agent.vip.rpc("shutdown").get()
+        self.dynamic_agent.vip.rpc(CONTROL, "shutdown").get()
+        self.dynamic_agent.core.stop()
         if self.p_process is not None:
             try:
                 gevent.sleep(0.2)
@@ -1138,6 +1139,11 @@ class PlatformWrapper:
                 gevent.sleep(0.2)
             except OSError:
                 self.logit('Platform process was terminated.')
+            pid_file = "{vhome}/VOLTTRON_PID".format(vhome=self.volttron_home)
+            try:
+                os.remove(pid_file)
+            except OSError:
+                self.logit('Error while removing VOLTTRON PID file {}'.format(pid_file))
         else:
             self.logit("platform process was null")
 
