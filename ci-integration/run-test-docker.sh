@@ -94,7 +94,7 @@ process_pid(){
     if [[ ! -e "/proc/${pid}" ]]; then
         exitcode=$(docker inspect ${containernames[$index]} --format='{{.State.ExitCode}}')
 
-        echo "Exit code is ${exitcode}"
+        #echo "Exit code is ${exitcode}"
         # Exit code 5 is if there are no tests within the file so we filter that out
         if [[ $exitcode -ne 0  ]]; then
             if [[ $exitcode -eq 5 ]]; then
@@ -102,7 +102,7 @@ process_pid(){
             else
                 echo "module ${containernames[$index]} FAILED"
                 HAS_FAILED=1
-                echo "FAST_FAIL is ${FAST_FAIL} if its 0 should start clean exit procedure."
+                #echo "FAST_FAIL is ${FAST_FAIL} if its 0 should start clean exit procedure."
                 if [[ ${FAST_FAIL} -eq 0 && -n ${CI} ]]; then
                     docker logs ${containernames[$index]}
                 fi
@@ -113,12 +113,12 @@ process_pid(){
             fi
         else
             # process passed so cleanup the result file.
+            echo "module ${containernames[$index]} PASSED removing: ${outputfiles[$index]}"
             rm ${outputfiles[$index]}
-            echo "module ${containernames[$index]} PASSED"
         fi
 
         # Clean up the test container now that this process is done.
-        docker container rm ${containernames[$index]}
+        docker container rm ${containernames[$index]} &>/dev/null
 
         # Remove pid from the array of running procs.
         runningprocs=( ${runningprocs[@]:0:$index} ${runningprocs[@]:$((index + 1))} )
@@ -181,7 +181,7 @@ while [[ ${#runningprocs[@]} -gt 0 ]]; do
     while [[ $i -lt ${#runningprocs[@]} ]]; do
         process_pid $i
     done
-    echo "Running ${#runningprocs[@]} processes: ${runningprocs[@]}"
+    #echo "Running ${#runningprocs[@]} processes: ${runningprocs[@]}"
     sleep 10
 done
 
