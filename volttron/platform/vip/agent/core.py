@@ -895,6 +895,7 @@ class RMQCore(Core):
         if not instance_name:
             config_opts = load_platform_config()
             self.instance_name = config_opts.get('instance-name', 'volttron1')
+
         if volttron_central_instance_name:
             self.instance_name = volttron_central_instance_name
 
@@ -903,8 +904,10 @@ class RMQCore(Core):
         # if address is a pika.ConnectionParameters then this is a remote connection to this
         # rabbitmq so we let the identity be the user.
         if isinstance(self.address, pika.ConnectionParameters):
+            assert instance_name, "Remote connection instance_name is required"
             self.rmq_user = '.'.join([instance_name, self.identity])
         else:
+            assert self.instance_name, "self.instance_name is required to be set at this point"
             self.rmq_user = self.instance_name + '.' + self.identity
         _log.debug("AGENT RUNNING on RMQ Core {}".format(self.rmq_user))
 
