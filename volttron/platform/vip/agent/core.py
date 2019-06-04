@@ -58,8 +58,8 @@ from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN, ENOTSOCK
 from zmq.utils.monitor import recv_monitor_message
 
-from volttron.platform import certs
 from volttron.platform import get_address
+from volttron.platform import is_rabbitmq_available
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import load_platform_config, get_platform_instance_name
 from volttron.platform.keystore import KeyStore, KnownHostsStore
@@ -72,8 +72,9 @@ from ..rmq_connection import RMQConnection
 from ..socket import Message
 from ..zmq_connection import ZMQConnection
 from .... import platform
-import pika
-from .. import green as vip
+
+if is_rabbitmq_available():
+    import pika
 
 __all__ = ['BasicCore', 'Core', 'RMQCore', 'ZMQCore', 'killing']
 

@@ -37,16 +37,14 @@
 # }}}
 
 import logging
-import os
 import ssl
-import pika
+
+from volttron.platform import is_rabbitmq_available
+
+if is_rabbitmq_available():
+    import pika
 
 from volttron.platform.agent.utils import get_fq_identity
-
-try:
-    import yaml
-except ImportError:
-    raise RuntimeError('PyYAML must be installed before running this script ')
 
 import grequests
 import gevent
@@ -56,6 +54,12 @@ from requests.packages.urllib3.connection import (ConnectionError,
 from volttron.platform import certs
 from volttron.platform.agent import json as jsonapi
 from rmq_config_params import RMQConfig
+
+try:
+    import yaml
+except ImportError:
+    raise RuntimeError('PyYAML must be installed before running this script ')
+
 
 _log = logging.getLogger(__name__)
 
