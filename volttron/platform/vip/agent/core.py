@@ -892,23 +892,22 @@ class RMQCore(Core):
                                       version=version, instance_name=instance_name, messagebus=messagebus)
         self.volttron_central_address = volttron_central_address
 
+        # if instance_name is specified as a parameter in this calls it will be because it is
+        # a remote connection. So we load it from the platform configuration file
         if not instance_name:
             config_opts = load_platform_config()
-            self.instance_name = config_opts.get('instance-name', 'volttron1')
+            self.instance_name = config_opts.get('instance-name')
+        else:
+            self.instance_name = instance_name
 
-        if volttron_central_instance_name:
-            self.instance_name = volttron_central_instance_name
+        assert self.instance_name, "Instance name must have been set in the platform config file."
+        assert not volttron_central_address, "Please report this as volttron_central_instance_name shouldn't be passed."
 
         # self._event_queue = gevent.queue.Queue
         self._event_queue = Queue()
-        # if address is a pika.ConnectionParameters then this is a remote connection to this
-        # rabbitmq so we let the identity be the user.
-        if isinstance(self.address, pika.ConnectionParameters):
-            assert instance_name, "Remote connection instance_name is required"
-            self.rmq_user = '.'.join([instance_name, self.identity])
-        else:
-            assert self.instance_name, "self.instance_name is required to be set at this point"
-            self.rmq_user = self.instance_name + '.' + self.identity
+
+        self.rmq_user = '.'.join([self.instance_name, self.identity])
+
         _log.debug("AGENT RUNNING on RMQ Core {}".format(self.rmq_user))
 
         self.messagebus = messagebus
