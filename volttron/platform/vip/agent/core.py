@@ -901,7 +901,7 @@ class RMQCore(Core):
             self.instance_name = instance_name
 
         assert self.instance_name, "Instance name must have been set in the platform config file."
-        assert not volttron_central_address, "Please report this as volttron_central_instance_name shouldn't be passed."
+        assert not volttron_central_instance_name, "Please report this as volttron_central_instance_name shouldn't be passed."
 
         # self._event_queue = gevent.queue.Queue
         self._event_queue = Queue()
