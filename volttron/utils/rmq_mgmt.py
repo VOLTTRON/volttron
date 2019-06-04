@@ -60,8 +60,6 @@ try:
 except ImportError:
     raise RuntimeError('PyYAML must be installed before running this script ')
 
-if is_rabbitmq_available():
-    import pika
 
 _log = logging.getLogger(__name__)
 

@@ -53,7 +53,6 @@ import os as _os
 import re as _re
 import shlex as _shlex
 import sys as _sys
-from volttron.platform import is_rabbitmq_available
 from volttron.platform.instance_setup import main
 from volttron.platform.agent import utils
 
