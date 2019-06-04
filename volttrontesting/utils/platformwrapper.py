@@ -304,7 +304,7 @@ class PlatformWrapper:
         except AuthFileEntryAlreadyExists:
             pass
 
-        if self.messagebus == 'rmq':
+        if self.messagebus == 'rmq' and self.bind_web_address is not None:
             self.enable_auto_csr()
             self.web_admin_api.create_web_admin('admin', 'admin')
 
@@ -663,6 +663,8 @@ class PlatformWrapper:
 
         # Use dynamic_agent so we can look and see the agent with peerlist.
         self.dynamic_agent = self.build_agent(identity="dynamic_agent")
+        assert self.dynamic_agent is not None
+        assert isinstance(self.dynamic_agent, Agent)
         has_control = False
         times = 0
         while not has_control and times < 10:
