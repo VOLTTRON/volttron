@@ -79,7 +79,6 @@ from requests.packages.urllib3.connection import (ConnectionError,
 
 from volttron.platform import is_rabbitmq_available
 from volttron.platform.agent import json as jsonapi
-from .base import BasePubSub
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..errors import Unreachable
 from ..results import ResultsDictionary
