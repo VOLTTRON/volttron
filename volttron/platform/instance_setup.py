@@ -305,6 +305,12 @@ def _create_web_certs():
         crts.create_ca_signed_cert(name=MASTER_WEB+"-server",type='server',ca_name=crts.root_ca_name, fqdn=get_hostname())
     return 0
 
+def check_rmq_setup():
+    global config_opts
+    rmq_config = RMQConfig()
+    if not os.path.exists(rmq_config.volttron_rmq_config):
+        setup_rabbitmq_volttron('single', verbose, prompt=True, instance_name=None)
+
 def do_message_bus():
     global config_opts
     bus_type = None
@@ -326,7 +332,9 @@ def do_message_bus():
                 bus_type = new_bus
                 print("Message bus set to zmq")
 
-    
+        if bus_type == 'rmq':
+            check_rmq_setup()
+
     config_opts['message-bus'] = bus_type
 
 def do_vip():
@@ -550,12 +558,8 @@ def get_cert_and_key(vhome):
     # Either are there no valid existing certs or user decided to overwrite the existing file.
     # Prompt for new files
     while cert_error:
-        prompt = "No existing web server certificates.\nIf you " \
-                "have already generated your certificate, you may " \
-                "enter it in now.\nOtherwise, you will be prompted " \
-                "to generate a new web server certificate.\nWould you like to " \
-                "enter in the certificate? (y/n)"
-        if prompt_response(prompt, valid_answers=y_or_n, default='N') in y:
+        prompt = "Would you like to generate a new web certificate?"
+        if prompt_response(prompt, valid_answers=y_or_n, default='Y') in n:
             while True:
                 prompt = 'Enter the SSL certificate public key file:'
                 cert_file = prompt_response(prompt, mandatory=True)
@@ -719,9 +723,9 @@ def wizard():
     volttron_home = get_home()
     confirm_volttron_home()
     _load_config()
+    _update_config_file()
     do_message_bus()
     do_vip()
-    _update_config_file()
     prompt = 'Is this instance web enabled?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
