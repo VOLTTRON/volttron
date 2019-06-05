@@ -96,6 +96,12 @@ class APITester(object):
                       raw=raw)
         return self.do_rpc("get_agent_config", **params)
 
+    def delete_agent_config(self, platform_uuid, agent_identity, config_name):
+        params = dict(platform_uuid=platform_uuid,
+                      agent_identity=agent_identity,
+                      config_name=config_name)
+        return self.do_rpc("delete_agent_config", **params)
+
     def set_setting(self, **params):
         return self.do_rpc("set_setting", **params)
 

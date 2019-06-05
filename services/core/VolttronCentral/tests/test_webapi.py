@@ -151,6 +151,41 @@ def test_store_list_get_configuration(auto_registered_local):
 
 
 @pytest.mark.vc
+def test_store_delete_configuration(auto_registered_local):
+
+    data = dict(
+        bim=50,
+        baz="foo",
+        bar="lambda"
+    )
+    str_data = jsonapi.dumps(data)
+    identity = "foo.bar"
+    config_name = "fuzzywidgets"
+
+    webapi = auto_registered_local
+
+    platforms = webapi.list_platforms()
+    platform_uuid = platforms[0]["uuid"]
+
+    resp = webapi.store_agent_config(platform_uuid, identity, config_name,
+                                     str_data)
+    assert resp is None
+
+    resp = webapi.list_agent_configs(platform_uuid, identity)
+    assert config_name == resp[0]
+
+    resp = webapi.get_agent_config(platform_uuid, identity, config_name)
+    assert str_data == resp
+
+    resp = webapi.delete_agent_config(platform_uuid, identity, config_name)
+    assert '' == resp
+
+    resp = webapi.list_agent_configs(platform_uuid, identity)
+    for res in resp:
+        assert config_name != resp[0]
+
+
+@pytest.mark.vc
 @pytest.mark.skipif(True, reason='Permissions always admin presently')
 def test_correct_reader_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
