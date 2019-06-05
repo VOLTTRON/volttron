@@ -55,17 +55,20 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+import errno
 import json
 import logging
 import os
 
-import pika
-import errno
-
+from volttron.platform import is_rabbitmq_available
 from volttron.platform.agent.utils import get_fq_identity
-from volttron.platform.vip.socket import Message
 from volttron.platform.vip import BaseConnection
 from volttron.platform.vip.agent.errors import Unreachable
+from volttron.platform.vip.socket import Message
+
+if is_rabbitmq_available():
+    import pika
+
 
 _log = logging.getLogger(__name__)
 # reduce pika log level

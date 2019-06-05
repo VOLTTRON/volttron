@@ -37,15 +37,19 @@
 # }}}
 
 from __future__ import print_function, absolute_import
-import logging
-import pika
+
 import json
-from .agent import Agent, Core, RPC
-from . import green as vip
-from volttron.platform.agent import json as jsonapi
-from .socket import Message
+import logging
+
 from zmq import green as zmq
-from zmq.green import ZMQError, EAGAIN, ENOTSOCK, EADDRINUSE
+from zmq.green import ZMQError, ENOTSOCK
+
+from volttron.platform.agent import json as jsonapi
+from .agent import Agent, Core
+from volttron.platform import is_rabbitmq_available
+
+if is_rabbitmq_available():
+    import pika
 
 _log = logging.getLogger(__name__)
 
