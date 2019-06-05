@@ -671,7 +671,7 @@ def _create_rabbitmq_config(rmq_config, setup_type):
         new_host = prompt_response(prompt, default=getfqdn())
         rmq_config.hostname = new_host
 
-        rmq_config.is_ssl = _prompt_ssl()
+        rmq_config.is_ssl = True
 
         if rmq_config.is_ssl:
             prompt = "Would you like to create a new self signed root CA" \
@@ -694,9 +694,7 @@ def _create_rabbitmq_config(rmq_config, setup_type):
                 prompt = '\tOrganization Unit:'
                 cert_data['organization-unit'] = prompt_response(prompt,
                                                                  mandatory=True)
-                prompt = '\tCommon Name:'
-                cert_data['common-name'] = prompt_response(
-                    prompt, default=rmq_config.instance_name + '-root-ca')
+                cert_data['common-name'] = rmq_config.instance_name + '-root-ca'
                 rmq_config.certificate_data = cert_data
             else:
                 error = True

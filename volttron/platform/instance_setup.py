@@ -281,9 +281,7 @@ def _create_web_certs():
             cert_data['organization'] = prompt_response(prompt, mandatory=True)
             prompt = '\tOrganization Unit:'
             cert_data['organization-unit'] = prompt_response(prompt,mandatory=True)
-            prompt = '\tCommon Name:'
-            cert_data['common-name'] = prompt_response(
-                prompt, default=get_platform_instance_name() + '-root-ca')
+            cert_data['common-name'] = get_platform_instance_name() + '-root-ca'
             data = {'C': cert_data.get('country'),
                     'ST': cert_data.get('state'),
                     'L': cert_data.get('location'),
@@ -296,13 +294,7 @@ def _create_web_certs():
             return 1
     
     print("Creating new web server certificate.")
-    prompt_str = "Creating a new web server certificate will overwrite\n" \
-            "any existing web server certificates. Continue?"
-    prompt = prompt_response(prompt_str, valid_answers=y_or_n, default='N')
-    if prompt not in y:
-        return 1
-    else:
-        crts.create_ca_signed_cert(name=MASTER_WEB+"-server",type='server',ca_name=crts.root_ca_name, fqdn=get_hostname())
+    crts.create_ca_signed_cert(name=MASTER_WEB+"-server",type='server',ca_name=crts.root_ca_name, fqdn=get_hostname())
     return 0
 
 def check_rmq_setup():
@@ -726,6 +718,7 @@ def wizard():
     _update_config_file()
     do_message_bus()
     do_vip()
+    _update_config_file()
     prompt = 'Is this instance web enabled?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
@@ -733,7 +726,7 @@ def wizard():
             do_web_enabled_rmq(volttron_home)
         elif config_opts['message-bus'] == 'zmq':
             do_web_enabled_zmq(volttron_home)
-
+        _update_config_file()
         prompt = 'Is this an instance of volttron central?'
         response = prompt_response(prompt, valid_answers=y_or_n, default='N')
         if response in y:
