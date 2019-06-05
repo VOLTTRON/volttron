@@ -425,10 +425,14 @@ class VolttronCentralAgent(Agent):
 
                 if resp.ok and resp.text:
                     claims = self.vip.web.get_user_claims(resp.text)
+                    # Because the web-user.json has the groups under a key and the
+                    # groups is just passed into the session we need to make sure
+                    # we pass in the proper thing to the _add_sesion function.
+                    assert 'groups' in claims
                     authentication_token = resp.text
                     sess=authentication_token
                     self._authenticated_sessions._add_session(user=user,
-                                                              groups=claims,
+                                                              groups=claims['groups'],
                                                               token=authentication_token,
                                                               ip=env['REMOTE_ADDR'])
                 else:
@@ -511,7 +515,7 @@ class VolttronCentralAgent(Agent):
         :param groups:
         :return:
         """
-        _log.debug('_get_agents')
+        _log.debug('_get_agents with groups: {}'.format(groups))
         connected_to_pa = self._platform_connections[instance_uuid]
 
         agents = connected_to_pa.agent.vip.rpc.call(

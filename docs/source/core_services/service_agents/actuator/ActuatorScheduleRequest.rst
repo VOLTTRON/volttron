@@ -78,14 +78,20 @@ Points on Task Scheduling
 Task Priorities
 ^^^^^^^^^^^^^^^
 
-| HIGH:: 
-| This Task cannot be preempted under any circumstance. This task may preempt other conflicting preemptable Tasks.
+HIGH: 
+ This Task cannot be preempted under any circumstance. 
+ This task may preempt other conflicting preemptable Tasks.
 
-| LOW:: 
-| This Task cannot be preempted \ **once it has
-started**. A Task is considered started once the earliest time slot on any device has been reached. This Task may \ **not** preempt other Tasks.
+LOW: 
+ This Task cannot be preempted \ **once it has started**\ . 
+ A Task is considered started once the earliest time slot on any device 
+ has been reached. This Task may **not** preempt other Tasks.
 
-LOW\_PREEMPT:: This Task may be preempted at any time. If the Task is preempted once it has begun running any current time slots will be given a grace period (configurable in the ActuatorAgent configuration file, defaults to 60 seconds) before being revoked. This Task may \ **not** preempt other Tasks.
+LOW\_PREEMPT: 
+ This Task may be preempted at any time. If the Task is preempted 
+ once it has begun running any current time slots will be given a grace period 
+ (configurable in the ActuatorAgent configuration file, defaults to 60 seconds) 
+ before being revoked. This Task may **not** preempt other Tasks.
 
 Canceling a Task
 ~~~~~~~~~~~~~~~~

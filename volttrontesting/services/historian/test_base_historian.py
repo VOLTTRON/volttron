@@ -541,3 +541,176 @@ def test_failing_historian(request, volttron_instance, client_agent):
 
             fail_historian.core.stop()
 
+
+@pytest.mark.historian
+def test_additional_custom_topics(request, volttron_instance, client_agent):
+    """
+    Test subscription to custom topics. Test --
+     1. add additional topics
+     2. restricting topics
+    """
+    global alert_publishes
+    historian = None
+    try:
+        identity = 'platform.historian'
+        DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+        CUSTOM_TOPIC = 'special_devices/device1/unit/all'
+        CUSTOM_QUERY_TOPIC = "device1/unit"
+        DEVICES_QUERY_TOPIC = "Building/LAB/Device"
+
+        historian = volttron_instance.build_agent(agent_class=BasicHistorian,
+                                              identity=identity,
+                                              submit_size_limit=2,
+                                              max_time_publishing=0.5,
+                                              retry_period=1.0,
+                                              backup_storage_limit_gb=0.0001,
+                                              custom_topics={'capture_device_data': [CUSTOM_TOPIC]})  # 100K
+
+
+        print("\n** test_basic_function for {}**".format(
+            request.keywords.node.name))
+
+        # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+        # Make some random readings.  Randome readings are going to be
+        # within the tolerance here.
+        format_spec = "{0:.13f}"
+        oat_reading = random.uniform(30, 100)
+        mixed_reading = oat_reading + random.uniform(-5, 5)
+        damper_reading = random.uniform(0, 100)
+
+        float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+        percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
+
+        # Create a message for all points.
+        all_message = [{'OutsideAirTemperature': oat_reading,
+                        'MixedAirTemperature': mixed_reading,
+                        'DamperSignal': damper_reading},
+                       {'OutsideAirTemperature': float_meta,
+                        'MixedAirTemperature': float_meta,
+                        'DamperSignal': percent_meta
+                        }]
+
+        # Create timestamp
+        now = utils.format_timestamp( datetime.utcnow() )
+
+        # now = '2015-12-02T00:00:00'
+        headers = {
+            headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+        }
+        print("Published time in header: " + now)
+
+        for _ in range(2):
+            client_agent.vip.pubsub.publish('pubsub',
+                                             DEVICES_ALL_TOPIC,
+                                             headers=headers,
+                                             message=all_message).get(timeout=10)
+        for _ in range(2):
+            client_agent.vip.pubsub.publish('pubsub',
+                                            CUSTOM_TOPIC,
+                                            headers=headers,
+                                            message=all_message).get(timeout=10)
+
+        gevent.sleep(2.0)
+
+        assert len(historian.seen) == 12
+        found_device_topic = 0
+        found_custom_topic = 0
+        for item in historian.seen:
+            if item["topic"].startswith(DEVICES_QUERY_TOPIC) :
+                found_device_topic += 1
+            elif item["topic"].startswith(CUSTOM_QUERY_TOPIC):
+                found_custom_topic += 1
+        assert found_custom_topic == 6
+        assert found_device_topic == 6
+    finally:
+        if historian:
+            historian.core.stop()
+
+
+@pytest.mark.historian
+def test_restricting_topics(request, volttron_instance, client_agent):
+    """
+    Test subscription to custom topics. Test --
+     1. add additional topics
+     2. restricting topics
+    """
+    global alert_publishes
+    historian = None
+    try:
+        identity = 'platform.historian'
+        CUSTOM_TOPIC = 'devices/device1/unit/all'
+        DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+        CUSTOM_QUERY_TOPIC  = "device1/unit"
+        DEVICES_QUERY_TOPIC = "Building/LAB/Device"
+
+        historian = volttron_instance.build_agent(agent_class=BasicHistorian,
+                                              identity=identity,
+                                              submit_size_limit=2,
+                                              max_time_publishing=0.5,
+                                              retry_period=1.0,
+                                              backup_storage_limit_gb=0.0001,
+                                              capture_device_data=False,
+                                              capture_log_data=False,
+                                              capture_analysis_data=False,
+                                              capture_record_data=False,
+                                              custom_topics={'capture_device_data': [CUSTOM_TOPIC]})  # 100K
+
+        print("\n** test_basic_function for {}**".format(
+            request.keywords.node.name))
+
+        # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+        # Make some random readings.  Randome readings are going to be
+        # within the tolerance here.
+        format_spec = "{0:.13f}"
+        oat_reading = random.uniform(30, 100)
+        mixed_reading = oat_reading + random.uniform(-5, 5)
+        damper_reading = random.uniform(0, 100)
+
+        float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+        percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
+
+        # Create a message for all points.
+        all_message = [{'OutsideAirTemperature': oat_reading,
+                        'MixedAirTemperature': mixed_reading,
+                        'DamperSignal': damper_reading},
+                       {'OutsideAirTemperature': float_meta,
+                        'MixedAirTemperature': float_meta,
+                        'DamperSignal': percent_meta
+                        }]
+
+        # Create timestamp
+        now = utils.format_timestamp( datetime.utcnow() )
+
+        # now = '2015-12-02T00:00:00'
+        headers = {
+            headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+        }
+        print("Published time in header: " + now)
+
+        for _ in range(2):
+            client_agent.vip.pubsub.publish('pubsub',
+                                             DEVICES_ALL_TOPIC,
+                                             headers=headers,
+                                             message=all_message).get(timeout=10)
+        for _ in range(2):
+            client_agent.vip.pubsub.publish('pubsub',
+                                            CUSTOM_TOPIC,
+                                            headers=headers,
+                                            message=all_message).get(timeout=10)
+
+        gevent.sleep(2.0)
+
+        assert len(historian.seen) == 6  # only records published to custom topic
+        found_device_topic = 0
+        found_custom_topic = 0
+        for item in historian.seen:
+            if item["topic"].startswith(DEVICES_QUERY_TOPIC):
+                found_device_topic += 1
+            elif item["topic"].startswith(CUSTOM_QUERY_TOPIC):
+                found_custom_topic += 1
+        assert found_custom_topic == 6
+        assert found_device_topic == 0
+    finally:
+        if historian:
+            historian.core.stop()
+            

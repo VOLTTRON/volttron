@@ -85,6 +85,7 @@ def platform(request, volttron_instance):
         volttron_instance.stop_agent(listener_uuid)
         volttron_instance.stop_agent(watcher_uuid)
         agent.core.stop()
+        alert_messages.clear()
 
     request.addfinalizer(stop)
     return volttron_instance
