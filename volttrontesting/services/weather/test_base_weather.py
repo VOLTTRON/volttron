@@ -48,6 +48,7 @@ from volttron.platform.agent import utils
 from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.messaging.health import *
 from volttron.platform.messaging import topics
+from volttron.platform.agent.utils import get_fq_identity
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -57,14 +58,17 @@ identity = 'platform.weather'
 FAKE_LOCATION = {"location": "fake_location"}
 FAKE_POINTS = {"fake1": 1,
                "fake2": 100,
-               "fake3": 1}
+               "fake3": 1,
+               "fake4": 1}
 
 EXPECTED_OUTPUT_VALUES = {"fake1": {"value": 2.54,
                                     "name": "FAKE1"},
                           "fake2": {"value": 212,
                                     "name": "FAKE2"},
                           "fake3": {"value": 473.176,
-                                    "name": "FAKE3"}
+                                    "name": "FAKE3"},
+                          "fake4": {"value": 2.54,
+                                    "name": "fake4"}
                           }
 
 
@@ -116,7 +120,11 @@ class BasicWeatherAgent(BaseWeatherAgent):
                            {"Service_Point_Name": "fake3",
                             "Standard_Point_Name": "FAKE3",
                             "Service_Units": "pint",
-                            "Standard_Units": "milliliter"}
+                            "Standard_Units": "milliliter"},
+                           {"Service_Point_Name": "fake4",
+                            "Standard_Point_Name": "",
+                            "Service_Units": "inch",
+                            "Standard_Units": "centimeter"}
                            ]
         with open("temp.csv", 'wb') as csvfile:
             fields = ["Service_Point_Name", "Standard_Point_Name",
@@ -129,14 +137,20 @@ class BasicWeatherAgent(BaseWeatherAgent):
         return "temp.csv"
 
     def query_current_weather(self, location):
-        current_time = datetime.datetime.utcnow()
-        record = [
-            format_timestamp(current_time),
-            {'points': FAKE_POINTS}
-        ]
-        return record
+        print(self.api_calls_available())
+        if self.api_calls_available():
+            current_time = datetime.datetime.utcnow()
+            record = [
+                format_timestamp(current_time),
+                {'points': FAKE_POINTS}
+            ]
+            _log.debug(record)
+            self.add_api_call()
+            return record
+        else:
+            raise ValueError('Allotted quantity of API calls exceeded')
 
-    def query_forecast_service(self, service, location):
+    def query_forecast_service(self, service, location, quantity):
 
         if service is 'get_hourly_forecast':
             generation_time, data = self.query_hourly_forecast(location)
@@ -146,15 +160,19 @@ class BasicWeatherAgent(BaseWeatherAgent):
                                "only")
 
     def query_hourly_forecast(self, location):
-        records = []
-        current_time = datetime.datetime.utcnow()
-        for x in range(0, 3):
-            record = [format_timestamp(
-                current_time + datetime.timedelta(hours=(x + 1))),
-                {'points': FAKE_POINTS}
-            ]
-            records.append(record)
-        return format_timestamp(current_time), records
+        if self.api_calls_available():
+            records = []
+            current_time = datetime.datetime.utcnow()
+            for x in range(0, 3):
+                record = [format_timestamp(
+                    current_time + datetime.timedelta(hours=(x + 1))),
+                    {'points': FAKE_POINTS}
+                ]
+                records.append(record)
+            self.add_api_call()
+            return format_timestamp(current_time), records
+        else:
+            raise RuntimeError('Allotted quantity of API calls exceeded')
 
     def query_hourly_historical(self, location, start_date, end_date):
         pass
@@ -866,7 +884,6 @@ def test_api_calls_services(weather):
     assert stored_calls == 100
 
     result = weather.get_current_weather([{"location": "fake_location1"}])
-    print(result)
 
     cursor.execute(quantity_query)
     stored_calls = cursor.fetchone()[0]
@@ -875,11 +892,44 @@ def test_api_calls_services(weather):
     # test the unlimited case
     cache._calls_limit = -1
 
-    result = weather.get_hourly_forecast([{"location": "fake_location1"}])
+    query = "DROP TABLE IF EXISTS get_current_weather;"
+    cursor.execute(query)
+    _log.debug(query)
+    connection.commit()
+
+    result = weather.get_current_weather([{"location": "fake_location1"}])
 
     cursor.execute(quantity_query)
     stored_calls = cursor.fetchone()[0]
     assert stored_calls == 101
+
+    cursor.execute(delete_query)
+    connection.commit()
+
+    cache.create_tables()
+
+    assert weather.api_calls_available(10)
+
+    cursor.execute(delete_query)
+    connection.commit()
+
+    cache.create_tables()
+
+    cache._calls_limit = 10
+
+    assert weather.api_calls_available(10)
+
+    cache.add_api_call()
+
+    cursor.execute(quantity_query)
+    print("ACTIVE: {}".format(cursor.fetchone()[0]))
+
+    assert not weather.api_calls_available(10)
+
+    with pytest.raises(ValueError) as invalid_calls_available:
+        weather.api_calls_available(0)
+
+    assert 'Invalid quantity for API calls' in invalid_calls_available.value
 
     cursor.execute(delete_query)
     connection.commit()
@@ -1114,7 +1164,9 @@ def test_unhandled_cache_read_exception(volttron_instance, weather,
         assert query_agent.alert_callback.call_count == 2
         first_call = query_agent.alert_callback.call_args_list[0][0]
         second_call = query_agent.alert_callback.call_args_list[1][0]
-        assert first_call[3] == second_call[3] == "alerts/BasicWeatherAgent"
+        fq_identity = get_fq_identity(weather.core.identity).replace('.', '_')
+        assert first_call[3] == second_call[3] == \
+               "alerts/BasicWeatherAgent/{}".format(fq_identity)
         assert first_call[4]['alert_key'] == \
             "Cache read failed"
         assert ujson.loads(first_call[5])['context'] == \
@@ -1123,7 +1175,7 @@ def test_unhandled_cache_read_exception(volttron_instance, weather,
         assert ujson.loads(second_call[5])['context'] == \
             "Weather agent failed to write to cache"
         # results should be retrieved from the remote api
-        assert len(results2["weather_results"]["points"]) == 3
+        assert len(results2["weather_results"]["points"]) == 4
         # results should not have the same timestamps
         assert results1["observation_time"] != results2["observation_time"]
         # ensure the correct warning has been given

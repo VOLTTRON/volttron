@@ -325,10 +325,17 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         except ValueError:
             self.generate_response_error(url, gresponse.status_code)
 
-
     @doc_inherit
-    def query_forecast_service(self, service, location):
-
+    def query_forecast_service(self, service, location, quantity):
+        """
+        Returns forecast weather from Weather.gov for requested forecast service
+        :param service: forecast service to query, Weather.gov provides only
+        hourly
+        :param location: currently accepts lat/long
+        :param quantity: As Weather.gov offers only a set quantity of data, this
+        is ignored
+        :return: generation time, forecast records
+        """
         if service is SERVICE_HOURLY_FORECAST:
             generation_time, data = self.query_hourly_forecast(location)
             return generation_time, data

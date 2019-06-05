@@ -11,8 +11,53 @@ data from Dark Sky. The agent extends BaseWeatherAgent that provides caching of
 recently requested data, API call tracking, as well as mapping of weather
 point names from Darksky's naming scheme to the standardized CF-conventions scheme.
 
+******************
+Dark Sky Endpoints
+******************
+The Dark Sky agent provides the following endpoints in addition to those
+included with the base weather agent:
+
+Get Minutely Forecast Data
+--------------------------
+rpc call to weather service method **’get_minutely_forecast’**
+
+Parameters:
+
+    1. **locations** - Dictionary containing location details. Dark Sky requires
+        {'lat': <lattitude>, 'long': <longitude>}
+
+optional parameters:
+
+    2. **minutes** - The number of minutes for which forecast data should be
+       returned. By default, it is 60 minutes as well as the current minute.
+       Dark Sky does not provide minutely data for more than one hour into the
+       future.
+
+Get Daily Forecast Data
+-----------------------
+rpc call to weather service method **’get_minutely_forecast’**
+
+Parameters:
+
+    1. **locations** - Dictionary containing location details. Dark Sky requires
+        {'lat': <lattitude>, 'long': <longitude>}
+
+optional parameters:
+
+    2. **days** - The number of days for which forecast data should be
+       returned. By default, it is the next 7 days as well as the current day.
+
+
+**Please note: If your forecast request to the Dark Sky agent asks for more data
+points than the default, the agent must use an additional API calls; an
+additional API call will be used to fetch any records not included in the
+default forecast request for the current day, and one additional call for each
+subsequent day of data the request would require, regardless of Dark Sky agent
+endpoint.**
+
+*************
 Configuration
--------------
+*************
 
 The following is an example configuration for the Dark Sky agent. The 'api_key'
 parameter is required while all others are optional.

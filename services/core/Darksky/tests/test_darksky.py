@@ -284,7 +284,6 @@ def test_calls_exceeded(volttron_instance, cleanup_cache, query_agent,
     cursor.execute(create_query)
     sqlite_connection.commit()
 
-
 @pytest.mark.parametrize("locations", [
     ["fail"],
     [{"lat": 39.7555}],
@@ -330,20 +329,21 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
 
     if service == "get_minutely_forecast":
         query_data = query_agent.vip.rpc.call(
-            identity, service, locations, minutes=2).get(timeout=30)
+            identity, service, locations).get(timeout=30)
     if service == "get_hourly_forecast":
         query_data = query_agent.vip.rpc.call(
-            identity, service, locations, hours=2).get(timeout=30)
+            identity, service, locations).get(timeout=30)
     if service == "get_daily_forecast":
         query_data = query_agent.vip.rpc.call(
-            identity, service, locations, days=2).get(timeout=30)
+            identity, service, locations).get(timeout=30)
 
     if query_data[0].get("weather_error"):
         error = query_data[0].get("weather_error")
         if error.endswith("Remote API returned Code 403"):
             pytest.skip("API key has exceeded daily call limit")
 
-    services = {"get_minutely_forecast": 61,
+    services = {
+                "get_minutely_forecast": 61,
                 "get_hourly_forecast": 49,
                 "get_current_weather": 1,
                 "get_daily_forecast": 8}
@@ -359,7 +359,7 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
             if identity == 'platform.darksky_perf':
                 assert num_records is 0
             else:
-                assert num_records is records_amount*len(locations)
+                assert num_records is records_amount * len(locations)
 
     assert len(query_data) == len(locations)
 
@@ -392,21 +392,24 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
 
     cache_data = []
 
+    # default quantity
+
     if service == 'get_minutely_forecast':
         cache_data = query_agent.vip.rpc.call(
-            identity, service, locations, minutes=2).get(timeout=30)
+            identity, service, locations).get(timeout=30)
     if service == 'get_hourly_forecast':
         cache_data = query_agent.vip.rpc.call(
-            identity, service, locations, hours=2).get(
-            timeout=30)
+            identity, service, locations).get(timeout=30)
     if service == 'get_daily_forecast':
         cache_data = query_agent.vip.rpc.call(
-            identity, service, locations, days=2).get(timeout=30)
+            identity, service, locations).get(timeout=30)
 
     assert len(cache_data) == len(query_data)
     for x in range(0, len(cache_data)):
         query_location_data = query_data[x]
+        print(query_location_data)
         cache_location_data = cache_data[x]
+        print(cache_location_data)
         assert cache_location_data.get(
             "generation_time") == query_location_data.get("generation_time")
         assert cache_location_data.get("lat") == query_location_data.get(
@@ -442,7 +445,6 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
         if not service_name == service:
             query = 'SELECT COUNT(*) FROM {service}'.format(
                 service=service_name)
-            print(query)
             cursor.execute(query)
             num_records = cursor.fetchone()[0]
             if identity == 'platform.darksky_perf':
@@ -450,6 +452,91 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
             else:
                 assert num_records is records_amount*len(locations)
 
+# TODO change mark and test
+# TODO test cache quantities here as well
+@pytest.mark.parametrize("locations, service", [
+    ([{"lat": 39.7555, "long": -105.2211}], 'get_minutely_forecast'),
+    ([{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": -119.2752}],
+     'get_minutely_forecast'),
+    ([{"lat": 39.7555, "long": -105.2211}], 'get_daily_forecast'),
+    ([{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": -119.2752}],
+     'get_daily_forecast'),
+    ([{"lat": 39.7555, "long": -105.2211}], 'get_hourly_forecast'),
+    ([{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": -119.2752}],
+     'get_hourly_forecast'),
+])
+@pytest.mark.darksky
+def test_less_than_default_forecast(volttron_instance, cleanup_cache, weather,
+                                    query_agent, locations, service):
+    identity = weather[1]
+    if service == 'get_minutely_forecast':
+        query_data = query_agent.vip.rpc.call(
+            identity, service, locations, minutes=2).get(timeout=30)
+    if service == 'get_hourly_forecast':
+        query_data = query_agent.vip.rpc.call(
+            identity, service, locations, hours=2).get(timeout=30)
+    if service == 'get_daily_forecast':
+        query_data = query_agent.vip.rpc.call(
+            identity, service, locations, days=2).get(timeout=30)
+
+    assert len(query_data) == (2 * len(locations))
+
+# TODO test cache quantities here as well
+@pytest.mark.parametrize("locations, service", [
+    ([{"lat": 39.7555, "long": -105.2211}], 'get_minutely_forecast'),
+    ([{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": -119.2752}],
+     'get_minutely_forecast'),
+    ([{"lat": 39.7555, "long": -105.2211}], 'get_daily_forecast'),
+    ([{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": -119.2752}],
+     'get_daily_forecast'),
+    ([{"lat": 39.7555, "long": -105.2211}], 'get_hourly_forecast'),
+    ([{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": -119.2752}],
+     'get_hourly_forecast'),
+])
+@pytest.mark.dev
+def test_more_than_default_forecast(volttron_instance, cleanup_cache, weather,
+                                    query_agent, locations, service):
+    identity = weather[1]
+    if service == 'get_minutely_forecast':
+        big_request = 61
+        query_data = query_agent.vip.rpc.call(
+            identity, service, locations, minutes=big_request).get(timeout=30)
+        assert len(query_data) == (big_request * len(locations))
+    if service == 'get_hourly_forecast':
+        big_request = 49
+        query_data = query_agent.vip.rpc.call(
+            identity, service, locations, hours=big_request).get(timeout=30)
+        assert len(query_data) == (big_request * len(locations))
+    if service == 'get_daily_forecast':
+        big_request = 8
+        query_data = query_agent.vip.rpc.call(
+            identity, service, locations, days=big_request).get(timeout=30)
+        assert len(query_data) == (big_request * len(locations))
+
+@pytest.mark.darksky
+def test_get_more_than_default(weather, query_agent):
+    # hourly and daily forecast support getting data with time machine requests
+    locations = [{"lat": 39.7555, "long": -105.2211}]
+    identity = weather[1]
+
+    # query_data = query_agent.vip.rpc.call(
+    #     identity, "get_hourly_forecast", locations, hours=100).get(timeout=30)
+    # if query_data[0].get("weather_error"):
+    #     error = query_data[0].get("weather_error")
+    #     if error.endswith("Remote API returned Code 403"):
+    #         pytest.skip("API key has exceeded daily call limit")
+    #
+    # assert len(query_data[0]['weather_results']) == 100
+
+    # Makes 24 API calls
+    query_data = query_agent.vip.rpc.call(
+        identity, "get_daily_forecast", locations, days=10).get(timeout=60)
+    if query_data[0].get("weather_error"):
+        error = query_data[0].get("weather_error")
+        if error.endswith("Remote API returned Code 403"):
+            pytest.skip("API key has exceeded daily call limit")
+
+    assert len(query_data[0]['weather_results']) == 10
 
 @pytest.mark.parametrize("locations, service", [
     (["fail"], 'get_minutely_forecast'),

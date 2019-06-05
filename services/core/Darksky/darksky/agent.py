@@ -80,18 +80,10 @@ WEATHER_ERROR = "weather_error"
 WEATHER_RESULTS = "weather_results"
 
 SERVICES_MAPPING = {
- 'SERVICE_HOURLY_FORECAST':
-     {'service': 'get_hourly_forecast', 'json_name': 'hourly', 'type':
-         'forecast'},
- 'SERVICE_DAILY_FORECAST':
-     {'service': 'get_daily_forecast', 'json_name':  'daily', 'type':
-         'forecast'},
- 'SERVICE_CURRENT_WEATHER':
-     {'service': 'get_current_weather', 'json_name': 'currently', 'type':
-         'current'},
- 'SERVICE_MINUTELY_FORECAST':
-     {'service': 'get_minutely_forecast', 'json_name': 'minutely', 'type':
-         'forecast'}
+ 'get_hourly_forecast': {'json_name': 'hourly', 'type': 'forecast'},
+ 'get_daily_forecast': {'json_name':  'daily', 'type': 'forecast'},
+ 'get_current_weather': {'json_name': 'currently', 'type': 'current'},
+ 'get_minutely_forecast': {'json_name': 'minutely', 'type': 'forecast'}
 }
 
 LAT_LONG_REGEX = re.compile("^-?[0-9]{1,3}(\.[0-9]{1,4})?$")
@@ -139,15 +131,12 @@ class Darksky(BaseWeatherAgent):
         self.headers = {"Accept": "application/json",
                         "Accept-Language": "en-US"
                         }
-        minutely_service = SERVICES_MAPPING['SERVICE_MINUTELY_FORECAST'][
-                                  'service']
-        self.register_service(minutely_service,
-                              self.get_update_interval(minutely_service),
+        self.register_service('get_minutely_forecast',
+                              self.get_update_interval('get_minutely_forecast'),
                               'forecast', description=
                               "Params: locations ([{'lat': <value>, 'long': <value>},...])")
-        daily_service = SERVICES_MAPPING['SERVICE_DAILY_FORECAST']['service']
-        self.register_service(daily_service,
-                              self.get_update_interval(daily_service),
+        self.register_service('get_daily_forecast',
+                              self.get_update_interval('get_daily_forecast'),
                               'forecast', description=
                               "Params: locations ([{'lat': <value>, 'long': <value>},...])")
         self.remove_service("get_hourly_historical")
@@ -236,7 +225,8 @@ class Darksky(BaseWeatherAgent):
         """
         return pkg_resources.resource_stream(__name__, "data/name_mapping.csv")
 
-    def get_darksky_forecast(self, service, location):
+    # TODO may be skipping the current day?
+    def get_darksky_data(self, service, location, timestamp=None):
         """
         Generic method called by the current and forecast service endpoint
         methods to fetch a forecast request from the Darksky API. If
@@ -244,16 +234,27 @@ class Darksky(BaseWeatherAgent):
         services provided by the API that were not requested.
         :param service: requested service endpoint
         :param location: location dictionary for building url
+        :param timestamp: timestamp of a record if this request is for the
+        Time Machine end point
         :return: Darksky forecast request response
         """
         service_json_name = ''
-        for service_code in SERVICES_MAPPING:
-            if SERVICES_MAPPING[service_code]['service'] is service:
-                service_json_name = SERVICES_MAPPING[service_code]['json_name']
+        if service in SERVICES_MAPPING:
+            service_json_name = SERVICES_MAPPING[service]['json_name']
         if "lat" in location and 'long' in location:
-            url = "https://api.darksky.net/forecast/{key}/{lat}," \
-               "{long}?units=si".format(key=self._api_key, lat=location['lat'],
-                                        long=location['long'])
+            if timestamp:
+                timestamp = int((timestamp.replace(tzinfo=None) -
+                                 datetime.datetime.utcfromtimestamp(0)).
+                                total_seconds())
+                url = "https://api.darksky.net/forecast/{key}/{lat}," \
+                           "{long},{timestamp}?units=si".format(
+                    key=self._api_key, lat=location['lat'],
+                    long=location['long'], timestamp=timestamp)
+            else:
+                url = "https://api.darksky.net/forecast/{key}/{lat}," \
+                "{long}?units=si".format(
+                    key=self._api_key, lat=location['lat'],
+                    long=location['long'])
             if self.performance_mode:
                 services = ["currently", "hourly", "minutely", "daily"]
                 if service_json_name and service_json_name in services:
@@ -265,6 +266,7 @@ class Darksky(BaseWeatherAgent):
         else:
             raise ValueError('Invalid location. Expected format is: '
                              '"{"lat": "xxx.xxxx", "long": "xxx.xxxx"}"')
+        _log.info("requesting url: {}".format(url))
         grequest = [grequests.get(url, verify=requests.certs.where(),
                                   headers=self.headers, timeout=3)]
         gresponse = grequests.map(grequest)[0]
@@ -308,8 +310,8 @@ class Darksky(BaseWeatherAgent):
         :param location: location dictionary requested by the user
         :return: Timestamp and data for current data from the Darksky API
         """
-        darksky_response = self.get_darksky_forecast(
-            SERVICES_MAPPING['SERVICE_CURRENT_WEATHER']['service'], location)
+        darksky_response = self.get_darksky_data(
+            'get_current_weather', location)
         current_response = darksky_response.pop('currently')
         # Darksky required attribution
         current_response["attribution"] = "Powered by Dark Sky"
@@ -321,16 +323,15 @@ class Darksky(BaseWeatherAgent):
             # if performance mode isn't running we'll be receiving extra data
             # that we can store to help with conserving daily api calls
             for service in SERVICES_MAPPING:
-                if service is not 'SERVICE_CURRENT_WEATHER' and \
+                if service is not 'get_current_weather' and \
                         SERVICES_MAPPING[service]['json_name'] in \
                         darksky_response:
                     service_response = darksky_response.pop(
                         SERVICES_MAPPING[service]['json_name'])
                     service_data = self.format_multientry_response(
-                        location, service_response, SERVICES_MAPPING[
-                            service]['service'], darksky_response['timezone'])
-                    self.store_weather_records(SERVICES_MAPPING[service][
-                                                   'service'], service_data)
+                        location, service_response, service,
+                        darksky_response['timezone'])
+                    self.store_weather_records(service, service_data)
         return format_timestamp(current_time), current_response
 
     def get_generation_time_for_service(self, service):
@@ -347,92 +348,137 @@ class Darksky(BaseWeatherAgent):
             generation_time = generation_time.replace(minute=0)
         return format_timestamp(generation_time)
 
-    def query_forecast_service(self, service, location):
-        """
-        Generic method for requesting forecast data from the various RPC
-        forecast methods
-        :param service: forecast service type of weather data to return
-        :param location: location dictionary requested during the RPC call
-        :return: Timestamp and data returned by the Darksky weather API response
-        """
-        service_name = ''
-        for service_code in SERVICES_MAPPING:
-            if SERVICES_MAPPING[service_code]['service'] is service:
-                service_name = service_code
-                break
-        if not len(service_name):
-            raise RuntimeError("{} is not a service provided by "
-                               "Darksky".format(service))
-        darksky_response = self.get_darksky_forecast(
-            SERVICES_MAPPING[service_name]['service'], location)
-        forecast_response = darksky_response.pop(SERVICES_MAPPING[service_name]
-                                                 ['json_name'])
+    # TODO the date thing here is rough, and the number of calls in the test
+    # can be problematic
+    def create_forecast_entry(self, service, location, latest):
+        '''
+
+        :param service:
+        :param location:
+        :param latest:
+        :return:
+        '''
+        darksky_response = self.get_darksky_data(service, location, latest)
+        forecast_response = darksky_response.pop(
+            SERVICES_MAPPING[service]['json_name'])
         forecast_data = []
         for entry in forecast_response['data']:
             entry_time = datetime.datetime.fromtimestamp(
                 entry['time'], pytz.timezone(darksky_response['timezone']))
             entry_time = entry_time.astimezone(pytz.utc)
+            if not latest or entry_time > latest:
+                latest = entry_time
             # Darksky required attribution
             entry["attribution"] = "Powered by Dark Sky"
             forecast_data.append([format_timestamp(entry_time), entry])
-        # get the generation time of the requested forecast service
-        generation_time = self.get_generation_time_for_service(service)
         if not self.performance_mode:
             # if performance mode isn't running we'll be receiving extra data
             # that we can store to help with conserving daily api calls
             for service_code in SERVICES_MAPPING:
-                if service_code is not service_name and \
+                if service_code is not service and \
                         SERVICES_MAPPING[service_code]['json_name'] in \
                         darksky_response:
                     service_response = darksky_response.pop(
                         SERVICES_MAPPING[service_code]['json_name'])
-                    if SERVICES_MAPPING[service_code]['type'] is not 'current':
+                    if SERVICES_MAPPING[service_code][
+                        'type'] is not 'current':
                         service_data = self.format_multientry_response(
                             location, service_response,
-                            SERVICES_MAPPING[service_code]['service'],
+                            service_code,
                             darksky_response['timezone'])
                     else:
                         service_data = \
                             [json.dumps(location),
                              datetime.datetime.fromtimestamp(
                                  service_response['time'],
-                                 pytz.timezone(darksky_response['timezone'])),
+                                 pytz.timezone(
+                                     darksky_response['timezone'])),
                              json.dumps(service_response)]
-                    self.store_weather_records(SERVICES_MAPPING[service_code][
-                                                   'service'], service_data)
+                    self.store_weather_records(service_code, service_data)
+        return latest, forecast_data
+
+    def query_forecast_service(self, service, location, quantity):
+        """
+        Generic method for requesting forecast data from the various RPC
+        forecast methods
+        :param service: forecast service type of weather data to return
+        :param location: location dictionary requested during the RPC call
+        :param quantity: number of records to return, used to generate
+        Time Machine requests after the forecast request
+        :return: Timestamp and data returned by the Darksky weather API response
+        """
+        # Get as much as we can from the forecast endpoint
+        if service not in SERVICES_MAPPING:
+            raise RuntimeError("{} is not a service provided by "
+                               "Darksky".format(service))
+        forecast_data = []
+        latest = None
+        # get the generation time of the requested forecast service
+        generation_time = self.get_generation_time_for_service(service)
+        latest, forecast_entry = self.create_forecast_entry(
+            service, location, latest)
+        forecast_data.extend(forecast_entry)
+        remaining_records = quantity - len(forecast_data)
+        if remaining_records > 0 and self.api_calls_available(
+                remaining_records):
+            # Darksky will return 'valid' prediction data AT LEAST 6 months
+            # following the current date
+            while remaining_records > 0:
+                interval = self.get_update_interval(service)
+                latest = latest + interval
+                latest, forecast_entry = self.create_forecast_entry(
+                    service, location, latest)
+                self.add_api_call()
+                forecast_data.extend(forecast_entry)
+                remaining_records -= len(forecast_entry)
+        if len(forecast_data) > quantity:
+            forecast_data = forecast_data[:quantity+1]
         return generation_time, forecast_data
 
     @RPC.export
     def get_minutely_forecast(self, locations, minutes=60):
         """
-        RPC method for getting timeseries forecast weather data minute by minute
+        RPC method for getting time series forecast weather data minute by
+        minute Dark Sky does not provide more than 1 hour into the future of
+        minutely forecast data.
         :param locations: list of location dictionaries from the RPC call
         :param minutes: Number of minutes of weather data to be returned
         :return: List of minutely forecast weather dictionaries
         """
+        # TODO integrate some kind of warning into the records
         # maximum of 60 minutes plus the current minute of forecast available
         if minutes > 60:
             minutes = 60
-        return self.get_forecast_by_service(locations, SERVICES_MAPPING[
-                                                'SERVICE_MINUTELY_FORECAST'][
-                                                'service'], 'minute',
-                                            minutes)
+        return self.get_forecast_by_service(
+            locations, 'get_minutely_forecast', 'minute', minutes)
+
+    @RPC.export
+    def get_hourly_forecast(self, locations, hours=48):
+        """
+
+        :param locations:
+        :param hours:
+        :return:
+        """
+        return self.get_forecast_by_service(locations, 'get_hourly_forecast',
+                                            'hour', hours)
 
     @RPC.export
     def get_daily_forecast(self, locations, days=7):
         """
-        RPC method for getting timeseries forecast weather data by full day
+        RPC method for getting time series forecast weather data by full day.
+        If the user requests a number of records to return greater than the
+        default for the forecast request(7 daily records) additional API
+        calls will be made to the Dark Sky Time Machine endpoint. IF the number
+        of API calls required to fulfill the additional records is greater than
+        the amount of available API calls, the user will receive only the
+        records returned by the forecast request.
         :param locations: list of location dictionaries from the RPC call
         :param days: Number of minutes of weather data to be returned
         :return: List of daily forecast weather dictionaries
         """
-        if days > 7:
-            days = 7
-        return self.get_forecast_by_service(locations,
-                                            SERVICES_MAPPING[
-                                                'SERVICE_DAILY_FORECAST'][
-                                                'service'], 'day',
-                                            days)
+        return self.get_forecast_by_service(
+            locations, 'get_daily_forecast', 'day', days)
 
     def generate_response_error(self, url, response_code):
         """

@@ -380,7 +380,9 @@ class BaseWeatherAgent(Agent):
                     service_point_name = map_item.get("Service_Point_Name")
                     if service_point_name:
                         standard_point_name = map_item.get(
-                            "Standard_Point_Name")
+                            "Standard_Point_Name", service_point_name)
+                        if not len(standard_point_name):
+                            standard_point_name = service_point_name
                         standard_units = map_item.get("Standard_Units")
                         service_units = map_item.get("Service_Units")
                         point_name_mapping[service_point_name] = \
@@ -515,8 +517,14 @@ class BaseWeatherAgent(Agent):
                 self._api_services[service_name]["description"]
         return features
 
-    def api_call_available(self):
-        return self._cache.api_call_available()
+    def api_calls_available(self, num_calls=1):
+        """
+        Pass through to cache to check if there are api calls available to
+        remote API
+        :param num_calls: number of calls to request for API tracking
+        :return: whether the requested number of calls are available
+        """
+        return self._cache.api_calls_available(num_calls=num_calls)
 
     def add_api_call(self):
         return self._cache.add_api_call()
@@ -573,20 +581,13 @@ class BaseWeatherAgent(Agent):
             # if there was no data in cache or if data is old, query api
             if not record_dict.get(WEATHER_RESULTS):
                 _log.debug("Current weather data from api")
-                if self.api_call_available():
-                    record_dict = self.get_current_weather_remote(location)
-                    # rework this check to catch specific problems (probably
-                    # just weather_error)
-                    if record_dict:
-                        self.add_api_call()
-                    if cache_warning:
-                        warnings = record_dict.get(WEATHER_WARN, [])
-                        warnings.extend(cache_warning)
-                        record_dict[WEATHER_WARN] = warnings
-                else:
-                    record_dict[WEATHER_ERROR] = "No calls currently " \
-                                                 "available for the " \
-                                                 "configured API key"
+                record_dict = self.get_current_weather_remote(location)
+                # rework this check to catch specific problems (probably
+                # just weather_error)
+                if cache_warning:
+                    warnings = record_dict.get(WEATHER_WARN, [])
+                    warnings.extend(cache_warning)
+                    record_dict[WEATHER_WARN] = warnings
             result.append(record_dict)
         return result
 
@@ -678,6 +679,8 @@ class BaseWeatherAgent(Agent):
         :return: dictionary containing a single record of current weather data
         """
 
+    # TODO make sure we can extract the errors we get if there aren't
+    # api_calls_available
     def get_forecast_by_service(self, locations, service, service_length,
                                 quantity):
         """
@@ -686,6 +689,7 @@ class BaseWeatherAgent(Agent):
         efficiency if available.
         :param locations: list of location dictionaries for which to return
         weather data
+        :param service_length: string representing the service interval
         :param quantity: number of time series data points of data to include
         with each location's records
         :param service:
@@ -765,25 +769,14 @@ class BaseWeatherAgent(Agent):
             cache_warning = record_dict.get(WEATHER_WARN)
             # if cache didn't work out query remote api
             if not record_dict.get(WEATHER_RESULTS):
-                if self.api_call_available():
                     _log.debug("forecast weather from api")
                     record_dict = self.get_remote_forecast(service, location,
                                                            quantity,
                                                            request_time)
-                    # Rework this condition to catch specific problems
-                    # contacting the api
-                    if record_dict:
-                        self.add_api_call()
                     if cache_warning:
                         warnings = record_dict.get(WEATHER_WARN, [])
                         warnings.extend(cache_warning)
                         record_dict[WEATHER_WARN] = warnings
-                    _log.debug("record_dict from remote : {}".
-                               format(record_dict))
-                else:
-                    record_dict[WEATHER_ERROR] = "No calls currently " \
-                                                 "available for the " \
-                                                 "configured API key"
             result.append(record_dict)
 
         return result
@@ -870,12 +863,13 @@ class BaseWeatherAgent(Agent):
         return record_dict
 
     @abstractmethod
-    def query_forecast_service(self, service, location):
+    def query_forecast_service(self, service, location, quantity):
         """
         Queries a remote api service. Available services are determined per
         weather agent implementation
         :param service: The desired service end point to query
         :param location: The desired location for retrieval of weather records
+        :param quantity: number of records to fetch from the service
         :return: A list of time series forecast records to be processed and
         stored
         """
@@ -899,8 +893,7 @@ class BaseWeatherAgent(Agent):
             # query for maximum number of hours so that we can cache it
             # also makes retrieval from cache simpler
             generation_time, response = self.query_forecast_service(
-                service, location)
-            _log.debug(" response from forecast : {}".format(response[0]))
+                service, location, quantity)
             if not generation_time:
                 # in case api does not return details on when this
                 # forecast data was generated
@@ -1316,11 +1309,14 @@ class WeatherCache:
                     self._sqlite_conn.commit()
                     break
 
-    def api_call_available(self):
+    def api_calls_available(self, num_calls=1):
         """
+        :param num_calls:
         :return: True if the number of calls within the call period is less
         than the api calls limit, false otherwise
         """
+        if num_calls < 1:
+            raise ValueError('Invalid quantity for API calls')
         if self._calls_limit < 0:
             return True
         try:
@@ -1335,7 +1331,7 @@ class WeatherCache:
             cursor.execute(active_calls_query)
             active_calls = cursor.fetchone()[0]
             cursor.close()
-            return active_calls < self._calls_limit
+            return active_calls + (num_calls - 1) < self._calls_limit
         except AttributeError as error:
             _log.error(error.message)
             # Add a call to the pending queue so we can track it later
@@ -1348,26 +1344,27 @@ class WeatherCache:
         the table for tracking
         :return: True if an entry was made successfully, false otherwise
         """
-        try:
-            cursor = self._sqlite_conn.cursor()
-            insert_query = """INSERT INTO API_CALLS
-                                         (CALL_TIME) VALUES (?);"""
-            # Account for calls that went through to the API but did not get added
-            # to the SQLite table due to an error
-            cursor.executemany(insert_query, [(call,) for
-                                               call in self.pending_calls])
-            if self.api_call_available():
+        if self.api_calls_available():
+            try:
                 cursor = self._sqlite_conn.cursor()
-                current_time = get_aware_utc_now()
+                insert_query = """INSERT INTO API_CALLS
+                                             (CALL_TIME) VALUES (?);"""
+                # Account for calls that went through to the API but did not get added
+                # to the SQLite table due to an error
+                cursor.executemany(
+                    insert_query, [(call,) for call in self.pending_calls])
+                cursor = self._sqlite_conn.cursor()
+                current_time = (get_aware_utc_now(),)
                 insert_query = """INSERT INTO API_CALLS
                                  (CALL_TIME) VALUES (?);"""
-                cursor.execute(insert_query, (current_time,))
+                cursor.execute(insert_query, current_time)
                 self._sqlite_conn.commit()
                 cursor.close()
                 return True
-            return False
-        except (AttributeError, sqlite3.Error) as error:
-            _log.error(error)
+            except (AttributeError, sqlite3.Error) as error:
+                _log.error(error)
+                return False
+        else:
             return False
 
 
@@ -1406,8 +1403,6 @@ class WeatherCache:
         compare with generation time.
         :return: list of up-to-date forecast records for the location
         """
-        query = ""
-
         # get records that have forecast time between the hour immediately
         # after when user requested the data and endtime < start+hours
         # do this to avoid returning data for hours 4 to 10 instead of
