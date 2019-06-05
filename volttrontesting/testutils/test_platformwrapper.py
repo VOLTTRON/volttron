@@ -89,7 +89,6 @@ def test_can_restart_platform(volttron_instance):
     assert volttron_instance.is_running()
     volttron_instance.stop_platform()
     assert not volttron_instance.is_running()
-    assert len(volttron_instance.dynamic_agent.vip.peerlist().get()) > 0
     volttron_instance.restart_platform()
     assert volttron_instance.is_running()
     assert orig_vip == volttron_instance.vip_address
