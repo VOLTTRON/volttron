@@ -810,6 +810,7 @@ class VolttronCentralAgent(Agent):
             # config store related
             store_agent_config="store_agent_config",
             get_agent_config="get_agent_config",
+            delete_agent_config="delete_agent_config",
             list_agent_configs="get_agent_config_list",
             # management related
 

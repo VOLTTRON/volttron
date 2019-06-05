@@ -825,6 +825,12 @@ class VolttronCentralPlatform(Agent):
             timeout=5)
         return data or ""
 
+    def delete_agent_config(self, agent_identity, config_name):
+        data = self.vip.rpc.call(CONFIGURATION_STORE, "manage_delete_config",
+                                 agent_identity, config_name).get(
+            timeout=5)
+        return data or ""
+
     def start_agent(self, agent_uuid):
         return self.vip.rpc.call(CONTROL, "start_agent", agent_uuid).get(
             timeout=5)
