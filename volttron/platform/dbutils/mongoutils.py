@@ -36,9 +36,14 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from gevent import monkey
-monkey.patch_all()
+import _sre
 import re
+import socket
+# reload to get the socket that is not patched by gevent.
+# pika requires socket patched and thread not patched
+# pymongo requires either both patched (to support gevent) or both unpatched to use threads
+reload(socket)
+
 import pymongo
 import logging
 
@@ -46,7 +51,6 @@ _log = logging.getLogger(__name__)
 __version__ = '0.1'
 
 def get_mongo_client(connection_params, **kwargs):
-            _log.debug(" In mongoutil  gevent - is socket patched. {}".format(monkey.is_module_patched("socket")))
             database_name = connection_params['database']
             hosts = connection_params['host']
             ports = connection_params['port']

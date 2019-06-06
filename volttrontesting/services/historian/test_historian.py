@@ -448,12 +448,12 @@ def query_agent(request, volttron_instance):
 # Fixtures for setup and teardown of historian agent
 @pytest.fixture(scope="module",
                 params=[
-                    # crate_skipif(crate_platform),
-                    # mysql_skipif(mysql_platform),
-                    # sqlite_platform,
+                    crate_skipif(crate_platform),
+                    mysql_skipif(mysql_platform),
+                    sqlite_platform,
                     pymongo_skipif(mongo_platform),
-                    # postgresql_skipif(postgresql_platform),
-                    # redshift_skipif(redshift_platform),
+                    postgresql_skipif(postgresql_platform),
+                    redshift_skipif(redshift_platform),
                 ])
 def historian(request, volttron_instance, query_agent):
     global db_connection, MICROSECOND_PRECISION, table_names, \
@@ -515,7 +515,9 @@ def clean_db_rows(request):
     print("*** IN clean_db_rows FIXTURE ***")
     cleanup_function = globals()["cleanup_" + connection_type]
     inspect.getargspec(cleanup_function)[0]
-    cleanup_function(db_connection, [table_names['data_table'], table_names['topics_table'], table_names['meta_table']])
+    # do not clean topics table here as we are not restarting historian
+    # for each test case and topics table is loaded in memory only on start
+    cleanup_function(db_connection, [table_names['data_table'], table_names['meta_table']])
 
 
 def publish(publish_agent, topic, header, message):
@@ -548,7 +550,7 @@ def assert_timestamp(result, expected_date, expected_time):
         assert (result == expected_date + 'T' + expected_time[:-7] +
                 '.000000+00:00')
 
-@pytest.mark.dev
+
 @pytest.mark.historian
 def test_basic_function(request, historian, publish_agent, query_agent,
                         clean_db_rows):
