@@ -209,8 +209,7 @@ class BaseWeatherAgent(Agent):
         :param interval: datetime timedelta object describing the length of
         time between api updates.
         :param service_type: the string "history", "current", or "forecast".
-        This
-                     determines the structure of the cached data.
+        This determines the structure of the cached data.
         :param description: optional description string describing the method's
         usage.
         """
@@ -527,6 +526,12 @@ class BaseWeatherAgent(Agent):
         return self._cache.api_calls_available(num_calls=num_calls)
 
     def add_api_call(self):
+        """
+        Add API call timestamp entry to cache -  this method is used by concrete
+        implementations for managing API call tracking for features not included
+        in the base weather agent
+        :return:
+        """
         return self._cache.add_api_call()
 
     @RPC.export
@@ -581,13 +586,18 @@ class BaseWeatherAgent(Agent):
             # if there was no data in cache or if data is old, query api
             if not record_dict.get(WEATHER_RESULTS):
                 _log.debug("Current weather data from api")
-                record_dict = self.get_current_weather_remote(location)
-                # rework this check to catch specific problems (probably
-                # just weather_error)
-                if cache_warning:
-                    warnings = record_dict.get(WEATHER_WARN, [])
-                    warnings.extend(cache_warning)
-                    record_dict[WEATHER_WARN] = warnings
+                if self.api_calls_available():
+                    record_dict = self.get_current_weather_remote(location)
+                    # rework this check to catch specific problems (probably
+                    # just weather_error)
+                    if cache_warning:
+                        warnings = record_dict.get(WEATHER_WARN, [])
+                        warnings.extend(cache_warning)
+                        record_dict[WEATHER_WARN] = warnings
+                else:
+                    record_dict[WEATHER_ERROR] = "No calls currently " \
+                                                 "available for the " \
+                                                 "configured API key"
             result.append(record_dict)
         return result
 
@@ -769,6 +779,7 @@ class BaseWeatherAgent(Agent):
             cache_warning = record_dict.get(WEATHER_WARN)
             # if cache didn't work out query remote api
             if not record_dict.get(WEATHER_RESULTS):
+                if self.api_calls_available():
                     _log.debug("forecast weather from api")
                     record_dict = self.get_remote_forecast(service, location,
                                                            quantity,
@@ -777,6 +788,10 @@ class BaseWeatherAgent(Agent):
                         warnings = record_dict.get(WEATHER_WARN, [])
                         warnings.extend(cache_warning)
                         record_dict[WEATHER_WARN] = warnings
+                else:
+                    record_dict[WEATHER_ERROR] = "No calls currently " \
+                                                 "available for the " \
+                                                 "configured API key"
             result.append(record_dict)
 
         return result
@@ -1311,7 +1326,8 @@ class WeatherCache:
 
     def api_calls_available(self, num_calls=1):
         """
-        :param num_calls:
+        :param num_calls: Number of calls requested by the agent to fulfill the
+        user's request
         :return: True if the number of calls within the call period is less
         than the api calls limit, false otherwise
         """

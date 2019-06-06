@@ -19,7 +19,7 @@ included with the base weather agent:
 
 Get Minutely Forecast Data
 --------------------------
-rpc call to weather service method **’get_minutely_forecast’**
+RPC call to weather service method **’get_minutely_forecast’**
 
 Parameters:
 
@@ -30,12 +30,12 @@ optional parameters:
 
     2. **minutes** - The number of minutes for which forecast data should be
        returned. By default, it is 60 minutes as well as the current minute.
-       Dark Sky does not provide minutely data for more than one hour into the
-       future.
+       Dark Sky does not provide minutely data for more than one hour (60
+       minutes) into the future.
 
 Get Daily Forecast Data
 -----------------------
-rpc call to weather service method **’get_minutely_forecast’**
+RPC call to weather service method **’get_minutely_forecast’**
 
 Parameters:
 
@@ -53,7 +53,10 @@ points than the default, the agent must use an additional API calls; an
 additional API call will be used to fetch any records not included in the
 default forecast request for the current day, and one additional call for each
 subsequent day of data the request would require, regardless of Dark Sky agent
-endpoint.**
+endpoint (If requesting 60 hours of hourly data Monday night at 8PM, 3 API calls
+must be made to fulfill the request: one for the initial request containing 48
+hours of data, one for the remaining 4 hours of Wednesday evening's data, and
+one for records in Thursday's forecast).**
 
 *************
 Configuration

@@ -225,7 +225,6 @@ class Darksky(BaseWeatherAgent):
         """
         return pkg_resources.resource_stream(__name__, "data/name_mapping.csv")
 
-    # TODO may be skipping the current day?
     def get_darksky_data(self, service, location, timestamp=None):
         """
         Generic method called by the current and forecast service endpoint
@@ -295,12 +294,13 @@ class Darksky(BaseWeatherAgent):
             entry_time = datetime.datetime.fromtimestamp(
                 entry['time'], pytz.timezone(timezone))
             entry_time = entry_time.astimezone(pytz.utc)
-            if 'forecast' in service:
-                data.append([json.dumps(location), generation_time, entry_time,
-                             json.dumps(entry)])
-            else:
-                data.append([json.dumps(location), entry_time, json.dumps(
-                    entry)])
+            if entry_time > utils.get_aware_utc_now():
+                if SERVICES_MAPPING[service]['type'] is 'forecast':
+                    data.append([json.dumps(location), generation_time, entry_time,
+                                 json.dumps(entry)])
+                else:
+                    data.append([json.dumps(location), entry_time, json.dumps(
+                        entry)])
         return data
 
     def query_current_weather(self, location):
@@ -335,9 +335,15 @@ class Darksky(BaseWeatherAgent):
         return format_timestamp(current_time), current_response
 
     def get_generation_time_for_service(self, service):
-        # "Next-hour minutely forecast data is updated every five minutes.
-        # Hourly and daily forecast data are updated every hour.
-        # (https://darksky.net/dev/docs/faq#data-update)"
+        """
+        Calculates generation time of forecast request response. "Next-hour
+        minutely forecast data is updated every five minutes. Hourly and daily
+        forecast data are updated every hour."
+        (https://darksky.net/dev/docs/faq#data-update)
+        :param service: requested weather agent service endpoint
+        :return: Datetime object representing the timestamp when the weather was
+        forecasted
+        """
         generation_time = get_aware_utc_now().replace(microsecond=0, second=0)
         # if the update interval for the service is a minute
         if self.get_update_interval(service).total_seconds() / 60 == 1:
@@ -348,16 +354,17 @@ class Darksky(BaseWeatherAgent):
             generation_time = generation_time.replace(minute=0)
         return format_timestamp(generation_time)
 
-    # TODO the date thing here is rough, and the number of calls in the test
-    # can be problematic
     def create_forecast_entry(self, service, location, latest):
-        '''
-
-        :param service:
-        :param location:
-        :param latest:
-        :return:
-        '''
+        """
+        Helper method used for removing extraneous data from a forecast request
+        response based on request time
+        :param service: weather agent service endpoint
+        :param location: request location dictionary
+        :param latest: timestamp of the last record in a previous request or
+        None if this is the first request
+        :return: filtered Dark Sky forecast response
+        """
+        request_time = utils.get_aware_utc_now()
         darksky_response = self.get_darksky_data(service, location, latest)
         forecast_response = darksky_response.pop(
             SERVICES_MAPPING[service]['json_name'])
@@ -366,11 +373,16 @@ class Darksky(BaseWeatherAgent):
             entry_time = datetime.datetime.fromtimestamp(
                 entry['time'], pytz.timezone(darksky_response['timezone']))
             entry_time = entry_time.astimezone(pytz.utc)
-            if not latest or entry_time > latest:
-                latest = entry_time
-            # Darksky required attribution
-            entry["attribution"] = "Powered by Dark Sky"
-            forecast_data.append([format_timestamp(entry_time), entry])
+            if entry_time < request_time:
+                continue
+            if latest and entry_time < latest:
+                continue
+            else:
+                if not latest or entry_time > latest:
+                    latest = entry_time
+                # Darksky required attribution
+                entry["attribution"] = "Powered by Dark Sky"
+                forecast_data.append([format_timestamp(entry_time), entry])
         if not self.performance_mode:
             # if performance mode isn't running we'll be receiving extra data
             # that we can store to help with conserving daily api calls
@@ -400,7 +412,12 @@ class Darksky(BaseWeatherAgent):
     def query_forecast_service(self, service, location, quantity):
         """
         Generic method for requesting forecast data from the various RPC
-        forecast methods
+        forecast methods. If the user requests a number of records to return
+        greater than the default for the forecast request(7 daily records)
+        additional API calls will be made to the Dark Sky Time Machine endpoint.
+        If the number of API calls required to fulfill the additional records is
+        greater than the amount of available API calls, the user will receive
+        only the records returned by the forecast request.
         :param service: forecast service type of weather data to return
         :param location: location dictionary requested during the RPC call
         :param quantity: number of records to return, used to generate
@@ -419,34 +436,31 @@ class Darksky(BaseWeatherAgent):
             service, location, latest)
         forecast_data.extend(forecast_entry)
         remaining_records = quantity - len(forecast_data)
-        if remaining_records > 0 and self.api_calls_available(
-                remaining_records):
-            # Darksky will return 'valid' prediction data AT LEAST 6 months
-            # following the current date
-            while remaining_records > 0:
-                interval = self.get_update_interval(service)
-                latest = latest + interval
-                latest, forecast_entry = self.create_forecast_entry(
-                    service, location, latest)
-                self.add_api_call()
-                forecast_data.extend(forecast_entry)
-                remaining_records -= len(forecast_entry)
-        if len(forecast_data) > quantity:
-            forecast_data = forecast_data[:quantity+1]
+        if remaining_records > 0:
+            if self.api_calls_available(remaining_records):
+                # Darksky will return 'valid' prediction data AT LEAST 6 months
+                # following the current date
+                while remaining_records > 0:
+                    latest, forecast_entry = self.create_forecast_entry(
+                        service, location, latest)
+                    self.add_api_call()
+                    forecast_data.extend(forecast_entry)
+                    remaining_records -= len(forecast_entry)
+            else:
+                raise RuntimeError('Insufficient calls available for additional'
+                                   'request data')
         return generation_time, forecast_data
 
     @RPC.export
     def get_minutely_forecast(self, locations, minutes=60):
         """
         RPC method for getting time series forecast weather data minute by
-        minute Dark Sky does not provide more than 1 hour into the future of
+        minute. Dark Sky does not provide more than 1 hour into the future of
         minutely forecast data.
         :param locations: list of location dictionaries from the RPC call
         :param minutes: Number of minutes of weather data to be returned
         :return: List of minutely forecast weather dictionaries
         """
-        # TODO integrate some kind of warning into the records
-        # maximum of 60 minutes plus the current minute of forecast available
         if minutes > 60:
             minutes = 60
         return self.get_forecast_by_service(
@@ -455,10 +469,12 @@ class Darksky(BaseWeatherAgent):
     @RPC.export
     def get_hourly_forecast(self, locations, hours=48):
         """
-
-        :param locations:
-        :param hours:
-        :return:
+        Overload of get_hourly_forecast method of base weather agent - sets
+        default hours to 48 as this is the quantity provided by a Dark Sky
+        forecast request
+        :param locations: ist of location dictionaries from the RPC call
+        :param hours: Number of hours of weather data to be returned
+        :return: Dark Sky forecast data by the hour
         """
         return self.get_forecast_by_service(locations, 'get_hourly_forecast',
                                             'hour', hours)
@@ -467,12 +483,6 @@ class Darksky(BaseWeatherAgent):
     def get_daily_forecast(self, locations, days=7):
         """
         RPC method for getting time series forecast weather data by full day.
-        If the user requests a number of records to return greater than the
-        default for the forecast request(7 daily records) additional API
-        calls will be made to the Dark Sky Time Machine endpoint. IF the number
-        of API calls required to fulfill the additional records is greater than
-        the amount of available API calls, the user will receive only the
-        records returned by the forecast request.
         :param locations: list of location dictionaries from the RPC call
         :param days: Number of minutes of weather data to be returned
         :return: List of daily forecast weather dictionaries

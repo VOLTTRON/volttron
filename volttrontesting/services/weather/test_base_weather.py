@@ -137,18 +137,14 @@ class BasicWeatherAgent(BaseWeatherAgent):
         return "temp.csv"
 
     def query_current_weather(self, location):
-        print(self.api_calls_available())
-        if self.api_calls_available():
-            current_time = datetime.datetime.utcnow()
-            record = [
-                format_timestamp(current_time),
-                {'points': FAKE_POINTS}
-            ]
-            _log.debug(record)
-            self.add_api_call()
-            return record
-        else:
-            raise ValueError('Allotted quantity of API calls exceeded')
+        current_time = datetime.datetime.utcnow()
+        record = [
+            format_timestamp(current_time),
+            {'points': FAKE_POINTS}
+        ]
+        _log.debug(record)
+        self.add_api_call()
+        return record
 
     def query_forecast_service(self, service, location, quantity):
 
@@ -160,19 +156,16 @@ class BasicWeatherAgent(BaseWeatherAgent):
                                "only")
 
     def query_hourly_forecast(self, location):
-        if self.api_calls_available():
-            records = []
-            current_time = datetime.datetime.utcnow()
-            for x in range(0, 3):
-                record = [format_timestamp(
-                    current_time + datetime.timedelta(hours=(x + 1))),
-                    {'points': FAKE_POINTS}
-                ]
-                records.append(record)
-            self.add_api_call()
-            return format_timestamp(current_time), records
-        else:
-            raise RuntimeError('Allotted quantity of API calls exceeded')
+        records = []
+        current_time = datetime.datetime.utcnow()
+        for x in range(0, 3):
+            record = [format_timestamp(
+                current_time + datetime.timedelta(hours=(x + 1))),
+                {'points': FAKE_POINTS}
+            ]
+            records.append(record)
+        self.add_api_call()
+        return format_timestamp(current_time), records
 
     def query_hourly_historical(self, location, start_date, end_date):
         pass
