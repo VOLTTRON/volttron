@@ -48,7 +48,8 @@ import pymongo
 import logging
 
 _log = logging.getLogger(__name__)
-__version__ = '0.1'
+__version__ = '0.2'
+
 
 def get_mongo_client(connection_params, **kwargs):
             database_name = connection_params['database']
