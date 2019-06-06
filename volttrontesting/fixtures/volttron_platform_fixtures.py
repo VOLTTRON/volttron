@@ -6,9 +6,11 @@ import uuid
 
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 from volttrontesting.utils.utils import get_hostname_and_random_port, get_rand_vip, get_rand_ip_and_port
+from volttron.platform import is_rabbitmq_available
 
 PRINT_LOG_ON_SHUTDOWN = False
-
+HAS_RMQ = is_rabbitmq_available()
+rmq_skipif = pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
 
 def print_log(volttron_home):
     if PRINT_LOG_ON_SHUTDOWN:
@@ -48,7 +50,7 @@ def cleanup_wrappers(platforms):
 
 @pytest.fixture(scope="module",
                 params=[dict(messagebus='zmq', ssl_auth=False),
-                        dict(messagebus='rmq', ssl_auth=True)
+                        rmq_skipif(dict(messagebus='rmq', ssl_auth=True))
                         ])
 def volttron_instance_msgdebug(request):
     print("building msgdebug instance")
@@ -77,16 +79,15 @@ def volttron_instance_encrypt(request):
     return wrapper
 
 
-@pytest.fixture(scope="module",
-                params=[dict(messagebus='zmq', ssl_auth=False)])
+@pytest.fixture(scope="module")
 def volttron_instance_module_web(request):
     print("building module instance (using web)")
     address = get_rand_vip()
     web_address = "http://{}".format(get_rand_ip_and_port())
     wrapper = build_wrapper(address,
                             bind_web_address=web_address,
-                            messagebus=request.param['messagebus'],
-                            ssl_auth=request.param['ssl_auth'])
+                            messagebus='zmq',
+                            ssl_auth=False)
 
     yield wrapper
 
@@ -99,7 +100,7 @@ def volttron_instance_module_web(request):
 @pytest.fixture(scope="module",
                 params=(
                     dict(messagebus='zmq', ssl_auth=False),
-                    #dict(messagebus='rmq', ssl_auth=True),
+                    rmq_skipif(dict(messagebus='rmq', ssl_auth=True))
                 ))
 def volttron_instance(request, **kwargs):
     """Fixture that returns a single instance of volttron platform for testing
@@ -221,7 +222,7 @@ def volttron_instance_rmq(request):
 @pytest.fixture(scope="module",
                 params=[
                     dict(messagebus='zmq', ssl_auth=False),
-                    dict(messagebus='rmq', ssl_auth=True)
+                    rmq_skipif(dict(messagebus='rmq', ssl_auth=True))
                 ])
 def volttron_instance_web(request):
     print("volttron_instance_web (messagebus {messagebus} ssl_auth {ssl_auth})".format(**request.param))
@@ -247,9 +248,9 @@ def volttron_instance_web(request):
 @pytest.fixture(scope="module",
                 params=[
                     dict(sink='zmq_web', source='zmq'),
-                    dict(sink='rmq_web', source='zmq'),
-                    dict(sink='rmq_web', source='rmq'),
-                    dict(sink='zmq_web', source='rmq')
+                    rmq_skipif(dict(sink='rmq_web', source='zmq')),
+                    rmq_skipif(dict(sink='rmq_web', source='rmq')),
+                    rmq_skipif(dict(sink='zmq_web', source='rmq'))
                 ])
 def volttron_multi_messagebus(request):
     """ This fixture allows multiple two message bus types to be configured to work together
@@ -291,12 +292,17 @@ def volttron_multi_messagebus(request):
         ssl_auth = True
 
     if sink.messagebus == 'rmq':
-        sink_ca_file = sink.certsobj.cert_file(sink.certsobj.root_ca_name)
+        # sink_ca_file = sink.certsobj.cert_file(sink.certsobj.root_ca_name)
+
         source = build_wrapper(source_address,
                                ssl_auth=ssl_auth,
                                messagebus=messagebus,
                                volttron_central_address=sink.bind_web_address,
-                               remote_platform_ca=sink_ca_file)
+                               remote_platform_ca=sink.certsobj.cert_file(sink.certsobj.root_ca_name))
+        if source.messagebus == 'rmq':
+            # The _ca is how the auth subsystem saves the remote cert from discovery.  We
+            # are effectively doing that here instead of making the discovery call.
+            source.certsobj.save_remote_cert(sink.certsobj.root_ca_name+"_ca", sink.certsobj.ca_cert(pem_encoded=True))
     else:
         source = build_wrapper(source_address,
                                ssl_auth=ssl_auth,

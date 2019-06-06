@@ -46,6 +46,10 @@ from zmq.green import ZMQError, ENOTSOCK
 
 from volttron.platform.agent import json as jsonapi
 from .agent import Agent, Core
+from volttron.platform import is_rabbitmq_available
+
+if is_rabbitmq_available():
+    import pika
 
 _log = logging.getLogger(__name__)
 

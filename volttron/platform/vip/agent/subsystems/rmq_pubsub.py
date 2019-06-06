@@ -58,17 +58,19 @@
 
 from __future__ import absolute_import
 
+import errno
 import inspect
 import logging
-
-import weakref
 import uuid
+import weakref
+
 from volttron.platform.agent import json as jsonapi
 import requests
 import errno
 
 from ..decorators import annotate, annotations, dualmethod, spawn
 from .base import SubsystemBase
+
 from collections import defaultdict
 
 import requests

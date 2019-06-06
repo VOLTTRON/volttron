@@ -98,9 +98,6 @@ def _start_rabbitmq_without_ssl(rmq_config, conf_file, env=None):
         else:
             os.environ['RABBITMQ_HOME'] = rmq_home
 
-    # Why do we need the below. This would override any custom tcp and management port and we don't want that
-    # rmq_config.set_default_config()
-
     # attempt to stop
     stop_rabbit(rmq_home, env, quite=True)
 

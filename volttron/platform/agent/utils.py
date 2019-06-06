@@ -413,8 +413,8 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
 
         from volttron.platform.certs import Certs
         certs = Certs()
-        if certs.ca_exists():
-            os.environ['REQUESTS_CA_BUNDLE'] = certs.cert_file(certs.root_ca_name)
+        if os.path.isfile(certs.remote_cert_bundle_file()):
+            os.environ['REQUESTS_CA_BUNDLE'] = certs.remote_cert_bundle_file()
 
         agent = agent_class(config_path=config, identity=identity,
                             address=address, agent_uuid=agent_uuid,
