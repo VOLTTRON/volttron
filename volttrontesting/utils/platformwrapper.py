@@ -264,12 +264,16 @@ class PlatformWrapper:
         # Writes the main volttron config file for this instance.
         store_message_bus_config(self.messagebus, self.instance_name)
 
-        # Necessary for rabbitmq to shutdown the correct rmq messagebus.
-        # This is set during the startup_platform method.
-        self.rabbitmq_config_obj = None
         self.remote_platform_ca = remote_platform_ca
         self.requests_ca_bundle = None
         self.dynamic_agent = None
+
+        if self.messagebus == 'rmq':
+            self.rabbitmq_config_obj = create_rmq_volttron_setup(vhome=self.volttron_home,
+                                                                 ssl_auth=self.ssl_auth,
+                                                                 env=self.env)
+
+            self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
 
         self.debug_mode = self.env.get('DEBUG_MODE', False)
         if not self.debug_mode:
@@ -294,6 +298,10 @@ class PlatformWrapper:
             authfile.add(entry)
         except AuthFileEntryAlreadyExists:
             pass
+
+        if self.messagebus == 'rmq' and self.bind_web_address is not None:
+            self.enable_auto_csr()
+            self.web_admin_api.create_web_admin('admin', 'admin')
 
     def get_agent_identity(self, agent_uuid):
         path = os.path.join(self.volttron_home, 'agents/{}/IDENTITY'.format(agent_uuid))
@@ -516,16 +524,8 @@ class PlatformWrapper:
         self.local_vip_address = ipc + 'vip.socket'
         self.set_auth_dict(auth_dict)
 
-        if self.messagebus == 'rmq':
-
-            self.rabbitmq_config_obj = create_rmq_volttron_setup(vhome=self.volttron_home,
-                                                                 ssl_auth=self.ssl_auth,
-                                                                 env=self.env)
-
-            self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
-
-            if bind_web_address:
-                self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
+        if self.messagebus == 'rmq' and bind_web_address:
+            self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
 
         if self.remote_platform_ca:
             ca_bundle_file = os.path.join(self.volttron_home, "cat_ca_certs")
@@ -656,6 +656,8 @@ class PlatformWrapper:
 
         # Use dynamic_agent so we can look and see the agent with peerlist.
         self.dynamic_agent = self.build_agent(identity="dynamic_agent")
+        assert self.dynamic_agent is not None
+        assert isinstance(self.dynamic_agent, Agent)
         has_control = False
         times = 0
         while not has_control and times < 10:
@@ -1079,7 +1081,8 @@ class PlatformWrapper:
         if not self.is_running():
             return
 
-        self.dynamic_agent.vip.rpc("shutdown").get()
+        self.dynamic_agent.vip.rpc(CONTROL, "shutdown").get()
+        self.dynamic_agent.core.stop()
         if self.p_process is not None:
             try:
                 gevent.sleep(0.2)
@@ -1128,7 +1131,8 @@ class PlatformWrapper:
             if pid is not None and int(pid) > 0:
                 running_pids.append(int(pid))
         self.remove_all_agents()
-        self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get()
+        # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
+        self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
         self.dynamic_agent.core.stop()
 
         if self.p_process is not None:
@@ -1138,6 +1142,11 @@ class PlatformWrapper:
                 gevent.sleep(0.2)
             except OSError:
                 self.logit('Platform process was terminated.')
+            pid_file = "{vhome}/VOLTTRON_PID".format(vhome=self.volttron_home)
+            try:
+                os.remove(pid_file)
+            except OSError:
+                self.logit('Error while removing VOLTTRON PID file {}'.format(pid_file))
         else:
             self.logit("platform process was null")
 
@@ -1146,19 +1155,6 @@ class PlatformWrapper:
                 self.logit("TERMINATING: {}".format(pid))
                 proc = psutil.Process(pid)
                 proc.terminate()
-
-        if os.environ.get('PRINT_LOG'):
-            logpath = os.path.join(self.volttron_home, 'volttron.log')
-            if os.path.exists(logpath):
-                print("************************* Begin {}".format(logpath))
-                with open(logpath) as f:
-                    for l in f.readlines():
-                        print(l)
-                print("************************* End {}".format(logpath))
-            else:
-                print("######################### No Log Exists: {}".format(
-                    logpath
-                ))
 
         print(" Skip clean up flag is {}".format(self.skip_cleanup))
         if self.messagebus == 'rmq':
@@ -1240,7 +1236,15 @@ class WebAdminApi(object):
         """
         data = dict(username=username, password1=password, password2=password)
         url = self.bind_web_address +"/admin/setpassword"
-        resp = requests.post(url, data, verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+        resp = requests.post(url, data, verify=self.certsobj.remote_cert_bundle_file())
+        assert resp.ok
+
+        return resp
+
+    def authenticate(self, username, password):
+        data = dict(username=username, password=password)
+        url = self.bind_web_address+"/authenticate"
+        resp = requests.post(url, data, verify=self.certsobj.remote_cert_bundle_file())
         assert resp.ok
 
         return resp

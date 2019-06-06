@@ -95,7 +95,7 @@ def test_invalid_status(volttron_instance):
     """
     global subscription_results
     subscription_results.clear()
-    new_agent = volttron_instance.build_agent()
+    new_agent = volttron_instance.build_agent(identity='test_status2')
     new_agent.vip.heartbeat.start()
     orig_status = new_agent.vip.health.get_status()
     assert orig_status["status"] == STATUS_GOOD

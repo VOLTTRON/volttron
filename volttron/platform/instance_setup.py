@@ -35,30 +35,27 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-import shutil
-from ConfigParser import ConfigParser
 import argparse
-import getpass
 import hashlib
 import os
 import sys
-import urlparse
 import tempfile
+import urlparse
+from ConfigParser import ConfigParser
 from shutil import copy
 
 from gevent import subprocess
 from gevent.subprocess import Popen
-from volttron.platform.agent import json as jsonapi
 from zmq import green as zmq
 
+from volttron.platform import certs, is_rabbitmq_available
+from volttron.platform.agent import json as jsonapi
+from volttron.platform.agent.known_identities import MASTER_WEB
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
-from volttron.utils.prompt import prompt_response, y, n, y_or_n
+from volttron.utils.prompt import prompt_response, y, y_or_n
 from volttron.utils.rmq_setup import setup_rabbitmq_volttron
 from volttron.utils import get_hostname
 from . import get_home, get_services_core, set_home
-from volttron.platform import certs
-from volttron.platform.agent.known_identities import MASTER_WEB
-
 
 # Global configuration options.  Must be key=value strings.  No cascading
 # structure so that we can easily create/load from the volttron config file
@@ -682,6 +679,8 @@ def wizard():
 
 
 def process_rmq_inputs(args, instance_name=None):
+    if not is_rabbitmq_available():
+        raise RuntimeError("Rabbitmq Dependencies not installed please run python bootstrap.py --rabbitmq")
     confirm_volttron_home()
     if len(args) == 2:
         vhome = get_home()

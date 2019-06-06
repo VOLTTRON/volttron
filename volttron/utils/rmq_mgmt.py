@@ -37,16 +37,14 @@
 # }}}
 
 import logging
-import os
 import ssl
-import pika
+
+from volttron.platform import is_rabbitmq_available
+
+if is_rabbitmq_available():
+    import pika
 
 from volttron.platform.agent.utils import get_fq_identity
-
-try:
-    import yaml
-except ImportError:
-    raise RuntimeError('PyYAML must be installed before running this script ')
 
 import grequests
 import gevent
@@ -56,6 +54,12 @@ from requests.packages.urllib3.connection import (ConnectionError,
 from volttron.platform import certs
 from volttron.platform.agent import json as jsonapi
 from rmq_config_params import RMQConfig
+
+try:
+    import yaml
+except ImportError:
+    raise RuntimeError('PyYAML must be installed before running this script ')
+
 
 _log = logging.getLogger(__name__)
 
@@ -767,6 +771,7 @@ class RabbitMQMgmt(object):
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
         crt = self.rmq_config.crts
         heartbeat_interval = 20 #sec
+
         try:
             if ssl_auth:
                 ssl_options = dict(
