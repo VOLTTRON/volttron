@@ -54,7 +54,6 @@ from volttron.platform.agent.known_identities import MASTER_WEB
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from volttron.utils.prompt import prompt_response, y, y_or_n
 from volttron.utils.rmq_setup import setup_rabbitmq_volttron
-from volttron.utils import get_hostname
 from . import get_home, get_services_core, set_home
 
 # Global configuration options.  Must be key=value strings.  No cascading
@@ -200,7 +199,7 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
             if identity is not None:
                 os.environ['AGENT_VIP_IDENTITY'] = identity
 
-            print 'Configuring {}.'.format(agent_dir)
+            print 'Configuring {}'.format(agent_dir)
             config = config_func(*args, **kwargs)
             _update_config_file()
             _start_platform()
@@ -208,7 +207,7 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
             if post_install_func:
                 post_install_func()
 
-            autostart = prompt_response('Should the agent autostart?',
+            autostart = prompt_response('Should agent autostart?',
                                         valid_answers=y_or_n,
                                         default='N')
             if autostart in y:
@@ -248,19 +247,6 @@ def is_valid_port(port):
 def is_valid_bus(bus_type):
     return bus_type in ['zmq', 'rmq']
 
-def do_message_bus():
-    global config_opts
-    bus_type = None
-    valid_bus = False
-    while not valid_bus:
-        prompt = 'What type of message bus (rmq/zmq)?'
-        new_bus = prompt_response(prompt, default='zmq')
-        valid_bus = is_valid_bus(new_bus)
-        if valid_bus:
-            bus_type = new_bus
-        else:
-            print("Message type is not valid. Valid entries are zmq or rmq.")
-    config_opts['message-bus'] = bus_type
 
 def do_vip():
     global config_opts
@@ -268,6 +254,7 @@ def do_vip():
     parsed = urlparse.urlparse(config_opts.get('vip-address',
                                                'tcp://127.0.0.1:22916'))
     vip_address = None
+    bus_type = None
     if parsed.hostname is not None and parsed.scheme is not None:
         vip_address = parsed.scheme + '://' + parsed.hostname
         vip_port = parsed.port
@@ -279,31 +266,34 @@ def do_vip():
     while not available:
         valid_address = False
         while not valid_address:
-            if config_opts['message-bus'] == 'rmq':
-                prompt = """
-The rmq message bus has a backward compatibility 
-layer with current zmq instances. What is the 
-zmq bus's vip address?"""
-            else:
-                prompt = "What is the vip address?"
+            prompt = 'What is the external instance ipv4 address?'
 
             new_vip_address = prompt_response(prompt, default=vip_address)
             valid_address = is_valid_url(new_vip_address, ['tcp'])
             if valid_address:
                 vip_address = new_vip_address
             else:
-                print("Address is not valid.")
+                print("Address is not valid")
 
         valid_port = False
         while not valid_port:
-            prompt = 'What is the port for the vip address?'
+            prompt = 'What is the instance port for the vip address?'
             new_vip_port = prompt_response(prompt, default=vip_port)
             valid_port = is_valid_port(new_vip_port)
             if valid_port:
                 vip_port = new_vip_port
             else:
-                print("Port is not valid.")
+                print("Port is not valid")
 
+        valid_bus = False
+        while not valid_bus:
+            prompt = 'What is type of message bus?'
+            new_bus = prompt_response(prompt, default='zmq')
+            valid_bus = is_valid_bus(new_bus)
+            if valid_bus:
+                bus_type = new_bus
+            else:
+                print("Message type is not valid. Valid entries are zmq or rmq")
         while vip_address.endswith('/'):
             vip_address = vip_address[:-1]
 
@@ -313,60 +303,17 @@ zmq bus's vip address?"""
         else:
             print('\nERROR: That address has already been bound to.')
     config_opts['vip-address'] = '{}:{}'.format(vip_address, vip_port)
+    config_opts['message-bus'] = bus_type
 
-def do_web_enabled_rmq(vhome):
+
+@installs(get_services_core("VolttronCentral"), 'vc')
+def do_vc(vhome):
     global config_opts
-
 
     # Full implies that it will have a port on it as well.  Though if it's
     # not in the address that means that we haven't set it up before.
     full_bind_web_address = config_opts.get('bind-web-address',
-            'https://' + get_hostname())
-
-    parsed = urlparse.urlparse(full_bind_web_address)
-
-    address_only = full_bind_web_address
-    port_only = None
-    if parsed.port is not None:
-        address_only = parsed.scheme + '://' + parsed.hostname
-        port_only = parsed.port
-    else:
-        port_only = 8443
-
-    valid_address = False
-    external_ip = None
-
-    while not valid_address:
-        prompt = 'What is the hostname for this instance? (https)'
-        new_external_ip = prompt_response(prompt, default=address_only)
-        valid_address = is_valid_url(new_external_ip, ['https'])
-        if valid_address:
-            external_ip = new_external_ip
-
-    valid_port = False
-    vc_port = None
-    while not valid_port:
-        prompt = 'What is the port for this instance?'
-        new_vc_port = prompt_response(prompt, default=port_only)
-        valid_port = is_valid_port(new_vc_port)
-        if valid_port:
-            vc_port = new_vc_port
-
-    while external_ip.endswith("/"):
-        external_ip = external_ip[:-1]
-
-    parsed = urlparse.urlparse(external_ip)
-
-    config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
-
-def do_web_enabled_zmq(vhome):
-    global config_opts
-
-
-    # Full implies that it will have a port on it as well.  Though if it's
-    # not in the address that means that we haven't set it up before.
-    full_bind_web_address = config_opts.get('bind-web-address',
-            'http://' + get_hostname())
+                                            'http://127.0.0.1')
 
     parsed = urlparse.urlparse(full_bind_web_address)
 
@@ -378,11 +325,15 @@ def do_web_enabled_zmq(vhome):
     else:
         port_only = 8080
 
+    print("""
+In order for external clients to connect to volttron central or the instance
+itself, the instance must bind to a tcp address.  If testing this can be an
+internal address such as 127.0.0.1.
+""")
     valid_address = False
     external_ip = None
-
     while not valid_address:
-        prompt = 'What is the hostname for this instance?'
+        prompt = 'Please enter the external ipv4 address for this instance? '
         new_external_ip = prompt_response(prompt, default=address_only)
         valid_address = is_valid_url(new_external_ip, ['http', 'https'])
         if valid_address:
@@ -391,7 +342,7 @@ def do_web_enabled_zmq(vhome):
     valid_port = False
     vc_port = None
     while not valid_port:
-        prompt = 'What is the port for this instance?'
+        prompt = 'What is the port for volttron central?'
         new_vc_port = prompt_response(prompt, default=port_only)
         valid_port = is_valid_port(new_vc_port)
         if valid_port:
@@ -404,15 +355,12 @@ def do_web_enabled_zmq(vhome):
 
     config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
 
+    resp = vc_config()
+
     if config_opts['message-bus'] == 'zmq' and parsed.scheme == "https":
         get_cert_and_key(vhome)
 
-@installs(get_services_core("VolttronCentral"), 'vc')
-def do_vc(vhome):
-
-    resp = vc_config()
-
-    print('Installing volttron central.')
+    print('Installing volttron central')
     return resp
 
 def vc_config():
@@ -460,15 +408,15 @@ def get_cert_and_key(vhome):
     if is_file_readable(master_web_cert, False) and is_file_readable(master_web_key, False):
         try:
             if certs.Certs.validate_key_pair(master_web_cert, master_web_key):
-                print('\nThe following certificate and keyfile exists for web access over https: \n{}\n{}'.format(master_web_cert,
+                print('\nFollowing certificate and keyfile exists for web access over https: \n{}\n{}'.format(master_web_cert,
                                                                                                               master_web_key))
-                prompt = '\nDo you want to use these certificates for the web server?'
+                prompt = '\nDo you want to use these certificates for web server? '
                 if prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
                     config_opts['web-ssl-cert'] = master_web_cert
                     config_opts['web-ssl-key'] = master_web_key
                     cert_error = False
                 else:
-                    print('\nPlease provide the path to cert and key files. '
+                    print('\nPlease provide path to cert and key files. '
                           'This will overwrite existing files: \n{} and {}'.format(master_web_cert, master_web_key))
             else:
                 print("Existing key pair is not valid. ")
@@ -518,7 +466,7 @@ def is_file_readable(file_path, log=True):
         return True
     else:
         if log:
-            print("\nInvalid file path. Path does not exists or is not readable.")
+            print("\nInvalid file path. Path does not exists or is not readable")
         return False
 
 @installs(get_services_core("VolttronCentralPlatform"), 'vcp')
@@ -532,7 +480,7 @@ def do_vcp():
 
     valid_name = False
     while not valid_name:
-        prompt = 'What is the name of this instance?'
+        prompt = 'Enter the name of this instance.'
         new_instance_name = prompt_response(prompt, default=instance_name)
         if new_instance_name:
             valid_name = True
@@ -541,7 +489,7 @@ def do_vcp():
 
     vc_address = config_opts.get('volttron-central-address',
                                  config_opts.get('bind-web-address',
-                                     'http://' + get_hostname()))
+                                                 'http://127.0.0.1'))
 
     parsed = urlparse.urlparse(vc_address)
     address_only = vc_address
@@ -554,7 +502,7 @@ def do_vcp():
 
     valid_vc = False
     while not valid_vc:
-        prompt = "What is the hostname for volttron central?"
+        prompt = "Enter volttron central's web address"
         new_vc_address = prompt_response(prompt, default=address_only)
         valid_vc = is_valid_url(new_vc_address, ['http', 'https'])
         if valid_vc:
@@ -591,7 +539,7 @@ def do_platform_historian():
 
 
 def add_fake_device_to_configstore():
-    prompt = 'Would you like to install a fake device on the master driver?'
+    prompt = 'Install a fake device on the master driver?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
         _cmd(['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
@@ -616,7 +564,7 @@ def confirm_volttron_home():
     volttron_home = get_home()
     if prompt_vhome:
         print('\nYour VOLTTRON_HOME currently set to: {}'.format(volttron_home))
-        prompt = '\nIs this the volttron you are attempting to setup?'
+        prompt = '\nIs this the volttron you are attempting to setup? '
         if not prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
             print(
                 '\nPlease execute with VOLTRON_HOME=/your/path volttron-cfg to '
@@ -624,8 +572,7 @@ def confirm_volttron_home():
             exit(1)
 
 def wizard():
-    global config_opts
-    """Routine for configuring an installed volttron instance.
+    """Routine for configuring an insalled volttron instance.
 
     The function interactively sets up the instance for working with volttron
     central and the discovery service.
@@ -635,22 +582,13 @@ def wizard():
     volttron_home = get_home()
     confirm_volttron_home()
     _load_config()
-    do_message_bus()
     do_vip()
     _update_config_file()
 
-    prompt = 'Is this instance web enabled?'
+    prompt = 'Is this instance a volttron central?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
-        if config_opts['message-bus'] == 'rmq':
-            do_web_enabled_rmq(volttron_home)
-        elif config_opts['message-bus'] == 'zmq':
-            do_web_enabled_zmq(volttron_home)
-
-        prompt = 'Is this an instance of volttron central?'
-        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
-        if response in y:
-            do_vc(volttron_home)
+        do_vc(volttron_home)
 
     prompt = 'Will this instance be controlled by volttron central?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
@@ -672,10 +610,10 @@ def wizard():
     if response in y:
         do_listener()
 
-    print('Finished configuration!\n')
+    print('Finished configuration\n')
     print('You can now start the volttron instance.\n')
     print('If you need to change the instance configuration you can edit')
-    print('the config file is at {}/config\n'.format(volttron_home))
+    print('the config file at {}/config\n'.format(volttron_home))
 
 
 def process_rmq_inputs(args, instance_name=None):
@@ -773,18 +711,5 @@ def main():
         for agent in args.agent:
             try:
                 available_agents[agent]()
-                agent.add_argument(
-                    '--web-ca-cert', metavar='CAFILE', default=None,
-                    help='If using self-signed certificates, this variable will be set globally to allow requests'
-                         'to be able to correctly reach the webserver without having to specify verify in all calls.'
-                )
-                agent.add_argument(
-                    '--web-ssl-key', metavar='KEYFILE', default=None,
-                    help='ssl key file for using https with the volttron server'
-                )
-                agent.add_argument(
-                    '--web-ssl-cert', metavar='CERTFILE', default=None,
-                    help='ssl certficate file for using https with the volttron server'
-                )
             except KeyError:
                 pass
