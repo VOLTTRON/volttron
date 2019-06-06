@@ -1,12 +1,3 @@
-# These topic will be watched.  The messages will be written to
-# standard out.
-topics_prefixes_to_watch = (
-	'devices',
-	'weather2'
-)
-
-heartbeat_period = 10
-
 # The parameters dictionary is used to populate the agent's 
 # remote vip address.
 _params = {
@@ -17,7 +8,7 @@ _params = {
 	'vip_address': 'tcp://192.168.56.101',
 	'port': 22916,
 	
-	# public and secret key for the standalonelistener agent.
+	# public and secret key for the standalone_matlab agent.
 	# These can be created using the command:  volttron-ctl auth keypair
 	# public key should also be added to the volttron instance auth
 	# configuration to enable standalone agent access to volttron instance. Use
