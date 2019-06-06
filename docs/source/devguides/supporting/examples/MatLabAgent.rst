@@ -5,13 +5,12 @@ MatLab Agent
 
 The MatLab agent and Matlab standalone agent together are 
 example agents that allow for matlab scripts to be run in a
-windows environment. The MatLab agent take advantage of the 
-config store to dynamically send scripts and commandline arguments
-across the message bus to one or more standalone agents in
-windows. The standalone agent then executes the requested script 
+Windows environment from the VOLTTRON platform. 
+The MatLab agent takes advantage of the config store to 
+dynamically send scripts and commandline arguments across 
+the message bus to one or more standalone agents in
+Windows. The standalone agent then executes the requested script 
 and arguments, and sends back the results to the MatLab agent.
-
-
 
 Installations
 -------------
@@ -19,40 +18,44 @@ Installations
 To use MatLab in Python, the MatLab engine API must be installed.
 Instructions to do so are found `here <https://www.mathworks.com/help/matlab/matlab_external/install-the-matlab-engine-for-python.html>`_.
 
+.. note::
+
+        This is done in the Windows environment.
+
 
 StandAloneMatLab Agent
 ~~~~~~~~~~~~~~~~~~~~~~
 
 The standalone MatLab agent is designed to be usable in a 
-windows environment. 
+Windows environment. 
 
 .. warning:: 
 
-        VOLTTRON is not designed to run in a windows environment. 
+        VOLTTRON is not designed to run in a Windows environment. 
         Outside of cases where it is stated to be usable in a 
-        windows environment, it should be assumed that it will
+        Windows environment, it should be assumed that it will
         NOT function as expected.
 
 1. Download VOLTTRON
 
-   Download the VOLTTRON develop repository from github.This 
-   may be done using any tool you wish. In this case, directly from 
-   `GitHub <https://github.com/VOLTTRON/volttron/tree/develop>`_.
+   Download the VOLTTRON develop repository from github. This 
+   may be done using any tool you wish. Otherwise, install directly 
+   from `GitHub <https://github.com/VOLTTRON/volttron/tree/develop>`_.
    
    |github-image|
 
 2. Setup the PYTHONPATH
    
-   Open the windows explorer, and navigate to "Edit environment variables for your account"
+   Open the Windows explorer, and navigate to "Edit environment variables for your account."
    
    |cmd-image|
 
-   Select "new"
+   Select "New"
    
    |env-vars-image_1|
    
-   For "Variable name" enter: PYTOHNPATH
-   For "Variable value" either browse to your volttron installation, or enter in the path to your volttron installation
+   For "Variable name" enter: "PYTOHNPATH"
+   For "Variable value" either browse to your volttron installation, or enter in the path to your volttron installation.
    
    |env-vars-image_2|
    
@@ -74,8 +77,8 @@ windows environment.
    
    ``pip install -e .``
 
-At this point, the agent is ready to be run. To use the agent, navigate to the
-example folder, and use python to start the agent.
+At this point, the agent is ready to run. To use the agent, navigate to the
+example folder and use python to start the agent.
 
 ``cd examples\StandAloneMatLab\``
 
@@ -104,7 +107,7 @@ To work with the StandAlone agent, a few modifications will need to be made.
    * 'port' needs to be set to the port of your volttron instance
    
    * 'server_key' needs to be set to the public server key of your remote platform.
-     This can be obtained from the instance using the ``vctl auth serverkey`` command
+     This can be obtained from the instance using the ``vctl auth serverkey`` command.
    
 .. note::
 
@@ -167,8 +170,8 @@ To edit the configuration, the format should be as follows:
           "topics_from_agents": "matlab/from_agent/"
         }
 
-The config does require that each script lines up with a set of 
-commandline arguments, and a topic. So a commandline argument 
+The config requires that each script name lines up with a set of 
+commandline arguments and a topic. So a commandline argument 
 must be included, even if it is not used. The placement of 
 brackets are important, even when only communicating with one 
 standalone agent. 
