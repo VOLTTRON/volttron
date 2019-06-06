@@ -113,9 +113,6 @@ except:
 
 try:
     import pymongo
-
-    # Disabling mongo historian for now
-    # Need to fix mongo gevent loop error
     HAS_PYMONGO = True
 except:
     HAS_PYMONGO = False
@@ -213,7 +210,8 @@ mongo_platform = {
             "port": 27017,
             "database": "mongo_test",
             "user": "test",
-            "passwd": "test"
+            "passwd": "test",
+            "authSource": "admin"
         }
     }
 }
@@ -307,6 +305,8 @@ def setup_mongodb(connection_params, table_names):
     print ("setup mongodb")
     mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
     params = connection_params
+    if "authSource" in connection_params:
+        mongo_conn_str = mongo_conn_str + "?authSource={authSource}"
     mongo_conn_str = mongo_conn_str.format(**params)
     mongo_client = pymongo.MongoClient(mongo_conn_str)
     db = mongo_client[connection_params['database']]
