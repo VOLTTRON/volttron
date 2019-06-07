@@ -274,6 +274,7 @@ class Darksky(BaseWeatherAgent):
                                "response")
         try:
             response = json.loads(gresponse.content)
+            self.add_api_call()
             return response
         except ValueError:
             self.generate_response_error(url, gresponse.status_code)
@@ -443,7 +444,6 @@ class Darksky(BaseWeatherAgent):
                 while remaining_records > 0:
                     latest, forecast_entry = self.create_forecast_entry(
                         service, location, latest)
-                    self.add_api_call()
                     forecast_data.extend(forecast_entry)
                     remaining_records -= len(forecast_entry)
             else:

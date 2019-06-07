@@ -177,6 +177,11 @@ def test_success_current(volttron_instance, cleanup_cache, weather,
                               ".agent-data", "weather.sqlite"])
     sqlite_connection = sqlite3.connect(database_file)
     cursor = sqlite_connection.cursor()
+
+    api_calls_query = 'SELECT COUNT(*) FROM API_CALLS'
+    cursor.execute(api_calls_query)
+    current_api_calls = cursor.fetchone()[0]
+
     query_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
                                           locations).get(timeout=30)
 
@@ -186,6 +191,11 @@ def test_success_current(volttron_instance, cleanup_cache, weather,
             pytest.skip("API key has exceeded daily call limit")
 
     print(query_data)
+
+    cursor.execute(api_calls_query)
+    new_api_calls = cursor.fetchone()[0]
+    assert new_api_calls == current_api_calls + len(locations)
+    current_api_calls = new_api_calls
 
     assert len(query_data) == len(locations)
     for record in query_data:
@@ -223,6 +233,11 @@ def test_success_current(volttron_instance, cleanup_cache, weather,
 
     cache_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
                                           locations).get(timeout=30)
+
+    cursor.execute(api_calls_query)
+    new_api_calls = cursor.fetchone()[0]
+    assert new_api_calls == current_api_calls
+
     # check names returned are valid
     assert len(cache_data) == len(cache_data)
     for x in range(0, len(cache_data)):
@@ -324,6 +339,10 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
     sqlite_connection = sqlite3.connect(database_file)
     cursor = sqlite_connection.cursor()
 
+    api_calls_query = 'SELECT COUNT(*) FROM API_CALLS'
+    cursor.execute(api_calls_query)
+    current_api_calls = cursor.fetchone()[0]
+
     query_data = []
 
     if service == "get_minutely_forecast":
@@ -340,6 +359,11 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
         error = query_data[0].get("weather_error")
         if error.endswith("Remote API returned Code 403"):
             pytest.skip("API key has exceeded daily call limit")
+
+    cursor.execute(api_calls_query)
+    new_api_calls = cursor.fetchone()[0]
+    assert new_api_calls == current_api_calls + len(locations)
+    current_api_calls = new_api_calls
 
     services = {
                 "get_minutely_forecast": 60,
@@ -402,6 +426,10 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
     if service == 'get_daily_forecast':
         cache_data = query_agent.vip.rpc.call(
             identity, service, locations).get(timeout=30)
+
+    cursor.execute(api_calls_query)
+    new_api_calls = cursor.fetchone()[0]
+    assert new_api_calls == current_api_calls
 
     assert len(cache_data) == len(query_data)
     for x in range(0, len(cache_data)):
