@@ -135,7 +135,7 @@ def query_agent(request, volttron_instance):
     request.addfinalizer(stop_agent)
     return agent
 
-@pytest.fixture(scope="module", params=[darksky_service, darksky_perf])
+@pytest.fixture(scope="module", params=[darksky_perf])
 def weather(request, volttron_instance):
     print("** Setting up weather agent module **")
     print("request param", request.param)
@@ -574,6 +574,8 @@ def test_more_than_default_forecast(volttron_instance, cleanup_cache, weather,
         big_request = 61
         query_data = query_agent.vip.rpc.call(
             identity, service, locations, minutes=big_request).get(timeout=30)
+        if big_request > 60:
+            big_request = 60  # dark sky provides 60 minutes max.
     elif service == 'get_hourly_forecast':
         big_request = 50
         query_data = query_agent.vip.rpc.call(
@@ -590,10 +592,7 @@ def test_more_than_default_forecast(volttron_instance, cleanup_cache, weather,
             pytest.skip("API key has exceeded daily call limit")
     assert len(query_data) == len(locations)
     for record in query_data:
-        if service == 'get_minutely_forecast':
-            assert len(record['weather_results']) == 60
-        else:
-            assert len(record['weather_results']) == big_request
+        assert len(record['weather_results']) == big_request
 
     if service == 'get_minutely_forecast':
         cache_data = query_agent.vip.rpc.call(
@@ -606,11 +605,15 @@ def test_more_than_default_forecast(volttron_instance, cleanup_cache, weather,
             identity, service, locations, days=big_request).get(timeout=30)
 
     assert len(cache_data) == len(query_data)
+    print("Query data: \n {}".format(query_data))
+    print("Cache data: \n {}".format(cache_data))
+
+    # TODO: verify that you get the right forecast times
+    # TODO: Add test case for querying less than default data. For now checked manually
+
     for x in range(0, len(cache_data)):
         query_location_data = query_data[x]
-        print(query_location_data)
         cache_location_data = cache_data[x]
-        print(cache_location_data)
         assert cache_location_data.get(
             "generation_time") == query_location_data.get("generation_time")
         assert cache_location_data.get("lat") == query_location_data.get(

@@ -70,6 +70,7 @@ from volttron.platform.agent import utils
 from volttron.platform.vip.agent import RPC
 from volttron.platform.agent.utils import format_timestamp, get_aware_utc_now
 from volttron.platform.agent.base_weather import BaseWeatherAgent
+from volttron.platform.agent.base_weather import get_forecast_start_stop
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
@@ -246,12 +247,12 @@ class Darksky(BaseWeatherAgent):
                                  datetime.datetime.utcfromtimestamp(0)).
                                 total_seconds())
                 url = "https://api.darksky.net/forecast/{key}/{lat}," \
-                           "{long},{timestamp}?units=si".format(
+                           "{long},{timestamp}?units=us".format(
                     key=self._api_key, lat=location['lat'],
                     long=location['long'], timestamp=timestamp)
             else:
                 url = "https://api.darksky.net/forecast/{key}/{lat}," \
-                "{long}?units=si".format(
+                "{long}?units=us".format(
                     key=self._api_key, lat=location['lat'],
                     long=location['long'])
             if self.performance_mode:
@@ -269,12 +270,12 @@ class Darksky(BaseWeatherAgent):
         grequest = [grequests.get(url, verify=requests.certs.where(),
                                   headers=self.headers, timeout=3)]
         gresponse = grequests.map(grequest)[0]
+        self.add_api_call()
         if gresponse is None:
             raise RuntimeError("get request did not return any "
                                "response")
         try:
             response = json.loads(gresponse.content)
-            self.add_api_call()
             return response
         except ValueError:
             self.generate_response_error(url, gresponse.status_code)
@@ -355,35 +356,36 @@ class Darksky(BaseWeatherAgent):
             generation_time = generation_time.replace(minute=0)
         return format_timestamp(generation_time)
 
-    def create_forecast_entry(self, service, location, latest):
+    def create_forecast_entry(self, service, location, timestamp, forecast_start):
         """
         Helper method used for removing extraneous data from a forecast request
         response based on request time
         :param service: weather agent service endpoint
         :param location: request location dictionary
-        :param latest: timestamp of the last record in a previous request or
-        None if this is the first request
-        :return: filtered Dark Sky forecast response
+        :param timestamp: timestamp for the forecast request. If None, the default forecast result of
+         are returned - a minute-by-minute forecast for the next hour (where available), or
+         an hour-by-hour forecast for the next 48 hours, or a day-by-day forecast for the next week
+        :return: (the last time stamp for which forecast is returned, filtered Dark Sky forecast response)
         """
         request_time = utils.get_aware_utc_now()
-        darksky_response = self.get_darksky_data(service, location, latest)
+        darksky_response = self.get_darksky_data(service, location, timestamp)
         forecast_response = darksky_response.pop(
             SERVICES_MAPPING[service]['json_name'])
         forecast_data = []
+        last_entry_time = None
         for entry in forecast_response['data']:
             entry_time = datetime.datetime.fromtimestamp(
                 entry['time'], pytz.timezone(darksky_response['timezone']))
             entry_time = entry_time.astimezone(pytz.utc)
-            if entry_time < request_time:
+            if entry_time < forecast_start:
                 continue
-            if latest and entry_time < latest:
+            if timestamp and entry_time < timestamp:
                 continue
             else:
-                if not latest or entry_time > latest:
-                    latest = entry_time
                 # Darksky required attribution
                 entry["attribution"] = "Powered by Dark Sky"
                 forecast_data.append([format_timestamp(entry_time), entry])
+                last_entry_time = entry_time
         if not self.performance_mode:
             # if performance mode isn't running we'll be receiving extra data
             # that we can store to help with conserving daily api calls
@@ -408,9 +410,9 @@ class Darksky(BaseWeatherAgent):
                                      darksky_response['timezone'])),
                              json.dumps(service_response)]
                     self.store_weather_records(service_code, service_data)
-        return latest, forecast_data
+        return last_entry_time, forecast_data
 
-    def query_forecast_service(self, service, location, quantity):
+    def query_forecast_service(self, service, location, quantity, forecast_start):
         """
         Generic method for requesting forecast data from the various RPC
         forecast methods. If the user requests a number of records to return
@@ -423,6 +425,8 @@ class Darksky(BaseWeatherAgent):
         :param location: location dictionary requested during the RPC call
         :param quantity: number of records to return, used to generate
         Time Machine requests after the forecast request
+        :param forecast_start: forecast results that are prior to this
+         timestamp will be filtered by base weather agent
         :return: Timestamp and data returned by the Darksky weather API response
         """
         # Get as much as we can from the forecast endpoint
@@ -430,11 +434,11 @@ class Darksky(BaseWeatherAgent):
             raise RuntimeError("{} is not a service provided by "
                                "Darksky".format(service))
         forecast_data = []
-        latest = None
+        forecast_time = None
         # get the generation time of the requested forecast service
         generation_time = self.get_generation_time_for_service(service)
-        latest, forecast_entry = self.create_forecast_entry(
-            service, location, latest)
+        last_available_time, forecast_entry = self.create_forecast_entry(
+            service, location, forecast_time, forecast_start)
         forecast_data.extend(forecast_entry)
         remaining_records = quantity - len(forecast_data)
         if remaining_records > 0:
@@ -442,13 +446,22 @@ class Darksky(BaseWeatherAgent):
                 # Darksky will return 'valid' prediction data AT LEAST 6 months
                 # following the current date
                 while remaining_records > 0:
-                    latest, forecast_entry = self.create_forecast_entry(
-                        service, location, latest)
+                    # Get the next forecast time based on the forecast service. i.e. +1 minute or +1 hour or +1 day
+                    _log.debug("last available : Before call {}".format(last_available_time))
+                    if service == "get_daily_forecast":
+                        # time machine request with 12AM for a date return the previous day.
+                        # Simply adding 1 day to last available forecast time gets the right result
+                        forecast_time = last_available_time + datetime.timedelta(days=1)
+                    else:
+                        forecast_time, _ = get_forecast_start_stop(last_available_time, 1, service)
+
+                    last_available_time, forecast_entry = self.create_forecast_entry(
+                        service, location, forecast_time, forecast_start)
                     forecast_data.extend(forecast_entry)
                     remaining_records -= len(forecast_entry)
             else:
                 raise RuntimeError('Insufficient calls available for additional'
-                                   'request data')
+                                   'data requests')
         return generation_time, forecast_data
 
     @RPC.export

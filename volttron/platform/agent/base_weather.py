@@ -720,8 +720,8 @@ class BaseWeatherAgent(Agent):
 
                  For example:
                  Input: [{'lat': 39.0693, 'long': -94.6716},
-                         {"zipcode":"invalid location. say only lat/long
-                         allowed for forecast"}]
+                         {"zipcode":99353}   # example invalid input. valid input depends on implementing agents
+                         ]
                  Output:
 
                  [
@@ -754,9 +754,8 @@ class BaseWeatherAgent(Agent):
                       'long': -94.6716
                      },
                      #Result for second location
-                     {"zipcode":"invalid location. say only lat/long
-                         allowed for forecast",
-                      WEATHER_ERROR: "Invalid location"
+                     {"zipcode":99353,
+                      "weather_error": "Invalid location"
                      }
                   ]
 
@@ -805,7 +804,61 @@ class BaseWeatherAgent(Agent):
         request to the remote API
         :param hours: Optional parameter for specifying the amount of records
         user would like returned
-        :return:
+        :return: list of dictionaries containing weather data for each location.
+                 result dictionary would contain all location details passed
+                 as input in addition to results. Weather data results  will be
+                 returned in the key  'weather_results'. value of
+                 'weather_results' will be in the format
+                 [[<forecast time>, <dictionary of data returned for
+                 that forecast time>], [<forecast time>, <dictionary of data
+                 returned for that forecast time],...]
+                 If the weather api did not return the requested number of
+                 records, in addition to 'weather_results' there will also be a
+                 'weather_warn' key.
+                 In case of errors, error message will be in the key
+                 'weather_error'.
+
+
+                 For example:
+                 Input: [{'lat': 39.0693, 'long': -94.6716},
+                         {"zipcode":99353}   # example invalid input. valid input depends on implementing agents
+                         ]
+                 Output:
+
+                 [
+                     #Result for first location
+                     {'lat': 39.0693,
+                       'generation_time': '2018-11-15T22:00:38.000000+00:00',
+                      'weather_results':
+                           [
+                               [ '2018-11-15T17:00:00-06:00',
+                                 {u'': None, 'wind_speed':'6 mph', 'name': u'',
+                                  'temperatureUnit': 'F', 'number': 2,
+                                  'detailedForecast': u'', 'isDaytime': True,
+                                  'air_temperature': 44,
+                                  'startTime': '2018-11-15T17:00:00-06:00',
+                                  'wind_from_direction': 'SW',
+                                  'endTime': '2018-11-15T18:00:00-06:00',
+                                  'shortForecast': 'Sunny',...
+                                  }
+                               ],
+                               ['2018-11-15T18:00:00-06:00',
+                                 {u'': None, 'wind_speed': '6 mph', 'name': u'',
+                                 'temperatureUnit': 'F', 'number': 3,
+                                 'detailedForecast': u'',
+                                 'startTime': '2018-11-15T18:00:00-06:00',
+                                 'endTime': '2018-11-15T19:00:00-06:00',..
+                                 }
+                               ], ... total = number of hours requested or
+                               defaults to 24 hours.
+                           ],
+                      'long': -94.6716
+                     },
+                     #Result for second location
+                     {"zipcode":99353,
+                      "weather_error": "Invalid location"
+                     }
+                  ]
         """
         return self.get_forecast_by_service(locations,
                                             SERVICE_HOURLY_FORECAST, 'hour',
@@ -878,13 +931,15 @@ class BaseWeatherAgent(Agent):
         return record_dict
 
     @abstractmethod
-    def query_forecast_service(self, service, location, quantity):
+    def query_forecast_service(self, service, location, quantity, forecast_start):
         """
         Queries a remote api service. Available services are determined per
         weather agent implementation
         :param service: The desired service end point to query
         :param location: The desired location for retrieval of weather records
         :param quantity: number of records to fetch from the service
+        :param forecast_start: forecast results that are prior to this
+         timestamp will be filtered by base weather agent
         :return: A list of time series forecast records to be processed and
         stored
         """
@@ -904,11 +959,12 @@ class BaseWeatherAgent(Agent):
         message if the request failed.
         """
         result = location.copy()
+        forecast_start, forecast_end = get_forecast_start_stop(request_time, quantity, service)
         try:
             # query for maximum number of hours so that we can cache it
             # also makes retrieval from cache simpler
             generation_time, response = self.query_forecast_service(
-                service, location, quantity)
+                service, location, quantity, forecast_start)
             if not generation_time:
                 # in case api does not return details on when this
                 # forecast data was generated
@@ -923,7 +979,6 @@ class BaseWeatherAgent(Agent):
             storage_records = []
             location_data = []
 
-            i = 0
             for item in response:
                 # item contains (forecast time, points)
                 if item[0] is not None and item[1] is not None:
@@ -934,12 +989,13 @@ class BaseWeatherAgent(Agent):
                                       json.dumps(item[1])]
                     storage_records.append(storage_record)
                     if len(location_data) < quantity and \
-                            forecast_time > request_time:
+                            forecast_time >= forecast_start:
                         # checking time because weather.gov returns fixed set
                         # of data and some of the records might be older than
                         # current time
+                        # also check if forecast time is greater than equal to forecast start
+                        # for example, for daily forecast - first forecast should be for the next day
                         location_data.append(item)
-                i = i + 1
             if location_data:
                 try:
                     self.store_weather_records(service,
@@ -1347,7 +1403,7 @@ class WeatherCache:
             cursor.execute(active_calls_query)
             active_calls = cursor.fetchone()[0]
             cursor.close()
-            return active_calls + (num_calls - 1) < self._calls_limit
+            return active_calls + num_calls <= self._calls_limit
         except AttributeError as error:
             _log.error(error.message)
             # Add a call to the pending queue so we can track it later
@@ -1360,29 +1416,25 @@ class WeatherCache:
         the table for tracking
         :return: True if an entry was made successfully, false otherwise
         """
-        if self.api_calls_available():
-            try:
-                cursor = self._sqlite_conn.cursor()
-                insert_query = """INSERT INTO API_CALLS
-                                             (CALL_TIME) VALUES (?);"""
-                # Account for calls that went through to the API but did not get added
-                # to the SQLite table due to an error
-                cursor.executemany(
-                    insert_query, [(call,) for call in self.pending_calls])
-                cursor = self._sqlite_conn.cursor()
-                current_time = (get_aware_utc_now(),)
-                insert_query = """INSERT INTO API_CALLS
-                                 (CALL_TIME) VALUES (?);"""
-                cursor.execute(insert_query, current_time)
-                self._sqlite_conn.commit()
-                cursor.close()
-                return True
-            except (AttributeError, sqlite3.Error) as error:
-                _log.error(error)
-                return False
-        else:
+        try:
+            cursor = self._sqlite_conn.cursor()
+            insert_query = """INSERT INTO API_CALLS
+                                         (CALL_TIME) VALUES (?);"""
+            # Account for calls that went through to the API but did not get added
+            # to the SQLite table due to an error
+            cursor.executemany(
+                insert_query, [(call,) for call in self.pending_calls])
+            cursor = self._sqlite_conn.cursor()
+            current_time = (get_aware_utc_now(),)
+            insert_query = """INSERT INTO API_CALLS
+                             (CALL_TIME) VALUES (?);"""
+            cursor.execute(insert_query, current_time)
+            self._sqlite_conn.commit()
+            cursor.close()
+            return True
+        except (AttributeError, sqlite3.Error) as error:
+            _log.error(error)
             return False
-
 
     def get_current_data(self, service_name, location):
         """
@@ -1423,23 +1475,7 @@ class WeatherCache:
         # after when user requested the data and endtime < start+hours
         # do this to avoid returning data for hours 4 to 10 instead of
         # 2-8 when the request time is hour 1.
-        if service_length == "hour":
-            forecast_start = request_time + datetime.timedelta(hours=1)
-            forecast_start = forecast_start.replace(minute=0, second=0,
-                                                    microsecond=0)
-            forecast_end = forecast_start + datetime.timedelta(hours=quantity)
-        elif service_length == "minute":
-            forecast_start = request_time + datetime.timedelta(minutes=1)
-            forecast_start = forecast_start.replace(second=0,
-                                                    microsecond=0)
-            forecast_end = forecast_start + datetime.timedelta(minutes=quantity)
-        elif service_length == "day":
-            forecast_start = request_time + datetime.timedelta(days=1)
-            forecast_start = forecast_start.replace(hour=0, minute=0, second=0,
-                                                    microsecond=0)
-            forecast_end = forecast_start + datetime.timedelta(days=quantity)
-        else:
-            raise RuntimeError("Unsupported service length")
+        forecast_start, forecast_end = get_forecast_start_stop(request_time, quantity, service_name)
         cursor = self._sqlite_conn.cursor()
         query = """SELECT GENERATION_TIME, FORECAST_TIME, POINTS 
                    FROM {table} 
@@ -1628,3 +1664,24 @@ for method in [WeatherCache.get_current_data,
                WeatherCache._setup_cache,
                WeatherCache.store_weather_records]:
     setattr(AsyncWeatherCache, method.__name__, _using_threadpool(method))
+
+
+def get_forecast_start_stop(request_time, quantity,  service_name):
+    if service_name == "get_hourly_forecast":
+        forecast_start = request_time + datetime.timedelta(hours=1)
+        forecast_start = forecast_start.replace(minute=0, second=0,
+                                                microsecond=0)
+        forecast_end = forecast_start + datetime.timedelta(hours=quantity)
+    elif service_name == "get_minutely_forecast":
+        forecast_start = request_time + datetime.timedelta(minutes=1)
+        forecast_start = forecast_start.replace(second=0,
+                                                microsecond=0)
+        forecast_end = forecast_start + datetime.timedelta(minutes=quantity)
+    elif service_name == "get_daily_forecast":
+        forecast_start = request_time + datetime.timedelta(days=1)
+        forecast_start = forecast_start.replace(hour=0, minute=0, second=0,
+                                                microsecond=0)
+        forecast_end = forecast_start + datetime.timedelta(days=quantity)
+    else:
+        raise RuntimeError("Unsupported service length")
+    return forecast_start, forecast_end

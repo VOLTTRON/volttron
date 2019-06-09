@@ -99,7 +99,7 @@ def volttron_instance_module_web(request):
 @pytest.fixture(scope="module",
                 params=(
                     dict(messagebus='zmq', ssl_auth=False),
-                    dict(messagebus='rmq', ssl_auth=True),
+                    #dict(messagebus='rmq', ssl_auth=True),
                 ))
 def volttron_instance(request, **kwargs):
     """Fixture that returns a single instance of volttron platform for testing
