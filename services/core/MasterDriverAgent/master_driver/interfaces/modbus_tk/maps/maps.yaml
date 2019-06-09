@@ -14,6 +14,11 @@
   file: modbus_tk_test_map.csv
   name: modbus_tk_test
 - addressing: offset
+  description: example of reading mixed endian registers for modbus_tk driver testing
+  endian: big
+  file: mixed_endian_reg_map.csv
+  name: mixed_endian_reg
+- addressing: offset
   description: reading some selected registers from elkor wattson meter (modbus TK)
   endian: big
   file: watts_on_map.csv
@@ -30,3 +35,17 @@
   write_multiple_registers: false
   file: write_single_registers_map.csv
   name: write_single_registers
+- addressing: offset
+  description: example of scaling register
+  endian: big
+  file: scale_reg_map.csv
+  name: scale_reg
+- addressing: offset
+  description: example of scale_reg_pow_10
+  endian: big
+  file: scale_reg_pow_10_map.csv
+  name: scale_reg_pow_10
+- addressing: offset
+  endian: big
+  file: battery_meter.csv
+  name: battery_meter

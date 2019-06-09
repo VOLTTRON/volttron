@@ -122,7 +122,7 @@ class Status(object):
         self._last_updated = format_timestamp(get_aware_utc_now())
 
         if status_changed and self._status_changed_callback:
-            print(self._status_changed_callback())
+            self._status_changed_callback()
 
     def as_dict(self):
         """

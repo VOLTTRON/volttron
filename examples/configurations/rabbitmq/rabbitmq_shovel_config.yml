@@ -1,0 +1,17 @@
+# Mandatory parameters for shovel setup
+shovel:
+  rabbit-2:
+    port: '5671'
+    virtual-host: volttron
+    # Configuration to forward pubsub topics
+    pubsub:
+      # Identity of agent that is publishing the topic
+      platform.driver:
+        # Topic pattern to be forwarded
+        - devices
+    # Configuration to make remote RPC calls
+    rpc:
+      # Remote instance name
+      volttron2:
+        # List of pair of agent identities (local caller, remote callee)
+        - [scheduler, platform.actuator]

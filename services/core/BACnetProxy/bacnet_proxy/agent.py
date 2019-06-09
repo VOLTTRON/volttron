@@ -50,11 +50,8 @@ _log = logging.getLogger(__name__)
 
 bacnet_logger = logging.getLogger("bacpypes")
 bacnet_logger.setLevel(logging.WARNING)
-__version__ = '0.4'
+__version__ = '0.5'
 
-import os.path
-import errno
-from volttron.platform.agent import json as jsonapi
 from collections import defaultdict
 
 from Queue import Queue, Empty
@@ -87,7 +84,9 @@ from bacpypes.apdu import (ReadPropertyRequest,
                            encode_max_apdu_length_accepted,
                            WhoIsRequest,
                            IAmRequest,
-                           ConfirmedRequestSequence)
+                           ConfirmedRequestSequence,
+                           SubscribeCOVRequest,
+                           ConfirmedCOVNotificationRequest)
 from bacpypes.primitivedata import (Null, Atomic, Enumerated, Integer,
                                     Unsigned, Real)
 from bacpypes.constructeddata import Array, Any, Choice
@@ -95,8 +94,7 @@ from bacpypes.basetypes import ServicesSupported
 from bacpypes.task import TaskManager
 from gevent.event import AsyncResult
 
-path = os.path.dirname(os.path.abspath(__file__))
-configFile = os.path.join(path, "bacnet_example_config.csv")
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 # Make sure the TaskManager singleton exists...
 task_manager = TaskManager()
@@ -116,13 +114,34 @@ task_manager = TaskManager()
 #     def set_exception(self, exception):
 #         self.ioCall.send(None, self.ioResult.set_exception, exception)
 
+class SubscriptionContext(object):
+    """Object for maintaining BACnet change of value subscriptions with
+    points on a device"""
+
+    def __init__(self, device_path, address, point_name, object_type,
+                 instance_number,
+                 sub_process_ID, lifetime=None):
+
+        self.device_path = device_path
+        self.device_address = address
+
+        # Arbitrary value which ties COVRequests to a subscription object
+        self.subscriberProcessIdentifier = sub_process_ID
+
+        self.point_name = point_name
+        self.monitoredObjectIdentifier = (object_type, instance_number)
+        self.lifetime = lifetime
+
 
 class BACnet_application(BIPSimpleApplication, RecurringTask):
-    def __init__(self, i_am_callback, *args):
+    def __init__(self, i_am_callback, send_cov_subscription_callback,
+                 forward_cov_callback, request_check_interval, *args):
         BIPSimpleApplication.__init__(self, *args)
-        RecurringTask.__init__(self, 250)
+        RecurringTask.__init__(self, request_check_interval)
 
         self.i_am_callback = i_am_callback
+        self.send_cov_subscription_callback = send_cov_subscription_callback
+        self.forward_cov_callback = forward_cov_callback
 
         self.request_queue = Queue()
 
@@ -131,6 +150,11 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
 
         # keep track of requests to line up responses
         self.iocb = {}
+
+        # Tracking mechanism for matching COVNotifications to a COV
+        # subscriptionContext object
+        self.sub_cov_contexts = {}
+        self.cov_sub_process_ID = 1
 
         self.install_task()
 
@@ -267,12 +291,66 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
 
         if (isinstance(working_iocb.ioRequest, ReadPropertyRequest) and
                 isinstance(apdu, ReadPropertyACK)):
-            working_iocb.set(
-                self._get_value_from_read_property_request(apdu, working_iocb))
+            # handle receiving covIncrement read results by calling
+            # the send_cov_subscription callback if a subscription exists and
+            # the covIncrement is valid
+            value = self._get_value_from_read_property_request(apdu, working_iocb)
+            if apdu.propertyIdentifier == 'covIncrement':
+                _log.debug("received read covIncrement property response from "
+                           "{}".format(apdu.pduSource))
+                subscription = None
+                subscription_id = -1
+                for key, sub in self.sub_cov_contexts.iteritems():
+                    if sub.device_address == apdu.pduSource and (
+                            sub.monitoredObjectIdentifier[0] ==
+                            apdu.objectIdentifier[0] and
+                            sub.monitoredObjectIdentifier[1] ==
+                            apdu.objectIdentifier[1]):
+                        subscription = sub
+                        subscription_id = key
+                if subscription:
+                    if value:
+                        _log.info("covIncrement is {} for point {} on "
+                                  "device".format(value,
+                                                  subscription.point_name,
+                                                  subscription.device_path))
+                        self.send_cov_subscription_callback(apdu.pduSource,
+                                                            subscription.subscriberProcessIdentifier,
+                                                            subscription.monitoredObjectIdentifier,
+                                                            subscription.lifetime,
+                                                            subscription.point_name)
+                    else:
+                        _log.warning("point {} on device {} does not have a "
+                                     "valid covIncrement property")
+                        self.this_application.sub_cov_contexts.pop(
+                            subscription_id)
+                else:
+                    _log.error('Received read covIncrement response, but no '
+                               'subscription context exists for {} on {'
+                               '}').format(subscription.device_path,
+                                           subscription.point_name)
+            else:
+                working_iocb.set(value)
+            return
 
         elif (isinstance(working_iocb.ioRequest, WritePropertyRequest) and
               isinstance(apdu, SimpleAckPDU)):
             working_iocb.set(apdu)
+            return
+
+        # Simple record-keeping for subscription request responses
+        elif (isinstance(working_iocb.ioRequest, SubscribeCOVRequest) and
+                isinstance(apdu, SimpleAckPDU)):
+            _log.debug("COV subscription established for {} on {}"
+                       .format(working_iocb.ioRequest.monitoredObjectIdentifer,
+                               working_iocb.ioRequest.pduSource))
+            working_iocb.set(apdu)
+            return
+        elif (isinstance(working_iocb.ioRequest, SubscribeCOVRequest) and
+              not isinstance(apdu, SimpleAckPDU)):
+            _log.error("The SubscribeCOVRequest for {} failed to establish a "
+                       "subscription."
+                       .format(SubscribeCOVRequest.monitoredObjectIdentifier))
             return
 
         elif (isinstance(working_iocb.ioRequest,
@@ -354,6 +432,41 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                                str(apdu.segmentationSupported),
                                apdu.vendorID)
 
+        elif isinstance(apdu, ConfirmedCOVNotificationRequest):
+            # Handling for ConfirmedCOVNotificationRequests. These requests are
+            # sent by the device when a point with a COV subscription updates
+            # past the covIncrement threshold(See COV_Detection class in
+            # Bacpypes:
+            # https://bacpypes.readthedocs.io/en/latest/modules/service/cov.html)
+            _log.debug("ConfirmedCOVNotificationRequest received from {}"
+                       .format(apdu.pduSource))
+            point_name = None
+            device_path = None
+
+            result_dict = {}
+            for element in apdu.listOfValues:
+                property_id = element.propertyIdentifier
+                if not property_id == "statusFlags":
+                    values = []
+                    for tag in element.value.tagList:
+                        values.append(tag.app_to_object().value)
+                    if len(values) == 1:
+                        result_dict[property_id] = values[0]
+                    else:
+                        result_dict[property_id] = values
+
+            if result_dict:
+                context = \
+                    self.sub_cov_contexts[apdu.subscriberProcessIdentifier]
+                point_name = context.point_name
+                device_path = context.device_path
+
+            if point_name and device_path:
+                self.forward_cov_callback(device_path, point_name, result_dict)
+            else:
+                _log.debug("Device {} does not have a subscription context."
+                           .format(apdu.monitoredObjectIdentifier))
+
         # forward it along
         BIPSimpleApplication.indication(self, apdu)
 
@@ -364,7 +477,6 @@ write_debug_str = ("Writing: {target} {type} {instance} {property} (Priority: "
 
 def bacnet_proxy_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
-
     device_address = config["device_address"]
     max_apdu_len = config.get("max_apdu_length", 1024)
     seg_supported = config.get("segmentation_supported", "segmentedBoth")
@@ -372,11 +484,13 @@ def bacnet_proxy_agent(config_path, **kwargs):
     obj_name = config.get("object_name", "Volttron BACnet driver")
     ven_id = config.get("vendor_id", 15)
     max_per_request = config.get("default_max_per_request", 1000000)
+    request_check_interval = config.get("request_check_interval", 100)
 
     return BACnetProxyAgent(device_address,
                             max_apdu_len, seg_supported,
                             obj_id, obj_name, ven_id,
                             max_per_request,
+                            request_check_interval=request_check_interval,
                             heartbeat_autostart=True,
                             **kwargs)
 
@@ -388,6 +502,7 @@ class BACnetProxyAgent(Agent):
     def __init__(self, device_address,
                  max_apdu_len, seg_supported,
                  obj_id, obj_name, ven_id, max_per_request,
+                 request_check_interval=100,
                  **kwargs):
         super(BACnetProxyAgent, self).__init__(**kwargs)
 
@@ -411,14 +526,16 @@ class BACnetProxyAgent(Agent):
 
         self.setup_device(async_call, device_address,
                           max_apdu_len, seg_supported,
-                          obj_id, obj_name, ven_id)
+                          obj_id, obj_name, ven_id,
+                          request_check_interval)
 
     def setup_device(self, async_call, address,
                      max_apdu_len=1024,
                      seg_supported='segmentedBoth',
                      obj_id=599,
                      obj_name='sMap BACnet driver',
-                     ven_id=15):
+                     ven_id=15,
+                     request_check_interval=100):
 
         _log.info('seg_supported '+str(seg_supported))
         _log.info('max_apdu_len '+str(max_apdu_len))
@@ -453,12 +570,32 @@ class BACnetProxyAgent(Agent):
             async_call.send(None, self.i_am, address, device_id, max_apdu_len,
                             seg_supported, vendor_id)
 
+        def send_cov_subscription_callback(device_address,
+                                           subscriberProcessIdentifier,
+                                           monitoredObjectIdentifier, lifetime,
+                                           point_name):
+            """Asynchronus cov subscription callback for gevent"""
+            async_call.send(None, self.send_cov_subscription, device_address,
+                            subscriberProcessIdentifier,
+                            monitoredObjectIdentifier, lifetime, point_name)
+
+        def forward_cov_callback(point_name, apdu, result_dict):
+            """Asynchronus callback to forward cov values to the master driver
+            for gevent"""
+            async_call.send(None, self.forward_cov, point_name, apdu, result_dict)
+
+
         #i_am_callback('foo', 'bar', 'baz', 'foobar', 'foobaz')
 
-        self.this_application = BACnet_application(i_am_callback, this_device,
+        self.this_application = BACnet_application(i_am_callback,
+                                                   send_cov_subscription_callback,
+                                                   forward_cov_callback,
+                                                   request_check_interval,
+                                                   this_device,
                                                    address)
 
-        kwargs = {"spin":0.1,
+        # Having a recurring task makes the spin value kind of irrelevant.
+        kwargs = {"spin": 0.1,
                   "sigterm": None,
                   "sigusr1": None}
 
@@ -486,6 +623,18 @@ class BACnetProxyAgent(Agent):
 
         self.vip.pubsub.publish('pubsub', topics.BACNET_I_AM, header,
                                 message=value)
+
+    def forward_cov(self, device_path, point_name, result_dict):
+        """
+        Called by the BACnet application when a ConfirmedCOVNotification Request
+        is received. Publishes the COV to the pubsub through the device's
+        driver agent
+        :param device_path: path of the device for use in publish topic
+        :param point_name: COV notification contains values for this point
+        :param result_dict: dictionary of values from the point
+        """
+        self.vip.rpc.call(PLATFORM_DRIVER, 'forward_bacnet_cov_value',
+                          device_path, point_name, result_dict)
 
     @RPC.export
     def who_is(self, low_device_id=None, high_device_id=None,
@@ -718,6 +867,95 @@ class BACnetProxyAgent(Agent):
 
         return result_dict
 
+    #
+    @RPC.export
+    def create_COV_subscription(self, address, device_path, point_name,
+                                object_type, instance_number, lifetime=None):
+        """
+        Called by the BACnet interface to establish a COV subscription with a
+        BACnet device. IF there is an existing subscription for the point, a
+        subscribeCOVRequest is sent immediately, otherwise the covIncrement
+        property is confirmed to be valid before sending the subscription
+        request.
+        :param address: address of the device to which the subscription
+        request will be sent
+        :param device_path: path of the device used for the publishing topic
+        :param point_name: point name for which we would like to establish the
+        subscription
+        :param object_type:
+        :param instance_number: Arbitrarily assigned value for tracking in the
+        subscription context
+        :param lifetime: lifetime in seconds for the device to maintain the
+        subscription
+        """
+        if not isinstance(address, str):
+            raise RuntimeError(
+                "COV subscriptions require the address of the "
+                "target device as a string")
+        # if a subscription exists, send a cov subscription request
+        # otherwise check the point's covIncrement
+        subscription = None
+        for check_sub in self.this_application.sub_cov_contexts.itervalues():
+            if check_sub.point_name == point_name and \
+                    check_sub.monitoredObjectIdentifier == (object_type, instance_number):
+                subscription = check_sub
+        if subscription:
+            self.send_cov_subscription(subscription.device_address,
+                                       subscription.subscriberProcessIdentifier,
+                                       subscription.monitoredObjectIdentifier,
+                                       subscription.lifetime,
+                                       subscription.point_name)
+        else:
+            subscription = SubscriptionContext(device_path, Address(address),
+                                               point_name,
+                                               object_type, instance_number,
+                                               self.this_application.cov_sub_process_ID,
+                                               lifetime)
+            # check whether the device has a usable covIncrement
+            try:
+                _log.debug("establishing cov subscription for point {} on "
+                           "device {}".format(point_name, device_path))
+                self.this_application.sub_cov_contexts[
+                    self.this_application.cov_sub_process_ID] = subscription
+                self.this_application.cov_sub_process_ID += 1
+                _log.debug("sending read property request for point {} on "
+                           "device {}".format(point_name, device_path))
+                self.read_property(address, object_type, instance_number,
+                                   'covIncrement')
+            except Exception as error:
+                _log.warning("the covIncrement for {} on {} could not be "
+                             "read, no cov subscription was "
+                             "established".format(point_name, device_path))
+                _log.error(error)
+
+    def send_cov_subscription(self, address, subscriberProcessIdentifier,
+                              monitoredObjectIdentifier, lifetime, point_name):
+        """
+
+        :param address: address of the device to which the subscription
+        request will be sent
+        :param subscriberProcessIdentifier: arbitrarily set value for
+        tracking cov subscriptions
+        :param monitoredObjectIdentifier: (object_type, instance_number) from
+        the subscription context
+        :param lifetime: lifetime in seconds for the device to maintain the
+        subscription
+        :param point_name:point name for which we would like to establish the
+        subscription
+        :return:
+        """
+        subscribe_cov_request = SubscribeCOVRequest(
+            subscriberProcessIdentifier=subscriberProcessIdentifier,
+            monitoredObjectIdentifier=monitoredObjectIdentifier,
+            issueConfirmedNotifications=True,
+            lifetime=lifetime
+        )
+
+        subscribe_cov_request.pduDestination = address
+        iocb = self.iocb_class(subscribe_cov_request)
+        self.this_application.submit_request(iocb)
+        _log.debug("COV subscription sent to device at {} for {}"
+                   .format(address, point_name))
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''

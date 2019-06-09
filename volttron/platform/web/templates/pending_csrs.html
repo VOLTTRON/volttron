@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Certificate Requests{% endblock %}
+{% block cs %}
+    <style>
+        ul { list-style: none; margin-top:20px;}
+        #status{ color: red; font-weight: bold;}
+        .csr-row{width: 200px; margin-top:10px; float:left;}
+    </style>
+{% endblock %}
+{% block js %}
+    <script language="JavaScript">
+
+        function set_status(new_text){
+            $("#status").html(new_text);
+            $("#status").show();
+        }
+
+        $(document).ready(() => {
+            if (localStorage.status) {
+                set_status(localStorage.status);
+                localStorage.removeItem("status")
+            }
+            else{
+                $("#status").hide();
+            }
+
+            $('a.approve').each((i, obj)=>{
+                if (obj.getAttribute('data-status') === 'APPROVED'){
+                    obj.setAttribute('hidden', true);
+                }
+            });
+
+            $('a.deny').each((i, obj)=>{
+                if (obj.getAttribute('data-status') === 'DENIED'){
+                    obj.setAttribute('hidden', true);
+                }
+            });
+
+            $('a.approve').click(function (e){
+                e.preventDefault();
+                var element = $(this);
+                var common_name = element.data("common_name");
+                var url = "/admin/api/approve_csr/"+ common_name;
+                $.get({
+                    url: url,
+                    success: (data) => {
+                        localStorage.status = data['status']+ " for "+common_name;
+                        location.reload();
+                    }
+                });
+
+                return false;
+            });
+
+            $('a.deny').click(function (e){
+                e.preventDefault();
+                var element = $(this);
+                var common_name = element.data("common_name");
+                var url = "/admin/api/deny_csr/"+ common_name;
+                $.get({
+                    url: url,
+                    success: (data) => {
+                        localStorage.status = data['status']+ " for "+common_name;
+                        location.reload();
+                    }
+                });
+
+                return false;
+            });
+
+            $('a.delete').click(function (e){
+                e.preventDefault();
+                var element = $(this);
+                var common_name = element.data("common_name");
+                var url = "/admin/api/delete_csr/"+ common_name;
+                $.get({
+                    url: url,
+                    success: (data) => {
+                        localStorage.status = data['status']+ " for "+common_name;
+                        location.reload();
+                    }
+                });
+
+                return false;
+            });
+
+            // {% for c in csrs %}
+            // $('#{{c.identity}}_approve').click(function (e) {
+            //     e.preventDefault(); /*your_code_here;*/
+            //     alert(e)
+            //     return false;
+            // });
+            // {% endfor %}
+        });
+    </script>
+{% endblock %}
+{% block content %}
+    <h1>Certificate Requests</h1>
+    {% if not csrs %}
+        <div>No Certificate Requests</div>
+    {% else %}
+        <div id="status"></div>
+        <ul>
+        {% for c in csrs %}
+            <li>
+                <div class="csr-row" data-common_name="{{c.identity}}">
+                    <a class="approve"
+                       data-common_name="{{c.identity}}"
+                       data-status="{{c.status}}" href="#">Approve</a>
+                    <a class="deny"
+                       data-common_name="{{c.identity}}"
+                       data-status="{{c.status}}" href="#">Deny</a>
+                    <a class="delete"
+                       data-common_name="{{c.identity}}"
+                       data-status="{{c.status}}" href="#">Delete</a>
+                </div>
+                <div style="float: left;">
+                    <!-- {{c}}<br /> -->
+                    Status: {{c.status}}<br />
+                    Common Name: {{c.identity}}<br/>
+                    Remote IP: {{c.remote_ip_address}}<br/>
+                </div>
+                <div style="float:none;"></div>
+            </li>
+        {% endfor %}
+        </ul>
+    {% endif %}
+
+{% endblock %}

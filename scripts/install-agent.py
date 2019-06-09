@@ -2,12 +2,13 @@ import argparse
 import json
 import logging
 import os
-import subprocess
-from subprocess import Popen
+import sys
 import tempfile
 from time import sleep
-import sys
 
+import yaml
+
+from volttron.platform.agent.utils import execute_command
 
 logging.basicConfig(level=logging.WARN)
 log = logging.getLogger(os.path.basename(__file__))
@@ -25,13 +26,19 @@ if os.environ.get('WAS_CORRECTED'):
 else:
     corrected = False
 
+# Moste of the time the environment will be run within a virtualenv
+# however if we need to run the install agent in a non virtualized
+# environment this allows us to do that.
+ignore_env_check = os.environ.get('IGNORE_ENV_CHECK', False)
+
 # Call the script with the correct environment if we aren't activated yet.
-if not inenv and not corrected:
+if not ignore_env_check and not inenv and not corrected:
     mypath = os.path.dirname(__file__)
     # Travis-CI puts the python in a little bit different location than
     # we do.
     if os.environ.get('CI') is not None:
-        correct_python =subprocess.check_output(['which', 'python']).strip()
+        correct_python = execute_command(['which', 'python'],
+                                         logger=log).strip()
     else:
         correct_python = os.path.abspath(
             os.path.join(mypath, '../env/bin/python'))
@@ -43,9 +50,11 @@ if not inenv and not corrected:
     # Call this script in a subprocess with the correct python interpreter.
     cmds = [correct_python, __file__]
     cmds.extend(sys.argv[1:])
-    process = subprocess.Popen(cmds, env=os.environ)
-    process.wait()
-    sys.exit(process.returncode)
+    try:
+        output = execute_command(cmds, env=os.environ, logger=log)
+        sys.exit(0)
+    except RuntimeError:
+        sys.exit(1)
 
 from zmq.utils import jsonapi
 from volttron.platform import get_address, get_home, get_volttron_root, \
@@ -66,12 +75,9 @@ def identity_exists(opts, identity):
     env = _build_copy_env(opts)
     cmds = [opts.volttron_control, "status"]
 
-    process = subprocess.Popen(cmds, env=env, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
-
-    (stdoutdata, stderrdata) = process.communicate()
-
-    for x in stdoutdata.split("\n"):
+    data = execute_command(cmds, env=env, logger=log,
+                           err_prefix="Error checking identity")
+    for x in data.split("\n"):
         if x:
             line_split = x.split()
             if identity == line_split[2]:
@@ -83,9 +89,8 @@ def remove_agent(opts, agent_uuid):
     env = _build_copy_env(opts)
     cmds = [opts.volttron_control, "remove", agent_uuid]
 
-    process = subprocess.Popen(cmds, env=env, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
-    process.wait()
+    execute_command(cmds, env=env, logger=log,
+                    err_prefix="Error removing agent")
 
 
 def install_requirements(agent_source):
@@ -94,10 +99,10 @@ def install_requirements(agent_source):
         log.info("Installing requirements for agent.")
         cmds = ["pip", "install", "-r", req_file]
         try:
-            subprocess.check_call(cmds)
-        except subprocess.CalledProcessError:
+            execute_command(cmds, logger=log,
+                            err_prefix="Error installing requirements")
+        except RuntimeError:
             sys.exit(1)
-
 
 def install_agent(opts, package, config):
     """
@@ -117,14 +122,15 @@ def install_agent(opts, package, config):
     else:
         cfg = tempfile.NamedTemporaryFile()
         with open(cfg.name, 'w') as fout:
-            fout.write(jsonapi.dumps(config))
+            fout.write(yaml.safe_dump(config)) # jsonapi.dumps(config))
         config_file = cfg.name
 
     try:
         with open(config_file) as fp:
-            data = json.load(fp)
+            data = yaml.safe_load(fp)
+            # data = json.load(fp)
     except:
-        log.error("Invalid json config file.")
+        log.error("Invalid yaml/json config file.")
         sys.exit(-10)
 
     # Configure the whl file before installing.
@@ -138,11 +144,10 @@ def install_agent(opts, package, config):
     if opts.tag:
         cmds.extend(["--tag", opts.tag])
 
-    process = Popen(cmds, env=env, stderr=subprocess.PIPE,
-                    stdout=subprocess.PIPE)
-    (output, errorout) = process.communicate()
+    out = execute_command(cmds, env=env, logger=log,
+                          err_prefix="Error installing agent")
 
-    parsed = output.split("\n")
+    parsed = out.split("\n")
 
     # If there is not an agent with that identity:
     # 'Could not find agent with VIP IDENTITY "BOO". Installing as new agent
@@ -166,9 +171,8 @@ def install_agent(opts, package, config):
 
     if opts.start:
         cmds = [opts.volttron_control, "start", agent_uuid]
-        process = Popen(cmds, env=env, stderr=subprocess.PIPE,
-                        stdout=subprocess.PIPE)
-        (outputdata, errordata) = process.communicate()
+        outputdata = execute_command(cmds, env=env, logger=log,
+                                     err_prefix="Error starting agent")
 
         # Expected output on standard out
         # Starting 83856b74-76dc-4bd9-8480-f62bd508aa9c listeneragent-3.2
@@ -181,9 +185,8 @@ def install_agent(opts, package, config):
         if opts.priority != -1:
             cmds.extend(["--priority", str(opts.priority)])
 
-        process = Popen(cmds, env=env, stderr=subprocess.PIPE,
-                        stdout=subprocess.PIPE)
-        (outputdata, errordata) = process.communicate()
+        outputdata = execute_command(cmds, env=env, logger=log,
+                                     err_prefix="Error enabling agent")
         # Expected output from standard out
         # Enabling 6bcee29b-7af3-4361-a67f-7d3c9e986419 listeneragent-3.2 with priority 50
         if "Enabling" in outputdata:
@@ -195,9 +198,8 @@ def install_agent(opts, package, config):
         sleep(opts.agent_start_time)
 
         cmds = [opts.volttron_control, "status", agent_uuid]
-        process = Popen(cmds, env=env, stderr=subprocess.PIPE,
-                        stdout=subprocess.PIPE)
-        (outputdata, errordata) = process.communicate()
+        outputdata = execute_command(cmds, env=env, logger=log,
+                                     err_prefix="Error finding agent status")
 
         # 5 listeneragent-3.2 foo     running [10737]
         output_dict["started"] = "running" in outputdata
@@ -221,6 +223,7 @@ def install_agent(opts, package, config):
                 keyline += "%s" % keys[k]
                 valueline += "%s" % output_dict[keys[k]]
         sys.stdout.write("%s\n%s\n" % (keyline, valueline))
+
 
 if __name__ == '__main__':
 
@@ -299,7 +302,9 @@ if __name__ == '__main__':
     elif not opts.json and not opts.csv:
         opts.json = True
 
-    if os.environ.get('CI') is not None:
+    # We know we need to disable the joining of env path if we aren't within
+    # the context of an environment
+    if os.environ.get('CI') is not None or ignore_env_check:
         opts.volttron_control = "volttron-ctl"
     else:
         opts.volttron_control = os.path.join(opts.volttron_root,
@@ -335,20 +340,46 @@ if __name__ == '__main__':
         sys.exit(-10)
 
     jsonobj = None
+    # At this point if we have opts.config, it will be an open reference to the
+    # passed config file.
     if opts.config:
-        tmpconfigfile = tempfile.NamedTemporaryFile()
+        # Attempt to use the yaml parser directly first
+        try:
+            tmp_cfg_load = yaml.safe_load(opts.config.read())
+            opts.config = tmp_cfg_load
 
-        with open(tmpconfigfile.name, 'w') as fout:
+        except yaml.scanner.ScannerError:
+            sys.stderr.write("Invalid yaml file detect, attempting to parser using json parser.\n")
+            opts.config.seek(0)
+            should_parse_json = False
             for line in opts.config:
                 line = line.partition('#')[0]
                 if line.rstrip():
-                    fout.write(line.rstrip())
-        config_file = tmpconfigfile.name
-        try:
-            with open(tmpconfigfile.name) as f:
-                opts.config = jsonapi.loads(f.read())
-        finally:
-            tmpconfigfile.close()
+                    if line.rstrip()[0] in ('{', '['):
+                        should_parse_json = True
+                        break
+            if not should_parse_json:
+                sys.stderr.write("Invalid json file detected, must start with { or [ character.\n")
+                sys.exit(1)
+
+            # Yaml failed for some reason, could be invalid yaml or could
+            # have embedded invalid character in a json file.  So now we
+            # are going to try to deal with json here.
+
+            tmpconfigfile = tempfile.NamedTemporaryFile()
+            opts.config.seek(0)
+            with open(tmpconfigfile.name, 'w') as fout:
+
+                for line in opts.config:
+                    line = line.partition('#')[0]
+                    if line.rstrip():
+                        fout.write(line.rstrip() + "\n")
+            config_file = tmpconfigfile.name
+            try:
+                with open(tmpconfigfile.name) as f:
+                    opts.config = jsonapi.loads(f.read())
+            finally:
+                tmpconfigfile.close()
 
     if opts.config:
         install_agent(opts, opts.package, opts.config)

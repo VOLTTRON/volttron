@@ -46,10 +46,15 @@ from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.dbutils import sqlutils
 from volttron.utils.docs import doc_inherit
 
-__version__ = "3.6.1"
+__version__ = "3.7.0"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+
+
+class MaskedString(str):
+    def __repr__(self):
+        return repr('********')
 
 
 def historian(config_path, **kwargs):
@@ -75,6 +80,13 @@ def historian(config_path, **kwargs):
     assert database_type is not None
     params = connection.get('params', None)
     assert params is not None
+
+    # Avoid printing passwords in the debug message
+    for key in ['pass', 'passwd', 'password', 'pw']:
+        try:
+            params[key] = MaskedString(params[key])
+        except KeyError:
+            pass
 
     SQLHistorian.__name__ = 'SQLHistorian'
     utils.update_kwargs_with_config(kwargs, config_dict)
@@ -159,60 +171,58 @@ class SQLHistorian(BaseHistorian):
 
     @doc_inherit
     def publish_to_historian(self, to_publish_list):
-        thread_name = threading.currentThread().getName()
+        #thread_name = threading.currentThread().getName()
         #_log.debug(
         #    "publish_to_historian number of items: {} Thread: {}:{}".format(
         #        len(to_publish_list), threading.current_thread(), thread_name))
-
         try:
-            real_published = []
-            for x in to_publish_list:
-                ts = x['timestamp']
-                topic = x['topic']
-                value = x['value']
-                meta = x['meta']
+            published = 0
+            with self.bg_thread_dbutils.bulk_insert() as insert_data:
+                for x in to_publish_list:
+                    ts = x['timestamp']
+                    topic = x['topic']
+                    value = x['value']
+                    meta = x['meta']
 
-                # look at the topics that are stored in the database
-                # already to see if this topic has a value
-                lowercase_name = topic.lower()
-                topic_id = self.topic_id_map.get(lowercase_name, None)
-                db_topic_name = self.topic_name_map.get(lowercase_name,
-                                                        None)
-                if topic_id is None:
-                    # _log.debug('Inserting topic: {}'.format(topic))
-                    # Insert topic name as is in db
-                    row = self.bg_thread_dbutils.insert_topic(topic)
-                    topic_id = row[0]
-                    # user lower case topic name when storing in map
-                    # for case insensitive comparison
-                    self.topic_id_map[lowercase_name] = topic_id
-                    self.topic_name_map[lowercase_name] = topic
-                    # _log.debug('TopicId: {} => {}'.format(topic_id, topic))
-                elif db_topic_name != topic:
-                    # _log.debug('Updating topic: {}'.format(topic))
-                    self.bg_thread_dbutils.update_topic(topic, topic_id)
-                    self.topic_name_map[lowercase_name] = topic
+                    # look at the topics that are stored in the database
+                    # already to see if this topic has a value
+                    lowercase_name = topic.lower()
+                    topic_id = self.topic_id_map.get(lowercase_name, None)
+                    db_topic_name = self.topic_name_map.get(lowercase_name,
+                                                            None)
+                    if topic_id is None:
+                        # _log.debug('Inserting topic: {}'.format(topic))
+                        # Insert topic name as is in db
+                        topic_id = self.bg_thread_dbutils.insert_topic(topic)
+                        # user lower case topic name when storing in map
+                        # for case insensitive comparison
+                        self.topic_id_map[lowercase_name] = topic_id
+                        self.topic_name_map[lowercase_name] = topic
+                        # _log.debug('TopicId: {} => {}'.format(topic_id, topic))
+                    elif db_topic_name != topic:
+                        # _log.debug('Updating topic: {}'.format(topic))
+                        self.bg_thread_dbutils.update_topic(topic, topic_id)
+                        self.topic_name_map[lowercase_name] = topic
 
-                old_meta = self.topic_meta.get(topic_id, {})
-                if set(old_meta.items()) != set(meta.items()):
-                    # _log.debug(
-                    #    'Updating meta for topic: {} {}'.format(topic,
-                    #                                            meta))
-                    self.bg_thread_dbutils.insert_meta(topic_id, meta)
-                    self.topic_meta[topic_id] = meta
+                    old_meta = self.topic_meta.get(topic_id, {})
+                    if set(old_meta.items()) != set(meta.items()):
+                        # _log.debug(
+                        #    'Updating meta for topic: {} {}'.format(topic,
+                        #                                            meta))
+                        self.bg_thread_dbutils.insert_meta(topic_id, meta)
+                        self.topic_meta[topic_id] = meta
 
-                if self.bg_thread_dbutils.insert_data(ts, topic_id, value):
-                    # _log.debug('item was inserted')
-                    real_published.append(x)
+                    if insert_data(ts, topic_id, value):
+                        # _log.debug('item was inserted')
+                        published += 1
 
-            if len(real_published) > 0:
+            if published:
                 if self.bg_thread_dbutils.commit():
-                    # _log.debug('published {} data values'.format(
-                    #     len(to_publish_list)))
+                    # _log.debug('published {} data values'.format(published))
                     self.report_all_handled()
                 else:
-                    msg = 'commit error. rolling back {} values.'
-                    _log.debug(msg.format(len(to_publish_list)))
+                    _log.debug('Commit error. Rolling back {} values.'.format(
+                        published))
                     self.bg_thread_dbutils.rollback()
             else:
                 _log.debug(

@@ -103,8 +103,9 @@ should be different for each instance.
 
     $ volttron -l log1&
 
-.. note:: If you choose to not start your agents with their platforms they will
-need to be started by hand.  List the installed agents with
+.. note:: If you choose to not start your agents with their platforms they will need to be started by hand.  
+
+List the installed agents with
 
 .. code-block:: console
 
@@ -150,8 +151,7 @@ details on how to configure the agent for your specific use case.
 Log In
 ------
 
-To log in to VOLTTRON Central, navigate in a browser to localhost:8080,
-and enter the user name and password on the login screen.
+To log in to VOLTTRON Central, navigate in a browser to localhost:8080/vc/index.html, and enter the user name and password on the login screen.
 
 |Login Screen|
 

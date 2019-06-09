@@ -45,7 +45,7 @@ import gevent
 
 from volttron.platform import get_address
 from volttron.platform.agent import utils
-from volttron.platform.keystore import KeyStore
+from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.connection import Connection
 
@@ -53,18 +53,24 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 ks = KeyStore()
+host_store = KnownHostsStore()
+
+
+def get_known_host_serverkey(vip_address):
+    return host_store.serverkey(vip_address)
 
 
 def build_connection(identity, peer='', address=get_address(),
-                     publickey=ks.public, secretkey=ks.secret, **kwargs):
+                     publickey=ks.public, secretkey=ks.secret, message_bus=None, **kwargs):
     cn = Connection(address=address, identity=identity, peer=peer,
-                    publickey=publickey, secretkey=secretkey, **kwargs)
+                    publickey=publickey, secretkey=secretkey, message_bus=message_bus, **kwargs)
     return cn
 
 
 def build_agent(address=get_address(), identity=None, publickey=ks.public,
                 secretkey=ks.secret, timeout=10, serverkey=None,
-                agent_class=Agent, **kwargs):
+                agent_class=Agent, volttron_central_address=None,
+                volttron_central_instance_name=None, **kwargs):
     """ Builds a dynamic agent connected to the specifiedd address.
 
     All key parameters should have been encoded with
@@ -81,8 +87,25 @@ def build_agent(address=get_address(), identity=None, publickey=ks.public,
     :return: an agent based upon agent_class that has been started
     :rtype: agent_class
     """
+    # if not serverkey:
+    #     serverkey = get_known_host_serverkey(address)
+
+    # This is a fix allows the connect to message bus to be different than
+    # the one that is currently running.
+    try:
+        message_bus = kwargs.pop('message_bus')
+    except KeyError:
+        message_bus = os.environ.get('MESSAGEBUS', 'zmq')
+
+    try:
+        enable_store = kwargs.pop('enable_store')
+    except KeyError:
+        enable_store = False
+
     agent = agent_class(address=address, identity=identity, publickey=publickey,
-                        secretkey=secretkey, serverkey=serverkey, **kwargs)
+                        secretkey=secretkey, serverkey=serverkey, volttron_central_address=volttron_central_address,
+                        volttron_central_instance_name=volttron_central_instance_name,
+                        message_bus=message_bus, enable_store=enable_store, **kwargs)
     event = gevent.event.Event()
     gevent.spawn(agent.core.run, event)
     with gevent.Timeout(timeout):

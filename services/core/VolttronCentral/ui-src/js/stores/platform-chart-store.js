@@ -145,20 +145,59 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
             if (_chartData.hasOwnProperty(action.panelItem.name))
             {
-                insertSeries(action.panelItem);
+                var availableColors = ((
+                        _chartData[action.panelItem.name].availableColors && 
+                        _chartData[action.panelItem.name].availableColors.length
+                    ) ? 
+                    _chartData[action.panelItem.name].availableColors :
+                    initColors()
+                );
+
+                var itemWithColor = getItemWithColor(action.panelItem, availableColors);
+
+                // Update the chart's availableColors with the modified availableColors list
+                _chartData[action.panelItem.name].availableColors = availableColors;
+
+                insertSeries(itemWithColor);
                 chartStore.emitChange();
             }
             else
             {
                 if (action.panelItem.hasOwnProperty("data"))
                 {
+                    var availableColors = initColors();
+
+                    var itemWithColor = getItemWithColor(action.panelItem, availableColors);
+
                     var chartObj = {
-                        refreshInterval: (action.panelItem.hasOwnProperty("refreshInterval") ? action.panelItem.refreshInterval :15000),
-                        dataLength: (action.panelItem.hasOwnProperty("dataLength") ? action.panelItem.dataLength : 20),
-                        pinned: (action.panelItem.hasOwnProperty("pinned") ? action.panelItem.pinned : false),
-                        type: (action.panelItem.hasOwnProperty("chartType") ? action.panelItem.chartType : "lineChart"),
+                        refreshInterval: (
+                            action.panelItem.hasOwnProperty("refreshInterval") ?
+                            action.panelItem.refreshInterval :
+                            15000
+                        ),
+                        dataLength: (
+                            action.panelItem.hasOwnProperty("dataLength") ? 
+                            action.panelItem.dataLength :
+                            20
+                        ),
+                        pinned: (
+                            action.panelItem.hasOwnProperty("pinned") ?
+                            action.panelItem.pinned :
+                            false
+                        ),
+                        type: (
+                            action.panelItem.hasOwnProperty("chartType") ?
+                            action.panelItem.chartType :
+                            "lineChart"
+                        ),
                         chartKey: action.panelItem.name,
-                        series: [ setChartSeries(action.panelItem, convertTimeToSeconds(action.panelItem.data)) ]
+                        availableColors: availableColors,
+                        series: [
+                            setChartSeries(
+                                itemWithColor,
+                                convertTimeToSeconds(itemWithColor.data)
+                            )
+                        ]
                     };
 
                     _chartData[action.panelItem.name] = chartObj;
@@ -173,9 +212,41 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             _chartData = {};
 
             action.charts.forEach(function (chart) {
-                _chartData[chart.chartKey] = JSON.parse(JSON.stringify(chart));
+
+                var chartObj = chart;
+
+                if (chartObj.series && chartObj.series.length)
+                {
+                    // For each series, make sure it has a color. This is 
+                    // for charts that were pinned before the code update
+                    // to assign colors was deployed. Eventually, we should
+                    // be able to remove this forEach loop, because all 
+                    // pinned charts will have been saved to the database 
+                    // with colors
+                    chartObj.series.forEach(function (series) {
+                        var itemWithColor = series;
+                        
+                        if (!itemWithColor.hasOwnProperty('colors'))
+                        {
+                            var availableColors = ((
+                                    chartObj.availableColors && 
+                                    chartObj.availableColors.length
+                                ) ? 
+                                chartObj.availableColors :
+                                initColors()
+                            );
+
+                            itemWithColor = getItemWithColor(itemWithColor, availableColors);
+
+                            // Update the chart's availableColors with the modified availableColors list
+                            chartObj.availableColors = availableColors;
+                        }
+                    });
+                }
+
+                _chartData[chart.chartKey] = JSON.parse(JSON.stringify(chartObj));
             });
-            
+
             chartStore.emitChange();
 
             break;
@@ -190,7 +261,14 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
                 {
                     if (_chartData[action.panelItem.name].length === 0)
                     {
-                        delete _chartData[name];
+                        delete _chartData[action.panelItem.name];
+                    }
+                    else
+                    {
+                        unassignColor(
+                            action.panelItem,
+                            _chartData[action.panelItem.name].availableColors
+                        );
                     }
                 }
 
@@ -339,6 +417,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             parentType: item.parentType,
             parentPath: item.parentPath,
             topic: item.topic,
+            colors: item.colors,
             data: data
         }
 
@@ -346,12 +425,15 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
     }
 
     function insertSeries(item) {
-
         if (item.hasOwnProperty("data"))
         {   
-            _chartData[item.name].series.push(setChartSeries(item, convertTimeToSeconds(item.data)));
+            _chartData[item.name].series.push(
+                setChartSeries(
+                    item,
+                    convertTimeToSeconds(item.data)
+                )
+            );
         }
-
     }
 
     function removeSeries(name, uuid) {
@@ -396,7 +478,129 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
         return dataList;
     }
+
+    function getItemWithColor(item, availableColors) {
+        var assignedColor = popColor(availableColors);
+        var itemWithColor = item;
+        itemWithColor['colors'] = assignedColor;
+
+        return itemWithColor;
+    }
+
+    function unassignColor(item, availableColors) {
+        if (item.hasOwnProperty('colors')) // legacy series won't have colors associated
+        {
+            var colorFound = availableColors.find(function (color) {
+                return color.name === item.colors.name
+            });
     
+            if (typeof colorFound === 'undefined')
+            {
+                availableColors.push(Object.assign({}, item.colors));
+            }
+        }
+    }
+
+    function popColor(colorSet) {
+        var poppedColor = colorSet.splice(0, 1);
+
+        return poppedColor[0];
+    }
+
+    function initColors() {
+        var colorVal = 1;
+        var lighterVal = 0.8;
+        var lightestVal = 0.3;
+
+        var colorSet = [
+            {
+              name: 'darkorange',
+              color: `rgba(255,140,0,${colorVal})`,
+              lighter: `rgba(255,140,0,${lighterVal})`,
+              lightest: `rgba(255,140,0,${lightestVal})`
+            },
+            {
+              name: 'green',
+              color: `rgba(0,128,0,${colorVal})`,
+              lighter: `rgba(0,128,0,${lighterVal})`,
+              lightest: `rgba(0,128,0,${lightestVal})`
+            },
+            {
+              name: 'teal',
+              color: `rgba(0,128,128,${colorVal})`,
+              lighter: `rgba(0,128,128,${lighterVal})`,
+              lightest: `rgba(0,128,128,${lightestVal})`
+            },
+            {
+              name: 'maroon',
+              color: `rgba(128,0,0,${colorVal})`,
+              lighter: `rgba(128,0,0,${lighterVal})`,
+              lightest: `rgba(128,0,0,${lightestVal})`
+            },
+            {
+              name: 'navy',
+              color: `rgba(0,0,128,${colorVal})`,
+              lighter: `rgba(0,0,128,${lighterVal})`,
+              lightest: `rgba(0,0,128,${lightestVal})`
+            },
+            {
+              name: 'silver',
+              color: `rgba(192,192,192,${colorVal})`,
+              lighter: `rgba(192,192,192,${lighterVal})`,
+              lightest: `rgba(192,192,192,${lightestVal})`
+            },
+            {
+              name: 'purple',
+              color: `rgba(128,0,128,${colorVal})`,
+              lighter: `rgba(128,0,128,${lighterVal})`,
+              lightest: `rgba(128,0,128,${lightestVal})`
+            },
+            {
+              name: 'red',
+              color: `rgba(255,0,0,${colorVal})`,
+              lighter: `rgba(255,0,0,${lighterVal})`,
+              lightest: `rgba(255,0,0,${lightestVal})`
+            },
+            {
+              name: 'lime',
+              color: `rgba(0,255,0,${colorVal})`,
+              lighter: `rgba(0,255,0,${lighterVal})`,
+              lightest: `rgba(0,255,0,${lightestVal})`
+            },
+            {
+              name: 'tan',
+              color: `rgba(210,180,140,${colorVal})`,
+              lighter: `rgba(210,180,140,${lighterVal})`,
+              lightest: `rgba(210,180,140,${lightestVal})`
+            },
+            {
+              name: 'gold',
+              color: `rgba(255,215,0,${colorVal})`,
+              lighter: `rgba(255,215,0,${lighterVal})`,
+              lightest: `rgba(255,215,0,${lightestVal})`
+            },
+            {
+              name: 'aqua',
+              color: `rgba(0,255,255,${colorVal})`,
+              lighter: `rgba(0,255,255,${lighterVal})`,
+              lightest: `rgba(0,255,255,${lightestVal})`
+            },
+            {
+              name: 'fuchsia',
+              color: `rgba(255,0,255,${colorVal})`,
+              lighter: `rgba(255,0,255,${lighterVal})`,
+              lightest: `rgba(255,0,255,${lightestVal})`
+            },
+            {
+              name: 'olive',
+              color: `rgba(128,128,0,${colorVal})`,
+              lighter: `rgba(128,128,0,${lighterVal})`,
+              lightest: `rgba(128,128,0,${lightestVal})`
+            }
+        ];
+    
+        return colorSet;
+    }
 });
 
 

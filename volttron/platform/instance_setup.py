@@ -35,24 +35,26 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from ConfigParser import ConfigParser
 import argparse
-import getpass
 import hashlib
 import os
 import sys
-import urlparse
 import tempfile
+import urlparse
+from ConfigParser import ConfigParser
+from shutil import copy
 
 from gevent import subprocess
 from gevent.subprocess import Popen
-from volttron.platform.agent import json as jsonapi
 from zmq import green as zmq
 
+from volttron.platform import certs, is_rabbitmq_available
+from volttron.platform.agent import json as jsonapi
+from volttron.platform.agent.known_identities import MASTER_WEB
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
-from volttron.utils.prompt import prompt_response, y, n, y_or_n
-
-from . import get_home, get_services_core
+from volttron.utils.prompt import prompt_response, y, y_or_n
+from volttron.utils.rmq_setup import setup_rabbitmq_volttron
+from . import get_home, get_services_core, set_home
 
 # Global configuration options.  Must be key=value strings.  No cascading
 # structure so that we can easily create/load from the volttron config file
@@ -62,6 +64,7 @@ config_opts = {}
 # Dictionary of tags to config functions.
 # Populated by the `installs` decorator.
 available_agents = {}
+
 
 def _load_config():
     """Loads the config file if the path exists."""
@@ -74,7 +77,9 @@ def _load_config():
             config_opts[option] = parser.get('volttron', option)
 
 
-def _install_config_file():
+def _update_config_file(instance_name=None):
+    if not config_opts:
+        _load_config()
     home = get_home()
 
     if not os.path.exists(home):
@@ -83,10 +88,20 @@ def _install_config_file():
     path = os.path.join(home, 'config')
 
     config = ConfigParser()
+
     config.add_section('volttron')
 
     for k, v in config_opts.items():
         config.set('volttron', k, v)
+
+    if 'instance-name' in config_opts:
+        # Overwrite existing if instance name was passed
+        if instance_name is not None:
+            config.set('volttron', 'instance-name', instance_name)
+    else:
+        if instance_name is None:
+            instance_name = 'volttron1'
+        config.set('volttron', 'instance-name', instance_name)
 
     with open(path, 'w') as configfile:
         config.write(configfile)
@@ -137,7 +152,7 @@ to stop the instance.
 
 
 def fail_if_not_in_src_root():
-    in_src_root = os.path.exists("./volttron") and os.path.exists("./.git")
+    in_src_root = os.path.exists("./volttron")
     if not in_src_root:
         print """
 volttron-cfg needs to be run from the volttron top level source directory.
@@ -186,7 +201,7 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
 
             print 'Configuring {}'.format(agent_dir)
             config = config_func(*args, **kwargs)
-            _install_config_file()
+            _update_config_file()
             _start_platform()
             _install_agent(agent_dir, config, tag)
             if post_install_func:
@@ -229,12 +244,17 @@ def is_valid_port(port):
     return 0 < port < 65535
 
 
+def is_valid_bus(bus_type):
+    return bus_type in ['zmq', 'rmq']
+
+
 def do_vip():
     global config_opts
 
     parsed = urlparse.urlparse(config_opts.get('vip-address',
                                                'tcp://127.0.0.1:22916'))
     vip_address = None
+    bus_type = None
     if parsed.hostname is not None and parsed.scheme is not None:
         vip_address = parsed.scheme + '://' + parsed.hostname
         vip_port = parsed.port
@@ -265,6 +285,15 @@ def do_vip():
             else:
                 print("Port is not valid")
 
+        valid_bus = False
+        while not valid_bus:
+            prompt = 'What is type of message bus?'
+            new_bus = prompt_response(prompt, default='zmq')
+            valid_bus = is_valid_bus(new_bus)
+            if valid_bus:
+                bus_type = new_bus
+            else:
+                print("Message type is not valid. Valid entries are zmq or rmq")
         while vip_address.endswith('/'):
             vip_address = vip_address[:-1]
 
@@ -274,10 +303,11 @@ def do_vip():
         else:
             print('\nERROR: That address has already been bound to.')
     config_opts['vip-address'] = '{}:{}'.format(vip_address, vip_port)
+    config_opts['message-bus'] = bus_type
 
 
 @installs(get_services_core("VolttronCentral"), 'vc')
-def do_vc():
+def do_vc(vhome):
     global config_opts
 
     # Full implies that it will have a port on it as well.  Though if it's
@@ -321,12 +351,17 @@ internal address such as 127.0.0.1.
     while external_ip.endswith("/"):
         external_ip = external_ip[:-1]
 
+    parsed = urlparse.urlparse(external_ip)
+
     config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
 
     resp = vc_config()
+
+    if config_opts['message-bus'] == 'zmq' and parsed.scheme == "https":
+        get_cert_and_key(vhome)
+
     print('Installing volttron central')
     return resp
-
 
 def vc_config():
     username = ''
@@ -362,13 +397,85 @@ def vc_config():
     return config
 
 
+def get_cert_and_key(vhome):
+
+    # Check for existing files first. If present and are valid ask if we are to use that
+
+    master_web_cert = os.path.join(vhome, 'certificates/certs/', MASTER_WEB+"-server.crt")
+    master_web_key = os.path.join(vhome, 'certificates/private/', MASTER_WEB + "-server.pem")
+    cert_error = True
+
+    if is_file_readable(master_web_cert, False) and is_file_readable(master_web_key, False):
+        try:
+            if certs.Certs.validate_key_pair(master_web_cert, master_web_key):
+                print('\nFollowing certificate and keyfile exists for web access over https: \n{}\n{}'.format(master_web_cert,
+                                                                                                              master_web_key))
+                prompt = '\nDo you want to use these certificates for web server? '
+                if prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
+                    config_opts['web-ssl-cert'] = master_web_cert
+                    config_opts['web-ssl-key'] = master_web_key
+                    cert_error = False
+                else:
+                    print('\nPlease provide path to cert and key files. '
+                          'This will overwrite existing files: \n{} and {}'.format(master_web_cert, master_web_key))
+            else:
+                print("Existing key pair is not valid. ")
+        except RuntimeError as e:
+            print(e)
+            pass
+
+
+
+    # Either are there no valid existing certs or user decided to overwrite the existing file.
+    # Prompt for new files
+    while cert_error:
+        while True:
+            prompt = 'Enter the SSL certificate public key file:'
+            cert_file = prompt_response(prompt, mandatory=True)
+            if is_file_readable(cert_file):
+                break
+            else:
+                print("Unable to read file {}".format(cert_file))
+        while True:
+            prompt = \
+                'Enter the SSL certificate private key file:'
+            key_file = prompt_response(prompt, mandatory=True)
+            if is_file_readable(key_file):
+                break
+            else:
+                print("Unable to read file {}".format(key_file))
+        try:
+            if certs.Certs.validate_key_pair(cert_file, key_file):
+                cert_error = False
+                config_opts['web-ssl-cert'] = cert_file
+                config_opts['web-ssl-key'] = key_file
+            else:
+                print("ERROR:\n Given public key and private key do not "
+                      "match or is invalid. public and private key "
+                      "files should be PEM encoded and private key "
+                      "should use RSA encryption")
+        except RuntimeError:
+            print("ERROR:\n Given public key and private key do not "
+                  "match or is invalid. public and private key "
+                  "files should be PEM encoded and private key "
+                  "should use RSA encryption")
+
+def is_file_readable(file_path, log=True):
+    file_path = os.path.expanduser(os.path.expandvars(file_path))
+    if os.path.exists(file_path) and os.access(file_path, os.R_OK):
+        return True
+    else:
+        if log:
+            print("\nInvalid file path. Path does not exists or is not readable")
+        return False
+
 @installs(get_services_core("VolttronCentralPlatform"), 'vcp')
 def do_vcp():
     global config_opts
 
     # Default instance name to the vip address.
     instance_name = config_opts.get('instance-name',
-                                    config_opts.get('vip-address'))
+                                    'volttron1')
     instance_name = instance_name.strip('"')
 
     valid_name = False
@@ -452,6 +559,17 @@ def do_master_driver():
 def do_listener():
     return {}
 
+def confirm_volttron_home():
+    global prompt_vhome
+    volttron_home = get_home()
+    if prompt_vhome:
+        print('\nYour VOLTTRON_HOME currently set to: {}'.format(volttron_home))
+        prompt = '\nIs this the volttron you are attempting to setup? '
+        if not prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
+            print(
+                '\nPlease execute with VOLTRON_HOME=/your/path volttron-cfg to '
+                'modify VOLTTRON_HOME.\n')
+            exit(1)
 
 def wizard():
     """Routine for configuring an insalled volttron instance.
@@ -462,23 +580,15 @@ def wizard():
 
     # Start true configuration here.
     volttron_home = get_home()
-
-    print('\nYour VOLTTRON_HOME currently set to: {}'.format(volttron_home))
-    prompt = '\nIs this the volttron you are attempting to setup? '
-    if not prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
-        print(
-            '\nPlease execute with VOLTRON_HOME=/your/path volttron-cfg to '
-            'modify VOLTTRON_HOME.\n')
-        return
-
+    confirm_volttron_home()
     _load_config()
     do_vip()
-    _install_config_file()
+    _update_config_file()
 
     prompt = 'Is this instance a volttron central?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
-        do_vc()
+        do_vc(volttron_home)
 
     prompt = 'Will this instance be controlled by volttron central?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
@@ -506,11 +616,38 @@ def wizard():
     print('the config file at {}/config\n'.format(volttron_home))
 
 
+def process_rmq_inputs(args, instance_name=None):
+    if not is_rabbitmq_available():
+        raise RuntimeError("Rabbitmq Dependencies not installed please run python bootstrap.py --rabbitmq")
+    confirm_volttron_home()
+    if len(args) == 2:
+        vhome = get_home()
+        if args[0] == 'single':
+            vhome_config = os.path.join(vhome, 'rabbitmq_config.yml')
+        elif args[0] == 'federation':
+            vhome_config = os.path.join(vhome, 'rabbitmq_federation_config.yml')
+        elif args[0] == 'shovel':
+            vhome_config = os.path.join(vhome, 'rabbitmq_shovel_config.yml')
+        else:
+            print("Invalid argument. \nUsage: vcf --rabbitmq single|federation|shovel "
+                  "[optional path to rabbitmq config yml]")
+            exit(1)
+        if args[1] != vhome_config:
+            if not os.path.exists(vhome):
+                os.makedirs(vhome, 0o755)
+            copy(args[1], vhome_config)
+        setup_rabbitmq_volttron(args[0], verbose, instance_name=instance_name)
+    else:
+        setup_rabbitmq_volttron(args[0], verbose, prompt=True, instance_name=instance_name)
+
+
 def main():
-    global verbose
+    global verbose, prompt_vhome
 
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('--vhome', help="Path to volttron home")
+    parser.add_argument('--instance-name', dest='instance_name', help="Name of this volttron instance")
 
     group = parser.add_mutually_exclusive_group()
 
@@ -520,18 +657,45 @@ def main():
 
     group.add_argument('--agent', nargs='+',
                         help='configure listed agents')
+    group.add_argument('--rabbitmq', nargs='+',
+                       help='Configure rabbitmq for single instance, '
+                            'federation, or shovel either based on '
+                            'configuration file in yml format or providing '
+                            'details when prompted. \nUsage: vcfg --rabbitmq '
+                            'single|federation|shovel [rabbitmq config '
+                            'file]')
 
     args = parser.parse_args()
     verbose = args.verbose
-
-    fail_if_instance_running()
+    prompt_vhome = True
+    if args.vhome:
+        set_home(args.vhome)
+        prompt_vhome = False
+    if not args.rabbitmq or args.rabbitmq[0] in ["single"]:
+        fail_if_instance_running()
     fail_if_not_in_src_root()
 
     _load_config()
-
+    if args.instance_name:
+        _update_config_file(instance_name=args.instance_name)
     if args.list_agents:
         print "Agents available to configure:{}".format(agent_list)
-
+    elif args.rabbitmq:
+        if len(args.rabbitmq) > 2:
+            print("vcfg --rabbitmq can at most accept 2 arguments")
+            parser.print_help()
+            exit(1)
+        elif args.rabbitmq[0] not in ['single', 'federation', 'shovel']:
+            print("Usage: vcf --rabbitmq single|federation|shovel "
+                  "[optional path to rabbitmq config yml]")
+            parser.print_help()
+            exit(1)
+        elif len(args.rabbitmq) == 2 and not os.path.exists(args.rabbitmq[1]):
+            print("Invalid rabbitmq configuration file path.")
+            parser.print_help()
+            exit(1)
+        else:
+            process_rmq_inputs(args.rabbitmq, args.instance_name)
     elif not args.agent:
         wizard()
 
@@ -540,6 +704,8 @@ def main():
         for agent in args.agent:
             if agent not in available_agents:
                 print '"{}" not configurable with this tool'.format(agent)
+
+        confirm_volttron_home()
 
         # Configure agents
         for agent in args.agent:

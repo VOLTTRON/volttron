@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Administration Login{% endblock %}
+{% block js %}
+    <script language="JavaScript">
+        $(document).ready(() => {
+            $("#status").hide();
+            $("#top_menu").hide();
+            $("form").submit((event) =>{
+                event.preventDefault();
+                url = '/authenticate';
+                data = {
+                    'username': $('#username').val(),
+                    'password': $('#password').val()
+                };
+
+                // Not sure why both the accepts and the dataType parameter
+                // must be set in order for the HTTP_ACCEPT: application/json to
+                // be something other than HTTP_ACCEPT: */*
+                jQuery.ajax({
+                    type: 'POST',
+                    url: url,
+                    data: JSON.stringify(data),
+                    dataType: 'json',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    success: function(content){
+                        alert(content);
+                        $("#response").append(content)
+                    },
+                    failure: function(content){
+                        alert("failed!");
+                        $('#response').append("FAILURE "+ content.toString());
+                    },
+                    statusCode: {
+                        401: function(response){
+                            $("#status").show();
+                        },
+                        200: function(response){
+                            document.cookie = "Bearer="+response.responseText+"; secure=True; path=/";
+                            window.location=window.location.origin + "/admin/pending_csrs.html";
+                        }
+                    }
+
+                });
+            });
+        });
+
+    </script>
+{% endblock %}
+{% block content %}
+    <h1>Authentication</h1>
+    <form>
+        <div id="status">
+            <label style="color: red">Invalid username/password specified</label>
+        </div>
+        <div>
+            <label>Username:</label><input type="text" id="username" name="username" />
+        </div>
+        <div>
+            <label>Password:</label><input type="password" id="password" name="password" />
+        </div>
+        <input type="submit" value="Login" />
+    </form>
+{% endblock %}

@@ -44,7 +44,9 @@ import weakref
 from .base import SubsystemBase
 from ..errors import VIPError
 from ..results import ResultsDictionary
-
+from volttron.platform.vip.socket import Message
+from zmq import ZMQError
+from zmq.green import ENOTSOCK
 
 __all__ = ['Ping']
 
@@ -59,16 +61,24 @@ class Ping(SubsystemBase):
         core.register('ping', self._handle_ping, self._handle_error)
 
     def ping(self, peer, *args):
-        socket = self.core().socket
         result = next(self._results)
         args = list(args)
         args.insert(0, b'ping')
-        socket.send_vip(peer, b'ping', args, result.ident)
+        connection = self.core().connection
+        try:
+            connection.send_vip(b'',
+                                b'ping',
+                                args=[b'drop', bytes(peer)],
+                                msg_id=result.ident)
+        except ZMQError as exc:
+            if exc.errno == ENOTSOCK:
+                _log.debug("Socket send on non socket {}".format(self.core().identity))
         return result
 
     __call__ = ping
 
     def _handle_ping(self, message):
+        connection = self.core().connection
         try:
             op = bytes(message.args[0])
         except IndexError:
@@ -77,7 +87,7 @@ class Ping(SubsystemBase):
         if op == b'ping':
             message.user = b''
             message.args[0] = b'pong'
-            self.core().socket.send_vip_object(message, copy=False)
+            connection.send_vip_object(message, copy=False)
         elif op == b'pong':
             try:
                 result = self._results.pop(bytes(message.id))

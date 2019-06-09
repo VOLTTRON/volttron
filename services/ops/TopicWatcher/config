@@ -1,0 +1,23 @@
+{
+    "publish-settings":
+    {
+        "publish-local": false,
+        "publish-remote": true,
+        "remote":
+        {
+            "serverkey": "Olx7Y7XZvSGmHDppsQKvG7BucOH8vgkRlQGZzzh5nHs",
+            "vip-address": "tcp://127.0.0.1:23916",
+            "identity": "remote.topic_watcher"
+        }
+    },
+    "group1": {
+        "devices/fakedriver0/all": 10
+    },
+
+    "device_group": {
+        "devices/fakedriver1/all": {
+            "seconds": 10,
+            "points": ["temperature", "PowerState"]
+        }
+    }
+}

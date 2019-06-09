@@ -21,7 +21,6 @@ from volttrontesting.utils.platformwrapper import PlatformWrapper, \
 from volttron.platform.agent import json as jsonapi
 
 
-
 def get_new_keypair():
     tf = tempfile.NamedTemporaryFile()
     ks = KeyStore(tf.name)
@@ -96,6 +95,7 @@ class SimulatedVC(Agent):
     def __init__(self, **kwargs):
         super(SimulatedVC, self).__init__(**kwargs)
         self._functioncalls = {}
+
     def add_method_response(self, method_name, response):
         pass
 
@@ -184,14 +184,14 @@ def test_listagents(vcp_simulated_vc):
 
 @pytest.mark.pa
 @pytest.mark.skip(reason="4.1 fixing tests")
-def test_manage_agent(pa_instance):
+def test_manage_agent(vcp_instance):
     """ Test that we can manage a `VolttronCentralPlatform`.
 
     This test is concerned with managing a `VolttronCentralPlatform` from the
     same platform.  Though in principal that should not matter.  We do this
     from a secondary platform in a diffferent integration test.
     """
-    wrapper, agent_uuid = pa_instance
+    wrapper, agent_uuid = vcp_instance
     publickey, secretkey = get_new_keypair()
 
     agent = wrapper.build_agent(
@@ -209,12 +209,12 @@ def test_manage_agent(pa_instance):
 
 @pytest.mark.pa
 @pytest.mark.xfail(reason="Need to upgrade")
-def test_can_get_agentlist(pa_instance):
+def test_can_get_agentlist(vcp_instance):
     """ Test that we can retrieve an agent list from an agent.
 
     The agent must have the "manager" capability.
     """
-    wrapper, agent_uuid = pa_instance
+    wrapper, agent_uuid = vcp_instance
     publickey, secretkey = get_new_keypair()
 
     agent = wrapper.build_agent(
@@ -248,8 +248,8 @@ def test_can_get_agentlist(pa_instance):
 
 @pytest.mark.pa
 @pytest.mark.skip(reason="4.1 fixing tests")
-def test_agent_can_be_managed(pa_instance):
-    wrapper = pa_instance[0]
+def test_agent_can_be_managed(vcp_instance):
+    wrapper = vcp_instance[0]
     publickey, secretkey = get_new_keypair()
     add_to_auth(wrapper.volttron_home, publickey, capabilities=['managed_by'])
     agent = wrapper.build_agent(
@@ -272,8 +272,8 @@ def test_agent_can_be_managed(pa_instance):
 
 @pytest.mark.pa
 @pytest.mark.skip(reason="4.1 fixing tests")
-def test_status_good_when_agent_starts(pa_instance):
-    wrapper = pa_instance[0]
+def test_status_good_when_agent_starts(vcp_instance):
+    wrapper = vcp_instance[0]
     connection = wrapper.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM)
 
     assert connection.is_connected()

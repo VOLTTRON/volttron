@@ -48,6 +48,9 @@ from .heartbeat import Heartbeat
 from .health import Health
 from .configstore import ConfigStore
 from .auth import Auth
+from .volttronfncs import FNCS
+from .rmq_pubsub import RMQPubSub
 
-__all__ = ['PeerList', 'Ping', 'RPC', 'Hello', 'PubSub', 'Channel',
-           'Heartbeat', 'Health', 'ConfigStore', 'Auth']
+__all__ = ['PeerList', 'Ping', 'RPC', 'Hello', 'PubSub', 'RMQPubSub','Channel',
+           'Heartbeat', 'Health', 'ConfigStore', 'Auth', 'FNCS']
+

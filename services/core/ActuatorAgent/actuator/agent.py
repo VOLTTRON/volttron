@@ -870,7 +870,7 @@ class ActuatorAgent(Agent):
             self._handle_standard_error(ex, point, headers)
 
     @RPC.export
-    def get_point(self, topic, **kwargs):
+    def get_point(self, topic, point=None, **kwargs):
         """
         RPC method
         
@@ -879,18 +879,26 @@ class ActuatorAgent(Agent):
         
         :param topic: The topic of the point to grab in the 
                       format <device topic>/<point name>
+
+                      Only the <device topic> if point is specified.
+        :param point: Point on the device. Uses old behavior if omitted.
         :param \*\*kwargs: Any driver specific parameters
         :type topic: str
         :returns: point value
         :rtype: any base python type"""
         topic = topic.strip('/')
         _log.debug('handle_get: {topic}'.format(topic=topic))
-        path, point_name = topic.rsplit('/', 1)
+
+        if point is not None:
+            path, point_name = topic, point
+        else:
+            path, point_name = topic.rsplit('/', 1)
+
         return self.vip.rpc.call(self.driver_vip_identity, 'get_point', path,
                                  point_name, **kwargs).get()
 
     @RPC.export
-    def set_point(self, requester_id, topic, value, **kwargs):
+    def set_point(self, requester_id, topic, value, point=None, **kwargs):
         """RPC method
         
         Sets the value of a specific point on a device. 
@@ -899,11 +907,14 @@ class ActuatorAgent(Agent):
         :param requester_id: Ignored, VIP Identity used internally
         :param topic: The topic of the point to set in the 
                       format <device topic>/<point name>
+                      Only the <device topic> if point is specified.
         :param value: Value to set point to.
+        :param point: Point on the device. Uses old behavior if omitted.
         :param \*\*kwargs: Any driver specific parameters
         :type topic: str
         :type requester_id: str
         :type value: any basic python type
+        :type point: str
         :returns: value point was actually set to. Usually invalid values 
                 cause an error but some drivers (MODBUS) will return a
                 different
@@ -915,14 +926,17 @@ class ActuatorAgent(Agent):
                      the time allotted will raise a LockError"""
 
         rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
-        return self._set_point(rpc_peer, topic, value, **kwargs)
+        return self._set_point(rpc_peer, topic, value, point=point, **kwargs)
 
-    def _set_point(self, sender, topic, value, **kwargs):
+    def _set_point(self, sender, topic, value, point=None, **kwargs):
         topic = topic.strip('/')
         _log.debug('handle_set: {topic},{sender}, {value}'.
                    format(topic=topic, sender=sender, value=value))
 
-        path, point_name = topic.rsplit('/', 1)
+        if point is not None:
+            path, point_name = topic, point
+        else:
+            path, point_name = topic.rsplit('/', 1)
 
         if not isinstance(sender, str):
             raise TypeError("Agent id must be a nonempty string")
@@ -964,7 +978,7 @@ class ActuatorAgent(Agent):
         Get multiple points on multiple devices. Makes a single
         RPC call to the master driver per device.
 
-        :param topics: List of topics
+        :param topics: List of topics or list of [device, point] pairs.
         :param \*\*kwargs: Any driver specific parameters
 
         :returns: Dictionary of points to values and dictonary of points to errors
@@ -972,14 +986,24 @@ class ActuatorAgent(Agent):
         .. warning:: This method does not require that all points be returned
                      successfully. Check that the error dictionary is empty.
         """
-        devices = collections.defaultdict(list)
-        for topic in topics:
-            topic = topic.strip('/')
-            device, point_name = topic.rsplit('/', 1)
-            devices[device].append(point_name)
 
         results = {}
         errors = {}
+
+        devices = collections.defaultdict(list)
+        for topic in topics:
+            if isinstance(topic, str):
+                topic = topic.strip('/')
+                device, point_name = topic.rsplit('/', 1)
+                devices[device].append(point_name)
+            elif isinstance(topic, (list, tuple)) and len(topic) > 1:
+                device = topic[0].strip('/')
+                point_name = topic[1]
+                devices[device].append(point_name)
+            else:
+                e = ValueError("Invalid topic: {}".format(topic))
+                errors[repr(topic)] = repr(e)
+
         for device, point_names in devices.iteritems():
             r, e = self.vip.rpc.call(self.driver_vip_identity,
                                      'get_multiple_points',
@@ -1011,16 +1035,24 @@ class ActuatorAgent(Agent):
         """
         requester_id = bytes(self.vip.rpc.context.vip_message.peer)
         devices = collections.defaultdict(list)
+        results = {}
         for topic, value in topics_values:
-            topic = topic.strip('/')
-            device, point_name = topic.rsplit('/', 1)
-            devices[device].append((point_name, value))
+            if isinstance(topic, str):
+                topic = topic.strip('/')
+                device, point_name = topic.rsplit('/', 1)
+                devices[device].append((point_name, value))
+            elif isinstance(topic, (list, tuple)) and len(topic) > 1:
+                device = topic[0].strip('/')
+                point_name = topic[1]
+                devices[device].append((point_name, value))
+            else:
+                e = ValueError("Invalid topic: {}".format(topic))
+                results[str(topic)] = repr(e)
 
         for device in devices:
             if not self._check_lock(device, requester_id):
                 raise LockError("caller ({}) does not lock for device {}".format(requester_id, device))
 
-        results = {}
         for device, point_names_values in devices.iteritems():
             r = self.vip.rpc.call(self.driver_vip_identity,
                                   'set_multiple_points',
@@ -1112,7 +1144,7 @@ class ActuatorAgent(Agent):
             self._handle_standard_error(ex, point, headers)
 
     @RPC.export
-    def revert_point(self, requester_id, topic, **kwargs):
+    def revert_point(self, requester_id, topic, point=None, **kwargs):
         """
         RPC method
         
@@ -1131,14 +1163,17 @@ class ActuatorAgent(Agent):
                      the time allotted will raise a LockError"""
 
         rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
-        return self._revert_point(rpc_peer, topic, **kwargs)
+        return self._revert_point(rpc_peer, topic, point=point, **kwargs)
 
-    def _revert_point(self, sender, topic, **kwargs):
+    def _revert_point(self, sender, topic, point=None, **kwargs):
         topic = topic.strip('/')
         _log.debug('handle_revert: {topic},{sender}'.
                    format(topic=topic, sender=sender))
 
-        path, point_name = topic.rsplit('/', 1)
+        if point is not None:
+            path, point_name = topic, point
+        else:
+            path, point_name = topic.rsplit('/', 1)
 
         if self._check_lock(path, sender):
             self.vip.rpc.call(self.driver_vip_identity, 'revert_point', path,

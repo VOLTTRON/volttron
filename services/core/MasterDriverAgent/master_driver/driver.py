@@ -48,8 +48,6 @@ from volttron.platform.messaging.topics import (DRIVER_TOPIC_BASE,
                                                 DEVICES_VALUE,
                                                 DEVICES_PATH)
 
-from volttron.platform.messaging import topics
-
 from volttron.platform.vip.agent.errors import VIPError, Again
 from driver_locks import publish_lock
 import datetime
@@ -155,7 +153,7 @@ class DriverAgent(BasicAgent):
         module = __import__(module_name,globals(),locals(),[], -1)
         sub_module = getattr(module, driver_type)
         klass = getattr(sub_module, "Interface")
-        interface = klass(vip=self.vip, core=self.core)
+        interface = klass(vip=self.vip, core=self.core, device_path=self.device_path)
         interface.configure(config_dict, config_string)
         return interface
 
@@ -258,10 +256,12 @@ class DriverAgent(BasicAgent):
 
         utcnow = utils.get_aware_utc_now()
         utcnow_string = utils.format_timestamp(utcnow)
+        sync_timestamp = utils.format_timestamp(now - datetime.timedelta(seconds=self.time_slot_offset))
 
         headers = {
             headers_mod.DATE: utcnow_string,
             headers_mod.TIMESTAMP: utcnow_string,
+            headers_mod.SYNC_TIMESTAMP: sync_timestamp
         }
 
 
@@ -365,3 +365,43 @@ class DriverAgent(BasicAgent):
     def revert_all(self, **kwargs):
         self.interface.revert_all(**kwargs)
 
+    def publish_cov_value(self, point_name, point_values):
+        """
+        Called in the master driver agent to publish a cov from a point
+        :param point_name: point which sent COV notifications
+        :param point_values: COV point values
+        """
+        utcnow = utils.get_aware_utc_now()
+        utcnow_string = utils.format_timestamp(utcnow)
+        headers = {
+            headers_mod.DATE: utcnow_string,
+            headers_mod.TIMESTAMP: utcnow_string,
+        }
+        for point, value in point_values.iteritems():
+            results = {point_name: value}
+            meta = {point_name: self.meta_data[point_name]}
+            all_message = [results, meta]
+            individual_point_message = [value, self.meta_data[point_name]]
+
+            depth_first_topic, breadth_first_topic = self.get_paths_for_point(
+                point_name)
+
+            if self.publish_depth_first:
+                self._publish_wrapper(depth_first_topic,
+                                      headers=headers,
+                                      message=individual_point_message)
+            #
+            if self.publish_breadth_first:
+                self._publish_wrapper(breadth_first_topic,
+                                      headers=headers,
+                                      message=individual_point_message)
+
+            if self.publish_depth_first_all:
+                self._publish_wrapper(self.all_path_depth,
+                                      headers=headers,
+                                      message=all_message)
+
+            if self.publish_breadth_first_all:
+                self._publish_wrapper(self.all_path_breadth,
+                                      headers=headers,
+                                      message=all_message)

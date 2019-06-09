@@ -6,7 +6,7 @@ Benchmarks the message bus is generally performed with the following configurati
 
 This will create configuration files in configs/ directory to produce fake data from 1500 devices with 18 points each.
 
-To use put the configurations into the configuration store run the following command.
+To use put the configurations into the configuration store run the following command. **NOTE: the volttron platform must be running at this point**
 
     python ../install_master_driver_configs.py configs
 

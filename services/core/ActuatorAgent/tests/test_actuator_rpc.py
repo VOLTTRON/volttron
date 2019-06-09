@@ -44,6 +44,7 @@ from datetime import datetime, timedelta
 import gevent
 import gevent.subprocess as subprocess
 import pytest
+from pytest import approx
 from gevent.subprocess import Popen
 from mock import MagicMock
 
@@ -62,7 +63,7 @@ FAILURE = 'FAILURE'
 
 
 @pytest.fixture(scope="module")
-def publish_agent(request, volttron_instance1):
+def publish_agent(request, volttron_instance):
     """
     Fixture used for setting up the environment.
     1. Creates fake driver configs
@@ -71,14 +72,14 @@ def publish_agent(request, volttron_instance1):
     4. Creates an instance Agent class for publishing and returns it
 
     :param request: pytest request object
-    :param volttron_instance1: instance of volttron in which test cases are run
+    :param volttron_instance: instance of volttron in which test cases are run
     :return: an instance of fake agent used for publishing
     """
 
 
     # Reset master driver config store
     cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
-    process = Popen(cmd, env=volttron_instance1.env,
+    process = Popen(cmd, env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
@@ -88,7 +89,7 @@ def publish_agent(request, volttron_instance1):
     # Add master driver configuration files to config store.
     cmd = ['volttron-ctl', 'config', 'store',PLATFORM_DRIVER,
            'fake.csv', 'fake_unit_testing.csv', '--csv']
-    process = Popen(cmd, env=volttron_instance1.env,
+    process = Popen(cmd, env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
@@ -99,7 +100,7 @@ def publish_agent(request, volttron_instance1):
         config_name = "devices/fakedriver{}".format(i)
         cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
                config_name, 'fake_unit_testing.config', '--json']
-        process = Popen(cmd, env=volttron_instance1.env,
+        process = Popen(cmd, env=volttron_instance.env,
                         cwd='scripts/scalability-testing',
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         result = process.wait()
@@ -108,7 +109,7 @@ def publish_agent(request, volttron_instance1):
 
     # Start the master driver agent which would intern start the fake driver
     #  using the configs created above
-    master_uuid = volttron_instance1.install_agent(
+    master_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
         start=True)
@@ -118,23 +119,23 @@ def publish_agent(request, volttron_instance1):
     # Start the actuator agent through which publish agent should communicate
     # to fake device. Start the master driver agent which would intern start
     # the fake driver using the configs created above
-    actuator_uuid = volttron_instance1.install_agent(
+    actuator_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("ActuatorAgent"),
         config_file=get_services_core("ActuatorAgent/tests/actuator.config"),
         start=True)
     print("agent id: ", actuator_uuid)
 
     # 3: Start a fake agent to publish to message bus
-    publish_agent = volttron_instance1.build_agent(identity=TEST_AGENT)
+    publish_agent = volttron_instance.build_agent(identity=TEST_AGENT)
 
     # 4: add a tear down method to stop sqlhistorian agent and the fake agent
     #  \that published to message bus
     def stop_agent():
         print("In teardown method of module")
-        volttron_instance1.stop_agent(actuator_uuid)
-        volttron_instance1.stop_agent(master_uuid)
-        volttron_instance1.remove_agent(actuator_uuid)
-        volttron_instance1.remove_agent(master_uuid)
+        volttron_instance.stop_agent(actuator_uuid)
+        volttron_instance.stop_agent(master_uuid)
+        volttron_instance.remove_agent(actuator_uuid)
+        volttron_instance.remove_agent(master_uuid)
         publish_agent.core.stop()
 
     request.addfinalizer(stop_agent)
@@ -1102,7 +1103,6 @@ def test_get_default(publish_agent):
         'get_point',  # Method
         'fakedriver1/SampleWritableFloat1'  # point
     ).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result == 10.0
 
@@ -1158,11 +1158,62 @@ def test_get_success(publish_agent, cancel_schedules):
     print result
     assert result == 1.0
 
+@pytest.mark.actuator
+def test_get_success_with_point(publish_agent, cancel_schedules):
+    """
+    Test getting a float value of a point through RPC
+    Expected Result - value of the point
+
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at
+    the end of test so that other tests can use the same device and time slot
+    """
+    print ("\n**** test_get_value_success ****")
+    agentid = TEST_AGENT
+    taskid = 'task_set_and_get'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
+
+    start = str(datetime.now())
+    end = str(datetime.now() + timedelta(seconds=2))
+    msg = [
+        ['fakedriver1', start, end]
+    ]
+
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
+        PRIORITY_LOW,
+        msg).get(timeout=10)
+    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
+    print result
+    assert result['result'] == SUCCESS
+
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'set_point',  # Method
+        agentid,  # Requestor
+        'fakedriver1', 1.0, point='SampleWritableFloat1',  # Point to set
+          # New value
+    ).get(timeout=10)
+    assert result == 1.0
+
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'get_point',  # Method
+        'fakedriver1', point='SampleWritableFloat1'  # point
+    ).get(timeout=10)
+    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
+    print result
+    assert result == 1.0
+
 
 @pytest.mark.actuator
 def test_get_error_invalid_point(publish_agent):
     """
-    Test getting a float value of a point through pubsub with invalid point
+    Test getting a float value of a point through RPC with invalid point
 
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
@@ -1271,7 +1322,7 @@ def test_revert_point(publish_agent, cancel_schedules):
         'fakedriver0/SampleWritableFloat1',  # Point to set
         test_value  # New value
     ).get(timeout=10)
-    assert result == test_value
+    assert result == approx(test_value)
 
     publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,  # Target agent
@@ -1286,8 +1337,71 @@ def test_revert_point(publish_agent, cancel_schedules):
         'fakedriver0/SampleWritableFloat1',  # Point to get
     ).get(timeout=10)
     # Value taken from fake_unit_testing.csv
-    assert result == initial_value
+    assert result == approx(initial_value)
 
+@pytest.mark.actuator
+def test_revert_point_with_point(publish_agent, cancel_schedules):
+    """
+    Test setting a float value of a point through rpc
+    Expected result = value of the actuation point
+
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
+    """
+    print ("\n**** test_set_float_value ****")
+    taskid = 'test_revert_point'
+    agentid = TEST_AGENT
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
+
+    start = str(datetime.now())
+    end = str(datetime.now() + timedelta(seconds=2))
+    msg = [
+        ['fakedriver0', start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
+        PRIORITY_LOW,
+        msg).get(timeout=10)
+    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
+    print result
+    assert result['result'] == SUCCESS
+
+    initial_value = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'get_point',  # Method
+        'fakedriver0', point='SampleWritableFloat1',  # Point to get
+    ).get(timeout=10)
+
+    test_value = initial_value + 1.0
+
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'set_point',  # Method
+        agentid,  # Requestor
+        'fakedriver0',  # Point to set
+        test_value, point='SampleWritableFloat1'  # New value
+    ).get(timeout=10)
+    assert result == approx(test_value)
+
+    publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'revert_point',  # Method
+        agentid,  # Requestor
+        'fakedriver0', point='SampleWritableFloat1'  # Point to revert
+    ).get(timeout=10)
+
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'get_point',  # Method
+        'fakedriver0', point='SampleWritableFloat1',  # Point to get
+    ).get(timeout=10)
+    # Value taken from fake_unit_testing.csv
+    assert result == approx(initial_value)
 
 @pytest.mark.actuator
 def test_revert_device(publish_agent, cancel_schedules):
@@ -1336,7 +1450,7 @@ def test_revert_device(publish_agent, cancel_schedules):
         'fakedriver0/SampleWritableFloat1',  # Point to set
         test_value  # New value
     ).get(timeout=10)
-    assert result == test_value
+    assert result == approx(test_value)
 
     publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,  # Target agent
@@ -1351,7 +1465,7 @@ def test_revert_device(publish_agent, cancel_schedules):
         'fakedriver0/SampleWritableFloat1',  # Point to get
     ).get(timeout=10)
     # Value taken from fake_unit_testing.csv
-    assert result == initial_value
+    assert result == approx(initial_value)
 
 
 @pytest.mark.actuator
@@ -1533,6 +1647,18 @@ def test_get_multiple_points(publish_agent, cancel_schedules):
                        'fakedriver1/SampleWritableFloat1': 1.0}
     assert errors == {}
 
+@pytest.mark.actuator
+def test_get_multiple_points_separate_pointname(publish_agent, cancel_schedules):
+    results, errors = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'get_multiple_points',
+        [['fakedriver0', 'SampleWritableFloat1'],
+         ['fakedriver1', 'SampleWritableFloat1']]).get(timeout=10)
+
+    assert results == {'fakedriver0/SampleWritableFloat1': 10.0,
+                       'fakedriver1/SampleWritableFloat1': 1.0}
+    assert errors == {}
+
 
 @pytest.mark.actuator
 def test_get_multiple_captures_errors(publish_agent, cancel_schedules):
@@ -1543,6 +1669,16 @@ def test_get_multiple_captures_errors(publish_agent, cancel_schedules):
 
     assert results == {}
     assert errors['fakedriver0/nonexistentpoint'] == "DriverInterfaceError('Point not configured on device: nonexistentpoint',)"
+
+@pytest.mark.actuator
+def test_get_multiple_captures_errors_invalid_point(publish_agent, cancel_schedules):
+    results, errors = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'get_multiple_points',
+        [42]).get(timeout=10)
+
+    assert results == {}
+    assert errors['42'] == "ValueError('Invalid topic: 42',)"
 
 
 @pytest.mark.actuator
@@ -1586,6 +1722,50 @@ def test_set_multiple_points(publish_agent, cancel_schedules):
         agentid,
         [('fakedriver0/SampleWritableFloat1', 42),
          ('fakedriver1/SampleWritableFloat1', 42)]).get(timeout=10)
+
+    assert result == {}
+
+@pytest.mark.actuator
+def test_set_multiple_points_separate_pointname(publish_agent, cancel_schedules):
+    agentid = TEST_AGENT
+    taskid0 = 'task_point_on_device_0'
+    taskid1 = 'task_point_on_device_1'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid0})
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid1})
+
+    start = str(datetime.now())
+    end = str(datetime.now() + timedelta(seconds=2))
+
+    msg = [
+        ['fakedriver0', start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid0,
+        PRIORITY_LOW,
+        msg).get(timeout=10)
+    assert result['result'] == SUCCESS
+
+    msg = [
+        ['fakedriver1', start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid1,
+        PRIORITY_LOW,
+        msg).get(timeout=10)
+    assert result['result'] == SUCCESS
+
+    result = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'set_multiple_points',
+        agentid,
+        [(('fakedriver0', 'SampleWritableFloat1'), 42),
+         (('fakedriver1', 'SampleWritableFloat1'), 42)]).get(timeout=10)
 
     assert result == {}
 
@@ -1654,7 +1834,7 @@ def test_scrape_all(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_set_value_no_lock(publish_agent, volttron_instance1):
+def test_set_value_no_lock(publish_agent, volttron_instance):
     """ Tests the (now default) setting to allow writing without a
     lock as long as nothing else has the device locked.
 
@@ -1665,7 +1845,7 @@ def test_set_value_no_lock(publish_agent, volttron_instance1):
 
     alternate_actuator_vip_id = "my_actuator"
     #Use actuator that allows write with no lock.
-    my_actuator_uuid = volttron_instance1.install_agent(
+    my_actuator_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("ActuatorAgent"),
         config_file=get_services_core("ActuatorAgent/tests/actuator-no-lock.config"),
         start=True, vip_identity=alternate_actuator_vip_id)
@@ -1679,7 +1859,7 @@ def test_set_value_no_lock(publish_agent, volttron_instance1):
             'fakedriver0/SampleWritableFloat1',  # Point to set
             6.5  # New value
         ).get(timeout=10)
-        assert result == 6.5
+        assert result == approx(6.5)
 
     finally:
         publish_agent.vip.rpc.call(
@@ -1689,12 +1869,12 @@ def test_set_value_no_lock(publish_agent, volttron_instance1):
             'fakedriver0'  # Point to revert
         ).get(timeout=10)
 
-        volttron_instance1.stop_agent(my_actuator_uuid)
-        volttron_instance1.remove_agent(my_actuator_uuid)
+        volttron_instance.stop_agent(my_actuator_uuid)
+        volttron_instance.remove_agent(my_actuator_uuid)
 
 
 @pytest.mark.actuator
-def test_set_value_no_lock_failure(publish_agent, volttron_instance1):
+def test_set_value_no_lock_failure(publish_agent, volttron_instance):
     """ Tests the (now default) setting to allow writing without a
     lock as long as nothing else has the device locked.
 
@@ -1705,14 +1885,14 @@ def test_set_value_no_lock_failure(publish_agent, volttron_instance1):
 
     alternate_actuator_vip_id = "my_actuator"
     #Use actuator that allows write with no lock.
-    my_actuator_uuid = volttron_instance1.install_agent(
+    my_actuator_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("ActuatorAgent"),
         config_file=get_services_core("ActuatorAgent/tests/actuator-no-lock.config"),
         start=True, vip_identity=alternate_actuator_vip_id)
     try:
         agentid2 = "test-agent2"
         taskid = "test-task"
-        publish_agent2 = volttron_instance1.build_agent(identity=agentid2)
+        publish_agent2 = volttron_instance.build_agent(identity=agentid2)
 
         start = str(datetime.now())
         end = str(datetime.now() + timedelta(seconds=60))
@@ -1750,8 +1930,8 @@ def test_set_value_no_lock_failure(publish_agent, volttron_instance1):
         ).get(timeout=10)
 
         publish_agent2.core.stop()
-        volttron_instance1.stop_agent(my_actuator_uuid)
-        volttron_instance1.remove_agent(my_actuator_uuid)
+        volttron_instance.stop_agent(my_actuator_uuid)
+        volttron_instance.remove_agent(my_actuator_uuid)
 
 
 @pytest.mark.actuator

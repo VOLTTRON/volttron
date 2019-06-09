@@ -97,7 +97,7 @@ These methods are required but can be implemented using the :py:class:`BasicReve
 - :py:meth:`BaseInterface.revert_all`
 
 Each point on the device must be represented by an instance of the
-:py:class:`BaseInterface`. Create one or more subclasses of :py:class:`BaseInterface`
+:py:class:`BaseRegister`. Create one or more subclasses of :py:class:`BaseRegister`
 as needed to represent the points on a device.
 
 
@@ -259,11 +259,11 @@ class BaseInterface(object):
 
     """
     __metaclass__ = abc.ABCMeta
-    def __init__(self, vip=None, core=None, **kwargs):
+    def __init__(self, vip=None, core=None, device_path=None, **kwargs):
         super(BaseInterface, self).__init__(**kwargs)
         self.vip = vip
         self.core = core
-        
+        self.device_path = device_path
         self.point_map = {}
         
         self.build_register_map()
