@@ -398,6 +398,7 @@ def main(argv=sys.argv):
             data = json.load(optional_arguments)
             for arg, vals in data.items():
                 if arg == '--rabbitmq':
+                    optional_args.append(arg)
                     po.add_argument(
                         '--rabbitmq', action='store', const=default_rmq_dir,
                         nargs='?',

@@ -22,7 +22,7 @@
     },
     "--databases": {
         "help": "Installs support for all known databases",
-        "packages": ["pymongo", "mysql-connector-python-rf"]
+        "packages": ["pymongo", "mysql-connector-python-rf", "crate"]
     },
     "--documentation": {
         "help": "Installs requirements for building the documentation",
