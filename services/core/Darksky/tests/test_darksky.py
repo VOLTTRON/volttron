@@ -135,7 +135,7 @@ def query_agent(request, volttron_instance):
     request.addfinalizer(stop_agent)
     return agent
 
-@pytest.fixture(scope="module", params=[darksky_perf])
+@pytest.fixture(scope="module", params=[darksky_service, darksky_perf])
 def weather(request, volttron_instance):
     print("** Setting up weather agent module **")
     print("request param", request.param)
