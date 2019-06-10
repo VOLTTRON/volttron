@@ -1,4 +1,5 @@
 .. _VOLTTRON-Config:
+
 VOLTTRON Config
 ===============
 
@@ -9,7 +10,8 @@ example volttron-cfg output:
 
 .. note:: 
 
-        In this example, <user> represents the user's home directory, and <localhost> represents the machine's localhost.
+        - In this example, <user> represents the user's home directory, and <localhost> represents the machine's localhost.
+        - The platform has been bootstrapped with rabbitmq enabled e.g. (python bootstrap.py --rabbitmq)
 
 .. code-block:: console 
 
