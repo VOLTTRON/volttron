@@ -367,7 +367,6 @@ class Darksky(BaseWeatherAgent):
          an hour-by-hour forecast for the next 48 hours, or a day-by-day forecast for the next week
         :return: (the last time stamp for which forecast is returned, filtered Dark Sky forecast response)
         """
-        request_time = utils.get_aware_utc_now()
         darksky_response = self.get_darksky_data(service, location, timestamp)
         forecast_response = darksky_response.pop(
             SERVICES_MAPPING[service]['json_name'])
