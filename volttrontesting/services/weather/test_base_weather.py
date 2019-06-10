@@ -146,7 +146,7 @@ class BasicWeatherAgent(BaseWeatherAgent):
         self.add_api_call()
         return record
 
-    def query_forecast_service(self, service, location, quantity):
+    def query_forecast_service(self, service, location, quantity, forecast_start):
 
         if service is 'get_hourly_forecast':
             generation_time, data = self.query_hourly_forecast(location)
@@ -214,6 +214,15 @@ def remove_temp_file():
     os.remove("temp.csv")
 
 
+def clear_api_calls(weather):
+    cache = weather._cache
+    connection = cache._sqlite_conn
+    cursor = connection.cursor()
+    cursor.execute("DELETE FROM API_CALLS")
+    connection.commit()
+    cursor.close()
+
+
 @pytest.mark.weather2
 def test_create_tables(weather):
     connection = weather._cache._sqlite_conn
@@ -275,18 +284,11 @@ def test_manage_cache_size(volttron_instance):
 
     assert os.path.isfile("weather.sqlite")
 
-    weather._cache.create_tables()
-
     for service_name in weather._api_services:
         query = "DELETE FROM {};".format(service_name)
         cursor.execute(query)
         _log.debug(query)
         connection.commit()
-
-    query = "DELETE FROM API_CALLS;"
-    cursor.execute(query)
-    _log.debug(query)
-    connection.commit()
 
     fake_locations = [{"location": "fake_location1"},
                       {"location": "fake_location2"},
@@ -316,17 +318,13 @@ def test_manage_cache_size(volttron_instance):
     total_size = page_size * num_pages
     assert total_size <= 40960
 
+
 @pytest.mark.weather2
 def test_api_call_tracking(weather):
+    clear_api_calls(weather)
     cache = weather._cache
     connection = cache._sqlite_conn
     cursor = connection.cursor()
-
-    delete_query = "DROP TABLE IF EXISTS API_CALLS;"
-    cursor.execute(delete_query)
-    connection.commit()
-
-    cache.create_tables()
 
     for i in range(0, 100):
         cache.add_api_call()
@@ -335,18 +333,8 @@ def test_api_call_tracking(weather):
     cursor.execute(quantity_query)
     stored_calls = cursor.fetchone()[0]
     assert stored_calls == 100
+    clear_api_calls(weather)
 
-    overflow = cache.add_api_call()
-    assert not overflow
-
-    cursor.execute(quantity_query)
-    stored_calls = cursor.fetchone()[0]
-    assert stored_calls == 100
-
-    cursor.execute(delete_query)
-    connection.commit()
-
-    cache.create_tables()
 
 @pytest.mark.weather2
 @pytest.mark.parametrize("service_name, interval, service_type", [
@@ -860,14 +848,8 @@ def test_api_calls_services(weather):
     cache = weather._cache
     connection = cache._sqlite_conn
     cursor = connection.cursor()
+    clear_api_calls(weather)
 
-    delete_query = "DROP TABLE IF EXISTS API_CALLS;"
-    cursor.execute(delete_query)
-    connection.commit()
-
-    cache.create_tables()
-
-    # test the limit=100 case
     for i in range(0, 100):
         cache.add_api_call()
 
@@ -896,17 +878,11 @@ def test_api_calls_services(weather):
     stored_calls = cursor.fetchone()[0]
     assert stored_calls == 101
 
-    cursor.execute(delete_query)
-    connection.commit()
-
-    cache.create_tables()
+    clear_api_calls(weather)
 
     assert weather.api_calls_available(10)
 
-    cursor.execute(delete_query)
-    connection.commit()
-
-    cache.create_tables()
+    clear_api_calls(weather)
 
     cache._calls_limit = 10
 
@@ -924,10 +900,7 @@ def test_api_calls_services(weather):
 
     assert 'Invalid quantity for API calls' in invalid_calls_available.value
 
-    cursor.execute(delete_query)
-    connection.commit()
-
-    cache.create_tables()
+    clear_api_calls(weather)
 
 
 @pytest.mark.weather2
