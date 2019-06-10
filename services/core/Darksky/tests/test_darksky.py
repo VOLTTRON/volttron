@@ -79,6 +79,8 @@ darksky_perf = {
     'api_calls_limit': 100
 }
 
+# TODO add test case for testing api_call_limit: -1
+
 polling_service = {
     'weather_service': get_services_core('DarkskyAgent'),
     'max_size_gb': None,
@@ -112,7 +114,11 @@ def cleanup_cache(volttron_instance, query_agent, weather):
         query = "DELETE FROM {};".format(table)
         _log.debug(query)
         cursor.execute(query)
-        sqlite_connection.commit()
+    try:
+        cursor.execute("DELETE FROM API_CALLS;")
+    except Exception as e:
+        print(e)
+    sqlite_connection.commit()
 
 
 @pytest.fixture(scope="module")
@@ -239,7 +245,7 @@ def test_success_current(volttron_instance, cleanup_cache, weather,
     assert new_api_calls == current_api_calls
 
     # check names returned are valid
-    assert len(cache_data) == len(cache_data)
+    assert len(query_data) == len(cache_data)
     for x in range(0, len(cache_data)):
         assert len(cache_data[x]) == len(query_data[x])
         for key in query_data[x]:
@@ -362,7 +368,13 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
 
     cursor.execute(api_calls_query)
     new_api_calls = cursor.fetchone()[0]
-    assert new_api_calls == current_api_calls + len(locations)
+    # For daily forecast, when request time is on the same day but earlier hour as first forecast, the agent discards
+    # the forecast entry of current day and makes a second call for the 8th day forecast.
+    if service == "get_daily_forecast":
+        number = current_api_calls + len(locations)
+        assert new_api_calls == number or new_api_calls == number + 1
+    else:
+        assert new_api_calls == current_api_calls + len(locations)
     current_api_calls = new_api_calls
 
     services = {
@@ -608,8 +620,7 @@ def test_more_than_default_forecast(volttron_instance, cleanup_cache, weather,
     print("Query data: \n {}".format(query_data))
     print("Cache data: \n {}".format(cache_data))
 
-    # TODO: verify that you get the right forecast times
-    # TODO: Add test case for querying less than default data. For now checked manually
+    # TODO: verify that we get the right forecast times
 
     for x in range(0, len(cache_data)):
         query_location_data = query_data[x]
