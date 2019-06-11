@@ -121,9 +121,21 @@ Windows environment.
 1. Download VOLTTRON
 
    Download the VOLTTRON develop repository from github. Download the zip  
-   from `GitHub <https://github.com/VOLTTRON/volttron/tree/develop>`_ and unzip 
+   from `GitHub <https://github.com/VOLTTRON/volttron/tree/develop>`_. 
    
    |github-image|
+
+   |github-zip-image|
+
+   Once the zipped file has been downloaded, go to your Downloads folder,
+   right-click on the file, and select "Extract All..."
+
+   |extract-image_1|
+
+   Choose a location for the extracted folder, and select "Extract"
+
+   |extract-image_2|
+
 
 2. Setup the PYTHONPATH
    
@@ -219,4 +231,6 @@ If you have python3 as your default python run the command ``python -2 standalon
 .. |env-vars-image_1| image:: files/env-vars-image_1.png
 .. |env-vars-image_2| image:: files/env-vars-image_2.png
 .. |cmd-image_2| image:: files/cmd-image_2.png
-
+.. |github-zip-image| image:: files/github-zip-image.png
+.. |extract-image_1| image:: files/extract-image_1.png
+.. |extract-image_2| image:: files/extract-image_2.png
