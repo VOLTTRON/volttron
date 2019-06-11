@@ -17,7 +17,14 @@ Setup on Linux
 
 1. Setup and run Volttron from develop branch using instructions here
 
-2. Update configuration for MatLabAgent_v2 at <volttron source dir>/example/MatLabAgent_v2/config. 
+2. Configure volttron instance to use tcp using the below command. When prompted for vip_address use tcp://<ip address of the machine>. This is necesary to enable volttrorn communication with external processes. 
+
+   
+   .. code::
+   
+      vcfg 
+
+3. Update configuration for MatLabAgent_v2 at <volttron source dir>/example/MatLabAgent_v2/config. 
 
 The configuration file for the MatLab agent has four variables.
 
@@ -77,9 +84,13 @@ arguments are in place, the config file may look like this.
         Currently it is set to "config". As such, when using the config store, the 
         configuration name must match, regardless of the original file name.
 
-3. Install MatLabAgent_v2 and start agent
+4. Install MatLabAgent_v2 and start agent
 
 ``python scripts/install-agents -s examples/MatLabAgent_v2 -c examples/MatLabAgent_v2/config``
+
+5. Run the below command and make a note of the server key. This required in configuring the stand alone agent on windows.
+
+``volttron-ctl auth serverkey``
 
 Configuration Modifications
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
