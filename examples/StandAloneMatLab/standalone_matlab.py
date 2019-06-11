@@ -52,7 +52,7 @@ from volttron.platform.agent import utils
 from volttron.platform.scheduling import periodic
 
 # These are the options that can be set from the settings module.
-from settings import remote_url
+from settings import remote_url, _topics
 
 # Setup logging so that we could use it if we needed to.
 utils.setup_logging()
@@ -71,11 +71,11 @@ class StandAloneMatLab(Agent):
         d = {'topic': topic, 'headers': headers, 'message': message}
         sys.stdout.write(json.dumps(d)+'\n')
 
-    @PubSub.subscribe('pubsub','matlab/to_agent/1')
+    @PubSub.subscribe('pubsub', _topics['to_agent'])
     def print_message(self, peer, sender, bus, topic, headers, message):
         print('The Message is: ' + str(message))
         messageOut = script_runner(message)
-        self.vip.pubsub.publish('pubsub', 'matlab/from_agent/1', message=messageOut)
+        self.vip.pubsub.publish('pubsub', _topics['from_agent'], message=messageOut)
 
 
 

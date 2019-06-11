@@ -1,3 +1,8 @@
+_topics = {
+        'to_agent': 'matlab/to_agent/1',
+        'from_agent': 'matlab/from_agent/1'
+        }
+
 # The parameters dictionary is used to populate the agent's 
 # remote vip address.
 _params = {
@@ -22,6 +27,7 @@ _params = {
 	# obtained using the command:
 	# volttron-ctl auth serverkey
 	'server_key': 'QTIzrRGQ0-b-37AbEYDuMA0l2ETrythM2V1ac0v9CTA'
+
 }
 
 def remote_url():
