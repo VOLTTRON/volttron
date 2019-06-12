@@ -185,13 +185,17 @@ class EmailerAgent(Agent):
 
         ** In the above code to-addresses can be a singe email address as well**
 
-        The message must be a dictionary containing a subject and a message.
+        The message must be a dictionary containing a subject and a message.  In addition,
+        an optional to-addresses entry can be added for sending to a specific group of
+        users.
 
         .. code-block:: json
 
             {
                 "subject": "I am a happy camper",
                 "message": "This is a big long string message that I am sending"
+                -- OPTIONAL --
+                "to-addresses": ['yabba@daba.com']
             }
 
         :param peer:
