@@ -64,10 +64,10 @@ __version__ = _temp.__version__
 setup(
     name=agent_package + 'agent',
     version=__version__,
-    description="Agent for interfacing with the Weather.gov API service",
+    description="Agent for interfacing with the Darksky Weather API service",
     install_requires=['volttron'],
     packages=packages,
-    package_data={'weatherdotgov': ['data/name_mapping.csv']},
+    package_data={'darksky': ['data/name_mapping.csv']},
     entry_points={
         'setuptools.installation': [
             'eggsecutable = ' + agent_module + ':main',
