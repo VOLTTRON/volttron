@@ -203,11 +203,7 @@ class EmailerAgent(Agent):
         """
         from_address = self.from_address
         to_addresses = self.to_address
-        smtp_port = self.smtp_port
-        smtp_username = self.current_config.get('smtp_username',None)
-        smtp_password = self.current_config.get('smtp_password',None)
-        enable_tls = self.current_config.get('enable_tls',None)
-
+        to_addresses = message.get("to-addresses", to_addresses)
         subject = message.get('subject', 'No Subject')
         msg = message.get('message', None)
 
