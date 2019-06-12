@@ -256,12 +256,12 @@ class EmailerAgent(Agent):
             smtp_port = cfg['smtp_port']
             smtp_username = cfg['smtp_username']
             smtp_password = cfg['smtp_password']
-	    smtp_tls = cfg['smtp_tls']
-            server = smtplib.SMTP(smtp_address,smtp_port)
+            smtp_tls = cfg['smtp_tls']
+            server = smtplib.SMTP(smtp_address, smtp_port)
             server.ehlo()
 
             if smtp_username is not None:
-       	        server.starttls()
+                server.starttls()
                 server.ehlo()
                 server.login(smtp_username, smtp_password)
             server.sendmail(from_address, to_addresses, mime_message.as_string())
