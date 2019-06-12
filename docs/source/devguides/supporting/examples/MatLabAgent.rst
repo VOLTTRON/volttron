@@ -17,6 +17,7 @@ Setup on Linux
 
 1. Setup and run Volttron from develop branch using instructions here
 
+.. _MatlabAgent_config:
 2. Update configuration for MatLabAgent_v2 at <volttron source dir>/example/MatLabAgent_v2/config. 
 
 The configuration file for the MatLab agent has four variables.
@@ -70,16 +71,10 @@ arguments are in place, the config file may look like this.
           "topics_from_agents": "matlab/from_agent/"
         }
 
-.. note::
-
-        The only change that needs to be made to agent.py for 
-        MatLabAgent_v2 is setting the pattern for self.vip.config.subscribe (line 70)
-        Currently it is set to "config". As such, when using the config store, the 
-        configuration name must match, regardless of the original file name.
 
 3. Install MatLabAgent_v2 and start agent
 
-``python scripts/install-agents -s examples/MatLabAgent_v2 -c examples/MatLabAgent_v2/config``
+``python scripts/install-agents.py -s examples/MatLabAgent_v2 -c examples/MatLabAgent_v2/config``
 
 Configuration Modifications
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -176,32 +171,24 @@ Windows environment.
 
 4. Configure the agent
 
-The configurations for the standalone agent is in setting.py in the same directory as the standalone agent.
+The configuration settings for the standalone agent are in setting.py (located in the same directory as the standalone agent)
 
-1. settings.py
+**settings.py**
+
+   * 'volttron_to_matlab' needs to be set to the topic that will send your script
+     and command line arguments to your stand alone agent. This was defined in :ref:`config. <MatlabAgent_config>`
+
+   * 'matlab_to_volttron' needs to be set to the topic that will send your script's
+     output back to your volttron platform. This was defined in :ref:`config. <MatlabAgent_config>`
+
    * 'vip_address' needs to be set to the address of your volttron instance
    
    * 'port' needs to be set to the port of your volttron instance
    
-   * 'server_key' needs to be set to the public server key of your remote platform.
-     This can be obtained from the instance using the ``vctl auth serverkey`` command.
-   
-.. note::
+   * 'server_key' needs to be set to the public server key of your primary volttron platform.
+     This can be obtained from the primary volttron platform  using ``vctl auth serverkey``.
+     (volttron must be running to use this command)
 
-        It is recommended that you generate a new agent_public and agent_private
-        key for your standalone agent. This can be done using the ``vctl auth keypair``
-        command on your volttron instance. If you plan to use multiple standalone agents,
-        they will each need their own keypair.
-
-2. standalone_matlab.py
-
-   * @PubSub.subscribe('pubsub','matlab/to_agent/1') should be set to the 
-     topic you choose in your config file. (line 74)
-   
-   * self.vip.pubsub.publish('pubsub', 'matlab/from_agent/1', message=messageOut)
-     should be set to the topic you choose in your config file (line 78)
-   
-   * identity=`standalone_matlab') can be changed.
 
 .. note:: 
         
@@ -211,7 +198,25 @@ The configurations for the standalone agent is in setting.py in the same directo
 It is possible to have multiple standalone agents running. In this case,
 copy the StandAloneMatLab folder, and make the changes mentioned above.
 
-5. Run standalone agent
+.. note::
+
+        It is recommended that you generate a new agent_public and agent_private
+        key for your standalone agent. This can be done using the ``vctl auth keypair``
+        command on your primary volttron platform. If you plan to use multiple standalone agents,
+        they will each need their own keypair.
+
+5. Add standalone agent key to volttron platform
+   
+   * Copy the public key from settings.py in the StandAloneMatLab folder.
+
+   * While the primary volttron platform is running on the linux machine, 
+     add the agent public key using the vctl auth command.
+     
+   .. code::
+        
+        vctl auth add --credentials <standalone agent public key>
+
+6. Run standalone agent
 
 
 At this point, the agent is ready to run. To use the agent, navigate to the
