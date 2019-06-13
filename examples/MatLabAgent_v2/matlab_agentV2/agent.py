@@ -32,29 +32,29 @@ def matlabV2(config_path, **kwargs):
 
     script_names = config.get('script_names', ["test.py"])
     script_args = config.get('script_args', [["20"]])
-    topics_to_agents= config.get('topics_to_agents', ["matlab/to_matlab/1"])
-    topics_from_agents = config.get('topics_from_agents', "matlab/to_volttron/")
+    topics_to_matlab = config.get('topics_to_matlab', ["matlab/to_matlab/1"])
+    topics_to_volttron = config.get('topics_to_volttron', "matlab/to_volttron/")
 
 
-    return MatlabAgentV2(script_names, script_args, topics_to_agents, topics_from_agents, **kwargs)
+    return MatlabAgentV2(script_names, script_args, topics_to_matlab, topics_to_volttron, **kwargs)
 
 
 class MatlabAgentV2(Agent):
 
-    def __init__(self,script_names=[], script_args=[], topics_to_agents=[], 
-            topics_from_agents=None,**kwargs):
+    def __init__(self,script_names=[], script_args=[], topics_to_matlab=[], 
+            topics_to_volttron=None,**kwargs):
 
         super(MatlabAgentV2, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
 
         self.script_names = script_names
         self.script_args = script_args
-        self.topics_to_agents = topics_to_agents
-        self.topics_from_agents = topics_from_agents
+        self.topics_to_matlab = topics_to_matlab
+        self.topics_to_volttron = topics_to_volttron
         self.default_config = {"script_names": script_names,
                                "script_args": script_args,
-                               "topics_to_agents": topics_to_agents,
-                               "topics_from_agents": topics_from_agents}
+                               "topics_to_matlab": topics_to_matlab,
+                               "topics_to_volttron": topics_to_volttron}
 
 
         #Set a default configuration to ensure that self.configure is called immediately to setup
@@ -78,8 +78,8 @@ class MatlabAgentV2(Agent):
         try:
             script_names = config["script_names"]
             script_args = config["script_args"]
-            topics_to_agents = config["topics_to_agents"]
-            topics_from_agents = config["topics_from_agents"]
+            topics_to_matlab = config["topics_to_matlab"]
+            topics_to_volttron = config["topics_to_volttron"]
 
         except ValueError as e:
             _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
@@ -87,16 +87,16 @@ class MatlabAgentV2(Agent):
 
         self.script_names = script_names
         self.script_args = script_args
-        self.topics_to_agents = topics_to_agents
-        self.topics_from_agents = topics_from_agents
-        self._create_subscriptions(self.topics_from_agents)
+        self.topics_to_matlab = topics_to_matlab
+        self.topics_to_volttron = topics_to_volttron
+        self._create_subscriptions(self.topics_to_volttron)
 
         for script in range(len(self.script_names)):
             cmd_args = ""
             for x in range(len(self.script_args[script])):
                 cmd_args += ",{}".format(self.script_args[script][x])
-            _log.debug("Publishing on: {}".format(self.topics_to_agents[script]))
-            self.vip.pubsub.publish('pubsub', topic=self.topics_to_agents[script], 
+            _log.debug("Publishing on: {}".format(self.topics_to_matlab[script]))
+            self.vip.pubsub.publish('pubsub', topic=self.topics_to_matlab[script], 
                     message="{}{}".format(self.script_names[script],cmd_args))
             _log.debug("Sending message: {}{}".format(self.script_names[script],cmd_args))
         
@@ -106,14 +106,14 @@ class MatlabAgentV2(Agent):
         _log.debug("Configuring Agent with {} config.".format(config_name))
         script_names = config["script_names"]
         script_args = config["script_args"]
-        topics_to_agents = config["topics_to_agents"]
-        topics_from_agents = config["topics_from_agents"]
+        topics_to_matlab = config["topics_to_matlab"]
+        topics_to_volttron = config["topics_to_volttron"]
 
         self.script_names = script_names
         self.script_args = script_args
-        self.topics_to_agents = topics_to_agents
-        self.topics_from_agents = topics_from_agents
-        self._create_subscriptions(self.topics_from_agents)
+        self.topics_to_matlab = topics_to_matlab
+        self.topics_to_volttron = topics_to_volttron
+        self._create_subscriptions(self.topics_to_volttron)
         _log.debug("Agent Configured!")
 
     def _create_subscriptions(self, topic):
@@ -153,7 +153,7 @@ class MatlabAgentV2(Agent):
     
 
 '''
-    @PubSub.subscribe('pubsub',self.topics_from_agents)
+    @PubSub.subscribe('pubsub',self.topics_to_volttron)
     def get_output(self, peer, sender, bus, topic, headers, message):
         self._log("Agent: " + topic + "\nMessage: \n" + pformat(message[:-1]))
 '''
