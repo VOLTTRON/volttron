@@ -26,9 +26,9 @@ The configuration file for the MatLab agent has four variables.
 
    2. script_args
    
-   3. topics_to_agents
+   3. topics_to_matlab
 
-   4. topics_from_agents
+   4. topics_to_volttron
 
 An example config file included with the folder.
 
@@ -38,8 +38,8 @@ An example config file included with the folder.
           # VOLTTRON config files are JSON with support for python style comments.
           "script_names": ["testScript.py"],
           "script_args": [["20"]],
-          "topics_to_agents": ["matlab/to_agent/1"],
-          "topics_from_agents": "matlab/from_agent/"
+          "topics_to_matlab": ["matlab/to_matlab/1"],
+          "topics_to_volttron": "matlab/to_volttron/"
         }
 
 To edit the configuration, the format should be as follows:
@@ -49,8 +49,8 @@ To edit the configuration, the format should be as follows:
         {
           "script_names": ["script1.py", "script2.py", ...],
           "script_args": [["arg1","arg2"], ["arg1"], ...],
-          "topics_to_agents": ["matlab/to_agent/1", "matlab/to_agent/2", ...],
-          "topics_from_agents": "matlab/from_agent/"
+          "topics_to_matlab": ["matlab/to_matlab/1", "matlab/to_matlab/2", ...],
+          "topics_to_volttron": "matlab/to_volttron/"
         }
 
 The config requires that each script name lines up with a set of 
@@ -67,14 +67,14 @@ arguments are in place, the config file may look like this.
         {
           "script_names": ["testScript.py"],
           "script_args": [["0"]],
-          "topics_to_agents": ["matlab/to_agent/1"],
-          "topics_from_agents": "matlab/from_agent/"
+          "topics_to_matlab": ["matlab/to_matlab/1"],
+          "topics_to_volttron": "matlab/to_volttron/"
         }
 
 
 3. Install MatLabAgent_v2 and start agent
 
-``python scripts/install-agents.py -s examples/MatLabAgent_v2 -c examples/MatLabAgent_v2/config``
+``python scripts/install-agents.py -s examples/MatLabAgent_v2 -c examples/MatLabAgent_v2/config --start``
 
 Configuration Modifications
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
