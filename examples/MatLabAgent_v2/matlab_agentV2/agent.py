@@ -9,7 +9,7 @@ from volttron.platform.vip.agent import Agent, Core, PubSub, RPC
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
-__version__ = "0.2"
+__version__ = "0.3"
 
 
 def matlabV2(config_path, **kwargs):
@@ -30,7 +30,7 @@ def matlabV2(config_path, **kwargs):
     if not config:
         _log.info("Using Agent defaults for starting configuration.")
 
-    script_names = config.get('script_names', ["test.py"])
+    script_names = config.get('script_names', ["testScript.py"])
     script_args = config.get('script_args', [["20"]])
     topics_to_matlab = config.get('topics_to_matlab', ["matlab/to_matlab/1"])
     topics_to_volttron = config.get('topics_to_volttron', "matlab/to_volttron/")
@@ -102,20 +102,6 @@ class MatlabAgentV2(Agent):
         
         _log.debug("Agent Configured!")
 
-    def configure_other(self, config_name, action, contents):
-        _log.debug("Configuring Agent with {} config.".format(config_name))
-        script_names = config["script_names"]
-        script_args = config["script_args"]
-        topics_to_matlab = config["topics_to_matlab"]
-        topics_to_volttron = config["topics_to_volttron"]
-
-        self.script_names = script_names
-        self.script_args = script_args
-        self.topics_to_matlab = topics_to_matlab
-        self.topics_to_volttron = topics_to_volttron
-        self._create_subscriptions(self.topics_to_volttron)
-        _log.debug("Agent Configured!")
-
     def _create_subscriptions(self, topic):
         #Unsubscribe from everything.
         self.vip.pubsub.unsubscribe("pubsub", None, None)
@@ -128,35 +114,6 @@ class MatlabAgentV2(Agent):
     def _handle_publish(self, peer, sender, bus, topic, headers,
                                 message):
         _log.info("Agent: " + topic + "\nMessage: \n" + pformat(message[:-1]))
-
-
-
-    @Core.receiver("onstart")
-    def onstart(self, sender, **kwargs):
-        """
-        This is method is called once the Agent has successfully connected to the platform.
-        This is a good place to setup subscriptions if they are not dynamic or
-        do any other startup activities that require a connection to the message bus.
-        Called after any configurations methods that are called at startup.
-
-        Usually not needed if using the configuration store.
-        """
-        pass
-
-    @Core.receiver("onstop")
-    def onstop(self, sender, **kwargs):
-        """
-        This method is called when the Agent is about to shutdown, but before it disconnects from
-        the message bus.
-        """
-        pass
-    
-
-'''
-    @PubSub.subscribe('pubsub',self.topics_to_volttron)
-    def get_output(self, peer, sender, bus, topic, headers, message):
-        self._log("Agent: " + topic + "\nMessage: \n" + pformat(message[:-1]))
-'''
 
 def main():
     """Main method called to start the agent."""

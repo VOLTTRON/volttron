@@ -8,10 +8,10 @@ from StringIO import StringIO
 
 def script_runner(message):
     original = sys.stdout
-    print(message)
-    print(sys.argv)
+#    print(message)
+#    print(sys.argv)
     sys.argv = message.split(',')
-    print(sys.argv)
+#    print(sys.argv)
 
     try:
         out = StringIO()

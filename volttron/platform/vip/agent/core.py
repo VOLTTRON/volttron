@@ -179,6 +179,10 @@ class BasicCore(object):
         self.onstop = Signal()
         self.onfinish = Signal()
         self.oninterrupt = None
+
+        #SIGINT does not work in Windows. 
+        #If using the standalone agent on a windows machine,
+        #this section will be skipped 
         if python_platform.system() != 'Windows':
             prev_int_signal = gevent.signal.getsignal(signal.SIGINT)
             # To avoid a child agent handler overwriting the parent agent handler
