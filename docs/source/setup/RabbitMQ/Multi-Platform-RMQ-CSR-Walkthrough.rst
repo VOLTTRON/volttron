@@ -1,7 +1,7 @@
 .. _Multi_Platform_Walkthrough:
 
-Multi-Platform Walk-through
-====================================
+Multi-Platform Multi-Bus Walk-through
+=====================================
 
 This guide describes the setup process for a multi-platform connection that has a combination of ZeroMQ and RabbitMQ
 instances. For this example, we want to use the Forwarder to pass device data from two VOLTTRON instance to
