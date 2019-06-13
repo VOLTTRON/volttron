@@ -17,8 +17,16 @@ Setup on Linux
 
 1. Setup and run Volttron from develop branch using instructions here
 
+2. Configure volttron instance to use tcp using the below command. 
+   When prompted for vip_address use tcp://<ip address of the linux machine>. 
+   This is necesary to enable volttron communication with external processes. 
+
+   .. code::
+   
+      vcfg 
+
 .. _MatlabAgent_config:
-2. Update configuration for MatLabAgent_v2 at <volttron source dir>/example/MatLabAgent_v2/config. 
+3. Update configuration for MatLabAgent_v2 at <volttron source dir>/example/MatLabAgent_v2/config. 
 
 The configuration file for the MatLab agent has four variables.
 
@@ -72,9 +80,13 @@ arguments are in place, the config file may look like this.
         }
 
 
-3. Install MatLabAgent_v2 and start agent
+4. Install MatLabAgent_v2 and start agent
 
 ``python scripts/install-agents.py -s examples/MatLabAgent_v2 -c examples/MatLabAgent_v2/config --start``
+
+5. Run the below command and make a note of the server key. This required in configuring the stand alone agent on windows.
+
+``volttron-ctl auth serverkey``
 
 Configuration Modifications
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -167,7 +179,10 @@ Windows environment.
    
    .. note::
    
-     If you get the error doing the second step because of an already installed volttron from a different directory, manually delete the volttron-egg.link file from your <python path>\Lib\site-pacakages directory ( for example, del  C:\Python27\lib\site-packages\volttron-egg.link ) and re run the second command
+     If you get the error doing the second step because of an already installed volttron 
+     from a different directory, manually delete the volttron-egg.link file from your 
+     <python path>\Lib\site-pacakages directory (for example, del  C:\Python27\lib\site-packages\volttron-egg.link ) 
+     and re-run the second command
 
 4. Configure the agent
 
