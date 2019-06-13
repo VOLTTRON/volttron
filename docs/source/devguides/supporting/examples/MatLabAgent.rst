@@ -15,18 +15,22 @@ and arguments, and sends back the results to the MatLab agent.
 Setup on Linux
 --------------
 
-1. Setup and run Volttron from develop branch using instructions here
+1. Setup and run Volttron from develop branch using instructions :ref:`here <Building-VOLTTRON>`.
 
-2. Configure volttron instance to use tcp using the below command. 
-   When prompted for vip_address use tcp://<ip address of the linux machine>. 
-   This is necesary to enable volttron communication with external processes. 
+2. Configure volttron instance using the ``vcfg`` command.
+   When prompted for the vip_address use tcp://<ip address of the linux machine>. 
+   This is necessary to enable volttron communication with external processes. 
 
-   .. code::
-   
-      vcfg 
+.. note::
+        
+        If you are running VOLTTRON from within VirtualBox, It would be good to set
+        one of your adapters as a Host-only adapter. This can be done within the 
+        VM's settings, under the Network section. Once this is done, use this IP
+        for the vip address.
+
 
 .. _MatlabAgent_config:
-3. Update configuration for MatLabAgent_v2 at <volttron source dir>/example/MatLabAgent_v2/config. 
+3. Update the configuration for MatLabAgent_v2 at <volttron source dir>/example/MatLabAgent_v2/config. 
 
 The configuration file for the MatLab agent has four variables.
 
@@ -99,8 +103,6 @@ More information on the config store and how it used can be found here.
  * :ref:`Agent Configuration Store <ConfigurationStore>`
 
  * :ref:`Agent Configuration Store Interface <Agent-Configuration-Store-Interface>`
-
-
 
 Setup on Windows
 ----------------
@@ -244,7 +246,6 @@ example folder and use python to start the agent.
 .. note::
 
 If you have python3 as your default python run the command ``python -2 standalone_matlab.py``
-
 
 .. |github-image| image:: files/github-image.png
 .. |cmd-image| image:: files/cmd-image.png
