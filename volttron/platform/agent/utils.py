@@ -204,7 +204,6 @@ def get_platform_instance_name(prompt=False):
 
     return instance_name
 
-
 def get_fq_identity(identity, platform_instance_name=None):
     """
     Return the fully qualified identity for the passed core identity.

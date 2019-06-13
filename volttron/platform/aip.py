@@ -64,6 +64,7 @@ except ImportError:
 from .agent.utils import is_valid_identity, get_messagebus, \
     get_platform_instance_name
 from volttron.platform import get_home
+from volttron.platform.agent.utils import load_platform_config
 from .packages import UnpackedPackage
 from .vip.agent import Agent
 from .keystore import KeyStore
@@ -171,14 +172,24 @@ class ExecutionEnvironment(object):
     end and all resources to be returned to the system.
     '''
 
-    def __init__(self):
+    def __init__(self, agent_user=None):
         self.process = None
         self.env = None
+        self.agent_user = agent_user
 
     def execute(self, *args, **kwargs):
+        # TODO investigate if we can use the demote method -  I suspect not
         try:
             self.env = kwargs.get('env', None)
-            self.process = subprocess.Popen(*args, **kwargs)
+            if self.agent_user:
+                agent_user = self.agent_vip_identity.replace('.', '_')
+                run_as_user = ['sudo', '-u', 'volttron_agent_{}'.
+                    format(agent_user), '-i']
+                _log.info('Running agent as {}'.format(agent_user))
+                run_as_user.extend(*args)
+                self.process = subprocess.Popen(run_as_user, **kwargs)
+            else:
+                self.process = subprocess.Popen(*args, **kwargs)
         except OSError as e:
             if e.filename:
                 raise
@@ -188,14 +199,18 @@ class ExecutionEnvironment(object):
         self.execute(*args, **kwargs)
 
 
+# TODO set up permissions for agent directory, create agent users during agent
+# installation, destroy users during agent removal
 class AIPplatform(object):
-    '''Manages the main workflow of receiving and sending agents.'''
+    """Manages the main workflow of receiving and sending agents."""
 
     def __init__(self, env, **kwargs):
         self.env = env
         self.agents = {}
         if get_messagebus() == 'rmq':
             self.rmq_mgmt = RabbitMQMgmt()
+        self.secure_agent_user = load_platform_config().get(
+            'secure_agent_users', False)
 
     def setup(self):
         '''Creates paths for used directories for the instance.'''
@@ -280,6 +295,14 @@ class AIPplatform(object):
             raise
         return agent_uuid
 
+    def set_agent_user_directory_permissions(self, user_name, user_dir):
+        permissions_command = [
+            'setfacl', '-r', '-m', 'u:{}:rwx'.format(user_name), '{}'.
+                format(user_dir)]
+        process = subprocess.Popen(permissions_command)
+        return gevent.with_timeout(1, process_wait, process)
+
+    # TODO handle secure users
     def install_agent(self, agent_wheel, vip_identity=None, publickey=None,
                       secretkey=None):
         while True:
@@ -289,6 +312,10 @@ class AIPplatform(object):
             agent_path = os.path.join(self.install_dir, agent_uuid)
             try:
                 os.mkdir(agent_path)
+                final_identity = self._setup_agent_vip_id(
+                    agent_uuid, vip_identity=vip_identity)
+                if self.secure_agent_user:
+                    # TODO set permissions for the agent install directory
                 break
             except OSError as exc:
                 if exc.errno != errno.EEXIST:
@@ -299,9 +326,9 @@ class AIPplatform(object):
                 unpacker.unpack(dest=agent_path)
             else:
                 unpack(agent_wheel, dest=agent_path)
-
-            final_identity = self._setup_agent_vip_id(agent_uuid,
-                                                      vip_identity=vip_identity)
+            if not final_identity:
+                final_identity = self._setup_agent_vip_id(
+                    agent_uuid, vip_identity=vip_identity)
             if publickey is not None and secretkey is not None:
                 keystore = self.get_agent_keystore(agent_uuid)
                 keystore.public = publickey
@@ -437,6 +464,8 @@ class AIPplatform(object):
             rmq_user = instance_name + '.' + identity
             self.rmq_mgmt.delete_user(rmq_user)
         self.agents.pop(agent_uuid, None)
+        if self.secure_agent_user:
+            # TODO remove agent user
         if remove_auth:
             self._unauthorize_agent_keys(agent_uuid)
         shutil.rmtree(os.path.join(self.install_dir, agent_uuid))
@@ -610,6 +639,7 @@ class AIPplatform(object):
         _log.warning('missing execution requirements: %s', execreqs_json)
         return {}
 
+    # TODO is restricted mode still a thing?
     def start_agent(self, agent_uuid):
         name = self.agent_name(agent_uuid)
         agent_path = os.path.join(self.install_dir, agent_uuid, name)
@@ -677,8 +707,12 @@ class AIPplatform(object):
             argv = [sys.executable, '-m', module]
         resmon = getattr(self.env, 'resmon', None)
         if resmon is None:
-            execenv = ExecutionEnvironment()
+            agent_user = None
+            if self.secure_agent_user:
+                agent_user = agent_vip_identity.replace(".", "_")
+            execenv = ExecutionEnvironment(agent_user=agent_user)
         else:
+            # TODO how will this work for secure agent users
             execreqs = self._read_execreqs(pkg.distinfo)
             execenv = self._reserve_resources(resmon, execreqs)
         execenv.name = name or agent_path
