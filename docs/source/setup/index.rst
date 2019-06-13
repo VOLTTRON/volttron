@@ -79,15 +79,23 @@ Steps for RabbitMQ
 2. Configure hostname
 ######################
 
-  Make sure that your hostname is correctly configured in /etc/hosts.
-  See `this link <https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho>`_
-  for more details.
+  Rabbitmq requires a valid hostname to start.  Use the command hostname on your linux machine to verify if a valid hostname is set. If not add a valid hostname to the file /etc/hostname. You would need sudo access to edit this file
+  If you want your rabbitmq instance to be reachable externally, then a hostname should be resolvable to a valid ip. In order to do this you need to have a entry in /etc/hosts file. For example, the below shows a valid /etc/hosts file
+
+  .. code::
+
+    127.0.0.1 localhost
+    127.0.0.1 myhost
+
+    192.34.44.101 externally_visible_hostname
+
+  After the edit, logout and log back in for the changes to take effect.
+
   If you are testing with VMs make please make sure to provide unique host names for each of the VM you are using.
 
-  Hostname should be resolvable to a valid ip when running on bridged mode. RabbitMQ checks for this during
-  initial boot. Without this (for example, when running on a VM in NAT mode)
-  RabbitMQ  start would fail with the error "unable to connect to empd (
-  port 4369) on <hostname>."
+  .. note::
+
+    If you change /etc/hostname after setting up rabbitmq (<refer to the step that does vcfg --rabbbitmq single), you will have to regenerate certificates and restart rabbitmq.
 
   **Note:** RabbitMQ startup error would show up in syslog (/var/log/messages) file
   and not in RabbitMQ logs (/var/log/rabbitmq/rabbitmq@hostname.log)
