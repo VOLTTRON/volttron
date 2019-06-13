@@ -4,7 +4,7 @@ MAIN_MODULE = 'agent'
 
 # Find the agent package that contains the main module
 packages = find_packages('.')
-agent_package = 'mlaV2'
+agent_package = 'matlab_agentV2'
 
 # Find the version number from the main module
 agent_module = agent_package + '.' + MAIN_MODULE

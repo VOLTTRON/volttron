@@ -66,16 +66,11 @@ logging.basicConfig(
 class StandAloneMatLab(Agent):
     '''The standalone version of the MatLab Agent'''
     
-    def onmessage(self, peer, sender, bus, topic, headers, message):
-        '''Handle incoming messages on the bus.'''
-        d = {'topic': topic, 'headers': headers, 'message': message}
-        sys.stdout.write(json.dumps(d)+'\n')
-
-    @PubSub.subscribe('pubsub', _topics['to_agent'])
+    @PubSub.subscribe('pubsub', _topics['volttron_to_matlab'])
     def print_message(self, peer, sender, bus, topic, headers, message):
         print('The Message is: ' + str(message))
         messageOut = script_runner(message)
-        self.vip.pubsub.publish('pubsub', _topics['from_agent'], message=messageOut)
+        self.vip.pubsub.publish('pubsub', _topics['matlab_to_volttron'], message=messageOut)
 
 
 

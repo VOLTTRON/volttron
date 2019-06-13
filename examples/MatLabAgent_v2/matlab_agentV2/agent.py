@@ -1,6 +1,3 @@
-"""
-Agent documentation goes here.
-"""
 
 __docformat__ = 'reStructuredText'
 
@@ -15,15 +12,15 @@ utils.setup_logging()
 __version__ = "0.2"
 
 
-def mlaV2(config_path, **kwargs):
+def matlabV2(config_path, **kwargs):
     """Parses the Agent configuration and returns an instance of
     the agent created using that configuration.
 
     :param config_path: Path to a configuration file.
 
     :type config_path: str
-    :returns: Mlav2
-    :rtype: Mlav2
+    :returns: MatlabAgentV2
+    :rtype: MatlabAgent2
     """
     try:
         config = utils.load_config(config_path)
@@ -35,22 +32,19 @@ def mlaV2(config_path, **kwargs):
 
     script_names = config.get('script_names', ["test.py"])
     script_args = config.get('script_args', [["20"]])
-    topics_to_agents= config.get('topics_to_agents', ["matlab/to_agent/1"])
-    topics_from_agents = config.get('topics_from_agents', "matlab/from_agent/")
+    topics_to_agents= config.get('topics_to_agents', ["matlab/to_matlab/1"])
+    topics_from_agents = config.get('topics_from_agents', "matlab/to_volttron/")
 
 
-    return Mlav2(script_names, script_args, topics_to_agents, topics_from_agents, **kwargs)
+    return MatlabAgentV2(script_names, script_args, topics_to_agents, topics_from_agents, **kwargs)
 
 
-class Mlav2(Agent):
-    """
-    Document agent constructor here.
-    """
+class MatlabAgentV2(Agent):
 
     def __init__(self,script_names=[], script_args=[], topics_to_agents=[], 
             topics_from_agents=None,**kwargs):
 
-        super(Mlav2, self).__init__(**kwargs)
+        super(MatlabAgentV2, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
 
         self.script_names = script_names
@@ -166,7 +160,7 @@ class Mlav2(Agent):
 
 def main():
     """Main method called to start the agent."""
-    utils.vip_main(mlaV2, 
+    utils.vip_main(matlabV2, 
                    version=__version__)
 
 

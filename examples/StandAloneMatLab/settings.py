@@ -1,6 +1,6 @@
 _topics = {
-        'to_agent': 'matlab/to_agent/1',
-        'from_agent': 'matlab/from_agent/1'
+        'volttron_to_matlab': 'matlab/to_matlab/1',
+        'matlab_to_volttron': 'matlab/to_volttron/1'
         }
 
 # The parameters dictionary is used to populate the agent's 

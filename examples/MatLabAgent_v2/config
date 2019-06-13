@@ -2,6 +2,6 @@
   # VOLTTRON config files are JSON with support for python style comments.
   "script_names": ["testScript2.py"], 
   "script_args": [["20"]],
-  "topics_to_agents": ["matlab/to_agent/"], 
-  "topics_from_agents": "matlab/from_agent/"
+  "topics_to_agents": ["matlab/to_matlab/1"], 
+  "topics_from_agents": "matlab/to_volttron/"
 }
