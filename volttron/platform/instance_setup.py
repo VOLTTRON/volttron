@@ -302,7 +302,7 @@ def check_rmq_setup():
     rmq_config = RMQConfig()
     if not os.path.exists(rmq_config.volttron_rmq_config):
         setup_rabbitmq_volttron('single', verbose, prompt=True, instance_name=None)
-
+    _load_config()
 def do_message_bus():
     global config_opts
     bus_type = None
