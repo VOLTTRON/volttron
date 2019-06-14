@@ -172,20 +172,63 @@ class ExecutionEnvironment(object):
     end and all resources to be returned to the system.
     '''
 
+
+
     def __init__(self, agent_user=None):
         self.process = None
         self.env = None
-        self.agent_user = agent_user
+        self.agent_user = 'volttron_agent_{}'.format(agent_user)
+
+    def set_agent_user_directory_permissions(self, user_name, user_dir):
+        permissions_command = [
+            'setfacl', '-r', '-m', 'u:{}:rwx'.format(user_name), '{}'.
+                format(user_dir)]
+        permissions_process = subprocess.Popen(permissions_command,
+                                               stdout=subprocess.PIPE,
+                                               stderr=subprocess.PIPE)
+        # todo when the process has completed check the stderr to see if
+        # there were any problems - if there were any permissions errors then
+        # the volttron user did not run the script as directed
+        # TODO we probably don't wanna do this anymore since we are being careful
+        # about what the state of the user after the command
+        # return gevent.with_timeout(1, process_wait, permissions_process)
+
+    def add_agent_user(self):
+        # TODO volttron_agent group validation - what should happen if the group
+        # is 'broken'
+        # TODO if the agent isn't running and installed then agent_users should
+        # not exist - what do we do?
+        # TODO last thing here should be the agent's directory
+        useradd = ['sudo', 'useradd', self.agent_user, '-G', 'volttron_agent',
+                   '-d', None]
+        useradd_process = subprocess.Popen(useradd, stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE)
+        # todo when the process has completed check the stderr to see if
+        # there were any problems - if there were any permissions errors then
+        # the volttron user did not run the script as directed
+
+
+    # TODO user cannot be removed if the process is running
+    def remove_agent_user(self):
+        """
+        Invokes sudo
+        :return:
+        """
+        userdel = ['sudo', 'userdel', self.agent_user]
+        userdel_process = subprocess.Popen(userdel, stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE)
+        # todo when the process has completed check the stderr to see if
+        # there were any problems - if there were any permissions errors then
+        # the volttron user did not run the script as directed
 
     def execute(self, *args, **kwargs):
-        # TODO investigate if we can use the demote method -  I suspect not
+        # TODO investigate if we can use the demote method
         try:
             self.env = kwargs.get('env', None)
             if self.agent_user:
-                agent_user = self.agent_vip_identity.replace('.', '_')
-                run_as_user = ['sudo', '-u', 'volttron_agent_{}'.
-                    format(agent_user), '-i']
-                _log.info('Running agent as {}'.format(agent_user))
+                run_as_user = ['sudo', '-u', self.agent_user.
+                    format(self.agent_user), '-i']
+                _log.info('Running agent as {}'.format(self.agent_user))
                 run_as_user.extend(*args)
                 self.process = subprocess.Popen(run_as_user, **kwargs)
             else:
@@ -257,7 +300,6 @@ class AIPplatform(object):
             os.kill(pid, signal.SIGINT)
             os.remove(pid_file)
 
-
     subscribe_address = property(lambda me: me.env.subscribe_address)
     publish_address = property(lambda me: me.env.publish_address)
 
@@ -295,13 +337,6 @@ class AIPplatform(object):
             raise
         return agent_uuid
 
-    def set_agent_user_directory_permissions(self, user_name, user_dir):
-        permissions_command = [
-            'setfacl', '-r', '-m', 'u:{}:rwx'.format(user_name), '{}'.
-                format(user_dir)]
-        process = subprocess.Popen(permissions_command)
-        return gevent.with_timeout(1, process_wait, process)
-
     # TODO handle secure users
     def install_agent(self, agent_wheel, vip_identity=None, publickey=None,
                       secretkey=None):
@@ -315,14 +350,15 @@ class AIPplatform(object):
                 final_identity = self._setup_agent_vip_id(
                     agent_uuid, vip_identity=vip_identity)
                 if self.secure_agent_user:
-                    # TODO set permissions for the agent install directory
+                # TODO set permissions for the agent install directory
                 break
             except OSError as exc:
                 if exc.errno != errno.EEXIST:
                     raise
         try:
             if auth is not None and self.env.verify_agents:
-                unpacker = auth.VolttronPackageWheelFile(agent_wheel, certsobj=certs.Certs())
+                unpacker = auth.VolttronPackageWheelFile(agent_wheel,
+                                                         certsobj=certs.Certs())
                 unpacker.unpack(dest=agent_path)
             else:
                 unpack(agent_wheel, dest=agent_path)
@@ -345,7 +381,8 @@ class AIPplatform(object):
         agent_path = os.path.join(self.install_dir, agent_uuid)
         name = self.agent_name(agent_uuid)
         pkg = UnpackedPackage(os.path.join(agent_path, name))
-        identity_template_filename = os.path.join(pkg.distinfo, "IDENTITY_TEMPLATE")
+        identity_template_filename = os.path.join(pkg.distinfo,
+                                                  "IDENTITY_TEMPLATE")
 
         rm_id_template = False
 
@@ -465,7 +502,7 @@ class AIPplatform(object):
             self.rmq_mgmt.delete_user(rmq_user)
         self.agents.pop(agent_uuid, None)
         if self.secure_agent_user:
-            # TODO remove agent user
+        # TODO remove agent user
         if remove_auth:
             self._unauthorize_agent_keys(agent_uuid)
         shutil.rmtree(os.path.join(self.install_dir, agent_uuid))
@@ -639,14 +676,14 @@ class AIPplatform(object):
         _log.warning('missing execution requirements: %s', execreqs_json)
         return {}
 
-    # TODO is restricted mode still a thing?
     def start_agent(self, agent_uuid):
         name = self.agent_name(agent_uuid)
         agent_path = os.path.join(self.install_dir, agent_uuid, name)
 
         execenv = self.agents.get(agent_uuid)
         if execenv and execenv.process.poll() is None:
-            _log.warning('request to start already running agent %s', agent_path)
+            _log.warning('request to start already running agent %s',
+                         agent_path)
             raise ValueError('agent is already running')
 
         pkg = UnpackedPackage(agent_path)
@@ -666,7 +703,8 @@ class AIPplatform(object):
             try:
                 module = exports['setuptools.installation']['eggsecutable']
             except KeyError:
-                _log.error('no agent launch class specified in package %s', agent_path)
+                _log.error('no agent launch class specified in package %s',
+                           agent_path)
                 raise ValueError('no agent launch class specified in package')
         config = os.path.join(pkg.distinfo, 'config')
         tag = self.agent_tag(agent_uuid)
@@ -690,7 +728,9 @@ class AIPplatform(object):
         # For backwards compatibility create the identity file if it does not exist.
         identity_file = os.path.join(self.install_dir, agent_uuid, "IDENTITY")
         if not os.path.exists(identity_file):
-            _log.debug('IDENTITY FILE MISSING: CREATING IDENTITY FILE WITH VALUE: {}'.format(agent_uuid))
+            _log.debug(
+                'IDENTITY FILE MISSING: CREATING IDENTITY FILE WITH VALUE: {}'.format(
+                    agent_uuid))
             with open(identity_file, 'wb') as fp:
                 fp.write(agent_uuid)
 
@@ -701,18 +741,20 @@ class AIPplatform(object):
 
         module, _, func = module.partition(':')
         if func:
-            code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module, func)
+            code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module,
+                                                                      func)
             argv = [sys.executable, '-c', code]
         else:
             argv = [sys.executable, '-m', module]
         resmon = getattr(self.env, 'resmon', None)
+        # TODO agent user can ignore the second environment, probably needs
+        # condition in process
         if resmon is None:
             agent_user = None
             if self.secure_agent_user:
                 agent_user = agent_vip_identity.replace(".", "_")
             execenv = ExecutionEnvironment(agent_user=agent_user)
         else:
-            # TODO how will this work for secure agent users
             execreqs = self._read_execreqs(pkg.distinfo)
             execenv = self._reserve_resources(resmon, execreqs)
         execenv.name = name or agent_path
