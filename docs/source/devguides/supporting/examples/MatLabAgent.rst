@@ -12,6 +12,271 @@ the message bus to one or more standalone agents in
 Windows. The standalone agent then executes the requested script 
 and arguments, and sends back the results to the MatLab agent.
 
+
+Overview of Matlab Agents
+-------------------------
+
+There are multiple components that are used for the matlab agent. 
+This diagram is to represent the components that are connected to  
+the matlab agents. In this example, the scripts involved are 
+based on the default settings in the matlab agent.
+
+|matlab-agent-diagram|
+
+MatLabAgentV2
+~~~~~~~~~~~~~
+
+MatLabAgentV2 publishes the name of a python script along with any command 
+line arguments that are needed for the script to the appropriate topic. 
+The agent then listens on another topic, and whenever anything is published 
+on this topic, it stores the message in the log file chosen when the volttron 
+instance is started. If there are multiple standalone agents, the agent can 
+send a a script to each of them, along with their own set of command line 
+arguments. In this case, each script name and set of command line arguments 
+should be sent to separate subtopics. This is done so that no matter how many 
+standalone agents are in use, MatLabAgentV2 will record all of their responses.
+
+.. code::
+
+        class MatlabAgentV2(Agent):
+
+            def __init__(self,script_names=[], script_args=[], topics_to_matlab=[], 
+                    topics_to_volttron=None,**kwargs):
+
+                super(MatlabAgentV2, self).__init__(**kwargs)
+                _log.debug("vip_identity: " + self.core.identity)
+
+                self.script_names = script_names
+                self.script_args = script_args
+                self.topics_to_matlab = topics_to_matlab
+                self.topics_to_volttron = topics_to_volttron
+                self.default_config = {"script_names": script_names,
+                                       "script_args": script_args,
+                                       "topics_to_matlab": topics_to_matlab,
+                                       "topics_to_volttron": topics_to_volttron}
+
+
+                #Set a default configuration to ensure that self.configure is called immediately to setup
+                #the agent.
+                self.vip.config.set_default("config", self.default_config)
+                #Hook self.configure up to changes to the configuration file "config".
+                self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"], pattern="config")
+
+            def configure(self, config_name, action, contents):
+                """
+                Called after the Agent has connected to the message bus. 
+                If a configuration exists at startup this will be 
+                called before onstart.
+                Is called every time the configuration in the store changes.
+                """
+                config = self.default_config.copy()
+                config.update(contents)
+
+                _log.debug("Configuring Agent")
+
+                try:
+                    script_names = config["script_names"]
+                    script_args = config["script_args"]
+                    topics_to_matlab = config["topics_to_matlab"]
+                    topics_to_volttron = config["topics_to_volttron"]
+
+                except ValueError as e:
+                    _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
+                    return
+
+                self.script_names = script_names
+                self.script_args = script_args
+                self.topics_to_matlab = topics_to_matlab
+                self.topics_to_volttron = topics_to_volttron
+                self._create_subscriptions(self.topics_to_volttron)
+
+                for script in range(len(self.script_names)):
+                    cmd_args = ""
+                    for x in range(len(self.script_args[script])):
+                        cmd_args += ",{}".format(self.script_args[script][x])
+                    _log.debug("Publishing on: {}".format(self.topics_to_matlab[script]))
+                    self.vip.pubsub.publish('pubsub', topic=self.topics_to_matlab[script], 
+                            message="{}{}".format(self.script_names[script],cmd_args))
+                    _log.debug("Sending message: {}{}".format(self.script_names[script],cmd_args))
+        
+                _log.debug("Agent Configured!")
+
+For this example, the agent is publishing to the matlab/to_matlab/1 topic, 
+and is listening to the matlab/to_volttron topic. It is sending the script 
+name testScript.py with the argument 20. These are the default values found 
+in the agent, if no configuration is loaded.
+
+.. code::
+
+        script_names = config.get('script_names', ["testScript.py"])
+        script_args = config.get('script_args', [["20"]])
+        topics_to_matlab = config.get('topics_to_matlab', ["matlab/to_matlab/1"])
+        topics_to_volttron = config.get('topics_to_volttron', "matlab/to_volttron/")
+
+StandAloneMatLab.py
+~~~~~~~~~~~~~~~~~~~
+
+The StandAloneMatLab.py script is a standalone agent designed to be able to 
+run in a windows environment. Its purpose is to listen to a topic, and when 
+something is published to this topic, it takes the message, and sends it to 
+the script_runner function in scriptwrapper.py. This function processes the 
+inputs, and then the output is published to another topic.
+
+.. code::
+
+        class StandAloneMatLab(Agent):
+            '''The standalone version of the MatLab Agent'''
+            
+            @PubSub.subscribe('pubsub', _topics['volttron_to_matlab'])
+            def print_message(self, peer, sender, bus, topic, headers, message):
+                print('The Message is: ' + str(message))
+                messageOut = script_runner(message)
+                self.vip.pubsub.publish('pubsub', _topics['matlab_to_volttron'], message=messageOut)
+
+The topic to listen to and the topic to publish to are defined in settings.py, 
+along with the information needed to connect the standalone agent to the primary 
+volttron instance. These should be the same topics that the MatLabAgentV2 is 
+publishing and listening to, so that the communication can be successful. To 
+connect the standalone agent to the primary volttron instance, the ip address 
+and port of the instance are needed, along with the server key. 
+
+.. code::
+
+        settings.py
+
+        _topics = {
+                'volttron_to_matlab': 'matlab/to_matlab/1',
+                'matlab_to_volttron': 'matlab/to_volttron/1'
+                }
+
+        # The parameters dictionary is used to populate the agent's 
+        # remote vip address.
+        _params = {
+                # The root of the address.
+                # Note:
+                # 1. volttron instance should be configured to use tcp. use command vcfg
+                # to configure
+                'vip_address': 'tcp://192.168.56.101',
+                'port': 22916,
+                
+                # public and secret key for the standalone_matlab agent.
+                # These can be created using the command:  volttron-ctl auth keypair
+                # public key should also be added to the volttron instance auth
+                # configuration to enable standalone agent access to volttron instance. Use
+                # command 'vctl auth add' Provide this agent's public key when prompted
+                # for credential.
+
+                'agent_public': 'dpu13XKPvGB3XJNVUusCNn2U0kIWcuyDIP5J8mAgBQ0',
+                'agent_secret': 'Hlya-6BvfUot5USdeDHZ8eksDkWgEEHABs1SELmQhMs',
+                
+                # Public server key from the remote platform.  This can be
+                # obtained using the command:
+                # volttron-ctl auth serverkey
+                'server_key': 'QTIzrRGQ0-b-37AbEYDuMA0l2ETrythM2V1ac0v9CTA'
+
+        }
+
+        def remote_url():
+                return "{vip_address}:{port}?serverkey={server_key}" \
+                        "&publickey={agent_public}&" \
+                        "secretkey={agent_secret}".format(**_params)
+
+The primary volttron instance will then need to add the public key from the 
+standalone agent. In this example, the topic that the standalone agent is 
+listening to is matlab/to_matlab/1, and the topic it is publishing to is matlab/to_volttron/1.
+
+scriptwrapper.py
+~~~~~~~~~~~~~~~~
+
+Scriptwrapper.py contains the script_runner function. The purpose of 
+this function is to take in a string that contains a python script 
+and command line arguments separated by commas. This string is parsed 
+and passed to the system arguments, which allows the script sent to 
+the function to use the command line arguments. The function then 
+redirects standard output to a StringIO file object, and then attempts 
+to execute the script. If there are any errors with the script, the 
+error that is generated is returned to the standalone agent. Otherwise, 
+the file object stores the output from the script, is converted to a string, 
+and is sent to the standalone agent. 
+In this example, the script that is to be run is testScript.py.
+
+.. code::
+
+        #Script to take in a string, run the program, 
+        #and output the results of the command as a string.
+
+        import time
+        import sys
+        from StringIO import StringIO
+
+
+        def script_runner(message):
+            original = sys.stdout
+        #    print(message)
+        #    print(sys.argv)
+            sys.argv = message.split(',')
+        #    print(sys.argv)
+
+            try:
+                out = StringIO()
+                sys.stdout = out
+                execfile(sys.argv[0])
+                sys.stdout = original
+        return out.getvalue()
+    except Exception as ex:
+        out = str(ex)
+        sys.stdout = original
+        return out
+
+.. note::
+
+        The script that is to be run needs to be in the same folder as the agent
+        and the scriptwrapper.py script. The script_runner function needs to be edited 
+        if it is going to call a script at a different location.
+
+
+testScript.py
+~~~~~~~~~~~~~
+
+This is a very simple test script designed to demonstrate the 
+calling of a matlab function from within python. First it initializes 
+the matlab engine for python. It then takes in a single command line 
+argument, and passes it to the matlab function testPy.m. If no 
+arguments are sent, it will send 0 to the testPy.m function. It then 
+prints the result of the testPy.m function. In this case, since 
+standard output is being redirected to a file object, this is 
+how the result is passed from this function to the standalone agent.
+
+.. code::
+
+        import matlab.engine
+        import sys
+
+
+        eng = matlab.engine.start_matlab()
+
+        if len(sys.argv) == 2:
+            result = eng.testPy(float(sys.argv[1]))
+        else:
+            result = eng.testPy(0)
+
+        print(result)
+
+testPy.m
+~~~~~~~~
+
+This matlab function is a very simple example, designed to show a 
+function that takes an argument, and produces an array as the output.
+The input argument is added to each element in the array, and the 
+entire array is then returned.
+
+.. code::
+
+        function out = testPy(z)
+        x = 1:100
+        out = x + z
+        end
+
 Setup on Linux
 --------------
 
@@ -255,3 +520,4 @@ If you have python3 as your default python run the command ``python -2 standalon
 .. |github-zip-image| image:: files/github-zip-image.png
 .. |extract-image_1| image:: files/extract-image_1.png
 .. |extract-image_2| image:: files/extract-image_2.png
+.. |matlab-agent-diagram| image:: files/matlab-agent-diagram.png
