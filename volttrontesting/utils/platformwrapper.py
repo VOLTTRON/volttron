@@ -411,8 +411,8 @@ class PlatformWrapper:
             event = gevent.event.Event()
             gevent.spawn(agent.core.run, event)  # .join(0)
             event.wait(timeout=2)
-            gevent.sleep(1)
-            hello = agent.vip.hello().get(timeout=5)
+            gevent.sleep(2)
+            hello = agent.vip.hello().get(timeout=15)
 
             #self.logit('Got hello response {}'.format(hello))
         agent.publickey = publickey
@@ -1063,6 +1063,20 @@ class PlatformWrapper:
             retries += 1
             time.sleep(timeout_seconds)
         return running
+
+    def setup_federation(self, config_path):
+        """
+        Set up federation using the given config path
+        :param config_path: path to federation config yml file.
+        """
+        _log.debug("Setting up federation using config : {}".format(config_path))
+
+        cmd = ['vcfg']
+        cmd.extend(['--vhome', self.volttron_home, '--instance-name', self.instance_name,'--rabbitmq',
+                    "federation", config_path])
+        execute_command(cmd, env=self.env, logger=_log,
+                              err_prefix="Error setting up federation")
+
 
     def restart_platform(self):
         self.startup_platform(vip_address=self.vip_address,
