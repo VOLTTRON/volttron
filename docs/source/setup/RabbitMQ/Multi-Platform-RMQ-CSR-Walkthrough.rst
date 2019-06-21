@@ -49,11 +49,8 @@ Instance Setup
 The following conventions/assumptions are made for the rest of this document:
 
   - Commands should be run from the VOLTTRON root
-  - VOLTTRON_HOME will use the default: $HOME/.volttron
-  - Default vip port shall be used: 22916
-  - HTTPS port shall be 8443
+  - Default values are used for VOLTTRON_HOME($HOME/.volttron), vip port (22916), HTTPS port (8443), rabbitmq ports( 5671 for amqps and 15671 for RabbitMQ management interface). If using different VOLTTRON_HOME or ports, please replace accordingly.
   - Replace central, node-zmq and node-rmq with your own hostnames.
-  - RabbitMQ instances will use default ports - 5671 (for SSL), 15671 (for RabbitMQ management interface)
 
 The following will use vcfg (volttron-cfg) to configure the individual platforms.
 
@@ -66,9 +63,67 @@ Central Instance Setup
 
 Next step would be to configure the instance to have a web interface to accept/deny incoming certificate signing
 requests from other instances. Additionally, we will need to install a Volttron Central agent, Volttron Central
-Platform agent, SQL historian agent and a Listener agent.
+Platform agent, SQL historian agent and a Listener agent. The following shows an example command output for this setup.
 
-.. image:: images/node-rmq-central-vcfg.png
+.. code-block:: console
+
+    (volttron)d3x140@central:~/volttron$ vcfg
+
+    Your VOLTTRON_HOME currently set to: /home/d3x140/.volttron
+
+    Is this the volttron you are attempting to setup? [Y]:
+    What type of message bus (rmq/zmq)? [zmq]: rmq
+    Name of this volttron instance: [volttron1]: central
+    RabbitMQ server home: [/home/d3x140/rabbitmq_server/rabbitmq_server-3.7.7]:
+    Fully qualified domain name of the system: [central]:
+    Would you like to create a new self signed root CAcertificate for this instance: [Y]:
+
+    Please enter the following details for root CA certificate
+      Country: [US]:
+      State: WA
+      Location: Richland
+      Organization: PNNL
+      Organization Unit: volttron
+    Do you want to use default values for RabbitMQ home, ports, and virtual host: [Y]:
+    2019-06-20 16:28:11,341 volttron.utils.rmq_mgmt DEBUG: Creating new VIRTUAL HOST: volttron
+    2019-06-20 16:28:11,422 volttron.utils.rmq_mgmt DEBUG: Create READ, WRITE and CONFIGURE permissions for the user: central- admin
+    Create new exchange: volttron, {'durable': True, 'type': 'topic', 'arguments': {'alternate-exchange': 'undeliverable'}}
+    Create new exchange: undeliverable, {'durable': True, 'type': 'fanout'}
+    Created CA cert
+
+    The rmq message bus has a backward compatibility
+    layer with current zmq instances. What is the
+    zmq bus's vip address? [tcp://127.0.0.1]: tcp://172.20.214.72
+    What is the port for the vip address? [22916]:
+    Is this instance web enabled? [N]: y
+    Web address set to: https://central
+    What is the port for this instance? [8443]:
+    Is this an instance of volttron central? [N]: y
+    Configuring /home/d3x140/volttron/services/core/VolttronCentral.
+    Enter volttron central admin user name: admin
+    Enter volttron central admin password:
+    Retype password:
+    Installing volttron central.
+    Should the agent autostart? [N]: y
+    Will this instance be controlled by volttron central? [Y]:
+    Configuring /home/d3x140/volttron/services/core/VolttronCentralPlatform.
+    What is the name of this instance? [central]:
+    What is the hostname for volttron central? [https://central]:
+    What is the port for volttron central? [8443]:
+    Should the agent autostart? [N]:
+    Would you like to install a platform historian? [N]: y
+    Configuring /home/d3x140/volttron/services/core/SQLHistorian.
+    Should the agent autostart? [N]: y
+    Would you like to install a master driver? [N]:
+    Would you like to install a listener agent? [N]: y
+    Configuring examples/ListenerAgent.
+    Should the agent autostart? [N]: y
+    Finished configuration!
+
+    You can now start the volttron instance.
+
+    If you need to change the instance configuration you can edit
+    the config file is at /home/d3x140/.volttron/config
 
 
 Start VOLTTRON instance and check if the agents are installed.
@@ -78,8 +133,7 @@ Start VOLTTRON instance and check if the agents are installed.
   ./start-volttron
   vctl status
 
-Open browser and go to master admin authentication page `https://central:8443/index.html` to accept/reject incoming certificate
-signing request (CSR) from other platforms. For more background information about the same will be be found in <ref>
+Open browser and go to master admin authentication page `https://central:8443/index.html` to accept/reject incoming certificate signing request (CSR) from other platforms. 
 
 ..note::
 
@@ -128,7 +182,36 @@ a master driver agent with a fake driver.
 
   This instance will use old ZeroMQ based authentication mechanism using CURVE keys.
 
-.. image:: images/node-zmq-collector1-vcfg.png
+.. code:: console
+
+   (volttron)d3x140@node-zmq:~/volttron$ vcfg
+
+   Your VOLTTRON_HOME currently set to: /home/d3x140/.volttron
+
+   Is this the volttron you are attempting to setup? [Y]:
+   Message bus set to zmq
+   What is the vip address? [tcp://127.0.0.1]:
+   What is the port for the vip address? [22916]:
+   Is this instance web enabled? [N]:
+   Will this instance be controlled by volttron central? [Y]:
+   Configuring /home/d3x140/volttron/services/core/VolttronCentralPlatform.
+   What is the name of this instance? [volttron1]: collector1
+   What is the hostname for volttron central? [http://node-zmq]: https://central
+   What is the port for volttron central? [8080]:
+   Should the agent autostart? [N]:
+   Would you like to install a platform historian? [N]:
+   Would you like to install a master driver? [N]: y
+   Configuring /home/d3x140/volttron/services/core/MasterDriverAgent.
+   Would you like to install a fake device on the master driver? [N]: y
+   Should the agent autostart? [N]: y
+   Would you like to install a listener agent? [N]:
+   Finished configuration!
+
+   You can now start the volttron instance.
+
+   If you need to change the instance configuration you can edit
+   the config file is at /home/d3x140/.volttron/config
+
 
 Please note the Volttron Central web-address should point to that of the "central" instance.
 
@@ -156,30 +239,14 @@ On the "node-zmq" box execute this command and grab the public key of the VCP ag
 
   vctl auth publickey
 
-Add auth entry corresponding to VCP agent on "central" instance.
+Add auth entry corresponding to VCP agent on "central" instance using the below command. Replace the user id value and credentials value appropriately before running
 
-.. code-block:: python
+.. code-block:: console
 
-  vctl auth add
-  domain []:
-  address []:
-  user_id []: node_zmq_vcp
-  capabilities (delimit multiple entries with comma) []:
-  roles (delimit multiple entries with comma) []:
-  groups (delimit multiple entries with comma) []:
-  mechanism [CURVE]:
-  credentials []: <publickey>
-  comments []:
-  enabled [True]:
+  vctl auth add --user_id <any unique user id. for example zmq_node_vcp> --credentials <public key of vcp on zmq node>
 
-..note::
 
-  Replace <publickey> with publickey of the forwarder agent.
-
-Go back to the terminal and check the status of Volttron Central Platform agent on the "collector1" instance. It
-should be set to "GOOD".
-
-Let's to do similar steps to start a forwarder agent that connects to "central" instance. Modify the configuration in
+Complete similar steps to start a forwarder agent that connects to "central" instance. Modify the configuration in
 `services/core/ForwardHistorian/rmq_config.yml` to have a destination VIP address pointing to VIP address of the
 "central" instance and server key of the "central" instance.
 
@@ -193,8 +260,9 @@ Let's to do similar steps to start a forwarder agent that connects to "central" 
 
   Replace <ip> with public facing IP-address of "central" instance and <serverkey> with serverkey of "central"
   instance.
+  Use the command **vctl auth serverkey** on the "central" instance to get the server key of the instance
 
-Start forwarder agent.
+Install and start forwarder agent.
 
 .. code-block:: console
 
@@ -207,25 +275,12 @@ Grab the public key of the forwarder agent.
   vctl auth publickey
 
 
-Add auth entry corresponding to VCP agent on "central" instance.
+Add auth entry corresponding to VCP agent on **central** instance.
 
 .. code-block:: console
 
-  vctl auth add
-  domain []:
-    address []:
-    user_id []: node_zmq_forwarder
-    capabilities (delimit multiple entries with comma) []:
-    roles (delimit multiple entries with comma) []:
-    groups (delimit multiple entries with comma) []:
-    mechanism [CURVE]:
-    credentials []: <publickey>
-    comments []:
-    enabled [True]:
+  vctl auth add --user_id <any unique user id. for example zmq_node_forwarder> --credentials <public key of forwarder on zmq node>
 
-..note::
-
-  Replace <publickey> with publickey of the forwarder agent.
 
 You should start seeing messages from "collector1" instance on the "central" instance's VOLTTRON log now.
 
