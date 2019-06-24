@@ -23,8 +23,8 @@ RPC call to weather service method **’get_minutely_forecast’**
 
 Parameters:
 
-    1. **locations** - Dictionary containing location details. Dark Sky requires
-        {'lat': <lattitude>, 'long': <longitude>}
+    1. **locations** - List of dictionaries containing location details. Dark Sky requires
+        [{'lat': <lattitude>, 'long': <longitude>},...]
 
 optional parameters:
 
@@ -39,8 +39,8 @@ RPC call to weather service method **’get_minutely_forecast’**
 
 Parameters:
 
-    1. **locations** - Dictionary containing location details. Dark Sky requires
-        {'lat': <lattitude>, 'long': <longitude>}
+    1. **locations** - List of dictionaries containing location details. Dark Sky requires
+        [{'lat': <lattitude>, 'long': <longitude>},...]
 
 optional parameters:
 
@@ -90,8 +90,8 @@ Example configuration:
         'api_calls_limit': 1000,
         'database_file': 'weather.sqlite',
         'max_size_gb': 1,
-        'poll_locations': [{"lat": 39.7555, "long": -105.2211},
-                           {"lat": 46.2804, "long": -119.2752}],
+        'poll_locations': [{'lat': 39.7555, 'long': -105.2211},
+                           {'lat': 46.2804, 'long': -119.2752}],
         'poll_interval': 60
     }
 
@@ -110,7 +110,7 @@ convention (Service_Point_Name) will be used.
     precipIntensity,lwe_precipitation_rate,millimeter / hour,meter / second
     precipProbability,,,
     temperature,surface_temperature,degC,degK
-    apparentTemperature,,,
+    apparentTemperature,,degC,degK
     dewPoint,dew_point_temperature,degC,degK
 
 Notes

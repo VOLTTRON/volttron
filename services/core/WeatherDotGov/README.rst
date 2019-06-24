@@ -26,7 +26,7 @@ configuration parameters are optional.
     {
         'database_file': 'weather.sqlite',
         'max_size_gb': 1,
-        'poll_locations': [{"station": "KLAX"}, {"station": "KPHX"},
+        'poll_locations': [{'station': 'KLAX'}, {'station': 'KPHX'}],
         'poll_interval': 60
     }
 
