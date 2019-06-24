@@ -368,7 +368,10 @@ class PlatformWrapper:
         :return:
         """
         self.logit("Building generic agent.")
-
+        # Update OS env to current platform's env so get_home() call will result
+        # in correct home director. Without this when more than one test instance are created, get_home()
+        # will return home dir of last started platform wrapper instance
+        os.environ.update(self.env)
         use_ipc = kwargs.pop('use_ipc', False)
 
         if serverkey is None:
@@ -491,6 +494,10 @@ class PlatformWrapper:
                          setupmode=False,
                          agent_monitor_frequency=600,
                          timeout=60):
+        # Update OS env to current platform's env so get_home() call will result
+        # in correct home director. Without this when more than one test instance are created, get_home()
+        # will return home dir of last started platform wrapper instance
+        os.environ.update(self.env)
         self.vip_address = vip_address
         self.mode = mode
         self.volttron_central_address = volttron_central_address
@@ -537,7 +544,7 @@ class PlatformWrapper:
                     cf.write(f.read())
 
             self.env['REQUESTS_CA_BUNDLE'] = ca_bundle_file
-
+            os.environ['REQUESTS_CA_BUNDLE'] = self.env['REQUESTS_CA_BUNDLE']
         # This file will be passed off to the main.py and available when
         # the platform starts up.
         self.requests_ca_bundle = self.env.get('REQUESTS_CA_BUNDLE')
@@ -828,7 +835,7 @@ class PlatformWrapper:
             Should this overwrite the current or not.
         :return:
         """
-
+        os.environ.update(self.env)
         assert self.is_running(), "Instance must be running to install agent."
         assert agent_wheel or agent_dir, "Invalid agent_wheel or agent_dir."
         assert isinstance(startup_time, int), "Startup time should be an integer."
@@ -1092,8 +1099,14 @@ class PlatformWrapper:
         maintain the context of the platform.
         :return:
         """
+
         if not self.is_running():
             return
+
+        # Update OS env to current platform's env so get_home() call will result
+        # in correct home director. Without this when more than one test instance are created, get_home()
+        # will return home dir of last started platform wrapper instance
+        os.environ.update(self.env)
 
         self.dynamic_agent.vip.rpc(CONTROL, "shutdown").get()
         self.dynamic_agent.core.stop()

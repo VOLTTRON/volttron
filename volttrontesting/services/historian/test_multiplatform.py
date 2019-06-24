@@ -96,9 +96,9 @@ def federated_rmq_instances(request, **kwargs):
             uf.write(df.read())
 
     start_rabbit(rmq_home=downstream.rabbitmq_config_obj.rmq_home, env=downstream.env)
-    gevent.sleep(8)  # wait for volttron to reconnect
+    gevent.sleep(1)
     start_rabbit(rmq_home=upstream.rabbitmq_config_obj.rmq_home, env=upstream.env)
-    gevent.sleep(8)  # wait for volttron to reconnect
+    gevent.sleep(1)
 
     try:
 
@@ -133,7 +133,7 @@ def federated_rmq_instances(request, **kwargs):
             conf.write(content.format(host=downstream.rabbitmq_config_obj.rabbitmq_config["host"],
                                       port=downstream.rabbitmq_config_obj.rabbitmq_config["amqp-port-ssl"],
                                       vhost=downstream.rabbitmq_config_obj.rabbitmq_config["virtual-host"]))
-        # downstream.setup_federation(config_path)
+        downstream.setup_federation(config_path)
 
     except Exception as e:
         print("Exception setting up federation: {}".format(e))
@@ -143,7 +143,7 @@ def federated_rmq_instances(request, **kwargs):
 
     yield upstream, downstream
 
-    # upstream.shutdown_platform()
+    upstream.shutdown_platform()
     downstream.shutdown_platform()
 
 
@@ -326,81 +326,80 @@ def test_all_platform_subscription_zmq(request, get_zmq_volttron_instances):
 @pytest.mark.historian
 @pytest.mark.multiplatform
 def test_all_platform_subscription_rmq(request, federated_rmq_instances):
-    pass
-    # try:
-    #     upstream, downstream = federated_rmq_instances
-    #     gevent.sleep(5)
-    #     assert upstream.is_running()
-    #     assert downstream.is_running()
-    #
-    #     # setup consumer on downstream1. One with all_platform=True another False
-    #
-    #     hist_config = {"connection":
-    #                        {"type": "sqlite",
-    #                         "params": {
-    #                             "database": downstream.volttron_home +
-    #                                         "/historian.sqlite"}},
-    #                    "all_platforms": True
-    #                    }
-    #     hist_id = downstream.install_agent(
-    #         vip_identity='platform.historian',
-    #         agent_dir=get_services_core("SQLHistorian"),
-    #         config_file=hist_config,
-    #         start=True)
-    #
-    #     assert downstream.is_running()
-    #     assert downstream.is_agent_running(hist_id)
-    #     query_agent = downstream.dynamic_agent
-    #     gevent.sleep(2)
-    #
-    #     print "publish"
-    #     producer = upstream.dynamic_agent
-    #     gevent.sleep(2)
-    #     DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
-    #
-    #     oat_reading = random.uniform(30, 100)
-    #     mixed_reading = oat_reading + random.uniform(-5, 5)
-    #     damper_reading = random.uniform(0, 100)
-    #
-    #     float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
-    #     percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
-    #
-    #     # Create a message for all points.
-    #     all_message = [{'OutsideAirTemperature': oat_reading,
-    #                     'MixedAirTemperature': mixed_reading,
-    #                     'DamperSignal': damper_reading},
-    #                    {'OutsideAirTemperature': float_meta,
-    #                     'MixedAirTemperature': float_meta,
-    #                     'DamperSignal': percent_meta
-    #                     }]
-    #
-    #     # Create timestamp
-    #     now = utils.format_timestamp(datetime.utcnow())
-    #     # now = '2015-12-02T00:00:00'
-    #     headers = {
-    #         headers_mod.DATE: now, headers_mod.TIMESTAMP: now
-    #     }
-    #     print("Published time in header: " + now)
-    #
-    #     producer.vip.pubsub.publish('pubsub',
-    #                                 DEVICES_ALL_TOPIC,
-    #                                 headers=headers,
-    #                                 message=all_message).get(timeout=10)
-    #     gevent.sleep(5)
-    #
-    #     ## Query from consumer to verify
-    #
-    #     result = query_agent.vip.rpc.call("platform.historian",
-    #                                       'query',
-    #                                       topic="Building/LAB/Device/OutsideAirTemperature",
-    #                                       count=1).get(timeout=100)
-    #     print("QUERY RESULT : {}".format(result))
-    #     assert (result['values'][0][1] == oat_reading)
-    #     assert set(result['metadata'].items()) == set(float_meta.items())
-    #     gevent.sleep(1)
-    # finally:
-    #     if downstream:
-    #         downstream.stop_agent(hist_id)
-    #     if producer:
-    #         producer.core.stop()
+    try:
+        upstream, downstream = federated_rmq_instances
+        gevent.sleep(5)
+        assert upstream.is_running()
+        assert downstream.is_running()
+
+        # setup consumer on downstream1. One with all_platform=True another False
+
+        hist_config = {"connection":
+                           {"type": "sqlite",
+                            "params": {
+                                "database": downstream.volttron_home +
+                                            "/historian.sqlite"}},
+                       "all_platforms": True
+                       }
+        hist_id = downstream.install_agent(
+            vip_identity='platform.historian',
+            agent_dir=get_services_core("SQLHistorian"),
+            config_file=hist_config,
+            start=True)
+
+        assert downstream.is_running()
+        assert downstream.is_agent_running(hist_id)
+        query_agent = downstream.dynamic_agent
+        gevent.sleep(2)
+
+        print "publish"
+        producer = upstream.dynamic_agent
+        gevent.sleep(2)
+        DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+
+        oat_reading = random.uniform(30, 100)
+        mixed_reading = oat_reading + random.uniform(-5, 5)
+        damper_reading = random.uniform(0, 100)
+
+        float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+        percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
+
+        # Create a message for all points.
+        all_message = [{'OutsideAirTemperature': oat_reading,
+                        'MixedAirTemperature': mixed_reading,
+                        'DamperSignal': damper_reading},
+                       {'OutsideAirTemperature': float_meta,
+                        'MixedAirTemperature': float_meta,
+                        'DamperSignal': percent_meta
+                        }]
+
+        # Create timestamp
+        now = utils.format_timestamp(datetime.utcnow())
+        # now = '2015-12-02T00:00:00'
+        headers = {
+            headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+        }
+        print("Published time in header: " + now)
+
+        producer.vip.pubsub.publish('pubsub',
+                                    DEVICES_ALL_TOPIC,
+                                    headers=headers,
+                                    message=all_message).get(timeout=10)
+        gevent.sleep(5)
+
+        ## Query from consumer to verify
+
+        result = query_agent.vip.rpc.call("platform.historian",
+                                          'query',
+                                          topic="Building/LAB/Device/OutsideAirTemperature",
+                                          count=1).get(timeout=100)
+        print("QUERY RESULT : {}".format(result))
+        assert (result['values'][0][1] == oat_reading)
+        assert set(result['metadata'].items()) == set(float_meta.items())
+        gevent.sleep(1)
+    finally:
+        if downstream:
+            downstream.stop_agent(hist_id)
+        if producer:
+            producer.core.stop()
 
