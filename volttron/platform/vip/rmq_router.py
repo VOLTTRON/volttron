@@ -57,19 +57,23 @@
 
 
 from __future__ import absolute_import
-import logging
-import pika
-import os
-import errno
 
-from .rmq_connection import RMQRouterConnection
-from .socket import Message, Address
-from ..main import __version__
-from .router import BaseRouter
+import errno
+import logging
+import os
 from Queue import Queue
-from ..keystore import KeyStore
-from volttron.utils.rmq_mgmt import RabbitMQMgmt
+
+from volttron.platform import is_rabbitmq_available
 from volttron.platform.agent import json as jsonapi
+from volttron.utils.rmq_mgmt import RabbitMQMgmt
+from .rmq_connection import RMQRouterConnection
+from .router import BaseRouter
+from .socket import Message, Address
+from ..keystore import KeyStore
+from ..main import __version__
+
+if is_rabbitmq_available():
+    import pika
 
 __all__ = ['RMQRouter']
 
@@ -186,7 +190,7 @@ class RMQRouter(BaseRouter):
     def _drop_peer(self, peer, message_bus='rmq'):
         try:
             self._peers.remove(peer)
-            self._peers_with_messagebus[peer] = message_bus
+            del self._peers_with_messagebus[peer]
         except KeyError:
             return
         self._distribute(b'peerlist', b'drop', peer, message_bus)
@@ -232,7 +236,7 @@ class RMQRouter(BaseRouter):
                 del message.args[:]
                 message.args = [b'listing']
                 message.args.extend(self._peers)
-            if op == b'list_with_messagebus':
+            elif op == b'list_with_messagebus':
                 _log.debug("Router peerlist request op: list_with_messagebus, {}, {}".format(sender, self._peers))
                 del message.args[:]
                 message.args = [b'listing_with_messagebus']

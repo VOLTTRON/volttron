@@ -930,6 +930,7 @@ def start_volttron_process(opts):
                               external_address_config=external_address_file,
                               setup_mode=opts.setup_mode,
                               bind_web_address=opts.bind_web_address,
+                              enable_store=False,
                               message_bus='zmq'),
             # For Backward compatibility with VOLTTRON versions <= 4.1
             PubSubWrapper(address=address,

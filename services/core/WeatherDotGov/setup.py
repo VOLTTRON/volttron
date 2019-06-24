@@ -40,11 +40,12 @@
 from os import path
 from setuptools import setup, find_packages
 
-MAIN_MODULE = 'WeatherDotGovAgent'
+MAIN_MODULE = 'agent'
 
 # Find the agent package that contains the main module
 packages = find_packages('.')
 agent_package = ''
+
 for package in find_packages():
     # Because there could be other packages such as tests
     if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
@@ -61,11 +62,12 @@ __version__ = _temp.__version__
 
 # Setup
 setup(
-    name='weatherdotgov_agent',
+    name=agent_package + 'agent',
     version=__version__,
+    description="Agent for interfacing with the Weather.gov API service",
     install_requires=['volttron'],
     packages=packages,
-    package_data={'agent': ['data/name_mapping.csv']},
+    package_data={'weatherdotgov': ['data/name_mapping.csv']},
     entry_points={
         'setuptools.installation': [
             'eggsecutable = ' + agent_module + ':main',

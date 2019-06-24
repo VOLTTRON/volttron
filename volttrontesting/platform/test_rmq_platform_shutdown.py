@@ -54,7 +54,7 @@ def test_vctl_shutdown_on_rmq_stop(request):
     """
     address = get_rand_vip()
     volttron_instance = build_wrapper(address,
-                                      message_bus='rmq',
+                                      messagebus='rmq',
                                       ssl_auth=True)
     agent_uuid = volttron_instance.install_agent(
         agent_dir=get_examples("ListenerAgent"), start=True)

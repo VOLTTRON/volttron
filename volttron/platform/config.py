@@ -49,14 +49,12 @@ the order encountered.
 '''
 
 import argparse as _argparse
-import logging
 import os as _os
 import re as _re
 import shlex as _shlex
 import sys as _sys
 from volttron.platform.instance_setup import main
 from volttron.platform.agent import utils
-
 
 
 def expandall(string):

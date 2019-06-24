@@ -242,6 +242,18 @@ class VCConnection(Agent):
                                                  raw)
 
     @RPC.export
+    def delete_agent_config(self, agent_identity, config_name):
+        """
+        Deletes the configuration from the config store of the passed agent
+        identity.
+
+        :param agent_identity:
+        :param config_name:
+        :return: The stored configuration.
+        """
+        return self._main_agent.delete_agent_config(agent_identity, config_name)
+
+    @RPC.export
     def subscribe_to_vcp(self, prefix, prefix_on_vc):
         """
         Allows volttron.central to listen to the message bus on vcp instance.
