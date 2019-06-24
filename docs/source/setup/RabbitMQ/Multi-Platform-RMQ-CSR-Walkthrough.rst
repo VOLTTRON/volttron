@@ -14,7 +14,7 @@ Node Setup
 ----------
 
 For this example we will have two types of nodes; a data collector and a central node.  Each of the data
-collectors will have different message buses (VOLTTRON supports both RabbitMQ and ZeroMQ).  The nodes will
+collectors will have different message buses (VOLTTRON supports both RabbitMQ and ZeroMQ). The nodes will
 be configured as in the following table.
 
 .. csv-table:: Node Configuration
@@ -49,7 +49,7 @@ Instance Setup
 The following conventions/assumptions are made for the rest of this document:
 
   - Commands should be run from the VOLTTRON root
-  - Default values are used for VOLTTRON_HOME($HOME/.volttron), vip port (22916), HTTPS port (8443), rabbitmq ports( 5671 for amqps and 15671 for RabbitMQ management interface). If using different VOLTTRON_HOME or ports, please replace accordingly.
+  - Default values are used for VOLTTRON_HOME($HOME/.volttron), vip port (22916), HTTPS port (8443), rabbitmq ports( 5671 for AMQPs and 15671 for RabbitMQ management interface). If using different VOLTTRON_HOME or ports, please replace accordingly.
   - Replace central, node-zmq and node-rmq with your own hostnames.
 
 The following will use vcfg (volttron-cfg) to configure the individual platforms.
@@ -57,7 +57,7 @@ The following will use vcfg (volttron-cfg) to configure the individual platforms
 Central Instance Setup
 ----------------------
 
-..note::
+.. note::
 
   This instance must have been bootstrapped using --rabbitmq see :ref:`Building-VOLTTRON#steps-for-rabbitmq`.
 
@@ -135,9 +135,10 @@ Start VOLTTRON instance and check if the agents are installed.
 
 Open browser and go to master admin authentication page `https://central:8443/index.html` to accept/reject incoming certificate signing request (CSR) from other platforms. 
 
-..note::
+.. note::
 
-  Replace "central" with the proper hostname of VC instance in the admin page URL.
+  Replace "central" with the proper hostname of VC instance in the admin page URL. If opening the admin page from a
+  different system, then please make that the hostname is resolvable in that machine.
 
 Click on "Login To Admistration Area".
 
@@ -178,7 +179,7 @@ Node-ZMQ Instance Setup
 On the "node-zmq" VM, setup a ZeroMQ based VOLTTRON instance. Using "vcfg" command, install Volttron Central Platform agent,
 a master driver agent with a fake driver.
 
-..note::
+.. note::
 
   This instance will use old ZeroMQ based authentication mechanism using CURVE keys.
 
@@ -256,7 +257,7 @@ Complete similar steps to start a forwarder agent that connects to "central" ins
   destination-vip: tcp://<ip>:22916
   destination-serverkey: <serverkey>
 
-..note::
+.. note::
 
   Replace <ip> with public facing IP-address of "central" instance and <serverkey> with serverkey of "central"
   instance.
@@ -289,7 +290,7 @@ You should start seeing messages from "collector1" instance on the "central" ins
 Node-RMQ Instance Setup
 -----------------------
 
-..note::
+.. note::
 
   This instance must have been bootstrapped using --rabbitmq see :ref:`Building-VOLTTRON#steps-for-rabbitmq`.
 
@@ -298,7 +299,7 @@ name is set to "collector2".
 
 .. image:: images/node-rmq-collector2-vcfg.png
 
-..note::
+.. note::
 
  The Volttron Central web-address should point to that of the "central" instance.
 

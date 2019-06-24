@@ -51,8 +51,8 @@ Proceed to `Testing the Installation`_.
 Steps for RabbitMQ
 ~~~~~~~~~~~~~~~~~~
 
-1. Install Erlang version 21 or greater
-#######################################
+1. Install Erlang version >= 21
+###############################
 
   For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
   If you are running an **Debian or CentOS system**, you can install the RabbitMQ dependencies by running the
@@ -74,15 +74,17 @@ Steps for RabbitMQ
 
   **Alternatively**
 
-  You can download and install Erlang from `Erlang Soultion <https://www.erlang-solutions.com/resources/download.html>`_
+  You can download and install Erlang from `Erlang Solution <https://www.erlang-solutions.com/resources/download.html>`_
   Please include OTP/components - ssl, public_key, asn1, and crypto.
   Also lock version of Erlang using the `yum-plugin-versionlock <https://access.redhat.com/solutions/98873>`_
 
 2. Configure hostname
 ######################
 
-  Rabbitmq requires a valid hostname to start.  Use the command hostname on your linux machine to verify if a valid hostname is set. If not add a valid hostname to the file /etc/hostname. You would need sudo access to edit this file
-  If you want your rabbitmq instance to be reachable externally, then a hostname should be resolvable to a valid ip. In order to do this you need to have a entry in /etc/hosts file. For example, the below shows a valid /etc/hosts file
+  Rabbitmq requires a valid hostname to start.  Use the command hostname on your linux machine to verify if a valid
+  hostname is set. If not add a valid hostname to the file /etc/hostname. You would need sudo access to edit this file
+  If you want your rabbitmq instance to be reachable externally, then a hostname should be resolvable to a valid ip.
+  In order to do this you need to have a entry in /etc/hosts file. For example, the below shows a valid /etc/hosts file
 
   .. code::
 
@@ -97,10 +99,13 @@ Steps for RabbitMQ
 
   .. note::
 
-    If you change /etc/hostname after setting up rabbitmq (<refer to the step that does vcfg --rabbbitmq single), you will have to regenerate certificates and restart rabbitmq.
+    If you change /etc/hostname after setting up rabbitmq (<refer to the step that does vcfg --rabbbitmq single), you will have to
+    regenerate certificates and restart RabbitMQ.
 
-  **Note:** RabbitMQ startup error would show up in syslog (/var/log/messages) file
-  and not in RabbitMQ logs (/var/log/rabbitmq/rabbitmq@hostname.log)
+  .. note::
+
+    RabbitMQ startup error would show up in system log (/var/log/messages) file and not in RabbitMQ logs
+    ($RABBITMQ_HOME/var/log/rabbitmq/rabbitmq@hostname.log where $RABBITMQ_HOME is <install dir>/rabbitmq_server-3.7.7)
 
 3. Bootstrap
 ############
@@ -114,7 +119,7 @@ Steps for RabbitMQ
       # bootstrap.py --help will show you all of the "package options" such as
       # installing required packages for volttron central or the platform agent.
 
-      python bootstrap.py --rabbitmq [optional install directory. defaults to
+      python bootstrap.py --rabbitmq [optional install directory defaults to
        <user_home>/rabbitmq_server]
 
   This will build the platform and create a virtual Python environment and
@@ -133,11 +138,13 @@ Steps for RabbitMQ
 
   Please note, RABBITMQ_HOME environment variable can be set in ~/.bashrc. If doing so,
   it needs to be set to RabbitMQ installation directory (default path is
-  <user_home>/rabbitmq_server/rabbitmq_server/rabbitmq_server-3.7.7)
+  <user_home>/rabbitmq_server/rabbitmq_server-3.7.7)
 
   ::
 
-     echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.7.7'|sudo tee --append ~/.bashrc | source ~/.bashrc
+     echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.7.7'|tee --append ~/.bashrc | source ~/.bashrc
+     # Reload the environment variables in the current shell
+     source ~/.bashrc
 
 
 4. Activate the environment

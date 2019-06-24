@@ -99,3 +99,5 @@ administrator denies a access request, the auth subsystem will raise an alert an
 .. |CSR Denied| image:: images/csr-sequence-deny.png
 
 
+Follow walk-through in :ref:`Multi-Platform Multi-Bus Walk-through <_Multi_Platform_Walkthrough>` for setting up different
+combinations of multi-bus multi-platform setup using CSR.
