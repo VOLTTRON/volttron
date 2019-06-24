@@ -478,7 +478,7 @@ def do_web_enabled_zmq(vhome):
         get_cert_and_key(vhome)
 
 @installs(get_services_core("VolttronCentral"), 'vc')
-def do_vc(vhome):
+def do_vc():
 
     resp = vc_config()
 
@@ -730,7 +730,7 @@ def wizard():
         prompt = 'Is this an instance of volttron central?'
         response = prompt_response(prompt, valid_answers=y_or_n, default='N')
         if response in y:
-            do_vc(volttron_home)
+            do_vc()
 
     prompt = 'Will this instance be controlled by volttron central?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
@@ -853,18 +853,5 @@ def main():
         for agent in args.agent:
             try:
                 available_agents[agent]()
-                agent.add_argument(
-                    '--web-ca-cert', metavar='CAFILE', default=None,
-                    help='If using self-signed certificates, this variable will be set globally to allow requests'
-                         'to be able to correctly reach the webserver without having to specify verify in all calls.'
-                )
-                agent.add_argument(
-                    '--web-ssl-key', metavar='KEYFILE', default=None,
-                    help='ssl key file for using https with the volttron server'
-                )
-                agent.add_argument(
-                    '--web-ssl-cert', metavar='CERTFILE', default=None,
-                    help='ssl certficate file for using https with the volttron server'
-                )
             except KeyError:
                 pass
