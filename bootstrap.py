@@ -79,6 +79,7 @@ import subprocess
 import sys
 
 import os
+import urllib2
 from distutils.version import LooseVersion
 import traceback
 
@@ -287,7 +288,6 @@ def install_rabbit(rmq_install_dir):
                 
         sys.exit(60)
 
-    import wget
     if rmq_install_dir == default_rmq_dir and not os.path.exists(
             default_rmq_dir):
         os.makedirs(default_rmq_dir)
@@ -309,9 +309,12 @@ def install_rabbit(rmq_install_dir):
               "Skipping rabbitmq server install".format(
             rmq_install_dir, rabbitmq_server))
     else:
-        filename = wget.download(
-            "https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.7.7/rabbitmq-server-generic-unix-3.7.7.tar.xz",
-            out=os.path.expanduser("~"))
+        url = "https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.7.7/rabbitmq-server-generic-unix-3.7.7.tar.xz"
+        f = urllib2.urlopen(url)
+        data = f.read()
+        filename = "rabbitmq-server.download.tar.xz"
+        with open(filename, "wb") as imgfile:
+            imgfile.write(data)
         _log.info("\nDownloaded rabbitmq server")
         cmd = ["tar",
                "-xf",
