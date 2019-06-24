@@ -593,7 +593,7 @@ def wizard():
     prompt = 'Should agents run with their own users (this requires running ' \
              'scripts/security_user_permissions.sh as sudo)?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
-    config_opts['secure_agent_users'] = True if response in y else False
+    config_opts['secure-agent-users'] = True if response in y else False
     _update_config_file()
 
     prompt = 'Is this instance a volttron central?'

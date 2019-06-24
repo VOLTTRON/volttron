@@ -1134,6 +1134,11 @@ def main(argv=sys.argv):
         '--agent-monitor-frequency', default=600,
         help='How often should the platform check for crashed agents and '
              'attempt to restart. Units=seconds. Default=600')
+    # TODO this may not be necessary
+    agents.add_argument(
+        '--secure-agent-users', default=False,
+        help='Require that agents run with their own users (this requires '
+             'running scripts/security_user_permissions.sh as sudo)')
 
     # XXX: re-implement control options
     # on
