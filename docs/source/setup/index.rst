@@ -14,7 +14,9 @@ Ensure that all the
 
 Clone VOLTTRON source code
 --------------------------
-From version 6.0 VOLTTRON supports two message bus - ZMQ and RabbitMQ.
+From version 6.0 VOLTTRON supports two message bus - ZMQ and RabbitMQ.  For the latest
+build use the develop branch.  For a more conservative branch
+please use the master branch.
 
 ::
 
@@ -29,7 +31,7 @@ Setup virtual environment
 The VOLTTRON project includes a bootstrap script which automatically
 downloads dependencies and builds VOLTTRON. The script also creates a
 Python virtual environment for use by the project which can be activated
-after bootstrapping with ". env/bin/activate". This activated Python
+after bootstrapping with `. env/bin/activate`. This activated Python
 virtual environment should be used for subsequent bootstraps whenever
 there are significant changes. The system's Python need only be used on
 the initial bootstrap.
@@ -49,8 +51,8 @@ Proceed to `Testing the Installation`_.
 Steps for RabbitMQ
 ~~~~~~~~~~~~~~~~~~
 
-1. Install Erlang version 21 packages
-#####################################
+1. Install Erlang version 21 or greater
+#######################################
 
   For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
   If you are running an **Debian or CentOS system**, you can install the RabbitMQ dependencies by running the
