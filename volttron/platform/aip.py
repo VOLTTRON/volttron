@@ -46,6 +46,8 @@ import shutil
 import signal
 import sys
 import uuid
+import grp
+import pwd
 
 import gevent
 import gevent.event
@@ -173,53 +175,10 @@ class ExecutionEnvironment(object):
     '''
 
 
-
     def __init__(self, agent_user=None):
         self.process = None
         self.env = None
         self.agent_user = 'volttron_agent_{}'.format(agent_user)
-
-    def set_agent_user_directory_permissions(self, user_name, user_dir):
-        permissions_command = [
-            'setfacl', '-r', '-m', 'u:{}:rwx'.format(user_name), '{}'.
-                format(user_dir)]
-        permissions_process = subprocess.Popen(permissions_command,
-                                               stdout=subprocess.PIPE,
-                                               stderr=subprocess.PIPE)
-        # todo when the process has completed check the stderr to see if
-        # there were any problems - if there were any permissions errors then
-        # the volttron user did not run the script as directed
-        # TODO we probably don't wanna do this anymore since we are being careful
-        # about what the state of the user after the command
-        # return gevent.with_timeout(1, process_wait, permissions_process)
-
-    def add_agent_user(self):
-        # TODO volttron_agent group validation - what should happen if the group
-        # is 'broken'
-        # TODO if the agent isn't running and installed then agent_users should
-        # not exist - what do we do?
-        # TODO last thing here should be the agent's directory
-        useradd = ['sudo', 'useradd', self.agent_user, '-G', 'volttron_agent',
-                   '-d', None]
-        useradd_process = subprocess.Popen(useradd, stdout=subprocess.PIPE,
-                                           stderr=subprocess.PIPE)
-        # todo when the process has completed check the stderr to see if
-        # there were any problems - if there were any permissions errors then
-        # the volttron user did not run the script as directed
-
-
-    # TODO user cannot be removed if the process is running
-    def remove_agent_user(self):
-        """
-        Invokes sudo
-        :return:
-        """
-        userdel = ['sudo', 'userdel', self.agent_user]
-        userdel_process = subprocess.Popen(userdel, stdout=subprocess.PIPE,
-                                           stderr=subprocess.PIPE)
-        # todo when the process has completed check the stderr to see if
-        # there were any problems - if there were any permissions errors then
-        # the volttron user did not run the script as directed
 
     def execute(self, *args, **kwargs):
         # TODO investigate if we can use the demote method
@@ -242,8 +201,6 @@ class ExecutionEnvironment(object):
         self.execute(*args, **kwargs)
 
 
-# TODO set up permissions for agent directory, create agent users during agent
-# installation, destroy users during agent removal
 class AIPplatform(object):
     """Manages the main workflow of receiving and sending agents."""
 
@@ -255,8 +212,88 @@ class AIPplatform(object):
         self.secure_agent_user = load_platform_config().get(
             'secure_agent_users', False)
 
+    def add_agent_user(self, agent, agent_dir):
+        """
+        Invokes sudo to create a unique unix user for the agent.
+        """
+        try:
+            grp.getgrnam("volttron_agent")
+        except KeyError as ke:
+            _log.error(ke)
+            _log.warning("The volttron_agent user group may not exist. Agent "
+                         "will not be started.")
+            raise RuntimeError("Aww man, we couldn't find the volttron_agent "
+                               "group")
+            # TODO make an alert
+            # keep the raise?
+        if not pwd.getpwnam(agent):
+            useradd = ['sudo', 'useradd', agent, '-G', 'volttron_agent',
+                       '-d', agent_dir]
+            useradd_process = subprocess.Popen(useradd,
+                                               stdout=subprocess.PIPE,
+                                               stderr=subprocess.PIPE)
+            response = useradd_process.communicate()
+            if response[0]:
+                _log.info("Stdout from useradd process: {}".format(
+                    response[0]))
+            if response[1]:
+                _log.error("Add {agent} user failed: {error}".format(
+                    agent=agent, error=response[1]))
+                raise RuntimeError("UH OH, WE COULDN'T MAKE A NEW USER")
+                # TODO change text
+                # TODO alert?
+            else:
+                return True
+        else:
+            _log.info("{} user already exists. Skipping creating agent user.")
+            return False
+
+    def set_agent_user_directory_permissions(self, user_name, user_dir):
+        permissions_command = [
+            'setfacl', '-r', '-m', 'u:{}:rwx'.format(user_name), '{}'.
+                format(user_dir)]
+        permissions_process = subprocess.Popen(permissions_command,
+                                               stdout=subprocess.PIPE,
+                                               stderr=subprocess.PIPE)
+        stdout, stderr = permissions_process.communicate()
+        _log.info(stdout)
+        if stderr:
+            _log.error("Error setting user permissions for {user} on directory "
+                       "{directory}: {stderr}.".format(
+                user=user_name, directory=user_dir, stderr=stderr))
+            # TODO raise? alert?
+            raise RuntimeError(stderr)
+
+    def remove_agent_user(self, process, agent):
+        """
+        Invokes sudo to remove the unix user for the given environment.
+        """
+        # check ensure that the process is not currently running
+        try:
+            # If sig is 0, then no signal is sent, but error checking is still
+            # performed; this can be used to check for the existence of a
+            # process ID or process group ID.
+            os.kill(process.pid, 0)
+        except OSError:
+            # TODO if the agent user doesn't exist, we might want to make sure
+            # the process isn't running, this shouldn't happen
+            if pwd.getpwnam(agent):
+                userdel = ['sudo', 'userdel', agent]
+                userdel_process = subprocess.Popen(userdel,
+                                                   stdout=subprocess.PIPE,
+                                                   stderr=subprocess.PIPE)
+                response = userdel_process.communicate()
+                if response[0]:
+                    _log.info('Stdout from user removal: {}'.format(
+                        response[0]))
+                if response[1]:
+                    _log.error("Remove {agent} user failed: {stderr}".format(
+                        agent=agent, stderr=response[1]))
+                    # TODO raise? alert?
+                    raise RuntimeError(response[1])
+
     def setup(self):
-        '''Creates paths for used directories for the instance.'''
+        """Creates paths for used directories for the instance."""
         for path in [self.run_dir, self.config_dir, self.install_dir]:
             if not os.path.exists(path):
                 os.makedirs(path, 0o755)
@@ -337,7 +374,6 @@ class AIPplatform(object):
             raise
         return agent_uuid
 
-    # TODO handle secure users
     def install_agent(self, agent_wheel, vip_identity=None, publickey=None,
                       secretkey=None):
         while True:
@@ -350,7 +386,14 @@ class AIPplatform(object):
                 final_identity = self._setup_agent_vip_id(
                     agent_uuid, vip_identity=vip_identity)
                 if self.secure_agent_user:
-                # TODO set permissions for the agent install directory
+                    created_user = self.add_agent_user(final_identity,
+                                                       agent_path)
+                    if not created_user:
+                        raise RuntimeError("During agent installation, the "
+                                           "agent user was found to exist. "
+                                           "Preventing agent installation.")
+                    self.set_agent_user_directory_permissions(
+                        final_identity, agent_path)
                 break
             except OSError as exc:
                 if exc.errno != errno.EEXIST:
@@ -410,7 +453,7 @@ class AIPplatform(object):
 
         if not is_valid_identity(final_identity):
             raise ValueError(
-                'Invlaid identity detecated: {}'.format(
+                'Invalid identity detecated: {}'.format(
                     ','.format(final_identity)
                 ))
 
@@ -494,15 +537,15 @@ class AIPplatform(object):
             raise ValueError('invalid agent')
         self.stop_agent(agent_uuid)
         msg_bus = get_messagebus()
+        identity = self.agent_identity(agent_uuid)
         if msg_bus == 'rmq':
             # Delete RabbitMQ user for the agent
-            identity = self.agent_identity(agent_uuid)
             instance_name = get_platform_instance_name()
             rmq_user = instance_name + '.' + identity
             self.rmq_mgmt.delete_user(rmq_user)
         self.agents.pop(agent_uuid, None)
         if self.secure_agent_user:
-        # TODO remove agent user
+            ExecutionEnvironment.remove_agent_user(identity)
         if remove_auth:
             self._unauthorize_agent_keys(agent_uuid)
         shutil.rmtree(os.path.join(self.install_dir, agent_uuid))
@@ -747,19 +790,18 @@ class AIPplatform(object):
         else:
             argv = [sys.executable, '-m', module]
         resmon = getattr(self.env, 'resmon', None)
-        # TODO agent user can ignore the second environment, probably needs
-        # condition in process
         if resmon is None:
             agent_user = None
             if self.secure_agent_user:
                 agent_user = agent_vip_identity.replace(".", "_")
             execenv = ExecutionEnvironment(agent_user=agent_user)
         else:
+            # TODO either port this into the Execution environment class or remove
+            # This code block doesn't seem to be able to be reached
             execreqs = self._read_execreqs(pkg.distinfo)
             execenv = self._reserve_resources(resmon, execreqs)
         execenv.name = name or agent_path
         _log.info('starting agent %s', agent_path)
-
         data_dir = self._get_data_dir(agent_path)
         execenv.execute(argv, cwd=data_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
