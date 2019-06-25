@@ -86,13 +86,13 @@ Example configuration:
 ::
 
     {
-        'api_key': '<api key string>',
-        'api_calls_limit': 1000,
-        'database_file': 'weather.sqlite',
-        'max_size_gb': 1,
-        'poll_locations': [{'lat': 39.7555, 'long': -105.2211},
-                           {'lat': 46.2804, 'long': -119.2752}],
-        'poll_interval': 60
+        "api_key": "<api key string>",
+        "api_calls_limit": 1000,
+        "database_file": "weather.sqlite",
+        "max_size_gb": 1,
+        "poll_locations": [{"lat": 39.7555, "long": -105.2211},
+                           {"lat": 46.2804, "long": -119.2752}],
+        "poll_interval": 60
     }
 
 Registry Configuration
