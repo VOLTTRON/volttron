@@ -16,10 +16,10 @@ configuration parameters are optional.
 
 **Parameters**
 
- 1. 'database_file' - sqlite database file for weather data caching. Defaults to 'weather.sqlite' in the agent's data directory
- 2. 'max_size_gb' - maximum size of cache database. When cache exceeds this size, data will get purged from cache until the cache is within the configured size.
- 3. 'poll_locations - list of locations to periodically poll for current data
- 4. 'poll_interval' - polling frequency or the number of seconds between each poll.
+ 1. "database_file" - sqlite database file for weather data caching. Defaults to "weather.sqlite" in the agent's data directory
+ 2. "max_size_gb" - maximum size of cache database. When cache exceeds this size, data will get purged from cache until the cache is within the configured size.
+ 3. "poll_locations" - list of locations to periodically poll for current data
+ 4. "poll_interval" - polling frequency or the number of seconds between each poll.
 
 ::
 
