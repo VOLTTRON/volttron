@@ -67,12 +67,6 @@ def federated_rmq_instances(request, **kwargs):
 
     :return: 2 volttron instances - (producer, consumer) that are federated
     """
-    downstream_vip = get_rand_vip()
-    downstream = build_wrapper(downstream_vip,
-                               ssl_auth=True,
-                               messagebus='rmq',
-                               should_start=False,
-                               **kwargs)
     upstream_vip = get_rand_vip()
     upstream = build_wrapper(upstream_vip,
                              ssl_auth=True,
@@ -80,12 +74,16 @@ def federated_rmq_instances(request, **kwargs):
                              should_start=False,
                              **kwargs)
 
-    # upstream.certsobj.save_remote_cert(downstream.certsobj.root_ca_name +"_ca", downstream.certsobj.ca_cert(public_bytes=True))
-    # downstream.certsobj.save_remote_cert(upstream.certsobj.root_ca_name +"_ca", upstream.certsobj.ca_cert(public_bytes=True))
+    downstream_vip = get_rand_vip()
+    downstream = build_wrapper(downstream_vip,
+                               ssl_auth=True,
+                               messagebus='rmq',
+                               should_start=False,
+                               **kwargs)
 
     # exchange CA certs
-    stop_rabbit(rmq_home=downstream.rabbitmq_config_obj.rmq_home, env=downstream.env, quite=True)
     stop_rabbit(rmq_home=upstream.rabbitmq_config_obj.rmq_home, env=upstream.env, quite=True)
+    stop_rabbit(rmq_home=downstream.rabbitmq_config_obj.rmq_home, env=downstream.env, quite=True)
 
     with open(os.path.join(upstream.certsobj.cert_dir, upstream.instance_name + "-root-ca.crt"), "r") as uf:
         with open(os.path.join(downstream.certsobj.cert_dir, downstream.instance_name + "-trusted-cas.crt"), "a") as df:
@@ -111,15 +109,15 @@ def federated_rmq_instances(request, **kwargs):
 
         cmd = [os.path.join(upstream.rabbitmq_config_obj.rabbitmq_config['rmq-home'], "sbin/rabbitmqctl")]
         cmd.extend(['set_permissions', "-p", upstream.rabbitmq_config_obj.rabbitmq_config["virtual-host"]])
-        cmd.extend([downstream.instance_name + "-admin", '".*"', '".*"', '".*"'])
+        cmd.extend([downstream.instance_name + "-admin", ".*", ".*", ".*"])
         execute_command(cmd, env=upstream.env, err_prefix="Error setting user permission in upstream server")
         gevent.sleep(1)
 
         upstream.startup_platform(upstream_vip)
-        gevent.sleep(10)
+        gevent.sleep(2)
         print("After upstream start")
         downstream.startup_platform(downstream_vip)
-        gevent.sleep(5)
+        gevent.sleep(2)
 
         # create federation config and setup federation
         content = """federation-upstream:
@@ -130,9 +128,9 @@ def federated_rmq_instances(request, **kwargs):
 
         config_path = os.path.join(downstream.volttron_home, "federation.config")
         with open(config_path, 'w') as conf:
-            conf.write(content.format(host=downstream.rabbitmq_config_obj.rabbitmq_config["host"],
-                                      port=downstream.rabbitmq_config_obj.rabbitmq_config["amqp-port-ssl"],
-                                      vhost=downstream.rabbitmq_config_obj.rabbitmq_config["virtual-host"]))
+            conf.write(content.format(host=upstream.rabbitmq_config_obj.rabbitmq_config["host"],
+                                      port=upstream.rabbitmq_config_obj.rabbitmq_config["amqp-port-ssl"],
+                                      vhost=upstream.rabbitmq_config_obj.rabbitmq_config["virtual-host"]))
         downstream.setup_federation(config_path)
 
     except Exception as e:
@@ -312,8 +310,8 @@ def test_all_platform_subscription_zmq(request, get_zmq_volttron_instances):
     print("QUERY RESULT : {}".format(result))
     assert not result
 
-    downstream.stop_agent(hist_id)
-    downstream2.stop_agent(hist2_id)
+    downstream.remove_agent(hist_id)
+    downstream2.remove_agent(hist2_id)
     query_agent.core.stop()
     query_agent2.core.stop()
     producer.core.stop()
@@ -328,7 +326,6 @@ def test_all_platform_subscription_zmq(request, get_zmq_volttron_instances):
 def test_all_platform_subscription_rmq(request, federated_rmq_instances):
     try:
         upstream, downstream = federated_rmq_instances
-        gevent.sleep(5)
         assert upstream.is_running()
         assert downstream.is_running()
 
@@ -342,7 +339,7 @@ def test_all_platform_subscription_rmq(request, federated_rmq_instances):
                        "all_platforms": True
                        }
         hist_id = downstream.install_agent(
-            vip_identity='platform.historian',
+            vip_identity='platform.historian.rmq',
             agent_dir=get_services_core("SQLHistorian"),
             config_file=hist_config,
             start=True)
@@ -389,7 +386,7 @@ def test_all_platform_subscription_rmq(request, federated_rmq_instances):
 
         ## Query from consumer to verify
 
-        result = query_agent.vip.rpc.call("platform.historian",
+        result = query_agent.vip.rpc.call("platform.historian.rmq",
                                           'query',
                                           topic="Building/LAB/Device/OutsideAirTemperature",
                                           count=1).get(timeout=100)
@@ -399,7 +396,5 @@ def test_all_platform_subscription_rmq(request, federated_rmq_instances):
         gevent.sleep(1)
     finally:
         if downstream:
-            downstream.stop_agent(hist_id)
-        if producer:
-            producer.core.stop()
+            downstream.remove_agent(hist_id)
 

@@ -318,6 +318,7 @@ class PlatformWrapper:
                          publickey=None, secretkey=None, serverkey=None,
                          capabilities=[], **kwargs):
         self.logit('Building connection to {}'.format(peer))
+        os.environ.update(self.env)
         self.allow_all_connections()
 
         if address is None:
@@ -445,9 +446,12 @@ class PlatformWrapper:
             pass
 
     def add_vc(self):
+        os.environ.update(self.env)
+
         return add_volttron_central(self)
 
     def add_vcp(self):
+        os.environ.update(self.env)
         return add_volttron_central_platform(self)
 
     def is_auto_csr_enabled(self):
@@ -1084,8 +1088,8 @@ class PlatformWrapper:
         execute_command(cmd, env=self.env, logger=_log,
                               err_prefix="Error setting up federation")
 
-
     def restart_platform(self):
+        self.shutdown_platform()
         self.startup_platform(vip_address=self.vip_address,
                               bind_web_address=self.bind_web_address,
                               volttron_central_address=self.volttron_central_address,
@@ -1143,6 +1147,11 @@ class PlatformWrapper:
         running on the platform, then shutdown, then if any of the listed agent
         pids are still running then kill them.
         """
+
+        # Update OS env to current platform's env so get_home() call will result
+        # in correct home director. Without this when more than one test instance are created, get_home()
+        # will return home dir of last started platform wrapper instance
+        os.environ.update(self.env)
 
         # Handle cascading calls from multiple levels of fixtures.
         if self._instance_shutdown:
