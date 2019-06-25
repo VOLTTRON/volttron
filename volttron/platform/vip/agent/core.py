@@ -930,9 +930,7 @@ class RMQCore(Core):
             raise ValueError("Agent's VIP identity is not set")
         else:
             try:
-                _log.debug("INSTANCE_NAME:{0}, GET_INSTANCE_NAME:{1}".format(
-                    self.instance_name, get_platform_instance_name(self.volttron_home)))
-                if self.instance_name == get_platform_instance_name(self.volttron_home):
+                if self.instance_name == get_platform_instance_name():
                     param = self.rmq_mgmt.build_agent_connection(self.identity,
                                                                  self.instance_name)
                 else:
@@ -995,7 +993,7 @@ class RMQCore(Core):
             else:
                 _log.debug("Router not bound to RabbitMQ yet, waiting for 2 seconds before sending hello {}".
                            format(self.identity))
-                self.spawn_later(5, hello)
+                self.spawn_later(2, hello)
 
         # Connect to RMQ broker. Register a callback to get notified when
         # connection is confirmed
