@@ -5,5 +5,5 @@
             "database": "~/.volttron/data/historian.sqlite"
         }
     },
-    "all_platforms":"true"
+    "all_platforms":True
 }
