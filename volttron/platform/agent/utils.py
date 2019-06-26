@@ -164,10 +164,12 @@ def load_config(config_path):
             raise
 
 
-def load_platform_config():
+def load_platform_config(vhome=None):
     """Loads the platform config file if the path exists."""
     config_opts = {}
-    path = os.path.join(get_home(), 'config')
+    if not vhome:
+        vhome = get_home()
+    path = os.path.join(vhome, 'config')
     if os.path.exists(path):
         parser = ConfigParser()
         parser.read(path)
@@ -177,8 +179,8 @@ def load_platform_config():
     return config_opts
 
 
-def get_platform_instance_name(prompt=False):
-    platform_config = load_platform_config()
+def get_platform_instance_name(vhome=None, prompt=False):
+    platform_config = load_platform_config(vhome)
 
     instance_name = platform_config.get('instance-name', None)
     if instance_name is not None:
@@ -194,8 +196,10 @@ def get_platform_instance_name(prompt=False):
             if os.path.isfile('/etc/hostname'):
                 with open('/etc/hostname') as f:
                     instance_name = f.read().strip()
-
-                    store_message_bus_config(get_messagebus(), instance_name)
+                bus = platform_config.get('message-bus')
+                if bus is None:
+                    bus = get_messagebus()
+                store_message_bus_config(bus, instance_name)
             else:
                 err = "No instance-name is configured in $VOLTTRON_HOME/config. Please set instance-name in " \
                       "$VOLTTRON_HOME/config"
