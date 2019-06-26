@@ -25,7 +25,6 @@ modbus-tk==0.5.8
 PyYAML==3.12
 cryptography==2.2.2
 service-identity==17.0.0
-wget==3.2
 argon2_cffi==19.1.0
 passlib==1.7.1
 pyjwt==1.7.1
