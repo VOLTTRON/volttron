@@ -59,31 +59,15 @@ with open('/etc/hostname', 'r') as f:
     fqdn = f.read().strip()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def instance(request):
     instance = PlatformWrapper(messagebus='rmq', ssl_auth=True)
-    # because tests in the module shutdown and restart instance within test and we don't want
-    # all rmq users and queues to be deleted.
-    instance.skip_cleanup = True
-
     yield instance
-
-    # reset skip_clean up based on env
-    instance.skip_cleanup = instance.env.get('SKIP_CLEANUP', False)
-    if instance.debug_mode:
-        instance.skip_cleanup = True
 
     if instance.is_running():
        instance.shutdown_platform()
     # In case platform was just killed
     stop_rabbit(rmq_home=instance.rabbitmq_config_obj.rmq_home, env=instance.env, quite=True)
-
-
-@pytest.mark.wrapper
-def test_instance_name_is_basename_of_home(instance):
-
-    assert instance.instance_name == os.path.basename(instance.volttron_home), \
-        "instance name doesn't match volttron_home basename"
 
 
 @pytest.mark.wrapper
@@ -95,6 +79,8 @@ def test_vstart_without_rmq_init(request, instance):
     :parma instance: volttron instance for testing
     """
     try:
+        assert instance.instance_name == os.path.basename(instance.volttron_home), \
+            "instance name doesn't match volttron_home basename"
         os.rename(
             os.path.join(instance.volttron_home, "certificates"),
             os.path.join(instance.volttron_home, "certs_backup")
@@ -107,12 +93,6 @@ def test_vstart_without_rmq_init(request, instance):
         assert not (instance.is_running())
     except Exception as e:
         pytest.fail("Test failed with exception: {}".format(e))
-    finally:
-        shutil.rmtree(os.path.join(instance.volttron_home, "certificates"))
-        os.rename(
-            os.path.join(instance.volttron_home, "certs_backup"),
-            os.path.join(instance.volttron_home, "certificates")
-            )
 
 
 @pytest.mark.timeout(200)
@@ -127,11 +107,7 @@ def test_vstart_expired_ca_cert(request, instance):
 
     crts = instance.certsobj
     try:
-        restart_ssl(instance.rabbitmq_config_obj.rmq_home, env=instance.env)
-        # backup original certificates dir before replacing it with fast expiry certs
-        shutil.copytree(crts.default_certs_dir,
-                  os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"))
-
+        # overwrite certificates with quick expiry certs
         (root_ca, server_cert_name, admin_cert_name) = \
             Certs.get_admin_cert_names(instance.instance_name)
 
@@ -157,20 +133,10 @@ def test_vstart_expired_ca_cert(request, instance):
             pytest.fail("platform should not start")
         except Exception as e:
             assert e.message.startswith("Platform startup failed. Please check volttron.log")
-        gevent.sleep(5)
         assert not (instance.is_running())
         # Rabbitmq log would show Fatal certificate expired
     except Exception as e:
         pytest.fail("Test failed with exception: {}".format(e))
-    finally:
-        shutil.rmtree(crts.default_certs_dir)
-        # restore original certs for next test case
-        os.rename(os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"),
-                  crts.default_certs_dir)
-        gevent.sleep(2)
-        # ssl restart  doesn't work when ca cert is expired. So have to restart rabbitmq server
-        stop_rabbit(rmq_home=instance.rabbitmq_config_obj.rmq_home, env=instance.env)
-        start_rabbit(rmq_home=instance.rabbitmq_config_obj.rmq_home, env=instance.env)
 
 
 @pytest.mark.wrapper
@@ -184,10 +150,7 @@ def test_vstart_expired_server_cert(request, instance):
     # replace certs
     crts = instance.certsobj
     try:
-        # backup original certificates dir before replacing it with fast expiry certs
-        shutil.copytree(crts.default_certs_dir,
-                        os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"))
-
+        # overwrite certificates with quick expiry certs
         (root_ca, server_cert_name, admin_cert_name) = \
             Certs.get_admin_cert_names(instance.instance_name)
 
@@ -198,20 +161,12 @@ def test_vstart_expired_server_cert(request, instance):
             instance.startup_platform(vip_address=get_rand_vip(), timeout=10)
         except Exception as e:
             assert e.message.startswith("Platform startup failed. Please check volttron.log")
-        gevent.sleep(5)
         assert not (instance.is_running())
         # Rabbitmq log would show
         # "TLS server: In state certify received CLIENT ALERT: Fatal -
         # Certificate Expired"
     except Exception as e:
         pytest.fail("Test failed with exception: {}".format(e))
-    finally:
-        shutil.rmtree(crts.default_certs_dir)
-        # restore original certs for next test case
-        os.rename(os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"),
-                  crts.default_certs_dir)
-        print("In finally. Restarting ssl so that RMQ picks up the right certs")
-        restart_ssl(rmq_home=instance.rabbitmq_config_obj.rmq_home, env=instance.env)
 
 
 @pytest.mark.wrapper
@@ -225,10 +180,7 @@ def test_vstart_expired_admin_cert(request, instance):
     # replace certs
     crts = instance.certsobj
     try:
-        # backup original certificates dir before replacing it with fast expiry certs
-        shutil.copytree(crts.default_certs_dir,
-                        os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"))
-
+        # overwrite certificates with quick expiry certs
         (root_ca, server_cert_name, admin_cert_name) = Certs.get_admin_cert_names(instance.instance_name)
 
         crts.create_ca_signed_cert(admin_cert_name, type='client',
@@ -244,12 +196,6 @@ def test_vstart_expired_admin_cert(request, instance):
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except Exception as e:
         pytest.fail("Test failed with exception: {}".format(e))
-    finally:
-        instance.shutdown_platform()
-        shutil.rmtree(crts.default_certs_dir)
-        # restore original certs for next test case
-        os.rename(os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"),
-                  crts.default_certs_dir)
 
 
 @pytest.mark.timeout(500)
@@ -261,13 +207,8 @@ def test_expired_ca_cert_after_vstart(request, instance):
     :param request: pytest request object
     :param instance: instance of volttron using rmq and ssl
     """
-    stop_rabbit(rmq_home=instance.rabbitmq_config_obj.rmq_home, env=instance.env, quite=True)
     crts = instance.certsobj
     try:
-        # backup original certificates dir before replacing it with fast expiry certs
-        shutil.copytree(crts.default_certs_dir,
-                        os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"))
-
         (root_ca, server_cert_name, admin_cert_name) = \
             Certs.get_admin_cert_names(instance.instance_name)
 
@@ -297,15 +238,12 @@ def test_expired_ca_cert_after_vstart(request, instance):
     except Exception as e:
         pytest.fail("Test failed with exception: {}".format(e))
     finally:
-        try:
-            instance.shutdown_platform()
-        except:
-            instance.p_process.terminate()  # certs are messed up so just terminate
-        shutil.rmtree(crts.default_certs_dir)
-        # restore original certs for next test case
-        os.rename(os.path.join(os.path.dirname(crts.default_certs_dir), "certs_backup"),
-                  crts.default_certs_dir)
-
+        # can't do clean shutdown with expired ca. terminate process
+        # and clean up manually
+        instance.p_process.terminate()
+        stop_rabbit(rmq_home=instance.rabbitmq_config_obj.rmq_home, env=instance.env, quite=True)
+        if not instance.skip_cleanup:
+            shutil.rmtree(instance.volttron_home)
 
 @pytest.mark.timeout(400)
 @pytest.mark.wrapper
@@ -316,7 +254,6 @@ def test_expired_server_cert_after_vstart(request, instance):
     :param instance: instance of volttron using rmq and ssl
     """
     crts = instance.certsobj
-    stop_rabbit(rmq_home=instance.rabbitmq_config_obj.rmq_home, env=instance.env, quite=True)
     try:
         (root_ca, server_cert_name, admin_cert_name) = \
             Certs.get_admin_cert_names(instance.instance_name)
@@ -352,6 +289,4 @@ def test_expired_server_cert_after_vstart(request, instance):
         instance.remove_agent(agent)
     except Exception as e:
         pytest.fail("Test failed with exception: {}".format(e))
-    finally:
-        instance.shutdown_platform()
 

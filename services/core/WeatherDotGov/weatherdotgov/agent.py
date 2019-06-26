@@ -55,14 +55,16 @@
 
 # }}}
 
+__docformat__ = 'reStructuredText'
+
 import logging
 import re
 import sys
 import json
-import pkg_resources
 import requests
 import grequests
 import datetime
+import pkg_resources
 from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.agent import utils
 from volttron.utils.docs import doc_inherit
@@ -71,6 +73,8 @@ __version__ = "2.0.0"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+
+SERVICE_HOURLY_FORECAST = "get_hourly_forecast"
 
 LAT_LONG_REGEX = re.compile(
     "^-?[0-9]{1,3}(\.[0-9]{1,4})?,( |t?)-?[0-9]{1,3}(\.[0-9]{1,4})?$")
@@ -244,7 +248,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             if STATION_REGEX.match(location_string):
                 return True
             else:
-                _log.debug("station did not matched regex")
+                _log.debug("station did not match regex")
                 return False
 
         elif ("gridpoints" in accepted_formats) and (
@@ -313,13 +317,33 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         if gresponse is None:
             raise RuntimeError("get request did not return any "
                                "response")
-        response = json.loads(gresponse.content)
-        if gresponse.status_code != 200:
-            self.generate_response_error(url, gresponse.status_code)
-        else:
+        try:
+            response = json.loads(gresponse.content)
             properties = response["properties"]
             observation_time = properties["timestamp"]
             return observation_time, properties
+        except ValueError:
+            self.generate_response_error(url, gresponse.status_code)
+
+    @doc_inherit
+    def query_forecast_service(self, service, location, quantity, forecast_start):
+        """
+        Returns forecast weather from Weather.gov for requested forecast service
+        :param service: forecast service to query, Weather.gov provides only
+        hourly
+        :param location: currently accepts lat/long
+        :param quantity: As Weather.gov offers only a set quantity of data, this
+         is ignored
+        :param forecast_start: forecast results that are prior to this
+         timestamp will be filtered by base weather agent
+        :return: generation time, forecast records
+        """
+        if service is SERVICE_HOURLY_FORECAST:
+            generation_time, data = self.query_hourly_forecast(location)
+            return generation_time, data
+        else:
+            raise RuntimeError("Weather.Gov supports hourly forecast requests "
+                               "only")
 
     @doc_inherit
     def query_hourly_forecast(self, location):
@@ -348,10 +372,8 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         if gresponse is None:
             raise RuntimeError("get request did not return any "
                                "response")
-        response = json.loads(gresponse.content)
-        if gresponse.status_code != 200:
-            self.generate_response_error(url, gresponse.status_code)
-        else:
+        try:
+            response = json.loads(gresponse.content)
             data = []
             properties = response["properties"]
             generation_time = properties["generatedAt"]
@@ -361,6 +383,9 @@ class WeatherDotGovAgent(BaseWeatherAgent):
                 record = [forecast_time, period]
                 data.append(record)
             return generation_time, data
+        except ValueError:
+            self.generate_response_error(url, gresponse.status_code)
+
 
     def query_hourly_historical(self, location, start_date, end_date):
         """

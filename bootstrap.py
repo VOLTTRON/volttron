@@ -283,7 +283,8 @@ def install_rabbit(rmq_install_dir):
     (output, error) = process.communicate()
     if process.returncode != 0:
         sys.stderr.write("ERROR:\n Unable to find erlang in path. Please install necessary pre-requisites. "
-                         "Reference: https://github.com/VOLTTRON/volttron/blob/rabbitmq-volttron/README.md")
+                "Reference: https://volttron.readthedocs.io/en/latest/setup/index.html#steps-for-rabbitmq")
+                
         sys.exit(60)
 
     import wget
@@ -398,6 +399,7 @@ def main(argv=sys.argv):
             data = json.load(optional_arguments)
             for arg, vals in data.items():
                 if arg == '--rabbitmq':
+                    optional_args.append(arg)
                     po.add_argument(
                         '--rabbitmq', action='store', const=default_rmq_dir,
                         nargs='?',
