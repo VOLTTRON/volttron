@@ -99,7 +99,7 @@ process_pid(){
         #echo "Exit code is ${exitcode}"
         # Exit code 5 is if there are no tests within the file so we filter that out
         if [[ $exitcode -ne 0  ]]; then
-            if [[ ($exitcode -eq 5 ) || ( $exitcode -eq 2 ) ]]; then
+            if [[ $exitcode -eq 5 ]]; then
                 echo "module ${containernames[$index]} NO TESTS RAN"
             else
                 echo "module ${containernames[$index]} FAILED"
@@ -133,7 +133,7 @@ process_pid(){
 #LOOP through set of directories and run bunch of test files in parallel
 for dir in ${testdirs[@]}
 do
-    for file in $( find $dir -type f -name "*test*.py"|grep -v "conftest.py")
+    for file in $( find $dir -type f -name "test*.py" -o -name "*test.py" ! -name "*conftest.py" )
     do
         echo $file;
         ignore=0
