@@ -55,65 +55,66 @@ should be set up. Many of the options have defaults that will be sufficient.
 When asked if this instance is a VOLTTRON Central enter `y`. Read through the
 options and use the enter key to accept default options. There are no default
 credentials for VOLTTRON Central. You can have it install the agents 
-at this time. Below is an example configuration.
+at this time. Below is an example configuration. In this case, username is user
+and localhost is volttron-pc.
 
  .. code-block:: console
 
-         (volttron)<username>@<localhost>:~/volttron$ vcfg
-         
-         Your VOLTTRON_HOME currently set to: /home/<username>/.volttron1
-         
-         Is this the volttron you are attempting to setup? [Y]:
-         What type of message bus (rmq/zmq)? [zmq]: 
-         What is the vip address? [tcp://127.0.0.1]:
-         What is the port for the vip address? [22916]: 
-         Is this instance web enabled? [N]: y
-         What is the protocol for this instance? [https]: 
-         Web address set to: https://<localhost>
-         What is the port for this instance? [8443]: 
-         Would you like to generate a new web certificate? [Y]: 
-         WARNING! CA certificate does not exist.
-         Create new root CA? [Y]: 
+        (volttron)user@volttron-pc:~/volttron$ vcfg
 
-         Please enter the following details for web server certificate:
-                 Country: [US]: 
-                 State: WA
-                 Location: Richland
-                 Organization: PNNL
-                 Organization Unit: VOLTTRON
-         Created CA cert
-         Creating new web server certificate.
-         Is this an instance of volttron central? [N]: y
-         Configuring /home/<username>/volttron/services/core/VolttronCentral.
-         Enter volttron central admin user name: <vc-username>
-         Enter volttron central admin password: <password>
-         Retype password: <password>
-         Installing volttron central.
-         Should the agent autostart? [N]: y
-         Will this instance be controlled by volttron central? [Y]: y
-         Configuring /home/<username>/volttron/services/core/VolttronCentralPlatform.
-         What is the name of this instance? [volttron1]: 
-         What is the hostname for volttron central? [https://<localhost>]: 
-         What is the port for volttron central? [8443]: 
-         Should the agent autostart? [N]: y
-         Would you like to install a platform historian? [N]: y
-         Configuring /home/<username>/volttron/services/core/SQLHistorian.
-         Should the agent autostart? [N]: y
-         Would you like to install a master driver? [N]: y
-         Configuring /home/<username>/volttron/services/core/MasterDriverAgent.
-         Would you like to install a fake device on the master driver? [N]: y
-         Should the agent autostart? [N]: y
-         Would you like to install a listener agent? [N]: y
-         Configuring examples/ListenerAgent.
-         Should the agent autostart? [N]: y
-         Finished configuration!
+        Your VOLTTRON_HOME currently set to: /home/user/.volttron1
 
-         You can now start the volttron instance.
+        Is this the volttron you are attempting to setup? [Y]: 
+        What type of message bus (rmq/zmq)? [zmq]: 
+        What is the vip address? [tcp://127.0.0.1]: 
+        What is the port for the vip address? [22916]: 
+        Is this instance web enabled? [N]: y
+        What is the protocol for this instance? [https]: 
+        Web address set to: https://volttron-pc
+        What is the port for this instance? [8443]: 
+        Would you like to generate a new web certificate? [Y]: 
+        WARNING! CA certificate does not exist.
+        Create new root CA? [Y]: 
 
-         If you need to change the instance configuration you can edit
-         the config file is at /home/<username>/.volttron1/config
+        Please enter the following details for web server certificate:
+                Country: [US]: 
+                State: WA
+                Location: Richland
+                Organization: PNNL
+                Organization Unit: VOLTTRON
+        Created CA cert
+        Creating new web server certificate.
+        Is this an instance of volttron central? [N]: y
+        Configuring /home/user/volttron/services/core/VolttronCentral.
+        Enter volttron central admin user name: <your volttron central admin username here>
+        Enter volttron central admin password: <your volttron central admin password here>
+        Retype password: <retype your volttron central admin password here>
+        Installing volttron central.
+        Should the agent autostart? [N]: y
+        Will this instance be controlled by volttron central? [Y]: y
+        Configuring /home/user/volttron/services/core/VolttronCentralPlatform.
+        What is the name of this instance? [volttron1]: 
+        Volttron central address set to https://volttron-pc:8443 
+        Should the agent autostart? [N]: y
+        Would you like to install a platform historian? [N]: y
+        Configuring /home/user/volttron/services/core/SQLHistorian.
+        Should the agent autostart? [N]: y
+        Would you like to install a master driver? [N]: y
+        Configuring /home/user/volttron/services/core/MasterDriverAgent.
+        Would you like to install a fake device on the master driver? [N]: y
+        Should the agent autostart? [N]: y
+        Would you like to install a listener agent? [N]: y
+        Configuring examples/ListenerAgent.
+        Should the agent autostart? [N]: y
+        Finished configuration!
 
-         (volttron)<username>@<localhost>:~/volttron$ 
+        You can now start the volttron instance.
+
+        If you need to change the instance configuration you can edit
+        the config file is at /home/user/.volttron1/config
+
+        (volttron)user@volttron-pc:~/volttron$ 
+
 
 VOLTTRON Central needs to accept the connecting instances'
 public keys. For this example we'll allow any CURVE credentials to be accepted.
@@ -144,9 +145,9 @@ different.
 
  .. code-block:: console
 
-         (volttron)<username>@<localhost>:~/volttron$ vcfg
+         (volttron)user@volttron-pc:~/volttron$ vcfg
          
-         Your VOLTTRON_HOME currently set to: /home/<username>/.volttron2 
+         Your VOLTTRON_HOME currently set to: /home/user/.volttron2 
          
          Is this the volttron you are attempting to setup? [Y]:
          What type of message bus (rmq/zmq)? [zmq]: 
@@ -155,13 +156,13 @@ different.
          Is this instance web enabled? [N]: 
          Is this an instance of volttron central? [N]: 
          Will this instance be controlled by volttron central? [Y]: y
-         Configuring /home/<username>/volttron/services/core/VolttronCentralPlatform.
+         Configuring /home/user/volttron/services/core/VolttronCentralPlatform.
          What is the name of this instance? [volttron1]: 
-         What is the hostname for volttron central? [https://<localhost>]: 
+         What is the hostname for volttron central? [https://volttron-pc]: 
          What is the port for volttron central? [8443]: 
          Should the agent autostart? [N]: y
          Would you like to install a platform historian? [N]: y
-         Configuring /home/<username>/volttron/services/core/SQLHistorian.
+         Configuring /home/user/volttron/services/core/SQLHistorian.
          Should the agent autostart? [N]: y
          Would you like to install a master driver? [N]: 
          Would you like to install a listener agent? [N]: 
@@ -170,9 +171,9 @@ different.
          You can now start the volttron instance.
 
          If you need to change the instance configuration you can edit
-         the config file is at /home/<username>/.volttron2/config
+         the config file is at /home/user/.volttron2/config
 
-         (volttron)<username>@<localhost>:~/volttron$ 
+         (volttron)user@volttron-pc:~/volttron$ 
 
 Starting the Demo
 -----------------
@@ -216,6 +217,12 @@ or
 Open your browser to `localhost:8443/vc/index.hmtl` and and log in with the
 credentials you provided. The platform agents should be automatically register
 with VOLTTRON central.
+
+.. note::
+
+        localhost is the local host of your machine. In the above examples,
+        this was volttron-pc.
+
 
 Stopping the Demo
 -----------------

@@ -604,6 +604,7 @@ def is_file_readable(file_path, log=True):
 @installs(get_services_core("VolttronCentralPlatform"), 'vcp')
 def do_vcp():
     global config_opts
+    is_vc = False
 
     # Default instance name to the vip address.
     instance_name = config_opts.get('instance-name',
@@ -619,36 +620,46 @@ def do_vcp():
             instance_name = new_instance_name
     config_opts['instance-name'] = '"{}"'.format(instance_name)
 
-    vc_address = config_opts.get('volttron-central-address',
+    try:
+        vc_address = config_opts['bind-web-address']
+        is_vc = True
+
+    except KeyError:
+        vc_address = config_opts.get('volttron-central-address',
                                  config_opts.get('bind-web-address',
-                                     'http://' + get_hostname()))
+                                     'https://' + get_hostname()))
+    if is_vc == False:
+        parsed = urlparse.urlparse(vc_address)
+        address_only = vc_address
+        port_only = None
+        if parsed.port is not None:
+            address_only = parsed.scheme + '://' + parsed.hostname
+            port_only = parsed.port
+        else:
+            port_only = 8443
 
-    parsed = urlparse.urlparse(vc_address)
-    address_only = vc_address
-    port_only = None
-    if parsed.port is not None:
-        address_only = parsed.scheme + '://' + parsed.hostname
-        port_only = parsed.port
+        valid_vc = False
+        while not valid_vc:
+            prompt = "What is the hostname for volttron central?"
+            new_vc_address = prompt_response(prompt, default=address_only)
+            valid_vc = is_valid_url(new_vc_address, ['http', 'https'])
+            if valid_vc:
+                vc_address = new_vc_address
+
+        vc_port = None
+        while True:
+            prompt = 'What is the port for volttron central?'
+            new_vc_port = prompt_response(prompt, default=port_only)
+            if is_valid_port(new_vc_port):
+                vc_port = new_vc_port
+                break
+
+        new_address = '{}:{}'.format(vc_address, vc_port)
+
     else:
-        port_only = 8080
+        new_address = vc_address
+        print('Volttron central address set to {}'.format(new_address))
 
-    valid_vc = False
-    while not valid_vc:
-        prompt = "What is the hostname for volttron central?"
-        new_vc_address = prompt_response(prompt, default=address_only)
-        valid_vc = is_valid_url(new_vc_address, ['http', 'https'])
-        if valid_vc:
-            vc_address = new_vc_address
-
-    vc_port = None
-    while True:
-        prompt = 'What is the port for volttron central?'
-        new_vc_port = prompt_response(prompt, default=port_only)
-        if is_valid_port(new_vc_port):
-            vc_port = new_vc_port
-            break
-
-    new_address = '{}:{}'.format(vc_address, vc_port)
     config_opts['volttron-central-address'] = new_address
 
     return {}

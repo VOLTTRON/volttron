@@ -41,13 +41,13 @@ The ``vcfg`` command allows for an easy configuration of the VOLTTRON environmen
         
         To create a simple instance of VOLTTRON, leave the default response, or select yes (y) if prompted for a yes or no response [Y/N]. You must choose a username and password for the VOLTTRON Central admin account.
 
-A set of example responses are included here:
+A set of example responses are included here (username is user, localhost is volttron-pc):
 
 .. code-block:: console
 
-        (volttron)<username>@<localhost>:~/volttron$ vcfg
+        (volttron)user@volttron-pc:~/volttron$ vcfg
 
-        Your VOLTTRON_HOME currently set to: /home/<username>/.volttron
+        Your VOLTTRON_HOME currently set to: /home/user/.volttron
 
         Is this the volttron you are attempting to setup? [Y]: 
         What type of message bus (rmq/zmq)? [zmq]: 
@@ -55,7 +55,7 @@ A set of example responses are included here:
         What is the port for the vip address? [22916]: 
         Is this instance web enabled? [N]: y
         What is the protocol for this instance? [https]: 
-        Web address set to: https://<localhost>
+        Web address set to: https://volttron-pc
         What is the port for this instance? [8443]: 
         Would you like to generate a new web certificate? [Y]: 
         WARNING! CA certificate does not exist.
@@ -70,23 +70,22 @@ A set of example responses are included here:
         Created CA cert
         Creating new web server certificate.
         Is this an instance of volttron central? [N]: y
-        Configuring /home/<username>/volttron/services/core/VolttronCentral.
-        Enter volttron central admin user name: <vc-username>
-        Enter volttron central admin password: <password>
-        Retype password: <password>
+        Configuring /home/user/volttron/services/core/VolttronCentral.
+        Enter volttron central admin user name: <your volttron central admin username here>
+        Enter volttron central admin password: <your volttron central admin password here>
+        Retype password: <retype your volttron central admin password here>
         Installing volttron central.
         Should the agent autostart? [N]: y
         Will this instance be controlled by volttron central? [Y]: y
-        Configuring /home/<username>/volttron/services/core/VolttronCentralPlatform.
+        Configuring /home/user/volttron/services/core/VolttronCentralPlatform.
         What is the name of this instance? [volttron1]: 
-        What is the hostname for volttron central? [https://<localhost>]: 
-        What is the port for volttron central? [8443]: 
+        Volttron central address set to https://volttron-pc:8443 
         Should the agent autostart? [N]: y
         Would you like to install a platform historian? [N]: y
-        Configuring /home/<username>/volttron/services/core/SQLHistorian.
+        Configuring /home/user/volttron/services/core/SQLHistorian.
         Should the agent autostart? [N]: y
         Would you like to install a master driver? [N]: y
-        Configuring /home/<username>/volttron/services/core/MasterDriverAgent.
+        Configuring /home/user/volttron/services/core/MasterDriverAgent.
         Would you like to install a fake device on the master driver? [N]: y
         Should the agent autostart? [N]: y
         Would you like to install a listener agent? [N]: y
@@ -97,9 +96,9 @@ A set of example responses are included here:
         You can now start the volttron instance.
 
         If you need to change the instance configuration you can edit
-        the config file is at /home/<username>/.volttron/config
+        the config file is at /home/user/.volttron/config
 
-        (volttron)<username>@<localhost>:~/volttron$ 
+        (volttron)user@volttron-pc:~/volttron$ 
 
 
 Once this is finished, run VOLTTRON and test the new configuration.
@@ -108,14 +107,19 @@ Once this is finished, run VOLTTRON and test the new configuration.
 Testing VOLTTRON
 ----------------
 
-Command Line
-~~~~~~~~~~~~
-
 To test that the configuration was successful, start an instance of VOLTTRON in the background:
 
 .. code-block:: console
 
-        volttron -vv -l volttron.log >/dev/null 2>&1&
+        ./start-volttron
+
+.. note::
+
+        This command must be run from the root volttron directory.
+
+
+Command Line
+~~~~~~~~~~~~
 
 If the example ``vcfg`` responses were used, the listener, master_driver, platform_historian, vcp, and vc agents should have all started automatically. This can be checked using ``vctl status``. 
 
@@ -123,7 +127,7 @@ The output should look similar to this:
 
 .. code-block:: console
 
-        (volttron)<username>@<localhost>:~/volttron$ vctl status
+        (volttron)user@volttron-pc:~/volttron$ vctl status
           AGENT                    IDENTITY            TAG                STATUS          HEALTH
         8 listeneragent-3.2        listeneragent-3.2_1 listener           running [2810]  GOOD
         0 master_driveragent-3.2   platform.driver     master_driver      running [2813]  GOOD
@@ -136,15 +140,14 @@ You can further verify that the agents are functioning correctly with ``tail -f 
 VOLTTRON Central
 ~~~~~~~~~~~~~~~~
 
-To test that the configuration was successful, start an instance of VOLTTRON in the background:
-
-.. code-block:: console
-
-        volttron -vv -l volttron.log >/dev/null 2>&1&
-
-Open a web browser and navigate to \https://<localhost>:8443/vc/index.html
+Open a web browser and navigate to \https://volttron-pc:8443/vc/index.html
 
 There may be a message warning about a potential security risk. Check to see if the certificate that was created in vcfg is being used. The process below is for firefox.
+
+.. note::
+
+        Chrome does not allow one to accept certificate errors. You will need to use a different browser.
+        Firefox is recommended.
 
 |vc-cert-warning-1|
 
@@ -163,7 +166,7 @@ There may be a message warning about a potential security risk. Check to see if 
 .. |vc-cert-warning-4| image:: files/vc-cert-warning-4.png
 
 
-Log in using the username and password you created during the ``volttron-ctl`` prompt.
+Log in using the username and password you created during the ``vctl`` prompt.
 
 |vc-login|
 
