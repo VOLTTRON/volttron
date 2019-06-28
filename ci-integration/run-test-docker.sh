@@ -37,7 +37,6 @@ docker build --network=host -t volttron_test_image -f ./ci-integration/virtualiz
 # Specific directories to scan for tests in
 testdirs=(services volttrontesting)
 ignoredirs=(services/core/DNP3Agent services/core/SEP2Agent services/core/OpenADRVenAgent)
-# testdirs=(volttrontesting)
 
 # State variable for when a test has failed the entire set needs to be considered
 # failed.
@@ -100,7 +99,7 @@ process_pid(){
         #echo "Exit code is ${exitcode}"
         # Exit code 5 is if there are no tests within the file so we filter that out
         if [[ $exitcode -ne 0  ]]; then
-            if [[ $exitcode -eq 5 ]]; then
+            if [[ ($exitcode -eq 5 ) || ( $exitcode -eq 2 ) ]]; then
                 echo "module ${containernames[$index]} NO TESTS RAN"
             else
                 echo "module ${containernames[$index]} FAILED"
