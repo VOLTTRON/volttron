@@ -144,7 +144,7 @@ For example, since VOLTTRON instance 1 is connecting to VOLTTRON instance 2 and 
                       "serverkey":"YFyIgXy2H7gIKC1x6uPMdDOB_i9lzfAPB1IgbxfXLGc"},
         "platform3": {"vip-address":"tcp://127.0.0.3:22916",
                       "instance-name":"platform3",
-                      "serverkey":"hzU2bnlacAhZSaI0rI8a6XK_bqLSpA0JRK4jq8ttZxw"},
+                      "serverkey":"hzU2bnlacAhZSaI0rI8a6XK_bqLSpA0JRK4jq8ttZxw"}
     }
 
 We can obtain the serverkey of each platform using below command in each terminal window:
