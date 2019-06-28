@@ -11,3 +11,5 @@ vip-address=tcp://ip:port for each address you want to listen on
     vip-address=tcp://127.0.0.103:8083
     vip-address=tcp://127.0.0.103:8183
 
+
+.. note:: The config file is generated after running the vcfg command. The vip-address is for the local platform, NOT the remote platform.
