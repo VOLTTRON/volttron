@@ -6,7 +6,7 @@ Communicating with BACnet devices requires that the BACnet Proxy Agent is config
 driver_config
 *************
 
-There are eight arguments for the "driver_config" section of the device configuration file:
+There are nine arguments for the "driver_config" section of the device configuration file:
 
     - **device_address** - Address of the device. If the target device is behind an IP to MS/TP router then Remote Station addressing will probably be needed for the driver to find the device.
     - **device_id** - BACnet ID of the device. Used to establish a route to the device at startup.

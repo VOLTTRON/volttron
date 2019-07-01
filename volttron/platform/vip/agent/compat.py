@@ -43,7 +43,7 @@ from contextlib import closing
 from zmq import green as zmq
 from volttron.platform.agent import json as jsonapi
 
-from . import Core, RPC, PeerList, PubSub
+from . import Core, ZMQCore, RPC, PeerList, PubSub
 from .subsystems.pubsub import encode_peer
 from volttron.platform.messaging.headers import Headers
 
@@ -70,8 +70,9 @@ class CompatPubSub(object):
 
     def __init__(self, identity=None, address=None, context=None, peer=PEER,
                  publish_address=PUBLISH_ADDRESS,
-                 subscribe_address=SUBSCRIBE_ADDRESS):
-        self.core = Core(
+                 subscribe_address=SUBSCRIBE_ADDRESS,
+                 message_bus='zmq'):
+        self.core = ZMQCore(
             self, identity=identity, address=address, context=context)
         self.rpc = RPC(self.core, self)
         self.peerlist = PeerList(self.core)

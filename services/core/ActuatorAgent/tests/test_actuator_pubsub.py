@@ -137,9 +137,9 @@ def revert_devices(request, publish_agent):
     return cleanup_parameters
 
 
-# Repeat test for volttron 2.0 agent and volttron 3.0 agents
+# VOLTTRON 2.0 agents will deprecated from VOLTTRON 6.0 release. So running it for only volttron 3.0 agents
 @pytest.fixture(scope="module",
-                params=['volttron_2', 'volttron_3'])
+                params=['volttron_3'])
 def publish_agent(request, volttron_instance):
     """
     Fixture used for setting up the environment.
@@ -1418,7 +1418,7 @@ def test_get_error_invalid_point(publish_agent):
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=error_topic,
                                        callback=publish_agent.callback).get()
-
+    gevent.sleep(1)
     header = {
         'requesterID': TEST_AGENT
     }
@@ -2067,7 +2067,7 @@ def test_set_lock_error(publish_agent):
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=error_topic,
                                        callback=publish_agent.callback).get()
-
+    gevent.sleep(1)
     # set value
     header = {
         'requesterID': TEST_AGENT

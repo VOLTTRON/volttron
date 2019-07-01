@@ -230,7 +230,7 @@ class RoutingService(object):
         sock.tcp_keepalive_cnt = 6
 
         num = random.random()
-        sock.identity = 'instance-'+ instance_name + '-' + str(num)
+        sock.identity = 'instance.'+ instance_name + '.' + str(num)
         sock.zap_domain = 'vip'
         mon_sock = sock.get_monitor_socket(
                 zmq.EVENT_CONNECTED | zmq.EVENT_DISCONNECTED | zmq.EVENT_CONNECT_DELAYED)

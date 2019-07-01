@@ -153,148 +153,151 @@ def client_agent(request, volttron_instance):
     yield agent
     agent.core.stop()
 
-@pytest.fixture(scope="module")
-def historian(request, volttron_instance):
-    identity = 'platform.historian'
-    agent = volttron_instance.build_agent(agent_class=BasicHistorian,
-                                          identity=identity,
-                                          submit_size_limit=2,
-                                          max_time_publishing=0.5,
-                                          retry_period=1.0,
-                                          backup_storage_limit_gb=0.0001)  # 100K
-    yield agent
-    agent.core.stop()
-
 alert_publishes = []
 
 def message_handler(peer, sender, bus,  topic, headers, message):
     alert_publishes.append(Status.from_json(message))
 
+
 @pytest.mark.historian
-def test_health_stuff(request, historian, client_agent):
+def test_health_stuff(request, volttron_instance, client_agent):
     """
     Test basic use of health subsystem in the base historian.
     """
     global alert_publishes
+    historian = None
+    try:
+        identity = 'platform.historian'
+        historian = volttron_instance.build_agent(agent_class=BasicHistorian,
+                                              identity=identity,
+                                              submit_size_limit=2,
+                                              max_time_publishing=0.5,
+                                              retry_period=1.0,
+                                              backup_storage_limit_gb=0.0001)  # 100K
+        DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
 
-    DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+        print("\n** test_basic_function for {}**".format(
+            request.keywords.node.name))
 
-    print("\n** test_basic_function for {}**".format(
-        request.keywords.node.name))
+        # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+        # Make some random readings.  Randome readings are going to be
+        # within the tolerance here.
+        format_spec = "{0:.13f}"
+        oat_reading = random.uniform(30, 100)
+        mixed_reading = oat_reading + random.uniform(-5, 5)
+        damper_reading = random.uniform(0, 100)
 
-    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-    # Make some random readings.  Randome readings are going to be
-    # within the tolerance here.
-    format_spec = "{0:.13f}"
-    oat_reading = random.uniform(30, 100)
-    mixed_reading = oat_reading + random.uniform(-5, 5)
-    damper_reading = random.uniform(0, 100)
+        float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+        percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
 
-    float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
-    percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
+        # Create a message for all points.
+        all_message = [{'OutsideAirTemperature': oat_reading,
+                        'MixedAirTemperature': mixed_reading,
+                        'DamperSignal': damper_reading},
+                       {'OutsideAirTemperature': float_meta,
+                        'MixedAirTemperature': float_meta,
+                        'DamperSignal': percent_meta
+                        }]
 
-    # Create a message for all points.
-    all_message = [{'OutsideAirTemperature': oat_reading,
-                    'MixedAirTemperature': mixed_reading,
-                    'DamperSignal': damper_reading},
-                   {'OutsideAirTemperature': float_meta,
-                    'MixedAirTemperature': float_meta,
-                    'DamperSignal': percent_meta
-                    }]
+        # Create timestamp
+        now = utils.format_timestamp( datetime.utcnow() )
 
-    # Create timestamp
-    now = utils.format_timestamp( datetime.utcnow() )
+        # now = '2015-12-02T00:00:00'
+        headers = {
+            headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+        }
+        print("Published time in header: " + now)
 
-    # now = '2015-12-02T00:00:00'
-    headers = {
-        headers_mod.DATE: now, headers_mod.TIMESTAMP: now
-    }
-    print("Published time in header: " + now)
+        for _ in range(10):
+            client_agent.vip.pubsub.publish('pubsub',
+                                             DEVICES_ALL_TOPIC,
+                                             headers=headers,
+                                             message=all_message).get(timeout=10)
 
-    for _ in range(10):
-        client_agent.vip.pubsub.publish('pubsub',
-                                         DEVICES_ALL_TOPIC,
-                                         headers=headers,
-                                         message=all_message).get(timeout=10)
+        gevent.sleep(2.0)
 
-    gevent.sleep(2.0)
+        status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
-    status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+        assert status["status"] == STATUS_GOOD
+        assert status["context"][STATUS_KEY_PUBLISHING]
+        assert not status["context"][STATUS_KEY_BACKLOGGED]
+        assert not status["context"][STATUS_KEY_CACHE_FULL]
+        assert not bool(status["context"][STATUS_KEY_CACHE_COUNT])
 
-    assert status["status"] == STATUS_GOOD
-    assert status["context"][STATUS_KEY_PUBLISHING]
-    assert not status["context"][STATUS_KEY_BACKLOGGED]
-    assert not status["context"][STATUS_KEY_CACHE_FULL]
-    assert not bool(status["context"][STATUS_KEY_CACHE_COUNT])
+        # Test publish failure
+        client_agent.vip.pubsub.subscribe("pubsub", "alerts/BasicHistorian", message_handler)
 
-    # Test publish failure
-    client_agent.vip.pubsub.subscribe("pubsub", "alerts/BasicHistorian", message_handler)
+        historian.publish_fail = True
 
-    historian.publish_fail = True
+        for _ in range(10):
+            client_agent.vip.pubsub.publish('pubsub',
+                                             DEVICES_ALL_TOPIC,
+                                             headers=headers,
+                                             message=all_message).get(timeout=10)
+        gevent.sleep(2)
+        status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
-    for _ in range(10):
-        client_agent.vip.pubsub.publish('pubsub',
-                                         DEVICES_ALL_TOPIC,
-                                         headers=headers,
-                                         message=all_message).get(timeout=10)
-    gevent.sleep(2)
-    status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+        alert_publish = alert_publishes[0]
 
-    alert_publish = alert_publishes[0]
+        alert_publishes = []
 
-    alert_publishes = []
+        assert status["status"] == STATUS_BAD
+        assert not status["context"][STATUS_KEY_PUBLISHING]
 
-    assert status["status"] == STATUS_BAD
-    assert not status["context"][STATUS_KEY_PUBLISHING]
+        assert alert_publish.status == STATUS_BAD
 
-    assert alert_publish.status == STATUS_BAD
+        historian.publish_fail = False
 
-    historian.publish_fail = False
+        gevent.sleep(2.0)
 
-    gevent.sleep(2.0)
+        status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
-    status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+        assert status["status"] == STATUS_GOOD
+        assert status["context"][STATUS_KEY_PUBLISHING]
+        assert not status["context"][STATUS_KEY_BACKLOGGED]
+        assert not status["context"][STATUS_KEY_CACHE_FULL]
+        assert not bool(status["context"][STATUS_KEY_CACHE_COUNT])
 
-    assert status["status"] == STATUS_GOOD
-    assert status["context"][STATUS_KEY_PUBLISHING]
-    assert not status["context"][STATUS_KEY_BACKLOGGED]
-    assert not status["context"][STATUS_KEY_CACHE_FULL]
-    assert not bool(status["context"][STATUS_KEY_CACHE_COUNT])
+        #Test publish slow or backlogged
 
-    #Test publish slow or backlogged
+        historian.publish_sleep = 0.75
 
-    historian.publish_sleep = 0.75
+        for _ in range(1500):
+            client_agent.vip.pubsub.publish('pubsub',
+                                            DEVICES_ALL_TOPIC,
+                                            headers=headers,
+                                            message=all_message).get(timeout=10)
 
-    for _ in range(1000):
-        client_agent.vip.pubsub.publish('pubsub',
-                                        DEVICES_ALL_TOPIC,
-                                        headers=headers,
-                                        message=all_message).get(timeout=10)
+        gevent.sleep(2)
 
-    gevent.sleep(2.0)
+        status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
-    status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+        assert status["status"] == STATUS_BAD
+        assert status["context"][STATUS_KEY_BACKLOGGED]
+        assert status["context"][STATUS_KEY_CACHE_COUNT] > 0
+        alert_publish = alert_publishes[-1]
+        assert alert_publish.status == STATUS_BAD
+        context = alert_publish.context
+        assert context[STATUS_KEY_CACHE_FULL]
 
-    assert status["status"] == STATUS_BAD
-    assert status["context"][STATUS_KEY_BACKLOGGED]
-    assert status["context"][STATUS_KEY_CACHE_COUNT] > 0
-    alert_publish = alert_publishes[-1]
-    assert alert_publish.status == STATUS_BAD
-    context = alert_publish.context
-    assert context[STATUS_KEY_CACHE_FULL]
-    assert status["context"][STATUS_KEY_CACHE_FULL]
+        # Cache need not be full if it is backlogged. but if cache is full backlogged should be true and cache_count
+        # should be greater than 0
+        assert STATUS_KEY_CACHE_FULL in status["context"]
 
-    historian.publish_sleep = 0
+        historian.publish_sleep = 0
 
-    gevent.sleep(2.0)
+        gevent.sleep(2.0)
 
-    status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+        status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
-    assert status["status"] == STATUS_GOOD
-    assert status["context"][STATUS_KEY_PUBLISHING]
-    assert not status["context"][STATUS_KEY_BACKLOGGED]
-    assert not status["context"][STATUS_KEY_CACHE_FULL]
-    assert not bool(status["context"][STATUS_KEY_CACHE_COUNT])
+        assert status["status"] == STATUS_GOOD
+        assert status["context"][STATUS_KEY_PUBLISHING]
+        assert not status["context"][STATUS_KEY_BACKLOGGED]
+        assert not status["context"][STATUS_KEY_CACHE_FULL]
+        assert not bool(status["context"][STATUS_KEY_CACHE_COUNT])
+    finally:
+        if historian:
+            historian.core.stop()
 
 class FailureHistorian(BaseHistorian):
     def __init__(self, **kwargs):
@@ -348,191 +351,366 @@ class FailureHistorian(BaseHistorian):
 
         self.teardown_run = True
 
-@pytest.fixture(scope="module")
-def fail_historian(request, volttron_instance):
-    identity = 'platform.historian'
-    agent = volttron_instance.build_agent(agent_class=FailureHistorian,
-                                          identity=identity,
-                                          submit_size_limit=2,
-                                          max_time_publishing=0.5,
-                                          retry_period=1.0,
-                                          backup_storage_limit_gb=0.0001)  # 100K
-    yield agent
-    agent.core.stop()
-
 
 @pytest.mark.historian
-def test_failing_historian(request, fail_historian, client_agent):
+def test_failing_historian(request, volttron_instance, client_agent):
     """
     Test basic use of health subsystem in the base historian.
     """
+    fail_historian = None
 
-    assert fail_historian.setup_run
-    assert not fail_historian.teardown_run
-    assert fail_historian._process_thread.is_alive()
+    try:
+        identity = 'platform.historian'
+        fail_historian = volttron_instance.build_agent(agent_class=FailureHistorian,
+                                              identity=identity,
+                                              submit_size_limit=2,
+                                              max_time_publishing=0.5,
+                                              retry_period=1.0,
+                                              backup_storage_limit_gb=0.0001)  # 100K
 
-    fail_historian.stop_process_thread()
+        assert fail_historian.setup_run
+        assert not fail_historian.teardown_run
+        assert fail_historian._process_thread.is_alive()
 
-    assert fail_historian.teardown_run
-    assert fail_historian.setup_run
-    assert fail_historian._process_thread is None
-    ###
-    # Test setup failure case
-    ###
-    fail_historian.reset()
-    fail_historian.setup_fail = True
-    fail_historian.start_process_thread()
-    gevent.sleep(0.2)
+        fail_historian.stop_process_thread()
 
-    assert fail_historian._process_thread.is_alive()
-    assert not fail_historian.setup_run
-    assert not fail_historian.teardown_run
+        assert fail_historian.teardown_run
+        assert fail_historian.setup_run
+        assert fail_historian._process_thread is None
+        ###
+        # Test setup failure case
+        ###
+        fail_historian.reset()
+        fail_historian.setup_fail = True
+        fail_historian.start_process_thread()
+        gevent.sleep(0.2)
 
-    fail_historian.stop_process_thread()
+        assert fail_historian._process_thread.is_alive()
+        assert not fail_historian.setup_run
+        assert not fail_historian.teardown_run
 
-    assert fail_historian.teardown_run
-    assert not fail_historian.setup_run
-    assert fail_historian._process_thread is None
-    ###
-    # Test failure to record intial table names in db
-    ###
-    fail_historian.reset()
-    fail_historian.record_fail = True
-    fail_historian.start_process_thread()
+        fail_historian.stop_process_thread()
 
-    gevent.sleep(0.2)
+        assert fail_historian.teardown_run
+        assert not fail_historian.setup_run
+        assert fail_historian._process_thread is None
+        ###
+        # Test failure to record intial table names in db
+        ###
+        fail_historian.reset()
+        fail_historian.record_fail = True
+        fail_historian.start_process_thread()
 
-    assert fail_historian._process_thread.is_alive()
-    assert fail_historian.setup_run
-    assert not fail_historian.record_run
-    assert not fail_historian.teardown_run
+        gevent.sleep(0.2)
 
-    fail_historian.stop_process_thread()
+        assert fail_historian._process_thread.is_alive()
+        assert fail_historian.setup_run
+        assert not fail_historian.record_run
+        assert not fail_historian.teardown_run
 
-    assert fail_historian.teardown_run
-    assert fail_historian.setup_run
-    assert not fail_historian.record_run
-    assert fail_historian._process_thread is None
-    ###
-    # Test failure during teardown
-    ###
-    fail_historian.reset()
-    fail_historian.teardown_fail = True
-    fail_historian.start_process_thread()
+        fail_historian.stop_process_thread()
 
-    gevent.sleep(0.2)
+        assert fail_historian.teardown_run
+        assert fail_historian.setup_run
+        assert not fail_historian.record_run
+        assert fail_historian._process_thread is None
+        ###
+        # Test failure during teardown
+        ###
+        fail_historian.reset()
+        fail_historian.teardown_fail = True
+        fail_historian.start_process_thread()
 
-    assert fail_historian._process_thread.is_alive()
-    assert fail_historian.setup_run
-    assert not fail_historian.teardown_run
+        gevent.sleep(0.2)
 
-    fail_historian.stop_process_thread()
+        assert fail_historian._process_thread.is_alive()
+        assert fail_historian.setup_run
+        assert not fail_historian.teardown_run
 
-    assert not fail_historian.teardown_run
-    assert fail_historian.setup_run
-    assert fail_historian._process_thread is None
+        fail_historian.stop_process_thread()
 
-    fail_historian.reset()
-    fail_historian.publish_fail = True
-    fail_historian.start_process_thread()
+        assert not fail_historian.teardown_run
+        assert fail_historian.setup_run
+        assert fail_historian._process_thread is None
 
-    gevent.sleep(0.2)
+        fail_historian.reset()
+        fail_historian.publish_fail = True
+        fail_historian.start_process_thread()
 
-    DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+        gevent.sleep(0.2)
 
-    print("\n** test_basic_function for {}**".format(
-        request.keywords.node.name))
+        DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
 
-    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+        print("\n** test_basic_function for {}**".format(
+            request.keywords.node.name))
 
-    float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+        # Publish fake data. The format mimics the format used by VOLTTRON drivers.
 
-    # Create a message for all points.
-    all_message = [{'OutsideAirTemperature': 32},
-                   {'OutsideAirTemperature': float_meta}]
+        float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
 
-    # Create timestamp
-    now = utils.format_timestamp( datetime.utcnow() )
+        # Create a message for all points.
+        all_message = [{'OutsideAirTemperature': 32},
+                       {'OutsideAirTemperature': float_meta}]
 
-    # now = '2015-12-02T00:00:00'
-    headers = {
-        headers_mod.DATE: now, headers_mod.TIMESTAMP: now
-    }
-    print("Published time in header: " + now)
+        # Create timestamp
+        now = utils.format_timestamp( datetime.utcnow() )
 
-    client_agent.vip.pubsub.publish('pubsub',
-                                     DEVICES_ALL_TOPIC,
-                                     headers=headers,
-                                     message=all_message).get(timeout=10)
+        # now = '2015-12-02T00:00:00'
+        headers = {
+            headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+        }
+        print("Published time in header: " + now)
 
-    gevent.sleep(2.0)
-    assert fail_historian._process_thread.is_alive()
-    assert not fail_historian.seen
-    ###
-    # Test if historian recovers when setup fails initially but is successful
-    # after sometime. This is to test case where db is down when historian
-    # is first started and db is brought back up. Historian should recover
-    # without restart.
-    ###
-    fail_historian.stop_process_thread()
-    fail_historian.reset()
-    fail_historian.setup_fail = True
-    fail_historian.start_process_thread()
+        client_agent.vip.pubsub.publish('pubsub',
+                                         DEVICES_ALL_TOPIC,
+                                         headers=headers,
+                                         message=all_message).get(timeout=10)
 
-    gevent.sleep(0.2)
+        gevent.sleep(2.0)
+        assert fail_historian._process_thread.is_alive()
+        assert not fail_historian.seen
+        ###
+        # Test if historian recovers when setup fails initially but is successful
+        # after sometime. This is to test case where db is down when historian
+        # is first started and db is brought back up. Historian should recover
+        # without restart.
+        ###
+        fail_historian.stop_process_thread()
+        fail_historian.reset()
+        fail_historian.setup_fail = True
+        fail_historian.start_process_thread()
 
-    DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+        gevent.sleep(0.2)
 
-    print("\n** test_basic_function for {}**".format(
-        request.keywords.node.name))
+        DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
 
-    float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+        print("\n** test_basic_function for {}**".format(
+            request.keywords.node.name))
 
-    # Create a message for all points.
-    all_message = [{'OutsideAirTemperature': 32},
-                   {'OutsideAirTemperature': float_meta}]
+        float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
 
-    # Create timestamp
-    now = utils.format_timestamp(datetime.utcnow())
+        # Create a message for all points.
+        all_message = [{'OutsideAirTemperature': 32},
+                       {'OutsideAirTemperature': float_meta}]
 
-    # now = '2015-12-02T00:00:00'
-    headers = {
-        headers_mod.DATE: now, headers_mod.TIMESTAMP: now
-    }
-    print("Published time in header: " + now)
+        # Create timestamp
+        now = utils.format_timestamp(datetime.utcnow())
 
-    client_agent.vip.pubsub.publish('pubsub',
-                                    DEVICES_ALL_TOPIC,
-                                    headers=headers,
-                                    message=all_message).get(timeout=10)
+        # now = '2015-12-02T00:00:00'
+        headers = {
+            headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+        }
+        print("Published time in header: " + now)
 
-    gevent.sleep(6.0)
-    assert fail_historian._process_thread.is_alive()
-    assert not fail_historian.seen
+        client_agent.vip.pubsub.publish('pubsub',
+                                        DEVICES_ALL_TOPIC,
+                                        headers=headers,
+                                        message=all_message).get(timeout=10)
 
-    # now setup fail is false. publish again and see if we recover
-    fail_historian.setup_fail = False
+        gevent.sleep(6.0)
+        assert fail_historian._process_thread.is_alive()
+        assert not fail_historian.seen
 
-    # Create timestamp
-    now = utils.format_timestamp(datetime.utcnow())
+        # now setup fail is false. publish again and see if we recover
+        fail_historian.setup_fail = False
 
-    # now = '2015-12-02T00:00:00'
-    headers = {
-        headers_mod.DATE: now, headers_mod.TIMESTAMP: now
-    }
-    print("Published time in header: " + now)
+        # Create timestamp
+        now = utils.format_timestamp(datetime.utcnow())
 
-    client_agent.vip.pubsub.publish('pubsub',
-                                    DEVICES_ALL_TOPIC,
-                                    headers=headers,
-                                    message=all_message).get(timeout=20)
+        # now = '2015-12-02T00:00:00'
+        headers = {
+            headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+        }
+        print("Published time in header: " + now)
 
-    gevent.sleep(2.0)
-    assert fail_historian._process_thread.is_alive()
-    assert fail_historian.setup_run
-    assert fail_historian.record_run
-    assert len(fail_historian.seen)
-    print(fail_historian.seen)
+        client_agent.vip.pubsub.publish('pubsub',
+                                        DEVICES_ALL_TOPIC,
+                                        headers=headers,
+                                        message=all_message).get(timeout=20)
+
+        gevent.sleep(2.0)
+        assert fail_historian._process_thread.is_alive()
+        assert fail_historian.setup_run
+        assert fail_historian.record_run
+        assert len(fail_historian.seen)
+        print(fail_historian.seen)
+    finally:
+        # Stop agent as this might keep publishing backlogged message if left running.
+        # This may cause test case right after this to timeout
+        if fail_historian:
+
+            fail_historian.core.stop()
 
 
+@pytest.mark.historian
+def test_additional_custom_topics(request, volttron_instance, client_agent):
+    """
+    Test subscription to custom topics. Test --
+     1. add additional topics
+     2. restricting topics
+    """
+    global alert_publishes
+    historian = None
+    try:
+        identity = 'platform.historian'
+        DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+        CUSTOM_TOPIC = 'special_devices/device1/unit/all'
+        CUSTOM_QUERY_TOPIC = "device1/unit"
+        DEVICES_QUERY_TOPIC = "Building/LAB/Device"
 
+        historian = volttron_instance.build_agent(agent_class=BasicHistorian,
+                                              identity=identity,
+                                              submit_size_limit=2,
+                                              max_time_publishing=0.5,
+                                              retry_period=1.0,
+                                              backup_storage_limit_gb=0.0001,
+                                              custom_topics={'capture_device_data': [CUSTOM_TOPIC]})  # 100K
+
+
+        print("\n** test_basic_function for {}**".format(
+            request.keywords.node.name))
+
+        # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+        # Make some random readings.  Randome readings are going to be
+        # within the tolerance here.
+        format_spec = "{0:.13f}"
+        oat_reading = random.uniform(30, 100)
+        mixed_reading = oat_reading + random.uniform(-5, 5)
+        damper_reading = random.uniform(0, 100)
+
+        float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+        percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
+
+        # Create a message for all points.
+        all_message = [{'OutsideAirTemperature': oat_reading,
+                        'MixedAirTemperature': mixed_reading,
+                        'DamperSignal': damper_reading},
+                       {'OutsideAirTemperature': float_meta,
+                        'MixedAirTemperature': float_meta,
+                        'DamperSignal': percent_meta
+                        }]
+
+        # Create timestamp
+        now = utils.format_timestamp( datetime.utcnow() )
+
+        # now = '2015-12-02T00:00:00'
+        headers = {
+            headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+        }
+        print("Published time in header: " + now)
+
+        for _ in range(2):
+            client_agent.vip.pubsub.publish('pubsub',
+                                             DEVICES_ALL_TOPIC,
+                                             headers=headers,
+                                             message=all_message).get(timeout=10)
+        for _ in range(2):
+            client_agent.vip.pubsub.publish('pubsub',
+                                            CUSTOM_TOPIC,
+                                            headers=headers,
+                                            message=all_message).get(timeout=10)
+
+        gevent.sleep(2.0)
+
+        assert len(historian.seen) == 12
+        found_device_topic = 0
+        found_custom_topic = 0
+        for item in historian.seen:
+            if item["topic"].startswith(DEVICES_QUERY_TOPIC) :
+                found_device_topic += 1
+            elif item["topic"].startswith(CUSTOM_QUERY_TOPIC):
+                found_custom_topic += 1
+        assert found_custom_topic == 6
+        assert found_device_topic == 6
+    finally:
+        if historian:
+            historian.core.stop()
+
+
+@pytest.mark.historian
+def test_restricting_topics(request, volttron_instance, client_agent):
+    """
+    Test subscription to custom topics. Test --
+     1. add additional topics
+     2. restricting topics
+    """
+    global alert_publishes
+    historian = None
+    try:
+        identity = 'platform.historian'
+        CUSTOM_TOPIC = 'devices/device1/unit/all'
+        DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+        CUSTOM_QUERY_TOPIC  = "device1/unit"
+        DEVICES_QUERY_TOPIC = "Building/LAB/Device"
+
+        historian = volttron_instance.build_agent(agent_class=BasicHistorian,
+                                              identity=identity,
+                                              submit_size_limit=2,
+                                              max_time_publishing=0.5,
+                                              retry_period=1.0,
+                                              backup_storage_limit_gb=0.0001,
+                                              capture_device_data=False,
+                                              capture_log_data=False,
+                                              capture_analysis_data=False,
+                                              capture_record_data=False,
+                                              custom_topics={'capture_device_data': [CUSTOM_TOPIC]})  # 100K
+
+        print("\n** test_basic_function for {}**".format(
+            request.keywords.node.name))
+
+        # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+        # Make some random readings.  Randome readings are going to be
+        # within the tolerance here.
+        format_spec = "{0:.13f}"
+        oat_reading = random.uniform(30, 100)
+        mixed_reading = oat_reading + random.uniform(-5, 5)
+        damper_reading = random.uniform(0, 100)
+
+        float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+        percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
+
+        # Create a message for all points.
+        all_message = [{'OutsideAirTemperature': oat_reading,
+                        'MixedAirTemperature': mixed_reading,
+                        'DamperSignal': damper_reading},
+                       {'OutsideAirTemperature': float_meta,
+                        'MixedAirTemperature': float_meta,
+                        'DamperSignal': percent_meta
+                        }]
+
+        # Create timestamp
+        now = utils.format_timestamp( datetime.utcnow() )
+
+        # now = '2015-12-02T00:00:00'
+        headers = {
+            headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+        }
+        print("Published time in header: " + now)
+
+        for _ in range(2):
+            client_agent.vip.pubsub.publish('pubsub',
+                                             DEVICES_ALL_TOPIC,
+                                             headers=headers,
+                                             message=all_message).get(timeout=10)
+        for _ in range(2):
+            client_agent.vip.pubsub.publish('pubsub',
+                                            CUSTOM_TOPIC,
+                                            headers=headers,
+                                            message=all_message).get(timeout=10)
+
+        gevent.sleep(2.0)
+
+        assert len(historian.seen) == 6  # only records published to custom topic
+        found_device_topic = 0
+        found_custom_topic = 0
+        for item in historian.seen:
+            if item["topic"].startswith(DEVICES_QUERY_TOPIC):
+                found_device_topic += 1
+            elif item["topic"].startswith(CUSTOM_QUERY_TOPIC):
+                found_custom_topic += 1
+        assert found_custom_topic == 6
+        assert found_device_topic == 0
+    finally:
+        if historian:
+            historian.core.stop()
+            

@@ -5,7 +5,8 @@
     },
     "--testing": {
         "help": "Installs testing infrastructure dependencies",
-        "packages": ["pytest==3.6.4", "pytest-timeout", "mock", "websocket-client"]
+        "packages": ["more-itertools>=4.0.0,<6.0.0;python_version<='2.7'","more-itertools>=4.0.0;python_version>'2.7'",
+                     "pytest==3.6.4", "pytest-timeout", "mock", "websocket-client"]
     },
     "--crate": {
         "help": "Installs requirements for crate databases",
@@ -21,7 +22,7 @@
     },
     "--databases": {
         "help": "Installs support for all known databases",
-        "packages": ["pymongo", "mysql-connector-python-rf"]
+        "packages": ["pymongo", "mysql-connector-python-rf", "crate"]
     },
     "--documentation": {
         "help": "Installs requirements for building the documentation",
@@ -31,5 +32,10 @@
     "--market": {
         "help": "Installs requirements for the market service",
         "packages": ["numpy>1.13,<2", "transitions"]
+    },
+    "--rabbitmq": {
+        "help": "Installs requirements for the rabbitmq server",
+        "packages": ["wget==3.2", "cryptography==2.2.2",
+        "gevent-pika==0.2"]
     }
 }

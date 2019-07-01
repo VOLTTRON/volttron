@@ -1,6 +1,5 @@
 import sys
 
-from volttrontesting.fixtures.vc_fixtures import *
 from volttrontesting.fixtures.volttron_platform_fixtures import *
 
 collect_ignore = ["function_test.py", "tests/mesa_master_test.py"]

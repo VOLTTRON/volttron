@@ -1,4 +1,5 @@
 .. _VOLTTRON-Config:
+
 VOLTTRON Config
 ===============
 
@@ -7,23 +8,52 @@ setting up the platform configuration, historian, VOLTTRON Central UI, and platf
 
 example volttron-cfg output:
 
-Is this instance discoverable (Y/N)? [N] y
+.. note:: 
 
-What is the external ipv4 address for this instance? [127.0.0.1]: 
-What is the vip port this instance? [22916] 
+        - In this example, <user> represents the user's home directory, and <localhost> represents the machine's localhost.
+        - The platform has been bootstrapped with rabbitmq enabled e.g. (python bootstrap.py --rabbitmq)
 
-What is the port for discovery? [8080] 
+.. code-block:: console 
 
-Which IP addresses are allowed to discover this instance? [/127.*/] 
+        Your VOLTTRON_HOME currently set to: /home/<user>/.volttron
 
-Is this instance a volttron central (Y/N)? [N] y
+        Is this the volttron you are attempting to setup? [Y]: y
+        What type of message bus (rmq/zmq)? [zmq]: rmq
 
-Should volttron central autostart(Y/N)? [Y] 
+        The rmq message bus has a backward compatibility 
+        layer with current zmq instances. What is the 
+        zmq bus's vip address? [tcp://127.0.0.1]: 
+        What is the port for the vip address? [22916]: 
+        Is this instance web enabled? [N]: y
+        What is the hostname for this instance? (https) [https://<localhost>]: 
+        What is the port for this instance? [8443]: 
+        Is this an instance of volttron central? [N]: y
+        Configuring /home/<user>/volttron/services/core/VolttronCentral.
+        Enter volttron central admin user name: admin
+        Enter volttron central admin password:
+        Retype password:
+        Installing volttron central.
+        Should the agent autostart? [N]: y
+        Will this instance be controlled by volttron central? [Y]: 
+        Configuring /home/<user>/volttron/services/core/VolttronCentralPlatform.
+        What is the name of this instance? [volttron1]: 
+        What is the hostname for volttron central? [https://<localhost>]: 
+        What is the port for volttron central? [8443]: 
+        Should the agent autostart? [N]: y
+        Would you like to install a platform historian? [N]: y
+        Configuring /home/<user>/volttron/services/core/SQLHistorian.
+        Should the agent autostart? [N]: y
+        Would you like to install a master driver? [N]: y
+        Configuring /home/<user>/volttron/services/core/MasterDriverAgent.
+        Would you like to install a fake device on the master driver? [N]: y
+        Should the agent autostart? [N]: y
+        Would you like to install a listener agent? [N]: y
+        Configuring examples/ListenerAgent.
+        Should the agent autostart? [N]: y
+        Finished configuration!
 
-Include volttron central platform agent on volttron central? [Y]
+        You can now start the volttron instance.
 
-Should platform agent autostart(Y/N)? [Y] 
+        If you need to change the instance configuration you can edit
+        the config file is at /home/<user>/.volttron/config
 
-Should install sqlite platform historian? [N]y
-
-Should historian agent autostart(Y/N)? [Y] 

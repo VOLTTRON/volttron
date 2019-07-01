@@ -55,6 +55,7 @@ from dateutil.tz import tzutc
 from pymongo import ReplaceOne
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
+import gevent
 
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
@@ -75,7 +76,7 @@ except ImportError:
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '2.1'
+__version__ = '2.1.1'
 _VOLTTRON_TYPE = '__volttron_type__'
 
 
@@ -246,6 +247,12 @@ class MongodbHistorian(BaseHistorian):
                                         start=delay),
                                self.periodic_rollup)
 
+    @Core.receiver("onstop")
+    def closing_mongo_client(self, sender, **kwargs):
+        if self._client:
+            _log.debug("Closing mongo client explicitly")
+            self._client.close()
+
     def periodic_rollup(self):
         _log.info("periodic attempt to do hourly and daily rollup.")
         if self._client is None:
@@ -336,6 +343,7 @@ class MongodbHistorian(BaseHistorian):
                           "periodic call to try again during next scheduled "
                           "call")
                 return
+            gevent.sleep(0.2)
 
         # Perform insert for any pending records
         if bulk_publish_hour:

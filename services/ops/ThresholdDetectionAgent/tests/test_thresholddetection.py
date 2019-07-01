@@ -38,7 +38,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-#}}}
 
 """
 Pytest test cases for ThresholdDetectionAgent
@@ -75,48 +74,74 @@ _test_config = {
     }
 }
 
+
 class AlertWatcher(Agent):
     """Keep track of seen alerts"""
     def __init__(self, *args, **kwargs):
         super(AlertWatcher, self).__init__(*args, **kwargs)
         self.seen_alert_keys = set()
+        print("Creating AlertWatcher with object_id: {}".format(id(self)))
 
     @PubSub.subscribe('pubsub', 'alerts')
     def add_alert_key(self, peer, sender, bus, topic, headers, messages):
+        print("Tester Agent Got Publish")
+        print("object_id: {}".format(id(self)))
+        print("SENDER: {}".format(sender))
+        print("TOPIC: {}".format(topic))
+        print("HEADERS: {}".format(headers))
+        print("MESSAGE: {}".format(messages))
         alert_key = headers.get('alert_key')
         if alert_key:
             self.seen_alert_keys.add(alert_key)
+        print("ALERT KEYS ARE NOW: {}".format(self.seen_alert_keys))
+        print("Finish add_alert_key\n")
+
+    def remove_key(self, key):
+        self.seen_alert_keys.remove(key)
+
+    def clear_keys(self):
+        self.seen_alert_keys.clear()
+
+    def reset_store(self):
+        self.vip.rpc.call(CONFIGURATION_STORE,
+                          'manage_store',
+                          'platform.thresholddetection',
+                          'config',
+                          json.dumps(_test_config),
+                          'json').get()
 
 
-@pytest.fixture
-def threshold_tester_agent(request, volttron_instance):
+@pytest.fixture(scope="module")
+def threshold_tester_agent(volttron_instance):
     """
     Fixture used for setting up ThresholdDetectionAgent and
     tester agents
     """
 
+    print("ADDRESS IS: ", volttron_instance.vip_address)
     threshold_detection_uuid = volttron_instance.install_agent(
         agent_dir=get_ops("ThresholdDetectionAgent"),
         config_file=_default_config,
         start=True)
 
     agent = volttron_instance.build_agent(agent_class=AlertWatcher,
-                                          enable_store=False)
+                                          identity="alert_watcher",
+                                          enable_store=True)
+
+    agent.reset_store()
+    # agent.vip.rpc.call(CONFIGURATION_STORE,
+    #                    'manage_store',
+    #                    'platform.thresholddetection',
+    #                    'config',
+    #                    json.dumps(_test_config),
+    #                    'json').get()
+
+    yield agent
 
     agent.vip.rpc.call(CONFIGURATION_STORE,
-                       'manage_store',
-                       'platform.thresholddetection',
-                       'config',
-                       json.dumps(_test_config),
-                       'json').get(timeout=10)
-
-    def stop_agent():
-        volttron_instance.stop_agent(threshold_detection_uuid)
-        volttron_instance.remove_agent(threshold_detection_uuid)
-        agent.core.stop()
-
-    request.addfinalizer(stop_agent)
-    return agent
+                       'manage_delete_store',
+                       'platform.thresholddetection').get()
+    volttron_instance.remove_agent(threshold_detection_uuid)
 
 
 def publish(agent, config, operation, to_max=True):
@@ -128,7 +153,7 @@ def publish(agent, config, operation, to_max=True):
             threshold = value['threshold_min']
         else:
             continue
-
+        print("Publishing on topic: {} value: {}".format(topic, operation(threshold)))
         agent.vip.pubsub.publish('pubsub', topic, None, operation(threshold)).get()
 
 
@@ -136,7 +161,10 @@ def test_above_max(threshold_tester_agent):
     """Should get alert because values exceed max"""
     publish(threshold_tester_agent, _test_config, lambda x: x+1)
     check = lambda: threshold_tester_agent.seen_alert_keys == set(['test_max'])
-    assert poll_gevent_sleep(2, check)
+    try:
+        assert poll_gevent_sleep(5, check)
+    finally:
+        threshold_tester_agent.clear_keys()
 
 
 def test_above_min(threshold_tester_agent):
@@ -156,8 +184,64 @@ def test_below_max(threshold_tester_agent):
 def test_below_min(threshold_tester_agent):
     """Should get alert because values below min"""
     publish(threshold_tester_agent, _test_config, lambda x: x-1, to_max=False)
-    check = lambda: threshold_tester_agent.seen_alert_keys == set(['test_min'])
-    assert poll_gevent_sleep(2, check)
+
+    try:
+        check = lambda: threshold_tester_agent.seen_alert_keys == set(['test_min'])
+        assert poll_gevent_sleep(5, check)
+    finally:
+        threshold_tester_agent.clear_keys()
+
+
+def test_update_config(threshold_tester_agent):
+    updated_config = {
+        "updated_topic": {
+            "threshold_max": 10,
+            "threshold_min": 0,
+        }
+    }
+    print("*******************test_update_config")
+    print("Before Modifying Config Store {}".format(threshold_tester_agent.vip.pubsub.list(threshold_tester_agent.core.identity).get()))
+    # threshold_tester_agent.vip.pubsub.publish('pubsub', topic="alerts/woot", headers={"foo": "bar"})
+    # threshold_tester_agent.vip .config.set('config', updated_config, True)
+    threshold_tester_agent.vip.rpc.call(CONFIGURATION_STORE,
+                                        'manage_store',
+                                        'platform.thresholddetection',
+                                        'config',
+                                        json.dumps(updated_config),
+                                        'json').get()
+    gevent.sleep(0.1)
+    # gevent.sleep(1)
+    # Sleep for chance to update from config callback.
+    # config = threshold_tester_agent.vip.config.get()
+    # assert threshold_tester_agent.vip.config.get() == updated_config
+    print("Before Publish {}".format(
+        threshold_tester_agent.vip.pubsub.list(threshold_tester_agent.core.identity).get()))
+    print("Alert keys before: {}".format(threshold_tester_agent.seen_alert_keys))
+    publish(threshold_tester_agent, updated_config, lambda x: x+1)
+    print("Alert keys after publish: {}".format(threshold_tester_agent.seen_alert_keys))
+    print("After Publish Store {}".format(
+        threshold_tester_agent.vip.pubsub.list(threshold_tester_agent.core.identity).get()))
+
+    print("Checking object id object_id: {}".format(id(threshold_tester_agent)))
+    check = lambda: threshold_tester_agent.seen_alert_keys == set(['updated_topic'])
+
+    try:
+        assert poll_gevent_sleep(5, check)
+    finally:
+        print("Done with testing Now!")
+        threshold_tester_agent.clear_keys()
+        threshold_tester_agent.reset_store()
+
+
+def test_device_publish(threshold_tester_agent):
+    threshold_tester_agent.vip.pubsub.publish('pubsub', 'devices/all',
+                                              headers={}, message=[{'point': 11}]).get()
+    gevent.sleep(0.5)
+    check = lambda: threshold_tester_agent.seen_alert_keys == set(['devices/all'])
+    try:
+        assert poll_gevent_sleep(5, check)
+    finally:
+        threshold_tester_agent.clear_keys()
 
 
 def test_remove_from_config_store(threshold_tester_agent):
@@ -169,32 +253,7 @@ def test_remove_from_config_store(threshold_tester_agent):
     publish(threshold_tester_agent, _test_config, lambda x: x-1, to_max=False)
     publish(threshold_tester_agent, _default_config, lambda x: x+1)
     check = lambda: threshold_tester_agent.seen_alert_keys == set(['test_max'])
-    assert poll_gevent_sleep(2, check)
-    # gevent.sleep(1)
-    # assert len(threshold_tester_agent.seen_alert_keys) == 0
-
-def test_update_config(threshold_tester_agent):
-    updated_config = {
-        "updated_topic": {
-            "threshold_max": 10,
-            "threshold_min": 0,
-        }
-    }
-
-    threshold_tester_agent.vip.rpc.call(CONFIGURATION_STORE,
-                                        'manage_store',
-                                        'platform.thresholddetection',
-                                        'config',
-                                        json.dumps(updated_config),
-                                        'json').get(timeout=10)
-
-    publish(threshold_tester_agent, _test_config, lambda x: x+1)
-    publish(threshold_tester_agent, updated_config, lambda x: x+1)
-    check = lambda: threshold_tester_agent.seen_alert_keys == set(['updated_topic'])
-    assert poll_gevent_sleep(2, check)
-
-def test_device_publish(threshold_tester_agent):
-    threshold_tester_agent.vip.pubsub.publish('pubsub', 'devices/all',
-                                              headers={}, message=[{'point': 11}]).get()
-    check = lambda: threshold_tester_agent.seen_alert_keys == set(['devices/all'])
-    assert poll_gevent_sleep(2, check)
+    try:
+        assert poll_gevent_sleep(5, check)
+    finally:
+        threshold_tester_agent.clear_keys()
