@@ -84,7 +84,7 @@ The following steps are to demonstrate how RabbitMQ VOLTTRON is backward compati
 
    b. Provide the RabbitMQ instance with the public key of the Forward Historian running on ZeroMQ instance.
 
-      Run ``vctl auth public key`` on the ZeroMQ instance. Copy the output and add the public key to the RabbitMQ instance's
+      Run ``vctl auth publickey`` on the ZeroMQ instance. Copy the output and add the public key to the RabbitMQ instance's
       auth.config file, using the defaults except for the user_id and credentials.
 
      .. code-block:: bash
@@ -204,7 +204,7 @@ The below example demonstrates backward compatibility using multi-platform conne
 
     c. Provide the RabbitMQ instance with the public key of the DataMover running on ZeroMQ instance.
 
-       Run ``vctl auth public key`` on the ZeroMQ instance. Copy the output and add the public key to the RabbitMQ instance's
+       Run ``vctl auth publickey`` on the ZeroMQ instance. Copy the output and add the public key to the RabbitMQ instance's
        auth.config file, using the defaults except for the user_id and credentials.
 
         .. code-block:: bash
