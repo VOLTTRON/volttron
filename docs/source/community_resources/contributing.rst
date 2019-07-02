@@ -19,7 +19,7 @@ Forking the main VOLTTRON repository
 
 The first step to editing the repository is to fork it into your own user space.  This is done by pointing
 your favorite web browser to
-http://github.com/VOLTTRON/volttron and the clicking Fork on the upper right of the screen.  (Note you must have a
+http://github.com/VOLTTRON/volttron and then clicking Fork on the upper right of the screen.  (Note you must have a
 github account to fork the repository, if you don't have one then click Sign Up in the upper
 right corner and create one).
 
