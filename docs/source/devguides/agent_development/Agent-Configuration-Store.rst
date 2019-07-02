@@ -45,7 +45,7 @@ The callback method must have the following signature:
 
 .. note::
 
-    All callbacks which are connected to the "NEW" event for a configuration will called during agent startup with the initial state of the configuration.
+    All callbacks which are connected to the "NEW" event for a configuration will be called during agent startup with the initial state of the configuration.
 
 
 Configuration Events

@@ -68,7 +68,7 @@ Setting up VOLTTRON as a System Service
 Systemd
 -------
 
-An example service file ``scripts/admin/volttron.service`` for systemd cas be used as a starting point
+An example service file ``scripts/admin/volttron.service`` for systemd can be used as a starting point
 for setting up VOLTTRON as a service. Note that as this will redirect all the output that would 
 be going to stdout - to the syslog.  This can be accessed using journalctl. For systems that run 
 all the time or have a high level of debugging turned on, we recommend checking the system's 

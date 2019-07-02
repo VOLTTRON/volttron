@@ -3,7 +3,7 @@
 Speeding Up VOLTTRON™ Builds
 ============================
 
-The VOLTTRON_ build process is straightforward enough, but it can be a bit slow. It relies on pip_ to download, build, and install required third-party packages. The problem is that pip does very little to cache the results of builds, especially those which require compilation. In fact, the only thing `pip caches`_ is the downloaded source archives. While this speeds up the download process and lightens the burden of the Python package index (PyPi_) server(s), it does little to improve the overall build speed. The majority of this document will focus on three techniques for improving VOLTTRON build times, including the pip download cache. But before we begin, let's discuss what is involve in building VOLTTRON.
+The VOLTTRON_ build process is straightforward enough, but it can be a bit slow. It relies on pip_ to download, build, and install required third-party packages. The problem is that pip does very little to cache the results of builds, especially those which require compilation. In fact, the only thing `pip caches`_ is the downloaded source archives. While this speeds up the download process and lightens the burden of the Python package index (PyPi_) server(s), it does little to improve the overall build speed. The majority of this document will focus on three techniques for improving VOLTTRON build times, including the pip download cache. But before we begin, let's discuss what is involved in building VOLTTRON.
 
 .. _VOLTTRON: https://github.com/VOLTTRON/volttron
 .. _pip: https://pip.pypa.io/en/latest/index.html

@@ -48,7 +48,7 @@ Adding and Committing files
 ---------------------------
 
 Now that you have your repository cloned it's time to start doing some modifications.  Using a simple text editor
-you can create or modify any file under the volttron directory.  After making a modification or an creating a file
+you can create or modify any file under the volttron directory.  After making a modification or creating a file
 it is time to move it to the stage for review before committing to the local repository.  For this example let's assume
 we have made a change to README.md in the root of the volttron directory and add a new file called foo.py.  To get
 those files on the stage (preparing for committing to the local repository) we would execute the following commands

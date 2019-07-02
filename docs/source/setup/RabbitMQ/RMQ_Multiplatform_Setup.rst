@@ -3,7 +3,7 @@
 Multi-Platform Deployment With RabbitMQ Message bus
 ===================================================
 
-In ZeroMQ based VOLTTRON, if multiple instances needed to be connected together
+In RabbitMQ based VOLTTRON, if multiple instances need to be connected together
 and be able to send or receive messages to/from remote instances we would do it
 in few different ways.
 

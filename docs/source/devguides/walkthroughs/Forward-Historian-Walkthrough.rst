@@ -21,10 +21,10 @@ VOLTTRON INSTANCE 1
 
   - Specify the IP of the machine : ``tcp://127.0.0.1:22916``.
   - Specify the port you want to use.
-  - Specify if you want to run VC ( VOLTTRON Central) here or this this instance would be controlled by a VC and the IP and port of the VC.
+  - Specify if you want to run VC ( VOLTTRON Central) here or this instance would be controlled by a VC and the IP and port of the VC.
 - Then start the VOLTTRON instance by : ``volttron -vv & > volttron.log&``.
 - Then install agents like Master driver Agent with fake driver agent for the instance.
-- Install a listener agent so see the topics that are coming from the diver agent.
+- Install a listener agent to see the topics that are coming from the diver agent.
 - VOLTTRON authentication : We need to add the IP of the instance 1 in the auth.config file of the VOLTTRON agent .This is done as follow :
 
   - ``volttron-ctl auth-add``

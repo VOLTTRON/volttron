@@ -54,7 +54,7 @@ The following steps are to demonstrate how RabbitMQ VOLTTRON is backward compati
        rm $CONFIG
 
 
-     Since we are attempting to push data from the local (ZeroMQ in this example) to the remote (RabbitMQ) instance, the we
+     Since we are attempting to push data from the local (ZeroMQ in this example) to the remote (RabbitMQ) instance, we
      would need the RabbitMQ serverkey, which can be obtained by running ``vctl auth serverkey`` on the RabbitMQ instance.
 
      Start the Forward Historian.

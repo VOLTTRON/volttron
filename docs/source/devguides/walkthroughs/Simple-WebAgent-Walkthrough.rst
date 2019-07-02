@@ -14,7 +14,7 @@ Starting VOLTTRON Platform
 .. note:: Activate the environment first :ref:`active the environment <activated-environment>`
 
 In order to start the simple web agent, we need to bind the VOLTTRON instance
-to the a web server.  We need to specify the address and the port for the
+to a web server.  We need to specify the address and the port for the
 web server. For example, if we want to bind the localhost:8080 as the web server
 we start the VOLTTRON platform as follows:
 

@@ -19,7 +19,7 @@ data flow we would need to create federation links on both the nodes.
 
 1. Setup two VOLTTRON instances using the instructions at :ref:`RMQ Setup<Setup-RMQ>`. **Please note that each instance should have a unique instance name and should be running on machine/VM that has a unique host name.**
 
-2. In a multi platform setup that need to communicate with each other with RabbitMQ over SSL, each VOLTTRON instance should should trust the ROOT CA of the other instance(RabbitMQ root ca)
+2. In a multi platform setup that need to communicate with each other with RabbitMQ over SSL, each VOLTTRON instance should trust the ROOT CA of the other instance(RabbitMQ root ca)
 
    a. Transfer (scp/sftp/similar) voltttron_home/certificates/certs/<instance_name>-root-ca.crt to a temporary
       location on the other volttron instance machine. For example, if you have two instance v1 and v2,
@@ -62,7 +62,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
 
         Example configuration for federation is available
-        in examples/configurations/rabbitmq/rabbitmq_federation_config.yml]
+        in examples/configurations/rabbitmq/rabbitmq_federation_config.yml
 
 
         If no config file is provided, the script will prompt for

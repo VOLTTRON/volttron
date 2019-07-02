@@ -53,7 +53,7 @@ called Interface.
     MasterDriverAgent code. You may create the interface file anywhere that
     you would like and then create a symbolic link to the interface file
     in the interfaces directory. When the MasterDriverAgent is packed for
-    distribution the a copy of the file represented by the symbolic link
+    distribution a copy of the file represented by the symbolic link
     is packed into the agent wheel.
     See :ref:`Using Third Party Drivers <Using-Third-Party-Drivers>`
 
@@ -189,7 +189,7 @@ has to pass the work on to the BACnet Proxy Agent for handling.
         return result[point_name]
 
 Failure should be indicated by a useful exception being raised. (In this
-case the we just leave the Exception raised by the BACnet proxy
+case we just leave the Exception raised by the BACnet proxy
 un-handled. This could be improved with better handling when register
 that does not exist is requested.)
 
@@ -220,7 +220,7 @@ has to pass the work on to the BACnet Proxy Agent for handling.
         result = self.vip.rpc.call(self.proxy_address, 'write_property', *args).get()
         return result
 
-Failure to raise a useful exception being raised. (In this case the we
+Failure to raise a useful exception being raised. (In this case we
 just leave the Exception raised by the BACnet proxy un-handled unless
 the point is read only.)
 

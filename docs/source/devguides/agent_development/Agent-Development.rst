@@ -3,7 +3,7 @@
 Agent Creation Walkthrough
 --------------------------
 
-The VOLTTRON platfrom now has utilities to speed the creation and installation
+The VOLTTRON platform now has utilities to speed the creation and installation
 of new agents. To use these utilities the VOLTTRON environment must be activated.
 
 From the project directory, activate the VOLTTRON environment with:
@@ -22,7 +22,7 @@ not exist when the command is run.
 
 `tester` is the name of the agent module created by wizard.
 
-The Wizard will promt for the following information:
+The Wizard will prompt for the following information:
 
 ::
 
@@ -176,7 +176,7 @@ Setting up a Subscription
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Agent creates a subscription using the value of self.setting2 in the method
-`_create_subscription`. The messages for this subscription hare handeled with
+`_create_subscription`. The messages for this subscription are handeled with
 the `_handle_publish` method:
 
 ::

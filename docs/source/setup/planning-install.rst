@@ -37,7 +37,7 @@ Storing Data
 
 VOLTTRON supports multiple historians. mySQL and MongoDB are the most commonly used. As you plan your 
 installation, you should consider how quickly you need access to the data and where.  If you are looking 
-at the health and well-being of an entire suite of devices, its likely that you want to do that from a 
+at the health and well-being of an entire suite of devices, it is likely that you want to do that from a 
 central location.  Analytics can be performed at the edge by VOLTTRON applications or can be performed
 across the data usually from a central data repository.  The latency that you can tolerate in your data 
 being available will also determine choices in different agents (ForwardHistorian versus Data Mover)
@@ -56,7 +56,7 @@ The second half of the "how many" question is how many collector paltforms are w
 VOLTTRON platform to store data - and whether that storage is local, remote, big enough, etc.
 
 If you are storing more than moderate amount of data, you will probably benefit from installing 
-your database on a different machine than your concreate historian machine.  Note:  This is 
+your database on a different machine than your concrete historian machine.  Note:  This is 
 contra-indicated if you have a slow network connection between you concrete historian and your database machine.
 
 In synthetic testing up to 6 virtual machines hosting 500 devices each ( 18 points) were easily 

@@ -4,7 +4,7 @@ Multi-Platform Connection Walkthrough
 =====================================
 
 Multi-Platform message bus communication alleviates the need for an agent in one platform to connect to another platform
-directly in order for it to send/receive messages from the other platform. With multi-platform communication, connections
+directly in order for it to send/receive messages to/from the other platform. With multi-platform communication, connections
 to external platforms will be maintained by the platforms itself and agents do not have the burden to manage the
 connections directly. This guide will show how to connect three VOLTTRON instances with a fake driver running on VOLTTRON
 instance 1 publishing to topic with prefix="devices" and listener agents running on other 2 VOLTTRON instances
