@@ -48,7 +48,7 @@ import sys
 import uuid
 import grp
 import pwd
-import re
+import datetime
 
 import gevent
 import gevent.event
@@ -67,7 +67,8 @@ except ImportError:
 from .agent.utils import is_valid_identity, get_messagebus, \
     get_platform_instance_name
 from volttron.platform import get_home
-from volttron.platform.agent.utils import load_platform_config
+from volttron.platform.agent.utils import load_platform_config, \
+    get_utc_seconds_from_epoch
 from .packages import UnpackedPackage
 from .vip.agent import Agent
 from .keystore import KeyStore
@@ -181,18 +182,11 @@ class ExecutionEnvironment(object):
         self.agent_user = 'volttron_{}'.format(agent_user)
 
     def execute(self, *args, **kwargs):
-        # TODO investigate if we can use the demote method
         try:
             self.env = kwargs.get('env', None)
             if self.agent_user:
-                run_as_user = ['sudo', '-u', self.agent_user.
-                    format(self.agent_user), '-i']
-                run_as_user.extend(*args)
-                _log.debug("ARGS = {}".format(run_as_user))
-                _log.info('Running agent as {}'.format(self.agent_user))
-                self.process = subprocess.Popen(run_as_user,
-                                                stdin=open(os.devnull),
-                                                stdout=PIPE, stderr=PIPE)
+                kwargs['env']['USER'] = self.agent_user
+                self.process = subprocess.Popen(*args, **kwargs)
             else:
                 self.process = subprocess.Popen(*args, **kwargs)
         except OSError as e:
@@ -230,19 +224,18 @@ class AIPplatform(object):
                 _log.info("Stdout from useradd process: {}".format(
                     response[0]))
             if response[1]:
-                # TODO make an alert
+                # TODO alert?
                 raise RuntimeError("Add volttron_agent group failed - Prevent "
                                    "creation of agent users")
 
-    def add_agent_user(self, agent, agent_dir):
+    def add_agent_user(self, agent_dir):
         """
         Invokes sudo to create a unique unix user for the agent.
         """
-        unix_agent_name = re.sub(r"[^a-zA-z0-9_]", "_", agent).rstrip("_")
-        self.agent_users[agent] = unix_agent_name
-        volttron_agent_user = "volttron_{}".format(unix_agent_name)
-        _log.debug("Creating volttron user {} for {}".format(
-            volttron_agent_user, agent))
+        volttron_agent_user = "{instance_name}_{timestamp}".format(
+            instance_name=get_platform_instance_name(),
+            timestamp=get_utc_seconds_from_epoch())
+        _log.debug("Creating volttron user {}".format(volttron_agent_user))
         self.add_agent_user_group()
         useradd = ['sudo', 'useradd', volttron_agent_user, '-G',
                    'volttron_agent', '-d', agent_dir]
@@ -251,18 +244,20 @@ class AIPplatform(object):
         if response[0]:
             _log.info("Stdout from useradd process: {}".format(response[0]))
         if response[1]:
-            _log.error("Add {agent} user failed: {error}".format(
-                agent=agent, error=response[1]))
+            _log.error("Add {volttron_agent_user} user failed: {error}".format(
+                volttron_agent_user=volttron_agent_user, error=response[1]))
             # TODO alert?
             raise RuntimeError("Creating {} user failed: {}".format(
                 volttron_agent_user, response[1]))
+        with open("{}/USER_ID".format(agent_dir), 'w') as name_file:
+            name_file.write(volttron_agent_user)
         return volttron_agent_user
 
     def set_agent_user_directory_permissions(self, volttron_agent_user,
-                                             user_dir):
+                                             agent_dir):
         acl_perms = "u:{}:x".format(volttron_agent_user)
         # Give execute only to agent user for its agent directory
-        permissions_command = ['setfacl', '-R', '-m', acl_perms, user_dir]
+        permissions_command = ['setfacl', '-R', '-m', acl_perms, agent_dir]
         permissions_process = subprocess.Popen(permissions_command,
                                                stdout=subprocess.PIPE,
                                                stderr=subprocess.PIPE)
@@ -271,16 +266,15 @@ class AIPplatform(object):
         if stderr:
             _log.error("Error setting execute for {user} on directory "
                        "{directory}: {stderr}.".format(
-                user=volttron_agent_user, directory=user_dir, stderr=stderr))
-            # TODO raise? alert?
+                user=volttron_agent_user, directory=agent_dir, stderr=stderr))
+            # TODO alert?
             raise RuntimeError(stderr)
         # Give read/write, not execute to agent user for its data directory
         acl_perms = "u:{}:rw".format(volttron_agent_user)
-        data_dir = "{}/data".format(user_dir)
+        data_dir = "{}/data".format(agent_dir)
         if not os.path.isdir(data_dir):
             os.mkdir(data_dir)
         permissions_command = ['setfacl', '-R', '-m', acl_perms, data_dir]
-        command = ", ".join(permissions_command)
         permissions_process = subprocess.Popen(permissions_command,
                                                stdout=subprocess.PIPE,
                                                stderr=subprocess.PIPE)
@@ -289,24 +283,20 @@ class AIPplatform(object):
         if stderr:
             _log.error("Error setting read/write for {user} on directory "
                        "{directory}: {stderr}.".format(
-                user=volttron_agent_user, directory=user_dir, stderr=stderr))
-            # TODO raise? alert?
+                user=volttron_agent_user, directory=agent_dir, stderr=stderr))
+            # TODO alert?
             raise RuntimeError(stderr)
 
-    def remove_agent_user(self, agent):
+    def remove_agent_user(self, agent_dir):
         """
         Invokes sudo to remove the unix user for the given environment.
         """
         # TODO maybe dream up a way to ensure the process is dead
-        user_name = self.agent_users.get(agent)
-        # TODO sometimes this can cause agent users to continue to exist, how
-        #  are the IDs tracked
-        # TODO if no user exists, what should we do?
-        if not user_name:
-            return
         try:
-            if pwd.getpwnam(user_name):
-                userdel = ['sudo', 'userdel', user_name]
+            user_id_file = open("{}/USER_ID".format(agent_dir), 'r')
+            volttron_agent_user = user_id_file.readline()
+            if pwd.getpwnam(volttron_agent_user):
+                userdel = ['sudo', 'userdel', volttron_agent_user]
                 userdel_process = subprocess.Popen(userdel,
                                                    stdout=subprocess.PIPE,
                                                    stderr=subprocess.PIPE)
@@ -316,12 +306,11 @@ class AIPplatform(object):
                         response[0]))
                 if response[1]:
                     _log.error("Remove {user} user failed: {stderr}".format(
-                        user=user_name, stderr=response[1]))
-                    # TODO raise? alert?
+                        user=volttron_agent_user, stderr=response[1]))
                     raise RuntimeError(response[1])
         except KeyError:
-            # TODO kill the agent
-            _log.error("UH OH, THIS USER DOESN'T EXIST!")
+            _log.error("Volttron agent user not found at {}".format(agent_dir))
+            # TODO alert?
 
     def setup(self):
         """Creates paths for used directories for the instance."""
@@ -410,8 +399,6 @@ class AIPplatform(object):
 
         if self.secure_agent_user:
             _log.info("Running Volttron agents securely with Unix Users.")
-        else:
-            _log.info("Not running with secure users.")
         while True:
             agent_uuid = str(uuid.uuid4())
             if agent_uuid in self.agents:
@@ -435,10 +422,9 @@ class AIPplatform(object):
 
             if self.secure_agent_user:
                 _log.debug("AGENT IDENTITY IS {}".format(final_identity))
-                created_user = self.add_agent_user(final_identity,
-                                                   agent_path)
-                self.set_agent_user_directory_permissions(
-                    created_user, agent_path)
+                created_user = self.add_agent_user(agent_path)
+                self.set_agent_user_directory_permissions(created_user,
+                                                          agent_path)
 
             if publickey is not None and secretkey is not None:
                 keystore = self.get_agent_keystore(agent_uuid)
@@ -580,11 +566,12 @@ class AIPplatform(object):
             rmq_user = instance_name + '.' + identity
             self.rmq_mgmt.delete_user(rmq_user)
         self.agents.pop(agent_uuid, None)
+        agent_directory = os.path.join(self.install_dir, agent_uuid)
         if self.secure_agent_user:
-            self.remove_agent_user(identity)
+            self.remove_agent_user(agent_directory)
         if remove_auth:
             self._unauthorize_agent_keys(agent_uuid)
-        shutil.rmtree(os.path.join(self.install_dir, agent_uuid))
+        shutil.rmtree(agent_directory)
 
     def agent_name(self, agent_uuid):
         agent_path = os.path.join(self.install_dir, agent_uuid)
