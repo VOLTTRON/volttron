@@ -262,7 +262,7 @@ class RPC(SubsystemBase):
             user_capabilites = self._owner.vip.auth.get_capabilities(user)
             user_capabilities_names = set(user_capabilites.keys())
             _log.debug("Required caps is : {}".format(required_caps))
-            _log.debug("user caps is: {}".format(user_capabilites))
+            _log.debug(" caps is: {}".format(user_capabilites))
             _log.debug("user capability names: {}".format(user_capabilities_names))
             if not required_caps.issubset(user_capabilities_names):
                 msg = ('method "{}" requires capabilities {}, but capability {} was'

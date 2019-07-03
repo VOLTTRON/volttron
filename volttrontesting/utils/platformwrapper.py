@@ -408,7 +408,10 @@ class PlatformWrapper:
         # Automatically add agent's credentials to auth.json file
         if publickey:
             self.logit('Adding publickey to auth.json')
-            self._append_allow_curve_key(publickey, agent.core.identity)
+            if agent.core.messagebus == 'rmq':
+                self._append_allow_curve_key(publickey, agent.core.rmq_user)
+            else:
+                self._append_allow_curve_key(publickey, agent.core.identity)
 
         if should_spawn:
             self.logit('platformwrapper.build_agent spawning')
@@ -438,6 +441,7 @@ class PlatformWrapper:
         return auth, auth_path
 
     def _append_allow_curve_key(self, publickey, identity):
+
         if identity:
             entry = AuthEntry(credentials=publickey, capabilities={'edit_config_store': {'identity': identity}})
         else:
