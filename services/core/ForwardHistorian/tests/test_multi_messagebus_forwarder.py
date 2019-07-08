@@ -165,7 +165,7 @@ def test_multi_messagebus_custom_topic_forwarder(multi_messagebus_forwarder):
         value = 78.5 + i
         publish(publish_agent, topic, headers, value)
         gevent.sleep(0.1)
-    #gevent.sleep(3)
+    gevent.sleep(1)
     assert subscriber_agent.callback.call_count == 5
 
 
@@ -182,7 +182,7 @@ def test_multi_messagebus_forwarder_reconnection(multi_messagebus_forwarder):
     to_instance.shutdown_platform()
     gevent.sleep(3)
     to_instance.restart_platform()
-    gevent.sleep(1)
+    gevent.sleep(5)
 
     publish_agent = from_instance.dynamic_agent
     subscriber_agent = to_instance.dynamic_agent
@@ -192,6 +192,7 @@ def test_multi_messagebus_forwarder_reconnection(multi_messagebus_forwarder):
     subscriber_agent.vip.pubsub.subscribe(peer='pubsub',
                                           prefix='foo',
                                           callback=subscriber_agent.callback)
+    gevent.sleep(1)
     # Create timestamp
     now = utils.format_timestamp(datetime.utcnow())
     print("now is ", now)
@@ -204,7 +205,7 @@ def test_multi_messagebus_forwarder_reconnection(multi_messagebus_forwarder):
         topic = "foo/grid_signal"
         value = 78.5 + i
         publish(publish_agent, topic, headers, value)
-        gevent.sleep(0.5)
+        gevent.sleep(0.1)
 
     gevent.sleep(3)
-    assert subscriber_agent.callback.call_count == 5
+    assert subscriber_agent.callback.call_count == 3
