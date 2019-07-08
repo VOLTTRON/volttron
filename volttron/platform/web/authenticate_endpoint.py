@@ -97,7 +97,7 @@ class AuthenticateEndpoints(object):
             password = data.get('password')
 
         _log.debug("Username is: {}".format(username))
-        _log.debug("Password is: {}".format(password))
+
         error = ""
         if username is None:
             error += "Invalid username passed"
