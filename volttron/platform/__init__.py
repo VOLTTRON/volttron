@@ -44,7 +44,7 @@ import os
 import psutil
 import sys
 
-__version__ = '6.0-rc1'
+__version__ = '6.0'
 
 
 def set_home(home=None):
