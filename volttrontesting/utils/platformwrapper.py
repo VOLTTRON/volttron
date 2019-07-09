@@ -172,7 +172,8 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
 
 
 class PlatformWrapper:
-    def __init__(self, messagebus=None, ssl_auth=False, instance_name=None, remote_platform_ca=None):
+    def __init__(self, messagebus=None, ssl_auth=False, instance_name=None,
+                 secure_agent_users=False, remote_platform_ca=None):
         """ Initializes a new VOLTTRON instance
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory
@@ -251,6 +252,7 @@ class PlatformWrapper:
         self.keystore = KeyStore(keystorefile)
         self.keystore.generate()
         self.messagebus = messagebus if messagebus else 'zmq'
+        self.secure_agent_users = secure_agent_users
         self.ssl_auth = ssl_auth
         self.instance_name = instance_name
         if not self.instance_name:
@@ -495,7 +497,6 @@ class PlatformWrapper:
         self.mode = mode
         self.volttron_central_address = volttron_central_address
         self.volttron_central_serverkey =volttron_central_serverkey
-
         self.bind_web_address = bind_web_address
         if self.bind_web_address:
             self.discovery_address = "{}/discovery/".format(
@@ -551,6 +552,7 @@ class PlatformWrapper:
                      'bind_web_address': bind_web_address,
                      'volttron_central_address': volttron_central_address,
                      'volttron_central_serverkey': volttron_central_serverkey,
+                     'secure_agent_users': self.secure_agent_users,
                      'platform_name': None,
                      'log': os.path.join(self.volttron_home, 'volttron.log'),
                      'log_config': None,
@@ -588,6 +590,9 @@ class PlatformWrapper:
         if self.messagebus:
             parser.set('volttron', 'message-bus',
                        self.messagebus)
+        if self.secure_agent_users:
+            parser.set('volttron', 'secure-agent-users',
+                       self.secure_agent_users)
         parser.set('volttron', 'agent-monitor-frequency',
                    agent_monitor_frequency)
 
