@@ -12,6 +12,7 @@ PRINT_LOG_ON_SHUTDOWN = False
 HAS_RMQ = is_rabbitmq_available()
 rmq_skipif = pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
 
+
 def print_log(volttron_home):
     if PRINT_LOG_ON_SHUTDOWN:
         if os.environ.get('PRINT_LOGS', PRINT_LOG_ON_SHUTDOWN):
