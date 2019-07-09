@@ -8,7 +8,8 @@ already:
 
 -  git
 -  build-essential
--  python-dev
+-  python3-dev
+-  python3-venv
 -  openssl
 -  libssl-dev
 -  libevent-dev
@@ -19,7 +20,7 @@ command:
 .. code-block:: bash
 
        sudo apt-get update
-       sudo apt-get install build-essential python-dev openssl libssl-dev libevent-dev git
+       sudo apt-get install build-essential python3-dev python3-venv openssl libssl-dev libevent-dev git
 
 On **Redhat or CENTOS systems**, these can all be installed with the following
 command:
@@ -27,7 +28,7 @@ command:
 .. code-block:: bash
 
    sudo yum update
-   sudo yum install make automake gcc gcc-c++ kernel-devel python-devel openssl openssl-devel libevent-devel git
+   sudo yum install make automake gcc gcc-c++ kernel-devel python3-devel pythone3-venv openssl openssl-devel libevent-devel git
 
 
 If you have an agent which requires the pyodbc package, install the
