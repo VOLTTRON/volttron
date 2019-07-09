@@ -51,21 +51,21 @@ alert_messages = {}
 listener_uuid = None
 
 @pytest.fixture(scope='module')
-def platform(request, volttron_instance1):
+def platform(request, volttron_instance):
     global listener_uuid
 
-    listener_uuid = volttron_instance1.install_agent(
+    listener_uuid = volttron_instance.install_agent(
         agent_dir=get_examples("ListenerAgent"),
         vip_identity="listener",
         start=True)
     gevent.sleep(2)
 
-    watcher_uuid = volttron_instance1.install_agent(
+    watcher_uuid = volttron_instance.install_agent(
         agent_dir=get_ops("AgentWatcher"),
         config_file=WATCHER_CONFIG)
     gevent.sleep(2)
 
-    agent = volttron_instance1.build_agent()
+    agent = volttron_instance.build_agent()
 
     def onmessage(peer, sender, bus, topic, headers, message):
         global alert_messages
@@ -78,16 +78,17 @@ def platform(request, volttron_instance1):
             alert_messages[alert] = 1
 
     agent.vip.pubsub.subscribe(peer='pubsub',
-                               prefix='alert',
+                               prefix='alerts',
                                callback=onmessage)
 
     def stop():
-        volttron_instance1.stop_agent(listener_uuid)
-        volttron_instance1.stop_agent(watcher_uuid)
+        volttron_instance.stop_agent(listener_uuid)
+        volttron_instance.stop_agent(watcher_uuid)
         agent.core.stop()
+        alert_messages.clear()
 
     request.addfinalizer(stop)
-    return volttron_instance1
+    return volttron_instance
 
 
 def test_agent_watcher(platform):

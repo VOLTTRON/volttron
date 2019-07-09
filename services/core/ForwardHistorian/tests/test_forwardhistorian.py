@@ -42,9 +42,10 @@ from datetime import datetime, timedelta
 
 import gevent
 import pytest
+from pytest import approx
 
 from volttron.platform import get_services_core
-from volttron.platform.agent import PublishMixin
+from volttron.platform.agent import PublishMixin, utils
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
 from volttron.platform.vip.agent import Agent
@@ -177,15 +178,15 @@ def test_devices_topic(publish_agent, query_agent):
     Test if devices topic message is getting forwarded to historian running on
     another instance. Test if topic name substitutions happened.
     Publish to 'devices/PNNL/BUILDING_1/Device/all' in volttron_instance1 and query
-    for topic 'devices/PNNL/BUILDING1_ANON/Device/all' in volttron_instance2
+    for topic 'devices/PNNL/BUILDING1_ANON/Device/all' in volttron_instance
 
     @param publish_agent: Fake agent used to publish messages to bus in
     volttron_instance1. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance1 and forwareder
     agent and returns the  instance of fake agent to publish
     @param query_agent: Fake agent used to query sqlhistorian in
-    volttron_instance2. Calling this fixture makes sure all the dependant
-    fixtures are called to setup and start volttron_instance2 and sqlhistorian
+    volttron_instance. Calling this fixture makes sure all the dependant
+    fixtures are called to setup and start volttron_instance and sqlhistorian
     agent and returns the instance of a fake agent to query the historian
     """
     print("\n** test_devices_topic **")
@@ -196,7 +197,7 @@ def test_devices_topic(publish_agent, query_agent):
                    {'OutsideAirTemperature': float_meta}]
 
     # Publish messages twice
-    time1 = datetime.utcnow().isoformat(' ')
+    time1 = utils.format_timestamp(datetime.utcnow())
     headers = {
         headers_mod.DATE: time1
     }
@@ -214,9 +215,9 @@ def test_devices_topic(publish_agent, query_agent):
         order="LAST_TO_FIRST").get(timeout=10)
 
     assert (len(result['values']) == 1)
-    (time1_date, time1_time) = time1.split(" ")
+    (time1_date, time1_time) = time1.split("T")
     assert (result['values'][0][0] == time1_date + 'T' + time1_time + '+00:00')
-    assert (result['values'][0][1] == oat_reading)
+    assert (result['values'][0][1] == approx(oat_reading))
     assert set(result['metadata'].items()) == set(float_meta.items())
 
 
@@ -229,15 +230,15 @@ def test_analysis_topic(publish_agent, query_agent):
     Publish to topic
     'analysis/PNNL/BUILDING_1/Device/MixedAirTemperature' in volttron_instance1 and
     query for topic
-    'PNNL/BUILDING1_ANON/Device/MixedAirTemperature' in volttron_instance2
+    'PNNL/BUILDING1_ANON/Device/MixedAirTemperature' in volttron_instance
 
     @param publish_agent: Fake agent used to publish messages to bus in
     volttron_instance1. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance1 and forwareder
     agent and returns the  instance of fake agent to publish
     @param query_agent: Fake agent used to query sqlhistorian in
-    volttron_instance2. Calling this fixture makes sure all the dependant
-    fixtures are called to setup and start volttron_instance2 and sqlhistorian
+    volttron_instance. Calling this fixture makes sure all the dependant
+    fixtures are called to setup and start volttron_instance and sqlhistorian
     agent and returns the instance of a fake agent to query the historian
     """
     print("\n** test_analysis_topic **")
@@ -260,10 +261,11 @@ def test_analysis_topic(publish_agent, query_agent):
                     }]
 
     # Create timestamp
-    now = datetime.utcnow().isoformat() + 'Z'
+    now = utils.format_timestamp(datetime.utcnow())
     print("now is ", now)
     headers = {
-        headers_mod.DATE: now
+        headers_mod.DATE: now,
+        headers_mod.TIMESTAMP: now
     }
     # Publish messages
     publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device',
@@ -284,7 +286,7 @@ def test_analysis_topic(publish_agent, query_agent):
     if now_time[-1:] == 'Z':
         now_time = now_time[:-1]
     assert (result['values'][0][0] == now_date + 'T' + now_time + '+00:00')
-    assert (result['values'][0][1] == mixed_reading)
+    assert (result['values'][0][1] == approx(mixed_reading))
 
 
 @pytest.mark.historian
@@ -296,15 +298,15 @@ def test_analysis_topic_no_header(publish_agent, query_agent):
     Publish to topic
     'analysis/PNNL/BUILDING_1/Device/MixedAirTemperature' in volttron_instance1 and
     query for topic
-    'PNNL/BUILDING1_ANON/Device/MixedAirTemperature' in volttron_instance2
+    'PNNL/BUILDING1_ANON/Device/MixedAirTemperature' in volttron_instance
 
     @param publish_agent: Fake agent used to publish messages to bus in
     volttron_instance1. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance1 and forwareder
     agent and returns the  instance of fake agent to publish
     @param query_agent: Fake agent used to query sqlhistorian in
-    volttron_instance2. Calling this fixture makes sure all the dependant
-    fixtures are called to setup and start volttron_instance2 and sqlhistorian
+    volttron_instance. Calling this fixture makes sure all the dependant
+    fixtures are called to setup and start volttron_instance and sqlhistorian
     agent and returns the instance of a fake agent to query the historian
     """
     print("\n** test_analysis_topic **")
@@ -345,7 +347,7 @@ def test_analysis_topic_no_header(publish_agent, query_agent):
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
-    assert (result['values'][0][1] == mixed_reading)
+    assert (result['values'][0][1] == approx(mixed_reading))
 
 
 @pytest.mark.historian
@@ -358,7 +360,7 @@ def test_log_topic(publish_agent, query_agent):
     'datalogger/PNNL/BUILDING_1/Device' in volttron_instance1 and
     query for topic
     'datalogger/PNNL/BUILDING1_ANON/Device/MixedAirTemperature' in
-    volttron_instance2
+    volttron_instance
     Expected result:
      Record should get entered into database with current time at time of
      insertion and should ignore timestamp in header. Topic name
@@ -370,8 +372,8 @@ def test_log_topic(publish_agent, query_agent):
     fixtures are called to setup and start volttron_instance1 and forwareder
     agent and returns the  instance of fake agent to publish
     @param query_agent: Fake agent used to query sqlhistorian in
-    volttron_instance2. Calling this fixture makes sure all the dependant
-    fixtures are called to setup and start volttron_instance2 and sqlhistorian
+    volttron_instance. Calling this fixture makes sure all the dependant
+    fixtures are called to setup and start volttron_instance and sqlhistorian
     agent and returns the instance of a fake agent to query the historian
     """
 
@@ -388,11 +390,12 @@ def test_log_topic(publish_agent, query_agent):
                                        'type': 'float'}}
     # pytest.set_trace()
     # Create timestamp
-    current_time = datetime.utcnow().isoformat() + 'Z'
+    current_time = utils.format_timestamp(datetime.utcnow())
     print("current_time is ", current_time)
     future_time = '2017-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: future_time
+        headers_mod.DATE: future_time,
+        headers_mod.TIMESTAMP: future_time
     }
     print("time in header is ", future_time)
 
@@ -409,7 +412,7 @@ def test_log_topic(publish_agent, query_agent):
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
-    assert (result['values'][0][1] == mixed_reading)
+    assert (result['values'][0][1] == approx(mixed_reading))
 
 
 @pytest.mark.historian
@@ -422,15 +425,15 @@ def test_log_topic_no_header(publish_agent, query_agent):
     'datalogger/PNNL/BUILDING_1/Device' in volttron_instance1 and
     query for topic
     'datalogger/PNNL/BUILDING1_ANON/Device/MixedAirTemperature' in
-    volttron_instance2
+    volttron_instance
 
     @param publish_agent: Fake agent used to publish messages to bus in
     volttron_instance1. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance1 and forwareder
     agent and returns the  instance of fake agent to publish
     @param query_agent: Fake agent used to query sqlhistorian in
-    volttron_instance2. Calling this fixture makes sure all the dependant
-    fixtures are called to setup and start volttron_instance2 and sqlhistorian
+    volttron_instance. Calling this fixture makes sure all the dependant
+    fixtures are called to setup and start volttron_instance and sqlhistorian
     agent and returns the instance of a fake agent to query the historian
     """
 
@@ -459,7 +462,7 @@ def test_log_topic_no_header(publish_agent, query_agent):
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
-    assert (result['values'][0][1] == mixed_reading)
+    assert (result['values'][0][1] == approx(mixed_reading))
 
 
 @pytest.mark.historian
@@ -603,9 +606,10 @@ def test_nan_value(publish_agent, query_agent):
                    {'nan_value': float_meta}]
 
     # Publish messages twice
-    time1 = datetime.utcnow().isoformat(' ')
+    time1 = utils.format_timestamp(datetime.utcnow())
     headers = {
-        headers_mod.DATE: time1
+        headers_mod.DATE: time1,
+        headers_mod.TIMESTAMP: time1
     }
     publish(publish_agent, 'devices/PNNL/BUILDING_1/Device/all', headers, all_message)
     gevent.sleep(1)
@@ -621,7 +625,7 @@ def test_nan_value(publish_agent, query_agent):
         order="LAST_TO_FIRST").get(timeout=10)
 
     assert (len(result['values']) == 1)
-    (time1_date, time1_time) = time1.split(" ")
+    (time1_date, time1_time) = time1.split("T")
     assert (result['values'][0][0] == time1_date + 'T' + time1_time + '+00:00')
     assert (math.isnan(result['values'][0][1]))
     assert set(result['metadata'].items()) == set(float_meta.items())

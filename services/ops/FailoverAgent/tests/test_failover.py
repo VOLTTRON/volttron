@@ -5,7 +5,7 @@ from contextlib import contextmanager
 import pytest
 import gevent
 
-from volttron.platform import get_services_core, get_examples
+from volttron.platform import get_services_core, get_examples, get_ops
 from volttron.platform.keystore import KeyStore
 
 primary_config = {
@@ -31,6 +31,7 @@ SLEEP_TIME = 5
 primary_failover = None
 secondary_failover = None
 vc_uuid = None
+
 
 def tcp_to(instance):
 
@@ -59,6 +60,8 @@ def failover(request, get_volttron_instances):
     global secondary_failover
     global vc_uuid
 
+    pytest.skip("Coordination with VC not implemted")
+
     primary, secondary, vc = get_volttron_instances(3)
     primary.allow_all_connections()
     secondary.allow_all_connections()
@@ -77,7 +80,7 @@ def failover(request, get_volttron_instances):
                                              start=False)
 
     primary_config["remote_vip"] = tcp_to(secondary)
-    primary_failover = primary.install_agent(agent_dir=get_services_core("FailoverAgent"),
+    primary_failover = primary.install_agent(agent_dir=get_ops("FailoverAgent"),
                                              config_file=primary_config)
 
     # configure secondary
@@ -88,7 +91,7 @@ def failover(request, get_volttron_instances):
                                                  start=False)
 
     secondary_config["remote_vip"] = tcp_to(primary)
-    secondary_failover = secondary.install_agent(agent_dir=get_services_core("FailoverAgent"),
+    secondary_failover = secondary.install_agent(agent_dir=get_ops("FailoverAgent"),
                                                  config_file=secondary_config)
 
     def stop():

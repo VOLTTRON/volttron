@@ -4,7 +4,7 @@ Example Agents Overview
 Some example agents are included with the platform to help explore its
 features.
 
--  :ref:`Data-Publisher`
+-  :ref:`DataPublisher`
 -  :ref:`ListenerAgent`
 -  :ref:`ProcessAgent`
 -  :ref:`SchedulerExampleAgent`

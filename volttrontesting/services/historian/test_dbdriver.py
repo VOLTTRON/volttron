@@ -37,10 +37,12 @@ suite do the following:
     and cleans up afterward.
 """
 
+import ast
 import contextlib
 import tempfile
 from datetime import datetime, timedelta
 import inspect
+import random
 import sqlite3
 
 import pytest
@@ -50,6 +52,36 @@ import shutil
 from volttron.platform.dbutils import basedb
 from volttron.platform.dbutils.sqlitefuncts import SqlLiteFuncts
 
+try:
+    import psycopg2
+    import psycopg2.errorcodes
+    import psycopg2.sql
+
+    HAVE_POSTGRESQL = True
+except ImportError:
+    HAVE_POSTGRESQL = False
+else:
+    from volttron.platform.dbutils.postgresqlfuncts import PostgreSqlFuncts
+    from volttron.platform.dbutils.redshiftfuncts import RedshiftFuncts
+
+redshift_params = {}
+if HAVE_POSTGRESQL:
+    try:
+        with open('redshift.params') as file:
+            redshift_params = ast.literal_eval(file.read(4096))
+    except (IOError, OSError):
+        pass
+
+
+postgres_connection_params = {
+                                'dbname': 'historian_test',
+                                'port': 5433,
+                                'host': '127.0.0.1',
+                                'user' : 'historian',
+                                'password': 'volttron'
+                            }
+def random_uniform(a, b):
+    return float('{.13f}'.format(random.uniform(a, b)))
 
 def drop_tables(names):
     '''Marks methods creating additional tables for cleanup'''
@@ -90,19 +122,22 @@ class Suite(object):
 
     @pytest.fixture
     def driver(self, state):
-        driver = state.driver
-        driver.setup_historian_tables()
-        driver.record_table_definitions(
-            state.table_names, state.meta_table_name)
-        return driver
+        return state.driver
 
     @contextlib.contextmanager
     def transact(self, truncate_tables, drop_tables):
         pass
 
     def test_setup_tables(self, driver, state):
-        assert driver.read_tablenames_from_db(
-            state.meta_table_name) == state.table_names
+        try:
+            driver.setup_historian_tables()
+            driver.record_table_definitions(
+                state.table_names, state.meta_table_name)
+            assert driver.read_tablenames_from_db(
+                state.meta_table_name) == state.table_names
+        except psycopg2.ProgrammingError as exc:
+            print (exc.pgcode, exc.pgerror)
+            raise
 
     def test_add_data(self, driver):
         id_map = {}
@@ -173,6 +208,8 @@ class AggregationSuite(Suite):
     @pytest.fixture
     def driver(self, state):
         driver = super(AggregationSuite, self).driver(state)
+        driver.record_table_definitions(
+            state.table_names, state.meta_table_name)
         driver.setup_aggregate_historian_tables(state.meta_table_name)
         return driver
 
@@ -206,6 +243,67 @@ class AggregationSuite(Suite):
         driver.insert_agg_meta(topic_id, {'units': 'X', 'tz': 'UTC', 'type': 'float'})
         driver.insert_aggregate(topic_id, 'max', '1m', ts, '12.345', [1, 2, 3])
 
+    def test_query_topic_pattern(self, driver):
+        topics = {'This/is/a/pattern/topic',
+                  'This/is/another/pattern/topic',
+                  'This/is/some/pattern/topic'}
+        for topic in topics:
+            topic_id = driver.insert_topic(topic)
+            assert topic_id
+        assert len(set(driver.query_topics_by_pattern('this/is/a.*/pattern/topic').keys()) & topics) == 2
+        assert len(set(driver.query_topics_by_pattern('this/is/some/.*/topic').keys()) & topics) == 1
+        assert len(set(driver.query_topics_by_pattern('.*').keys()) & topics) == 3
+
+    def test_curser_for_closed_connection(self, driver):
+        cursor = driver.cursor()
+        assert cursor is not None
+        cursor.connection.close()
+        cursor = driver.cursor()
+        assert cursor is not None
+
+
+@pytest.mark.skipif(not HAVE_POSTGRESQL, reason='missing psycopg2 package')
+class TestPostgreSql(AggregationSuite):
+    @contextlib.contextmanager
+    def _transact(self, params, truncate_tables, drop_tables):
+        pg = psycopg2.sql
+        with contextlib.closing(psycopg2.connect(**params)) as connection:
+            def cleanup():
+                def clean(op, tables):
+                    query = pg.SQL(op + ' TABLE {}')
+                    for table in tables:
+                        with connection.cursor() as cursor:
+                            try:
+                                cursor.execute(query.format(pg.Identifier(table)))
+                            except psycopg2.ProgrammingError as exc:
+                                if exc.pgcode != psycopg2.errorcodes.UNDEFINED_TABLE:
+                                    raise
+                clean('TRUNCATE', truncate_tables)
+                clean('DROP', drop_tables)
+            connection.autocommit = True
+            cleanup()
+            yield
+            cleanup()
+
+    @contextlib.contextmanager
+    def transact(self, truncate_tables, drop_tables):
+        global postgres_connection_params
+        with self._transact(postgres_connection_params, truncate_tables, drop_tables):
+            yield PostgreSqlFuncts, postgres_connection_params
+
+    def test_closing_interfaceerror(self):
+        with basedb.closing(FauxConnection(psycopg2.InterfaceError)):
+            pass
+
+
+@pytest.mark.skipif(not redshift_params, reason=(
+    'missing redshift params' if HAVE_POSTGRESQL else 'missing psycopg2 package'))
+class TestRedshift(TestPostgreSql):
+    @contextlib.contextmanager
+    def transact(self, truncate_tables, drop_tables):
+        with self._transact(redshift_params, truncate_tables, drop_tables):
+            yield RedshiftFuncts, redshift_params
+
 
 class TestSqlite(AggregationSuite):
     @contextlib.contextmanager
@@ -232,6 +330,10 @@ class TestSqlite(AggregationSuite):
             cleanup()
         finally:
             shutil.rmtree(tmpdir, True)
+
+    @pytest.mark.skip(reason='missing regexp library')
+    def test_query_topic_pattern(self, driver):
+        pass
 
 
 class FauxConnection:

@@ -148,9 +148,11 @@ def DrivenAgent(config_path, **kwargs):
                                 f.close()
             # publish to message bus.
             if len(results.table_output.keys()) > 0:
+                now = utils.format_timestamp(self.received_input_datetime)
                 headers = {
                     headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
-                    headers_mod.DATE: str(self.received_input_datetime),
+                    headers_mod.DATE: now,
+                    headers_mod.TIMESTAMP: now
                 }
 
                 for _, v in results.table_output.items():

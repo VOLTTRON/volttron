@@ -41,6 +41,7 @@ import contextlib
 import importlib
 import logging
 import threading
+from gevent.local import local
 
 import sys
 from abc import abstractmethod
@@ -85,20 +86,41 @@ class DbDriver(object):
     """
     def __init__(self, dbapimodule, **kwargs):
         thread_name = threading.currentThread().getName()
-        _log.debug("Constructing Driver for %s in thread: %s",
-                   dbapimodule, thread_name)
-        _log.debug("kwargs for connect is %r", kwargs)
-        dbapimodule = importlib.import_module(dbapimodule)
-        self.__connect = lambda: dbapimodule.connect(**kwargs)
+        if callable(dbapimodule):
+            _log.debug("Constructing Driver for %s in thread: %s",
+                       dbapimodule.__name__, thread_name)
+            connect = dbapimodule
+        else:
+            _log.debug("Constructing Driver for %s in thread: %s",
+                       dbapimodule, thread_name)
+            _log.debug("kwargs for connect is %r", kwargs)
+            dbapimodule = importlib.import_module(dbapimodule)
+            connect = lambda: dbapimodule.connect(**kwargs)
+        self.__connect = connect
         self.__connection = None
+        self.stash = local()
+
+    @contextlib.contextmanager
+    def bulk_insert(self):
+        """
+        Function to meet bulk insert requirements. This function can be overridden by historian drivers to yield the
+        required method for data insertion during bulk inserts in the respective historians. In this generic case it
+        will yield the single insert method
+
+        :yields: insert method
+        """
+        yield self.insert_data
 
     def cursor(self):
+
+        self.stash.cursor = None
         if self.__connection is not None and not getattr(self.__connection, "closed", False):
             try:
-                return self.__connection.cursor()
+                self.stash.cursor = self.__connection.cursor()
+                return self.stash.cursor
             except Exception:
-                _log.exception("An exception occured while creating "
-                               "a cursor and is being ignored")
+                _log.warn("An exception occurred while creating "
+                          "a cursor. Will try establishing connection again")
         self.__connection = None
         try:
             self.__connection = self.__connect()
@@ -108,8 +130,11 @@ class DbDriver(object):
         if self.__connection is None:
             raise ConnectionError(
                 "Unknown error. Could not connect to database")
-        return self.__connection.cursor()
-
+        try:
+            self.stash.cursor = self.__connection.cursor()
+        except Exception as e:
+            raise ConnectionError(e), None, sys.exc_info()[2]
+        return self.stash.cursor
 
     def read_tablenames_from_db(self, meta_table_name):
         """
@@ -282,7 +307,7 @@ class DbDriver(object):
 
         :param ts: timestamp
         :param topic_id: topic id for which data is inserted
-        :param metadata: data values
+        :param data: data value
         :return: True if execution completes. raises Exception if unable to
         connect to database
         """
@@ -353,7 +378,7 @@ class DbDriver(object):
         connect to database
         """
         self.execute_stmt(self.update_agg_topic_stmt(),
-                          (agg_id, agg_topic_name),commit=False)
+                          (agg_topic_name, agg_id),commit=False)
         return True
 
     def commit(self):

@@ -80,23 +80,23 @@ master_driver_config = """
 # """
 
 @pytest.fixture(scope="module")
-def config_store_connection(request, volttron_instance1):
+def config_store_connection(request, volttron_instance):
 
-    connection = volttron_instance1.build_connection(peer=CONFIGURATION_STORE)
+    connection = volttron_instance.build_connection(peer=CONFIGURATION_STORE)
     # Reset master driver config store
     connection.call("manage_delete_store", PLATFORM_DRIVER)
 
     # Start the master driver agent which would in turn start the fake driver
     #  using the configs created above
-    master_uuid = volttron_instance1.install_agent(
+    master_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
         start=True)
     gevent.sleep(2)  # wait for the agent to start and start the devices
 
     def stop_agent():
-        volttron_instance1.stop_agent(master_uuid)
-        volttron_instance1.remove_agent(master_uuid)
+        volttron_instance.stop_agent(master_uuid)
+        volttron_instance.remove_agent(master_uuid)
         connection.kill()
 
     request.addfinalizer(stop_agent)
@@ -130,13 +130,13 @@ def setup_config(config_store, config_name, config_string, **kwargs):
     config_store.call("manage_store", PLATFORM_DRIVER, config_name, config, config_type="json")
 
 @pytest.fixture(scope="module")
-def test_agent(request, volttron_instance1):
-    test_agent = volttron_instance1.build_agent(identity=TEST_AGENT)
+def test_agent(request, volttron_instance):
+    test_agent = volttron_instance.build_agent(identity=TEST_AGENT)
     def stop_agent():
-        result = test_agent.vip.rpc.call(
-            PLATFORM_DRIVER,  # Target agent
-            'clear_overrides'  # Method
-        ).get(timeout=10)
+        # result = test_agent.vip.rpc.call(
+        #     PLATFORM_DRIVER,  # Target agent
+        #     'clear_overrides'  # Method
+        # ).get(timeout=10)
         test_agent.core.stop()
     #Add a tear down method to stop test agent
     request.addfinalizer(stop_agent)
@@ -653,7 +653,7 @@ def test_indefinite_override_on(config_store, test_agent):
     ).get(timeout=10)
 
 @pytest.mark.driver
-def test_indefinite_override_after_restart(config_store, test_agent, volttron_instance1):
+def test_indefinite_override_after_restart(config_store, test_agent, volttron_instance):
     for i in xrange(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
@@ -672,15 +672,11 @@ def test_indefinite_override_after_restart(config_store, test_agent, volttron_in
     # Give it enough time to set indefinite override.
     gevent.sleep(0.5)
     global master_uuid
-    volttron_instance1.stop_agent(master_uuid)
-    volttron_instance1.remove_agent(master_uuid)
-    gevent.sleep(1)
+    volttron_instance.stop_agent(master_uuid)
+    gevent.sleep(0.5)
     # Start the master driver agent which would in turn start the fake driver
     #  using the configs created above
-    master_uuid = volttron_instance1.install_agent(
-        agent_dir=get_services_core("MasterDriverAgent"),
-        config_file={},
-        start=True)
+    volttron_instance.start_agent(master_uuid)
     gevent.sleep(1)  # wait for the agent to start and start the devices
 
     point = 'SampleWritableFloat1'

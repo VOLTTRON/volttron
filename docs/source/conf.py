@@ -23,6 +23,8 @@ from glob import glob
 from mock import Mock as MagicMock
 from recommonmark.parser import CommonMarkParser
 
+from volttron.platform.agent.utils import execute_command
+
 
 class Mock(MagicMock):
     @classmethod
@@ -43,9 +45,9 @@ copyright = u'2018, The VOLTTRON Community'
 author = u'The VOLTTRON Community'
 
 # The short X.Y version
-version = u'5.1.0'
+version = u'6.0'
 # The full version, including alpha/beta/rc tags
-release = u'5.1.0'
+release = u'6.0-rc1'
 
 
 # -- General configuration ---------------------------------------------------
@@ -66,7 +68,18 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
+    # https://www.sphinx-doc.org/en/master/usage/extensions/autosectionlabel.html
+    'sphinx.ext.autosectionlabel',
+    # http://www.sphinx-doc.org/en/master/usage/extensions/todo.html
+    'sphinx.ext.todo',
 ]
+
+# prefix sections with the document so that we can cross link
+# sections from different pages.
+autosectionlabel_prefix_document = True
+autosectionlabel_maxdepth = 5
+
+todo_include_todos = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -113,7 +126,7 @@ html_theme = 'sphinx_rtd_theme'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = []
+html_static_path = ['_static']
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -239,7 +252,7 @@ def generate_apidoc(app):
     cmd.extend(exlusions)
     print("The command is: {}".format(cmd))
 
-    subprocess.check_call(cmd)
+    execute_command(cmd)
 
 #     print("\n##In run_apidocs##\n")
 #     global script_dir, apidocs_base_dir

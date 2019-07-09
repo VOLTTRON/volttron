@@ -28,6 +28,10 @@
 # }}}
 
 import pytest
+try:
+    import dnp3
+except ImportError:
+    pytest.skip("pydnp3 not found!", allow_module_level=True)
 
 from dnp3.points import ArrayHeadPointDefinition, PointDefinitions, PointValue
 from dnp3.mesa.agent import MesaAgent

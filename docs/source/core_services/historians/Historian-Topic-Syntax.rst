@@ -54,10 +54,14 @@ topics with pattern "devices/*/all"):
         # python code to get this is
         # from datetime import datetime
         # from volttron.platform.messaging import headers as header_mod
+        # from volttron.platform.agent import utils
+        # now = utils.format_timestamp( datetime.utcnow())
         # {
-        #     headers_mod.DATE: datetime.utcnow().isoformat() + 'Z'
+        #     headers_mod.DATE: now,
+        #     headers_mod.TIMESTAMP: now
         # }
-        "Date": "2015-11-17T21:24:10.189393Z"
+        "Date": "2015-11-17 21:24:10.189393+00:00",
+        "TimeStamp": "2015-11-17 21:24:10.189393+00:00"
     }
 
     # Message Format:

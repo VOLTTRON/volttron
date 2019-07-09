@@ -46,6 +46,7 @@ from ..errors import VIPError
 from ..results import ResultsDictionary
 from zmq import ZMQError
 from zmq.green import ENOTSOCK
+from volttron.platform.vip.socket import Message
 
 __all__ = ['Hello']
 
@@ -82,14 +83,17 @@ class Hello(SubsystemBase):
         :param peer: The peer to receive the response from.
         :return: [version, peer, identity]
         """
-        _log.info('Requesting hello from peer ({})'.format(peer))
-        socket = self.core().socket
+        _log.info('{0} Requesting hello from peer ({1})'.format(self.core().identity, peer))
         result = next(self._results)
-        try:
-            socket.send_vip(peer, b'hello', [b'hello'], msg_id=result.ident)
-        except ZMQError as exc:
-            if exc.errno == ENOTSOCK:
-                _log.debug("Socket send on non socket {}".format(self.core().identity))
+        connection = self.core().connection
+        if not connection:
+            _log.error("Connection object not yet created".format(self.core().identity))
+        else:
+            try:
+                connection.send_vip(peer, b'hello', args=[b'hello'], msg_id=result.ident)
+            except ZMQError as exc:
+                if exc.errno == ENOTSOCK:
+                    _log.error("Socket send on non socket {}".format(self.core().identity))
 
         return result
 
@@ -103,10 +107,9 @@ class Hello(SubsystemBase):
             _log.error('missing hello subsystem operation')
             return
         if op == b'hello':
-            socket = self.core().socket
             message.user = b''
-            message.args = [b'welcome', b'1.0', socket.identity, message.peer]
-            socket.send_vip_object(message, copy=False)
+            message.args = [b'welcome', b'1.0', self.core.identity, message.peer]
+            self.core().connection.send_vip_object(message, copy=False)
         elif op == b'welcome':
             try:
                 result = self._results.pop(bytes(message.id))

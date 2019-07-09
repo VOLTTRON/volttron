@@ -18,7 +18,7 @@ VOLTTRON Central will allow you to
 -  Create dynamic graphs from the historians based upon points.
 -  Execute functions on remote platforms.
 
-.note::
+.. note::
 
     see :ref:`VCM json-rpc web api <VCM-Webservice-API>` for how the web interface
     works.
@@ -36,7 +36,7 @@ The following is an example of the configuration file
 
     [volttron]
     vip-addres=tcp://127.0.0.1:22916
-    bind-web-address=http://127.0.0.1:8080
+    bind-web-address=http://127.0.0.1:8080/vc/
 
 ** Note the above configuration will open a discoverable port for the volttron
    instance.  In addition, the opening of this web address allows you to serve

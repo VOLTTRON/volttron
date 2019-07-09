@@ -264,7 +264,10 @@ def publish_minute_data_for_two_hours(agent):
                 "damper_point": damper_reading}
 
             # now = '2015-12-02T00:00:00'
-            headers = {headers_mod.DATE: now_iso_string}
+            headers = {
+                headers_mod.DATE: now_iso_string,
+                headers_mod.TIMESTAMP: now_iso_string
+            }
 
             # Publish messages
             agent.vip.pubsub.publish(
@@ -330,7 +333,10 @@ def publish_fake_data(agent, now=None, value=None):
     print('NOW IS: ', now)
 
     # now = '2015-12-02T00:00:00'
-    headers = {headers_mod.DATE: now.isoformat()}
+    headers = {
+        headers_mod.DATE: format_timestamp(now),
+        headers_mod.TIMESTAMP: format_timestamp(now)
+    }
 
     # Publish messages
     agent.vip.pubsub.publish('pubsub', ALL_TOPIC, headers, all_message).get(
@@ -378,7 +384,10 @@ def test_insert_duplicate(volttron_instance, database_client):
         print('NOW IS: ', now)
 
         # now = '2015-12-02T00:00:00'
-        headers = {headers_mod.DATE: now.isoformat()}
+        headers = {
+            headers_mod.DATE: format_timestamp(now),
+            headers_mod.TIMESTAMP: format_timestamp(now)
+        }
 
         # Publish messages
         publisher.vip.pubsub.publish(
@@ -397,7 +406,12 @@ def test_insert_duplicate(volttron_instance, database_client):
 def publish_data(publisher, topic, message, now=None):
     if now is None:
         now = datetime.now()
-    headers = {headers_mod.DATE: now.isoformat()}
+
+    now = format_timestamp(now)
+    headers = {
+        headers_mod.DATE: now,
+        headers_mod.TIMESTAMP: now
+    }
 
     # Publish messages
     publisher.vip.pubsub.publish('pubsub', topic, headers, message).get(
@@ -436,7 +450,7 @@ def test_analysis_topic(volttron_instance, database_client):
         assert result is not None
         assert len(result['values']) == 1
         assert isinstance(result['values'], list)
-        mongoizetimestamp = publisheddt.isoformat()[:-3] + '000+00:00'
+        mongoizetimestamp = publisheddt[:-3] + '000+00:00'
         assert result['values'][0] == [mongoizetimestamp, oat_reading]
     finally:
         volttron_instance.stop_agent(agent_uuid)
@@ -591,7 +605,7 @@ def test_topic_name_case_change(volttron_instance, database_client):
         assert result is not None
         assert len(result['values']) == 1
         assert isinstance(result['values'], list)
-        mongoizetimestamp = publisheddt.isoformat()[:-3] + '000+00:00'
+        mongoizetimestamp = publisheddt[:-3] + '000+00:00'
 
         assert result['values'][0] == [mongoizetimestamp, oat_reading]
 
@@ -612,7 +626,7 @@ def test_topic_name_case_change(volttron_instance, database_client):
         assert result is not None
         assert len(result['values']) == 2
         assert isinstance(result['values'], list)
-        mongoizetimestamp = publisheddt.isoformat()[:-3] + '000+00:00'
+        mongoizetimestamp = publisheddt[:-3] + '000+00:00'
         assert result['values'][0] == [mongoizetimestamp, oat_reading]
 
     finally:
@@ -929,7 +943,7 @@ def test_rollup_query(volttron_instance, database_client):
         config = mongo_agent_config()
         config['periodic_rollup_initial_wait'] = 0.1
         config['rollup_query_end'] = 0
-        config['periodic_rollup_frequency'] = 2
+        config['periodic_rollup_frequency'] = 0.1
         config['rollup_query_start'] = query_start_day.strftime(
             '%Y-%m-%dT%H:%M:%S.%f')
         config['initial_rollup_start_time'] = query_start_day.strftime(
@@ -951,7 +965,7 @@ def test_rollup_query(volttron_instance, database_client):
         expected1 = publish_fake_data(publish_agent, publish_t1)
         expected2 = publish_fake_data(publish_agent, publish_t2)
         expected3 = publish_fake_data(publish_agent, publish_t3)
-        gevent.sleep(6)
+        gevent.sleep(10)
 
         # test query from hourly_data table
         db['data'].drop()
@@ -981,7 +995,6 @@ def test_rollup_query(volttron_instance, database_client):
                               'oat_point', result)
         verify_daily_collection(db, expected3, expected2, expected1)
 
-
     finally:
         if agent_uuid:
             volttron_instance.stop_agent(agent_uuid)
@@ -994,8 +1007,8 @@ def test_combined_results_from_rollup_and_raw_data(volttron_instance,
                                             database_client):
     """
     Test querying data with start date earlier than available rollup data
-    and query end date greater than available rollup data. Historian should 
-    query available data from rolled up collection and get the rest 
+    and query end date greater than available rollup data. Historian should
+    query available data from rolled up collection and get the rest
     from raw data collection
     :param database_client:
     :param volttron_instance: The instance against which the test is run
@@ -1079,8 +1092,8 @@ def test_combined_results_from_rollup_and_raw_data(volttron_instance,
                                             database_client):
     """
     Test querying data with start date earlier than available rollup data
-    and query end date greater than available rollup data. Historian should 
-    query available data from rolled up collection and get the rest 
+    and query end date greater than available rollup data. Historian should
+    query available data from rolled up collection and get the rest
     from raw data collection
     :param database_client:
     :param volttron_instance: The instance against which the test is run
@@ -1108,7 +1121,7 @@ def test_combined_results_from_rollup_and_raw_data(volttron_instance,
         config = mongo_agent_config()
         config['periodic_rollup_initial_wait'] = 0.1
         config['rollup_query_end'] = 1
-        config['periodic_rollup_frequency'] = 1
+        config['periodic_rollup_frequency'] = 0.1
         config['rollup_query_start'] = publish_t2.strftime(
             '%Y-%m-%dT%H:%M:%S.%f')
         config['initial_rollup_start_time'] = publish_t2.strftime(
@@ -1130,7 +1143,7 @@ def test_combined_results_from_rollup_and_raw_data(volttron_instance,
         expected1 = publish_fake_data(publish_agent, publish_t1)
         expected2 = publish_fake_data(publish_agent, publish_t2)
         expected3 = publish_fake_data(publish_agent, publish_t3)
-        gevent.sleep(6)
+        gevent.sleep(10)
 
         #Only publish_t2 should have gone into rollup collection.
         # Remove publish_t2 entry from data collection
@@ -1164,8 +1177,8 @@ def test_combined_results_rollup_and_raw_data_with_count(volttron_instance,
                                             database_client):
     """
     Test querying data with start date earlier than available rollup data
-    and query end date greater than available rollup data. Historian should 
-    query available data from rolled up collection and get the rest 
+    and query end date greater than available rollup data. Historian should
+    query available data from rolled up collection and get the rest
     from raw data collection
     :param database_client:
     :param volttron_instance: The instance against which the test is run
@@ -1194,7 +1207,7 @@ def test_combined_results_rollup_and_raw_data_with_count(volttron_instance,
         config = mongo_agent_config()
         config['periodic_rollup_initial_wait'] = 0.1
         config['rollup_query_end'] = 1
-        config['periodic_rollup_frequency'] = 1
+        config['periodic_rollup_frequency'] = 0.1
         config['rollup_query_start'] = publish_t2.strftime(
             '%Y-%m-%dT%H:%M:%S.%f')
         config['initial_rollup_start_time'] = publish_t2.strftime(
@@ -1217,7 +1230,7 @@ def test_combined_results_rollup_and_raw_data_with_count(volttron_instance,
         expected2 = publish_fake_data(publish_agent, publish_t2)
         expected3 = publish_fake_data(publish_agent, publish_t3)
         expected4 = publish_fake_data(publish_agent, publish_t4)
-        gevent.sleep(6)
+        gevent.sleep(10)
 
         #Only publish_t2 should have gone into rollup collection.
         # Remove publish_t2 entry from data collection so that is is only
@@ -1337,7 +1350,7 @@ def test_dict_insert_special_character(volttron_instance, database_client):
         config = mongo_agent_config()
         config['periodic_rollup_initial_wait'] = 0.1
         config['rollup_query_end'] = 0
-        config['periodic_rollup_frequency'] = 2
+        config['periodic_rollup_frequency'] = 0.2
         config['rollup_query_start'] = query_start_day.strftime(
             '%Y-%m-%dT%H:%M:%S.%f')
         config['initial_rollup_start_time'] = query_start_day.strftime(
@@ -1359,7 +1372,7 @@ def test_dict_insert_special_character(volttron_instance, database_client):
         dict1 = {"key.1":"value1", "$":1}
         expected1 = publish_fake_data(publish_agent, publish_t1, dict1)
         expected2 = publish_fake_data(publish_agent, publish_t2, dict1)
-        gevent.sleep(6)
+        gevent.sleep(15)
 
         # test query from hourly_data table
         db['data'].drop()
@@ -1426,7 +1439,7 @@ def test_insert_multiple_data_per_minute(volttron_instance,
         config = mongo_agent_config()
         config['periodic_rollup_initial_wait'] = 0.1
         config['rollup_query_end'] = 0
-        config['periodic_rollup_frequency'] = 2
+        config['periodic_rollup_frequency'] = 0.1
         config['rollup_query_start'] = query_start_day.strftime(
             '%Y-%m-%dT%H:%M:%S.%f')
         config['initial_rollup_start_time'] = query_start_day.strftime(
@@ -1447,7 +1460,7 @@ def test_insert_multiple_data_per_minute(volttron_instance,
 
         expected1 = publish_fake_data(publish_agent, publish_t1)
         expected2 = publish_fake_data(publish_agent, publish_t2)
-        gevent.sleep(6)
+        gevent.sleep(10)
 
         # test query from hourly_data table
         db['data'].drop()

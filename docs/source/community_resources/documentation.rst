@@ -7,7 +7,7 @@ The Community is encouraged to contribute documentation back to the project as t
 developers may not have considered or documented. By contributing documentation back, the community can
 learn from each other and build up a much more extensive knowledge base.
 
-VOLTTRON\ :sup:`TM` documentation utilizes ReadTheDocs: http://volttron.readthedocs.io/en/develop/ and is built
+|VOLTTRON| documentation utilizes ReadTheDocs: http://volttron.readthedocs.io/en/develop/ and is built
 using the `Sphinx <http://www.sphinx-doc.org/en/stable/>`_ Python library with static content in
 `Restructured Text <http://docutils.sourceforge.net/docs/user/rst/quickref.html>`_.
 
@@ -18,8 +18,8 @@ Static documentation can be found in the `docs/source` directory. Edit or create
 using the `Restructured Text <http://docutils.sourceforge.net/docs/user/rst/quickref.html>`_ format. To see the results
 of your changes. the documenation can be built locally through the command line using the following instructions.
 
-If you've already :ref:`bootstrapped <setup>` VOLTTRON\ :sup:`TM`, do the following while activated. If not,
-this will also pull down the necessary VOLTTRON\ :sup:`TM` libraries.
+If you've already :ref:`bootstrapped <setup>` |VOLTTRON|, do the following while activated. If not,
+this will also pull down the necessary |VOLTTRON| libraries.
 
 .. code-block:: bash
 
@@ -37,5 +37,4 @@ Then, open your browser to the created local files:
 When complete, changes can be contributed back using the same process as code :ref:`contributions <contributing>` by
 creating a pull request. When the changes are accepted and merged, they will be reflected in the ReadTheDocs site.
 
-
-
+.. |VOLTTRON| unicode:: VOLTTRON U+2122
