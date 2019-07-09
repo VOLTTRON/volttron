@@ -23,8 +23,8 @@ RPC call to weather service method **’get_minutely_forecast’**
 
 Parameters:
 
-    1. **locations** - Dictionary containing location details. Dark Sky requires
-        {'lat': <lattitude>, 'long': <longitude>}
+    1. **locations** - List of dictionaries containing location details. Dark Sky requires
+        [{"lat": <lattitude>, "long": <longitude>},...]
 
 optional parameters:
 
@@ -39,8 +39,8 @@ RPC call to weather service method **’get_minutely_forecast’**
 
 Parameters:
 
-    1. **locations** - Dictionary containing location details. Dark Sky requires
-        {'lat': <lattitude>, 'long': <longitude>}
+    1. **locations** - List of dictionaries containing location details. Dark Sky requires
+        [{"lat": <lattitude>, "long": <longitude>},...]
 
 optional parameters:
 
@@ -62,22 +62,22 @@ one for records in Thursday's forecast).**
 Configuration
 *************
 
-The following is an example configuration for the Dark Sky agent. The 'api_key'
+The following is an example configuration for the Dark Sky agent. The "api_key"
 parameter is required while all others are optional.
 
 **Parameters**
 
- 1. 'api_key' - api key string provided by Dark Sky - this is required and will not be provided by the VOLTTRON team.
- 2. 'api_calls_limit' - limit of api calls that can be made to the remote before the agent no longer returns weather
+ 1. "api_key" - api key string provided by Dark Sky - this is required and will not be provided by the VOLTTRON team.
+ 2. "api_calls_limit" - limit of api calls that can be made to the remote before the agent no longer returns weather
     results. The agent will keep track of number of api calls and return an error when the limit is reached without
     attempting a connection to dark sky server. This is primarily used to prevent possible charges. If set to -1, no
     limit will be applied by the agent. Dark sky api might return a error after limit is exceeded. Defaults to -1
- 3. 'database_file' - sqlite database file for weather data caching. Defaults to 'weather.sqlite' in the agent's data directory.
- 4. 'max_size_gb' - maximum size of cache database. When cache exceeds this size, data will get purged from cache till
+ 3. "database_file" - sqlite database file for weather data caching. Defaults to "weather.sqlite" in the agent's data directory.
+ 4. "max_size_gb" - maximum size of cache database. When cache exceeds this size, data will get purged from cache till
     cache is within the configured size.
- 5. 'poll_locations - list of locations to periodically poll for current data.
- 6. 'poll_interval' - polling frequency or the number of seconds between each poll.
- 7. 'performance_mode' - If set to true, request response will exclude extra data points (this is primarily useful for
+ 5. "poll_locations - list of locations to periodically poll for current data.
+ 6. "poll_interval" - polling frequency or the number of seconds between each poll.
+ 7. "performance_mode" - If set to true, request response will exclude extra data points (this is primarily useful for
     reducing network traffic). If set to false, all data points are included in the response, and extra data is cached
     (to reduce the number of API calls used for future RPC calls). Defaults to True.
 
@@ -86,13 +86,13 @@ Example configuration:
 ::
 
     {
-        'api_key': '<api key string>',
-        'api_calls_limit': 1000,
-        'database_file': 'weather.sqlite',
-        'max_size_gb': 1,
-        'poll_locations': [{"lat": 39.7555, "long": -105.2211},
+        "api_key": "<api key string>",
+        "api_calls_limit": 1000,
+        "database_file": "weather.sqlite",
+        "max_size_gb": 1,
+        "poll_locations": [{"lat": 39.7555, "long": -105.2211},
                            {"lat": 46.2804, "long": -119.2752}],
-        'poll_interval': 60
+        "poll_interval": 60
     }
 
 Registry Configuration
@@ -100,7 +100,7 @@ Registry Configuration
 The registry configuration file for this agent can be found in agent's data
 directory. This configuration provides the point name mapping from the Dark Sky
 API's point scheme to the CF-conventions scheme by default. Points that do not
-specify 'Standard_Point_Name' were found to not have a logical match to any
+specify "Standard_Point_Name" were found to not have a logical match to any
 point found in the CF-Conventions. For these points Dark Sky point name
 convention (Service_Point_Name) will be used.
 
@@ -110,7 +110,7 @@ convention (Service_Point_Name) will be used.
     precipIntensity,lwe_precipitation_rate,millimeter / hour,meter / second
     precipProbability,,,
     temperature,surface_temperature,degC,degK
-    apparentTemperature,,,
+    apparentTemperature,,degC,degK
     dewPoint,dew_point_temperature,degC,degK
 
 Notes

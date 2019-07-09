@@ -4,12 +4,7 @@
 
 Distributed Control System Platform.
 
-|Branch|Status|
-|:---:|---|
-|Master Branch| ![image](https://travis-ci.org/VOLTTRON/volttron.svg?branch=master)|
-|develop| ![image](https://travis-ci.org/VOLTTRON/volttron.svg?branch=develop)|
-
-VOLTTRONTM is an open source platform for distributed sensing and control. The
+VOLTTRON&trade; is an open source platform for distributed sensing and control. The
 platform provides services for collecting and storing data from buildings and
 devices and provides an environment for developing applications which interact
 with that data.
@@ -24,7 +19,7 @@ with that data.
 
 ## Background
 
-VOLTTRONTM is written in Python 2.7 and runs on Linux Operating Systems. For
+VOLTTRON is written in Python 2.7 and runs on Linux Operating Systems. For
 users unfamiliar with those technologies, the following resources are recommended:
 
 https://docs.python.org/2.7/tutorial/

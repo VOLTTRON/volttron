@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import urlparse
 
 import jwt
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -81,12 +82,35 @@ class AuthenticateEndpoints(object):
             _log.warning("Authentication must use POST request.")
             return Response('', status='401 Unauthorized')
 
-        if not isinstance(data, dict):
-            raise ValueError(
-                "Invalid data parameters passed must have username and password but string was passed.")
+        assert len(self._userdict) > 0, "No users in user dictionary, set the master password first!"
 
-        user = self.__get_user(data.get('username'), data.get('password'))
+        if not isinstance(data, dict):
+            _log.debug("data is not a dict, decoding")
+            decoded = dict((k, v if len(v) > 1 else v[0])
+                           for k, v in urlparse.parse_qs(data).iteritems())
+
+            username = decoded.get('username')
+            password = decoded.get('password')
+
+        else:
+            username = data.get('username')
+            password = data.get('password')
+
+        _log.debug("Username is: {}".format(username))
+
+        error = ""
+        if username is None:
+            error += "Invalid username passed"
+        if not password:
+            error += "Invalid password passed"
+
+        if error:
+            _log.error("Invalid parameters passed: {}".format(error))
+            return Response(error, status='401')
+
+        user = self.__get_user(username, password)
         if user is None:
+            _log.error("No matching user for passed username: {}".format(username))
             return Response('', status='401')
 
         encoded = jwt.encode(user, self._ssl_private_key, algorithm='RS256').encode('utf-8')

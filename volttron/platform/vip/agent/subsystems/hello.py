@@ -86,11 +86,14 @@ class Hello(SubsystemBase):
         _log.info('{0} Requesting hello from peer ({1})'.format(self.core().identity, peer))
         result = next(self._results)
         connection = self.core().connection
-        try:
-            connection.send_vip(peer, b'hello', args=[b'hello'], msg_id=result.ident)
-        except ZMQError as exc:
-            if exc.errno == ENOTSOCK:
-                _log.error("Socket send on non socket {}".format(self.core().identity))
+        if not connection:
+            _log.error("Connection object not yet created".format(self.core().identity))
+        else:
+            try:
+                connection.send_vip(peer, b'hello', args=[b'hello'], msg_id=result.ident)
+            except ZMQError as exc:
+                if exc.errno == ENOTSOCK:
+                    _log.error("Socket send on non socket {}".format(self.core().identity))
 
         return result
 

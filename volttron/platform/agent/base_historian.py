@@ -362,6 +362,7 @@ class BaseHistorianAgent(Agent):
                  storage_limit_gb=None,
                  sync_timestamp=False,
                  custom_topics={},
+                 all_platforms=False,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -409,6 +410,7 @@ class BaseHistorianAgent(Agent):
             STATUS_KEY_PUBLISHING: True,
             STATUS_KEY_CACHE_FULL: False
         }
+        self._all_platforms = bool(all_platforms)
 
         self._default_config = {
                                 "retry_period":self._retry_period,
@@ -426,7 +428,8 @@ class BaseHistorianAgent(Agent):
                                 "message_publish_count": self._message_publish_count,
                                 "storage_limit_gb": storage_limit_gb,
                                 "history_limit_days": history_limit_days,
-                                "custom_topics": custom_topics
+                                "custom_topics": custom_topics,
+                                "all_platforms": self._all_platforms
                                }
 
         self.vip.config.set_default("config", self._default_config)
@@ -521,6 +524,9 @@ class BaseHistorianAgent(Agent):
 
             readonly = bool(config.get("readonly", False))
             message_publish_count = int(config.get("message_publish_count", 10000))
+
+            all_platforms = bool(config.get("all_platforms", False))
+
         except ValueError as e:
             self._backup_storage_report = 0.9
             _log.error("Failed to load base historian settings. Settings not applied!")
@@ -545,7 +551,7 @@ class BaseHistorianAgent(Agent):
         self._max_time_publishing = timedelta(seconds=max_time_publishing)
         self._history_limit_days = timedelta(days=history_limit_days) if history_limit_days else None
         self._storage_limit_gb = storage_limit_gb
-
+        self._all_platforms = all_platforms
         self._readonly = readonly
         self._message_publish_count = message_publish_count
 
@@ -598,7 +604,8 @@ class BaseHistorianAgent(Agent):
                     try:
                         self.vip.pubsub.subscribe(peer='pubsub',
                                                   prefix=prefix,
-                                                  callback=cb).get(timeout=5.0)
+                                                  callback=cb,
+                                                  all_platforms=self._all_platforms).get(timeout=5.0)
                         self._current_subscriptions.add(prefix)
                     except (gevent.Timeout, Exception) as e:
                         _log.error("Failed to subscribe to {}: {}".format(prefix, repr(e)))

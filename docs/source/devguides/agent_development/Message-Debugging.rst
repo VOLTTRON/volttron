@@ -85,7 +85,7 @@ created to satisfy a variety of specific debugging needs. For example, a viewer 
 browser-based message debugging with a graphical user interface, or a viewer could transform
 message data into PCAP format for consumption by WireShark.
 
-The Message Viewer in services/core/MessageDebuggerAgent/messageviewer/viewer.py implements a
+The Message Viewer in services/ops/MessageDebuggerAgent/messageviewer/viewer.py implements a
 command-line UI, subclassing Python's ``Cmd`` class. Most of the command-line options that it
 displays result in a MessageDebuggerAgent RPC request. The Message Viewer formats and displays
 the results.
@@ -93,7 +93,7 @@ the results.
 In Linux, the Message Viewer can be started as follows, and displays the following menu:
 ::
 
-    (volttron) $ cd services/core/MessageDebuggerAgent/messageviewer
+    (volttron) $ cd services/ops/MessageDebuggerAgent/messageviewer
     (volttron) $ python viewer.py
     Welcome to the MessageViewer command line. Supported commands include:
          display_message_stream

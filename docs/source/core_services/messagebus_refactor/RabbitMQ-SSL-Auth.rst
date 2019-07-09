@@ -132,6 +132,11 @@ root certificate during connection, VOLTTRON2's RabbitMQ server can trust the co
 appended to VOLTTRON1's root CA and it must in turn present its root certificate during connection, so that VOLTTRON1 will
 know it is safe to talk to VOLTTRON2.
 
+Agents trying to connect to remote instance directly, need to have a public certificate signed by the remote
+instance for authenticated SSL based connection. To facilitate this process, the VOLTTRON platform exposes a web based server
+api for requesting, listing, approving and denying certificate requests. For more detailed description, refer to
+:ref:`Agent communication to Remote RabbitMQ instance<_Connecting_to_remote_RMQ>`
+
 
 Authorization in RabbitMQ VOLTTRON
 ==================================
