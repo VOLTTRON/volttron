@@ -262,7 +262,8 @@ class ControlService(BaseAgent):
         # Send message to router that agent is shutting down
         frames = [identity.encode('utf-8')]
 
-        self.core.socket.send_vip(b'', b'agentstop', frames, copy=False)
+        # Was self.core.socket.send_vip(b'', b'agentstop', frames, copy=False)
+        self.core.connection.send_vip(b'', b'agentstop', args=frames, copy=False)
 
     @RPC.export
     def restart_agent(self, uuid):
@@ -313,7 +314,7 @@ class ControlService(BaseAgent):
         frames = [bytes(identity)]
 
         # Send message to router that agent is shutting down
-        self.core.connection.send_vip(b'', 'agentstop', args=frames)
+        self.core.connection.send_vip(b'', b'agentstop', args=frames)
         self._aip.remove_agent(uuid, remove_auth=remove_auth)
 
     @RPC.export

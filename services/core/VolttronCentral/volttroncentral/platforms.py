@@ -560,6 +560,19 @@ class PlatformHandler(object):
 
         return ""
 
+    def delete_agent_config(self, session_user, params):
+        agent_identity = params['agent_identity']
+        config_name = params['config_name']
+
+        try:
+            return self.call('delete_agent_config', agent_identity, config_name)
+        except KeyError:
+            self._log.error('Invalid configuration name: {}'.format(
+                config_name
+            ))
+
+        return ""
+
     def get_devices(self, session_user, params):
         self._log.debug('handling get_devices platform: {} ({})'.format(
             self.vip_identity, self.address))

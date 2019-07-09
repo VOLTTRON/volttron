@@ -27,6 +27,12 @@
 # favoring by 8minutenergy or Kisensum.
 # }}}
 
+import pytest
+try:
+    import dnp3
+except ImportError:
+    pytest.skip("pydnp3 not found!", allow_module_level=True)
+
 import gevent
 import json
 import os
@@ -39,7 +45,6 @@ from volttron.platform import get_services_core
 from volttron.platform.agent.utils import strip_comments
 
 MESA_AGENT_ID = 'mesaagent'
-TEST_SET_POINT_NAME = "DCHD.WinTms (in)"
 
 # Get point and function definitions from the files in the test directory.
 POINT_DEFINITIONS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data', 'mesa_points.config'))
@@ -48,27 +53,29 @@ FUNCTION_DEFINITIONS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file_
 pdefs = PointDefinitions(point_definitions_path=POINT_DEFINITIONS_PATH)
 
 input_group_map = {
-    1: "Binary",
-    2: "Binary",
-    30: "Analog",
-    31: "Analog",
-    32: "Analog",
-    33: "Analog",
-    34: "Analog"
+    1: 'Binary',
+    2: 'Binary',
+    30: 'Analog',
+    31: 'Analog',
+    32: 'Analog',
+    33: 'Analog',
+    34: 'Analog'
 }
 
 MESA_AGENT_CONFIG = {
-    "points": "config://mesa_points.config",
-    "functions": "config://mesa_functions.config",
-    "point_topic": "mesa/point",
-    "function_topic": "mesa/function",
-    "outstation_status_topic": "mesa/outstation_status",
-    "outstation_config": {
-        "database_sizes": 700,
-        "log_levels": ["NORMAL"]
+    'points': 'config://mesa_points.config',
+    'functions': 'config://mesa_functions.config',
+    'point_topic': 'mesa/point',
+    'function_topic': 'mesa/function',
+    'outstation_status_topic': 'mesa/outstation_status',
+    'outstation_config': {
+        'database_sizes': 800,
+        'log_levels': ['NORMAL']
     },
-    "local_ip": "0.0.0.0",
-    "port": 20000
+    'local_ip': '0.0.0.0',
+    'port': 20000,
+    'all_functions_supported_by_default': True,
+    'function_validation': False
 }
 
 messages = {}
@@ -85,9 +92,9 @@ def dict_compare(source_dict, target_dict):
 
        Ignores keys in target_dict that are not in source_dict.
     """
-    for name, source_val in source_dict.items():
+    for name, source_val in source_dict.iteritems():
         target_val = target_dict.get(name, None)
-        assert source_val == target_val, "Source value of {}={}, target value={}".format(name, source_val, target_val)
+        assert source_val == target_val, 'Source value of {}={}, target value={}'.format(name, source_val, target_val)
 
 
 def add_definitions_to_config_store(test_agent):
@@ -112,7 +119,7 @@ def agent(request, volttron_instance):
 
     print('Installing Mesa Agent')
     os.environ['AGENT_MODULE'] = 'dnp3.mesa.agent'
-    agent_id = volttron_instance.install_agent(agent_dir=get_services_core("DNP3Agent"),
+    agent_id = volttron_instance.install_agent(agent_dir=get_services_core('DNP3Agent'),
                                                config_file=MESA_AGENT_CONFIG,
                                                vip_identity=MESA_AGENT_ID,
                                                start=True)
@@ -177,9 +184,9 @@ class TestMesaAgent:
         return agent.vip.rpc.call(MESA_AGENT_ID, 'get_point_definitions', point_names).get(timeout=10)
 
     @staticmethod
-    def get_point_by_index(agent, group, index):
+    def get_point_by_index(agent, data_type, index):
         """Ask DNP3Agent for a point value for a DNP3 resource."""
-        return agent.vip.rpc.call(MESA_AGENT_ID, 'get_point_by_index', group, index).get(timeout=10)
+        return agent.vip.rpc.call(MESA_AGENT_ID, 'get_point_by_index', data_type, index).get(timeout=10)
 
     @staticmethod
     def set_point(agent, point_name, value):
@@ -215,7 +222,7 @@ class TestMesaAgent:
             else:
                 master.send_json(pdefs, FUNCTION_DEFINITIONS_PATH, send_json=send_json)
         except Exception as err:
-            print("{}: {}".format(type(err).__name__, str(err)))
+            print('{}: {}'.format(type(err).__name__, str(err)))
             exceptions['key'] = type(err).__name__
             exceptions['error'] = str(err)
 
@@ -232,13 +239,13 @@ class TestMesaAgent:
         except KeyError:
             return None
 
-    def send_function_and_confirm(self, master, agent, json_file):
+    def send_function_and_confirm(self, master, agent, json_file, func_ref=None):
         """Test get points to confirm if points is set correctly by master."""
         send_function = self.convert_json_file_to_dict(json_file)
         exceptions = self.send_points(master, send_function)
 
         for point_name in send_function.keys():
-            if point_name not in ["name", "function_id", "function_name"]:
+            if point_name not in ['name', 'function_id', 'function_name']:
 
                 pdef = pdefs.point_named(point_name)
 
@@ -247,19 +254,25 @@ class TestMesaAgent:
                         record[field['name']]
                             for record in send_function[point_name] for field in pdef.array_points
                     ):
-                        get_point = self.get_point_by_index(agent, pdef.group, pdef.index+offset)
-                        assert get_point == value, "Expected {} = {}, got {}".format(point_name, value, get_point)
+                        get_point = self.get_point_by_index(agent, pdef.data_type, pdef.index+offset)
+                        assert get_point == value, 'Expected {} = {}, got {}'.format(point_name, value, get_point)
                 else:
                     get_point = self.get_point(agent, point_name)
                     # Ask the agent whether it has a point definition for that point name.
                     point_defs = self.get_point_definitions(agent, [point_name])
                     point_def = point_defs.get(point_name, None)
-                    assert point_def is not None, "Agent has no point definition for {}".format(point_name)
+                    assert point_def is not None, 'Agent has no point definition for {}'.format(point_name)
                     # Confirm that the agent's point value matches the value in the json.
                     json_val = send_function[point_name]
-                    assert get_point == json_val, "Expected {} = {}, got {}".format(point_name,
+                    assert get_point == json_val, 'Expected {} = {}, got {}'.format(point_name,
                                                                                     json_val,
                                                                                     get_point)
+        if func_ref:
+            send_function.update({
+                func_ref['name']: {
+                    str(func_ref['index']): self.get_selector_block(agent, func_ref['name'], func_ref['index'])
+                }
+            })
         dict_compare(messages['mesa/function']['message']['points'], send_function)
         assert exceptions == {}
 
@@ -269,202 +282,180 @@ class TestMesaAgent:
 
     def test_send_single_point_publish(self, run_master, agent, reset):
         """Test send a single point with publish action."""
-        test_point_name = "Publish Test Point (AO)"
-        run_master.send_single_point(pdefs, test_point_name, 10)
-        assert self.get_point(agent, test_point_name) == 10
-        assert messages['mesa/point']['message'] == {test_point_name: 10}
+        test_point_name = 'DTCD.ModEna.BO19'
+        run_master.send_single_point(pdefs, test_point_name, True)
+        assert self.get_point(agent, test_point_name) == True
+        assert messages['mesa/point']['message'] == {test_point_name: True}
 
     def test_send_single_point_publish_and_respond(self, run_master, agent, reset):
         """Test send a single point with publish_and_respond action."""
-        test_point_name = "Publish and Respond Test Point (AO)"
-        run_master.send_single_point(pdefs, test_point_name, 20)
-        assert self.get_point(agent, test_point_name) == 20
-        assert messages['mesa/point']['message'] == {test_point_name: 20,
-                                                     'response': 'Respond Test Point (AI)'}
+        test_point_name = 'DHVT.ModEna.BO12'
+        run_master.send_single_point(pdefs, test_point_name, True)
+        assert self.get_point(agent, test_point_name) == True
+        assert messages['mesa/point']['message'] == {test_point_name: True,
+                                                     'response': 'DHVT.ModEna.BI64'}
+
+    def test_point_definition(self, agent, reset):
+        """Confirm whether the agent has a point def for a given name."""
+        point_name = 'DCTE.VHiLim.AO6'
+        point_def = self.get_point_definitions(agent, [point_name]).get(point_name, None)
+        assert point_def is not None, 'Agent has no point definition for {}'.format(point_name)
 
     def test_simple_function(self, run_master, agent, reset):
         """Test a simple function (not array or selector block)."""
-
-        # Set the function support point to True
-        self.set_point(agent, 'Supports Charge/Discharge Mode', True)
-        self.send_function_and_confirm(run_master, agent, 'charge_discharge.json')
-        assert messages['mesa/point']['message'] == {"DCHD.ModEna": True}
+        self.send_function_and_confirm(run_master, agent, 'connect_and_disconnect.json')
 
     def test_curve(self, run_master, agent, reset):
         """Test curve function."""
-        self.send_function_and_confirm(run_master, agent, 'curve.json')
+        assert self.get_selector_block(agent, 'DGSMn.InCrv.AO244', 2) is None
+        self.send_function_and_confirm(run_master, agent, 'watt_var_curve.json')
+        dict_compare(self.get_selector_block(agent, 'DGSMn.InCrv.AO244', 2),
+                     self.convert_json_file_to_dict('watt_var_curve.json'))
 
-    def test_array(self, run_master, agent, reset):
-        """Test array function."""
-        self.send_function_and_confirm(run_master, agent, 'inverter.json')
+    def test_enable_curve(self, run_master, agent, reset):
+        """Test curve function reference."""
+        self.send_function_and_confirm(run_master, agent, 'watt_var_curve.json')
+        func_ref = {
+            'name': 'DGSMn.InCrv.AO244',
+            'index': 2.0
+        }
+        self.send_function_and_confirm(run_master, agent, 'enable_watt_var_power_mode.json', func_ref)
+        assert messages['mesa/point']['message'] == {'DWVR.ModEna.BO30': True,
+                                                     'response': 'DWVR.BI49'}
 
-    def test_selector_blocks(self, run_master, agent, reset):
-        """Test selector block functions."""
-        assert self.get_selector_block(agent, 'Curve Edit Selector', 2) == {}
-        assert self.get_selector_block(agent, 'Curve Edit Selector', 5) == {}
+    def test_schedule(self, run_master, agent, reset):
+        """Test schedule function."""
+        assert self.get_selector_block(agent, 'FSCC.Schd.AO461', 2) is None
+        self.send_function_and_confirm(run_master, agent, 'watt_var_schedule.json')
+        dict_compare(self.get_selector_block(agent, 'FSCC.Schd.AO461', 2),
+                     self.convert_json_file_to_dict('watt_var_schedule.json'))
 
-        send_function_1 = self.convert_json_file_to_dict('selector_block_1.json')
-        exceptions_1 = self.send_points(run_master, send_function_1)
-        assert exceptions_1 == {}
+    def test_enable_schedule(self, run_master, agent, reset):
+        """Test schedule function reference"""
+        self.send_function_and_confirm(run_master, agent, 'watt_var_schedule.json')
+        func_ref = {
+            'name': 'FSCC.Schd.AO461',
+            'index': 2.0
+        }
+        self.send_function_and_confirm(run_master, agent, 'enable_watt_var_schedule.json', func_ref)
 
-        send_function_2 = self.convert_json_file_to_dict('selector_block_2.json')
-        exceptions_2 = self.send_points(run_master, send_function_2)
-        assert exceptions_2 == {}
-
-        get_selector_block_1 = self.get_selector_block(agent, 'Curve Edit Selector', 2)
-        get_selector_block_2 = self.get_selector_block(agent, 'Curve Edit Selector', 5)
-        dict_compare(get_selector_block_1, send_function_1)
-        dict_compare(get_selector_block_2, send_function_2)
-        assert get_selector_block_1 != get_selector_block_2
+    def test_function_reference_fail(self, run_master, agent, reset):
+        """Test edit selector with Selector Block value have not set"""
+        send_function = self.convert_json_file_to_dict('enable_watt_var_schedule.json')
+        self.send_points(run_master, send_function)
+        assert messages == {}
 
     def test_invalid_function(self, run_master, agent, reset):
         """Test send an invalid function, confirm getting exception error."""
         send_function = {
-            "name": "function_test_name",
-            "function_id": "Invalid Function",
-            "function_name": "Testing Invalid Function",
-            "point_1": 1,
-            "point_2": 2
+            'function_id': 'Invalid Function',
+            'function_name': 'Testing Invalid Function',
+            'point_1': 1,
+            'point_2': 2
         }
-
         exceptions = self.send_points(run_master, send_function)
         assert exceptions == {
             'key': 'FunctionTestException',
             'error': 'Validation Error: Function definition not found: Invalid Function'
         }
+        assert messages == {}
 
     def test_invalid_point_value(self, run_master, agent, reset):
         """Test send a function with an invalid data type for a point, confirm getting exception error."""
         # Set the function support point to True
-        self.set_point(agent, "Supports Charge/Discharge Mode", True)
-
-        send_function = self.convert_json_file_to_dict('charge_discharge.json')
+        send_function = self.convert_json_file_to_dict('connect_and_disconnect.json')
 
         # Change the analog value to binary
-        send_function['DCHD.WinTms (out)'] = True
+        send_function['DCTE.WinTms.AO16'] = True
 
         exceptions = self.send_points(run_master, send_function)
         assert exceptions == {
             'key': 'FunctionTestException',
-            'error': 'Validation Error: Invalid point value: DCHD.WinTms (out)'
+            'error': 'Validation Error: Invalid point value: DCTE.WinTms.AO16'
         }
+        assert messages == {}
 
         # Change back to the valid point value
-        send_function['DCHD.WinTms (out)'] = 10
+        send_function['DCTE.WinTms.AO16'] = 10
 
         # Change the binary value to analog
-        send_function['DCHD.ModEna'] = 1
+        send_function['CSWI.Pos.BO5'] = 1
 
         exceptions = self.send_points(run_master, send_function)
         assert exceptions == {
             'key': 'FunctionTestException',
-            'error': 'Validation Error: Invalid point value: DCHD.ModEna'
+            'error': 'Validation Error: Invalid point value: CSWI.Pos.BO5'
         }
+        assert messages == {}
 
     def test_invalid_array_value(self, run_master, agent, reset):
         """Test send a function with an invalid data type for a point, confirm getting exception error."""
-        send_function = self.convert_json_file_to_dict('curve.json')
+        send_function = self.convert_json_file_to_dict('watt_var_curve.json')
 
         # Change the analog array value to binary
-        send_function['CurveStart-X'] = [
-            {"Curve-X": 100,
-             "Curve-Y": 200},
-            {"Curve-X": 300,
-             "Curve-Y": 400},
-            {"Curve-X": True,
-             "Curve-Y": 500}
+        send_function['FMARn.PairArr.CrvPts.AO249'] = [
+            {'FMARn.PairArr.CrvPts.AO249.xVal': 1,
+             'FMARn.PairArr.CrvPts.AO249.yVal': 2},
+            {'FMARn.PairArr.CrvPts.AO249.xVal': 3,
+             'FMARn.PairArr.CrvPts.AO249.yVal': 4},
+            {'FMARn.PairArr.CrvPts.AO249.xVal': 5,
+             'FMARn.PairArr.CrvPts.AO249.yVal': 6},
+            {'FMARn.PairArr.CrvPts.AO249.xVal': 7,
+             'FMARn.PairArr.CrvPts.AO249.yVal': 8},
+            {'FMARn.PairArr.CrvPts.AO249.xVal': 9,
+             'FMARn.PairArr.CrvPts.AO249.yVal': True}
         ]
-
         exceptions = self.send_points(run_master, send_function)
         assert exceptions == {
             'key': 'FunctionTestException',
-            'error': 'Validation Error: Invalid point value: CurveStart-X'
+            'error': 'Validation Error: Invalid point value: FMARn.PairArr.CrvPts.AO249'
         }
+        assert messages == {}
 
     def test_missing_mandatory_step(self, run_master, agent, reset):
         """Test send a function missing its mandatory step, confirm getting exception error."""
-
-        # Set the function support point to True
-        self.set_point(agent, "Supports Charge/Discharge Mode", True)
-
-        send_function = self.convert_json_file_to_dict('charge_discharge.json')
+        send_function = self.convert_json_file_to_dict('connect_and_disconnect.json')
 
         # Remove mandatory step
-        del send_function['DCHD.RmpTms (out)']
+        del send_function['DCTE.RvrtTms.AO17']
 
         exceptions = self.send_points(run_master, send_function)
-
         assert exceptions == {
             'key': 'FunctionTestException',
-            'error': 'Validation Error: Function Test missing mandatory steps'
+            'error': "Validation Error: Function Test missing mandatory steps: ['DCTE.RvrtTms.AO17']"
         }
+        assert messages == {}
 
     def test_missing_point_definition(self, run_master, agent, reset):
         """Test send a function with a point not defined in point definitions, confirm getting exception error."""
-
-        # Set the function support point to True
-        self.set_point(agent, "Supports Charge/Discharge Mode", True)
-
-        send_function = self.convert_json_file_to_dict('charge_discharge.json')
+        send_function = self.convert_json_file_to_dict('connect_and_disconnect.json')
 
         # Add a point for testing
         send_function['test point'] = 5
 
         exceptions = self.send_points(run_master, send_function)
-
         assert exceptions == {
             'key': 'FunctionTestException',
             'error': 'Validation Error: Not all points resolve'
         }
-
-    def test_missing_support_point(self, run_master, agent, reset):
-        """Test send a function missing its support point, confirm getting exception error."""
-
-        # Set the function support point to True
-        self.set_point(agent, "Supports Charge/Discharge Mode", False)
-
-        send_function = self.convert_json_file_to_dict('charge_discharge.json')
-        exceptions = self.send_points(run_master, send_function)
-
-        for point_name in send_function.keys():
-            if point_name not in ["name", "function_id", "function_name"]:
-                received_val = self.get_point(agent, point_name)
-                err_msg = "Expected no {} value due to unsupported function, but received {}"
-                assert received_val is None, err_msg.format(point_name, received_val)
-
-        assert messages.get('mesa/function', {}) == {}
-        assert messages['mesa/point']['message'] == {"DCHD.ModEna": True}
-        assert exceptions == {}
+        assert messages == {}
 
     def test_wrong_step_order(self, run_master, agent, reset):
         """Test send a function in wrong step order, confirm getting exception error."""
-
-        # Set the function support point to True
-        self.set_point(agent, "Supports Charge/Discharge Mode", True)
-
-        charge_discharge_dict = {
-            "name": "function_test_name",
-            "function_id": "LN DCHD",
-            "function_name": "charge_discharge_mode",
-            "DCHD.RmpTms (out)": 12,
-            "DCHD.WinTms (out)": 10,  # In wrong order: suppose to be step 1 instead of step 2
-            "DCHD.RevtTms (out)": 13,
-            "DCHD.WTgt (out)": 14,
-            "DCHD.RmpUpRte (out)": 15,
-            "DCHD.RmpDnRte (out)": 16,
-            "DCHD.ChaRmpUpRte (out)": 17,
-            "DCHD.ChaRmpDnRte (out)": 18,
-            "DCHD.ModPrty (out)": 19,
-            "DCHD.VArAct (out)": 20,
-            "DCHD.ModEna": True
+        connect_and_disconnect_dict = {
+            'function_id': 'connect_and_disconnect',
+            'name': 'Connect and Disconnect',
+            'DCTE.RvrtTms.AO17': 12,  # In wrong order: suppose to be step 2 instead of step 1
+            'DCTE.WinTms.AO16': 10,   # In wrong order: suppose to be step 1 instead of step 2
+            'CSWI.Pos.BO5': True
         }
 
-        exceptions = self.send_points(run_master, charge_discharge_dict, send_in_step_order=False)
-
+        exceptions = self.send_points(run_master, connect_and_disconnect_dict, send_in_step_order=False)
         assert exceptions == {
             'key': 'MesaMasterTestException',
             'error': 'Step not in order: 1'
         }
+        assert messages == {}
 
     # **********
     # ********** INPUT TESTS (send data from ControlAgent to Agent to Master) ************
@@ -472,42 +463,45 @@ class TestMesaAgent:
 
     def test_set_point(self, run_master, agent, reset):
         """Test set an input point and confirm getting the same value for that point."""
-        self.set_point(agent, TEST_SET_POINT_NAME, 45)
-        received_val = self.get_value_from_master(run_master, TEST_SET_POINT_NAME)
-        assert received_val == 45, "Expected {} = {}, got {}".format(TEST_SET_POINT_NAME, 45, received_val)
+        point_name = 'DCTE.WinTms.AI55'
+        self.set_point(agent, point_name, 45)
+        received_val = self.get_value_from_master(run_master, point_name)
+        assert received_val == 45, 'Expected {} = {}, got {}'.format(point_name, 45, received_val)
 
     def test_set_invalid_point(self, agent, reset):
         """Test set an invalid input point and confirm getting exception error."""
+        point_name = 'Invalid Point'
         try:
-            self.set_point(agent, "Invalid Point", 45)
-            assert False, "Input point with invalid name failed to cause an exception"
+            self.set_point(agent, point_name, 45)
+            assert False, 'Input point with invalid name failed to cause an exception'
         except Exception as err:
-            assert str(err) == "dnp3.points.DNP3Exception('No point named Invalid Point')"
+            assert str(err) == "dnp3.points.DNP3Exception('No point named {}')".format(point_name)
 
     def test_set_invalid_point_value(self, agent, reset):
         """Test set an invalid input point and confirm getting exception error."""
+        point_name = 'DCTE.WinTms.AI55'
         try:
-            self.set_point(agent, "DCHD.WinTms (in)", True)
-            assert False, "Input point with invalid value failed to cause an exception"
+            self.set_point(agent, point_name, True)
+            assert False, 'Input point with invalid value failed to cause an exception'
         except Exception as err:
-            assert str(err) == "dnp3.points.DNP3Exception(\"Received <class 'bool'> value for PointDefinition " \
-                               "DCHD.WinTms (in) (30.1, index=91, type=Analog Input).\")"
+            assert str(err) == "dnp3.points.DNP3Exception(\"Received <type 'bool'> value for PointDefinition " \
+                               "{} (event_class=2, index=55, type=AI).\")".format(point_name)
 
     def test_set_points(self, run_master, agent, reset):
         """Test set a set of points and confirm getting the correct values for all point that are set."""
 
         set_points_dict = {
-            "DCHD.WinTms (in)": 1,
-            "DCHD.RmpTms (in)": 2,
-            "DCHD.RevtTms (in)": 3,
-            "DCHD.WTgt (in)": 4,
-            "DCHD.RmpUpRte (in)": 5,
-            "DCHD.RmpDnRte (in)": 6,
-            "DCHD.ChaRmpUpRte (in)": 7,
-            "DCHD.ChaRmpDnRte (in)": 8,
-            "DCHD.ModPrty (in)": 9,
-            "DCHD.VArAct (in)": 10,
-            "DCHD.ModEna (in)": True
+            'AI0': 0,
+            'AI1': 1,
+            'DGEN.VMinRtg.AI2': 2,
+            'DGEN.VMaxRtg.AI3': 3,
+            'DGEN.WMaxRtg.AI4': 4,
+            'DSTO.ChaWMaxRtg.AI5': 5,
+            'DGEN.WOvPFRtg.AI6': 6,
+            'DSTO.ChaWOvPFRtg.AI7': 7,
+            'DGEN.OvPFRtg.AI8': 8,
+            'DGEN.WUnPFRtg.AI9': 9,
+            'DHVT.ModEna.BI64': True
         }
 
         self.set_points(agent, set_points_dict)
@@ -519,33 +513,33 @@ class TestMesaAgent:
         """Test set a set of points of an array and confirm getting the correct values for all point that are set."""
 
         self.set_points(agent, {
-            "CurveStart-X (in)": [
-                {"Curve-X": 1,
-                 "Curve-Y": 2},
-                {"Curve-X": 3,
-                 "Curve-Y": 4},
-                {"Curve-X": 5,
-                 "Curve-Y": 6}
+            'FMARn.PairArr.CrvPts.AI333': [
+                {'FMARn.PairArr.CrvPts.AI333.xVal': 1,
+                 'FMARn.PairArr.CrvPts.AI333.yVal': 2},
+                {'FMARn.PairArr.CrvPts.AI333.xVal': 3,
+                 'FMARn.PairArr.CrvPts.AI333.yVal': 4},
+                {'FMARn.PairArr.CrvPts.AI333.xVal': 5,
+                 'FMARn.PairArr.CrvPts.AI333.yVal': 6}
             ]
         })
 
-        pdef = pdefs.point_named("CurveStart-X (in)")
+        pdef = pdefs.point_named('FMARn.PairArr.CrvPts.AI333')
         group = input_group_map[pdef.group]
 
-        assert run_master.soe_handler.result[group][500] == 1.0
-        assert run_master.soe_handler.result[group][501] == 2.0
-        assert run_master.soe_handler.result[group][502] == 3.0
-        assert run_master.soe_handler.result[group][503] == 4.0
-        assert run_master.soe_handler.result[group][504] == 5.0
-        assert run_master.soe_handler.result[group][505] == 6.0
+        assert run_master.soe_handler.result[group][333] == 1.0
+        assert run_master.soe_handler.result[group][334] == 2.0
+        assert run_master.soe_handler.result[group][335] == 3.0
+        assert run_master.soe_handler.result[group][336] == 4.0
+        assert run_master.soe_handler.result[group][337] == 5.0
+        assert run_master.soe_handler.result[group][338] == 6.0
 
     def test_wrong_database_size(self, run_master, agent, reset):
         """Test set point for an index out of database size range, confirm receiving None for that point."""
 
         try:
             # This Input Test Point index is 800, but database size is only 700
-            self.set_point(agent, "Input Test Point", 45)
-            assert False, "Wrong database size failed to cause an exception"
+            self.set_point(agent, 'TestPoint.BI900', True)
+            assert False, 'Wrong database size failed to cause an exception'
         except Exception as err:
-            assert str(err) == "dnp3.points.DNP3Exception('Attempt to set a value for index 800 " \
-                               "which exceeds database size 700')"
+            assert str(err) == "dnp3.points.DNP3Exception('Attempt to set a value for index 900 " \
+                               "which exceeds database size 800')"

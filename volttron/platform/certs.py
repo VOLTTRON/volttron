@@ -276,6 +276,9 @@ class Certs(object):
 
     """
 
+    def remote_cert_bundle_file(self):
+        return os.path.join(self.remote_cert_dir, 'requests_ca_bundle')
+
     def cert_file(self, name, remote=False):
         """
         Returns path to the certificate with passed name. .crt extension is
@@ -366,7 +369,7 @@ class Certs(object):
             if not os.path.exists(p):
                 os.makedirs(p, 0o755)
 
-    def ca_cert(self, pem_encoded=False):
+    def ca_cert(self, public_bytes=False):
         """
         Get the X509 CA certificate.
         :return: the CA certificate of current volttron instance
@@ -374,9 +377,9 @@ class Certs(object):
         if not self.ca_exists():
             raise CertError("ca certificate doesn't exist")
 
-        return self.cert(self.root_ca_name, pem_encoded=pem_encoded)
+        return self.cert(self.root_ca_name, public_bytes=public_bytes)
 
-    def cert(self, name, remote=False, pem_encoded=False):
+    def cert(self, name, remote=False, public_bytes=False):
         """
         Get the X509 certificate based upon the name
         :param name: name of the certificate to be loaded
@@ -394,7 +397,7 @@ class Certs(object):
             raise CertError("invalid certificate path {}".format(
                 cert_file))
         cert = _load_cert(cert_file)
-        if pem_encoded:
+        if public_bytes:
             return cert.public_bytes(serialization.Encoding.PEM)
 
         return _load_cert(cert_file)
@@ -484,22 +487,22 @@ class Certs(object):
                 fw.write(csr)
         return csrfile
 
-    def create_csr(self, name, remote_instance_name):
+    def create_csr(self, fully_qualified_identity, remote_instance_name):
         """
         Create a csr with name as the common name.
 
         The key that is used to sign the csr is <instance_name>.name.
 
-        :param name:
+        :param fully_qualified_identity:
         :param target_volttron:
         :return:
         """
-        assert name
-        remote_rmq_user = "{}.{}".format(remote_instance_name, get_fq_identity(name))
+        assert fully_qualified_identity
+        remote_rmq_user = "{}.{}".format(remote_instance_name, fully_qualified_identity)
         xname = x509.Name([
             x509.NameAttribute(NameOID.COMMON_NAME,  six.u(remote_rmq_user)),
         ])
-        key = _load_key(self.private_key_file(get_fq_identity(name)))
+        key = _load_key(self.private_key_file(fully_qualified_identity))
         csr = x509.CertificateSigningRequestBuilder().subject_name(
             xname).sign(key, hashes.SHA256(), default_backend())
         # with open(self.csr_create_file(name, target_volttron), "wb") as fw:
@@ -715,15 +718,35 @@ class Certs(object):
         with open(metafile, 'w') as fp:
             fp.write(jsonapi.dumps(metadata))
 
+        self.rebuild_requests_ca_bundle()
+
+    def rebuild_requests_ca_bundle(self):
+        with open(self.remote_cert_bundle_file(), 'wb') as fp:
+            # First include this platforms ca
+            fp.write(self.ca_cert(public_bytes=True))
+            for f in os.listdir(self.remote_cert_dir):
+                # based upon the call to the safe_remote_info from subsystem.auth file
+                # there will be a _ca added to the instance name on the other side of the
+                # connection so we can safely look for that string and bundle together.
+                if not f.endswith("_ca.crt"):
+                    continue
+
+                filepath = os.path.join(self.remote_cert_dir, f)
+
+                with open(filepath, 'rb') as fr:
+                    fp.write(fr.read())
+
     def delete_remote_cert(self, name):
         cert_file = self.remote_certs_file(name)
         if os.path.exists(cert_file):
             os.remove(cert_file)
+        self.remote_cert_bundle_file()
 
     def save_remote_cert(self, name, cert_string):
         cert_file = self.remote_certs_file(name)
         with open(cert_file, 'wb') as fp:
             fp.write(cert_string)
+        self.rebuild_requests_ca_bundle()
 
     def save_cert(self, file_path):
         cert_file = self.cert_file(os.path.splitext(os.path.basename(
@@ -995,3 +1018,4 @@ class Certs(object):
         cert, pk = _mk_cacert(valid_days=valid_days, **kwargs)
 
         self._save_cert(self.root_ca_name, cert, pk)
+        self.rebuild_requests_ca_bundle()

@@ -575,7 +575,7 @@ class MasterWebService(Agent):
     @Core.receiver('onstart')
     def startupagent(self, sender, **kwargs):
 
-        import urlparse
+        from urllib.parse import urlparse
         parsed = urlparse.urlparse(self.bind_web_address)
 
         ssl_key = self.web_ssl_key

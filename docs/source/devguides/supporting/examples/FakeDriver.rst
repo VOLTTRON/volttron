@@ -44,7 +44,7 @@ fake-master-driver.config::
 make-fakedriver::
 
 	export SOURCE=services/core/MasterDriverAgent
-	export CONFIG=config/fake-master-driver.agent
+	export CONFIG=config/fake-master-driver.config
 	export TAG=fake-driver
 	./scripts/core/make-agent.sh
 	

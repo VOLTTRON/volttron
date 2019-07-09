@@ -56,7 +56,7 @@ class Agent(object):
                      enable_channel, enable_fncs, message_bus):
             self.peerlist = PeerList(core)
             self.ping = Ping(core)
-            self.rpc = RPC(core, owner)
+            self.rpc = RPC(core, owner, self.peerlist)
             self.hello = Hello(core)
             if message_bus == 'rmq':
                 self.pubsub = RMQPubSub(core, self.rpc, self.peerlist, owner)

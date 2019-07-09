@@ -75,8 +75,12 @@ import json
 import logging
 import subprocess
 import sys
+from urllib.request import urlopen
+from urllib.error import HTTPError
 
 import os
+from distutils.version import LooseVersion
+import traceback
 
 from requirements import extras_require, option_requirements
 
@@ -94,31 +98,118 @@ def shescape(args):
                     '"' if ' ' in arg else '') for arg in args)
 
 
-def bootstrap(dest, prompt='volttron'):
-    '''Download latest virtualenv and create a virtual environment.
+def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
+    """Download latest virtualenv and create a virtual environment.
 
     The virtual environment will be created in the given directory. The
     shell prompt in the virtual environment can be overridden by setting
-    prompt.
-    '''
+    prompt and a specific version of virtualenv can be used by passing
+    the version string into version.
+    """
+    # Imports used only for bootstrapping the environment
+    import contextlib
+    import shutil
+    import tarfile
+    import tempfile
+
+    class EnvBuilder(object):
+        '''Virtual environment builder.
+
+        The resulting python executable will be set in the env_exe
+        attribute.
+        '''
+
+        __slots__ = ['version', 'prompt', 'env_exe']
+
+        def __init__(self, version=None, prompt=None):
+            '''Allow overriding version and prompt.'''
+            self.version = version
+            self.prompt = prompt
+            self.env_exe = None
+
+        def _fetch(self, url):
+            '''Open url and return the response object (or bail).'''
+            _log.info('Fetching %s', url)
+            response = urlopen(url)
+            if response.getcode() != 200:
+                _log.error('Server response is %s %s',
+                           response.code, response.msg)
+                _log.fatal('Download failed!')
+                sys.exit(1)
+            return response
+
+        def _url_available(self, url):
+            '''Open url and if response is 200 then return True else return False'''
+            _log.debug('Checking url %s', url)
+            try:
+                response = urlopen(url)
+                if response.getcode() != 200:
+                    return False
+            except HTTPError:
+                return False
+            return True
+
+        def get_version(self):
+            """Return the latest version from virtualenv DOAP record."""
+            _log.info('Downloading virtualenv package information')
+            default_version = "16.0.0"
+            url = 'https://pypi.python.org/pypi/virtualenv/json'
+            # with contextlib.closing(self._fetch(url)) as response:
+            #     result = json.load(response)
+            #     releases_dict = result.get("releases", {})
+            #     releases = sorted(
+            #         [LooseVersion(x) for x in releases_dict.keys()])
+            # if releases:
+            #     _log.info('latest release of virtualenv={}'.format(releases[-1]))
+            #     return str(releases[-1])
+            # else:
+            #     _log.info("Returning default version of virtualenv "
+            #               "({})".format(default_version))
+            #     return default_version
+            return default_version
+
+        def download(self, directory):
+            """Download the virtualenv tarball into directory."""
+            if self.version is None:
+                self.version = self.get_version()
+            url = ('https://pypi.python.org/packages/source/v/virtualenv/'
+                   'virtualenv-{}.tar.gz'.format(self.version))
+            _log.info('Downloading virtualenv %s', self.version)
+            tarball = os.path.join(directory, 'virtualenv.tar.gz')
+            with contextlib.closing(self._fetch(url)) as response:
+                with open(tarball, 'wb') as file:
+                    shutil.copyfileobj(response, file)
+            with contextlib.closing(tarfile.open(tarball, 'r|gz')) as archive:
+                archive.extractall(directory)
+
+        def create(self, directory, verbose=None):
+            '''Create a virtual environment in directory.'''
+            tmpdir = tempfile.mkdtemp()
+            try:
+                self.download(tmpdir)
+                args = [sys.executable]
+                args.append(os.path.join(tmpdir, 'virtualenv-{}'.format(
+                    self.version), 'virtualenv.py'))
+                if verbose is not None:
+                    args.append('--verbose' if verbose else '--quiet')
+                if self.prompt:
+                    args.extend(['--prompt', prompt])
+                args.append(directory)
+                _log.debug('+ %s', shescape(args))
+                subprocess.check_call(args)
+                if _WINDOWS:
+                    self.env_exe = os.path.join(
+                        directory, 'Scripts', 'python.exe')
+                else:
+                    self.env_exe = os.path.join(directory, 'bin', 'python')
+                assert(os.path.exists(self.env_exe))
+            finally:
+                shutil.rmtree(tmpdir, ignore_errors=True)
 
     _log.info('Creating virtual Python environment')
-
-    args = [sys.executable, '-m', 'venv']
-    if prompt:
-        args.extend(['--prompt', prompt])
-    args.append(dest)
-    _log.debug('+ %s', shescape(args))
-    subprocess.check_call(args)
-    if _WINDOWS:
-        env_exe = os.path.join(
-            dest, 'Scripts', 'python.exe')
-    else:
-        env_exe = os.path.join(dest, 'bin', 'python')
-
-    assert(os.path.exists(env_exe))
-
-    return env_exe
+    builder = EnvBuilder(prompt=prompt, version=version)
+    builder.create(dest, verbose)
+    return builder.env_exe
 
 
 def pip(operation, args, verbose=None, upgrade=False, offline=False):
@@ -180,10 +271,10 @@ def install_rabbit(rmq_install_dir):
     (output, error) = process.communicate()
     if process.returncode != 0:
         sys.stderr.write("ERROR:\n Unable to find erlang in path. Please install necessary pre-requisites. "
-                         "Reference: https://github.com/VOLTTRON/volttron/blob/rabbitmq-volttron/README.md")
+                "Reference: https://volttron.readthedocs.io/en/latest/setup/index.html#steps-for-rabbitmq")
+
         sys.exit(60)
 
-    import wget
     if rmq_install_dir == default_rmq_dir and not os.path.exists(
             default_rmq_dir):
         os.makedirs(default_rmq_dir)
@@ -205,9 +296,12 @@ def install_rabbit(rmq_install_dir):
               "Skipping rabbitmq server install".format(
             rmq_install_dir, rabbitmq_server))
     else:
-        filename = wget.download(
-            "https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.7.7/rabbitmq-server-generic-unix-3.7.7.tar.xz",
-            out=os.path.expanduser("~"))
+        url = "https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.7.7/rabbitmq-server-generic-unix-3.7.7.tar.xz"
+        f = urlopen(url)
+        data = f.read()
+        filename = "rabbitmq-server.download.tar.xz"
+        with open(filename, "wb") as imgfile:
+            imgfile.write(data)
         _log.info("\nDownloaded rabbitmq server")
         cmd = ["tar",
                "-xf",

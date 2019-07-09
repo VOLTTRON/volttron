@@ -58,30 +58,38 @@
 
 from __future__ import absolute_import
 
+import errno
 import inspect
 import logging
-
-import weakref
-import pika
 import uuid
-from volttron.platform import jsonapi
-import requests
-import errno
+import weakref
 
-from ..decorators import annotate, annotations, dualmethod, spawn
-from .base import BasePubSub
+from volttron.platform import jsonapi
+import errno
+from .base import SubsystemBase
+
 from collections import defaultdict
-from ..results import ResultsDictionary
+
+import requests
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
+
+from volttron.platform import is_rabbitmq_available
+from volttron.platform import jsonapi
+from ..decorators import annotate, annotations, dualmethod, spawn
 from ..errors import Unreachable
+from ..results import ResultsDictionary
+
+if is_rabbitmq_available():
+    import pika
+
 
 __all__ = ['RMQPubSub']
 min_compatible_version = '5.0'
 max_compatible_version = ''
 
 
-class RMQPubSub(BasePubSub):
+class RMQPubSub(SubsystemBase):
     """
     Pubsub subsystem concrete class implementation for RabbitMQ message bus.
     """
@@ -356,7 +364,8 @@ class RMQPubSub(BasePubSub):
                 topic = item[1]
                 if test(topic):
                     member = self.core().identity in peer
-                    results.append(('', topic, member))
+                    if not subscribed or member:
+                        results.append(('', topic, member))
         self.core().spawn_later(0.01, self.set_result, async_result.ident, results)
         return async_result
 
@@ -511,11 +520,16 @@ class RMQPubSub(BasePubSub):
         self._logger.debug("DROP subscriptions: {}".format(routing_key))
         topics = []
         remove = []
-        subscriptions = dict()
         remove_topics = []
         if routing_key is None:
             if callback is None:
-                return []
+                for prefix in self._my_subscriptions:
+                    subscriptions = self._my_subscriptions[prefix]
+                    for queue_name in subscriptions.keys():
+                        self.core().connection.channel.queue_delete(
+                            callback=None, queue=queue_name)
+                        subscriptions.pop(queue_name)
+                    topics.append(prefix)
             else:
                 # Traverse through all subscriptions to find the callback
                 for prefix in self._my_subscriptions:

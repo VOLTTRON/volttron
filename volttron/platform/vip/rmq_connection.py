@@ -55,24 +55,27 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
+import errno
+import json
 import logging
 import os
 
-import pika
-import errno
-
-from volttron.platform import jsonapi
+from volttron.platform import is_rabbitmq_available
 from volttron.platform.agent.utils import get_fq_identity
-from volttron.platform.vip.socket import Message
 from volttron.platform.vip import BaseConnection
 from volttron.platform.vip.agent.errors import Unreachable
+from volttron.platform.vip.socket import Message
+
+if is_rabbitmq_available():
+    import pika
+
 
 _log = logging.getLogger(__name__)
 # reduce pika log level
 logging.getLogger("pika").setLevel(logging.WARNING)
 RMQ_RESOURCE_LOCKED = 405
 CONNECTION_FORCED = 320
+
 
 class RMQConnection(BaseConnection):
     """
@@ -82,6 +85,27 @@ class RMQConnection(BaseConnection):
     3. Sends and receives messages using Pika library APIs
     """
     def __init__(self, url, identity, instance_name, reconnect_delay=30, vc_url=None):
+        """
+        The `RMQConnection` class provides  a connection to the rabbitmq message bus for both local and
+        remote VOLTTRON instances.  The idenity parameter must be non qualified from the reference
+        of the VOLTTRON instance this class is connecting to.  In other words
+        if this is a local connection the non qualified identity should be used.  But in the case of a remote
+        connection the identity should be prefixed with the <localinstancename.>.  An example is as follows:
+
+        With the following:
+            - local agent identity: platform.agent
+            - local instance name: v1
+            - remote instance name: v2
+
+        For the local connection to v1, platform.agent should be passed as the identy parameter to this class.  For
+        a remote connection to v2, v1.platform.agent should be passed to the identity parameter.
+
+        :param url:
+        :param identity:
+        :param instance_name:
+        :param reconnect_delay:
+        :param vc_url:
+        """
         super(RMQConnection, self).__init__(url, identity, instance_name)
         self._connection = None
         self.channel = None
@@ -93,17 +117,19 @@ class RMQConnection(BaseConnection):
             self._url = url
 
         self._connection_param = url
-        if identity.startswith(instance_name):
-            self.routing_key = self._vip_queue_name = self._rmq_userid = identity
-        else:
-            self.routing_key = self._vip_queue_name = self._rmq_userid = get_fq_identity(identity)
+
+        self.routing_key = self._vip_queue_name = self._rmq_userid = get_fq_identity(identity, instance_name)
         self.exchange = 'volttron'
         self._connect_callback = None
         self._connect_error_callback = None
         self._queue_properties = dict()
         self._explicitly_closed = False
         self._reconnect_delay = reconnect_delay
-        #_log.debug("ROUTING KEY: {}".format(self.routing_key))
+        self._vip_handler = None
+        self._error_handler = None
+        self._instance_name = instance_name
+        self._identity = identity
+        # _log.debug("identity KEY: {}".format(self.routing_key))
 
     def open_connection(self):
         """
@@ -260,13 +286,14 @@ class RMQConnection(BaseConnection):
         self._connect_error_callback = connection_error_callback
         self.open_connection()
 
-    def register(self, handler):
+    def register(self, vip_handler, error_handler=None):
         """
         Register VIP handler to be invoked to handle incoming messages
         :param handler: VIP handler callback method
         :return:
         """
-        self._vip_handler = handler
+        self._vip_handler = vip_handler
+        self._error_handler = error_handler
 
     def rmq_message_handler(self, channel, method, props, body):
         """

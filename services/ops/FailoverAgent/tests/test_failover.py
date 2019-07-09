@@ -32,6 +32,7 @@ primary_failover = None
 secondary_failover = None
 vc_uuid = None
 
+
 def tcp_to(instance):
 
     tmp = tempfile.NamedTemporaryFile()
@@ -58,6 +59,8 @@ def failover(request, get_volttron_instances):
     global primary_failover
     global secondary_failover
     global vc_uuid
+
+    pytest.skip("Coordination with VC not implemted")
 
     primary, secondary, vc = get_volttron_instances(3)
     primary.allow_all_connections()

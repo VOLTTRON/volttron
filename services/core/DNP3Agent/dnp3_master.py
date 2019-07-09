@@ -108,6 +108,32 @@ class DNP3Master:
         self.port = port
         self.connect()
 
+    def send_read_command(self, group, variation, index):
+        """
+            Request to read a point data from outstation
+
+        :param group: group of the point data
+        :param variation: variation of the point data
+        :param index: index of the point data
+        :param data_type: 'analog' or 'binary'
+        """
+        self.master.PerformFunction('READ',
+                                    opendnp3.FunctionCode.READ,
+                                    [opendnp3.Header().Range16(group, variation, index, index + 1)])
+
+    def send_unsolicited_response_command(self, group, variation, index):
+        """
+           Unsolicited response that was not prompted by an explicit request
+
+        :param group: group of the point data
+        :param variation: variation of the point data
+        :param index: index of the point data
+        :param data_type: 'analog' or 'binary'
+        """
+        self.master.PerformFunction('UNSOLICITED_RESPONSE',
+                                    opendnp3.FunctionCode.UNSOLICITED_RESPONSE,
+                                    [opendnp3.Header().Range16(group, variation, index, index + 1)])
+
     def send_direct_operate_command(self, command, index, callback=asiodnp3.PrintingCommandCallback.Get(),
                                     config=opendnp3.TaskConfig().Default()):
         """

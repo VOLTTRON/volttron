@@ -10,7 +10,7 @@ Description
 
 The weather service agent will provide  API to access current weather data,
 historical data and weather forecast data.  There are several weather data
-providers some paid and some free. Weather data providers differs from one
+providers, some paid and some free. Weather data providers differs from one
 and other
 
   1. In the kind of features provided - current data, historical data, forecast
@@ -18,6 +18,7 @@ and other
   2. The data points returned
   3. The naming schema used to represent the data returned
   4. Units of data returned
+  5. Frequency of data updates
 
 The weather service agent would have a design similar to historians. There
 would be a single base weather service that defines the api signatures and

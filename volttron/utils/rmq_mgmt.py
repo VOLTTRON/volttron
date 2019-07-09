@@ -38,7 +38,11 @@
 
 import logging
 import ssl
-import pika
+
+from volttron.platform import is_rabbitmq_available
+
+if is_rabbitmq_available():
+    import pika
 
 from volttron.platform.agent.utils import get_fq_identity
 
@@ -50,6 +54,12 @@ from requests.packages.urllib3.connection import (ConnectionError,
 from volttron.platform import certs
 from volttron.platform import jsonapi
 from . rmq_config_params import RMQConfig
+
+try:
+    import yaml
+except ImportError:
+    raise RuntimeError('PyYAML must be installed before running this script ')
+
 
 _log = logging.getLogger(__name__)
 
@@ -760,6 +770,7 @@ class RabbitMQMgmt(object):
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
         crt = self.rmq_config.crts
         heartbeat_interval = 20 #sec
+
         try:
             if ssl_auth:
                 ssl_options = dict(
@@ -794,7 +805,7 @@ class RabbitMQMgmt(object):
             return None
         return conn_params
 
-    def build_remote_connection_param(self, rmq_user, rmq_address, ssl_auth=None):
+    def build_remote_connection_param(self, rmq_user, rmq_address, ssl_auth=None, retry_attempt=30, retry_delay=2):
         """
         Build Pika Connection parameters
         :param rmq_user: RabbitMQ user
@@ -827,6 +838,8 @@ class RabbitMQMgmt(object):
                     port= parsed_addr.port,
                     virtual_host=virtual_host,
                     ssl=True,
+                    connection_attempts=retry_attempt,
+                    retry_delay=retry_delay,
                     ssl_options=ssl_options,
                     credentials=pika.credentials.ExternalCredentials())
             else:

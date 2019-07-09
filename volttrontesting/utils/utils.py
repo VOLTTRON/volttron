@@ -11,6 +11,26 @@ from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent import utils
 
 
+import os
+import subprocess
+
+
+def is_running_in_container():
+    # type: () -> bool
+    """ Determines if we're running in an lxc/docker container. """
+    out = subprocess.check_output('cat /proc/1/sched', shell=True)
+    out = out.decode('utf-8').lower()
+    checks = [
+        'docker' in out,
+        '/lxc/' in out,
+        out.split()[0] not in ('systemd', 'init',),
+        os.path.exists('/.dockerenv'),
+        os.path.exists('/.dockerinit'),
+        os.getenv('container', None) is not None
+    ]
+    return any(checks)
+
+
 def get_hostname_and_random_port(min_ip=5000, max_ip=6000):
     with open('/etc/hostname') as fp:
         hostname = fp.read().strip()
