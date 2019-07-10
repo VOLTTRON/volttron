@@ -36,19 +36,19 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+import csv
 import datetime
 import os
-import ujson
-import csv
+import sqlite3
+
 import gevent
 import pytest
-import sqlite3
 from mock import MagicMock
+
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_weather import BaseWeatherAgent
-from volttron.platform.messaging.health import *
-from volttron.platform.messaging import topics
 from volttron.platform.agent.utils import get_fq_identity
+from volttron.platform.messaging.health import *
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -547,7 +547,7 @@ def test_get_current_valid_locations(weather, fake_locations):
         # Check data got cached
         query = "SELECT * FROM 'get_current_weather';"
         cache_results = cursor.execute(query).fetchall()
-        assert ujson.loads(cache_results[0][1]) == fake_locations[0]
+        assert jsonapi.loads(cache_results[0][1]) == fake_locations[0]
         time_in_cache = False
         for x in range(0, len(cache_results)):
             for result in results1:
@@ -556,12 +556,12 @@ def test_get_current_valid_locations(weather, fake_locations):
                     time_in_cache = True
             assert time_in_cache
         # assert results1 and cached data are same
-        assert ujson.loads(cache_results[0][3]) == results1[0][
+        assert jsonapi.loads(cache_results[0][3]) == results1[0][
             "weather_results"]
 
         # update cache before querying again
         cursor.execute("UPDATE get_current_weather SET POINTS = ?",
-                       (ujson.dumps({"points": {"fake": "updated cache"}}),))
+                       (jsonapi.dumps({"points": {"fake": "updated cache"}}),))
         conn.commit()
 
         # second query - results should be from cache
@@ -592,16 +592,16 @@ def test_get_current_valid_locations(weather, fake_locations):
         # check data got cached again
         query = "SELECT * FROM get_current_weather ORDER BY ID;"
         cache_results = cursor.execute(query).fetchall()
-        print cache_results
+        print(cache_results)
         assert len(cache_results) == 2 * len(fake_locations)
-        assert ujson.loads(cache_results[1][1]) in fake_locations
+        assert jsonapi.loads(cache_results[1][1]) in fake_locations
         for result in results3:
             time_in_cache = False
             for x in range(0, len(cache_results)):
                 if result["observation_time"] == format_timestamp(
                         cache_results[x][2]):
                     # assert results1 and cached data are same
-                    assert ujson.loads(cache_results[x][3]) == result[
+                    assert jsonapi.loads(cache_results[x][3]) == result[
                         "weather_results"]
                     time_in_cache = True
             assert time_in_cache
@@ -672,7 +672,7 @@ def test_get_forecast_valid_locations(weather, fake_locations):
     # 1. initial run. cache is empty should return from BasicWeatherAgent's
     # query_current
     result1 = weather.get_hourly_forecast(fake_locations)
-    print result1
+    print(result1)
     if not len(fake_locations):
         assert len(result1) == 0
     else:
@@ -681,28 +681,28 @@ def test_get_forecast_valid_locations(weather, fake_locations):
         # Check data got cached
         query = "SELECT * FROM 'get_hourly_forecast';"
         cache_result = cursor.execute(query).fetchall()
-        print cache_result
+        print(cache_result)
 
         # assert result1 and cached data are same
         validate_cache_result_forecast(fake_locations, result1, cache_result)
 
         # update cache before querying again.
         cursor.execute("UPDATE get_hourly_forecast SET POINTS = ?",
-                       (ujson.dumps({"points": {"fake": "updated cache"}}),))
+                       (jsonapi.dumps({"points": {"fake": "updated cache"}}),))
         conn.commit()
 
         # 2. second query - results should still be got from api since not
         # enough
         # rows are in cache
         result2 = weather.get_hourly_forecast(fake_locations)
-        print result2
+        print(result2)
         validate_basic_weather_forecast(fake_locations, result2)
 
         # assert result2 and cached data are same
         query = "SELECT * FROM 'get_hourly_forecast' " \
                 "ORDER BY GENERATION_TIME DESC;"
         cache_result = cursor.execute(query).fetchall()
-        print cache_result
+        print(cache_result)
         validate_cache_result_forecast(fake_locations, result2, cache_result)
 
         # 3. third query - results should be from cache. update cache so we know
@@ -710,12 +710,12 @@ def test_get_forecast_valid_locations(weather, fake_locations):
         cursor.execute("UPDATE get_hourly_forecast "
                        "SET POINTS = ? "
                        "WHERE GENERATION_TIME= ?",
-                       (ujson.dumps({"points": {"fake": "updated cache"}}),
+                       (jsonapi.dumps({"points": {"fake": "updated cache"}}),
                         result2[0]["generation_time"]))
         conn.commit()
         # set hours to 2 so cached data is sufficient
         result3 = weather.get_hourly_forecast(fake_locations, hours=2)
-        print result3
+        print(result3)
         validate_basic_weather_forecast(fake_locations, result3, warn=False,
                                         hours=2)
 
@@ -735,7 +735,7 @@ def test_get_forecast_valid_locations(weather, fake_locations):
         query = "SELECT * FROM 'get_hourly_forecast' " \
                 "ORDER BY GENERATION_TIME DESC;"
         cache_result = cursor.execute(query).fetchall()
-        print cache_result
+        print(cache_result)
         validate_cache_result_forecast(fake_locations, result4, cache_result)
 
 
@@ -747,8 +747,8 @@ def validate_cache_result_forecast(locations, api_result, cache_result):
                 for record in result["weather_results"]:
                     if utils.format_timestamp(cr[3]).startswith(record[0]):
                         time_in_results = True
-                        assert ujson.loads(cr[1]) in locations
-                        assert record[1] == ujson.loads(cr[4])
+                        assert jsonapi.loads(cr[1]) in locations
+                        assert record[1] == jsonapi.loads(cr[4])
                         break
         assert time_in_results
 
@@ -1055,7 +1055,7 @@ def test_unhandled_cache_store_exception(volttron_instance, weather,
         conn.commit()
         # workaround to open the file in read only mode
         weather._cache._sqlite_conn.close()
-        os.chmod(weather._database_file, 0444)
+        os.chmod(weather._database_file, 0o444)
         weather._cache._sqlite_conn = sqlite3.connect(weather._database_file)
         query_agent.alert_callback.reset_mock()
         results1 = query_agent.vip.rpc.call(identity,
@@ -1067,7 +1067,7 @@ def test_unhandled_cache_store_exception(volttron_instance, weather,
         assert query_agent.alert_callback.call_count == 1
         assert query_agent.alert_callback.call_args[0][4]['alert_key'] == \
             "Cache write failed"
-        assert ujson.loads(query_agent.alert_callback.call_args[0][5])[
+        assert jsonapi.loads(query_agent.alert_callback.call_args[0][5])[
             'context'] == "Weather agent failed to write to cache"
 
         # ensure the correct warning has been given
@@ -1092,7 +1092,7 @@ def test_unhandled_cache_store_exception(volttron_instance, weather,
         assert query_agent.alert_callback.call_count == 1
         assert query_agent.alert_callback.call_args[0][4]['alert_key'] == \
             "Cache write failed"
-        assert ujson.loads(query_agent.alert_callback.call_args[0][5])[
+        assert jsonapi.loads(query_agent.alert_callback.call_args[0][5])[
                    'context'] == "Weather agent failed to write to cache"
         write_warning = False
         for warning in results2["weather_warnings"]:
@@ -1103,7 +1103,7 @@ def test_unhandled_cache_store_exception(volttron_instance, weather,
         assert results1["observation_time"] != results2["observation_time"]
     finally:
         weather._cache._sqlite_conn.close()
-        os.chmod(weather._database_file, 0666)
+        os.chmod(weather._database_file, 0o666)
         weather._cache._sqlite_conn = sqlite3.connect(weather._database_file)
 
 
@@ -1135,10 +1135,10 @@ def test_unhandled_cache_read_exception(volttron_instance, weather,
                "alerts/BasicWeatherAgent/{}".format(fq_identity)
         assert first_call[4]['alert_key'] == \
             "Cache read failed"
-        assert ujson.loads(first_call[5])['context'] == \
+        assert jsonapi.loads(first_call[5])['context'] == \
             "Weather agent failed to read from cache"
         assert second_call[4]['alert_key'] == "Cache write failed"
-        assert ujson.loads(second_call[5])['context'] == \
+        assert jsonapi.loads(second_call[5])['context'] == \
             "Weather agent failed to write to cache"
         # results should be retrieved from the remote api
         assert len(results2["weather_results"]["points"]) == 4
