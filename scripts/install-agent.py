@@ -147,7 +147,7 @@ def install_agent(opts, package, config):
     out = execute_command(cmds, env=env, logger=log,
                           err_prefix="Error installing agent")
 
-    parsed = out.split("\n")
+    parsed = out.decode('utf-8').split("\n")
 
     # If there is not an agent with that identity:
     # 'Could not find agent with VIP IDENTITY "BOO". Installing as new agent
