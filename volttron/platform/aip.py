@@ -375,14 +375,8 @@ class AIPplatform(object):
 
     def _authorize_agent_keys(self, agent_uuid, identity):
         publickey = self.get_agent_keystore(agent_uuid).public
-        msg = get_messagebus()
-        if msg == 'rmq':
-            instance_name = get_platform_instance_name()
-            user = instance_name + '.' + identity
-        else:
-            user = identity
-        entry = AuthEntry(credentials=publickey, user_id=user,
-                          capabilities={'edit_config_store': {'identity': user}},
+        entry = AuthEntry(credentials=publickey, user_id=identity,
+                          capabilities={'edit_config_store': {'identity': identity}},
                           comments='Automatically added on agent install')
         try:
             AuthFile().add(entry)

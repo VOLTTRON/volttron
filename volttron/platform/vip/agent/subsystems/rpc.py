@@ -44,6 +44,7 @@ import os
 import sys
 import traceback
 import weakref
+import re
 
 import gevent.local
 from gevent.event import AsyncResult
@@ -258,6 +259,8 @@ class RPC(SubsystemBase):
         '''
         def checked_method(*args, **kwargs):
             user = str(self.context.vip_message.user)
+            if self._message_bus == "rmq":
+                user = user.split(".")[1]
             _log.debug("Current user in checked_method is {}".format(user))
             user_capabilites = self._owner.vip.auth.get_capabilities(user)
             _log.debug("**user caps is: {}".format(user_capabilites))
@@ -272,16 +275,16 @@ class RPC(SubsystemBase):
             else:
                 # Now check if args passed to method are the ones allowed.
 
-                for cap_name, parma_dict in user_capabilites.iteritems():
-                    if parma_dict and required_caps and cap_name in required_caps:
+                for cap_name, param_dict in user_capabilites.iteritems():
+                    if param_dict and required_caps and cap_name in required_caps:
                         # if the method has required capabilities and
                         # if the user capability has argument restrictions, check if the args passed to method
                         # match the requirement
                         _log.debug("args = {} kwargs= {}".format(args, kwargs))
                         args_dict = inspect.getcallargs(method, *args, **kwargs)
                         _log.debug("dict = {}".format(args_dict))
-                        _log.debug("name= {} parameters allowed={}".format(cap_name, parma_dict))
-                        for name, value in parma_dict.iteritems():
+                        _log.debug("name= {} parameters allowed={}".format(cap_name, param_dict))
+                        for name, value in param_dict.iteritems():
                             _log.debug("name= {} value={}".format(name, value))
                             if name not in args_dict:
                                 raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED,

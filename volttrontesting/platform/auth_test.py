@@ -92,6 +92,7 @@ def test_authorized_rpc_call1(volttron_instance_encrypt):
     result = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=2)
     assert result == 42
 
+
 @pytest.mark.auth
 def test_unauthorized_rpc_call2(volttron_instance_encrypt):
     """Tests an agent with one capability calling a method that
