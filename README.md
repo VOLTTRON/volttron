@@ -35,12 +35,12 @@ http://ryanstutorials.net/linuxtutorial/
 
  ```sh
     sudo apt-get update
-    sudo apt-get install build-essential python3-dev pythone3-venv openssl libssl-dev libevent-dev git
+    sudo apt-get install build-essential python3.6-dev pythone3.6-venv openssl libssl-dev libevent-dev git
  ```
  On Redhat or CENTOS systems, these can all be installed with the following command:
  ```sh
    sudo yum update
-   sudo yum install make automake gcc gcc-c++ kernel-devel python3-devel pythone3-venv openssl openssl-devel libevent-devel git
+   sudo yum install make automake gcc gcc-c++ kernel-devel python3.6-devel pythone3.6-venv openssl openssl-devel libevent-devel git
  ```
 
  ### 2. Clone VOLTTRON code

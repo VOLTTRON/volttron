@@ -91,7 +91,6 @@ default_rmq_dir = os.path.join(os.path.expanduser("~"), "rabbitmq_server")
 rabbitmq_server = 'rabbitmq_server-3.7.7'
 
 
-
 def shescape(args):
     '''Return a sh shell escaped string composed of args.'''
     return ' '.join('{1}{0}{1}'.format(arg.replace('"', '\\"'),
@@ -99,121 +98,20 @@ def shescape(args):
 
 
 def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
-    """Download latest virtualenv and create a virtual environment.
-
-    The virtual environment will be created in the given directory. The
-    shell prompt in the virtual environment can be overridden by setting
-    prompt and a specific version of virtualenv can be used by passing
-    the version string into version.
-    """
-    # Imports used only for bootstrapping the environment
-    import contextlib
     import shutil
-    import tarfile
-    import tempfile
+    args = [sys.executable, "-m", "venv", dest, "--prompt", prompt]
 
-    class EnvBuilder(object):
-        '''Virtual environment builder.
+    complete = subprocess.run(args, stdout=subprocess.PIPE)
+    if complete.returncode != 0:
+        sys.stdout.write(complete.stdout.decode('utf-8'))
+        shutil.rmtree(dest, ignore_errors=True)
+        sys.exit(1)
 
-        The resulting python executable will be set in the env_exe
-        attribute.
-        '''
-
-        __slots__ = ['version', 'prompt', 'env_exe']
-
-        def __init__(self, version=None, prompt=None):
-            '''Allow overriding version and prompt.'''
-            self.version = version
-            self.prompt = prompt
-            self.env_exe = None
-
-        def _fetch(self, url):
-            '''Open url and return the response object (or bail).'''
-            _log.info('Fetching %s', url)
-            response = urlopen(url)
-            if response.getcode() != 200:
-                _log.error('Server response is %s %s',
-                           response.code, response.msg)
-                _log.fatal('Download failed!')
-                sys.exit(1)
-            return response
-
-        def _url_available(self, url):
-            '''Open url and if response is 200 then return True else return False'''
-            _log.debug('Checking url %s', url)
-            try:
-                response = urlopen(url)
-                if response.getcode() != 200:
-                    return False
-            except HTTPError:
-                return False
-            return True
-
-        def get_version(self):
-            """Return the latest version from virtualenv DOAP record."""
-            _log.info('Downloading virtualenv package information')
-            default_version = "16.0.0"
-            url = 'https://pypi.python.org/pypi/virtualenv/json'
-            # with contextlib.closing(self._fetch(url)) as response:
-            #     result = json.load(response)
-            #     releases_dict = result.get("releases", {})
-            #     releases = sorted(
-            #         [LooseVersion(x) for x in releases_dict.keys()])
-            # if releases:
-            #     _log.info('latest release of virtualenv={}'.format(releases[-1]))
-            #     return str(releases[-1])
-            # else:
-            #     _log.info("Returning default version of virtualenv "
-            #               "({})".format(default_version))
-            #     return default_version
-            return default_version
-
-        def download(self, directory):
-            """Download the virtualenv tarball into directory."""
-            if self.version is None:
-                self.version = self.get_version()
-            url = ('https://pypi.python.org/packages/source/v/virtualenv/'
-                   'virtualenv-{}.tar.gz'.format(self.version))
-            _log.info('Downloading virtualenv %s', self.version)
-            tarball = os.path.join(directory, 'virtualenv.tar.gz')
-            with contextlib.closing(self._fetch(url)) as response:
-                with open(tarball, 'wb') as file:
-                    shutil.copyfileobj(response, file)
-            with contextlib.closing(tarfile.open(tarball, 'r|gz')) as archive:
-                archive.extractall(directory)
-
-        def create(self, directory, verbose=None):
-            '''Create a virtual environment in directory.'''
-            tmpdir = tempfile.mkdtemp()
-            try:
-                self.download(tmpdir)
-                args = [sys.executable]
-                args.append(os.path.join(tmpdir, 'virtualenv-{}'.format(
-                    self.version), 'virtualenv.py'))
-                if verbose is not None:
-                    args.append('--verbose' if verbose else '--quiet')
-                if self.prompt:
-                    args.extend(['--prompt', prompt])
-                args.append(directory)
-                _log.debug('+ %s', shescape(args))
-                subprocess.check_call(args)
-                if _WINDOWS:
-                    self.env_exe = os.path.join(
-                        directory, 'Scripts', 'python.exe')
-                else:
-                    self.env_exe = os.path.join(directory, 'bin', 'python')
-                assert(os.path.exists(self.env_exe))
-            finally:
-                shutil.rmtree(tmpdir, ignore_errors=True)
-
-    _log.info('Creating virtual Python environment')
-    builder = EnvBuilder(prompt=prompt, version=version)
-    builder.create(dest, verbose)
-    return builder.env_exe
+    return os.path.join(dest, "bin/python")
 
 
 def pip(operation, args, verbose=None, upgrade=False, offline=False):
-    '''Call pip in the virtual environment to perform operation.'''
+    """Call pip in the virtual environment to perform operation."""
     cmd = ['pip', operation]
     if verbose is not None:
         cmd.append('--verbose' if verbose else '--quiet')
@@ -227,8 +125,8 @@ def pip(operation, args, verbose=None, upgrade=False, offline=False):
     subprocess.check_call(cmd)
 
 
-def update(operation, verbose=None, upgrade=False, offline=False, optional_requirements=[], rmq_dir=None):
-    '''Install dependencies in setup.py and requirements.txt.'''
+def update(operation, verbose=None, upgrade=False, offline=False, optional_requirements=[]):
+    """Install dependencies in setup.py and requirements.txt."""
     assert operation in ['install', 'wheel']
     wheeling = operation == 'wheel'
     path = os.path.dirname(__file__) or '.'
@@ -258,8 +156,8 @@ def update(operation, verbose=None, upgrade=False, offline=False, optional_requi
 
     try:
         # Install rmq server if needed
-        if rmq_dir:
-            install_rabbit(rmq_dir)
+        if 'rabbitmq' in optional_requirements:
+            install_rabbit(default_rmq_dir)
     except Exception as exc:
         _log.error("Error installing RabbitMQ package {}".format(traceback.format_exc()))
 
@@ -323,8 +221,9 @@ def install_rabbit(rmq_install_dir):
     with open(os.path.expanduser("~/.volttron_rmq_home"), 'w+') as f:
         f.write(rmq_home)
 
+
 def main(argv=sys.argv):
-    '''Script entry point.'''
+    """Script entry point."""
 
     # Refuse to run as root
     if not getattr(os, 'getuid', lambda: -1)():
@@ -333,13 +232,13 @@ def main(argv=sys.argv):
         sys.exit(77)
 
     # Python3 for life!
-    if sys.version_info[:2] != (3, 6):
+    if sys.version_info.major < 3 or sys.version_info.minor < 6:
         sys.stderr.write('error: Python >= 3.6 is required\n')
         sys.exit(1)
 
     # Build the parser
     python = os.path.join('$VIRTUAL_ENV',
-                          'Scripts' if _WINDOWS  else 'bin', 'python')
+                          'Scripts' if _WINDOWS else 'bin', 'python')
     if _WINDOWS:
         python += '.exe'
     parser = argparse.ArgumentParser(
@@ -348,13 +247,13 @@ def main(argv=sys.argv):
         usage='\n  bootstrap: python3.6 %(prog)s [options]'
               '\n  update:    {} %(prog)s [options]'.format(python),
         prog=os.path.basename(argv[0]),
-        epilog='''
+        epilog="""
             The first invocation of this script, which should be made
             using the system Python, will create a virtual Python
             environment in the 'env' subdirectory in the same directory as
             this script or in the directory given by the --envdir option.
             Subsequent invocations of this script should use the Python
-            executable installed in the virtual environment.'''
+            executable installed in the virtual environment."""
     )
     verbose = parser.add_mutually_exclusive_group()
     verbose.add_argument(
@@ -447,7 +346,7 @@ def main(argv=sys.argv):
         try:
             # Refuse to create environment in existing, non-empty
             # directory without the --force flag.
-            if os.listdir(options.envdir):
+            if os.path.exists(options.envdir):
                 if not options.force:
                     parser.print_usage(sys.stderr)
                     print('{}: error: directory exists and is not empty: {}'
@@ -467,8 +366,7 @@ def main(argv=sys.argv):
         args = [env_exe, __file__]
         if options.verbose is not None:
             args.append('--verbose' if options.verbose else '--quiet')
-        # if options.rabbitmq is not None:
-        #     args.append('--rabbitmq={}'.format(options.rabbitmq))
+
         # Transfer dynamic properties to the subprocess call 'update'.
         # Clip off the first two characters expecting long parameter form.
         for arg in options.optional_args:
