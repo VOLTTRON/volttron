@@ -758,15 +758,21 @@ class PubSub(SubsystemBase):
             param ident: event id
             param ident: float
         """
+
+        # #2074 the self._pubsubwithrpc attribute is delete when we have
+        # successfully determined that we are not connected to a backward
+        # compatible with volttron 4.0
         try:
             parameters = self._pubsubwithrpc.parameters.pop(id)
             event = parameters['event']
             event.cancel()
         except KeyError:
             return
+        except AttributeError:
+            pass
 
         try:
-            result = self._results.parameters.pop(id)
+            result = self._results.pop(id)
             result.set_exception(gevent.Timeout)
         except KeyError:
             return
