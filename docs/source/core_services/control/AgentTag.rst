@@ -5,7 +5,7 @@ Tagging Agents
 
 Agents can be tagged as they are installed with:
 
-``volttron-ctl install <TAG>=<AGENT_PACKAGE>``
+``volttron-ctl install <AGENT_PACKAGE> --tag <TAG>``
 
 Agents can be tagged after installation with:
 

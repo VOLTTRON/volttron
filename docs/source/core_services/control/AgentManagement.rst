@@ -63,7 +63,7 @@ package to be installed on the platform.
 
 Agents can also be installed with a :ref:`tag <AgentTag>` by using:
 
-``volttron-ctl install <TAG>=<PACKAGE>``
+``volttron-ctl install <PACKAGE> --tag <TAG>``
 
 This allows the user to refer to the agent with "--tag " instead of the
 uuid when issuing commands. This tag can also distinguish instances of
