@@ -10,34 +10,10 @@ The Weather agent, another VOLTTRON service agent, retrieves weather information
 shares it with agents running on the platform. The first step to launching the Weather agent is to obtain a developer
 key from Weather Underground.
 
-Obtaining a Developer Key from Weather Underground
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. note::
 
-Follow these steps to create a Weather Underground account and obtain a developer key.
+    Free API is no longer provided by Weather Underground since the beginning of 2019.
 
-- Go to Weather Underground site (Figure 1) the following URL http://www.wunderground.com/weather/api/
-- Select, Sign Up for FREE
-
-
-.. image:: files/signup.png
-Figure 1: Weather Underground Website
-
-- The window should now look similar to Figure 2. Enter your information to create an account.
-
-.. image:: files/signup2.png
-Figure 2: Setting up a developer account
-
-- Select a plan that meets your needs. Login to with your username and password and click on
-“Explore my options button.” For most applications, the free plan will be adequate.
-The window should appear similar to Figure 3:
-
-.. image:: files/plan.png
-Figure 3: Creating a Weather Underground API key
-
-- You now have access to your Weather Underground API key. An example API key is shown in the red box of Figure 4:
-
-.. image:: files/key.png
-Figure 4: Weather Underground API key
 
 Configuring Weather Agent with API Key and Location
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -51,21 +27,21 @@ From the base VOLTTRON directory, enter the following terminal commands:
 
 .. code-block:: bash
 
-    $ nano services/core/weather/settings.py
+    $ nano services/core/WeatherAgent/weather/settings.py
 
-- Enter a Weather Underground Developer key, as shown in Figure 5:
+- Enter a Weather Underground Developer key, as shown in Figure 1:
 
 .. image:: files/settings.png
-Figure 5: Entering the Weather Underground Developer Key
+Figure 1: Entering the Weather Underground Developer Key
 
 
-- Open the Weather agent’s configuration file and edit the “zip” field, as shown in Figure 6:
+- Open the Weather agent’s configuration file and edit the “zip” field, as shown in Figure 2:
 .. code-block:: bash
 
-    $ nano WeatherAgent/weatheragent.config
+    $ nano config/weatheragent.config
 
 .. image:: files/config.png
-Figure 6: Entering Zip Code for Location
+Figure 2: Entering Zip Code for Location
 
 Launching the Weather Agent
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -93,7 +69,7 @@ Now you can run ./make-weather to stop, remove, build, and reinstall in one scri
 volttron-ctl start –tag weather
 
 .. image:: files/output.png
-Figure 7: Example Output from the Weather Agent
+Figure 3: Example Output from the Weather Agent
 
 
 
