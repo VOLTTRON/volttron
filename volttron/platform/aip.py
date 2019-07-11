@@ -499,7 +499,7 @@ class AIPplatform(object):
         if '/' in agent_uuid or agent_uuid in ['.', '..']:
             raise ValueError('invalid agent')
         identity_file = os.path.join(self.install_dir, agent_uuid, 'IDENTITY')
-        with ignore_enoent, open(identity_file, 'r') as file:
+        with ignore_enoent, open(identity_file, 'rt') as file:
             return file.readline(64)
 
     def agent_tag(self, agent_uuid):

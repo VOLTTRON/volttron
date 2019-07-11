@@ -437,9 +437,9 @@ class _Socket(object):
         peer = peer.encode('utf-8') if isinstance(peer, str) else peer
         msg_id = msg_id.encode('utf-8') if isinstance(msg_id, str) else msg_id
 
-        _log.debug("SEND VIP: peer={}, subsystem={}, args={}, msg_id={}, user={}, type(msg_id)={}".format(
-            peer, subsystem, args, msg_id, user, type(msg_id)
-        ))
+        # _log.debug("SEND VIP: peer={}, subsystem={}, args={}, msg_id={}, user={}, type(msg_id)={}".format(
+        #     peer, subsystem, args, msg_id, user, type(msg_id)
+        # ))
         with self._sending(flags) as flags:
             state = self._send_state
             if state > 0:

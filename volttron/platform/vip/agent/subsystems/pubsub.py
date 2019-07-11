@@ -301,7 +301,6 @@ class PubSub(SubsystemBase):
         """
         result = next(self._results)
 
-        # TODO: Look at differences here!
         subscriptions = {platform: {bus: list(subscriptions.keys())}
                          for platform, bus_subscriptions in self._my_subscriptions.items()
                          for bus, subscriptions in bus_subscriptions.items()}
