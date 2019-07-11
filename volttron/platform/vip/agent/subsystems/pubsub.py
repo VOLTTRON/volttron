@@ -317,8 +317,12 @@ class PubSub(SubsystemBase):
                 kwargs = dict(op='synchronize', subscriptions=subscriptions)
                 self._save_parameters(result.ident, **kwargs)
             self.vip_socket.send_vip(b'', b'pubsub', frames, result.ident.encode('utf-8'), copy=False)
+
+        # 2073 - python3 dictionary keys method returns a dict_keys structure that isn't serializable.
+        #        added list(subscriptions.keys()) to make it like python2 list of strings.
         items = [
-            {platform: {bus: subscriptions.keys()} for platform, bus_subscriptions in self._my_subscriptions.items()
+            {platform: {bus: list(subscriptions.keys())}
+             for platform, bus_subscriptions in self._my_subscriptions.items()
              for bus, subscriptions in bus_subscriptions.items()}]
         for subscriptions in items:
             sync_msg = jsonapi.dumpb(
