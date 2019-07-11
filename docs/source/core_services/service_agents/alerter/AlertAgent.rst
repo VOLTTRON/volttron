@@ -12,7 +12,7 @@ a device contains volatile points that may not be published.
 Configuration
 -------------
 
-Topics are organied by groups. Any alerts raised will summarize all missing
+Topics are organized by groups. Any alerts raised will summarize all missing
 topics in the group.
 
 Individual topics have two configuration options. For standard topics

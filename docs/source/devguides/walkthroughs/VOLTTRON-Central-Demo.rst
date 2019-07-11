@@ -129,7 +129,7 @@ or
 .. note:: In each of the above examples one could use * suffix to match more
 than one agent.
 
-Open your browser to `localhost:8080/vc/index.hmtl` and and log in with the
+Open your browser to `localhost:8080/vc/index.html` and and log in with the
 credentials you provided. The platform agents should be automatically register
 with VOLTTRON central.
 

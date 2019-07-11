@@ -1,7 +1,7 @@
 .. _Fake-Driver:
 Fake Device Driver Configuration
 --------------------------------
-This driver does not connect to any actual device and instead produces random and or pre-configured values.
+This driver does not connect to any actual device and instead produces pre-configured values.
 
 driver_config
 *************

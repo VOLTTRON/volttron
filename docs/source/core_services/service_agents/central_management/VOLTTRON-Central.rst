@@ -5,10 +5,10 @@ VOLTTRON Central Management Agent
 Agent Introduction
 ==================
 
-The VOLTTRON Central Agent (VCM) is responsible for controlling multiple
-VOLTTRON instances through a single interfaces.  The VOLTTRON instances
+The VOLTTRON Central Management (VCM) Agent is responsible for controlling multiple
+VOLTTRON instances through a single interface.  The VOLTTRON instances
 can be either local or remote.  VCM leverages an internal VOLTTRON web server
-providing a interface to our JSON-RPC based web api.  Both the web api and
+providing an interface to our JSON-RPC based web api.  Both the web api and
 the interface are served through the VCM agent. There is a :ref:`VOLTTRON Central Demo <VOLTTRON-Central-Demo>` that will allow you to quickly setup and see the current offerings of the interface. 
 VOLTTRON Central will allow you to
 

@@ -5,10 +5,10 @@ Obix History Agent
 
 The Obix History Agent captures data history data from an Obix RESTful interface and publishes
 it to the message bus like a driver for capture by agents and historians. The Agent will setup
-its queries to ensure that data is only publishes once. For points queried for the first time
+its queries to ensure that data is only published once. For points queried for the first time
 it will go back in time and publish old data as configured. 
 
-The data will be colated into device all publishs automatically and will use a timestamp in the
+The data will be collated into device all publishs automatically and will use a timestamp in the
 header based on the timestamps reported by the Obix interface. The publishes will be made in chronological order.
 
 Units data is automatically read from the device.
