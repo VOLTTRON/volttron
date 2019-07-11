@@ -744,7 +744,7 @@ def execute_command_p(cmds, env=None, cwd=None, logger=None, err_prefix=None):
             raise RuntimeError()
         else:
             raise RuntimeError(err_message)
-    return results.returncode, results.stdout
+    return results.returncode, results.stdout.decode('utf-8')
 
 
 def is_volttron_running(volttron_home):
