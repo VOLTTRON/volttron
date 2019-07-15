@@ -176,12 +176,12 @@ class ExecutionEnvironment(object):
     end and all resources to be returned to the system.
     '''
 
-    def __init__(self, secure_users, agent_dir=None):
+    def __init__(self, secure_users, data_dir=None):
         self.process = None
         self.env = None
         self.agent_user = None
-        if secure_users and agent_dir:
-            with open("{}/USER_ID".format(agent_dir), "r+") as user_id:
+        if secure_users and data_dir:
+            with open("{}/USER_ID".format(data_dir), "r+") as user_id:
                 self.agent_user = user_id.readline()
 
     def execute(self, *args, **kwargs):
@@ -228,11 +228,10 @@ class AIPplatform(object):
                 raise RuntimeError("Add volttron_agent group failed - Prevent "
                                    "creation of agent users")
 
-    def add_agent_user(self, agent_dir):
+    def add_agent_user(self, agent_name, agent_install_dir):
         """
         Invokes sudo to create a unique unix user for the agent.
         """
-        # TODO timestamp with millis?
         volttron_agent_user = "volttron_{}".format(
             str(get_utc_seconds_from_epoch()).replace(".", ""))
         try:
@@ -241,10 +240,8 @@ class AIPplatform(object):
         except KeyError:
             _log.info("Creating volttron user {}".format(volttron_agent_user))
             self.add_agent_user_group()
-            # useradd = ['sudo', 'useradd', volttron_agent_user, '-G',
-            #                    'volttron_{}'.format(instance_name), '-d', agent_dir]
             useradd = ['sudo', 'useradd', volttron_agent_user, '-G',
-                       'volttron_agent', '-d', agent_dir]
+                       'volttron_agent', '-d', agent_install_dir]
             useradd_process = subprocess.Popen(
                 useradd, stdout=PIPE, stderr=PIPE)
             stdout, stderr = useradd_process.communicate()
@@ -252,8 +249,14 @@ class AIPplatform(object):
                 # TODO alert?
                 raise RuntimeError("Creating {} user failed: {}".format(
                     volttron_agent_user, stderr))
-            with open("{}/USER_ID".format(agent_dir), 'w') as name_file:
-                _log.info("Storing USER_ID file at {}".format(agent_dir))
+            data_dir = os.path.join(
+                agent_install_dir, agent_name, "{}.agent-data".format(agent_name))
+            if not os.path.isdir(data_dir):
+                _log.info("Creating agent's data directory: {}".format(
+                    data_dir))
+                os.mkdir(data_dir)
+            with open("{}/USER_ID".format(data_dir), 'w') as name_file:
+                _log.info("Storing USER_ID file at {}".format(data_dir))
                 name_file.write(volttron_agent_user)
             return volttron_agent_user
 
@@ -278,12 +281,11 @@ class AIPplatform(object):
         acl_perms = "u:{}:rw".format(volttron_agent_user)
         name = self.agent_name(agent_uuid)
         agent_path_with_name = os.path.join(agent_dir, name)
-        data_dir = self._get_data_dir(agent_path_with_name)
-        if not os.path.isdir(data_dir):
-            _log.info("Creating agent's data directory...")
-            os.mkdir(data_dir)
+        data_dir = self._get_agent_data_dir(agent_path_with_name)
+
         _log.info("Setting read/write permissions for {} on agent's data "
                   "directory".format(volttron_agent_user))
+
         permissions_command = ['setfacl', '-R', '-m', acl_perms, data_dir]
         permissions_process = subprocess.Popen(permissions_command,
                                                stdout=subprocess.PIPE,
@@ -427,7 +429,8 @@ class AIPplatform(object):
                 agent_uuid, vip_identity=vip_identity)
 
             if self.secure_agent_user:
-                created_user = self.add_agent_user(agent_path)
+                created_user = self.add_agent_user(self.agent_name(agent_uuid),
+                                                   agent_path)
                 self.set_agent_user_directory_permissions(created_user,
                                                           agent_uuid,
                                                           agent_path)
@@ -442,6 +445,7 @@ class AIPplatform(object):
         except Exception:
             shutil.rmtree(agent_path)
             raise
+
         return agent_uuid
 
     def _setup_agent_vip_id(self, agent_uuid, vip_identity=None):
@@ -500,7 +504,7 @@ class AIPplatform(object):
         agent_path = os.path.join(self.install_dir, agent_uuid)
         name = self.agent_name(agent_uuid)
         agent_path_with_name = os.path.join(agent_path, name)
-        data_dir = self._get_data_dir(agent_path_with_name)
+        data_dir = self._get_agent_data_dir(agent_path_with_name)
         keystore_path = os.path.join(data_dir, 'keystore.json')
         return KeyStore(keystore_path)
 
@@ -517,10 +521,20 @@ class AIPplatform(object):
         publickey = self.get_agent_keystore(agent_uuid).public
         AuthFile().remove_by_credentials(publickey)
 
-    def _get_data_dir(self, agent_path):
+    def _get_agent_data_dir(self, agent_path):
         pkg = UnpackedPackage(agent_path)
+
         data_dir = os.path.join(os.path.dirname(pkg.distinfo),
                                 '{}.agent-data'.format(pkg.package_name))
+        if not os.path.exists(data_dir):
+            os.mkdir(data_dir)
+        return data_dir
+
+    def _get_data_dir(self, agent_path, agent_name):
+        pkg = UnpackedPackage(agent_path)
+        data_dir = os.path.join(os.path.dirname(pkg.distinfo),
+                                agent_name,
+                                'data')
         if not os.path.exists(data_dir):
             os.mkdir(data_dir)
         return data_dir
@@ -753,10 +767,6 @@ class AIPplatform(object):
         agent_dir = os.path.join(self.install_dir, agent_uuid)
         agent_path = os.path.join(agent_dir, name)
 
-        if self.secure_agent_user:
-            _log.info("Running Volttron agents securely with Unix Users.")
-            self.add_agent_user(agent_dir)
-
         execenv = self.agents.get(agent_uuid)
         if execenv and execenv.process.poll() is None:
             _log.warning('request to start already running agent %s',
@@ -818,6 +828,7 @@ class AIPplatform(object):
         environ['AGENT_VIP_IDENTITY'] = agent_vip_identity
 
         module, _, func = module.partition(':')
+
         if func:
             code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module,
                                                                       func)
@@ -825,9 +836,11 @@ class AIPplatform(object):
         else:
             argv = [sys.executable, '-m', module]
         resmon = getattr(self.env, 'resmon', None)
+
         if resmon is None:
-            execenv = ExecutionEnvironment(self.secure_agent_user,
-                                           agent_dir=agent_dir)
+            execenv = ExecutionEnvironment(
+                self.secure_agent_user, data_dir=self._get_agent_data_dir(
+                    agent_path))
         else:
             # TODO either port this into the Execution environment class or
             #  remove?
@@ -835,8 +848,15 @@ class AIPplatform(object):
             execreqs = self._read_execreqs(pkg.distinfo)
             execenv = self._reserve_resources(resmon, execreqs)
         execenv.name = name or agent_path
+
+        if self.secure_agent_user:
+            _log.info("Running Volttron agents securely with Unix Users.")
+            self.add_agent_user(name, agent_dir)
+
         _log.info('starting agent %s', agent_path)
-        data_dir = self._get_data_dir(agent_path)
+
+        data_dir = self._get_data_dir(agent_path, module.split(".")[0])
+        
         execenv.execute(argv, cwd=data_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
         self.agents[agent_uuid] = execenv

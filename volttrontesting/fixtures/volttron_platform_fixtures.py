@@ -51,7 +51,7 @@ def cleanup_wrappers(platforms):
 
 @pytest.fixture(scope="module",
                 params=[dict(messagebus='zmq', ssl_auth=False),
-                        rmq_skipif(dict(messagebus='rmq', ssl_auth=True))
+                        # rmq_skipif(dict(messagebus='rmq', ssl_auth=True))
                         ])
 def volttron_instance_msgdebug(request):
     print("building msgdebug instance")
