@@ -323,6 +323,10 @@ class PlatformWrapper:
         os.environ.update(self.env)
         self.allow_all_connections()
 
+        if identity is None:
+            # Set identity here instead of AuthEntry creating one and use that identity to create Connection class.
+            # This is to ensure that RMQ test cases get the correct current user that matches the auth entry made
+            identity = str(uuid.uuid4())
         if address is None:
             self.logit(
                 'Default address was None so setting to current instances')
@@ -350,7 +354,8 @@ class PlatformWrapper:
                           secretkey=secretkey, serverkey=serverkey,
                           instance_name=self.instance_name,
                           message_bus=self.messagebus,
-                          volttron_home=self.volttron_home)
+                          volttron_home=self.volttron_home,
+                          identity=identity)
 
         return conn
 
