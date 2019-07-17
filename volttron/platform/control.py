@@ -115,6 +115,11 @@ class ControlService(BaseAgent):
         self.crashed_agents = {}
         self.agent_monitor_frequency = int(agent_monitor_frequency)
 
+        if self.core.publickey is None or self.core.secretkey is None:
+            self.core.publickey, self.core.secretkey, _ = self.core._get_keys_from_addr()
+        if self.core.publickey is None or self.core.secretkey is None:
+            self.core.publickey, self.core.secretkey = self.core._get_keys_from_keystore()
+
     @Core.receiver('onsetup')
     def _setup(self, sender, **kwargs):
         if not self._tracker:

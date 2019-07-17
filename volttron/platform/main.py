@@ -703,7 +703,7 @@ def start_volttron_process(opts):
         # Authorize the platform key:
         entry = AuthEntry(credentials=encode_key(publickey),
                           user_id='platform',
-                          capabilities=[{'edit_config_store': {'identity': 'platform'}}],
+                          capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
         # Add platform key to known-hosts file:
@@ -939,7 +939,12 @@ def start_volttron_process(opts):
                           enable_store=False,
                           message_bus='zmq')
         ]
-        
+        entry = AuthEntry(credentials=services[0].core.publickey,
+                          user_id='control',
+                          capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
+                          comments='Automatically added by platform on start')
+        AuthFile().add(entry, overwrite=True)
+
         # Begin the webserver based options here.
         if opts.bind_web_address is not None:
             if opts.instance_name is None:
