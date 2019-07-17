@@ -70,6 +70,9 @@ _ROOT_PACKAGE_PATH = os.path.dirname(
 _log = logging.getLogger(__name__)
 
 
+def _isregex(obj):
+    return obj is not None and len(obj) > 1 and obj[0] == obj[-1] == '/'
+
 class Dispatcher(jsonrpc.Dispatcher):
     def __init__(self, methods, local):
         super(Dispatcher, self).__init__()
@@ -291,7 +294,15 @@ class RPC(SubsystemBase):
                                                                   "User capability is not defined "
                                                                   "properly. method {} does not have "
                                                                   "a parameter {}".format(method.__name__, name))
-                            if args_dict[name] != value:
+                            if _isregex(value):
+                                regex = re.compile('^' + value[1:-1] + '$')
+                                if not regex.match(args_dict[name]):
+                                    raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED,
+                                                                      "User can call method {} only "
+                                                                      "with {} matching pattern {} but called with "
+                                                                      "{}={}".format(method.__name__, name, value,
+                                                                                     name, args_dict[name]))
+                            elif args_dict[name] != value:
                                 raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED,
                                                                   "User can call method {} only "
                                                                   "with {}={} but called with "
