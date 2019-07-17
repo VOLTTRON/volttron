@@ -75,7 +75,7 @@ def auth_add_cmd_line(platform, entry):
         if isinstance(v, list):
             v = ','.join(v)
         if v:
-            args.extend(['--' + k, v])
+            args.extend(['--' + k, json.dumps(v)])
 
     if not enabled:
         args.append('--disabled')

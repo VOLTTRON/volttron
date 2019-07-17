@@ -1130,6 +1130,17 @@ def _comma_split(line):
     return [word.strip() for word in line.split(',')]
 
 
+def _parse_capabilities(line):
+    if not isinstance(line, basestring):
+        return line
+    line = line.strip()
+    try:
+       result = json.loads(line.replace("'", "\""))
+    except Exception as e:
+        result = _comma_split(line)
+    return result
+
+
 def add_auth(opts):
     """Add authorization entry.
 
@@ -1143,7 +1154,7 @@ def add_auth(opts):
         "user_id": opts.user_id,
         "groups": _comma_split(opts.groups),
         "roles": _comma_split(opts.roles),
-        "capabilities": _comma_split(opts.capabilities),
+        "capabilities": _parse_capabilities(opts.capabilities),
         "comments": opts.comments,
     }
 
