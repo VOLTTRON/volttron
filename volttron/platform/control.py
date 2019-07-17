@@ -2031,11 +2031,12 @@ def create_ssl_keypair(opts):
 
 
 def export_pkc12_from_identity(opts):
+def export_pkcs12_from_identity(opts):
 
     fq_identity = get_fq_identity(opts.identity)
 
     certs = Certs()
-    certs.export_pkc12(fq_identity, opts.outfile)
+    certs.export_pkcs12(fq_identity, opts.outfile)
 
 
 def main(argv=sys.argv):
@@ -2244,6 +2245,9 @@ def main(argv=sys.argv):
                              help=argparse.SUPPRESS)
     upgrade.set_defaults(func=upgrade_agent, verify_agents=True)
 
+    # ====================================================
+    # certs commands
+    # ====================================================
     cert_cmds = add_parser("certs",
                            help="manage certificate creation")
 
@@ -2257,14 +2261,16 @@ def main(argv=sys.argv):
                                              "the root ca of this platform.")
     create_ssl_keypair_cmd.set_defaults(func=create_ssl_keypair)
 
-    export_pkc12 = add_parser("export-pkc12", subparser=certs_subparsers,
+    export_pkcs12 = add_parser("export-pkcs12", subparser=certs_subparsers,
                              help="create a PKCS12 encoded file containing private and public key from an agent. "
                                   "this function is useful to create a java key store using a p12 file.")
-    export_pkc12.add_argument("identity", help="identity of the agent to export")
-    export_pkc12.add_argument("outfile", help="file to write the PKCS12 file to")
-    export_pkc12.set_defaults(func=export_pkc12_from_identity)
+    export_pkcs12.add_argument("identity", help="identity of the agent to export")
+    export_pkcs12.add_argument("outfile", help="file to write the PKCS12 file to")
+    export_pkcs12.set_defaults(func=export_pkcs12_from_identity)
 
-
+    # ====================================================
+    # auth commands
+    # ====================================================
     auth_cmds = add_parser("auth",
                            help="manage authorization entries and encryption keys")
 
@@ -2403,6 +2409,9 @@ def main(argv=sys.argv):
                                   help='remove (rather than append) given capabilities')
     auth_update_role.set_defaults(func=update_role)
 
+    # ====================================================
+    # config commands
+    # ====================================================
     config_store = add_parser("config",
                               help="manage the platform configuration store")
 
@@ -2509,7 +2518,9 @@ def main(argv=sys.argv):
 
     if message_bus == 'rmq':
         rmq_mgmt = RabbitMQMgmt()
-        # Add commands
+        # ====================================================
+        # rabbitmq commands
+        # ====================================================
         rabbitmq_cmds = add_parser("rabbitmq", help="manage rabbitmq")
         rabbitmq_subparsers = rabbitmq_cmds.add_subparsers(title='subcommands',
                                                            metavar='',

@@ -371,7 +371,7 @@ class Certs(object):
             if not os.path.exists(p):
                 os.makedirs(p, 0o755)
 
-    def export_pkc12(self, name, outfile):
+    def export_pkcs12(self, name, outfile):
         cert_file = self.cert_file(name)
         key_file = self.private_key_file(name)
 
