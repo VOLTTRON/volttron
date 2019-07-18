@@ -40,23 +40,22 @@ import hashlib
 import os
 import sys
 import tempfile
-from urllib.parse import urlparse
-
 from configparser import ConfigParser
 from shutil import copy
+from urllib.parse import urlparse
+
 from gevent import subprocess
 from gevent.subprocess import Popen
 from zmq import green as zmq
+
 from volttron.platform import certs, is_rabbitmq_available
 from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import MASTER_WEB, PLATFORM_DRIVER, VOLTTRON_CENTRAL
-
 from volttron.platform.agent.utils import get_platform_instance_name
-from volttron.utils.prompt import prompt_response, y, n, y_or_n
-from volttron.utils.rmq_setup import setup_rabbitmq_volttron, _create_certs
-from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils import get_hostname
-
+from volttron.utils.prompt import prompt_response, y, n, y_or_n
+from volttron.utils.rmq_config_params import RMQConfig
+from volttron.utils.rmq_setup import setup_rabbitmq_volttron
 from . import get_home, get_services_core, set_home
 
 # Global configuration options.  Must be key=value strings.  No cascading
@@ -229,7 +228,7 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
 def is_valid_url(url, accepted_schemes):
     if url is None:
         return False
-    parsed = urlparse.urlparse(url)
+    parsed = urlparse(url)
     if parsed.scheme not in accepted_schemes:
         return False
     if not parsed.hostname:
@@ -327,11 +326,11 @@ def do_message_bus():
 
     config_opts['message-bus'] = bus_type
 
+
 def do_vip():
     global config_opts
 
-    parsed = urlparse.urlparse(config_opts.get('vip-address',
-                                               'tcp://127.0.0.1:22916'))
+    parsed = urlparse(config_opts.get('vip-address', 'tcp://127.0.0.1:22916'))
     vip_address = None
     if parsed.hostname is not None and parsed.scheme is not None:
         vip_address = parsed.scheme + '://' + parsed.hostname
@@ -387,7 +386,7 @@ def do_web_enabled_rmq(vhome):
     full_bind_web_address = config_opts.get('bind-web-address',
             'https://' + get_hostname())
 
-    parsed = urlparse.urlparse(full_bind_web_address)
+    parsed = urlparse(full_bind_web_address)
 
     address_only = full_bind_web_address
     port_only = None
@@ -419,7 +418,7 @@ def do_web_enabled_rmq(vhome):
     while external_ip.endswith("/"):
         external_ip = external_ip[:-1]
 
-    parsed = urlparse.urlparse(external_ip)
+    parsed = urlparse(external_ip)
 
     config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
 
@@ -432,7 +431,7 @@ def do_web_enabled_zmq(vhome):
     full_bind_web_address = config_opts.get('bind-web-address',
             'https://' + get_hostname())
 
-    parsed = urlparse.urlparse(full_bind_web_address)
+    parsed = urlparse(full_bind_web_address)
 
     address_only = full_bind_web_address
     port_only = None
@@ -468,12 +467,13 @@ def do_web_enabled_zmq(vhome):
     while external_ip.endswith("/"):
         external_ip = external_ip[:-1]
 
-    parsed = urlparse.urlparse(external_ip)
+    parsed = urlparse(external_ip)
 
     config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
 
     if config_opts['message-bus'] == 'zmq' and parsed.scheme == "https":
         get_cert_and_key(vhome)
+
 
 @installs(get_services_core("VolttronCentral"), 'vc')
 def do_vc():
@@ -482,6 +482,7 @@ def do_vc():
 
     print('Installing volttron central.')
     return resp
+
 
 def vc_config():
     username = ''
@@ -508,7 +509,7 @@ def vc_config():
     config = {
         'users': {
             username: {
-                'password': hashlib.sha512(password).hexdigest(),
+                'password': hashlib.sha512(password.encode('utf-8')).hexdigest(),
                 'groups': ['admin']
             }
         }
@@ -591,6 +592,7 @@ def get_cert_and_key(vhome):
                 config_opts['web-ssl-cert'] = master_web_cert
                 config_opts['web-ssl-key'] = master_web_key
 
+
 def is_file_readable(file_path, log=True):
     file_path = os.path.expanduser(os.path.expandvars(file_path))
     if os.path.exists(file_path) and os.access(file_path, os.R_OK):
@@ -600,13 +602,14 @@ def is_file_readable(file_path, log=True):
             print("\nInvalid file path. Path does not exists or is not readable.")
         return False
 
+
 @installs(get_services_core("VolttronCentralPlatform"), 'vcp')
 def do_vcp():
     global config_opts
     is_vc = False
     vctl_list_process = Popen(['vctl','list'], env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     vctl_list = vctl_list_process.communicate()
-    vctl_list_output = ''.join(vctl_list)
+    vctl_list_output = ''.join([v.decode('utf-8') for v in vctl_list])
 
     # Default instance name to the vip address.
     instance_name = config_opts.get('instance-name',
@@ -636,10 +639,10 @@ def do_vcp():
         
     except KeyError:
         vc_address = config_opts.get('volttron-central-address',
-                                 config_opts.get('bind-web-address',
+                                     config_opts.get('bind-web-address',
                                      'https://' + get_hostname()))
-    if is_vc == False:
-        parsed = urlparse.urlparse(vc_address)
+    if not is_vc:
+        parsed = urlparse(vc_address)
         address_only = vc_address
         port_only = None
         if parsed.port is not None:
