@@ -109,7 +109,7 @@ else:
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
-logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.INFO)
+logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.DEBUG)
 logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 VOLTTRON_INSTANCES = '~/.volttron_instances'
 
@@ -645,7 +645,7 @@ def start_volttron_process(opts):
             if not os.path.isfile(opts.web_ssl_key) or not os.path.isfile(opts.web_ssl_cert):
                 raise Exception("zmq https requires a web-ssl-key and a web-ssl-cert file.")
     if opts.volttron_central_address:
-        parsed = urlparse.urlparse(opts.volttron_central_address)
+        parsed = urlparse(opts.volttron_central_address)
         if parsed.scheme not in ('http', 'https', 'tcp', 'amqp', 'amqps'):
             raise Exception(
                 'volttron-central-address must begin with tcp, amqp, amqps, http or https.')
