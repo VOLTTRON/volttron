@@ -43,7 +43,7 @@ from urllib.parse import urlparse
 
 from jinja2 import TemplateNotFound
 from passlib.hash import argon2
-from watchdog_gevent import Observer
+#from watchdog_gevent import Observer
 
 from ...platform import get_home
 from ...platform import jsonapi
@@ -67,12 +67,13 @@ class AdminEndpoints(object):
         self._ssl_public_key = ssl_public_key
         self._userdict = None
         self.reload_userdict()
-        self._observer = Observer()
-        self._observer.schedule(
-            FileReloader("web-users.json", self.reload_userdict),
-            get_home()
-        )
-        self._observer.start()
+        # TODO Add back reload capability
+        # self._observer = Observer()
+        # self._observer.schedule(
+        #     FileReloader("web-users.json", self.reload_userdict),
+        #     get_home()
+        # )
+        # self._observer.start()
         self._certs = Certs()
 
     def reload_userdict(self):

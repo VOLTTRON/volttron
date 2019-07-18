@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 import jwt
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from passlib.hash import argon2
-from watchdog_gevent import Observer
+#from watchdog_gevent import Observer
 
 from volttron.platform import get_home
 from volttron.platform.agent.web import Response
@@ -36,12 +36,13 @@ class AuthenticateEndpoints(object):
         self._ssl_private_key = ssl_private_key
         self._userdict = None
         self.reload_userdict()
-        self._observer = Observer()
-        self._observer.schedule(
-            FileReloader("web-users.json", self.reload_userdict),
-            get_home()
-        )
-        self._observer.start()
+        # TODO Add back reload capability
+        # self._observer = Observer()
+        # self._observer.schedule(
+        #     FileReloader("web-users.json", self.reload_userdict),
+        #     get_home()
+        # )
+        # self._observer.start()
 
     def reload_userdict(self):
         webuserpath = os.path.join(get_home(), 'web-users.json')

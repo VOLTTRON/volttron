@@ -1,9 +1,7 @@
 import os
 import pytest
-from random import randint
-import socket
-import uuid
 
+from volttrontesting.utils.platform_process import VolttronRuntimeOptions, VolttronProcess
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 from volttrontesting.utils.utils import get_hostname_and_random_port, get_rand_vip, get_rand_ip_and_port
 from volttron.platform import is_rabbitmq_available
@@ -50,8 +48,9 @@ def cleanup_wrappers(platforms):
 
 
 @pytest.fixture(scope="module",
-                params=[dict(messagebus='zmq', ssl_auth=False),
-                        rmq_skipif(dict(messagebus='rmq', ssl_auth=True))
+                params=[dict(messagebus='zmq', ssl_auth=False)
+                    # ,
+                    #    rmq_skipif(dict(messagebus='rmq', ssl_auth=True))
                         ])
 def volttron_instance_msgdebug(request):
     print("building msgdebug instance")
@@ -100,8 +99,9 @@ def volttron_instance_module_web(request):
 # test
 @pytest.fixture(scope="module",
                 params=(
-                    dict(messagebus='zmq', ssl_auth=False),
-                    rmq_skipif(dict(messagebus='rmq', ssl_auth=True)),
+                    dict(messagebus='zmq', ssl_auth=False)
+                    # ,
+                    # rmq_skipif(dict(messagebus='rmq', ssl_auth=True)),
                 ))
 def volttron_instance(request, **kwargs):
     """Fixture that returns a single instance of volttron platform for testing
@@ -110,10 +110,11 @@ def volttron_instance(request, **kwargs):
     @return: volttron platform instance
     """
     address = kwargs.pop("vip_address", get_rand_vip())
-    wrapper = build_wrapper(address,
-                            messagebus=request.param['messagebus'],
-                            ssl_auth=request.param['ssl_auth'],
-                            **kwargs)
+    wrapper = build_wrapper(address, messagebus='zmq', ssl_auth=False, **kwargs)
+    # wrapper = build_wrapper(address,
+    #                         messagebus=request.param['messagebus'],
+    #                         ssl_auth=request.param['ssl_auth'],
+    #                         **kwargs)
 
     yield wrapper
 

@@ -528,7 +528,7 @@ class Core(BasicCore):
     def stop(self, timeout=None, platform_shutdown=False):
         # Send message to router that this agent is stopping
         if self.__connected and not platform_shutdown:
-            frames = [bytes(self.identity)]
+            frames = [self.identity.encode('utf-8')]
             self.connection.send_vip(b'', b'agentstop', args=frames, copy=False)
         super(Core, self).stop(timeout=timeout)
 
