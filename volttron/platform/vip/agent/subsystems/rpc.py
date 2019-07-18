@@ -71,7 +71,7 @@ _log = logging.getLogger(__name__)
 
 
 def _isregex(obj):
-    return obj is not None and len(obj) > 1 and obj[0] == obj[-1] == '/'
+    return obj is not None and isinstance(obj, str) and len(obj) > 1 and obj[0] == obj[-1] == '/'
 
 class Dispatcher(jsonrpc.Dispatcher):
     def __init__(self, methods, local):

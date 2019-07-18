@@ -141,14 +141,14 @@ def test_rpc_call_with_capability_and_param_restrictions(volttron_instance_encry
         agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=1)
         assert False
     except jsonrpc.RemoteError as e:
-        assert e.message == "User can call method foo only with x=1"
+        assert e.message == "User can call method foo only with x=1 but called with x=42"
 
     # Attempt calling agent1.foo with invalid parameter value using kwargs
     try:
         agent2.vip.rpc.call(agent1.core.identity, 'foo', x=42).get(timeout=1)
         assert False
     except jsonrpc.RemoteError as e:
-        assert e.message == "User can call method foo only with x=1"
+        assert e.message == "User can call method foo only with x=1 but called with x=42"
 
     # successful call
     result = agent2.vip.rpc.call(agent1.core.identity, 'foo', 1).get(timeout=1)
@@ -163,7 +163,7 @@ def test_rpc_call_with_capability_and_param_restrictions(volttron_instance_encry
         agent1.vip.rpc.call(agent2.core.identity, 'boo', 42, 43).get(timeout=1)
         assert False
     except jsonrpc.RemoteError as e:
-        assert e.message == "User can call method boo only with x=1"
+        assert e.message == "User can call method boo only with x=1 but called with x=42"
 
     x, y = agent1.vip.rpc.call(agent2.core.identity, 'boo', 1, 43).get(timeout=1)
     assert x == 1
@@ -178,22 +178,22 @@ def test_rpc_call_with_capability_and_param_restrictions(volttron_instance_encry
         agent1.vip.rpc.call(agent2.core.identity, 'boo', 1, 43).get(timeout=1)
         assert False
     except jsonrpc.RemoteError as e:
-        assert e.message == "User can call method boo only with y=2"
+        assert e.message == "User can call method boo only with y=2 but called with y=43"
 
     # Attempt calling agent2.boo with invalid parameter value for x and valid value for y.
     try:
         agent1.vip.rpc.call(agent2.core.identity, 'boo', 22, 2).get(timeout=1)
         assert False
     except jsonrpc.RemoteError as e:
-        assert e.message == "User can call method boo only with x=1"
+        assert e.message == "User can call method boo only with x=1 but called with x=22"
 
     # Attempt calling agent2.boo with invalid parameter value for x and y.
     try:
         agent1.vip.rpc.call(agent2.core.identity, 'boo', 22, 23).get(timeout=1)
         assert False
     except jsonrpc.RemoteError as e:
-        assert e.message == "User can call method boo only with x=1" or \
-               e.message == "User can call method boo only with y=2"
+        assert e.message == "User can call method boo only with x=1 but called with x=22" or \
+               e.message == "User can call method boo only with y=2 but called with y=23"
 
     # Attempt calling agent2.boo with valid parameter value for x and y.
     x, y = agent1.vip.rpc.call(agent2.core.identity, 'boo', 1, 2).get(timeout=1)

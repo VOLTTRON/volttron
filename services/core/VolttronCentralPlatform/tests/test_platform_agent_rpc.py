@@ -94,7 +94,8 @@ def vc_agent(setup_platform):
     """
     assert setup_platform.instance_name is not None
     agent = setup_platform.build_agent(identity='volttron.central')
-
+    capabilities = [{'edit_config_store': {'identity': VOLTTRON_CENTRAL_PLATFORM}}]
+    setup_platform.add_capabilities(agent.core.publickey, capabilities=capabilities)
     vcp_identity = None
 
     look_for_identity = setup_platform.instance_name + ".platform.agent"
