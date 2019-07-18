@@ -774,8 +774,12 @@ def status_agents(opts):
 
     def get_health(agent):
         try:
-            return opts.connection.server.vip.rpc.call(agent.vip_identity,
-                                                       'health.get_status_json').get(timeout=4)['status']
+            # TODO Modify this later so that we aren't calling peerlist before we call the status of the agent.
+            if agent.vip_identity in opts.connection.server.vip.peerlist().get(timeout=4):
+                return opts.connection.server.vip.rpc.call(agent.vip_identity,
+                                                           'health.get_status_json').get(timeout=4)['status']
+            else:
+                return ''
         except (VIPError, gevent.Timeout):
             return ''
 
