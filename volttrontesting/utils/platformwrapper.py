@@ -207,13 +207,10 @@ class PlatformWrapper:
         }
         self.volttron_root = VOLTTRON_ROOT
 
-        volttron_exe = execute_command(['which', 'volttron']).strip()
-
+        volttron_exe = os.path.dirname(sys.executable) + '/volttron'
         assert os.path.exists(volttron_exe)
-        self.python = os.path.join(os.path.dirname(volttron_exe), 'python')
-        if not os.path.exists(self.python):
-            self.python = execute_command(['which', 'python']).strip()
-            assert os.path.exists(self.python)
+        self.python = sys.executable
+        assert os.path.exists(self.python)
 
         # By default no web server should be started.
         self.bind_web_address = None
@@ -596,8 +593,9 @@ class PlatformWrapper:
         if self.messagebus:
             parser.set('volttron', 'message-bus',
                        self.messagebus)
+        # In python3 option values must be strings.
         parser.set('volttron', 'agent-monitor-frequency',
-                   agent_monitor_frequency)
+                   str(agent_monitor_frequency))
 
         self.logit(
             "Platform will run on message bus type {} ".format(self.messagebus))
