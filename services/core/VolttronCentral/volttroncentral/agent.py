@@ -301,7 +301,7 @@ class VolttronCentralAgent(Agent):
         for vip_id in disconnected:
             self._handle_platform_disconnect(vip_id)
 
-        not_known = connected_platforms - self._platforms.get_platform_keys()
+        not_known = connected_platforms - self._platforms.get_platform_vip_identities()
 
         for vip_id in not_known:
             self._handle_platform_connection(vip_id)
