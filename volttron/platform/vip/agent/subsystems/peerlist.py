@@ -151,7 +151,9 @@ class PeerList(SubsystemBase):
                 result = self._results.pop(bytes(message.id).decode('utf-8'))
             except KeyError:
                 return
-            result.set([bytes(arg) for arg in message.args[1:]])
+            # The response will have frames, we convert to bytes and then from bytes
+            # we decode to strings for the final response.
+            result.set([bytes(arg).decode('utf-8') for arg in message.args[1:]])
         elif op == b'listing_with_messagebus':
             try:
                 result = self._results.pop(bytes(message.id))

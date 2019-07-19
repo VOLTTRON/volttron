@@ -195,7 +195,7 @@ class ControlService(BaseAgent):
         # We want to keep the same interface so we convert the byte array to
         # string array when returning.
         peer_list = self.vip.peerlist().get(timeout=5)
-        return [x.decode('utf-8') for x in peer_list]
+        return peer_list
 
     @RPC.export
     def serverkey(self):
