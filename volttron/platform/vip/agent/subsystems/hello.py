@@ -115,7 +115,7 @@ class Hello(SubsystemBase):
                 result = self._results.pop(bytes(message.id).decode('utf-8'))
             except KeyError:
                 return
-            result.set([bytes(arg) for arg in message.args[1:]])
+            result.set([bytes(arg).decode('utf-8') for arg in message.args[1:]])
         else:
             _log.error('unknown hello subsystem operation')
 
