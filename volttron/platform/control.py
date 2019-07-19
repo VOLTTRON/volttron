@@ -192,7 +192,10 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def peerlist(self):
-        return self.vip.peerlist().get(timeout=5)
+        # We want to keep the same interface so we convert the byte array to
+        # string array when returning.
+        peer_list = self.vip.peerlist().get(timeout=5)
+        return [x.decode('utf-8') for x in peer_list]
 
     @RPC.export
     def serverkey(self):
@@ -2608,13 +2611,13 @@ def main(argv=sys.argv):
     # function
     # Below vctl commands can work even when volttron is not up. For others
     # volttron need to be up.
-    if len(args) > 0:
-        if args[0] not in ('list', 'tag', 'auth', 'rabbitmq'):
-            # check pid file
-            if not utils.is_volttron_running(volttron_home):
-                _stderr.write("VOLTTRON is not running. This command "
-                              "requires VOLTTRON platform to be running\n")
-                return 10
+    # if len(args) > 0:
+    #     if args[0] not in ('list', 'tag', 'auth', 'rabbitmq'):
+    #         # check pid file
+    #         if not utils.is_volttron_running(volttron_home):
+    #             _stderr.write("VOLTTRON is not running. This command "
+    #                           "requires VOLTTRON platform to be running\n")
+    #             return 10
 
     conf = os.path.join(volttron_home, 'config')
     if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
