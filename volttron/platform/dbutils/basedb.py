@@ -131,10 +131,10 @@ class DbDriver(object):
         if self.__connection is None:
             raise ConnectionError(
                 "Unknown error. Could not connect to database")
-        try:
-            self.stash.cursor = self.__connection.cursor()
-        except Exception as e:
-            raise ConnectionError(e), None, sys.exc_info()[2]
+
+        # if any exception happens here have it go to the caller.
+        self.stash.cursor = self.__connection.cursor()
+
         return self.stash.cursor
 
     def read_tablenames_from_db(self, meta_table_name):
