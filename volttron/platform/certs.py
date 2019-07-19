@@ -62,6 +62,7 @@ import six
 import time
 from shutil import copyfile
 from socket import gethostname, getfqdn
+import subprocess
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -369,6 +370,16 @@ class Certs(object):
         for p in required_paths:
             if not os.path.exists(p):
                 os.makedirs(p, 0o755)
+
+    def export_pkcs12(self, name, outfile):
+        cert_file = self.cert_file(name)
+        key_file = self.private_key_file(name)
+
+        cmd = ["openssl", "pkcs12", "-export",
+               "-out", outfile,
+               "-in", cert_file, "-inkey", key_file]
+
+        subprocess.check_call(cmd)
 
     def ca_cert(self, public_bytes=False):
         """
