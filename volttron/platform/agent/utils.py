@@ -37,8 +37,7 @@
 # }}}
 
 """VOLTTRON platform™ agent helper classes/functions."""
-# import this hear otherwise we get a recursive warning about
-# loading ssl before this module.
+
 
 import argparse
 import calendar
