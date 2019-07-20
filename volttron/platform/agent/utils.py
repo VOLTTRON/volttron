@@ -37,33 +37,36 @@
 # }}}
 
 """VOLTTRON platform™ agent helper classes/functions."""
+# import this hear otherwise we get a recursive warning about
+# loading ssl before this module.
 
 import argparse
 import calendar
 import errno
 import logging
+import os
+import re
+import stat
+import subprocess
 import sys
 import syslog
 import traceback
-from datetime import datetime, tzinfo, timedelta
+from configparser import ConfigParser
+from datetime import datetime
 
-import psutil
 import gevent
-import os
+# noinspection PyUnresolvedReferences
+import grequests
+import psutil
 import pytz
-import re
-import stat
-import time
 import yaml
-from volttron.platform import get_home, get_address
-from volttron.utils.prompt import prompt_response
 from dateutil.parser import parse
 from dateutil.tz import tzutc, tzoffset
 from tzlocal import get_localzone
+
+from volttron.platform import get_home, get_address
 from volttron.platform import jsonapi
-from configparser import ConfigParser
-import subprocess
-from subprocess import Popen
+from volttron.utils.prompt import prompt_response
 
 try:
     from ..lib.inotify.green import inotify, IN_MODIFY

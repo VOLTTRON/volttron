@@ -38,48 +38,45 @@
 
 import argparse
 import collections
-from volttron.platform import jsonapi
+import hashlib
 import logging
 import logging.handlers
 import os
 import re
 import shutil
+import subprocess
 import sys
+import tarfile
 import tempfile
 import traceback
 import uuid
-import hashlib
-import tarfile
-import subprocess
 from datetime import timedelta
 
-import requests
 import gevent
 import gevent.event
+# noinspection PyUnresolvedReferences
+import grequests
+import requests
+from requests.exceptions import ConnectionError
 
-from volttron.platform.vip.agent.subsystems.query import Query
+from volttron.platform import aip as aipmod
+from volttron.platform import config
 from volttron.platform import get_home, get_address
-from volttron.platform.messaging.health import Status, STATUS_BAD
-
+from volttron.platform import jsonapi
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
     CONFIGURATION_STORE
-from volttron.platform.vip.agent import Agent as BaseAgent, Core, RPC
-from volttron.platform import aip as aipmod
-from volttron.platform import config
-from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.auth import AuthEntry, AuthFile, AuthException
+from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.keystore import KeyStore, KnownHostsStore
-from volttron.platform.vip.socket import Message
-from volttron.utils.prompt import prompt_response, y, n, y_or_n
+from volttron.platform.messaging.health import Status, STATUS_BAD
+from volttron.platform.scheduling import periodic
+from volttron.platform.vip.agent import Agent as BaseAgent, Core, RPC
 from volttron.platform.vip.agent.errors import VIPError
+from volttron.platform.vip.agent.subsystems.query import Query
+from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import check_rabbit_status
-from volttron.utils.rmq_config_params import RMQConfig
-from requests.packages.urllib3.connection import (ConnectionError,
-                                                  NewConnectionError)
-from volttron.platform.scheduling import periodic
-
 
 try:
     import volttron.restricted
@@ -1631,7 +1628,7 @@ def add_vhost(opts):
         rmq_mgmt.create_vhost(opts.vhost)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error adding a Virtual Host: {} \n".format(opts.vhost))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1653,7 +1650,7 @@ def add_user(opts):
         rmq_mgmt.set_user_permissions(permissions, opts.user)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error Setting User permissions : {} \n".format(opts.user))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1677,7 +1674,7 @@ def add_exchange(opts):
         rmq_mgmt.create_exchange(opts.name, properties)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error Adding Exchange : {} \n".format(opts.name))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1691,7 +1688,7 @@ def add_queue(opts):
         rmq_mgmt.create_queue(opts.name, properties)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error Adding Queue : {} \n".format(opts.name))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1703,7 +1700,7 @@ def list_vhosts(opts):
             _stdout.write(item + "\n")
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Virtual Hosts Found: {} \n")
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1715,7 +1712,7 @@ def list_users(opts):
             _stdout.write(item + "\n")
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Users Found: {} \n")
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1727,7 +1724,7 @@ def list_user_properties(opts):
             _stdout.write("{0}: {1} \n".format(key, value))
     except requests.exceptions.HTTPError as e:
         _stdout.write("No User Found: {} \n".format(opts.user))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1739,7 +1736,7 @@ def list_exchanges(opts):
             _stdout.write(exch + "\n")
     except requests.exceptions.HTTPError as e:
         _stdout.write("No exchanges found \n")
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1751,7 +1748,7 @@ def list_exchanges_with_properties(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No exchanges found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1782,7 +1779,7 @@ def list_queues(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No queues found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1798,7 +1795,7 @@ def list_queues_with_properties(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No queues found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1831,7 +1828,7 @@ def list_connections(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No connections found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1844,7 +1841,7 @@ def list_fed_parameters(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Federation Parameters Found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1869,7 +1866,7 @@ def list_shovel_parameters(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Shovel Parameters Found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1904,7 +1901,7 @@ def list_bindings(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Bindings Found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1934,7 +1931,7 @@ def list_policies(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Policies Found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1958,7 +1955,7 @@ def remove_vhosts(opts):
             rmq_mgmt.delete_vhost(vhost)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Vhost Found {} \n".format(opts.vhost))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1969,7 +1966,7 @@ def remove_users(opts):
             rmq_mgmt.delete_user(user)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No User Found {} \n".format(opts.user))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1980,7 +1977,7 @@ def remove_exchanges(opts):
             rmq_mgmt.delete_exchange(e)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Exchange Found {} \n".format(opts.exchanges))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1991,7 +1988,7 @@ def remove_queues(opts):
             rmq_mgmt.delete_queue(q)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Queues Found {} \n".format(opts.queues))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -2002,7 +1999,7 @@ def remove_fed_parameters(opts):
             rmq_mgmt.delete_multiplatform_parameter('federation-upstream', param)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Federation Parameters Found {} \n".format(opts.parameters))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -2013,7 +2010,7 @@ def remove_shovel_parameters(opts):
             rmq_mgmt.delete_multiplatform_parameter('shovel', param)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Shovel Parameters Found {} \n".format(opts.parameters))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -2024,7 +2021,7 @@ def remove_policies(opts):
             rmq_mgmt.delete_policy(policy)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Policies Found {} \n".format(opts.policies))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
