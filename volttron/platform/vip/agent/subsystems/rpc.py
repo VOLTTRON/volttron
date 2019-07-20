@@ -382,7 +382,7 @@ class RPC(SubsystemBase):
         if request:
             if self._isconnected:
                 try:
-                    self.core().connection.send_vip(peer.econde('utf-8'), b'RPC', [request], msg_id=ident.econde('utf-8'))
+                    self.core().connection.send_vip(peer.encode('utf-8'), b'RPC', [request], msg_id=ident.encode('utf-8'))
                 except ZMQError as exc:
                     if exc.errno == ENOTSOCK:
                         _log.debug("Socket send on non socket {}".format(self.core().identity))

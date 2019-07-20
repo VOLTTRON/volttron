@@ -89,7 +89,7 @@ def test_vstart_without_rmq_init(request, instance):
             instance.startup_platform(vip_address=get_rand_vip())
             pytest.fail("Instance should not start without certs, but it does!")
         except Exception as e:
-            assert e.message.startswith("Platform startup failed. Please check volttron.log")
+            assert str(e).startswith("Platform startup failed. Please check volttron.log")
         assert not (instance.is_running())
     except Exception as e:
         pytest.fail("Test failed with exception: {}".format(e))
@@ -132,7 +132,7 @@ def test_vstart_expired_ca_cert(request, instance):
             instance.startup_platform(vip_address=get_rand_vip(), timeout=10)
             pytest.fail("platform should not start")
         except Exception as e:
-            assert e.message.startswith("Platform startup failed. Please check volttron.log")
+            assert str(e).startswith("Platform startup failed. Please check volttron.log")
         assert not (instance.is_running())
         # Rabbitmq log would show Fatal certificate expired
     except Exception as e:
@@ -160,7 +160,7 @@ def test_vstart_expired_server_cert(request, instance):
         try:
             instance.startup_platform(vip_address=get_rand_vip(), timeout=10)
         except Exception as e:
-            assert e.message.startswith("Platform startup failed. Please check volttron.log")
+            assert str(e).startswith("Platform startup failed. Please check volttron.log")
         assert not (instance.is_running())
         # Rabbitmq log would show
         # "TLS server: In state certify received CLIENT ALERT: Fatal -

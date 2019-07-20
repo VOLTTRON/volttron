@@ -350,7 +350,7 @@ def test_multiplatform_subscribe_unsubscribe(request, multi_platform_connection)
 
         message = subscription_results3['devices/campus/building1']['message']
         assert message == [{'point': 'value' + str(i)}]
-        print "pass"
+        print("pass")
 
     # Listener agent on platform 2 unsubscribes frm prefix='devices'
     p2_listener.vip.pubsub.unsubscribe(peer='pubsub', prefix='devices', callback=callback2, all_platforms=True)

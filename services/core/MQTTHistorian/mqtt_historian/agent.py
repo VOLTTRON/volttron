@@ -133,7 +133,7 @@ class MQTTHistorian(BaseHistorian):
         except Exception as e:
             _log.warning("Exception ({}) raised by publish: {}".format(
                 e.__class__.__name__,
-                e.message))
+                e))
             self._last_error = self.timestamp()
 
 

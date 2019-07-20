@@ -791,7 +791,7 @@ class ZMQCore(Core):
                         if self.socket is not None:
                             self.socket.monitor(None, 0)
                     except Exception as exc:
-                        _log.debug("Error in closing the socket: {}".format(exc.message))
+                        _log.debug("Error in closing the socket: {}".format(exc))
 
         self.onconnected.connect(hello_response)
         self.ondisconnected.connect(close_socket)
@@ -838,7 +838,7 @@ class ZMQCore(Core):
                     handle = self.subsystems[subsystem]
                 except KeyError:
                     _log.error('peer %r requested unknown subsystem %r',
-                               bytes(message.peer).encode("utf-8"), subsystem)
+                               message.peer.decode("utf-8"), subsystem)
                     message.user = b''
                     message.args = list(router._INVALID_SUBSYSTEM)
                     message.args.append(message.subsystem)

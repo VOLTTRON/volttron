@@ -1770,6 +1770,7 @@ def test_set_multiple_raises_lock_error(publish_agent, cancel_schedules):
 
         pytest.fail('Expecting LockError. Code returned: {}'.format(result))
     except Exception as e:
+        # TODO - check exc_info
         assert e.exc_info['exc_type'] == 'actuator.agent.LockError'
         assert e.message == \
             "caller ({}) does not lock for device {}".format(TEST_AGENT, 'fakedriver0')

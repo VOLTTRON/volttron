@@ -404,7 +404,7 @@ if __name__ == '__main__':
                 print("Total number of topics with the pattern{}: {}".format(
                     topic_pattern, max))
 
-                for i in xrange(0, max):
+                for i in range(0, max):
                     print("Processing topic: {} {}".format(topics[i]['_id'],
                                                            topics[i]['topic_name']))
                     pool.spawn(rollup_data, local_source_params,

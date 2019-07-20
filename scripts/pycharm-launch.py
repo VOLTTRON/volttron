@@ -133,9 +133,9 @@ if agent_identity:
                       ]
             output = subprocess.check_output(params, env=os.environ.copy(), universal_newlines=True)
         except subprocess.CalledProcessError as e:
-            sys.stderr.write(e.message)
+            sys.stderr.write(str(e))
             os.rmdir(new_dir)
-            sys.stderr.write(e.message)
+            sys.stderr.write(str(e))
             sys.stderr.write("Couldn't authenticate agent id: {}\n".format(
                 agent_identity
             ))
