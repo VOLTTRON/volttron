@@ -300,7 +300,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                            "{}".format(apdu.pduSource))
                 subscription = None
                 subscription_id = -1
-                for key, sub in self.sub_cov_contexts.iteritems():
+                for key, sub in self.sub_cov_contexts.items():
                     if sub.device_address == apdu.pduSource and (
                             sub.monitoredObjectIdentifier[0] ==
                             apdu.objectIdentifier[0] and
@@ -895,7 +895,7 @@ class BACnetProxyAgent(Agent):
         # if a subscription exists, send a cov subscription request
         # otherwise check the point's covIncrement
         subscription = None
-        for check_sub in self.this_application.sub_cov_contexts.itervalues():
+        for check_sub in self.this_application.sub_cov_contexts.values():
             if check_sub.point_name == point_name and \
                     check_sub.monitoredObjectIdentifier == (object_type, instance_number):
                 subscription = check_sub

@@ -117,7 +117,7 @@ class AlertAgent(Agent):
                             self.remote_address)
                         _log.error(status_context)
                         self._remote_agent = None
-                except gevent.Timeout, ZMQError:
+                except (gevent.Timeout, ZMQError):
                     _log.error("Exception creation remote agent")
                     status_context = "Couldn't connect to remote platform at: {}".format(
                         self.remote_address)

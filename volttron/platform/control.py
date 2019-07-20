@@ -1096,14 +1096,14 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
             mechanism = fields['mechanism']['response']
             AuthEntry.valid_credentials(creds, mechanism=mechanism)
         except AuthException as e:
-            return False, e.message
+            return False, str(e)
         return True, None
 
     def valid_mech(mech, fields):
         try:
             AuthEntry.valid_mechanism(mech)
         except AuthException as e:
-            return False, e.message
+            return False, str(e)
         return True, None
 
     asker = Asker()
@@ -1223,7 +1223,7 @@ def remove_auth(opts):
             msg = msg = 'removed entry at index {}'.format(opts.indices)
         _stdout.write(msg + '\n')
     except AuthException as err:
-        _stderr.write('ERROR: %s\n' % err.message)
+        _stderr.write('ERROR: %s\n' % str(err))
 
 
 def update_auth(opts):
@@ -1241,7 +1241,7 @@ def update_auth(opts):
     except IndexError:
         _stderr.write('ERROR: invalid index %s\n' % opts.index)
     except AuthException as err:
-        _stderr.write('ERROR: %s\n' % err.message)
+        _stderr.write('ERROR: %s\n' % str(err))
 
 
 def add_role(opts):

@@ -188,7 +188,7 @@ class BaseWeatherAgent(Agent):
             _log.error("Failed to load weather agent settings.")
             self.vip.health.set_status(STATUS_BAD,
                                        "Failed to load weather agent settings."
-                                       "Error: {}".format(e.message))
+                                       "Error: {}".format(e))
 
     # Configuration methods
 
@@ -430,10 +430,10 @@ class BaseWeatherAgent(Agent):
             self.configure(config)
         except Exception as e:
             _log.error("Failed to load weather agent settings with error:"
-                       "{}".format(e.message))
+                       "{}".format(e))
             self.vip.health.set_status(STATUS_BAD,
                                        "Configuration of weather agent failed "
-                                       "with error: {}".format(e.message))
+                                       "with error: {}".format(e))
         else:
             _log.debug("Configuration successful")
             try:
@@ -446,7 +446,7 @@ class BaseWeatherAgent(Agent):
                                            "Configuration of weather agent "
                                            "successful")
             except sqlite3.OperationalError as error:
-                _log.error(error.message)
+                _log.error(error)
                 self.vip.health.set_status(STATUS_BAD, "Cache failed to start "
                                                        "during configuration")
 
@@ -632,7 +632,7 @@ class BaseWeatherAgent(Agent):
             status = Status.from_json(self.vip.health.get_status_json())
             self.vip.health.send_alert(CACHE_READ_ERROR, status)
             _log.error("{}. Exception:{}".format(bad_cache_message,
-                                                 error.message))
+                                                 error))
             self.cache_read_error = True
             result[WEATHER_WARN] = [bad_cache_message]
         else:
@@ -677,7 +677,7 @@ class BaseWeatherAgent(Agent):
                                           "return any records"
         except Exception as error:
             _log.error(error)
-            result[WEATHER_ERROR] = error.message
+            result[WEATHER_ERROR] = str(error)
         return result
 
     @abstractmethod
@@ -920,7 +920,7 @@ class BaseWeatherAgent(Agent):
             status = Status.from_json(self.vip.health.get_status_json())
             self.vip.health.send_alert(CACHE_READ_ERROR, status)
             _log.error("{}. Exception:{}".format(bad_read_message,
-                                                 error.message))
+                                                 error))
             record_dict[WEATHER_WARN] = [bad_read_message]
             self.cache_read_error = True
         else:
@@ -1020,7 +1020,7 @@ class BaseWeatherAgent(Agent):
                 result[WEATHER_WARN] = warnings
         except Exception as error:
             _log.error(error)
-            result[WEATHER_ERROR] = error.message
+            result[WEATHER_ERROR] = str(error)
         return result
 
     def apply_mapping(self, record_dict):
@@ -1405,7 +1405,7 @@ class WeatherCache:
             cursor.close()
             return active_calls + num_calls <= self._calls_limit
         except AttributeError as error:
-            _log.error(error.message)
+            _log.error(str(error))
             # Add a call to the pending queue so we can track it later
             self.pending_calls.append(get_aware_utc_now())
             return True

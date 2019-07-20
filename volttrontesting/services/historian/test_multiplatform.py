@@ -202,7 +202,7 @@ def get_zmq_volttron_instances(request):
         for i in range(0, n):
             address = vip_addresses.pop(0)
             web_address = web_addresses.pop(0)
-            print address, web_address
+            print(address, web_address)
             instances[i].startup_platform(address, bind_web_address=web_address)
             instances[i].allow_all_connections()
         gevent.sleep(11)
@@ -254,7 +254,7 @@ def test_all_platform_subscription_zmq(request, get_zmq_volttron_instances):
     query_agent2 = downstream2.build_agent()
     gevent.sleep(2)
 
-    print "publish"
+    print("publish")
 
     producer = upstream.build_agent()
     gevent.sleep(2)
@@ -349,7 +349,7 @@ def test_all_platform_subscription_rmq(request, federated_rmq_instances):
         query_agent = downstream.dynamic_agent
         gevent.sleep(2)
 
-        print "publish"
+        print("publish")
         producer = upstream.dynamic_agent
         gevent.sleep(2)
         DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"

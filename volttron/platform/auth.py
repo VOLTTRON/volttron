@@ -235,19 +235,19 @@ class AuthService(Agent):
                 address = address.decode("utf-8")
                 kind = kind.decode("utf-8")
                 user = self.authenticate(domain, address, kind, credentials)
-                _log.debug("AUTH: authenticated user id: {0}, {1}".format(user, userid))
+                _log.debug("AUTH: After authenticate user id: {0}, {1}".format(user, userid))
                 if user:
                     _log.info(
-                        'authentication success: domain=%r, address=%r, '
-                        'mechanism=%r, credentials=%r, user_id=%r',
-                        domain, address, kind, credentials[:1], user)
+                        'authentication success: userid=%r domain=%r, address=%r, '
+                        'mechanism=%r, credentials=%r, user=%r',
+                        userid, domain, address, kind, credentials[:1], user)
                     response.extend([b'200', b'SUCCESS', user.encode("utf-8"), b''])
                     sock.send_multipart(response)
                 else:
                     _log.info(
-                        'authentication failure: domain=%r, address=%r, '
+                        'authentication failure: userid=%r, domain=%r, address=%r, '
                         'mechanism=%r, credentials=%r',
-                        domain, address, kind, credentials)
+                        userid, domain, address, kind, credentials)
                     # If in setup mode, add/update auth entry
                     if self._setup_mode:
                         self._update_auth_entry(domain, address, kind, credentials[0], userid)
@@ -411,7 +411,7 @@ class AuthService(Agent):
         try:
             self.auth_file.add(new_entry, overwrite=False)
         except AuthException as err:
-            _log.error('ERROR: %s\n' % err.message)
+            _log.error('ERROR: %s\n' % str(err))
 
     def _update_auth_failures(self, domain, address, mechanism, credential, user_id):
         for entry in self._auth_failures:
@@ -858,7 +858,7 @@ class AuthFile(object):
                           file_entry, self.auth_file)
             except AuthEntryInvalid as e:
                 _log.warn('invalid entry %r in auth file %s (%s)',
-                          file_entry, self.auth_file, e.message)
+                          file_entry, self.auth_file, str(e))
             else:
                 entries.append(entry)
         return entries

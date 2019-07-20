@@ -261,6 +261,6 @@ class KeyDiscoveryAgent(Agent):
             )
         except Exception as e:
             raise DiscoveryError(
-                "Unknown Exception".format(e.message)
+                "Unknown Exception: {}".format(e)
             )
 

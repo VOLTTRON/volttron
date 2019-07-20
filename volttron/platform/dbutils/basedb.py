@@ -393,7 +393,7 @@ class DbDriver(object):
                 self.__connection.commit()
                 return True
             except sqlite3.OperationalError as e:
-                if "database is locked" in e.message:
+                if "database is locked" in str(e):
                     _log.error("EXCEPTION: SQLITE3 Database is locked. This "
                                "error could occur when there are multiple "
                                "simultaneous read and write requests, making "

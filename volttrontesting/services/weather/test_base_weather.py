@@ -583,7 +583,7 @@ def test_get_current_valid_locations(weather, fake_locations):
             "observation_time"]
         for point in results3[0]["weather_results"]["points"]:
             valid_point = False
-            for name, map_dict in EXPECTED_OUTPUT_VALUES.iteritems():
+            for name, map_dict in EXPECTED_OUTPUT_VALUES.items():
                 if point == map_dict["name"]:
                     valid_point = True
             assert valid_point

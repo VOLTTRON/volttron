@@ -641,10 +641,10 @@ class OpenADRVenAgent(Agent):
         except OpenADRInterfaceException as err:
             _log.warning('Error handling VTN request: {}'.format(err), exc_info=True)
             # OADR rule 48: Log the validation failure, send an oadrResponse.eiResponse with an error code.
-            self.send_oadr_response(err.message, err.error_code or OADR_BAD_DATA)
+            self.send_oadr_response(err, err.error_code or OADR_BAD_DATA)
         except Exception as err:
             _log.error("Error handling VTN request: {}".format(err), exc_info=True)
-            self.send_oadr_response(err.message, OADR_BAD_DATA)
+            self.send_oadr_response(err, OADR_BAD_DATA)
 
     @staticmethod
     def vtn_request_element_name(signed_object):
@@ -734,10 +734,10 @@ class OpenADRVenAgent(Agent):
                 error_event.modification_number = modification_number
                 self.send_oadr_created_event(error_event,
                                              error_code=err.error_code or OADR_BAD_DATA,
-                                             error_message=err.message)
+                                             error_message=err)
             except Exception as err:
                 _log.warning('Unanticipated error during event processing: {}'.format(err), exc_info=True)
-                self.send_oadr_response(err.message, OADR_BAD_DATA)
+                self.send_oadr_response(err, OADR_BAD_DATA)
 
         for agent_event in self._get_events():
             if agent_event.event_id not in oadr_event_ids:
@@ -1046,10 +1046,10 @@ class OpenADRVenAgent(Agent):
             # If a VTN message contains a mix of valid and invalid reports, respond to the valid ones.
             # Don't reject the entire message due to an invalid report.
             _log.warning('Report error: {}'.format(err), exc_info=True)
-            self.send_oadr_response(err.message, err.error_code or OADR_BAD_DATA)
+            self.send_oadr_response(err, err.error_code or OADR_BAD_DATA)
         except Exception as err:
             _log.warning('Unanticipated error during report processing: {}'.format(err), exc_info=True)
-            self.send_oadr_response(err.message, OADR_BAD_DATA)
+            self.send_oadr_response(err, OADR_BAD_DATA)
 
         all_active_reports = self._get_reports()
         for agent_report in all_active_reports:

@@ -99,16 +99,16 @@ station_rights_csv = {
 station_rights_list = ['stationRightsProfile']
 
 if __name__ == '__main__':
-    username = raw_input('API Username: ')
-    password = raw_input('API Password: ')
+    username = input('API Username: ')
+    password = input('API Password: ')
 
     service = cps.CPService(username=username, password=password)
 
     try:
         service.getCPNInstances()
-        print "Congratulations! Your API credentials are valid."
+        print("Congratulations! Your API credentials are valid.")
 
-        cp_station = raw_input('To generate a CSV, please input a Chargepoint Station ID: ')
+        cp_station = input('To generate a CSV, please input a Chargepoint Station ID: ')
         if service.getStations(stationID=cp_station).responseCode == "100":
             with io.open('newFile.csv', 'w') as f:
                 f.write(u'Volttron Point Name,Attribute Name,Register Name,Port #,'
@@ -172,9 +172,9 @@ if __name__ == '__main__':
                                 continue
 
         elif service.getStations(stationID=cp_station).responseCode == "102":
-            print "No station {0} found.".format(cp_station)
+            print("No station {0} found.".format(cp_station))
         else:
-            print "Some other error happened"
+            print("Some other error happened")
 
     except suds.WebFault as a:
-        print "Sorry, your API credentials are invalid. Please contact Chargepoint for assistance."
+        print("Sorry, your API credentials are invalid. Please contact Chargepoint for assistance.")

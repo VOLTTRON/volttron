@@ -402,9 +402,9 @@ class PlatformWrapper:
         # Automatically add agent's credentials to auth.json file
         if publickey:
             self.logit('Adding publickey to auth.json')
-            self._append_allow_curve_key(publickey)
+            self._append_allow_curve_key(publickey, identity=identity)
             # gevent.spawn(self._append_allow_curve_key, publickey)
-            # gevent.sleep(0.1)
+            gevent.sleep(0.1)
 
         if should_spawn:
             self.logit('platformwrapper.build_agent spawning')
@@ -413,6 +413,7 @@ class PlatformWrapper:
             event.wait(timeout=2)
             gevent.sleep(2)
             hello = agent.vip.hello().get(timeout=15)
+            assert len(hello) > 0
 
         agent.publickey = publickey
         return agent
@@ -432,8 +433,8 @@ class PlatformWrapper:
             auth['allow'] = []
         return auth, auth_path
 
-    def _append_allow_curve_key(self, publickey):
-        entry = AuthEntry(credentials=publickey)
+    def _append_allow_curve_key(self, publickey, identity):
+        entry = AuthEntry(credentials=publickey, user_id=identity)
         authfile = AuthFile(self.volttron_home + "/auth.json")
         try:
             authfile.add(entry)
