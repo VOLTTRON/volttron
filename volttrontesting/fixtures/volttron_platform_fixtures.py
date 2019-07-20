@@ -98,11 +98,11 @@ def volttron_instance_module_web(request):
 # Use this fixture when you want a single instance of volttron platform for
 # test
 @pytest.fixture(scope="module",
-                params=(
+                params=[
                     dict(messagebus='zmq', ssl_auth=False)
                     # ,
                     # rmq_skipif(dict(messagebus='rmq', ssl_auth=True)),
-                ))
+                ])
 def volttron_instance(request, **kwargs):
     """Fixture that returns a single instance of volttron platform for testing
 
