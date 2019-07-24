@@ -475,9 +475,26 @@ def do_web_enabled_zmq(vhome):
     if config_opts['message-bus'] == 'zmq' and parsed.scheme == "https":
         get_cert_and_key(vhome)
 
+def do_web_agent():
+    global config_opts
+    volttron_home = get_home()
+    _load_config()
+    _update_config_file()
+    if 'message-bus' not in config_opts:
+        do_message_bus()
+    if 'vip-address' not in config_opts:
+        do_vip()
+    _update_config_file()
+    if 'bind-web-address' not in config_opts:
+        if config_opts['message-bus'] == 'rmq':
+            do_web_enabled_rmq(volttron_home)
+        elif config_opts['message-bus'] == 'zmq':
+            do_web_enabled_zmq(volttron_home)
+    _update_config_file()
+
 @installs(get_services_core("VolttronCentral"), 'vc')
 def do_vc():
-
+    do_web_agent()
     resp = vc_config()
 
     print('Installing volttron central.')
