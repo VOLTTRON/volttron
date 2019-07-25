@@ -2030,7 +2030,6 @@ def create_ssl_keypair(opts):
     certs.create_ca_signed_cert(fq_identity)
 
 
-def export_pkc12_from_identity(opts):
 def export_pkcs12_from_identity(opts):
 
     fq_identity = get_fq_identity(opts.identity)
