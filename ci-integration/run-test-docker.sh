@@ -37,7 +37,6 @@ docker build --network=host -t volttron_test_image -f ./ci-integration/virtualiz
 # Specific directories to scan for tests in
 testdirs=(services volttrontesting)
 ignoredirs=(services/core/DNP3Agent services/core/SEP2Agent services/core/OpenADRVenAgent)
-# testdirs=(volttrontesting)
 
 # State variable for when a test has failed the entire set needs to be considered
 # failed.
@@ -134,7 +133,7 @@ process_pid(){
 #LOOP through set of directories and run bunch of test files in parallel
 for dir in ${testdirs[@]}
 do
-    for file in $( find $dir -type f -name "*test*.py"|grep -v "conftest.py")
+    for file in $( find $dir -type f -name "test*.py" -o -name "*test.py" ! -name "*conftest.py" )
     do
         echo $file;
         ignore=0
