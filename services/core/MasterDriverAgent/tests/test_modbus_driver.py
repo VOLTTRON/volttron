@@ -70,8 +70,10 @@ def agent(request, volttron_instance):
     """
 
     # Build master driver agent
-    md_agent = volttron_instance.build_agent()
-
+    md_agent = volttron_instance.build_agent(identity="test_md_agent")
+    capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
+    volttron_instance.add_capabilities(md_agent.core.publickey, capabilities)
+    gevent.sleep(1)
     # Clean out master driver configurations
     md_agent.vip.rpc.call('config.store',
                           'manage_delete_store',
@@ -92,7 +94,7 @@ def agent(request, volttron_instance):
                           'modbus.csv',
                           REGISTRY_CONFIG_STRING,
                           config_type='csv')
-
+    gevent.sleep(1)
     master_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
@@ -245,6 +247,7 @@ class TestModbusDriver:
         for key in default_values.keys():
             assert default_values[key] == 0 or 0.0
 
+    @pytest.mark.dev
     def test_set_point(self, agent):
         for key in registers_dict.keys():
             self.set_point(agent, key, registers_dict[key])

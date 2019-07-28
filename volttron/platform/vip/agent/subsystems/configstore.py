@@ -110,7 +110,7 @@ class ConfigStore(SubsystemBase):
             affected_configs[config_name] = "NEW"
         for config_name in self._default_store:
             affected_configs[config_name] = "NEW"
-
+        _log.debug("In onconfig... affected_configs {}".format(affected_configs))
         self._process_callbacks(affected_configs)
         self._initial_callbacks_called = True
 
@@ -218,7 +218,7 @@ class ConfigStore(SubsystemBase):
             return
 
         affected_configs = {}
-
+        _log.debug("In update_config of configstore. ")
         #Update local store.
         if action == "DELETE":
             config_name_lower = config_name.lower()
@@ -256,6 +256,7 @@ class ConfigStore(SubsystemBase):
 
 
         if trigger_callback and self._initial_callbacks_called:
+            _log.debug("In update_config affected configs is {}".format(affected_configs))
             self._process_callbacks(affected_configs)
 
         if action == "DELETE":
