@@ -189,7 +189,7 @@ class ConfigStoreService(Agent):
                 _log.error("Agent {} failure when all configurations: {}".format(identity, e))
             except MethodNotFound as e:
                 _log.error(
-                    "Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
+                    "Agent {} failure when deleting configuration store: {}".format(identity, e))
 
         # If the store is still empty (nothing jumped in and added to it while
         # we were informing the agent) then remove it from the global store.
