@@ -157,7 +157,7 @@ different.
          Is this an instance of volttron central? [N]: 
          Will this instance be controlled by volttron central? [Y]: y
          Configuring /home/user/volttron/services/core/VolttronCentralPlatform.
-         What is the name of this instance? [volttron1]: 
+         What is the name of this instance? [volttron1]: volttron2
          What is the hostname for volttron central? [https://volttron-pc]: 
          What is the port for volttron central? [8443]: 
          Should the agent autostart? [N]: y
