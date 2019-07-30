@@ -67,6 +67,7 @@ from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
     CONFIGURATION_STORE
 from volttron.platform.auth import AuthEntry, AuthFile, AuthException
+from volttron.platform.certs import Certs
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.messaging.health import Status, STATUS_BAD
@@ -2026,6 +2027,20 @@ def remove_policies(opts):
                       "Check Connection Parameters: {} \n".format(e))
 
 
+def create_ssl_keypair(opts):
+    fq_identity = utils.get_fq_identity(opts.identity)
+    certs = Certs()
+    certs.create_ca_signed_cert(fq_identity)
+
+
+def export_pkcs12_from_identity(opts):
+
+    fq_identity = utils.get_fq_identity(opts.identity)
+
+    certs = Certs()
+    certs.export_pkcs12(fq_identity, opts.outfile)
+
+
 def main(argv=sys.argv):
     # Refuse to run as root
     if not getattr(os, 'getuid', lambda: -1)():
@@ -2232,6 +2247,32 @@ def main(argv=sys.argv):
                              help=argparse.SUPPRESS)
     upgrade.set_defaults(func=upgrade_agent, verify_agents=True)
 
+    # ====================================================
+    # certs commands
+    # ====================================================
+    cert_cmds = add_parser("certs",
+                           help="manage certificate creation")
+
+    certs_subparsers = cert_cmds.add_subparsers(title='subcommands', metavar='', dest='store_commands')
+
+    create_ssl_keypair_cmd = add_parser("create-ssl-keypair", subparser=certs_subparsers,
+                             help="create a ssl keypair.")
+
+    create_ssl_keypair_cmd.add_argument("identity",
+                                        help="Create a private key and cert for the given identity signed by "
+                                             "the root ca of this platform.")
+    create_ssl_keypair_cmd.set_defaults(func=create_ssl_keypair)
+
+    export_pkcs12 = add_parser("export-pkcs12", subparser=certs_subparsers,
+                             help="create a PKCS12 encoded file containing private and public key from an agent. "
+                                  "this function is useful to create a java key store using a p12 file.")
+    export_pkcs12.add_argument("identity", help="identity of the agent to export")
+    export_pkcs12.add_argument("outfile", help="file to write the PKCS12 file to")
+    export_pkcs12.set_defaults(func=export_pkcs12_from_identity)
+
+    # ====================================================
+    # auth commands
+    # ====================================================
     auth_cmds = add_parser("auth",
                            help="manage authorization entries and encryption keys")
 
@@ -2370,6 +2411,9 @@ def main(argv=sys.argv):
                                   help='remove (rather than append) given capabilities')
     auth_update_role.set_defaults(func=update_role)
 
+    # ====================================================
+    # config commands
+    # ====================================================
     config_store = add_parser("config",
                               help="manage the platform configuration store")
 
@@ -2476,7 +2520,9 @@ def main(argv=sys.argv):
 
     if message_bus == 'rmq':
         rmq_mgmt = RabbitMQMgmt()
-        # Add commands
+        # ====================================================
+        # rabbitmq commands
+        # ====================================================
         rabbitmq_cmds = add_parser("rabbitmq", help="manage rabbitmq")
         rabbitmq_subparsers = rabbitmq_cmds.add_subparsers(title='subcommands',
                                                            metavar='',
@@ -2608,13 +2654,13 @@ def main(argv=sys.argv):
     # function
     # Below vctl commands can work even when volttron is not up. For others
     # volttron need to be up.
-    # if len(args) > 0:
-    #     if args[0] not in ('list', 'tag', 'auth', 'rabbitmq'):
-    #         # check pid file
-    #         if not utils.is_volttron_running(volttron_home):
-    #             _stderr.write("VOLTTRON is not running. This command "
-    #                           "requires VOLTTRON platform to be running\n")
-    #             return 10
+    if len(args) > 0:
+        if args[0] not in ('list', 'tag', 'auth', 'rabbitmq', 'certs'):
+            # check pid file
+            if not utils.is_volttron_running(volttron_home):
+                _stderr.write("VOLTTRON is not running. This command "
+                              "requires VOLTTRON platform to be running\n")
+                return 10
 
     conf = os.path.join(volttron_home, 'config')
     if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
