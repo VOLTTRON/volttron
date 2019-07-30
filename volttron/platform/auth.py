@@ -40,25 +40,25 @@
 from __future__ import absolute_import, print_function
 
 import bisect
-import errno
 import logging
 import os
 import random
 import re
 import shutil
 import uuid
+from collections import defaultdict
 
 import gevent
 from gevent.fileobject import FileObject
 from zmq import green as zmq
-from volttron.platform.agent import json as jsonapi
 
+from volttron.platform.agent import json as jsonapi
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL
+from volttron.platform.vip.agent.errors import VIPError
+from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
 from .agent.utils import strip_comments, create_file_if_missing, watch_file
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
-from volttron.platform.vip.agent.errors import VIPError
-from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
-from collections import defaultdict
 
 _log = logging.getLogger(__name__)
 
@@ -611,7 +611,7 @@ class AuthEntry(object):
         self.credentials = AuthEntry._build_field(credentials)
         self.groups = AuthEntry._build_field(groups) or []
         self.roles = AuthEntry._build_field(roles) or []
-        self.capabilities = AuthEntry._build_capabilities_field(capabilities) or {}
+        self.capabilities = AuthEntry.build_capabilities_field(capabilities) or {}
         self.comments = AuthEntry._build_field(comments)
         if user_id is None:
             user_id = str(uuid.uuid4())
@@ -641,7 +641,7 @@ class AuthEntry(object):
         return List(String(elem) for elem in value)
 
     @staticmethod
-    def _build_capabilities_field(value):
+    def build_capabilities_field(value):
         #_log.debug("_build_capabilities {}".format(value))
 
         if not value:
@@ -652,7 +652,6 @@ class AuthEntry(object):
             for elem in value:
                 # update if it is not there or if existing entry doesn't have args.
                 # i.e. capability with args can override capability str
-                _log.debug("In loop elem {}".format(elem))
                 temp = result.update(AuthEntry._get_capability(elem))
                 if temp and result[next(iter(temp))] is None:
                     result.update(temp)
@@ -676,7 +675,7 @@ class AuthEntry(object):
             raise AuthEntryInvalid(err_message.format(value, type(value)))
 
     def add_capabilities(self, capabilities):
-        temp = AuthEntry._build_capabilities_field(capabilities)
+        temp = AuthEntry.build_capabilities_field(capabilities)
         if temp:
             self.capabilities.update(temp)
 
@@ -735,7 +734,7 @@ class AuthFile(object):
 
     @property
     def version(self):
-        return {'major': 1, 'minor': 1}
+        return {'major': 1, 'minor': 2}
 
     def _check_for_upgrade(self):
         allow_list, groups, roles, version = self._read()
@@ -782,7 +781,6 @@ class AuthFile(object):
         return entries, groups, roles
 
     def _upgrade(self, allow_list, groups, roles, version):
-        # TODO add logic to allow config store access by default
         backup = self.auth_file + '.' + str(uuid.uuid4()) + '.bak'
         shutil.copy(self.auth_file, backup)
         _log.info('Created backup of {} at {}'.format(self.auth_file, backup))
@@ -852,12 +850,27 @@ class AuthFile(object):
                 new_allow_list.append(entry)
             return new_allow_list
 
+        def upgrade_1_1_to_1_2(allow_list):
+            new_allow_list = []
+            for entry in allow_list:
+                user_id = entry.get('user_id')
+                if user_id in [CONTROL, VOLTTRON_CENTRAL_PLATFORM]:
+                    user_id = '/.*/'
+                capabilities = entry.get('capabilities')
+                entry['capabilities'] = AuthEntry.build_capabilities_field(capabilities) or {}
+                entry['capabilities']['edit_config_store'] = {'identity': user_id}
+                new_allow_list.append(entry)
+            return new_allow_list
+
         if version['major'] == 0:
             allow_list = upgrade_0_to_1(allow_list)
             version['major'] = 1
             version['minor'] = 0
         if version['major'] == 1 and version['minor'] == 0:
             allow_list = upgrade_1_0_to_1_1(allow_list)
+            version['minor'] = 1
+        if version['major'] == 1 and version['minor'] == 1:
+            allow_list = upgrade_1_1_to_1_2(allow_list)
 
         entries = self._get_entries(allow_list)
         self._write(entries, groups, roles)
