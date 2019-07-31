@@ -351,7 +351,7 @@ arguments are in place, the config file may look like this.
 
 4. Install MatLabAgent_v2 and start agent (from volttron root directory)
 
-``python ./scripts/install-agents.py -s examples/MatLabAgent_v2 -c examples/MatLabAgent_v2/config --start``
+``python ./scripts/install-agent.py -s examples/MatLabAgent_v2 -c examples/MatLabAgent_v2/config --start``
 
 5. Run the below command and make a note of the server key. This required in configuring the stand alone agent on windows.
 
