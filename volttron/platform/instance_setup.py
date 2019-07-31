@@ -218,6 +218,7 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
 
             if not _is_agent_installed(tag):
                 print(tag + ' not installed correctly!')
+                _shutdown_platform()
                 return
 
 
