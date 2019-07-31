@@ -283,7 +283,7 @@ Setup on Linux
 1. Setup and run Volttron from develop branch using instructions :ref:`here <Building-VOLTTRON>`.
 
 2. Configure volttron instance using the ``vcfg`` command.
-   When prompted for the vip_address use tcp://<ip address of the linux machine>. 
+   When prompted for the vip address use tcp://<ip address of the linux machine>. 
    This is necessary to enable volttron communication with external processes. 
 
 .. note::
