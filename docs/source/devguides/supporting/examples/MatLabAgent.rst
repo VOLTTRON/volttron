@@ -421,7 +421,7 @@ Windows environment.
    
    |env-vars-image_1|
    
-   For "Variable name" enter: "PYTOHNPATH"
+   For "Variable name" enter: "PYTHONPATH"
    For "Variable value" either browse to your volttron installation, or enter in the path to your volttron installation.
    
    |env-vars-image_2|
