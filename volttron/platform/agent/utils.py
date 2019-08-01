@@ -43,7 +43,6 @@ import calendar
 import errno
 import logging
 import sys
-import syslog
 import traceback
 from datetime import datetime, tzinfo, timedelta
 
@@ -437,19 +436,6 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
             task.kill()
     except KeyboardInterrupt:
         pass
-
-
-class SyslogFormatter(logging.Formatter):
-    _level_map = {logging.DEBUG: syslog.LOG_DEBUG,
-                  logging.INFO: syslog.LOG_INFO,
-                  logging.WARNING: syslog.LOG_WARNING,
-                  logging.ERROR: syslog.LOG_ERR,
-                  logging.CRITICAL: syslog.LOG_CRIT}
-
-    def format(self, record):
-        level = self._level_map.get(record.levelno, syslog.LOG_INFO)
-        return '<{}>'.format(level) + super(SyslogFormatter, self).format(
-            record)
 
 
 class JsonFormatter(logging.Formatter):
