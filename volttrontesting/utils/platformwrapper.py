@@ -294,7 +294,7 @@ class PlatformWrapper:
     def allow_all_connections(self):
         """ Add a /.*/ entry to the auth.json file.
         """
-        entry = AuthEntry(credentials="/.*/")
+        entry = AuthEntry(credentials="/.*/", comments="Added by platformwrapper")
         authfile = AuthFile(self.volttron_home + "/auth.json")
         try:
             authfile.add(entry)
@@ -447,12 +447,13 @@ class PlatformWrapper:
 
         if identity:
             entry = AuthEntry(user_id=identity, credentials=publickey,
-                              capabilities={'edit_config_store': {'identity': identity}})
+                              capabilities={'edit_config_store': {'identity': identity}},
+                              comments="Added by platform wrapper")
         else:
-            entry = AuthEntry(credentials=publickey)
+            entry = AuthEntry(credentials=publickey, comments="Added by platform wrapper. No identity passed")
         authfile = AuthFile(self.volttron_home + "/auth.json")
         try:
-            authfile.add(entry)
+            authfile.add(entry, overwrite=True)
         except AuthFileEntryAlreadyExists:
             pass
 

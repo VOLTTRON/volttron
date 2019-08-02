@@ -379,7 +379,7 @@ class AIPplatform(object):
         publickey = self.get_agent_keystore(agent_uuid).public
         capabilities = {'edit_config_store': {'identity': identity}}
 
-        if identity in [CONTROL, VOLTTRON_CENTRAL_PLATFORM]:
+        if identity == VOLTTRON_CENTRAL_PLATFORM:
             capabilities = {'edit_config_store': {'identity': '/.*/'}}
 
         entry = AuthEntry(credentials=publickey, user_id=identity,

@@ -246,7 +246,7 @@ def test_multiplatform_pubsub(request, multi_platform_connection):
         message = subscription_results['devices/campus/building1']['message']
         assert message == [{'point': 'value'}]
 
-
+@pytest.mark.dev
 @pytest.mark.multiplatform
 def test_multiplatform_2_publishers(request, five_platform_connection):
     subscription_results2 = {}
@@ -416,6 +416,7 @@ def test_multiplatform_stop_subscriber(request, multi_platform_connection):
     assert message == [{'point': 'value2'}]
 
 
+@pytest.mark.dev
 @pytest.mark.multiplatform
 def test_missing_address_file(request, get_volttron_instances):
     p1 = get_volttron_instances(1, address_file=False)
