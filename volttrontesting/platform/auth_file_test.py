@@ -153,14 +153,16 @@ def test_remove_auth_by_credentials(auth_file_platform_tuple, auth_entry1,
 def test_remove_invalid_index(auth_file_platform_tuple):
     auth_file, _ = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
-        auth_file.remove_by_index(2)
+        # by default will have 3 entries - platform, control and dynamic_agent created by platform wrapper
+        auth_file.remove_by_index(3)
 
 
 @pytest.mark.auth
 def test_update_invalid_index(auth_file_platform_tuple, auth_entry1):
     auth_file, _ = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
-        auth_file.update_by_index(auth_entry1, 2)
+        # by default will have 3 entries - platform, control and dynamic_agent created by platform wrapper
+        auth_file.update_by_index(auth_entry1, 3)
 
 
 @pytest.mark.auth
