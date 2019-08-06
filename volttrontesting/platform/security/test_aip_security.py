@@ -105,8 +105,8 @@ def security_agent(request, secure_volttron_instance):
 def test_agent_rpc(secure_volttron_instance, security_agent, query_agent):
     """if multiple copies of an agent can be installed successfully"""
     # Make sure the security agent can receive an RPC call, and respond
-    assert query_agent.vip.rpc.call( "security_agent", "can_receive_rpc_calls")\
-        .get(timeout=5)
+    assert query_agent.vip.rpc.call(
+        "security_agent", "can_receive_rpc_calls").get(timeout=5)
 
     # Try installing a second copy of the agent
     agent2 = secure_volttron_instance.install_agent(
@@ -123,8 +123,7 @@ def test_agent_rpc(secure_volttron_instance, security_agent, query_agent):
                                     "security_agent2").get(timeout=5)
 
 
-# TODO sometimes fails?
-@pytest.mark.dev
+@pytest.mark.secure
 def test_agent_pubsub(secure_volttron_instance, security_agent,
                       query_agent):
     query_agent.vip.rpc.call("security_agent", "can_publish_to_pubsub")
@@ -149,38 +148,125 @@ def test_agent_pubsub(secure_volttron_instance, security_agent,
 @pytest.mark.dev
 def test_agent_perms_install_dir(secure_volttron_instance, security_agent,
                                  query_agent):
-    print(query_agent.vip.rpc.call(
-        "security_agent", "can_execute_only_agent_dir").get(timeout=5))
+    permissions = {'read': False, 'write': False, 'execute': True}
+    results = query_agent.vip.rpc.call(
+        "security_agent", "can_execute_only_install_dir").get(timeout=5)
+    for key, value in permissions.items():
+        assert value == results[key]
 
 
-@pytest.mark.skip
 @pytest.mark.secure
 def test_agent_perms_data_dir():
-    pass
+    permissions = {'read': True, 'write': False, 'execute': False}
+    results = query_agent.vip.rpc.call(
+        "security_agent", "can_read_only_agent_data_dir").get(timeout=5)
+    for key, value in permissions.items():
+        assert value == results[key]
 
 
-@pytest.mark.skip
 @pytest.mark.secure
-def test_agent_perms_agentdata_dir():
-    pass
+def test_agent_perms_agent_data_dir(secure_volttron_instance, security_agent,
+                                    query_agent):
+    permissions = {'read': True, 'write': False, 'execute': False}
+    results = query_agent.vip.rpc.call(
+        "security_agent", "can_read_only_data_dir").get(timeout=5)
+    for key, value in permissions.items():
+        assert value == results[key]
 
 
 @pytest.mark.skip
 @pytest.mark.secure
 def test_agent_perms_distinfo_dir():
+    permissions = {'read': True, 'write': False, 'execute': True}
+    results = query_agent.vip.rpc.call(
+        'security_agent', 'can_read_execute_dist_info').get(timeout=5)
+    for key, value in permissions.items():
+        assert value == results[key]
+
+
+@pytest.mark.secure
+def test_agent_perms_other_dir(query_agent):
+    permissions = {'read': False, 'write': False, 'execute': False}
+    results = query_agent.vip.rpc.call(
+        'security_agent', 'can_read_write_execute_other_dir').get(timeout=5)
+    for key, value in permissions.items():
+        assert value == results[key]
+
+
+# TODO get agent reset if things go wrong
+@pytest.mark.skip
+@pytest.mark.secure
+def test_agent_user_removed_during_execution(secure_volttron_instance,
+                                             security_agent, query_agent):
+    # TODO remove user
+
+    assert secure_volttron_instance.is_agent_running(security_agent)
+    assert query_agent.vip.rpc.call(
+        "security_agent", "can_receive_rpc_calls").get(timeout=5)
+
+    # TODO recreate user
+
+    assert secure_volttron_instance.is_agent_running(security_agent)
+    assert query_agent.vip.rpc.call(
+        "security_agent", "can_receive_rpc_calls").get(timeout=5)
+
+    # TODO remove USER_ID file
+
+    assert secure_volttron_instance.is_agent_running(security_agent)
+    assert query_agent.vip.rpc.call(
+        "security_agent", "can_receive_rpc_calls").get(timeout=5)
+
+    # TODO remove user group
+    # TODO what should happen here?
+
+
+# TODO get_agent reset if things go wrong
+@pytest.mark.skip
+@pytest.mark.secure
+def test_agent_user_removed_after_installation(secure_volttron_instance):
+    install_agent = secure_volttron_instance.install_agent(
+        vip_identity="security_agent2",
+        agent_dir="volttrontesting/platform/security/SecurityAgent",
+        start=False,
+        config_file=None)
+
+    # TODO remove the user
+
+    secure_volttron_instance.start_agent(install_agent)
+    gevent.sleep(3)
+    assert not secure_volttron_instance.is_agent_running(install_agent)
+
+    secure_volttron_instance.remove_agent(install_agent)
+    # TODO assert the agent was removed
+
+    install_agent = secure_volttron_instance.install_agent(
+        vip_identity="security_agent2",
+        agent_dir="volttrontesting/platform/security/SecurityAgent",
+        start=False,
+        config_file=None)
+
+    # TODO remove USER_ID FILE
+
+    secure_volttron_instance.start_agent(install_agent)
+    gevent.sleep(3)
+    assert not secure_volttron_instance.is_agent_running(install_agent)
+
+    secure_volttron_instance.remove_agent(install_agent)
+    # TODO assert the agent was removed
+
+    # TODO remove user group
+    # TODO what should happen here?
+
+
+@pytest.mark.skip
+@pytest.mark.secure
+def test_user_cant_sudo():
     pass
 
 
 @pytest.mark.skip
 @pytest.mark.secure
-def test_agent_perms_out_of_agent_dir():
+def test_user_add_del_perms():
     pass
-
-# TODO test if user is removed during execution
-# TODO test if agent is removed after installation
-# TODO test if USER_ID file is removed after installation
-# TODO test if USER_ID file is removed during execution
-# TODO test user group removed after installation
-# TODO test user group removed during execution
 # TODO test sudo permissions for user
 # TODO test volttron user add/delete other users

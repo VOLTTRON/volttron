@@ -58,10 +58,12 @@ class SecurityAgent(Agent):
                                   actions=["NEW", "UPDATE"],
                                   pattern="config")
 
+        _log.debug("Finished init method in security agent")
+
+    @Core.receiver("onstart")
+    def onstart(self, sender, **kwargs):
         self.vip.pubsub.subscribe('pubsub', TEST_READ_TOPIC,
                                   self.increment_hits)
-
-        _log.debug("Finished init method in security agent")
 
     def increment_hits(self, peer, sender, bus, topic, headers, message):
         self.subscription_hits += 1
@@ -115,13 +117,15 @@ class SecurityAgent(Agent):
                }
         # Try to read test file
         try:
-            with open(path, "r"):
+            with open(path, "r") as p:
+                line = p.readline()
                 rwx["read"] = True
         except OSError as e:
             _log.debug(e)
         # Try to write test file
         try:
-            with open(path, "w"):
+            with open(path, "w") as p:
+                p.write("test")
                 rwx["write"] = True
         except OSError as e:
             _log.debug(e)
@@ -143,20 +147,32 @@ class SecurityAgent(Agent):
         return rwx
 
     @RPC.export
-    def can_execute_only_agent_dir(self):
+    def can_execute_only_agent_install_dir(self):
         """Agents should be able to execute only from the agent directory"""
         test_path = os.path.join(self.get_agent_dir(), "test_perms.sh")
         _log.debug("Testing permissions on {}".format(test_path))
         return self.try_read_write_execute_dir(test_path)
 
-    # @RPC.export
-    # def can_read_only_agent_data_dir(self):
-    #     """Agents should be able read/write but not execute in the agent's data
-    #         directory"""
-    #     test_path = os.path.join(self.get_agent_dir(), "agent-data",
-    #                              "test_perms.sh")
-    #     _log.debug("Testing permissions on {}".format(test_path))
-    #     return self.try_read_write_execute_dir(test_path)
+    @RPC.export
+    def can_read_only_agent_data_dir(self):
+        """Agents should be able read only in the agent's agent-data
+        directory"""
+        agent_path_name = os.path.dirname(
+            self.get_agent_dir()).rsplit("/", 1)[1]
+        # Can't really used packaged files here
+        test_path = os.path.join(os.path.dirname(self.get_agent_dir()),
+                                 "{}.agent-data".format(agent_path_name),
+                                 "USER_ID")
+        _log.debug("Testing permissions on {}".format(test_path))
+        return self.try_read_write_execute_dir(test_path)
+
+    @RPC.export
+    def can_read_only_data_dir(self):
+        """Agents should be able to read"""
+        # Can't really used packaged files here
+        test_path = os.path.join(self.get_agent_dir(), "data", "test_perms.sh")
+        _log.debug("Testing permissions on {}".format(test_path))
+        return self.try_read_write_execute_dir(test_path)
 
     # @RPC.export
     # def can_read_write_execute_other_dir(self, directory):

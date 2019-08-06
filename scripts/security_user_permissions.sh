@@ -15,10 +15,9 @@ while true; do
     fi
 done
 echo "$USER ALL= NOPASSWD: /usr/sbin/groupadd volttron_$name" | sudo EDITOR='tee -a' visudo
-echo "$USER ALL= NOPASSWD: /usr/sbin/useradd volttron_* -G volttron_$name -d *" | sudo EDITOR='tee -a' visudo
-# TODO might want delete only users with pattern of particular group
+echo "$USER ALL= NOPASSWD: /usr/sbin/useradd volttron_* -G volttron_$name" | sudo EDITOR='tee -a' visudo
+# TODO want delete only users with pattern of particular group
 echo "$USER ALL= NOPASSWD: /usr/sbin/userdel volttron_*" | sudo EDITOR='tee -a' visudo
-# allow user to use su to run commands as the volttron agent user - this does
-# not give volttron agent user sudoer permissions
-echo "$USER ALL=(%volttron_agent) NOPASSWD: ALL" | sudo EDITOR='tee -a' visudo
+# allow user to run all non-sudo commands for all volttron agent users
+echo "$USER ALL=(%volttron_$name) NOPASSWD: ALL" | sudo EDITOR='tee -a' visudo
 echo "Permissions set for $USER"

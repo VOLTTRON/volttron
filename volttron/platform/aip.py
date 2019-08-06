@@ -182,14 +182,17 @@ class ExecutionEnvironment(object):
         self.agent_user = agent_user
 
     def execute(self, *args, **kwargs):
-        if self.agent_user:
-            _log.info("Starting agent process as user {}".format(
-                self.agent_user))
-            pwd.getpwnam(self.agent_user)
-            kwargs['env']['USER'] = self.agent_user
         try:
             self.env = kwargs.get('env', None)
-            self.process = subprocess.Popen(*args, **kwargs)
+            if self.agent_user:
+                # TODO Change current working directory to the agent directory
+                run_as_user = ['sudo', '-u', self.agent_user]
+                _log.debug(get_volttron_root())
+                run_as_user.extend(*args)
+                _log.debug(run_as_user)
+                self.process = subprocess.Popen(run_as_user, **kwargs)
+            else:
+                self.process = subprocess.Popen(*args, **kwargs)
         except OSError as e:
             if e.filename:
                 raise
@@ -251,8 +254,7 @@ class AIPplatform(object):
                 str(get_utc_seconds_from_epoch()).replace(".", ""))
             _log.info("Creating volttron user {}".format(volttron_agent_user))
             group = get_platform_instance_name()
-            useradd = ['sudo', 'useradd', volttron_agent_user, '-G',
-                       group, '-d', agent_dir]
+            useradd = ['sudo', 'useradd', volttron_agent_user, '-G', group]
             useradd_process = subprocess.Popen(
                 useradd, stdout=PIPE, stderr=PIPE)
             stdout, stderr = useradd_process.communicate()
@@ -263,7 +265,7 @@ class AIPplatform(object):
             user_id_file.write(volttron_agent_user)
             return volttron_agent_user
 
-    def set_acl_for_directory(self, perms, user, directory):
+    def set_acl_for_directory(self, perms, user, path):
         """
         Sets the file access control list setting for a given user/directory
         :param perms:
@@ -272,23 +274,28 @@ class AIPplatform(object):
         :return:
         """
         acl_perms = "u:{user}:{perms}".format(user=user, perms=perms)
-        permissions_command = ['setfacl', '-R', '-m', acl_perms, directory]
+        if os.path.isdir(path):
+            permissions_command = ['setfacl', '-R', '-m', acl_perms, path]
+        else:
+            permissions_command = ['setfacl', '-m', acl_perms, path]
         permissions_process = subprocess.Popen(
             permissions_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = permissions_process.communicate()
         if stdout and len(stdout):
             _log.info("Set {} permissions on {}, stdout: {}".format(
-                perms, directory, stdout))
+                perms, path, stdout))
         if stderr and len(stderr):
             # TODO alert?
             raise RuntimeError("Setting {} permissions on {} failed: {}".format(
-                perms, directory, stderr))
+                perms, path, stderr))
 
     def set_agent_user_directory_permissions(self, volttron_agent_user,
                                              agent_uuid, agent_dir):
+        # Let the user run the Python Executable
+        self.set_acl_for_directory('x', volttron_agent_user, sys.executable)
         # Give execute only to agent user for its agent directory
-        _log.info("Setting Execute permissions for {} on agent's directory".
-                   format(volttron_agent_user))
+        _log.info("Setting Execute permissions for {} on {}".
+                   format(volttron_agent_user, agent_dir))
         self.set_acl_for_directory("x", volttron_agent_user, agent_dir)
         # Give read only to agent user for its agent-data directory
         name = self.agent_name(agent_uuid)
@@ -297,17 +304,18 @@ class AIPplatform(object):
         if not os.path.isdir(agent_data_dir):
             _log.info("Creating agent's data directory...")
             os.mkdir(agent_data_dir)
-        _log.info("Setting read/write permissions for {} on agent's agent-data "
-                  "directory".format(volttron_agent_user))
+        _log.info("Setting read/write permissions for {} on {}"
+                  "directory".format(volttron_agent_user, agent_data_dir))
         self.set_acl_for_directory("r", volttron_agent_user, agent_data_dir)
         # Give read/write to agent user for its data directory
         # TODO need a better way to get just the plain agent name
-        data_dir = self._get_data_dir(agent_path_with_name, name.split("agent")[0])
+        data_dir = self._get_data_dir(agent_path_with_name,
+                                      name.split("agent")[0])
         if not os.path.isdir(data_dir):
             _log.info("Creating agent's data directory...")
             os.mkdir(data_dir)
-        _log.info("Setting read/write permissions for {} on agent's data "
-                  "directory".format(volttron_agent_user))
+        _log.info("Setting read/write permissions for {} on {}"
+                  "directory".format(volttron_agent_user, data_dir))
         self.set_acl_for_directory("rw", volttron_agent_user, data_dir)
         # Configuration is stored in dist-info, so give agent read
         dist_info_dir = self._get_agent_dist_info_dir(agent_path_with_name)
@@ -335,8 +343,10 @@ class AIPplatform(object):
                         _log.error("Remove {user} user failed: {stderr}".format(
                             user=volttron_agent_user, stderr=stderr))
                         raise RuntimeError(stderr)
-        except (KeyError, IOError):
-            _log.error("Volttron agent user not found at {}".format(agent_dir))
+        except (KeyError, IOError) as user_id_err:
+            _log.error("Volttron agent user not found at {}".format(
+                user_id_path))
+            _log.error(user_id_err)
             # TODO alert?
 
     def setup(self):
