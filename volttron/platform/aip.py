@@ -184,10 +184,10 @@ class ExecutionEnvironment(object):
     def execute(self, *args, **kwargs):
         try:
             self.env = kwargs.get('env', None)
+            _log.debug(kwargs.get('cwd'))
             if self.agent_user:
                 # TODO Change current working directory to the agent directory
                 run_as_user = ['sudo', '-u', self.agent_user]
-                _log.debug(get_volttron_root())
                 run_as_user.extend(*args)
                 _log.debug(run_as_user)
                 self.process = subprocess.Popen(run_as_user, **kwargs)
@@ -903,7 +903,12 @@ class AIPplatform(object):
             execenv = self._reserve_resources(resmon, execreqs)
         execenv.name = name or agent_path_with_name
         _log.info('starting agent %s', agent_path_with_name)
-        data_dir = self._get_agent_data_dir(agent_path_with_name)
+        if self.secure_agent_user:
+            # data_dir = agent_path_with_name + "/{}".format(
+            #     name.split("agent")[0])
+            data_dir = agent_path_with_name
+        else:
+            data_dir = self._get_agent_data_dir(agent_path_with_name)
         execenv.execute(argv, cwd=data_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
         self.agents[agent_uuid] = execenv
