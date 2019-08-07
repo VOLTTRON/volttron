@@ -6,7 +6,7 @@ import os.path
 
 from volttron.platform import get_services_core
 from master_driver.interfaces.modbus_tk.server import Server
-from master_driver.interfaces.modbus_tk.maps import Map, Catalog
+from master_driver.interfaces.modbus_tk.maps import Catalog
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +75,7 @@ demand_sub_interval,44016,uint16,interval,TRUE,,analog_output_holding_registers"
 
 
 @pytest.fixture(scope="module")
-def agent(request, volttron_instance):
+def ion_driver_agent(request, volttron_instance):
     """Build MasterDriverAgent, add modbus driver & csv configurations
     """
 
@@ -111,8 +111,8 @@ def agent(request, volttron_instance):
                           config_type='csv')
 
     master_uuid = volttron_instance.install_agent(agent_dir=get_services_core("MasterDriverAgent"),
-                                                   config_file={},
-                                                   start=True)
+                                                  config_file={},
+                                                  start=True)
 
     gevent.sleep(10)  # wait for the agent to start and start the devices
 
@@ -145,6 +145,7 @@ def modbus_server(request):
 
 
 @pytest.mark.usefixtures("modbus_server")
+@pytest.mark.driver
 class TestModbusTKDriver:
     """
         Regression tests for the modbus_tk driver interface.
@@ -204,40 +205,40 @@ class TestModbusTKDriver:
         """
         return agent.vip.rpc.call('platform.driver', 'revert_point', device_name, point_name).get(timeout=10)
 
-    def test_default_values(self, agent):
+    def test_default_values(self, ion_driver_agent):
         """Test setting default values
         """
-        self.revert_all(agent, 'ion6200')
-        default_values = self.scrape_all(agent, 'ion6200')
+        self.revert_all(ion_driver_agent, 'ion6200')
+        default_values = self.scrape_all(ion_driver_agent, 'ion6200')
         assert type(default_values) is dict
 
         for key in default_values.keys():
             assert default_values[key] == 0 or 0.0
 
-    def test_set_point(self, agent):
+    def test_set_point(self, ion_driver_agent):
         """Serial set point
         """
-        set_value = self.set_point(agent, 'ion6200', 'Serial', 9600)
+        set_value = self.set_point(ion_driver_agent, 'ion6200', 'Serial', 9600)
         assert set_value == 9600
 
-    def test_get_point(self, agent):
+    def test_get_point(self, ion_driver_agent):
         """Serial get point after set point
         """
-        get_value = self.get_point(agent, 'ion6200', 'Serial')
+        get_value = self.get_point(ion_driver_agent, 'ion6200', 'Serial')
         assert get_value == 9600
 
-    def test_revert_point(self,agent):
+    def test_revert_point(self,ion_driver_agent):
         """Serial revert to default value
         """
-        self.revert_point(agent, 'ion6200', 'Serial')
-        assert self.get_point(agent, 'ion6200', 'Serial') == 0
+        self.revert_point(ion_driver_agent, 'ion6200', 'Serial')
+        assert self.get_point(ion_driver_agent, 'ion6200', 'Serial') == 0
 
-    def test_revert_all_new(self, agent):
+    def test_revert_all_new(self, ion_driver_agent):
         """Test revert device to default values
         """
-        self.revert_all(agent, 'ion6200')
+        self.revert_all(ion_driver_agent, 'ion6200')
 
-        default_values = self.scrape_all(agent, 'ion6200')
+        default_values = self.scrape_all(ion_driver_agent, 'ion6200')
         assert type(default_values) is dict
 
         for key in default_values.keys():

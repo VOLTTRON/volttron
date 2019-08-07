@@ -806,7 +806,7 @@ class RabbitMQMgmt(object):
             return None
         return conn_params
 
-    def build_remote_connection_param(self, rmq_user, rmq_address, ssl_auth=None):
+    def build_remote_connection_param(self, rmq_user, rmq_address, ssl_auth=None, retry_attempt=30, retry_delay=2):
         """
         Build Pika Connection parameters
         :param rmq_user: RabbitMQ user
@@ -839,6 +839,8 @@ class RabbitMQMgmt(object):
                     port= parsed_addr.port,
                     virtual_host=virtual_host,
                     ssl=True,
+                    connection_attempts=retry_attempt,
+                    retry_delay=retry_delay,
                     ssl_options=ssl_options,
                     credentials=pika.credentials.ExternalCredentials())
             else:

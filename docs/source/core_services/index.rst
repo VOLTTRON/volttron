@@ -1,10 +1,10 @@
+.. _core-services:
 
-
-======================
+=============
 Core Services
-======================
+=============
 
-Platform services provide the underlying functionality used by applications to perform their tasks.
+Platform services provide underlying functionality used by applications to perform their tasks.
 
 .. toctree::
     :glob:
