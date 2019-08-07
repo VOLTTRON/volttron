@@ -354,11 +354,19 @@ Setup on Linux
 
         ``python ./scripts/install-agent.py -s examples/MatLabAgent_v2 -c examples/MatLabAgent_v2/config --start``
 
-5. Run the below command and make a note of the server key. This required in configuring the stand alone agent on windows.
+5. Run the below command and make a note of the server key. This is required for configuring the stand alone agent on windows. (This is run on the linux machine)
 
         ``volttron-ctl auth serverkey``
 
-6. Whenever there is a change in the configuration in the config store, or whenever the agent starts, the commands will be sent. The output in the log should look similar to this:
+6. The agent can be started with the ``vctl start <uuid>`` command.
+
+   To load a new configuration or to change the current configuration enter:
+   ``vctl config store <agent vip identity> config <path\to\configfile>`` 
+   
+   Whenever there is a change in the configuration in the config store, or whenever
+   the agent starts, the commands will be sent. As long as the standalone agent has 
+   been started and is listening to the appropriate toping, the output in the log 
+   should look similar to this:
 
         .. code::
 
@@ -398,6 +406,15 @@ Install pre-requisites
 1. Install python 2.7 64-bit from `here <https://www.python.org/downloads/windows/>`__.
 
 2. Install MatLab engine from  `here <https://www.mathworks.com/help/matlab/matlab_external/install-the-matlab-engine-for-python.html>`_.
+
+
+   .. note::
+
+        At this time, you may want to verify that you are able to communicate with
+        your Linux machine across your network. The simplest method would be to open
+        up the command terminal and use ``ping <ip of Linux machine>``, and ``telnet 
+        <port of volttron instance>`` If you are using redhat linux, the port will 
+        need to be explicitly opened for outside access.
 
 Install StandAloneMatLab Agent
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -480,12 +497,13 @@ Windows environment.
 
                 If you get the error doing the second step because of an already installed volttron 
                 from a different directory, manually delete the volttron-egg.link file from your 
-                <python path>\Lib\site-pacakages directory (for example, del  C:\Python27\lib\site-packages\volttron-egg.link ) 
+                <python path>\\Lib\\site-pacakages directory (for example, 
+                del C:\\Python27\\lib\\site-packages\\volttron-egg.link ) 
                 and re-run the second command
 
 5. Configure the agent
 
-        The configuration settings for the standalone agent are in setting.py (located in the same directory as the standalone agent)
+        The configuration settings for the standalone agent are in setting.py (located in volttron-develop\examples\StandAloneMatLab\)
 
         **settings.py**
 
@@ -504,13 +522,10 @@ Windows environment.
         (volttron must be running to use this command)
 
 
-        .. note:: 
-
-                These changes are only necessary if you make changes to the example
-                config file topics or if you want to run multiple standalone agents.
-
         It is possible to have multiple standalone agents running. In this case,
-        copy the StandAloneMatLab folder, and make the changes mentioned above.
+        copy the StandAloneMatLab folder, and make the necessary changes to the
+        new settings.py file. Unless it is connecting to a separate volttron instance,
+        you should only need to change the volttron_to_matlab.
 
         .. note::
 
@@ -534,7 +549,10 @@ Windows environment.
 
 
         At this point, the agent is ready to run. To use the agent, navigate to the
-        example folder and use python to start the agent.
+        example folder and use python to start the agent. The agent will then wait for
+        a message to be published to the selected topic. This is done from the volttron 
+        instance on the Linux machine, either by starting\restarting MatLabAgent_v2 or 
+        by modifying it's configuration in the config store.
 
         ``cd examples\StandAloneMatLab\``
 
@@ -554,7 +572,7 @@ Windows environment.
                 2019-08-01 10:42:47,671 volttron.platform.vip.agent.subsystems.configstore DEBUG: Processing callbacks for affected files: {}
                 The Message is: testScript2.py,20
 
-       .. note::
+        .. note::
 
                 If you have python3 as your default python run the command ``python -2 standalone_matlab.py``
 
