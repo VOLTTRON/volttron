@@ -393,32 +393,21 @@ class AuthService(Agent):
         return self._get_authorizations(user_id, 2)
 
     def _update_auth_entry(self, domain, address, mechanism, credential, user_id):
-        entry = self.auth_file.find_by_credentials(credential)
-        if entry:
-            _log.info("Auth entry exists for {}".format(credential))
-            _log.info("Entry before update {}".format(entry))
-            entry.domain = domain
-            entry.address = address
-            entry.comments = entry.comments + " Domain and address updated to existing entry on setup mode"
-            new_entry = entry
-            _log.info("Entry after update {}".format(new_entry))
-        else:
-            # Make a new entry
-            fields = {
-                "user_id": user_id,
-                "domain": domain,
-                "address": address,
-                "mechanism": mechanism,
-                "credentials": credential,
-                "groups": "",
-                "roles": "",
-                "capabilities": "",
-                "comments": "Auth entry added in setup mode",
-            }
-            new_entry = AuthEntry(**fields)
+        # Make a new entry
+        fields = {
+            "domain": domain,
+            "address": address,
+            "mechanism": mechanism,
+            "credentials": credential,
+            "groups": "",
+            "roles": "",
+            "capabilities": "",
+            "comments": "Auth entry added in setup mode",
+        }
+        new_entry = AuthEntry(**fields)
 
         try:
-            self.auth_file.add(new_entry, overwrite=True)
+            self.auth_file.add(new_entry, overwrite=False)
         except AuthException as err:
             _log.error('ERROR: %s\n' % err.message)
 
