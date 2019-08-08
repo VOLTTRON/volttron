@@ -185,8 +185,8 @@ class ExecutionEnvironment(object):
         try:
             self.env = kwargs.get('env', None)
             _log.debug(kwargs.get('cwd'))
+            _log.debug(*args)
             if self.agent_user:
-                # TODO Change current working directory to the agent directory
                 run_as_user = ['sudo', '-u', self.agent_user]
                 run_as_user.extend(*args)
                 _log.debug(run_as_user)
@@ -291,22 +291,29 @@ class AIPplatform(object):
 
     def set_agent_user_directory_permissions(self, volttron_agent_user,
                                              agent_uuid, agent_dir):
-        # Let the user run the Python Executable
-        self.set_acl_for_directory('x', volttron_agent_user, sys.executable)
-        # Give execute only to agent user for its agent directory
-        _log.info("Setting Execute permissions for {} on {}".
-                   format(volttron_agent_user, agent_dir))
-        self.set_acl_for_directory("x", volttron_agent_user, agent_dir)
-        # Give read only to agent user for its agent-data directory
         name = self.agent_name(agent_uuid)
         agent_path_with_name = os.path.join(agent_dir, name)
+        agent_file_path = os.path.join(agent_path_with_name, name.split('agent')[0])
+        _log.debug("FILE PATH = {}".format(agent_file_path))
+
+        # Let the user run the Python Executable
+        self.set_acl_for_directory('x', volttron_agent_user, sys.executable)
+
+        # Give execute only to agent user for its agent directory
+        _log.info("Setting read/execute permissions for {} on {}".
+                  format(volttron_agent_user, agent_file_path))
+        self.set_acl_for_directory("rx", volttron_agent_user,
+                                   agent_file_path)
+
+        # Give read only to agent user for its agent-data directory
         agent_data_dir = self._get_agent_data_dir(agent_path_with_name)
         if not os.path.isdir(agent_data_dir):
             _log.info("Creating agent's data directory...")
             os.mkdir(agent_data_dir)
         _log.info("Setting read/write permissions for {} on {}"
                   "directory".format(volttron_agent_user, agent_data_dir))
-        self.set_acl_for_directory("r", volttron_agent_user, agent_data_dir)
+        self.set_acl_for_directory("rx", volttron_agent_user, agent_data_dir)
+
         # Give read/write to agent user for its data directory
         # TODO need a better way to get just the plain agent name
         data_dir = self._get_data_dir(agent_path_with_name,
@@ -870,12 +877,12 @@ class AIPplatform(object):
         environ['AGENT_VIP_IDENTITY'] = agent_vip_identity
 
         module, _, func = module.partition(':')
-        if func:
-            code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module,
-                                                                      func)
-            argv = [sys.executable, '-c', code]
-        else:
-            argv = [sys.executable, '-m', module]
+        # if func:
+        #     code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module,
+        #                                                               func)
+        #     argv = [sys.executable, '-c', code]
+        # else:
+        argv = [sys.executable, '-m', module]
         resmon = getattr(self.env, 'resmon', None)
         agent_user = None
         if self.secure_agent_user:
@@ -903,13 +910,8 @@ class AIPplatform(object):
             execenv = self._reserve_resources(resmon, execreqs)
         execenv.name = name or agent_path_with_name
         _log.info('starting agent %s', agent_path_with_name)
-        if self.secure_agent_user:
-            # data_dir = agent_path_with_name + "/{}".format(
-            #     name.split("agent")[0])
-            data_dir = agent_path_with_name
-        else:
-            data_dir = self._get_agent_data_dir(agent_path_with_name)
-        execenv.execute(argv, cwd=data_dir, env=environ, close_fds=True,
+        # data_dir = self._get_agent_data_dir(agent_path_with_name)
+        execenv.execute(argv, cwd=agent_path_with_name, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
         self.agents[agent_uuid] = execenv
         proc = execenv.process
