@@ -263,11 +263,17 @@ class RPC(SubsystemBase):
         def checked_method(*args, **kwargs):
             user = str(self.context.vip_message.user)
             if self._message_bus == "rmq":
+                # When we address issue #2107 external platform user should
+                # have instance name also included in username.
                 user = user.split(".")[1]
             _log.debug("Current user in checked_method is {}".format(user))
             user_capabilites = self._owner.vip.auth.get_capabilities(user)
             _log.debug("**user caps is: {}".format(user_capabilites))
-            user_capabilities_names = set(user_capabilites.keys())
+            if user_capabilites:
+                user_capabilities_names = set(user_capabilites.keys())
+            else:
+                user_capabilities_names = set()
+
             _log.debug("Required caps is : {}".format(required_caps))
             _log.debug("user capability names: {}".format(user_capabilities_names))
             if not required_caps.issubset(user_capabilities_names):

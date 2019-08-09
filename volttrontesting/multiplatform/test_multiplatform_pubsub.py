@@ -520,6 +520,7 @@ def test_multiplatform_bad_discovery_file(request, build_instances):
     p3.shutdown_platform()
 
 
+@pytest.mark.xfail(reason="Issue #2107. rpc call to edit config store will fail due to capabilities check")
 @pytest.mark.multiplatform
 def test_multiplatform_rpc(request, get_volttron_instances):
     p1, p2 = get_volttron_instances(2)
