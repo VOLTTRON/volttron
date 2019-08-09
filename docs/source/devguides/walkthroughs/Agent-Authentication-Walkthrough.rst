@@ -80,9 +80,9 @@ to that RPC method to only those agents who have that capailbity listed in their
 
 
 If administrator wants to authorize an agent to access an exported RPC method with capability of another agent,
-he/she can list that capability string in this parameter. Capability parameter takes an string or an array of strings
-listing all the capabilities this agent is authorized to access. Listing capabilities here will allow this agent to
-access corresponding exported RPC methods of other agents.
+he/she can list that capability string in this parameter. Capability parameter takes an string or an array of strings or
+a string representation of dictionary listing all the capabilities this agent is authorized to access.
+Listing capabilities here will allow this agent to access corresponding exported RPC methods of other agents.
 
 For example, if there is an AgentA with capability enables exported RPC method and AgentB needs to access that method then
 AgentA's code and AgentB's authentication record would be as follow:
@@ -123,6 +123,38 @@ Similarly, capability parameter can take an array of string:
     capabilities (delimit multiple entries with comma) []: can_call_bar
     capabilities (delimit multiple entries with comma) []: can_call_method1, can_call_method2
 
+Capabilities can also be used to restrict access to a rpc method only with certain parameter values. For example, if AgentA
+exposes a method bar which accepts parameter x
+
+
+AgentA's capability enabled exported RPC method:
+
+::
+
+   @RPC.export
+   @RPC.allow('can_call_bar')
+   def bar(self, x):
+      return 'If you can see this, then you have the required capabilities'
+
+You can restrict access to AgentA's bar method to AgentB with x=1. To add this auth entry use the vctl auth add command
+as show below
+
+::
+
+vctl auth add --capabilities '{"test1_cap2":{"x":1}}' --user-id AgentB --credential vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0
+
+Parameter values can also be regular expressions
+
+::
+
+vctl auth add --capabilities '{"test1_cap2":{"x":"/.*"}}' --user-id AgentB --credential vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0
+
+
+Note- The string passed should be valid json string. You can use the python's json.dumps() to generate the string.
+
+::
+    import json
+    json.dumps({'test1_capability1': {'x':1}, 'test1_capabilitiy2': {'y':None})
 
 Roles:
 -------
