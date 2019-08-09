@@ -271,8 +271,12 @@ def pubsub_unauthorized(volttron_instance_encrypt, topic='foo', regex=None, peer
     agent1 = setup['agent1']
     agent2 = setup['agent2']
     topic = setup['topic']
-    with pytest.raises(VIPError):
+    try:
         agent2.vip.pubsub.publish(peer, topic, message='hello').get(timeout=2)
+    except VIPError as e:
+        assert e.msg == "to publish to topic \"{}\" requires ".format(topic) + \
+            "capabilities ['can_publish_to_my_topic'], but capability list " \
+            "{'edit_config_store': {'identity': 'agent2'}} was provided"
 
 
 def pubsub_authorized(volttron_instance_encrypt, topic='foo', regex=None, peer='pubsub'):
