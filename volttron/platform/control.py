@@ -1114,7 +1114,7 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
     asker.add('address', address)
     asker.add('user_id', user_id)
     asker.add('capabilities', capabilities,
-              'delimit multiple entries with comma', _comma_split)
+              'delimit multiple entries with comma', _parse_capabilities)
     asker.add('roles', roles, 'delimit multiple entries with comma',
               _comma_split)
     asker.add('groups', groups, 'delimit multiple entries with comma',
@@ -1169,11 +1169,14 @@ def add_auth(opts):
         # Remove unspecified options so the default parameters are used
         fields = {k: v for k, v in fields.items() if v}
         fields['enabled'] = not opts.disabled
+        print("fields of capabilities: {}".format(fields["capabilities"]))
         entry = AuthEntry(**fields)
     else:
         # No options were specified, use interactive wizard
         responses = _ask_for_auth_fields()
         entry = AuthEntry(**responses)
+        print("fields of capabilities: {}".format(responses["capabilities"]))
+
 
     if opts.add_known_host:
         if entry.address is None:
