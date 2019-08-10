@@ -352,50 +352,31 @@ Setup on Linux
 
 4. Install MatLabAgent_v2 and start agent (from volttron root directory)
 
-        ``python ./scripts/install-agent.py -s examples/MatLabAgent_v2 -c examples/MatLabAgent_v2/config --start``
+        ``python ./scripts/install-agent.py -s examples/MatLabAgent_v2 --start``
 
-5. Run the below command and make a note of the server key. This is required for configuring the stand alone agent on windows. (This is run on the linux machine)
+        .. note::
+
+                The MatLabAgent_v2 pulishes the command to be run to the message bus only on start or on a
+                configuration update.  Once we configure the standalone_matlab agent on the windows machine, we will
+                send a configuration update to the running MatLabAgent_v2. The configuration would contain the topics to
+                which the standalone agent is listening to and will be publishing result to.
+
+        .. seealso::
+
+                The MatLab agent uses the configuration store to dynamically change inputs.
+                More information on the config store and how it used can be found here.
+
+                 * :ref:`VOLTTRON Configuration Store <VOLTTRON-Configuration-Store>`
+
+                 * :ref:`Agent Configuration Store <ConfigurationStore>`
+
+                 * :ref:`Agent Configuration Store Interface <Agent-Configuration-Store-Interface>`
+
+5. Run the below command and make a note of the server key. This is required for configuring the stand alone agent
+   on windows. (This is run on the linux machine)
 
         ``volttron-ctl auth serverkey``
 
-6. The agent can be started with the ``vctl start <uuid>`` command.
-
-   To load a new configuration or to change the current configuration enter:
-   ``vctl config store <agent vip identity> config <path\to\configfile>`` 
-   
-   Whenever there is a change in the configuration in the config store, or whenever
-   the agent starts, the commands will be sent. As long as the standalone agent has 
-   been started and is listening to the appropriate toping, the output in the log 
-   should look similar to this:
-
-        .. code::
-
-                2019-08-01 10:43:18,925 (matlab_agentV2agent-0.3 3539) matlab_agentV2.agent DEBUG: Configuring Agent
-                2019-08-01 10:43:18,926 (matlab_agentV2agent-0.3 3539) matlab_agentV2.agent DEBUG: Publishing on: matlab/to_matlab/1
-                2019-08-01 10:43:18,926 (matlab_agentV2agent-0.3 3539) matlab_agentV2.agent DEBUG: Sending message: testScript2.py,20
-                2019-08-01 10:43:18,926 (matlab_agentV2agent-0.3 3539) matlab_agentV2.agent DEBUG: Agent Configured!
-                2019-08-01 10:43:18,979 (matlab_agentV2agent-0.3 3539) matlab_agentV2.agent INFO: Agent: matlab/to_volttron/1
-                Message: 
-                '20'
-        
-        .. note::
-
-                If MatLabAgent_v2 has been installed and started, and you have not started the 
-                standalone_matlab agent, you will need to either restart the matlab_agentV2, or make
-                a change to the configuration in the config store.
-
-
-Configuration Modifications
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The MatLab agent uses the configuration store to dynamically change inputs.
-More information on the config store and how it used can be found here.
-
- * :ref:`VOLTTRON Configuration Store <VOLTTRON-Configuration-Store>`
-
- * :ref:`Agent Configuration Store <ConfigurationStore>`
-
- * :ref:`Agent Configuration Store Interface <Agent-Configuration-Store-Interface>`
 
 Setup on Windows
 ----------------
@@ -412,8 +393,8 @@ Install pre-requisites
 
         At this time, you may want to verify that you are able to communicate with
         your Linux machine across your network. The simplest method would be to open
-        up the command terminal and use ``ping <ip of Linux machine>``, and ``telnet 
-        <port of volttron instance>`` If you are using redhat linux, the port will 
+        up the command terminal and use ``ping <ip of Linux machine>``, and ``telnet <ip of Linux machine>
+        <port of volttron instance. default port is 22916>`` If you are using redhat linux, the port will
         need to be explicitly opened for outside access.
 
 Install StandAloneMatLab Agent
@@ -468,9 +449,9 @@ Windows environment.
 
 3. Set python version in MatLab
 
-        Open your MatLab application.
-        Use **pyversion /path/to/python.exe** to set the appropriate version of python for your system.
-        This is necessary if you are working with multiple versions of python on your machine.
+        Open your MatLab application. Run the command **pyversion** This should print the path to python2.7. If you have
+        multiple versions of python on your machine and pyversion points to a different version of python,
+        use **pyversion /path/to/python.exe** to set the appropriate version of python for your system.
         For example, to use python 2.7 with MatLab:
 
         .. code::
@@ -503,7 +484,7 @@ Windows environment.
 
 5. Configure the agent
 
-        The configuration settings for the standalone agent are in setting.py (located in volttron-develop\examples\StandAloneMatLab\)
+        The configuration settings for the standalone agent are in setting.py (located in volttron-develop\\examples\\StandAloneMatLab\\)
 
         **settings.py**
 
@@ -531,7 +512,7 @@ Windows environment.
 
                 It is recommended that you generate a new agent_public and agent_private
                 key for your standalone agent. This can be done using the ``vctl auth keypair``
-                command on your primary volttron platform. If you plan to use multiple standalone agents,
+                command on your primary volttron platform on Linux. If you plan to use multiple standalone agents,
                 they will each need their own keypair.
 
 6. Add standalone agent key to volttron platform
@@ -539,7 +520,8 @@ Windows environment.
         * Copy the public key from settings.py in the StandAloneMatLab folder.
 
         * While the primary volttron platform is running on the linux machine, 
-        add the agent public key using the vctl auth command.
+        add the agent public key using the vctl auth command on the linux machine. This will make volttron platform
+        allow connections from the standalone agent
 
         .. code::
 
@@ -550,9 +532,7 @@ Windows environment.
 
         At this point, the agent is ready to run. To use the agent, navigate to the
         example folder and use python to start the agent. The agent will then wait for
-        a message to be published to the selected topic. This is done from the volttron 
-        instance on the Linux machine, either by starting\restarting MatLabAgent_v2 or 
-        by modifying it's configuration in the config store.
+        a message to be published to the selected topic by the MatLab agent.
 
         ``cd examples\StandAloneMatLab\``
 
@@ -569,12 +549,47 @@ Windows environment.
                 2019-08-01 10:42:47,598 volttron.platform.vip.zmq_connection DEBUG: ZMQ connection standalone_matlab
                 2019-08-01 10:42:47,634 volttron.platform.vip.agent.core INFO: Connected to platform: router: ebae9efa-5e8f-49e3-95a0-2020ddff9e8a version: 1.0 identity: standalone_matlab
                 2019-08-01 10:42:47,634 volttron.platform.vip.agent.core DEBUG: Running onstart methods.
+
+
+        .. note::
+
+                If you have python3 as your default python run the command ``python -2 standalone_matlab.py``
+
+8. On the Linux machine configure the MatlabAgent to publish commands to the topic standalone agent is listening to.
+To load a new configuration or to change the current configuration enter
+
+        .. code::
+
+            vctl config store <agent vip identity> config <path\to\configfile>
+
+   Whenever there is a change in the configuration in the config store, or whenever
+   the agent starts, the matlab agent sends the configgured command to the topic configured. As long as the standalone
+   agent has been started and is listening to the appropriate topic, the output in the log
+   should look similar to this:
+
+        .. code::
+
+                2019-08-01 10:43:18,925 (matlab_agentV2agent-0.3 3539) matlab_agentV2.agent DEBUG: Configuring Agent
+                2019-08-01 10:43:18,926 (matlab_agentV2agent-0.3 3539) matlab_agentV2.agent DEBUG: Publishing on: matlab/to_matlab/1
+                2019-08-01 10:43:18,926 (matlab_agentV2agent-0.3 3539) matlab_agentV2.agent DEBUG: Sending message: testScript2.py,20
+                2019-08-01 10:43:18,926 (matlab_agentV2agent-0.3 3539) matlab_agentV2.agent DEBUG: Agent Configured!
+                2019-08-01 10:43:18,979 (matlab_agentV2agent-0.3 3539) matlab_agentV2.agent INFO: Agent: matlab/to_volttron/1
+                Message:
+                '20'
+   Once the matlab agent publishes the message (in the above case, "testScript2.py,20") on the windows command prompt
+   running the standalone agent, you should see the message that was received by the standalone agent.
+
+        .. code::
+
                 2019-08-01 10:42:47,671 volttron.platform.vip.agent.subsystems.configstore DEBUG: Processing callbacks for affected files: {}
                 The Message is: testScript2.py,20
 
         .. note::
 
-                If you have python3 as your default python run the command ``python -2 standalone_matlab.py``
+                If MatLabAgent_v2 has been installed and started, and you have not started the
+                standalone_matlab agent, you will need to either restart the matlab_agentV2, or make
+                a change to the configuration in the config store to send command to the topic standalone agent is
+                actively listening to.
 
 .. |github-image| image:: files/github-image.png
 .. |cmd-image| image:: files/cmd-image.png
