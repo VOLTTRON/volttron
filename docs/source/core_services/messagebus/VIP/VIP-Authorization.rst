@@ -143,17 +143,66 @@ as show below
 
 ::
 
-vctl auth add --capabilities '{"test1_cap2":{"x":1}}' --user-id AgentB --credential vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0
+   vctl auth add --capabilities '{"test1_cap2":{"x":1}}' --user_id AgentB --credential vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0
+
+auth.json file entry for the above command would be
+
+::
+
+    {
+      "domain": null,
+      "user_id": "AgentB",
+      "roles": [],
+      "enabled": true,
+      "mechanism": "CURVE",
+      "capabilities": {
+        "test1_cap2": {
+          "x": 1
+        }
+      },
+      "groups": [],
+      "address": null,
+      "credentials": "vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0",
+      "comments": null
+    }
+
+
 
 Parameter values can also be regular expressions
 
 ::
 
-vctl auth add --capabilities '{"test1_cap2":{"x":"/.*"}}' --user-id AgentB --credential vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0
+    (volttron)volttron@volttron1:~/git/myvolttron$ vctl auth add
+    domain []:
+    address []:
+    user_id []:
+    capabilities (delimit multiple entries with comma) []: {'test1_cap2':{'x':'/.*'}}
+    roles (delimit multiple entries with comma) []:
+    groups (delimit multiple entries with comma) []:
+    mechanism [CURVE]:
+    credentials []: vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0
+    comments []:
+    enabled [True]:
+    added entry domain=None, address=None, mechanism='CURVE', credentials=u'vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0', user_id='b22e041d-ec21-4f78-b32e-ab7138c22373'
 
 
-Note- The string passed should be valid json string. You can use the python's json.dumps() to generate the string.
+auth.json file entry for the above command would be:
 
 ::
-    import json
-    json.dumps({'test1_capability1': {'x':1}, 'test1_capabilitiy2': {'y':None})
+
+    {
+      "domain": null,
+      "user_id": "90f8ef35-4407-49d8-8863-4220e95974c7",
+      "roles": [],
+      "enabled": true,
+      "mechanism": "CURVE",
+      "capabilities": {
+        "test1_cap2": {
+          "x": "/.*"
+        }
+      },
+      "groups": [],
+      "address": null,
+      "credentials": "vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0",
+      "comments": null
+    }
