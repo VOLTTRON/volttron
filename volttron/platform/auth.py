@@ -172,7 +172,7 @@ class AuthService(Agent):
     def _send_auth_update_to_pubsub(self):
         user_to_caps = self.get_user_to_capabilities()
         # Send auth update message to router
-        json_msg = jsonapi.dumps(
+        json_msg = jsonapi.dumpb(
             dict(capabilities=user_to_caps)
         )
         frames = [zmq.Frame(b'auth_update'), zmq.Frame(json_msg)]
