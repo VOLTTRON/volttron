@@ -108,7 +108,7 @@ class Auth(SubsystemBase):
         if agent_class is None:
             agent_class = Agent
 
-        parsed_address = urlparse.urlparse(address)
+        parsed_address = urlparse(address)
         _log.debug("Begining auth.connect_remote_platform: {}".format(address))
 
         value = None
