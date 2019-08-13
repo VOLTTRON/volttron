@@ -325,7 +325,8 @@ class Auth(SubsystemBase):
             self._dirty = False
             try:
                 self._user_to_capabilities = self._rpc().call(AUTH,
-                                                              'get_user_to_capabilities').get(timeout=10)
+                    'get_user_to_capabilities').get(timeout=10)
+                _log.debug("self. user to cap {}".format(self._user_to_capabilities))
             except RemoteError:
                 self._dirty = True
 

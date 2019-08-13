@@ -54,6 +54,8 @@ from gevent.subprocess import PIPE
 from wheel.tool import unpack
 
 from volttron.platform import certs
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, \
+    CONTROL
 
 # Can't use zmq.utils.jsonapi because it is missing the load() method.
 try:
@@ -375,7 +377,13 @@ class AIPplatform(object):
 
     def _authorize_agent_keys(self, agent_uuid, identity):
         publickey = self.get_agent_keystore(agent_uuid).public
+        capabilities = {'edit_config_store': {'identity': identity}}
+
+        if identity == VOLTTRON_CENTRAL_PLATFORM:
+            capabilities = {'edit_config_store': {'identity': '/.*/'}}
+
         entry = AuthEntry(credentials=publickey, user_id=identity,
+                          capabilities=capabilities,
                           comments='Automatically added on agent install')
         try:
             AuthFile().add(entry)
