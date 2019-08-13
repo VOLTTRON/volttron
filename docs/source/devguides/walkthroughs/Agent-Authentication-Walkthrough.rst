@@ -80,7 +80,7 @@ to that RPC method to only those agents who have that capailbity listed in their
 
 
 If administrator wants to authorize an agent to access an exported RPC method with capability of another agent,
-he/she can list that capability string in this parameter. Capability parameter takes an string or an array of strings or
+the administrator can list that capability string in this parameter. Capability parameter takes an string or an array of strings or
 a string representation of dictionary listing all the capabilities this agent is authorized to access.
 Listing capabilities here will allow this agent to access corresponding exported RPC methods of other agents.
 
