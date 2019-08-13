@@ -262,7 +262,8 @@ class BaseInterface(object, metaclass=abc.ABCMeta):
 
     """
     def __init__(self, vip=None, core=None, **kwargs):
-        super(BaseInterface, self).__init__(**kwargs)
+        # Object does not take any arguments to the init.
+        super(BaseInterface, self).__init__()
         self.vip = vip
         self.core = core
         
