@@ -58,43 +58,37 @@ instance with VCA.
 
 """
 
+import datetime
 import logging
 import os
 import os.path as p
 import sys
 from collections import namedtuple
-import datetime
 
 import gevent
-import requests
 
-from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform import jsonapi
-
-from .authenticate import Authenticate
-from .platforms import Platforms, PlatformHandler
-from .sessions import SessionHandler
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
-from volttron.platform.agent.exit_codes import INVALID_CONFIGURATION_CODE
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, PLATFORM_HISTORIAN)
+    VOLTTRON_CENTRAL, PLATFORM_HISTORIAN)
 from volttron.platform.agent.utils import (
-    get_aware_utc_now, format_timestamp)
+    get_aware_utc_now)
+from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform.jsonrpc import (
     INVALID_REQUEST, METHOD_NOT_FOUND,
     UNHANDLED_EXCEPTION, UNAUTHORIZED,
-    DISCOVERY_ERROR,
-    UNABLE_TO_UNREGISTER_INSTANCE, UNAVAILABLE_PLATFORM, INVALID_PARAMS,
+    UNAVAILABLE_PLATFORM, INVALID_PARAMS,
     UNAVAILABLE_AGENT, INTERNAL_ERROR)
-from volttron.platform.messaging.health import Status, \
-    BAD_STATUS, GOOD_STATUS, UNKNOWN_STATUS
-from volttron.platform.vip.agent import Agent, RPC, PubSub, Core, Unreachable
-from volttron.platform.vip.agent.connection import Connection
-from volttron.platform.vip.agent.subsystems.query import Query
-from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
+from volttron.platform.vip.agent import Agent, RPC, Unreachable
+from .authenticate import Authenticate
+from .platforms import Platforms, PlatformHandler
+from .sessions import SessionHandler
 
-__version__ = "5.1"
+# must be after importing of utils which imports grequest.
+import requests
+
+__version__ = "5.2"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -429,7 +423,7 @@ class VolttronCentralAgent(Agent):
                     # we pass in the proper thing to the _add_sesion function.
                     assert 'groups' in claims
                     authentication_token = resp.text
-                    sess=authentication_token
+                    sess = authentication_token
                     self._authenticated_sessions._add_session(user=user,
                                                               groups=claims['groups'],
                                                               token=authentication_token,
