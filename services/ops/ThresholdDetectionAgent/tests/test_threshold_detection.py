@@ -132,6 +132,8 @@ def threshold_tester_agent(volttron_instance):
     agent = volttron_instance.build_agent(agent_class=AlertWatcher,
                                           identity="alert_watcher",
                                           enable_store=True)
+    capabilities = {'edit_config_store': {'identity': "platform.thresholddetection"}}
+    volttron_instance.add_capabilities(agent.core.publickey, capabilities)
 
     agent.reset_store()
     # agent.vip.rpc.call(CONFIGURATION_STORE,

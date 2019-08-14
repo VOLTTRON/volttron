@@ -59,6 +59,7 @@ import time
 
 from volttron.platform import get_services_core
 from sep2.end_device import SEP2Parser
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 DRIVER_NAME = 'sep2'
 DEVICE_ID = "097935300833"
@@ -117,11 +118,13 @@ web_address = ""
 
 @pytest.fixture(scope="module")
 def agent(request, volttron_instance_module_web):
-    test_agent = volttron_instance_module_web.build_agent()
 
+    test_agent = volttron_instance_module_web.build_agent(identity="test_agent")
+    capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
+    volttron_instance_module_web.add_capabilities(test_agent.core.publickey, capabilities)
     # Configure a SEP2 device in the Master Driver
-    test_agent.vip.rpc.call('config.store', 'manage_delete_store', 'platform.driver').get(timeout=10)
-    test_agent.vip.rpc.call('config.store', 'manage_store', 'platform.driver',
+    test_agent.vip.rpc.call('config.store', 'manage_delete_store', PLATFORM_DRIVER).get(timeout=10)
+    test_agent.vip.rpc.call('config.store', 'manage_store', PLATFORM_DRIVER,
                             'devices/{}'.format(DRIVER_NAME),
                             """{
                                 "driver_config": {
@@ -138,7 +141,7 @@ def agent(request, volttron_instance_module_web):
                                 "heart_beat_point": "Heartbeat"
                             }""",
                             'json').get(timeout=10)
-    test_agent.vip.rpc.call('config.store', 'manage_store', 'platform.driver',
+    test_agent.vip.rpc.call('config.store', 'manage_store', PLATFORM_DRIVER,
                             'sep2.csv',
                             REGISTRY_CONFIG_STRING,
                             'csv').get(timeout=10)

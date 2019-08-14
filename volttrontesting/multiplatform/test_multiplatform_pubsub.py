@@ -240,7 +240,7 @@ def test_multiplatform_pubsub(request, multi_platform_connection):
         p1_publisher.vip.pubsub.publish(peer='pubsub',
                                         topic='devices/campus/building1',
                                         message=[{'point': 'value'}])
-        poll_gevent_sleep(2, lambda: messages_contains_prefix(prefix,
+        poll_gevent_sleep(5, lambda: messages_contains_prefix(prefix,
                                                               subscription_results))
 
         message = subscription_results['devices/campus/building1']['message']
@@ -290,8 +290,7 @@ def test_multiplatform_2_publishers(request, five_platform_connection):
     p5_publisher.vip.pubsub.subscribe(peer='pubsub',
                                       prefix='analysis',
                                       callback=callback5)
-    gevent.sleep(2)
-    print("publish")
+    gevent.sleep(5)
     prefix = 'devices'
     for i in range(5):
         p1_publisher.vip.pubsub.publish(peer='pubsub', topic='devices/campus/building1', message=[{'point': 'value'}])
@@ -522,7 +521,7 @@ def test_multiplatform_bad_discovery_file(request, build_instances):
     p3.shutdown_platform()
 
 
-
+@pytest.mark.xfail(reason="Issue #2107. rpc call to edit config store will fail due to capabilities check")
 @pytest.mark.multiplatform
 def test_multiplatform_rpc(request, get_volttron_instances):
     p1, p2 = get_volttron_instances(2)

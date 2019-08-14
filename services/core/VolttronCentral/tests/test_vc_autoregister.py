@@ -36,7 +36,8 @@ def multi_messagebus_vc_vcp(volttron_multi_messagebus):
     # Update vcp_config store to add the volttron-central-address from vc to the
     # config store
     config = jsonapi.dumps({'volttron-central-address': vc_instance.bind_web_address})
-
+    capabilities = {'edit_config_store': {'identity': VOLTTRON_CENTRAL_PLATFORM}}
+    vcp_instance.add_capabilities(vcp_instance.dynamic_agent.core.publickey, capabilities)
     vcp_instance.dynamic_agent.vip.rpc.call(CONFIGURATION_STORE,
                                             "manage_store",
                                             VOLTTRON_CENTRAL_PLATFORM,

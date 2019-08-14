@@ -41,6 +41,7 @@ import heapq
 import inspect
 import logging
 import os
+import platform as python_platform
 import signal
 import threading
 import time
@@ -179,11 +180,16 @@ class BasicCore(object):
         self.onfinish = Signal()
         self.oninterrupt = None
         self.tie_breaker = 0
-        prev_int_signal = gevent.signal.getsignal(signal.SIGINT)
-        # To avoid a child agent handler overwriting the parent agent handler
-        if prev_int_signal in [None, signal.SIG_IGN, signal.SIG_DFL]:
-            self.oninterrupt = gevent.signal.signal(signal.SIGINT,
-                                                    self._on_sigint_handler)
+
+        # SIGINT does not work in Windows.
+        # If using the standalone agent on a windows machine,
+        # this section will be skipped
+        if python_platform.system() != 'Windows':
+            prev_int_signal = gevent.signal.getsignal(signal.SIGINT)
+            # To avoid a child agent handler overwriting the parent agent handler
+            if prev_int_signal in [None, signal.SIG_IGN, signal.SIG_DFL]:
+                self.oninterrupt = gevent.signal.signal(signal.SIGINT,
+                                                        self._on_sigint_handler)
         self._owner = owner
 
     def setup(self):

@@ -912,7 +912,7 @@ def test_poll_location(volttron_instance, query_agent):
             agent_class=BasicWeatherAgent,
             identity="test_poll_basic",
             poll_locations=[{"location": "fake_location"}],
-            poll_interval=5,
+            poll_interval=10,
             should_spawn=True
         )
         gevent.sleep(3)
@@ -949,7 +949,7 @@ def test_poll_location(volttron_instance, query_agent):
 @pytest.mark.parametrize('config, result_topics', [
     ({'poll_locations': [{"location": "fake_location"},
                          {"location": "fake_location2"}],
-      'poll_interval': 5,
+      'poll_interval': 10,
       },
      ['weather/poll/current/all']),
     ({'poll_locations': [{"location": "fake_location"},

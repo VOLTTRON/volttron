@@ -71,6 +71,7 @@ examples to demonstrate.
 '''
 
 import os
+import platform
 
 from .utils import Topic as _
 
@@ -101,7 +102,7 @@ MARKET_ERROR = _(MARKET_BASE.replace('{subtopic}', 'error'))
 MARKET_RECORD = _(RECORD.replace('{subtopic}', MARKET_CLEAR))
 
 AGENT_SHUTDOWN = _('agent/{agent}/shutdown')
-AGENT_PING = _('agent/ping/{}/{}/{{cookie}}'.format(os.uname()[1], os.getpid()))
+AGENT_PING = _('agent/ping/{}/{}/{{cookie}}'.format(platform.uname()[1], os.getpid()))
 
 LOGGER_BASE =_('datalogger')
 LOGGER = _('datalogger/{subtopic}')

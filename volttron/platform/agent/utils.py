@@ -48,7 +48,11 @@ import re
 import stat
 import subprocess
 import sys
-import syslog
+try:
+    HAS_SYSLOG = True
+    import syslog
+except ImportError:
+    HAS_SYSLOG = False
 import traceback
 from configparser import ConfigParser
 from datetime import datetime
@@ -68,7 +72,7 @@ from volttron.platform import jsonapi
 from volttron.utils.prompt import prompt_response
 
 try:
-    from ..lib.inotify.green import inotify, IN_MODIFY
+    from volttron.platform.lib.inotify.green import inotify, IN_MODIFY
 except AttributeError:
     # inotify library is not available on OS X/MacOS.
     # @TODO Integrate with the OS X FS Events API
@@ -441,17 +445,20 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         pass
 
 
-class SyslogFormatter(logging.Formatter):
-    _level_map = {logging.DEBUG: syslog.LOG_DEBUG,
-                  logging.INFO: syslog.LOG_INFO,
-                  logging.WARNING: syslog.LOG_WARNING,
-                  logging.ERROR: syslog.LOG_ERR,
-                  logging.CRITICAL: syslog.LOG_CRIT}
+# Keep the ability to have system log output for linux
+# this will fail on windows because no syslog.
+if HAS_SYSLOG:
+    class SyslogFormatter(logging.Formatter):
+        _level_map = {logging.DEBUG: syslog.LOG_DEBUG,
+                      logging.INFO: syslog.LOG_INFO,
+                      logging.WARNING: syslog.LOG_WARNING,
+                      logging.ERROR: syslog.LOG_ERR,
+                      logging.CRITICAL: syslog.LOG_CRIT}
 
-    def format(self, record):
-        level = self._level_map.get(record.levelno, syslog.LOG_INFO)
-        return '<{}>'.format(level) + super(SyslogFormatter, self).format(
-            record)
+        def format(self, record):
+            level = self._level_map.get(record.levelno, syslog.LOG_INFO)
+            return '<{}>'.format(level) + super(SyslogFormatter, self).format(
+                record)
 
 
 class JsonFormatter(logging.Formatter):
@@ -655,12 +662,15 @@ def watch_file(fullpath, callback):
     if inotify is None:
         _log.warning("Runtime changes to: %s not supported on this platform.", fullpath)
     else:
-        _log.info("Added file watch for %s", fullpath)
-        with inotify() as inot:
-            inot.add_watch(dirname, IN_MODIFY)
-            for event in inot:
-                if event.name == filename and event.mask & IN_MODIFY:
-                    callback()
+        try:
+            with inotify() as inot:
+                inot.add_watch(dirname, IN_MODIFY)
+                for event in inot:
+                    if event.name == filename and event.mask & IN_MODIFY:
+                        callback()
+        except Exception as e:
+            _log.warning("Runtime changes to {} not supported due to "
+                         "exception initializing inotify. Exception: {}".format(fullpath, e))
 
 
 def watch_file_with_fullpath(fullpath, callback):

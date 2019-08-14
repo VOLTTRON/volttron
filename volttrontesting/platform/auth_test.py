@@ -43,6 +43,32 @@ def build_two_test_agents(platform):
     return agent1, agent2
 
 
+def build_agents_with_capability_args(platform):
+    """Returns two agents for testing authorization where one agent has
+    rpc call with capability and argument restriction
+
+    The first agent is the "RPC callee."
+    The second agent is the unauthorized "RPC caller."
+    """
+    agent1 = build_agent(platform, 'agent1')
+    gevent.sleep(1)
+    agent2 = build_agent(platform, 'agent2')
+    gevent.sleep(1)
+
+    agent1.foo = lambda x: x
+    agent1.foo.__name__ = 'foo'
+
+    agent2.boo = lambda x, y: (x, y)
+    agent2.boo.__name__ = 'boo'
+
+    agent1.vip.rpc.export(method=agent1.foo)
+    agent2.vip.rpc.export(method=agent2.boo)
+    agent1.vip.rpc.allow(agent1.foo, 'can_call_foo')
+    agent2.vip.rpc.allow(agent2.boo, 'can_call_boo')
+
+    return agent1, agent2
+
+
 @pytest.mark.auth
 def test_unauthorized_rpc_call1(volttron_instance_encrypt):
     """Tests an agent with no capabilities calling a method that
@@ -70,7 +96,7 @@ def test_authorized_rpc_call1(volttron_instance_encrypt):
 @pytest.mark.auth
 def test_unauthorized_rpc_call2(volttron_instance_encrypt):
     """Tests an agent with one capability calling a method that
-    requires that two capabilites
+    requires two capabilites
     """
     agent1, agent2 = build_two_test_agents(volttron_instance_encrypt)
 
@@ -99,6 +125,84 @@ def test_authorized_rpc_call2(volttron_instance_encrypt):
     gevent.sleep(.1)
     result = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=2)
     assert result == 42
+
+
+@pytest.mark.auth
+def test_rpc_call_with_capability_and_param_restrictions(volttron_instance_encrypt):
+    """Tests an agent with capability and parameter restriction
+    """
+    agent1, agent2 = build_agents_with_capability_args(volttron_instance_encrypt)
+
+    volttron_instance_encrypt.add_capabilities(agent2.publickey, {'can_call_foo': {'x': 1}})
+    gevent.sleep(.1)
+
+    # Attempt calling agent1.foo with invalid parameter value using args
+    try:
+        agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=1)
+        assert False
+    except jsonrpc.RemoteError as e:
+        assert e.message == "User can call method foo only with x=1 but called with x=42"
+
+    # Attempt calling agent1.foo with invalid parameter value using kwargs
+    try:
+        agent2.vip.rpc.call(agent1.core.identity, 'foo', x=42).get(timeout=1)
+        assert False
+    except jsonrpc.RemoteError as e:
+        assert e.message == "User can call method foo only with x=1 but called with x=42"
+
+    # successful call
+    result = agent2.vip.rpc.call(agent1.core.identity, 'foo', 1).get(timeout=1)
+    assert result == 1
+
+    volttron_instance_encrypt.add_capabilities(agent1.publickey, {'can_call_boo': {'x': 1}})
+    gevent.sleep(.1)
+
+    # Attempt calling agent2.boo with invalid parameter value for x and any value for y. Call should fail only when
+    # x value is wrong
+    try:
+        agent1.vip.rpc.call(agent2.core.identity, 'boo', 42, 43).get(timeout=1)
+        assert False
+    except jsonrpc.RemoteError as e:
+        assert e.message == "User can call method boo only with x=1 but called with x=42"
+
+    x, y = agent1.vip.rpc.call(agent2.core.identity, 'boo', 1, 43).get(timeout=1)
+    assert x == 1
+    assert y == 43
+
+    # set more than one parameter restriction
+    volttron_instance_encrypt.add_capabilities(agent1.publickey, {'can_call_boo': {'x': 1, 'y': 2}})
+    gevent.sleep(.1)
+
+    # Attempt calling agent2.boo with valid parameter value for x and invalid value for y.
+    try:
+        agent1.vip.rpc.call(agent2.core.identity, 'boo', 1, 43).get(timeout=1)
+        assert False
+    except jsonrpc.RemoteError as e:
+        assert e.message == "User can call method boo only with y=2 but called with y=43"
+
+    # Attempt calling agent2.boo with invalid parameter value for x and valid value for y.
+    try:
+        agent1.vip.rpc.call(agent2.core.identity, 'boo', 22, 2).get(timeout=1)
+        assert False
+    except jsonrpc.RemoteError as e:
+        assert e.message == "User can call method boo only with x=1 but called with x=22"
+
+    # Attempt calling agent2.boo with invalid parameter value for x and y.
+    try:
+        agent1.vip.rpc.call(agent2.core.identity, 'boo', 22, 23).get(timeout=1)
+        assert False
+    except jsonrpc.RemoteError as e:
+        assert e.message == "User can call method boo only with x=1 but called with x=22" or \
+               e.message == "User can call method boo only with y=2 but called with y=23"
+
+    # Attempt calling agent2.boo with valid parameter value for x and y.
+    x, y = agent1.vip.rpc.call(agent2.core.identity, 'boo', 1, 2).get(timeout=1)
+    assert x == 1
+    assert y == 2
+
+    x, y = agent1.vip.rpc.call(agent2.core.identity, 'boo', 1, y=2).get(timeout=1)
+    assert x == 1
+    assert y == 2
 
 
 def build_two_agents_pubsub_agents(volttron_instance_encrypt, topic='foo'):
@@ -167,8 +271,12 @@ def pubsub_unauthorized(volttron_instance_encrypt, topic='foo', regex=None, peer
     agent1 = setup['agent1']
     agent2 = setup['agent2']
     topic = setup['topic']
-    with pytest.raises(VIPError):
+    try:
         agent2.vip.pubsub.publish(peer, topic, message='hello').get(timeout=2)
+    except VIPError as e:
+        assert e.msg == "to publish to topic \"{}\" requires ".format(topic) + \
+            "capabilities ['can_publish_to_my_topic'], but capability list " \
+            "{'edit_config_store': {'identity': 'agent2'}} was provided"
 
 
 def pubsub_authorized(volttron_instance_encrypt, topic='foo', regex=None, peer='pubsub'):

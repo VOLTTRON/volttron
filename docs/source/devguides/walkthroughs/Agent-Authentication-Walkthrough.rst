@@ -80,9 +80,9 @@ to that RPC method to only those agents who have that capailbity listed in their
 
 
 If administrator wants to authorize an agent to access an exported RPC method with capability of another agent,
-he/she can list that capability string in this parameter. Capability parameter takes an string or an array of strings
-listing all the capabilities this agent is authorized to access. Listing capabilities here will allow this agent to
-access corresponding exported RPC methods of other agents.
+the administrator can list that capability string in this parameter. Capability parameter takes an string or an array of strings or
+a string representation of dictionary listing all the capabilities this agent is authorized to access.
+Listing capabilities here will allow this agent to access corresponding exported RPC methods of other agents.
 
 For example, if there is an AgentA with capability enables exported RPC method and AgentB needs to access that method then
 AgentA's code and AgentB's authentication record would be as follow:
@@ -122,6 +122,89 @@ Similarly, capability parameter can take an array of string:
 
     capabilities (delimit multiple entries with comma) []: can_call_bar
     capabilities (delimit multiple entries with comma) []: can_call_method1, can_call_method2
+
+Capabilities can also be used to restrict access to a rpc method only with certain parameter values. For example, if AgentA
+exposes a method bar which accepts parameter x
+
+
+AgentA's capability enabled exported RPC method:
+
+::
+
+   @RPC.export
+   @RPC.allow('can_call_bar')
+   def bar(self, x):
+      return 'If you can see this, then you have the required capabilities'
+
+You can restrict access to AgentA's bar method to AgentB with x=1. To add this auth entry use the vctl auth add command
+as show below
+
+::
+
+   vctl auth add --capabilities '{"test1_cap2":{"x":1}}' --user_id AgentB --credential vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0
+
+auth.json file entry for the above command would be
+
+::
+
+    {
+      "domain": null,
+      "user_id": "AgentB",
+      "roles": [],
+      "enabled": true,
+      "mechanism": "CURVE",
+      "capabilities": {
+        "test1_cap2": {
+          "x": 1
+        }
+      },
+      "groups": [],
+      "address": null,
+      "credentials": "vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0",
+      "comments": null
+    }
+
+
+
+Parameter values can also be regular expressions
+
+::
+
+    (volttron)volttron@volttron1:~/git/myvolttron$ vctl auth add
+    domain []:
+    address []:
+    user_id []:
+    capabilities (delimit multiple entries with comma) []: {'test1_cap2':{'x':'/.*'}}
+    roles (delimit multiple entries with comma) []:
+    groups (delimit multiple entries with comma) []:
+    mechanism [CURVE]:
+    credentials []: vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0
+    comments []:
+    enabled [True]:
+    added entry domain=None, address=None, mechanism='CURVE', credentials=u'vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0', user_id='b22e041d-ec21-4f78-b32e-ab7138c22373'
+
+
+auth.json file entry for the above command would be:
+
+::
+
+    {
+      "domain": null,
+      "user_id": "90f8ef35-4407-49d8-8863-4220e95974c7",
+      "roles": [],
+      "enabled": true,
+      "mechanism": "CURVE",
+      "capabilities": {
+        "test1_cap2": {
+          "x": "/.*"
+        }
+      },
+      "groups": [],
+      "address": null,
+      "credentials": "vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0",
+      "comments": null
+    }
+
 
 
 Roles:
