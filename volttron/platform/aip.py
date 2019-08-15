@@ -214,7 +214,7 @@ class AIPplatform(object):
             self.rmq_mgmt = RabbitMQMgmt()
 
     def add_agent_user_group(self):
-        group = get_platform_instance_name()
+        group = "volttron_{}".format(get_platform_instance_name())
         try:
             grp.getgrnam(group)
         except KeyError:
@@ -247,13 +247,14 @@ class AIPplatform(object):
 
         # Create a USER_ID file, truncating existing USER_ID files which
         # should at this point be considered unsafe
+        # TODO put this wherever the identify file goes
         user_id_path = os.path.join(agent_data_dir, "USER_ID")
 
         with open(user_id_path, "w+") as user_id_file:
             volttron_agent_user = "volttron_{}".format(
                 str(get_utc_seconds_from_epoch()).replace(".", ""))
             _log.info("Creating volttron user {}".format(volttron_agent_user))
-            group = get_platform_instance_name()
+            group = "volttron_{}".format(get_platform_instance_name())
             useradd = ['sudo', 'useradd', volttron_agent_user, '-G', group]
             useradd_process = subprocess.Popen(
                 useradd, stdout=PIPE, stderr=PIPE)
@@ -263,7 +264,7 @@ class AIPplatform(object):
                 raise RuntimeError("Creating {} user failed: {}".format(
                     volttron_agent_user, stderr))
             user_id_file.write(volttron_agent_user)
-            return volttron_agent_user
+        return volttron_agent_user
 
     def set_acl_for_directory(self, perms, user, path):
         """
@@ -295,15 +296,18 @@ class AIPplatform(object):
         agent_path_with_name = os.path.join(agent_dir, name)
         agent_file_path = os.path.join(agent_path_with_name, name.split('agent')[0])
         _log.debug("FILE PATH = {}".format(agent_file_path))
-
+        # TODO setfacl for directories including and under the agent's install directory
+        # set rx
+        # TODO if any files need write perms, or any other specific files that need
+        # TOD
         # Let the user run the Python Executable
-        self.set_acl_for_directory('x', volttron_agent_user, sys.executable)
+        # self.set_acl_for_directory('x', volttron_agent_user, sys.executable)
 
         # Give execute only to agent user for its agent directory
-        _log.info("Setting read/execute permissions for {} on {}".
-                  format(volttron_agent_user, agent_file_path))
-        self.set_acl_for_directory("rx", volttron_agent_user,
-                                   agent_file_path)
+        # _log.info("Setting read/execute permissions for {} on {}".
+        #           format(volttron_agent_user, agent_file_path))
+        # self.set_acl_for_directory("rx", volttron_agent_user,
+        #                            agent_file_path)
 
         # Give read only to agent user for its agent-data directory
         agent_data_dir = self._get_agent_data_dir(agent_path_with_name)
@@ -312,7 +316,8 @@ class AIPplatform(object):
             os.mkdir(agent_data_dir)
         _log.info("Setting read/write permissions for {} on {}"
                   "directory".format(volttron_agent_user, agent_data_dir))
-        self.set_acl_for_directory("rx", volttron_agent_user, agent_data_dir)
+        # TODO add these to individual files rather than directories
+        self.set_acl_for_directory("r", volttron_agent_user, agent_data_dir)
 
         # Give read/write to agent user for its data directory
         # TODO need a better way to get just the plain agent name
