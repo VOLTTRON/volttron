@@ -79,7 +79,7 @@ from .control import ControlService
 from .web import MasterWebService
 from .store import ConfigStoreService
 from .agent import utils
-from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH
+from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH, CONTROL
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService
@@ -703,6 +703,7 @@ def start_volttron_process(opts):
         # Authorize the platform key:
         entry = AuthEntry(credentials=encode_key(publickey),
                           user_id='platform',
+                          capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
         # Add platform key to known-hosts file:
@@ -919,7 +920,7 @@ def start_volttron_process(opts):
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
-            ControlService(opts.aip, address=address, identity='control',
+            ControlService(opts.aip, address=address, identity=CONTROL,
                            tracker=tracker, heartbeat_autostart=True,
                            enable_store=False, enable_channel=True,
                            message_bus=opts.message_bus,
@@ -938,7 +939,13 @@ def start_volttron_process(opts):
                           enable_store=False,
                           message_bus='zmq')
         ]
-        
+
+        entry = AuthEntry(credentials=services[0].core.publickey,
+                          user_id=CONTROL,
+                          capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
+                          comments='Automatically added by platform on start')
+        AuthFile().add(entry, overwrite=True)
+
         # Begin the webserver based options here.
         if opts.bind_web_address is not None:
             if opts.instance_name is None:

@@ -117,6 +117,11 @@ class ControlService(BaseAgent):
         self.crashed_agents = {}
         self.agent_monitor_frequency = int(agent_monitor_frequency)
 
+        if self.core.publickey is None or self.core.secretkey is None:
+            self.core.publickey, self.core.secretkey, _ = self.core._get_keys_from_addr()
+        if self.core.publickey is None or self.core.secretkey is None:
+            self.core.publickey, self.core.secretkey = self.core._get_keys_from_keystore()
+
     @Core.receiver('onsetup')
     def _setup(self, sender, **kwargs):
         if not self._tracker:
@@ -1109,7 +1114,7 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
     asker.add('address', address)
     asker.add('user_id', user_id)
     asker.add('capabilities', capabilities,
-              'delimit multiple entries with comma', _comma_split)
+              'delimit multiple entries with comma', _parse_capabilities)
     asker.add('roles', roles, 'delimit multiple entries with comma',
               _comma_split)
     asker.add('groups', groups, 'delimit multiple entries with comma',
@@ -1132,6 +1137,17 @@ def _comma_split(line):
     return [word.strip() for word in line.split(',')]
 
 
+def _parse_capabilities(line):
+    if not isinstance(line, basestring):
+        return line
+    line = line.strip()
+    try:
+       result = json.loads(line.replace("'", "\""))
+    except Exception as e:
+        result = _comma_split(line)
+    return result
+
+
 def add_auth(opts):
     """Add authorization entry.
 
@@ -1145,7 +1161,7 @@ def add_auth(opts):
         "user_id": opts.user_id,
         "groups": _comma_split(opts.groups),
         "roles": _comma_split(opts.roles),
-        "capabilities": _comma_split(opts.capabilities),
+        "capabilities": _parse_capabilities(opts.capabilities),
         "comments": opts.comments,
     }
 
@@ -1153,11 +1169,14 @@ def add_auth(opts):
         # Remove unspecified options so the default parameters are used
         fields = {k: v for k, v in fields.items() if v}
         fields['enabled'] = not opts.disabled
+        print("fields of capabilities: {}".format(fields["capabilities"]))
         entry = AuthEntry(**fields)
     else:
         # No options were specified, use interactive wizard
         responses = _ask_for_auth_fields()
         entry = AuthEntry(**responses)
+        print("fields of capabilities: {}".format(responses["capabilities"]))
+
 
     if opts.add_known_host:
         if entry.address is None:

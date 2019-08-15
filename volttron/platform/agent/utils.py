@@ -65,7 +65,7 @@ import subprocess
 from subprocess import Popen
 
 try:
-    from ..lib.inotify.green import inotify, IN_MODIFY
+    from volttron.platform.lib.inotify.green import inotify, IN_MODIFY
 except AttributeError:
     # inotify library is not available on OS X/MacOS.
     # @TODO Integrate with the OS X FS Events API
@@ -637,11 +637,15 @@ def watch_file(fullpath, callback):
     if inotify is None:
         _log.warning("Runtime changes to: %s not supported on this platform.", fullpath)
     else:
-        with inotify() as inot:
-            inot.add_watch(dirname, IN_MODIFY)
-            for event in inot:
-                if event.name == filename and event.mask & IN_MODIFY:
-                    callback()
+        try:
+            with inotify() as inot:
+                inot.add_watch(dirname, IN_MODIFY)
+                for event in inot:
+                    if event.name == filename and event.mask & IN_MODIFY:
+                        callback()
+        except Exception as e:
+            _log.warning("Runtime changes to {} not supported due to "
+                         "exception initializing inotify. Exception: {}".format(fullpath, e))
 
 
 def watch_file_with_fullpath(fullpath, callback):

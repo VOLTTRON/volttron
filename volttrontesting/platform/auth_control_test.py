@@ -75,7 +75,10 @@ def auth_add_cmd_line(platform, entry):
         if isinstance(v, list):
             v = ','.join(v)
         if v:
-            args.extend(['--' + k, v])
+            if k == "capabilities":
+                args.extend(['--' + k, json.dumps(v)])
+            else:
+                args.extend(['--' + k, v])
 
     if not enabled:
         args.append('--disabled')
@@ -106,8 +109,9 @@ def assert_auth_entries_same(e1, e2):
     for field in ['domain', 'address', 'user_id', 'credentials', 'comments',
                   'enabled']:
         assert e1[field] == e2[field]
-    for field in ['capabilities', 'roles', 'groups']:
+    for field in ['roles', 'groups']:
         assert set(e1[field]) == set(e2[field])
+    assert e1['capabilities'] == e2['capabilities']
 
 
 @pytest.mark.control
