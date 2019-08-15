@@ -125,6 +125,7 @@ class ExecutionEnvironment(object):
     Deleting ExecutionEnvironment objects should cause the process to
     end and all resources to be returned to the system.
     '''
+    # TODO tack on the agent user stuff here
     def __init__(self):
         self.process = None
 
