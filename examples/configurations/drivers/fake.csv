@@ -3,4 +3,5 @@ Heartbeat,Heartbeat,On/Off,On/Off,TRUE,0,boolean,Point for heartbeat toggle
 temperature,temperature,Fahrenheit,-100 to 300,FALSE,50,float,CO2 Reading 0.00-2000.0 ppm
 HPWH_Phy0_PowerState,PowerState,1/0,1/0,TRUE,0,int,Power on off status
 ERWH_Phy0_ValveState,ValveState,1/0,1/0,TRUE,0,int,power on off status
-EKG_Sin,EKG_Sin,1/0,1/0,TRUE,0,float,power on off status
+EKG_Sin,EKG_Sin,1-0,SIN Wave,TRUE,0,float,SIN wave
+EKG_Cos,EKG_Cos,1-0,COS Wave,TRUE,0,float,COS wave
