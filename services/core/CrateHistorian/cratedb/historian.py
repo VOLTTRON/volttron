@@ -36,49 +36,29 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
-# ujson is significantly faster at dump/loading the data from/to the database
-# cache database, I use it in this agent to store/retrieve the string data that
-# can be put into json.
-import gevent
-import pytz
-from simplejson import JSONDecodeError
-
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
-
-try:
-    import ujson
-
-    def dumps(data):
-        return ujson.dumps(data, double_precision=15)
-
-
-    def loads(data_string):
-        return ujson.loads(data_string, precise_float=True)
-except ImportError:
-    from volttron.platform.jsonapi import dumps, loads
-
 import logging
 import sys
 from collections import defaultdict
+from json import JSONDecodeError
 
-from crate.client.exceptions import ConnectionError, ProgrammingError
+import pytz
 from crate import client as crate_client
+from crate.client.exceptions import ConnectionError, ProgrammingError
 
+from volttron.platform import jsonapi
+from volttron.platform.agent import utils
+from volttron.platform.agent.base_historian import BaseHistorian
+from volttron.platform.agent.utils import get_utc_seconds_from_epoch
 from volttron.platform.dbutils.crateutils import (create_schema,
                                                   select_all_topics_query,
                                                   insert_data_query,
                                                   insert_topic_query,
                                                   update_topic_query,
                                                   select_topics_metadata_query)
-from volttron.platform.agent.utils import get_utc_seconds_from_epoch
+from volttron.platform.jsonapi import dumps
 from volttron.utils.docs import doc_inherit
-from volttron.platform.agent import utils
-from volttron.platform.agent.base_historian import BaseHistorian
-from volttron.platform import jsonapi
 
-
-__version__ = '3.0'
+__version__ = '3.2'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
