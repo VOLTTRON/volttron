@@ -224,7 +224,9 @@ class Darksky(BaseWeatherAgent):
         :return: dictionary containing a mapping of service point
         names to standard point names with optional
         """
-        return pkg_resources.resource_stream(__name__, "data/name_mapping.csv")
+        # returning resource file instead of stream, as csv.DictReader require file path or file like object opened in
+        # text mode.
+        return pkg_resources.resource_filename(__name__, "data/name_mapping.csv")
 
     def get_darksky_data(self, service, location, timestamp=None):
         """
