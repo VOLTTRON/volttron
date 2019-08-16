@@ -66,18 +66,13 @@ import yaml
 from dateutil.parser import parse
 from dateutil.tz import tzutc, tzoffset
 from tzlocal import get_localzone
+from watchdog_gevent import Observer
 
 from volttron.platform import get_home, get_address
 from volttron.platform import jsonapi
+from volttron.utils import VolttronHomeFileReloader, AbsolutePathFileReloader
 from volttron.utils.prompt import prompt_response
 
-try:
-    from volttron.platform.lib.inotify.green import inotify, IN_MODIFY
-except AttributeError:
-    # inotify library is not available on OS X/MacOS.
-    # @TODO Integrate with the OS X FS Events API
-    inotify = None
-    IN_MODIFY = None
 
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
            'is_valid_identity', 'load_platform_config', 'get_messagebus',
@@ -657,20 +652,16 @@ def watch_file(fullpath, callback):
 
         Not available on OS X/MacOS.
     """
+
     dirname, filename = os.path.split(fullpath)
-    filename = filename.encode('utf-8')
-    if inotify is None:
-        _log.warning("Runtime changes to: %s not supported on this platform.", fullpath)
-    else:
-        try:
-            with inotify() as inot:
-                inot.add_watch(dirname, IN_MODIFY)
-                for event in inot:
-                    if event.name == filename and event.mask & IN_MODIFY:
-                        callback()
-        except Exception as e:
-            _log.warning("Runtime changes to {} not supported due to "
-                         "exception initializing inotify. Exception: {}".format(fullpath, e))
+    _log.info("Adding file watch for %s dirname=%s, filename=%s", fullpath, dirname, filename)
+    _observer = Observer()
+    _observer.schedule(
+        VolttronHomeFileReloader(filename, callback),
+        path=dirname
+    )
+    _log.info("Added file watch for %s", fullpath)
+    _observer.start()
 
 
 def watch_file_with_fullpath(fullpath, callback):
@@ -679,14 +670,14 @@ def watch_file_with_fullpath(fullpath, callback):
         Not available on OS X/MacOS.
     """
     dirname, filename = os.path.split(fullpath)
-    if inotify is None:
-        _log.warning("Runtime changes to: %s not supported on this platform.", fullpath)
-    else:
-        with inotify() as inot:
-            inot.add_watch(dirname, IN_MODIFY)
-            for event in inot:
-                if event.name == filename and event.mask & IN_MODIFY:
-                    callback(fullpath)
+    _log.info("Adding file watch for %s", fullpath)
+    _observer = Observer()
+    _observer.schedule(
+        AbsolutePathFileReloader(fullpath, callback),
+        dirname
+    )
+    _log.info("Added file watch for %s", fullpath)
+    _observer.start()
 
 
 def create_file_if_missing(path, permission=0o660, contents=None):

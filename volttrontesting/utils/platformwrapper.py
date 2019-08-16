@@ -173,7 +173,7 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
 
 
 class PlatformWrapper:
-    def __init__(self, messagebus=None, ssl_auth=False, instance_name=None, remote_platform_ca=None):
+    def __init__(self, messagebus=None, ssl_auth=False, instance_name=None, remote_platform_ca=None, disable_auth=True):
         """ Initializes a new VOLTTRON instance
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory
@@ -209,6 +209,7 @@ class PlatformWrapper:
             'PYTHONDONTWRITEBYTECODE': '1'
         }
         self.volttron_root = VOLTTRON_ROOT
+        self.disable_auth = disable_auth
 
         volttron_exe = os.path.dirname(sys.executable) + '/volttron'
         assert os.path.exists(volttron_exe)
@@ -412,11 +413,10 @@ class PlatformWrapper:
         self.logit('platformwrapper.build_agent.address: {}'.format(address))
 
         # Automatically add agent's credentials to auth.json file
-        if publickey:
+        if publickey and not self.disable_auth:
             self.logit('Adding publickey to auth.json')
             self._append_allow_curve_key(publickey, identity=identity)
-            # gevent.spawn(self._append_allow_curve_key, publickey)
-            gevent.sleep(0.1)
+            gevent.sleep(1)
 
         if should_spawn:
             self.logit('platformwrapper.build_agent spawning')
@@ -533,6 +533,10 @@ class PlatformWrapper:
         # in correct home director. Without this when more than one test instance are created, get_home()
         # will return home dir of last started platform wrapper instance
         os.environ.update(self.env)
+        if self.disable_auth:
+            # Disable auth for all test cases other than auth related test cases
+            self.allow_all_connections()
+
         self.vip_address = vip_address
         self.mode = mode
         self.volttron_central_address = volttron_central_address
