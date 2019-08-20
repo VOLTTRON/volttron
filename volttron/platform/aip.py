@@ -238,19 +238,13 @@ class AIPplatform(object):
         :param agent_dir:
         :return:
         """
-        agent_path = os.path.join(agent_dir, agent_name)
-        agent_data_dir = self._get_agent_data_dir(agent_path)
-        if not os.path.isdir(agent_data_dir):
-            _log.info("Creating agent's agent-data directory...")
-            os.mkdir(agent_data_dir)
 
         # Ensure the agent users unix group exists
         self.add_agent_user_group()
 
         # Create a USER_ID file, truncating existing USER_ID files which
         # should at this point be considered unsafe
-        # TODO put this wherever the identify file goes
-        user_id_path = os.path.join(agent_data_dir, "USER_ID")
+        user_id_path = os.path.join(agent_dir, "USER_ID")
 
         with open(user_id_path, "w+") as user_id_file:
             volttron_agent_user = "volttron_{}".format(
@@ -268,7 +262,7 @@ class AIPplatform(object):
             user_id_file.write(volttron_agent_user)
         return volttron_agent_user
 
-    def set_acl_for_directory(self, perms, user, path):
+    def set_acl_for_path(self, perms, user, path):
         """
         Sets the file access control list setting for a given user/directory
         :param perms:
@@ -276,11 +270,9 @@ class AIPplatform(object):
         :param directory:
         :return:
         """
-        acl_perms = "u:{user}:{perms}".format(user=user, perms=perms)
-        if os.path.isdir(path):
-            permissions_command = ['setfacl', '-R', '-m', acl_perms, path]
-        else:
-            permissions_command = ['setfacl', '-m', acl_perms, path]
+        acl_perms = "user:{user}:{perms}".format(user=user, perms=perms)
+        permissions_command = ['setfacl', '-m', acl_perms, path]
+        _log.debug("PERMISSIONS COMMAND {}".format(permissions_command))
         permissions_process = subprocess.Popen(
             permissions_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = permissions_process.communicate()
@@ -296,53 +288,31 @@ class AIPplatform(object):
                                              agent_uuid, agent_dir):
         name = self.agent_name(agent_uuid)
         agent_path_with_name = os.path.join(agent_dir, name)
-        agent_file_path = os.path.join(agent_path_with_name, name.split('agent')[0])
-        _log.debug("FILE PATH = {}".format(agent_file_path))
-        # TODO setfacl for directories including and under the agent's install directory
-        # set rx
-        # TODO if any files need write perms, or any other specific files that need
-        # TOD
-        # Let the user run the Python Executable
-        # self.set_acl_for_directory('x', volttron_agent_user, sys.executable)
+        # Directories in the install path have read/execute
+        for (root, directories, files) in os.walk(agent_dir, topdown=True):
+            for directory in directories:
+                self.set_acl_for_path("rx", volttron_agent_user,
+                                      os.path.join(root, directory))
 
-        # Give execute only to agent user for its agent directory
-        # _log.info("Setting read/execute permissions for {} on {}".
-        #           format(volttron_agent_user, agent_file_path))
-        # self.set_acl_for_directory("rx", volttron_agent_user,
-        #                            agent_file_path)
+        # name = self.agent_name(agent_uuid)
+        # # Directories in the install path have read/execute
+        # # Agent directory path
+        # agent_path_with_name = os.path.join(agent_dir, name)
+        # self.set_acl_for_path("rx", volttron_agent_user,
+        #                       os.path.join(agent_dir, agent_path_with_name))
+        # # Agent Module path
+        # agent_module_path = os.path.join(agent_path_with_name,
+        #                                  name.split("agent")[0])
+        # self.set_acl_for_path("rx", volttron_agent_user,
+        #                       os.path.join(agent_dir, agent_path_with_name))
 
-        # Give read only to agent user for its agent-data directory
-        agent_data_dir = self._get_agent_data_dir(agent_path_with_name)
-        if not os.path.isdir(agent_data_dir):
-            _log.info("Creating agent's data directory...")
-            os.mkdir(agent_data_dir)
-        _log.info("Setting read/write permissions for {} on {}"
-                  "directory".format(volttron_agent_user, agent_data_dir))
-        # TODO add these to individual files rather than directories
-        self.set_acl_for_directory("r", volttron_agent_user, agent_data_dir)
 
-        # Give read/write to agent user for its data directory
-        # TODO need a better way to get just the plain agent name
-        data_dir = self._get_data_dir(agent_path_with_name,
-                                      name.split("agent")[0])
-        if not os.path.isdir(data_dir):
-            _log.info("Creating agent's data directory...")
-            os.mkdir(data_dir)
-        _log.info("Setting read/write permissions for {} on {}"
-                  "directory".format(volttron_agent_user, data_dir))
-        self.set_acl_for_directory("rw", volttron_agent_user, data_dir)
-        # Configuration is stored in dist-info, so give agent read
-        dist_info_dir = self._get_agent_dist_info_dir(agent_path_with_name)
-        self.set_acl_for_directory("r", volttron_agent_user, dist_info_dir)
-
-    def remove_agent_user(self, agent_name, agent_dir):
+    def remove_agent_user(self, agent_dir):
         """
         Invokes sudo to remove the unix user for the given environment.
         """
         # TODO maybe dream up a way to ensure the process is dead
-        agent_path = os.path.join(agent_dir, agent_name)
-        agent_data_dir = self._get_agent_data_dir(agent_path)
-        user_id_path = os.path.join(agent_data_dir, "USER_ID")
+        user_id_path = os.path.join(agent_dir, "USER_ID")
         try:
             with open(user_id_path, 'r') as user_id_file:
                 volttron_agent_user = user_id_file.readline()
@@ -900,8 +870,7 @@ class AIPplatform(object):
         agent_user = None
         if self.secure_agent_user:
             _log.info("Starting agent securely...")
-            user_id_path = os.path.join(self._get_agent_data_dir(
-                agent_path_with_name), "USER_ID")
+            user_id_path = os.path.join(agent_dir, "USER_ID")
             try:
                 with open(user_id_path, "r") as user_id_file:
                     volttron_agent_id = user_id_file.readline()
