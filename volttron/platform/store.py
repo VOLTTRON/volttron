@@ -45,6 +45,8 @@ import errno
 from csv import DictReader
 from io import StringIO
 
+import gevent
+
 from volttron.platform import jsonapi
 from gevent.lock import Semaphore
 
@@ -434,3 +436,7 @@ class ConfigStoreService(Agent):
                 except MethodNotFound as e:
                     _log.error(
                         "Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
+                except gevent.timeout.Timeout:
+                    _log.error("Config update to agent {} timed out after {} seconds".format(identity, UPDATE_TIMEOUT))
+                except Exception as e:
+                    _log.error("Unknown error sending update to agent identity {}.: {}".format(identity, e))
