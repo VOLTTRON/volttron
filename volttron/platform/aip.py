@@ -293,19 +293,16 @@ class AIPplatform(object):
             for directory in directories:
                 self.set_acl_for_path("rx", volttron_agent_user,
                                       os.path.join(root, directory))
-
-        # name = self.agent_name(agent_uuid)
-        # # Directories in the install path have read/execute
-        # # Agent directory path
-        # agent_path_with_name = os.path.join(agent_dir, name)
-        # self.set_acl_for_path("rx", volttron_agent_user,
-        #                       os.path.join(agent_dir, agent_path_with_name))
-        # # Agent Module path
-        # agent_module_path = os.path.join(agent_path_with_name,
-        #                                  name.split("agent")[0])
-        # self.set_acl_for_path("rx", volttron_agent_user,
-        #                       os.path.join(agent_dir, agent_path_with_name))
-
+        # TODO Chandrika is pretty convinced about this
+        # keystore should be read only
+        keystore = os.path.join(self._get_agent_data_dir(agent_path_with_name),
+                                "keystore.json")
+        self.set_acl_for_path("r", volttron_agent_user, keystore)
+        # Agent needs read access to known_hosts to be able to connect to the
+        # platform
+        known_hosts = os.path.join(get_home(), "known_hosts")
+        self.set_acl_for_path("r", volttron_agent_user, known_hosts)
+        #
 
     def remove_agent_user(self, agent_dir):
         """
@@ -441,6 +438,13 @@ class AIPplatform(object):
             final_identity = self._setup_agent_vip_id(
                 agent_uuid, vip_identity=vip_identity)
 
+            if publickey is not None and secretkey is not None:
+                keystore = self.get_agent_keystore(agent_uuid)
+                keystore.public = publickey
+                keystore.secret = secretkey
+
+            self._authorize_agent_keys(agent_uuid, final_identity)
+
             if self.secure_agent_user:
                 # When installing, we always create a new user, as anything
                 # that already exists is untrustworthy
@@ -449,13 +453,6 @@ class AIPplatform(object):
                 self.set_agent_user_directory_permissions(created_user,
                                                           agent_uuid,
                                                           agent_path)
-
-            if publickey is not None and secretkey is not None:
-                keystore = self.get_agent_keystore(agent_uuid)
-                keystore.public = publickey
-                keystore.secret = secretkey
-
-            self._authorize_agent_keys(agent_uuid, final_identity)
 
         except Exception:
             shutil.rmtree(agent_path)
@@ -616,7 +613,7 @@ class AIPplatform(object):
         self.agents.pop(agent_uuid, None)
         agent_directory = os.path.join(self.install_dir, agent_uuid)
         if self.secure_agent_user:
-            self.remove_agent_user(self.agent_name(agent_uuid), agent_directory)
+            self.remove_agent_user(agent_directory)
         if remove_auth:
             self._unauthorize_agent_keys(agent_uuid)
         shutil.rmtree(agent_directory)
@@ -737,7 +734,7 @@ class AIPplatform(object):
             with open(autostart, 'w') as file:
                 file.write(priority.strip())
 
-    def _check_resources(self, resmon, execreqs, reserve=False):
+    def _check_resources(self, resmon, execreqs, reserve=False, agent_user=None):
         hard_reqs = execreqs.get('hard_requirements', {})
         failed_terms = resmon.check_hard_resources(hard_reqs)
         if failed_terms:
@@ -749,7 +746,8 @@ class AIPplatform(object):
         requirements = execreqs.get('requirements', {})
         try:
             if reserve:
-                return resmon.reserve_soft_resources(requirements)
+                # return resmon.reserve_soft_resources(requirements)
+                return ExecutionEnvironment(agent_user=agent_user)
             else:
                 failed_terms = resmon.check_soft_resources(requirements)
                 if failed_terms:
@@ -764,13 +762,14 @@ class AIPplatform(object):
         _log.error('%s:\n%s', errmsg, msg)
         raise ValueError(errmsg)
 
-    def check_resources(self, execreqs):
+    def check_resources(self, execreqs, agent_user=None):
         resmon = getattr(self.env, 'resmon', None)
         if resmon:
-            return self._check_resources(resmon, execreqs, reserve=False)
+            return self._check_resources(resmon, execreqs, reserve=False,
+                                         agent_user=agent_user)
 
-    def _reserve_resources(self, resmon, execreqs):
-        return self._check_resources(resmon, execreqs, reserve=True)
+    def _reserve_resources(self, resmon, execreqs, agent_user=None):
+        return self._check_resources(resmon, execreqs, reserve=True, agent_user=agent_user)
 
     def get_execreqs(self, agent_uuid):
         name = self.agent_name(agent_uuid)
@@ -885,11 +884,9 @@ class AIPplatform(object):
         if resmon is None:
             execenv = ExecutionEnvironment(agent_user=agent_user)
         else:
-            # TODO either port this into the Execution environment class or
-            #  remove?
-            # This code block doesn't seem to be able to be reached
             execreqs = self._read_execreqs(pkg.distinfo)
-            execenv = self._reserve_resources(resmon, execreqs)
+            execenv = self._reserve_resources(resmon, execreqs,
+                                              agent_user=agent_user)
         execenv.name = name or agent_path_with_name
         _log.info('starting agent %s', agent_path_with_name)
         # data_dir = self._get_agent_data_dir(agent_path_with_name)
