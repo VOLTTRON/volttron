@@ -284,7 +284,7 @@ class RPC(SubsystemBase):
             else:
                 # Now check if args passed to method are the ones allowed.
 
-                for cap_name, param_dict in user_capabilites.iteritems():
+                for cap_name, param_dict in user_capabilites.items():
                     if param_dict and required_caps and cap_name in required_caps:
                         # if the method has required capabilities and
                         # if the user capability has argument restrictions, check if the args passed to method
@@ -293,7 +293,7 @@ class RPC(SubsystemBase):
                         args_dict = inspect.getcallargs(method, *args, **kwargs)
                         _log.debug("dict = {}".format(args_dict))
                         _log.debug("name= {} parameters allowed={}".format(cap_name, param_dict))
-                        for name, value in param_dict.iteritems():
+                        for name, value in param_dict.items():
                             _log.debug("name= {} value={}".format(name, value))
                             if name not in args_dict:
                                 raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED,

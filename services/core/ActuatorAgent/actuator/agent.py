@@ -663,7 +663,7 @@ class ActuatorAgent(Agent):
         except Unreachable:
             _log.warning("Master driver is not running")
         except (Exception, gevent.Timeout) as e:
-            _log.warning(''.join([e.__class__.__name__, '(', e.message, ')']))
+            _log.warning(''.join([e.__class__.__name__, '(', str(e), ')']))
 
 
     def _schedule_save_callback(self, state_file_contents):
