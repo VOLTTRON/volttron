@@ -1,18 +1,17 @@
-from datetime import datetime
+import os
 import socket
+import subprocess
 import time
+from datetime import datetime
 from random import randint
 from random import random
 
 import gevent
+import mock
 import pytest
 
-from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent import utils
-
-
-import os
-import subprocess
+from volttron.platform.messaging import headers as headers_mod
 
 
 def is_running_in_container():
@@ -177,3 +176,16 @@ def validate_published_device_data(expected_headers, expected_message,
         assert k in message[0]
         # pytest.approx gives 10^-6 (one millionth accuracy)
         assert message[0][k] == pytest.approx(v)
+
+
+class AgentMock(object):
+
+    @classmethod
+    def imitate(cls, *others):
+        for other in others:
+            for name in other.__dict__:
+                try:
+                    setattr(cls, name, mock.create_autospec(other.__dict__[name]))
+                except (TypeError, AttributeError):
+                    pass
+        return cls
