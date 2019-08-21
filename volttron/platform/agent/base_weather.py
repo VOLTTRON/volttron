@@ -185,7 +185,7 @@ class BaseWeatherAgent(Agent):
                                       actions=["NEW", "UPDATE"],
                                       pattern="config")
         except Exception as e:
-            _log.error("Failed to load weather agent settings.")
+            _log.error("Failed to load weather agent settings.Exception: {}".format(e))
             self.vip.health.set_status(STATUS_BAD,
                                        "Failed to load weather agent settings."
                                        "Error: {}".format(e))

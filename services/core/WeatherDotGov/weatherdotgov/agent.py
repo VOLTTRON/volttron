@@ -61,13 +61,17 @@ import logging
 import re
 import sys
 import json
-import requests
 import grequests
 import datetime
 import pkg_resources
 from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.agent import utils
 from volttron.utils.docs import doc_inherit
+
+# requests should be imported after grequests
+# as grequests monkey patches ssl and requests imports ssl
+# TODO do we need the requests at all.. TODO test with RMQ
+import requests
 
 __version__ = "2.0.0"
 
@@ -133,7 +137,9 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         :return: dictionary containing a mapping of service point
         names to standard point names with optional
         """
-        return pkg_resources.resource_stream(__name__, "data/name_mapping.csv")
+        # returning resource file instead of stream, as csv.DictReader require file path or file like object opened in
+        # text mode.
+        return pkg_resources.get_resource_filename(__name__, "data/name_mapping.csv")
 
     def get_location_string(self, location):
         """

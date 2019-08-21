@@ -109,7 +109,7 @@ else:
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
-logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.DEBUG)
+logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.INFO)
 logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 VOLTTRON_INSTANCES = '~/.volttron_instances'
 

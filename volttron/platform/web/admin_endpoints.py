@@ -49,7 +49,7 @@ from ...platform import get_home
 from ...platform import jsonapi
 from ...platform.agent.web import Response
 from ...platform.certs import Certs
-from ...utils import FileReloader
+from ...utils import VolttronHomeFileReloader
 from ...utils.persistance import PersistentDict
 
 _log = logging.getLogger(__name__)

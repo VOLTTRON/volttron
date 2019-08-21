@@ -10,7 +10,7 @@ from passlib.hash import argon2
 
 from volttron.platform import get_home
 from volttron.platform.agent.web import Response
-from volttron.utils import FileReloader
+from volttron.utils import VolttronHomeFileReloader
 from volttron.utils.persistance import PersistentDict
 
 _log = logging.getLogger(__name__)
