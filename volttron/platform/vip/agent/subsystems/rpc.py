@@ -396,7 +396,7 @@ class RPC(SubsystemBase):
                     _log.debug("Socket send on non socket {}".format(self.core().identity))
 
     def _handle_error(self, sender, message, error, **kwargs):
-        result = self._outstanding.pop(message.id.bytes.decode("utf-8"), None)
+        result = self._outstanding.pop(message.id.bytes, None)
         if isinstance(result, AsyncResult):
             result.set_exception(error)
         elif result:
