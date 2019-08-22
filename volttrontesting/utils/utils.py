@@ -1,18 +1,17 @@
-from datetime import datetime
+import os
 import socket
+import subprocess
 import time
+from datetime import datetime
 from random import randint
 from random import random
 
 import gevent
+import mock
 import pytest
 
-from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent import utils
-
-
-import os
-import subprocess
+from volttron.platform.messaging import headers as headers_mod
 
 
 def is_running_in_container():
@@ -43,7 +42,7 @@ def get_hostname_and_random_port(min_ip=5000, max_ip=6000):
     except socket.gaierror:
         err = "Lookup of hostname {} unssucessful, please verify your /etc/hosts " \
               "doesn't have a local resolution to hostname".format(hostname)
-        raise Exception(err)
+        raise StandardError(err)
     return hostname, port
 
 
@@ -78,7 +77,7 @@ def messages_contains_prefix(prefix, messages):
     :param messages:
     :return:
     """
-    return any([x.startswith(prefix) for x in list(messages.keys())])
+    return any(map(lambda x: x.startswith(prefix), messages.keys()))
 
 
 def get_rand_http_address(https=False):
@@ -173,7 +172,20 @@ def validate_published_device_data(expected_headers, expected_message,
     assert headers and message
     assert expected_headers[headers_mod.DATE] == headers[headers_mod.DATE]
 
-    for k, v in list(expected_message[0].items()):
+    for k, v in expected_message[0].items():
         assert k in message[0]
         # pytest.approx gives 10^-6 (one millionth accuracy)
         assert message[0][k] == pytest.approx(v)
+
+
+class AgentMock(object):
+
+    @classmethod
+    def imitate(cls, *others):
+        for other in others:
+            for name in other.__dict__:
+                try:
+                    setattr(cls, name, mock.create_autospec(other.__dict__[name]))
+                except (TypeError, AttributeError):
+                    pass
+        return cls
