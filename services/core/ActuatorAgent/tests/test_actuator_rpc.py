@@ -87,14 +87,15 @@ def publish_agent(request, volttron_instance):
     assert result == 0
 
     # Add master driver configuration files to config store.
-    cmd = ['volttron-ctl', 'config', 'store',PLATFORM_DRIVER,
+    cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
            'fake.csv', 'fake_unit_testing.csv', '--csv']
     process = Popen(cmd, env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-    result = process.wait()
-    print(result)
-    assert result == 0
+    output, err = process.communicate()
+    print(output)
+    print(err)
+    assert process.returncode == 0
 
     for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
@@ -1900,7 +1901,7 @@ def test_set_value_no_lock_failure(publish_agent, volttron_instance):
 
         agentid = TEST_AGENT
 
-        with pytest.raises(RemoteError, message="Expecting remote error."):
+        with pytest.raises(RemoteError):
             result = publish_agent.vip.rpc.call(
                 alternate_actuator_vip_id,  # Target agent
                 'set_point',  # Method
@@ -1908,6 +1909,7 @@ def test_set_value_no_lock_failure(publish_agent, volttron_instance):
                 'fakedriver0/SampleWritableFloat1',  # Point to set
                 7.5  # New value
             ).get(timeout=10)
+            pytest.fail("Expecting remote error.")
 
     finally:
         publish_agent2.vip.rpc.call(
@@ -1937,7 +1939,7 @@ def test_set_value_float_failure(publish_agent):
     taskid = 'task_set_float_value'
     agentid = TEST_AGENT
 
-    with pytest.raises(RemoteError, message="Expecting remote error."):
+    with pytest.raises(RemoteError):
         publish_agent.vip.rpc.call(
             PLATFORM_ACTUATOR,  # Target agent
             'set_point',  # Method
@@ -1945,3 +1947,4 @@ def test_set_value_float_failure(publish_agent):
             'fakedriver0/SampleWritableFloat1',  # Point to set
             2.5  # New value
         ).get(timeout=10)
+        pytest.fail("Expecting remote error.")
