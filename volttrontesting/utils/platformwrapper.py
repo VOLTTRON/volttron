@@ -3,6 +3,8 @@ from datetime import datetime
 import json
 import logging
 import os
+import uuid
+
 import psutil
 import shutil
 import sys
@@ -292,7 +294,7 @@ class PlatformWrapper:
     def allow_all_connections(self):
         """ Add a /.*/ entry to the auth.json file.
         """
-        entry = AuthEntry(credentials="/.*/")
+        entry = AuthEntry(credentials="/.*/", comments="Added by platformwrapper")
         authfile = AuthFile(self.volttron_home + "/auth.json")
         try:
             authfile.add(entry)
@@ -318,8 +320,13 @@ class PlatformWrapper:
                          publickey=None, secretkey=None, serverkey=None,
                          capabilities=[], **kwargs):
         self.logit('Building connection to {}'.format(peer))
+        os.environ.update(self.env)
         self.allow_all_connections()
 
+        if identity is None:
+            # Set identity here instead of AuthEntry creating one and use that identity to create Connection class.
+            # This is to ensure that RMQ test cases get the correct current user that matches the auth entry made
+            identity = str(uuid.uuid4())
         if address is None:
             self.logit(
                 'Default address was None so setting to current instances')
@@ -328,7 +335,6 @@ class PlatformWrapper:
         if serverkey is None:
             self.logit("serverkey wasn't set but the address was.")
             raise Exception("Invalid state.")
-
         if publickey is None or secretkey is None:
             self.logit('generating new public secret key pair')
             keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
@@ -336,9 +342,11 @@ class PlatformWrapper:
             keys.generate()
             publickey = keys.public
             secretkey = keys.secret
+
             entry = AuthEntry(capabilities=capabilities,
                               comments="Added by test",
-                              credentials=keys.public)
+                              credentials=keys.public,
+                              user_id=identity)
             file = AuthFile(self.volttron_home + "/auth.json")
             file.add(entry)
 
@@ -346,7 +354,8 @@ class PlatformWrapper:
                           secretkey=secretkey, serverkey=serverkey,
                           instance_name=self.instance_name,
                           message_bus=self.messagebus,
-                          volttron_home=self.volttron_home)
+                          volttron_home=self.volttron_home,
+                          identity=identity)
 
         return conn
 
@@ -368,7 +377,10 @@ class PlatformWrapper:
         :return:
         """
         self.logit("Building generic agent.")
-
+        # Update OS env to current platform's env so get_home() call will result
+        # in correct home director. Without this when more than one test instance are created, get_home()
+        # will return home dir of last started platform wrapper instance
+        os.environ.update(self.env)
         use_ipc = kwargs.pop('use_ipc', False)
 
         if serverkey is None:
@@ -402,17 +414,15 @@ class PlatformWrapper:
         # Automatically add agent's credentials to auth.json file
         if publickey:
             self.logit('Adding publickey to auth.json')
-            self._append_allow_curve_key(publickey)
-            # gevent.spawn(self._append_allow_curve_key, publickey)
-            # gevent.sleep(0.1)
+            self._append_allow_curve_key(publickey, agent.core.identity)
 
         if should_spawn:
             self.logit('platformwrapper.build_agent spawning')
             event = gevent.event.Event()
             gevent.spawn(agent.core.run, event)  # .join(0)
             event.wait(timeout=2)
-            gevent.sleep(1)
-            hello = agent.vip.hello().get(timeout=5)
+            gevent.sleep(2)
+            hello = agent.vip.hello().get(timeout=15)
 
             #self.logit('Got hello response {}'.format(hello))
         agent.publickey = publickey
@@ -433,18 +443,27 @@ class PlatformWrapper:
             auth['allow'] = []
         return auth, auth_path
 
-    def _append_allow_curve_key(self, publickey):
-        entry = AuthEntry(credentials=publickey)
+    def _append_allow_curve_key(self, publickey, identity):
+
+        if identity:
+            entry = AuthEntry(user_id=identity, credentials=publickey,
+                              capabilities={'edit_config_store': {'identity': identity}},
+                              comments="Added by platform wrapper")
+        else:
+            entry = AuthEntry(credentials=publickey, comments="Added by platform wrapper. No identity passed")
         authfile = AuthFile(self.volttron_home + "/auth.json")
         try:
-            authfile.add(entry)
+            authfile.add(entry, overwrite=True)
         except AuthFileEntryAlreadyExists:
             pass
 
     def add_vc(self):
+        os.environ.update(self.env)
+
         return add_volttron_central(self)
 
     def add_vcp(self):
+        os.environ.update(self.env)
         return add_volttron_central_platform(self)
 
     def is_auto_csr_enabled(self):
@@ -465,18 +484,35 @@ class PlatformWrapper:
         assert not self.is_auto_csr_enabled()
 
     def add_capabilities(self, publickey, capabilities):
-        if isinstance(capabilities, basestring):
+        if isinstance(capabilities, basestring) or isinstance(capabilities, dict):
             capabilities = [capabilities]
-        auth, auth_path = self._read_auth_file()
+        auth_dict, auth_path = self._read_auth_file()
         cred = publickey
-        allow = auth['allow']
+        allow = auth_dict['allow']
         entry = next((item for item in allow if item['credentials'] == cred),
                      {})
-        caps = entry.get('capabilities', [])
-        entry['capabilities'] = list(set(caps + capabilities))
+        caps = entry.get('capabilities', {})
+        if isinstance(capabilities, list):
+            for c in capabilities:
+                self.add_capability(c, caps)
+        else:
+            self.add_capability(capabilities, caps)
+
+        entry['capabilities'] = caps
 
         with open(auth_path, 'w+') as fd:
-            json.dump(auth, fd)
+            json.dump(auth_dict, fd)
+
+    @staticmethod
+    def add_capability(entry, capabilites):
+        if isinstance(entry, basestring):
+            if entry not in capabilites:
+                capabilites[entry] = None
+        elif isinstance(entry, dict):
+            capabilites.update(entry)
+        else:
+            raise ValueError("Invalid capability {}. Capability should be string or dictionary or list of string"
+                             "and dictionary.")
 
     def set_auth_dict(self, auth_dict):
         if auth_dict:
@@ -491,6 +527,10 @@ class PlatformWrapper:
                          setupmode=False,
                          agent_monitor_frequency=600,
                          timeout=60):
+        # Update OS env to current platform's env so get_home() call will result
+        # in correct home director. Without this when more than one test instance are created, get_home()
+        # will return home dir of last started platform wrapper instance
+        os.environ.update(self.env)
         self.vip_address = vip_address
         self.mode = mode
         self.volttron_central_address = volttron_central_address
@@ -537,7 +577,7 @@ class PlatformWrapper:
                     cf.write(f.read())
 
             self.env['REQUESTS_CA_BUNDLE'] = ca_bundle_file
-
+            os.environ['REQUESTS_CA_BUNDLE'] = self.env['REQUESTS_CA_BUNDLE']
         # This file will be passed off to the main.py and available when
         # the platform starts up.
         self.requests_ca_bundle = self.env.get('REQUESTS_CA_BUNDLE')
@@ -828,7 +868,7 @@ class PlatformWrapper:
             Should this overwrite the current or not.
         :return:
         """
-
+        os.environ.update(self.env)
         assert self.is_running(), "Instance must be running to install agent."
         assert agent_wheel or agent_dir, "Invalid agent_wheel or agent_dir."
         assert isinstance(startup_time, int), "Startup time should be an integer."
@@ -1064,7 +1104,21 @@ class PlatformWrapper:
             time.sleep(timeout_seconds)
         return running
 
+    def setup_federation(self, config_path):
+        """
+        Set up federation using the given config path
+        :param config_path: path to federation config yml file.
+        """
+        _log.debug("Setting up federation using config : {}".format(config_path))
+
+        cmd = ['vcfg']
+        cmd.extend(['--vhome', self.volttron_home, '--instance-name', self.instance_name,'--rabbitmq',
+                    "federation", config_path])
+        execute_command(cmd, env=self.env, logger=_log,
+                              err_prefix="Error setting up federation")
+
     def restart_platform(self):
+        self.shutdown_platform()
         self.startup_platform(vip_address=self.vip_address,
                               bind_web_address=self.bind_web_address,
                               volttron_central_address=self.volttron_central_address,
@@ -1078,8 +1132,14 @@ class PlatformWrapper:
         maintain the context of the platform.
         :return:
         """
+
         if not self.is_running():
             return
+
+        # Update OS env to current platform's env so get_home() call will result
+        # in correct home director. Without this when more than one test instance are created, get_home()
+        # will return home dir of last started platform wrapper instance
+        os.environ.update(self.env)
 
         self.dynamic_agent.vip.rpc(CONTROL, "shutdown").get()
         self.dynamic_agent.core.stop()
@@ -1117,6 +1177,11 @@ class PlatformWrapper:
         pids are still running then kill them.
         """
 
+        # Update OS env to current platform's env so get_home() call will result
+        # in correct home director. Without this when more than one test instance are created, get_home()
+        # will return home dir of last started platform wrapper instance
+        os.environ.update(self.env)
+
         # Handle cascading calls from multiple levels of fixtures.
         if self._instance_shutdown:
             return
@@ -1130,7 +1195,8 @@ class PlatformWrapper:
             pid = self.agent_pid(agnt['uuid'])
             if pid is not None and int(pid) > 0:
                 running_pids.append(int(pid))
-        self.remove_all_agents()
+        if not self.skip_cleanup:
+            self.remove_all_agents()
         # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
         self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
         self.dynamic_agent.core.stop()
@@ -1236,15 +1302,13 @@ class WebAdminApi(object):
         """
         data = dict(username=username, password1=password, password2=password)
         url = self.bind_web_address +"/admin/setpassword"
-        resp = requests.post(url, data, verify=self.certsobj.remote_cert_bundle_file())
-        assert resp.ok
-
+        resp = requests.post(url, data=data, verify=self.certsobj.remote_cert_bundle_file())
         return resp
 
     def authenticate(self, username, password):
         data = dict(username=username, password=password)
         url = self.bind_web_address+"/authenticate"
-        resp = requests.post(url, data, verify=self.certsobj.remote_cert_bundle_file())
-        assert resp.ok
-
+        # Passing dictionary to the data argument will automatically pass as
+        # application/x-www-form-urlencoded to the request
+        resp = requests.post(url, data=data, verify=self.certsobj.remote_cert_bundle_file())
         return resp

@@ -44,14 +44,19 @@ Pytest test cases for ThresholdDetectionAgent
 """
 
 import json
-import pytest
 
+import pytest
 import gevent
 
 from volttron.platform import get_ops
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 from volttron.platform.vip.agent import Agent, PubSub
 from volttrontesting.utils.utils import poll_gevent_sleep
+
+from volttrontesting.utils import is_running_in_container
+
+if is_running_in_container():
+    pytest.skip("Test module is flaky in containers", allow_module_level=True)
 
 _default_config = {
     "test_max": {
@@ -127,6 +132,8 @@ def threshold_tester_agent(volttron_instance):
     agent = volttron_instance.build_agent(agent_class=AlertWatcher,
                                           identity="alert_watcher",
                                           enable_store=True)
+    capabilities = {'edit_config_store': {'identity': "platform.thresholddetection"}}
+    volttron_instance.add_capabilities(agent.core.publickey, capabilities)
 
     agent.reset_store()
     # agent.vip.rpc.call(CONFIGURATION_STORE,

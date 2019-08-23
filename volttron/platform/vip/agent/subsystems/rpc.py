@@ -44,6 +44,7 @@ import os
 import sys
 import traceback
 import weakref
+import re
 
 import gevent.local
 from gevent.event import AsyncResult
@@ -68,6 +69,9 @@ _ROOT_PACKAGE_PATH = os.path.dirname(
 
 _log = logging.getLogger(__name__)
 
+
+def _isregex(obj):
+    return obj is not None and isinstance(obj, str) and len(obj) > 1 and obj[0] == obj[-1] == '/'
 
 class Dispatcher(jsonrpc.Dispatcher):
     def __init__(self, methods, local):
@@ -258,12 +262,59 @@ class RPC(SubsystemBase):
         '''
         def checked_method(*args, **kwargs):
             user = str(self.context.vip_message.user)
-            caps = self._owner.vip.auth.get_capabilities(user)
-            if not required_caps <= set(caps):
-                msg = ('method "{}" requires capabilities {},'
-                      ' but capability list {} was'
-                      ' provided').format(method.__name__, required_caps, caps)
+            if self._message_bus == "rmq":
+                # When we address issue #2107 external platform user should
+                # have instance name also included in username.
+                user = user.split(".")[1]
+            _log.debug("Current user in checked_method is {}".format(user))
+            user_capabilites = self._owner.vip.auth.get_capabilities(user)
+            _log.debug("**user caps is: {}".format(user_capabilites))
+            if user_capabilites:
+                user_capabilities_names = set(user_capabilites.keys())
+            else:
+                user_capabilities_names = set()
+
+            _log.debug("Required caps is : {}".format(required_caps))
+            _log.debug("user capability names: {}".format(user_capabilities_names))
+            if not required_caps.issubset(user_capabilities_names):
+                msg = ('method "{}" requires capabilities {}, but capability {} was'
+                       ' provided for user {}').format(method.__name__, required_caps, user_capabilites,
+                                                       self._owner.core.identity)
                 raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)
+            else:
+                # Now check if args passed to method are the ones allowed.
+
+                for cap_name, param_dict in user_capabilites.iteritems():
+                    if param_dict and required_caps and cap_name in required_caps:
+                        # if the method has required capabilities and
+                        # if the user capability has argument restrictions, check if the args passed to method
+                        # match the requirement
+                        _log.debug("args = {} kwargs= {}".format(args, kwargs))
+                        args_dict = inspect.getcallargs(method, *args, **kwargs)
+                        _log.debug("dict = {}".format(args_dict))
+                        _log.debug("name= {} parameters allowed={}".format(cap_name, param_dict))
+                        for name, value in param_dict.iteritems():
+                            _log.debug("name= {} value={}".format(name, value))
+                            if name not in args_dict:
+                                raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED,
+                                                                  "User capability is not defined "
+                                                                  "properly. method {} does not have "
+                                                                  "a parameter {}".format(method.__name__, name))
+                            if _isregex(value):
+                                regex = re.compile('^' + value[1:-1] + '$')
+                                if not regex.match(args_dict[name]):
+                                    raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED,
+                                                                      "User can call method {} only "
+                                                                      "with {} matching pattern {} but called with "
+                                                                      "{}={}".format(method.__name__, name, value,
+                                                                                     name, args_dict[name]))
+                            elif args_dict[name] != value:
+                                raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED,
+                                                                  "User can call method {} only "
+                                                                  "with {}={} but called with "
+                                                                  "{}={}".format(method.__name__, name, value,
+                                                                                 name, args_dict[name]))
+
             return method(*args, **kwargs)
         return checked_method
 

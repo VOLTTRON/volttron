@@ -355,6 +355,7 @@ class MasterDriverAgent(Agent):
 
 
     def update_driver(self, config_name, action, contents):
+        _log.info("In update_driver")
         topic = self.derive_device_topic(config_name)
         self.stop_driver(topic)
 

@@ -62,6 +62,7 @@ import six
 import time
 from shutil import copyfile
 from socket import gethostname, getfqdn
+import subprocess
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -370,7 +371,17 @@ class Certs(object):
             if not os.path.exists(p):
                 os.makedirs(p, 0o755)
 
-    def ca_cert(self, pem_encoded=False):
+    def export_pkcs12(self, name, outfile):
+        cert_file = self.cert_file(name)
+        key_file = self.private_key_file(name)
+
+        cmd = ["openssl", "pkcs12", "-export",
+               "-out", outfile,
+               "-in", cert_file, "-inkey", key_file]
+
+        subprocess.check_call(cmd)
+
+    def ca_cert(self, public_bytes=False):
         """
         Get the X509 CA certificate.
         :return: the CA certificate of current volttron instance
@@ -378,9 +389,9 @@ class Certs(object):
         if not self.ca_exists():
             raise CertError("ca certificate doesn't exist")
 
-        return self.cert(self.root_ca_name, pem_encoded=pem_encoded)
+        return self.cert(self.root_ca_name, public_bytes=public_bytes)
 
-    def cert(self, name, remote=False, pem_encoded=False):
+    def cert(self, name, remote=False, public_bytes=False):
         """
         Get the X509 certificate based upon the name
         :param name: name of the certificate to be loaded
@@ -398,7 +409,7 @@ class Certs(object):
             raise CertError("invalid certificate path {}".format(
                 cert_file))
         cert = _load_cert(cert_file)
-        if pem_encoded:
+        if public_bytes:
             return cert.public_bytes(serialization.Encoding.PEM)
 
         return _load_cert(cert_file)
@@ -724,7 +735,7 @@ class Certs(object):
     def rebuild_requests_ca_bundle(self):
         with open(self.remote_cert_bundle_file(), 'wb') as fp:
             # First include this platforms ca
-            fp.write(self.ca_cert(pem_encoded=True))
+            fp.write(self.ca_cert(public_bytes=True))
             for f in os.listdir(self.remote_cert_dir):
                 # based upon the call to the safe_remote_info from subsystem.auth file
                 # there will be a _ca added to the instance name on the other side of the

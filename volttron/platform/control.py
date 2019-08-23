@@ -59,6 +59,8 @@ import requests
 import gevent
 import gevent.event
 
+from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity
+from volttron.platform.certs import Certs
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform import get_home, get_address
 from volttron.platform.messaging.health import Status, STATUS_BAD
@@ -114,6 +116,11 @@ class ControlService(BaseAgent):
         self._tracker = tracker
         self.crashed_agents = {}
         self.agent_monitor_frequency = int(agent_monitor_frequency)
+
+        if self.core.publickey is None or self.core.secretkey is None:
+            self.core.publickey, self.core.secretkey, _ = self.core._get_keys_from_addr()
+        if self.core.publickey is None or self.core.secretkey is None:
+            self.core.publickey, self.core.secretkey = self.core._get_keys_from_keystore()
 
     @Core.receiver('onsetup')
     def _setup(self, sender, **kwargs):
@@ -1107,7 +1114,7 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
     asker.add('address', address)
     asker.add('user_id', user_id)
     asker.add('capabilities', capabilities,
-              'delimit multiple entries with comma', _comma_split)
+              'delimit multiple entries with comma', _parse_capabilities)
     asker.add('roles', roles, 'delimit multiple entries with comma',
               _comma_split)
     asker.add('groups', groups, 'delimit multiple entries with comma',
@@ -1130,6 +1137,17 @@ def _comma_split(line):
     return [word.strip() for word in line.split(',')]
 
 
+def _parse_capabilities(line):
+    if not isinstance(line, basestring):
+        return line
+    line = line.strip()
+    try:
+       result = json.loads(line.replace("'", "\""))
+    except Exception as e:
+        result = _comma_split(line)
+    return result
+
+
 def add_auth(opts):
     """Add authorization entry.
 
@@ -1143,7 +1161,7 @@ def add_auth(opts):
         "user_id": opts.user_id,
         "groups": _comma_split(opts.groups),
         "roles": _comma_split(opts.roles),
-        "capabilities": _comma_split(opts.capabilities),
+        "capabilities": _parse_capabilities(opts.capabilities),
         "comments": opts.comments,
     }
 
@@ -1151,11 +1169,14 @@ def add_auth(opts):
         # Remove unspecified options so the default parameters are used
         fields = {k: v for k, v in fields.items() if v}
         fields['enabled'] = not opts.disabled
+        print("fields of capabilities: {}".format(fields["capabilities"]))
         entry = AuthEntry(**fields)
     else:
         # No options were specified, use interactive wizard
         responses = _ask_for_auth_fields()
         entry = AuthEntry(**responses)
+        print("fields of capabilities: {}".format(responses["capabilities"]))
+
 
     if opts.add_known_host:
         if entry.address is None:
@@ -2022,6 +2043,20 @@ def remove_policies(opts):
                       "Check Connection Parameters: {} \n".format(e))
 
 
+def create_ssl_keypair(opts):
+    fq_identity = get_fq_identity(opts.identity)
+    certs = Certs()
+    certs.create_ca_signed_cert(fq_identity)
+
+
+def export_pkcs12_from_identity(opts):
+
+    fq_identity = get_fq_identity(opts.identity)
+
+    certs = Certs()
+    certs.export_pkcs12(fq_identity, opts.outfile)
+
+
 def main(argv=sys.argv):
     # Refuse to run as root
     if not getattr(os, 'getuid', lambda: -1)():
@@ -2228,6 +2263,32 @@ def main(argv=sys.argv):
                              help=argparse.SUPPRESS)
     upgrade.set_defaults(func=upgrade_agent, verify_agents=True)
 
+    # ====================================================
+    # certs commands
+    # ====================================================
+    cert_cmds = add_parser("certs",
+                           help="manage certificate creation")
+
+    certs_subparsers = cert_cmds.add_subparsers(title='subcommands', metavar='', dest='store_commands')
+
+    create_ssl_keypair_cmd = add_parser("create-ssl-keypair", subparser=certs_subparsers,
+                             help="create a ssl keypair.")
+
+    create_ssl_keypair_cmd.add_argument("identity",
+                                        help="Create a private key and cert for the given identity signed by "
+                                             "the root ca of this platform.")
+    create_ssl_keypair_cmd.set_defaults(func=create_ssl_keypair)
+
+    export_pkcs12 = add_parser("export-pkcs12", subparser=certs_subparsers,
+                             help="create a PKCS12 encoded file containing private and public key from an agent. "
+                                  "this function is useful to create a java key store using a p12 file.")
+    export_pkcs12.add_argument("identity", help="identity of the agent to export")
+    export_pkcs12.add_argument("outfile", help="file to write the PKCS12 file to")
+    export_pkcs12.set_defaults(func=export_pkcs12_from_identity)
+
+    # ====================================================
+    # auth commands
+    # ====================================================
     auth_cmds = add_parser("auth",
                            help="manage authorization entries and encryption keys")
 
@@ -2366,6 +2427,9 @@ def main(argv=sys.argv):
                                   help='remove (rather than append) given capabilities')
     auth_update_role.set_defaults(func=update_role)
 
+    # ====================================================
+    # config commands
+    # ====================================================
     config_store = add_parser("config",
                               help="manage the platform configuration store")
 
@@ -2472,7 +2536,9 @@ def main(argv=sys.argv):
 
     if message_bus == 'rmq':
         rmq_mgmt = RabbitMQMgmt()
-        # Add commands
+        # ====================================================
+        # rabbitmq commands
+        # ====================================================
         rabbitmq_cmds = add_parser("rabbitmq", help="manage rabbitmq")
         rabbitmq_subparsers = rabbitmq_cmds.add_subparsers(title='subcommands',
                                                            metavar='',
@@ -2605,7 +2671,7 @@ def main(argv=sys.argv):
     # Below vctl commands can work even when volttron is not up. For others
     # volttron need to be up.
     if len(args) > 0:
-        if args[0] not in ('list', 'tag', 'auth', 'rabbitmq'):
+        if args[0] not in ('list', 'tag', 'auth', 'rabbitmq', 'certs'):
             # check pid file
             if not utils.is_volttron_running(volttron_home):
                 _stderr.write("VOLTTRON is not running. This command "

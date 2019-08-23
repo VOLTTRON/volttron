@@ -24,5 +24,5 @@ def test_discovery_endpoint(volttron_instance_web):
     assert wrapper.instance_name == info.instance_name
     assert wrapper.vip_address == info.vip_address
     if wrapper.messagebus == 'rmq':
-        ca_cert = wrapper.certsobj.ca_cert(pem_encoded=True)
+        ca_cert = wrapper.certsobj.ca_cert(public_bytes=True)
         assert ca_cert == info.rmq_ca_cert

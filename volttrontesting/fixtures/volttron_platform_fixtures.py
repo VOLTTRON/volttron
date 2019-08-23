@@ -12,6 +12,7 @@ PRINT_LOG_ON_SHUTDOWN = False
 HAS_RMQ = is_rabbitmq_available()
 rmq_skipif = pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
 
+
 def print_log(volttron_home):
     if PRINT_LOG_ON_SHUTDOWN:
         if os.environ.get('PRINT_LOGS', PRINT_LOG_ON_SHUTDOWN):
@@ -100,7 +101,7 @@ def volttron_instance_module_web(request):
 @pytest.fixture(scope="module",
                 params=(
                     dict(messagebus='zmq', ssl_auth=False),
-                    rmq_skipif(dict(messagebus='rmq', ssl_auth=True))
+                    rmq_skipif(dict(messagebus='rmq', ssl_auth=True)),
                 ))
 def volttron_instance(request, **kwargs):
     """Fixture that returns a single instance of volttron platform for testing
@@ -302,7 +303,8 @@ def volttron_multi_messagebus(request):
         if source.messagebus == 'rmq':
             # The _ca is how the auth subsystem saves the remote cert from discovery.  We
             # are effectively doing that here instead of making the discovery call.
-            source.certsobj.save_remote_cert(sink.certsobj.root_ca_name+"_ca", sink.certsobj.ca_cert(pem_encoded=True))
+            source.certsobj.save_remote_cert(sink.certsobj.root_ca_name + "_ca", sink.certsobj.ca_cert(
+                public_bytes=True))
     else:
         source = build_wrapper(source_address,
                                ssl_auth=ssl_auth,

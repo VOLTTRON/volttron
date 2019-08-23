@@ -43,7 +43,6 @@ import calendar
 import errno
 import logging
 import sys
-import syslog
 import traceback
 from datetime import datetime, tzinfo, timedelta
 
@@ -66,7 +65,7 @@ import subprocess
 from subprocess import Popen
 
 try:
-    from ..lib.inotify.green import inotify, IN_MODIFY
+    from volttron.platform.lib.inotify.green import inotify, IN_MODIFY
 except AttributeError:
     # inotify library is not available on OS X/MacOS.
     # @TODO Integrate with the OS X FS Events API
@@ -164,10 +163,12 @@ def load_config(config_path):
             raise
 
 
-def load_platform_config():
+def load_platform_config(vhome=None):
     """Loads the platform config file if the path exists."""
     config_opts = {}
-    path = os.path.join(get_home(), 'config')
+    if not vhome:
+        vhome = get_home()
+    path = os.path.join(vhome, 'config')
     if os.path.exists(path):
         parser = ConfigParser()
         parser.read(path)
@@ -177,8 +178,8 @@ def load_platform_config():
     return config_opts
 
 
-def get_platform_instance_name(prompt=False):
-    platform_config = load_platform_config()
+def get_platform_instance_name(vhome=None, prompt=False):
+    platform_config = load_platform_config(vhome)
 
     instance_name = platform_config.get('instance-name', None)
     if instance_name is not None:
@@ -194,8 +195,10 @@ def get_platform_instance_name(prompt=False):
             if os.path.isfile('/etc/hostname'):
                 with open('/etc/hostname') as f:
                     instance_name = f.read().strip()
-
-                    store_message_bus_config(get_messagebus(), instance_name)
+                bus = platform_config.get('message-bus')
+                if bus is None:
+                    bus = get_messagebus()
+                store_message_bus_config(bus, instance_name)
             else:
                 err = "No instance-name is configured in $VOLTTRON_HOME/config. Please set instance-name in " \
                       "$VOLTTRON_HOME/config"
@@ -435,19 +438,6 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         pass
 
 
-class SyslogFormatter(logging.Formatter):
-    _level_map = {logging.DEBUG: syslog.LOG_DEBUG,
-                  logging.INFO: syslog.LOG_INFO,
-                  logging.WARNING: syslog.LOG_WARNING,
-                  logging.ERROR: syslog.LOG_ERR,
-                  logging.CRITICAL: syslog.LOG_CRIT}
-
-    def format(self, record):
-        level = self._level_map.get(record.levelno, syslog.LOG_INFO)
-        return '<{}>'.format(level) + super(SyslogFormatter, self).format(
-            record)
-
-
 class JsonFormatter(logging.Formatter):
     def format(self, record):
         dct = record.__dict__.copy()
@@ -648,11 +638,15 @@ def watch_file(fullpath, callback):
     if inotify is None:
         _log.warning("Runtime changes to: %s not supported on this platform.", fullpath)
     else:
-        with inotify() as inot:
-            inot.add_watch(dirname, IN_MODIFY)
-            for event in inot:
-                if event.name == filename and event.mask & IN_MODIFY:
-                    callback()
+        try:
+            with inotify() as inot:
+                inot.add_watch(dirname, IN_MODIFY)
+                for event in inot:
+                    if event.name == filename and event.mask & IN_MODIFY:
+                        callback()
+        except Exception as e:
+            _log.warning("Runtime changes to {} not supported due to "
+                         "exception initializing inotify. Exception: {}".format(fullpath, e))
 
 
 def watch_file_with_fullpath(fullpath, callback):

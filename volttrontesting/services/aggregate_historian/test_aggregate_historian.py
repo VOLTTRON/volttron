@@ -329,7 +329,8 @@ def get_expected_sum(query_agent, topic, end_time, minutes_delta):
 def query_agent(request, volttron_instance):
     # 1: Start a fake fake_agent to query the sqlhistorian in volttron_instance
     fake_agent = volttron_instance.build_agent()
-
+    capabilities = {'edit_config_store': {'identity': AGG_AGENT_VIP}}
+    volttron_instance.add_capabilities(fake_agent.core.publickey, capabilities)
     # 2: add a tear down method to stop sqlhistorian fake_agent and the fake
     # fake_agent that published to message bus
     def stop_agent():

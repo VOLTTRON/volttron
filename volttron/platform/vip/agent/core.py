@@ -42,6 +42,7 @@ import heapq
 import inspect
 import logging
 import os
+import platform as python_platform
 import signal
 import threading
 import time
@@ -178,11 +179,16 @@ class BasicCore(object):
         self.onstop = Signal()
         self.onfinish = Signal()
         self.oninterrupt = None
-        prev_int_signal = gevent.signal.getsignal(signal.SIGINT)
-        # To avoid a child agent handler overwriting the parent agent handler
-        if prev_int_signal in [None, signal.SIG_IGN, signal.SIG_DFL]:
-            self.oninterrupt = gevent.signal.signal(signal.SIGINT,
-                                                    self._on_sigint_handler)
+
+        #SIGINT does not work in Windows. 
+        #If using the standalone agent on a windows machine,
+        #this section will be skipped 
+        if python_platform.system() != 'Windows':
+            prev_int_signal = gevent.signal.getsignal(signal.SIGINT)
+            # To avoid a child agent handler overwriting the parent agent handler
+            if prev_int_signal in [None, signal.SIG_IGN, signal.SIG_DFL]:
+                self.oninterrupt = gevent.signal.signal(signal.SIGINT,
+                                                        self._on_sigint_handler)
         self._owner = owner
 
     def setup(self):
@@ -526,6 +532,14 @@ class Core(BasicCore):
             self.connection.send_vip(b'', 'agentstop', args=frames, copy=False)
         super(Core, self).stop(timeout=timeout)
 
+    def _get_keys_from_addr(self):
+        url = list(urlparse.urlsplit(self.address))
+        query = urlparse.parse_qs(url[3])
+        publickey = query.get('publickey', [None])[0]
+        secretkey = query.get('secretkey', [None])[0]
+        serverkey = query.get('serverkey', [None])[0]
+        return publickey, secretkey, serverkey
+
     # This function moved directly from the zmqcore agent.  it is included here because
     # when we are attempting to connect to a zmq bus from a rmq bus this will be used
     # to create the public and secret key for that connection or use it if it was already
@@ -699,14 +713,6 @@ class ZMQCore(Core):
         known_hosts_file = os.path.join(self.volttron_home, 'known_hosts')
         known_hosts = KnownHostsStore(known_hosts_file)
         return known_hosts.serverkey(self.address)
-
-    def _get_keys_from_addr(self):
-        url = list(urlparse.urlsplit(self.address))
-        query = urlparse.parse_qs(url[3])
-        publickey = query.get('publickey', [None])[0]
-        secretkey = query.get('secretkey', [None])[0]
-        serverkey = query.get('serverkey', [None])[0]
-        return publickey, secretkey, serverkey
 
     def loop(self, running_event):
         # pre-setup

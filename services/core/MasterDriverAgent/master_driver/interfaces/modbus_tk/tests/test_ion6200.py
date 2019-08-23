@@ -6,7 +6,8 @@ import os.path
 
 from volttron.platform import get_services_core
 from master_driver.interfaces.modbus_tk.server import Server
-from master_driver.interfaces.modbus_tk.maps import Map, Catalog
+from master_driver.interfaces.modbus_tk.maps import Catalog
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 logger = logging.getLogger(__name__)
 
@@ -75,22 +76,25 @@ demand_sub_interval,44016,uint16,interval,TRUE,,analog_output_holding_registers"
 
 
 @pytest.fixture(scope="module")
-def agent(request, volttron_instance):
+def ion_driver_agent(request, volttron_instance):
     """Build MasterDriverAgent, add modbus driver & csv configurations
     """
 
     # Build master driver agent
-    md_agent = volttron_instance.build_agent()
+    md_agent = volttron_instance.build_agent(identity="test_md_agent")
+    capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
+    volttron_instance.add_capabilities(md_agent.core.publickey, capabilities)
 
     # Clean out master driver configurations
+    # wait for it to return before adding new config
     md_agent.vip.rpc.call('config.store',
                           'manage_delete_store',
-                          'platform.driver')
+                          PLATFORM_DRIVER).get()
 
     # Add driver configurations
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
-                          'platform.driver',
+                          PLATFORM_DRIVER,
                           'devices/ion6200',
                           ION6200_DRIVER_CONFIG,
                           config_type='json')
@@ -98,21 +102,21 @@ def agent(request, volttron_instance):
     # Add csv configurations
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
-                          'platform.driver',
+                          PLATFORM_DRIVER,
                           'ion6200.csv',
                           ION6200_CSV_CONFIG,
                           config_type='csv')
 
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
-                          'platform.driver',
+                          PLATFORM_DRIVER,
                           'ion6200_map.csv',
                           ION6200_CSV_MAP,
                           config_type='csv')
 
     master_uuid = volttron_instance.install_agent(agent_dir=get_services_core("MasterDriverAgent"),
-                                                   config_file={},
-                                                   start=True)
+                                                  config_file={},
+                                                  start=True)
 
     gevent.sleep(10)  # wait for the agent to start and start the devices
 
@@ -145,6 +149,7 @@ def modbus_server(request):
 
 
 @pytest.mark.usefixtures("modbus_server")
+@pytest.mark.driver
 class TestModbusTKDriver:
     """
         Regression tests for the modbus_tk driver interface.
@@ -159,7 +164,7 @@ class TestModbusTKDriver:
         @param point_name: The name of the point to query.
         @return: The actual reading value of the point name from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'get_point', device_name, point_name).get(timeout=10)
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'get_point', device_name, point_name).get(timeout=10)
 
     def set_point(self, agent, device_name, point_name, point_value):
         """
@@ -171,7 +176,7 @@ class TestModbusTKDriver:
         @param value: The value to set on the point.
         @return:The actual reading value of the point name from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'set_point', device_name, point_name, point_value).get(timeout=10)
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'set_point', device_name, point_name, point_value).get(timeout=10)
 
     def scrape_all(self, agent, device_name):
         """
@@ -181,7 +186,7 @@ class TestModbusTKDriver:
         @param device_name: The driver name, by default: 'devices/device_name'.
         @return: The dictionary mapping point names to their actual values from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'scrape_all', device_name).get(timeout=10)
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all', device_name).get(timeout=10)
 
     def revert_all(self, agent, device_name):
         """
@@ -191,7 +196,7 @@ class TestModbusTKDriver:
         @param device_name: The driver name, by default: 'devices/device_name'.
         @return: Return value from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'revert_device', device_name).get(timeout=10)
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'revert_device', device_name).get(timeout=10)
 
     def revert_point(self, agent, device_name, point_name):
         """
@@ -202,42 +207,42 @@ class TestModbusTKDriver:
         @param point_name: The name of the point to query.
         @return: Return value from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'revert_point', device_name, point_name).get(timeout=10)
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'revert_point', device_name, point_name).get(timeout=10)
 
-    def test_default_values(self, agent):
+    def test_default_values(self, ion_driver_agent):
         """Test setting default values
         """
-        self.revert_all(agent, 'ion6200')
-        default_values = self.scrape_all(agent, 'ion6200')
+        self.revert_all(ion_driver_agent, 'ion6200')
+        default_values = self.scrape_all(ion_driver_agent, 'ion6200')
         assert type(default_values) is dict
 
         for key in default_values.keys():
             assert default_values[key] == 0 or 0.0
 
-    def test_set_point(self, agent):
+    def test_set_point(self, ion_driver_agent):
         """Serial set point
         """
-        set_value = self.set_point(agent, 'ion6200', 'Serial', 9600)
+        set_value = self.set_point(ion_driver_agent, 'ion6200', 'Serial', 9600)
         assert set_value == 9600
 
-    def test_get_point(self, agent):
+    def test_get_point(self, ion_driver_agent):
         """Serial get point after set point
         """
-        get_value = self.get_point(agent, 'ion6200', 'Serial')
+        get_value = self.get_point(ion_driver_agent, 'ion6200', 'Serial')
         assert get_value == 9600
 
-    def test_revert_point(self,agent):
+    def test_revert_point(self,ion_driver_agent):
         """Serial revert to default value
         """
-        self.revert_point(agent, 'ion6200', 'Serial')
-        assert self.get_point(agent, 'ion6200', 'Serial') == 0
+        self.revert_point(ion_driver_agent, 'ion6200', 'Serial')
+        assert self.get_point(ion_driver_agent, 'ion6200', 'Serial') == 0
 
-    def test_revert_all_new(self, agent):
+    def test_revert_all_new(self, ion_driver_agent):
         """Test revert device to default values
         """
-        self.revert_all(agent, 'ion6200')
+        self.revert_all(ion_driver_agent, 'ion6200')
 
-        default_values = self.scrape_all(agent, 'ion6200')
+        default_values = self.scrape_all(ion_driver_agent, 'ion6200')
         assert type(default_values) is dict
 
         for key in default_values.keys():

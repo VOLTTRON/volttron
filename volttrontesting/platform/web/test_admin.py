@@ -1,3 +1,6 @@
+import os
+
+import gevent
 import pytest
 
 from volttrontesting.fixtures.volttron_platform_fixtures import volttron_instance_web
@@ -21,6 +24,8 @@ def test_can_create_admin_user(volttron_instance_web, user_pass):
 
     resp = webadmin.create_web_admin(user, password)
     assert resp.ok
+    # Allow file operation to run
+    gevent.sleep(2)
 
     resp = webadmin.authenticate(user, password)
     assert resp.ok

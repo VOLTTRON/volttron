@@ -40,25 +40,25 @@
 from __future__ import absolute_import, print_function
 
 import bisect
-import errno
 import logging
 import os
 import random
 import re
 import shutil
 import uuid
+from collections import defaultdict
 
 import gevent
 from gevent.fileobject import FileObject
 from zmq import green as zmq
-from volttron.platform.agent import json as jsonapi
 
+from volttron.platform.agent import json as jsonapi
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL
+from volttron.platform.vip.agent.errors import VIPError
+from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
 from .agent.utils import strip_comments, create_file_if_missing, watch_file
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
-from volttron.platform.vip.agent.errors import VIPError
-from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
-from collections import defaultdict
 
 _log = logging.getLogger(__name__)
 
@@ -233,7 +233,7 @@ class AuthService(Agent):
                     continue
                 response = zap[:4]
                 user = self.authenticate(domain, address, kind, credentials)
-                _log.debug("AUTH: authenticated user id: {0}, {1}".format(user, userid))
+                _log.debug("AUTH: authenticated user: {0},  user id: {1}".format(user, userid))
                 if user:
                     _log.info(
                         'authentication success: domain=%r, address=%r, '
@@ -244,8 +244,8 @@ class AuthService(Agent):
                 else:
                     _log.info(
                         'authentication failure: domain=%r, address=%r, '
-                        'mechanism=%r, credentials=%r',
-                        domain, address, kind, credentials)
+                        'mechanism=%r, credentials=%r userid=%r',
+                        domain, address, kind, credentials, userid)
                     # If in setup mode, add/update auth entry
                     if self._setup_mode:
                         self._update_auth_entry(domain, address, kind, credentials[0], userid)
@@ -609,10 +609,9 @@ class AuthEntry(object):
         self.address = AuthEntry._build_field(address)
         self.mechanism = mechanism
         self.credentials = AuthEntry._build_field(credentials)
-        self.groups = AuthEntry._build_field(groups, list, str) or []
-        self.roles = AuthEntry._build_field(roles, list, str) or []
-        self.capabilities = AuthEntry._build_field(capabilities, list,
-                                                   str) or []
+        self.groups = AuthEntry._build_field(groups) or []
+        self.roles = AuthEntry._build_field(roles) or []
+        self.capabilities = AuthEntry.build_capabilities_field(capabilities) or {}
         self.comments = AuthEntry._build_field(comments)
         if user_id is None:
             user_id = str(uuid.uuid4())
@@ -634,18 +633,51 @@ class AuthEntry(object):
         return False
 
     @staticmethod
-    def _build_field(value, list_class=List, str_class=String):
+    def _build_field(value):
         if not value:
             return None
         if isinstance(value, basestring):
             return String(value)
         return List(String(elem) for elem in value)
 
+    @staticmethod
+    def build_capabilities_field(value):
+        #_log.debug("_build_capabilities {}".format(value))
+
+        if not value:
+            return None
+
+        if isinstance(value, list):
+            result = dict()
+            for elem in value:
+                # update if it is not there or if existing entry doesn't have args.
+                # i.e. capability with args can override capability str
+                temp = result.update(AuthEntry._get_capability(elem))
+                if temp and result[next(iter(temp))] is None:
+                    result.update(temp)
+            _log.debug("Returning field _build_capabilities {}".format(result))
+            return result
+        else:
+            return AuthEntry._get_capability(value)
+
+
+    @staticmethod
+    def _get_capability(value):
+        err_message = "Invalid capability value: {} of type {}. Capability entries can only be a string or " \
+                      "dictionary or list containing string/dictionary. " \
+                      "dictionaries should be of the format {'capability_name':None} or " \
+                      "{'capability_name':{'arg1':'value',...}"
+        if isinstance(value, basestring):
+            return {value: None}
+        elif isinstance(value, dict):
+            return value
+        else:
+            raise AuthEntryInvalid(err_message.format(value, type(value)))
+
     def add_capabilities(self, capabilities):
-        caps_set = set(capabilities)
-        caps_set |= set(self.capabilities)
-        self.capabilities = AuthEntry._build_field(
-            list(caps_set), list, str) or []
+        temp = AuthEntry.build_capabilities_field(capabilities)
+        if temp:
+            self.capabilities.update(temp)
 
     def match(self, domain, address, mechanism, credentials):
         return ((self.domain is None or self.domain.match(domain)) and
@@ -702,7 +734,7 @@ class AuthFile(object):
 
     @property
     def version(self):
-        return {'major': 1, 'minor': 1}
+        return {'major': 1, 'minor': 2}
 
     def _check_for_upgrade(self):
         allow_list, groups, roles, version = self._read()
@@ -818,12 +850,27 @@ class AuthFile(object):
                 new_allow_list.append(entry)
             return new_allow_list
 
+        def upgrade_1_1_to_1_2(allow_list):
+            new_allow_list = []
+            for entry in allow_list:
+                user_id = entry.get('user_id')
+                if user_id in [CONTROL, VOLTTRON_CENTRAL_PLATFORM]:
+                    user_id = '/.*/'
+                capabilities = entry.get('capabilities')
+                entry['capabilities'] = AuthEntry.build_capabilities_field(capabilities) or {}
+                entry['capabilities']['edit_config_store'] = {'identity': user_id}
+                new_allow_list.append(entry)
+            return new_allow_list
+
         if version['major'] == 0:
             allow_list = upgrade_0_to_1(allow_list)
             version['major'] = 1
             version['minor'] = 0
         if version['major'] == 1 and version['minor'] == 0:
             allow_list = upgrade_1_0_to_1_1(allow_list)
+            version['minor'] = 1
+        if version['major'] == 1 and version['minor'] == 1:
+            allow_list = upgrade_1_1_to_1_2(allow_list)
 
         entries = self._get_entries(allow_list)
         self._write(entries, groups, roles)

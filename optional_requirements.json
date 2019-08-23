@@ -22,7 +22,7 @@
     },
     "--databases": {
         "help": "Installs support for all known databases",
-        "packages": ["pymongo", "mysql-connector-python-rf"]
+        "packages": ["pymongo", "mysql-connector-python-rf", "crate"]
     },
     "--documentation": {
         "help": "Installs requirements for building the documentation",
@@ -35,7 +35,6 @@
     },
     "--rabbitmq": {
         "help": "Installs requirements for the rabbitmq server",
-        "packages": ["wget==3.2", "cryptography==2.2.2",
-        "git+git://github.com/shwethanidd/pika.git@gevent_connection_adapter#egg=pika"]
+        "packages": ["cryptography==2.2.2", "gevent-pika==0.2"]
     }
 }

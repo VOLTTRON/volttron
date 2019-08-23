@@ -47,7 +47,7 @@ author = u'The VOLTTRON Community'
 # The short X.Y version
 version = u'6.0'
 # The full version, including alpha/beta/rc tags
-release = u'6.0-rc1'
+release = u'6.0'
 
 
 # -- General configuration ---------------------------------------------------
