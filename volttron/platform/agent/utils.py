@@ -654,14 +654,14 @@ def watch_file(fullpath, callback):
     """
 
     dirname, filename = os.path.split(fullpath)
-    _log.info("Adding file watch for %s dirname=%s, filename=%s", fullpath, dirname, filename)
-    _observer = Observer()
-    _observer.schedule(
+    _log.info("Adding file watch for %s dirname=%s, filename=%s", fullpath, get_home(), filename)
+    observer = Observer()
+    observer.schedule(
         VolttronHomeFileReloader(filename, callback),
-        path=dirname
+        path=get_home()
     )
+    observer.start()
     _log.info("Added file watch for %s", fullpath)
-    _observer.start()
 
 
 def watch_file_with_fullpath(fullpath, callback):

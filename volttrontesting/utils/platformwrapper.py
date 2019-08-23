@@ -173,7 +173,7 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
 
 
 class PlatformWrapper:
-    def __init__(self, messagebus=None, ssl_auth=False, instance_name=None, remote_platform_ca=None, disable_auth=True):
+    def __init__(self, messagebus=None, ssl_auth=False, instance_name=None, remote_platform_ca=None):
         """ Initializes a new VOLTTRON instance
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory
@@ -209,7 +209,6 @@ class PlatformWrapper:
             'PYTHONDONTWRITEBYTECODE': '1'
         }
         self.volttron_root = VOLTTRON_ROOT
-        self.disable_auth = disable_auth
 
         volttron_exe = os.path.dirname(sys.executable) + '/volttron'
         assert os.path.exists(volttron_exe)
@@ -413,10 +412,9 @@ class PlatformWrapper:
         self.logit('platformwrapper.build_agent.address: {}'.format(address))
 
         # Automatically add agent's credentials to auth.json file
-        if publickey and not self.disable_auth:
+        if publickey:
             self.logit('Adding publickey to auth.json')
             self._append_allow_curve_key(publickey, identity=identity)
-            gevent.sleep(1)
 
         if should_spawn:
             self.logit('platformwrapper.build_agent spawning')
@@ -488,22 +486,21 @@ class PlatformWrapper:
     def add_capabilities(self, publickey, capabilities):
         if isinstance(capabilities, str)  or isinstance(capabilities, dict):
             capabilities = [capabilities]
-        auth_dict, auth_path = self._read_auth_file()
-        cred = publickey
-        allow = auth_dict['allow']
-        entry = next((item for item in allow if item['credentials'] == cred),
-                     {})
-        caps = entry.get('capabilities', {})
+        auth_path = self.volttron_home + "/auth.json"
+        auth = AuthFile(auth_path)
+        entry = auth.find_by_credentials(publickey)[0]
+        caps = entry.capabilities
+
         if isinstance(capabilities, list):
             for c in capabilities:
                 self.add_capability(c, caps)
         else:
             self.add_capability(capabilities, caps)
+        auth.add(entry, overwrite=True)
+        _log.debug("Updated entry is {}".format(entry))
+        gevent.sleep(1)
+        #self.build_agent(should_spawn=False)
 
-        entry['capabilities'] = caps
-
-        with open(auth_path, 'w+') as fd:
-            json.dump(auth_dict, fd)
 
     @staticmethod
     def add_capability(entry, capabilites):
@@ -533,9 +530,7 @@ class PlatformWrapper:
         # in correct home director. Without this when more than one test instance are created, get_home()
         # will return home dir of last started platform wrapper instance
         os.environ.update(self.env)
-        if self.disable_auth:
-            # Disable auth for all test cases other than auth related test cases
-            self.allow_all_connections()
+        self.allow_all_connections()
 
         self.vip_address = vip_address
         self.mode = mode

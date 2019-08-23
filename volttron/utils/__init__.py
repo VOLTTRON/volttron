@@ -49,8 +49,12 @@ class VolttronHomeFileReloader(PatternMatchingEventHandler):
         self._callback = callback
 
     def on_any_event(self, event):
-        _log.debug("Calling callback on event {}".format(event))
-        self._callback()
+        _log.debug("Calling callback on event {}. Calling {}".format(event, self._callback))
+        try:
+            self._callback()
+        except BaseException as e:
+            _log.error("Exception in callback: {}".format(e))
+        _log.debug("After callback on event {}".format(event))
 
 
 class AbsolutePathFileReloader(PatternMatchingEventHandler):
@@ -70,4 +74,9 @@ class AbsolutePathFileReloader(PatternMatchingEventHandler):
         return self._filetowatch
 
     def on_any_event(self, event):
-        self._callback()
+        _log.debug("Calling callback on event {}. Calling {}".format(event, self._callback))
+        try:
+            self._callback()
+        except BaseException as e:
+            _log.error("Exception in callback: {}".format(e))
+        _log.debug("After callback on event {}".format(event))
