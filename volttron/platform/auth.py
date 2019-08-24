@@ -132,9 +132,9 @@ class AuthService(Agent):
         # sort the entries so the regex credentails follow the concrete creds
         entries.sort()
         self.auth_entries = entries
-        _log.info('auth file %s loaded', self.auth_file_path)
         if self._is_connected:
             self._send_update()
+        _log.info('auth file %s loaded', self.auth_file_path)
 
     def get_protected_topics(self):
         protected = self._protected_topics
@@ -158,7 +158,7 @@ class AuthService(Agent):
 
     def _send_update(self):
         user_to_caps = self.get_user_to_capabilities()
-        peers = self.vip.peerlist().get(timeout=5)
+        peers = self.vip.peerlist().get(timeout=0.1)
         _log.debug("AUTH new capabilities update: {}".format(user_to_caps))
 
         for peer in peers:
@@ -692,7 +692,7 @@ class AuthEntry(object):
     def __str__(self):
         return ('domain={0.domain!r}, address={0.address!r}, '
                 'mechanism={0.mechanism!r}, credentials={0.credentials!r}, '
-                'user_id={0.user_id!r}'.format(self))
+                'user_id={0.user_id!r}, capabilities={0.capabilities!r}'.format(self))
 
     def __repr__(self):
         cls = self.__class__
@@ -958,6 +958,7 @@ class AuthFile(object):
             self._check_if_exists(auth_entry)
         except AuthFileEntryAlreadyExists as err:
             if overwrite:
+                _log.debug("Updating existing auth entry with {} ".format(auth_entry))
                 self._update_by_indices(auth_entry, err.indices)
             else:
                 raise err
@@ -965,6 +966,8 @@ class AuthFile(object):
             entries, groups, roles = self.read()
             entries.append(auth_entry)
             self._write(entries, groups, roles)
+            _log.debug("Added auth entry {} ".format(auth_entry))
+        gevent.sleep(1)
 
     def remove_by_credentials(self, credentials):
         """Removes entry from auth file by credential
