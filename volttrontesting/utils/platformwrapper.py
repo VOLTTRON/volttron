@@ -499,7 +499,6 @@ class PlatformWrapper:
         auth.add(entry, overwrite=True)
         _log.debug("Updated entry is {}".format(entry))
         gevent.sleep(1)
-        #self.build_agent(should_spawn=False)
 
 
     @staticmethod
