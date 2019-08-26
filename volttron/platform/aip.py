@@ -42,6 +42,7 @@
 import errno
 import logging
 import os
+import stat
 import shutil
 import signal
 import sys
@@ -73,7 +74,6 @@ from volttron.platform.agent.utils import load_platform_config, \
     get_utc_seconds_from_epoch
 from .packages import UnpackedPackage
 from .vip.agent import Agent
-from .keystore import KeyStore
 from .auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 
@@ -216,20 +216,25 @@ class AIPplatform(object):
             self.rmq_mgmt = RabbitMQMgmt()
 
     def add_agent_user_group(self):
-        group = "volttron_{}".format(get_platform_instance_name())
+        user = pwd.getpwuid(os.getuid())
+        group_name = "volttron_{}".format(get_platform_instance_name())
         try:
-            grp.getgrnam(group)
+            group = grp.getgrnam(group_name)
         except KeyError:
-            _log.info("Creating the volttron agent group {}.".format(group))
-            groupadd = ['sudo', 'groupadd', group]
+            _log.info("Creating the volttron agent group {}.".format(
+                group_name))
+            groupadd = ['sudo', 'groupadd', group_name]
             groupadd_process = subprocess.Popen(
                 groupadd, stdout=PIPE, stderr=PIPE)
             stdout, stderr = groupadd_process.communicate()
             if stderr:
                 # TODO alert?
                 raise RuntimeError("Add {} group failed ({}) - Prevent "
-                                   "creation of agent users".format(stderr,
-                                                                    group))
+                                   "creation of agent users".
+                                   format(stderr, group_name))
+            group = grp.getgrnam(group_name)
+            os.chown(os.path.join(get_home(), "known_hosts"), user.pw_uid,
+                     group.gr_gid)
 
     def add_agent_user(self, agent_name, agent_dir):
         """
@@ -293,16 +298,6 @@ class AIPplatform(object):
             for directory in directories:
                 self.set_acl_for_path("rx", volttron_agent_user,
                                       os.path.join(root, directory))
-        # TODO Chandrika is pretty convinced about this
-        # keystore should be read only
-        keystore = os.path.join(self._get_agent_data_dir(agent_path_with_name),
-                                "keystore.json")
-        self.set_acl_for_path("r", volttron_agent_user, keystore)
-        # Agent needs read access to known_hosts to be able to connect to the
-        # platform
-        known_hosts = os.path.join(get_home(), "known_hosts")
-        self.set_acl_for_path("r", volttron_agent_user, known_hosts)
-        #
 
     def remove_agent_user(self, agent_dir):
         """
