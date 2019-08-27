@@ -190,6 +190,14 @@ def _install_agent(agent_dir, config, tag):
     _cmd(['scripts/core/pack_install.sh',
           agent_dir, config_file, tag])
 
+def _is_agent_installed(tag):
+    installed_list_process = Popen(['vctl','list'], env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    installed_list = installed_list_process.communicate()
+    installed = "".join(installed_list)
+    if tag in installed:
+        return True
+    else:
+        return False
 
 # Decorator to handle installing agents
 # Decorated functions need to return a config
@@ -207,6 +215,13 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
             _update_config_file()
             _start_platform()
             _install_agent(agent_dir, config, tag)
+
+            if not _is_agent_installed(tag):
+                print(tag + ' not installed correctly!')
+                _shutdown_platform()
+                return
+
+
             if post_install_func:
                 post_install_func()
 
@@ -301,6 +316,7 @@ def check_rmq_setup():
     if not os.path.exists(rmq_config.volttron_rmq_config):
         setup_rabbitmq_volttron('single', verbose, prompt=True, instance_name=None)
     _load_config()
+
 def do_message_bus():
     global config_opts
     bus_type = None
