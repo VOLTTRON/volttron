@@ -17,7 +17,7 @@ done
 
 echo "$USER ALL= NOPASSWD: /usr/sbin/groupadd volttron_$name" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron
 echo "$USER ALL= NOPASSWD: /usr/sbin/usermod -a -G volttron_$name $USER" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron
-echo "$USER ALL= NOPASSWD: /usr/sbin/useradd volttron_* -G volttron_$name" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron
+echo "$USER ALL= NOPASSWD: /usr/sbin/useradd volttron_* -r -G volttron_$name" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron
 # TODO want delete only users with pattern of particular group
 echo "$USER ALL= NOPASSWD: /usr/sbin/userdel volttron_*" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron
 # allow user to run all non-sudo commands for all volttron agent users

@@ -256,7 +256,7 @@ class AIPplatform(object):
                 str(get_utc_seconds_from_epoch()).replace(".", ""))
             _log.info("Creating volttron user {}".format(volttron_agent_user))
             group = "volttron_{}".format(get_platform_instance_name())
-            useradd = ['sudo', 'useradd', volttron_agent_user, '-G', group]
+            useradd = ['sudo', 'useradd', volttron_agent_user, '-r', '-G', group]
             useradd_process = subprocess.Popen(
                 useradd, stdout=PIPE, stderr=PIPE)
             stdout, stderr = useradd_process.communicate()
