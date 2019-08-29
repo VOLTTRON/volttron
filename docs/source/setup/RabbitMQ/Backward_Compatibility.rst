@@ -9,7 +9,7 @@ RabbitMQ VOLTTRON supports backward compatibility with ZeroMQ based VOLTTRON. Ra
 Agent Connecting Directly to Remote Instance
 --------------------------------------------
 
-The following steps are to demonstrate how RabbitMQ VOLTTRON is backward compatible with ZeroMQ VOLTTRON, using the Forward Historian as an example.
+The following steps are to demonstrate how RabbitMQ VOLTTRON is backward compatible with ZeroMQ VOLTTRON, using the Forward Historian as an example. This example shows how to forward messages from local ZeroMQ based VOLTTRON to remote RabbitMQ based VOLTTRON instance. Similar steps can be followed if you needed to move messages from local RabbiMQ based VOLTTRON to ZeroMQ based VOLTTRON.
 
 1. In order for RabbitMQ and ZeroMQ VOLTTRONs to communicate with each other, one needs two instances of VOLTTRON_HOME on the same VM. To create a new instance of VOLTTRON_HOME use the command.
 
@@ -252,3 +252,6 @@ The below example demonstrates backward compatibility using multi-platform conne
                      },
     ......
    }
+
+
+Additionally for different combinations of multi-bus, multi-platform setup, please refer to :ref:`Multi-Platform Multi-Bus Walk-through <_Multi_Platform_Walkthrough>`

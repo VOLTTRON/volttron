@@ -62,7 +62,7 @@ class DiscoveryInfo(object):
 
             real_url = urljoin(web_address, "/discovery/")
             _log.info('Connecting to: {}'.format(real_url))
-            response = requests.get(real_url)
+            response = requests.get(real_url, verify=False)
 
             if not response.ok:
                 raise DiscoveryError(

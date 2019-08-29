@@ -245,6 +245,12 @@ class MongodbHistorian(BaseHistorian):
                                         start=delay),
                                self.periodic_rollup)
 
+    @Core.receiver("onstop")
+    def closing_mongo_client(self, sender, **kwargs):
+        if self._client:
+            _log.debug("Closing mongo client explicitly")
+            self._client.close()
+
     def periodic_rollup(self):
         _log.info("periodic attempt to do hourly and daily rollup.")
         if self._client is None:

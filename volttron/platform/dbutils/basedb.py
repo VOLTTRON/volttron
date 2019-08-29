@@ -131,10 +131,10 @@ class DbDriver(object):
         if self.__connection is None:
             raise ConnectionError(
                 "Unknown error. Could not connect to database")
-        try:
-            self.stash.cursor = self.__connection.cursor()
-        except Exception as e:
-            raise ConnectionError(e), None, sys.exc_info()[2]
+
+        # if any exception happens here have it go to the caller.
+        self.stash.cursor = self.__connection.cursor()
+
         return self.stash.cursor
 
     def read_tablenames_from_db(self, meta_table_name):
@@ -393,7 +393,7 @@ class DbDriver(object):
                 self.__connection.commit()
                 return True
             except sqlite3.OperationalError as e:
-                if "database is locked" in e.message:
+                if "database is locked" in str(e):
                     _log.error("EXCEPTION: SQLITE3 Database is locked. This "
                                "error could occur when there are multiple "
                                "simultaneous read and write requests, making "

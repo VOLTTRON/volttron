@@ -53,7 +53,6 @@ import pytest
 from dateutil.tz import tzutc
 from gevent.subprocess import Popen
 from mock import MagicMock
-from volttron.platform.agent import PublishMixin
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER

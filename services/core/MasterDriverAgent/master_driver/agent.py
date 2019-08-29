@@ -355,6 +355,7 @@ class MasterDriverAgent(Agent):
         self.group_counts[driver.group] -= 1
 
     def update_driver(self, config_name, action, contents):
+        _log.info("In update_driver")
         topic = self.derive_device_topic(config_name)
         self.stop_driver(topic)
 
@@ -771,12 +772,12 @@ class MasterDriverAgent(Agent):
         """
         Called by the BACnet Proxy to pass the COV value to the driver agent
         for publishing
-        :param device_path: path of the device used for publish topic
+        :param source_address: path of the device used for publish topic
         :param point_name: name of the point in the COV notification
         :param point_values: dictionary of updated values sent by the device
         """
         for driver in self.instances.values():
-            if driver.device_path == device_path:
+            if driver.device_path == source_address:
                 driver.publish_cov_value(point_name, point_values)
 
 

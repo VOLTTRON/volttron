@@ -121,7 +121,6 @@ extras_require = {
         'websocket-client',
     ],
     'rabbitmq': [
-        'wget',
         'cryptography',
         'pika'
     ],

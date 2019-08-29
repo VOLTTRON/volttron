@@ -75,8 +75,12 @@ import json
 import logging
 import subprocess
 import sys
+from urllib.request import urlopen
+from urllib.error import HTTPError
 
 import os
+from distutils.version import LooseVersion
+import traceback
 
 from requirements import extras_require, option_requirements
 
@@ -87,42 +91,27 @@ default_rmq_dir = os.path.join(os.path.expanduser("~"), "rabbitmq_server")
 rabbitmq_server = 'rabbitmq_server-3.7.7'
 
 
-
 def shescape(args):
     '''Return a sh shell escaped string composed of args.'''
     return ' '.join('{1}{0}{1}'.format(arg.replace('"', '\\"'),
                     '"' if ' ' in arg else '') for arg in args)
 
 
-def bootstrap(dest, prompt='volttron'):
-    '''Download latest virtualenv and create a virtual environment.
+def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
+    import shutil
+    args = [sys.executable, "-m", "venv", dest, "--prompt", prompt]
 
-    The virtual environment will be created in the given directory. The
-    shell prompt in the virtual environment can be overridden by setting
-    prompt.
-    '''
+    complete = subprocess.run(args, stdout=subprocess.PIPE)
+    if complete.returncode != 0:
+        sys.stdout.write(complete.stdout.decode('utf-8'))
+        shutil.rmtree(dest, ignore_errors=True)
+        sys.exit(1)
 
-    _log.info('Creating virtual Python environment')
-
-    args = [sys.executable, '-m', 'venv']
-    if prompt:
-        args.extend(['--prompt', prompt])
-    args.append(dest)
-    _log.debug('+ %s', shescape(args))
-    subprocess.check_call(args)
-    if _WINDOWS:
-        env_exe = os.path.join(
-            dest, 'Scripts', 'python.exe')
-    else:
-        env_exe = os.path.join(dest, 'bin', 'python')
-
-    assert(os.path.exists(env_exe))
-
-    return env_exe
+    return os.path.join(dest, "bin/python")
 
 
 def pip(operation, args, verbose=None, upgrade=False, offline=False):
-    '''Call pip in the virtual environment to perform operation.'''
+    """Call pip in the virtual environment to perform operation."""
     cmd = ['pip', operation]
     if verbose is not None:
         cmd.append('--verbose' if verbose else '--quiet')
@@ -136,8 +125,8 @@ def pip(operation, args, verbose=None, upgrade=False, offline=False):
     subprocess.check_call(cmd)
 
 
-def update(operation, verbose=None, upgrade=False, offline=False, optional_requirements=[], rmq_dir=None):
-    '''Install dependencies in setup.py and requirements.txt.'''
+def update(operation, verbose=None, upgrade=False, offline=False, optional_requirements=[]):
+    """Install dependencies in setup.py and requirements.txt."""
     assert operation in ['install', 'wheel']
     wheeling = operation == 'wheel'
     path = os.path.dirname(__file__) or '.'
@@ -167,8 +156,8 @@ def update(operation, verbose=None, upgrade=False, offline=False, optional_requi
 
     try:
         # Install rmq server if needed
-        if rmq_dir:
-            install_rabbit(rmq_dir)
+        if 'rabbitmq' in optional_requirements:
+            install_rabbit(default_rmq_dir)
     except Exception as exc:
         _log.error("Error installing RabbitMQ package {}".format(traceback.format_exc()))
 
@@ -180,10 +169,10 @@ def install_rabbit(rmq_install_dir):
     (output, error) = process.communicate()
     if process.returncode != 0:
         sys.stderr.write("ERROR:\n Unable to find erlang in path. Please install necessary pre-requisites. "
-                         "Reference: https://github.com/VOLTTRON/volttron/blob/rabbitmq-volttron/README.md")
+                "Reference: https://volttron.readthedocs.io/en/latest/setup/index.html#steps-for-rabbitmq")
+
         sys.exit(60)
 
-    import wget
     if rmq_install_dir == default_rmq_dir and not os.path.exists(
             default_rmq_dir):
         os.makedirs(default_rmq_dir)
@@ -205,9 +194,12 @@ def install_rabbit(rmq_install_dir):
               "Skipping rabbitmq server install".format(
             rmq_install_dir, rabbitmq_server))
     else:
-        filename = wget.download(
-            "https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.7.7/rabbitmq-server-generic-unix-3.7.7.tar.xz",
-            out=os.path.expanduser("~"))
+        url = "https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.7.7/rabbitmq-server-generic-unix-3.7.7.tar.xz"
+        f = urlopen(url)
+        data = f.read()
+        filename = "rabbitmq-server.download.tar.xz"
+        with open(filename, "wb") as imgfile:
+            imgfile.write(data)
         _log.info("\nDownloaded rabbitmq server")
         cmd = ["tar",
                "-xf",
@@ -229,8 +221,9 @@ def install_rabbit(rmq_install_dir):
     with open(os.path.expanduser("~/.volttron_rmq_home"), 'w+') as f:
         f.write(rmq_home)
 
+
 def main(argv=sys.argv):
-    '''Script entry point.'''
+    """Script entry point."""
 
     # Refuse to run as root
     if not getattr(os, 'getuid', lambda: -1)():
@@ -239,13 +232,13 @@ def main(argv=sys.argv):
         sys.exit(77)
 
     # Python3 for life!
-    if sys.version_info[:2] != (3, 6):
+    if sys.version_info.major < 3 or sys.version_info.minor < 6:
         sys.stderr.write('error: Python >= 3.6 is required\n')
         sys.exit(1)
 
     # Build the parser
     python = os.path.join('$VIRTUAL_ENV',
-                          'Scripts' if _WINDOWS  else 'bin', 'python')
+                          'Scripts' if _WINDOWS else 'bin', 'python')
     if _WINDOWS:
         python += '.exe'
     parser = argparse.ArgumentParser(
@@ -254,13 +247,13 @@ def main(argv=sys.argv):
         usage='\n  bootstrap: python3.6 %(prog)s [options]'
               '\n  update:    {} %(prog)s [options]'.format(python),
         prog=os.path.basename(argv[0]),
-        epilog='''
+        epilog="""
             The first invocation of this script, which should be made
             using the system Python, will create a virtual Python
             environment in the 'env' subdirectory in the same directory as
             this script or in the directory given by the --envdir option.
             Subsequent invocations of this script should use the Python
-            executable installed in the virtual environment.'''
+            executable installed in the virtual environment."""
     )
     verbose = parser.add_mutually_exclusive_group()
     verbose.add_argument(
@@ -353,7 +346,7 @@ def main(argv=sys.argv):
         try:
             # Refuse to create environment in existing, non-empty
             # directory without the --force flag.
-            if os.listdir(options.envdir):
+            if os.path.exists(options.envdir):
                 if not options.force:
                     parser.print_usage(sys.stderr)
                     print('{}: error: directory exists and is not empty: {}'
@@ -373,8 +366,7 @@ def main(argv=sys.argv):
         args = [env_exe, __file__]
         if options.verbose is not None:
             args.append('--verbose' if options.verbose else '--quiet')
-        # if options.rabbitmq is not None:
-        #     args.append('--rabbitmq={}'.format(options.rabbitmq))
+
         # Transfer dynamic properties to the subprocess call 'update'.
         # Clip off the first two characters expecting long parameter form.
         for arg in options.optional_args:

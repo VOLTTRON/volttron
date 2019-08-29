@@ -41,14 +41,14 @@ import os
 
 import gevent
 import pytest
-from py.test import raises
+from pytest import raises
 
-from volttron.platform import jsonrpc
 from volttron.platform.auth import (AuthEntry, AuthFile, AuthFileIndexError,
                                     AuthFileEntryAlreadyExists,
                                     AuthFileUserIdAlreadyExists,
                                     AuthEntryInvalid)
 from volttrontesting.platform.auth_control_test import assert_auth_entries_same
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL
 
 
 @pytest.fixture(scope='function')
@@ -153,14 +153,16 @@ def test_remove_auth_by_credentials(auth_file_platform_tuple, auth_entry1,
 def test_remove_invalid_index(auth_file_platform_tuple):
     auth_file, _ = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
-        auth_file.remove_by_index(2)
+        # by default will have 3 entries - platform, control and dynamic_agent created by platform wrapper
+        auth_file.remove_by_index(3)
 
 
 @pytest.mark.auth
 def test_update_invalid_index(auth_file_platform_tuple, auth_entry1):
     auth_file, _ = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
-        auth_file.update_by_index(auth_entry1, 2)
+        # by default will have 3 entries - platform, control and dynamic_agent created by platform wrapper
+        auth_file.update_by_index(auth_entry1, 3)
 
 
 @pytest.mark.auth
@@ -230,7 +232,7 @@ def test_groups_and_roles(auth_file_platform_tuple):
 
 
 @pytest.mark.auth
-def test_upgrade_file_verison_0_to_1_1(tmpdir_factory):
+def test_upgrade_file_verison_0_to_1_2(tmpdir_factory):
     mechanism = "CURVE"
     publickey = "A" * 43
     version0 = {
@@ -268,11 +270,13 @@ def test_upgrade_file_verison_0_to_1_1(tmpdir_factory):
     expected = version0['allow'][0]
     expected["credentials"] = publickey
     expected["mechanism"] = mechanism
+    expected["capabilities"] = {'can_publish_temperature': None,
+                                'edit_config_store': {'identity': entries[0].user_id}}
     assert_auth_entries_same(expected, vars(entries[0]))
 
 
 @pytest.mark.auth
-def test_upgrade_file_verison_0_to_1_1_minimum_entries(tmpdir_factory):
+def test_upgrade_file_verison_0_to_1_2_minimum_entries(tmpdir_factory):
     """The only required field in 'version 0' was credentials"""
     mechanism = "CURVE"
     publickey = "A" * 43
@@ -294,10 +298,102 @@ def test_upgrade_file_verison_0_to_1_1_minimum_entries(tmpdir_factory):
     expected["mechanism"] = mechanism
     expected["domain"] = None
     expected["address"] = None
-    expected["user_id"] = entries[0].user_id # this will be a UUID
+    expected["user_id"] = entries[0].user_id #this will be a UUID
     expected["enabled"] = True
     expected["comments"] = None
-    expected["capabilities"] = []
+    expected["capabilities"] = {'edit_config_store': {'identity': entries[0].user_id}}
     expected["roles"] = []
     expected["groups"] = []
     assert_auth_entries_same(expected, vars(entries[0]))
+
+
+@pytest.mark.auth
+def test_upgrade_file_version_1_1_to_1_2(tmpdir_factory):
+    """The only required field in 'version 0' was credentials"""
+
+    version1_1 = {
+      "roles":{
+        "manager":[
+          "can_managed_platform"
+        ]
+      },
+      "version":{
+        "major":1,
+        "minor":1
+      },
+      "groups":{
+        "admin":[
+          "reader",
+          "writer"
+        ]
+      },
+      "allow":[
+        {
+          "domain":"vip",
+          "user_id":"user1",
+          "roles":[],
+          "enabled":True,
+          "mechanism":"CURVE",
+          "capabilities":["can_publish_temperature"],
+          "groups":[],
+          "address":"127.0.0.1",
+          "credentials":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "comments":"This is a test entry"
+        },
+        {
+          "domain": "vip",
+          "user_id": "user2",
+          "roles": [],
+          "enabled": True,
+          "mechanism": "CURVE",
+          "capabilities": ["blah", "foo"],
+          "groups": [],
+          "address": "127.0.0.1",
+          "credentials": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "comments": "This is a test entry"
+        },
+        {
+          "domain": "vip",
+          "user_id": CONTROL,
+          "roles": [],
+          "enabled": True,
+          "mechanism": "CURVE",
+          "capabilities": [],
+          "groups": [],
+          "address": "127.0.0.1",
+          "credentials": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "comments": "This is a test entry"
+        },
+        {
+          "domain": "vip",
+          "user_id": VOLTTRON_CENTRAL_PLATFORM,
+          "roles": [],
+          "enabled": True,
+          "mechanism": "CURVE",
+          "capabilities": [],
+          "groups": [],
+          "address": "127.0.0.1",
+          "credentials": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "comments": "This is a test entry"
+        }
+
+      ]
+    }
+
+    filename = str(tmpdir_factory.mktemp('auth_test').join('auth.json'))
+    with open(filename, 'w') as fp:
+        fp.write(json.dumps(version1_1, indent=2))
+
+    upgraded = AuthFile(filename)
+    entries = upgraded.read()[0]
+    assert len(entries) == 4
+    for entry in entries:
+        if entry.user_id in [CONTROL, VOLTTRON_CENTRAL_PLATFORM]:
+            assert entry.capabilities == {'edit_config_store': {'identity': '/.*/'}}
+        elif entry.user_id == "user1":
+            assert entry.capabilities == {'can_publish_temperature': None,
+                                           'edit_config_store': {'identity': 'user1'}}
+        elif entry.user_id == "user2":
+            assert entry.capabilities == {'blah': None, 'foo': None,
+                                          'edit_config_store': {'identity': 'user2'}}
+

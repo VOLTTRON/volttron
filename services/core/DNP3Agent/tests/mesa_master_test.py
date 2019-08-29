@@ -27,15 +27,21 @@
 # favoring by 8minutenergy or Kisensum.
 # }}}
 
+import pytest
+try:
+    import dnp3
+except ImportError:
+    pytest.skip("pydnp3 not found!", allow_module_level=True)
+
 import json
 
 from collections import OrderedDict
 
-from dnp3.points import DIRECT_OPERATE
+from dnp3 import DIRECT_OPERATE
 from dnp3_master import SOEHandler
 from mesa_master import MesaMaster
 from dnp3.mesa.functions import FunctionDefinitions
-from function_test import POINT_TYPE_TO_PYTHON_TYPE
+from function_test import DATA_TYPE_TO_PYTHON_TYPE
 
 
 class MesaMasterTestException(Exception):
@@ -68,48 +74,12 @@ class MesaMasterTest(MesaMaster):
         pdef = pdefs.point_named(point_name)
         if not pdef:
             raise MesaMasterTestException("Point definition not found: {}".format(point_name))
-        if not pdef.point_type:
-            raise MesaMasterTestException("Unrecognized point type: {}".format(pdef.point_type))
-        if pdef.point_type in POINT_TYPE_TO_PYTHON_TYPE and \
-                type(point_value) not in POINT_TYPE_TO_PYTHON_TYPE[pdef.point_type]:
+        if not pdef.data_type:
+            raise MesaMasterTestException("Unrecognized data type: {}".format(pdef.data_type))
+        if pdef.data_type in DATA_TYPE_TO_PYTHON_TYPE and \
+                type(point_value) not in DATA_TYPE_TO_PYTHON_TYPE[pdef.data_type]:
             raise MesaMasterTestException("Invalid point value: {}".format(pdef.name))
         self.send_command(self.send_direct_operate_command, pdef, point_value)
-
-    def send_point(self, pdefs, func_def_path, point_name, point_value, step_number):
-        """
-            Send a point to outstation. Check for validation.
-
-        :param pdefs: point definitions
-        :param func_def_path: path to function definition
-        :param point_name: name of the point that will be sent
-        :param point_value: value of the point that will be sent
-        :param step_number: step number of the point that will be sent
-        """
-        pdef = pdefs.point_named(point_name)
-        if not pdef:
-            raise MesaMasterTestException("Point definition not found: {}".format(point_name))
-
-        if not pdef.point_type:
-            raise MesaMasterTestException("Unrecognized point type: {}".format(pdef.point_type))
-
-        step_def = FunctionDefinitions(pdefs, func_def_path).step_definition_for_point(pdef)
-        if step_number != step_def.step_number:
-            raise MesaMasterTestException("Step not in order: {}".format(step_number))
-
-        if type(point_value) == list:
-            self.send_array(point_value, pdef)
-        else:
-            fdefs = FunctionDefinitions(pdefs, function_definitions_path=func_def_path)
-            step_def = fdefs.step_definition_for_point(pdef)
-            send_func = self.SEND_FUNCTIONS.get(step_def.fcodes[0] if step_def.fcodes else DIRECT_OPERATE, None)
-            if not send_func:
-                raise MesaMasterTestException("Unrecognized function code")
-
-            if pdef.point_type in POINT_TYPE_TO_PYTHON_TYPE and \
-                    type(point_value) not in POINT_TYPE_TO_PYTHON_TYPE[pdef.point_type]:
-                raise MesaMasterTestException("Invalid point value: {}".format(pdef.name))
-
-            self.send_command(send_func, pdef, point_value)
 
     def send_json(self, pdefs, func_def_path, send_json_path='', send_json=None):
         """
@@ -123,10 +93,31 @@ class MesaMasterTest(MesaMaster):
         """
         if send_json_path:
             send_json = json.load(open(send_json_path), object_pairs_hook=OrderedDict)
+
+        try:
+            function_id = send_json['function_id']
+        except KeyError:
+            raise MesaMasterTestException('Missing function_id')
+
+        fdefs = FunctionDefinitions(pdefs, function_definitions_path=func_def_path)
+        
+        try:
+            fdef = fdefs[function_id]
+        except KeyError:
+            raise MesaMasterTestException('Invalid function_id {}'.format(function_id))
+
         step = 1
         for name, value in send_json.items():
             if name not in ['name', 'function_id', 'function_name']:
-                self.send_point(pdefs, func_def_path, name, value, step)
+                pdef = pdefs.point_named(name)
+                step_def = fdef[pdef]
+                if step != step_def.step_number:
+                    raise MesaMasterTestException("Step not in order: {}".format(step))
+                if type(value) == list:
+                    self.send_array(value, pdef)
+                else:
+                    send_func = self.SEND_FUNCTIONS.get(step_def.fcodes[0] if step_def.fcodes else DIRECT_OPERATE, None)
+                    self.send_command(send_func, pdef, value)
                 step += 1
 
 

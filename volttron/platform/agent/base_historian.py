@@ -361,6 +361,8 @@ class BaseHistorianAgent(Agent):
                  history_limit_days=None,
                  storage_limit_gb=None,
                  sync_timestamp=False,
+                 custom_topics={},
+                 all_platforms=False,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -408,6 +410,7 @@ class BaseHistorianAgent(Agent):
             STATUS_KEY_PUBLISHING: True,
             STATUS_KEY_CACHE_FULL: False
         }
+        self._all_platforms = bool(all_platforms)
 
         self._default_config = {
                                 "retry_period":self._retry_period,
@@ -424,7 +427,9 @@ class BaseHistorianAgent(Agent):
                                 "capture_record_data": capture_record_data,          
                                 "message_publish_count": self._message_publish_count,
                                 "storage_limit_gb": storage_limit_gb,
-                                "history_limit_days": history_limit_days
+                                "history_limit_days": history_limit_days,
+                                "custom_topics": custom_topics,
+                                "all_platforms": self._all_platforms
                                }
 
         self.vip.config.set_default("config", self._default_config)
@@ -519,6 +524,9 @@ class BaseHistorianAgent(Agent):
 
             readonly = bool(config.get("readonly", False))
             message_publish_count = int(config.get("message_publish_count", 10000))
+
+            all_platforms = bool(config.get("all_platforms", False))
+
         except ValueError as e:
             self._backup_storage_report = 0.9
             _log.error("Failed to load base historian settings. Settings not applied!")
@@ -543,14 +551,30 @@ class BaseHistorianAgent(Agent):
         self._max_time_publishing = timedelta(seconds=max_time_publishing)
         self._history_limit_days = timedelta(days=history_limit_days) if history_limit_days else None
         self._storage_limit_gb = storage_limit_gb
-
+        self._all_platforms = all_platforms
         self._readonly = readonly
         self._message_publish_count = message_publish_count
+
+        custom_topics_list = []
+        for handler, topic_list in config.get("custom_topics", {}).items():
+            if handler == "capture_device_data":
+                for topic in topic_list:
+                    custom_topics_list.append((True, topic, self._capture_device_data))
+            elif handler == "capture_log_data":
+                for topic in topic_list:
+                    custom_topics_list.append((True, topic, self._capture_log_data))
+            elif handler == "capture_analysis_data":
+                for topic in topic_list:
+                    custom_topics_list.append((True, topic, self._capture_analysis_data))
+            else:
+                for topic in topic_list:
+                    custom_topics_list.append((True, topic, self._capture_record_data))
 
         self._update_subscriptions(bool(config.get("capture_device_data", True)),
                                    bool(config.get("capture_log_data", True)),
                                    bool(config.get("capture_analysis_data", True)),
-                                   bool(config.get("capture_record_data", True)))
+                                   bool(config.get("capture_record_data", True)),
+                                   custom_topics_list)
 
         self.stop_process_thread()
 
@@ -564,14 +588,15 @@ class BaseHistorianAgent(Agent):
     def _update_subscriptions(self, capture_device_data,
                                     capture_log_data,
                                     capture_analysis_data,
-                                    capture_record_data):
+                                    capture_record_data,
+                                    custom_topics_list):
         subscriptions = [
             (capture_device_data, topics.DRIVER_TOPIC_BASE, self._capture_device_data),
             (capture_log_data, topics.LOGGER_BASE, self._capture_log_data),
             (capture_analysis_data, topics.ANALYSIS_TOPIC_BASE, self._capture_analysis_data),
             (capture_record_data, topics.RECORD_BASE, self._capture_record_data)
         ]
-
+        subscriptions.extend(custom_topics_list)
         for should_sub, prefix, cb in subscriptions:
             if should_sub and not self._readonly:
                 if prefix not in self._current_subscriptions:
@@ -579,7 +604,8 @@ class BaseHistorianAgent(Agent):
                     try:
                         self.vip.pubsub.subscribe(peer='pubsub',
                                                   prefix=prefix,
-                                                  callback=cb).get(timeout=5.0)
+                                                  callback=cb,
+                                                  all_platforms=self._all_platforms).get(timeout=5.0)
                         self._current_subscriptions.add(prefix)
                     except (gevent.Timeout, Exception) as e:
                         _log.error("Failed to subscribe to {}: {}".format(prefix, repr(e)))

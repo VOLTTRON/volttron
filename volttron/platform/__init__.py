@@ -44,7 +44,7 @@ import os
 import psutil
 import sys
 
-__version__ = '6.0-rc1'
+__version__ = '7.0-beta'
 
 
 def set_home(home=None):
@@ -156,3 +156,14 @@ def is_instance_running(volttron_home=None):
         return False
 
     return psutil.pid_exists(pid)
+
+
+def is_rabbitmq_available():
+    rabbitmq_available = True
+    try:
+        import pika
+        rabbitmq_available = True
+    except ImportError:
+        os.environ['RABBITMQ_NOT_AVAILABLE'] = "True"
+        rabbitmq_available = False
+    return rabbitmq_available

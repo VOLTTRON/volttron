@@ -558,240 +558,174 @@ def test_failing_historian(request, volttron_instance, client_agent):
             fail_historian.core.stop()
 
 
-class FailureHistorian(BaseHistorian):
-    def __init__(self, **kwargs):
-        super(FailureHistorian, self).__init__(**kwargs)
-        self.publish_fail = False
-        self.setup_fail = False
-        self.record_fail = False
-        self.teardown_fail = False
-        self.setup_run = False
-        self.record_run = False
-        self.teardown_run = False
-        self.seen = []
+@pytest.mark.historian
+def test_additional_custom_topics(request, volttron_instance, client_agent):
+    """
+    Test subscription to custom topics. Test --
+     1. add additional topics
+     2. restricting topics
+    """
+    global alert_publishes
+    historian = None
+    try:
+        identity = 'platform.historian'
+        DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+        CUSTOM_TOPIC = 'special_devices/device1/unit/all'
+        CUSTOM_QUERY_TOPIC = "device1/unit"
+        DEVICES_QUERY_TOPIC = "Building/LAB/Device"
 
-    def publish_to_historian(self, to_publish_list):
-        if self.publish_fail:
-            raise Exception("Failed to publish.")
-
-        self.seen.extend(to_publish_list)
-        self.report_all_handled()
-
-    def query_topic_list(self):
-        pass
-
-    def query_historian(self):
-        pass
-
-    def reset(self):
-        self.seen = []
-        self.setup_run = False
-        self.record_run = False
-        self.teardown_run = False
-        self.setup_fail = False
-        self.record_fail = False
-        self.teardown_fail = False
-        self.publish_fail = False
-
-    def historian_setup(self):
-        if self.setup_fail:
-            raise Exception("Failed to setup.")
-
-        self.setup_run = True
-
-    def record_table_definitions(self, meta_table_name):
-        if self.record_fail:
-            raise Exception("Failed to record table definitions")
-        self.record_run = True
-
-    def historian_teardown(self):
-        if self.teardown_fail:
-            raise Exception("Failed to teardown.")
-
-        self.teardown_run = True
+        historian = volttron_instance.build_agent(agent_class=BasicHistorian,
+                                              identity=identity,
+                                              submit_size_limit=2,
+                                              max_time_publishing=0.5,
+                                              retry_period=1.0,
+                                              backup_storage_limit_gb=0.0001,
+                                              custom_topics={'capture_device_data': [CUSTOM_TOPIC]})  # 100K
 
 
-@pytest.fixture(scope="module")
-def fail_historian(request, volttron_instance):
-    identity = 'platform.historian'
-    agent = volttron_instance.build_agent(agent_class=FailureHistorian,
-                                          identity=identity,
-                                          submit_size_limit=2,
-                                          max_time_publishing=0.5,
-                                          retry_period=1.0,
-                                          backup_storage_limit_gb=0.0001)  # 100K
-    yield agent
-    agent.core.stop()
+        print("\n** test_basic_function for {}**".format(
+            request.keywords.node.name))
+
+        # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+        # Make some random readings.  Randome readings are going to be
+        # within the tolerance here.
+        format_spec = "{0:.13f}"
+        oat_reading = random.uniform(30, 100)
+        mixed_reading = oat_reading + random.uniform(-5, 5)
+        damper_reading = random.uniform(0, 100)
+
+        float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+        percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
+
+        # Create a message for all points.
+        all_message = [{'OutsideAirTemperature': oat_reading,
+                        'MixedAirTemperature': mixed_reading,
+                        'DamperSignal': damper_reading},
+                       {'OutsideAirTemperature': float_meta,
+                        'MixedAirTemperature': float_meta,
+                        'DamperSignal': percent_meta
+                        }]
+
+        # Create timestamp
+        now = utils.format_timestamp( datetime.utcnow() )
+
+        # now = '2015-12-02T00:00:00'
+        headers = {
+            headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+        }
+        print("Published time in header: " + now)
+
+        for _ in range(2):
+            client_agent.vip.pubsub.publish('pubsub',
+                                             DEVICES_ALL_TOPIC,
+                                             headers=headers,
+                                             message=all_message).get(timeout=10)
+        for _ in range(2):
+            client_agent.vip.pubsub.publish('pubsub',
+                                            CUSTOM_TOPIC,
+                                            headers=headers,
+                                            message=all_message).get(timeout=10)
+
+        gevent.sleep(2.0)
+
+        assert len(historian.seen) == 12
+        found_device_topic = 0
+        found_custom_topic = 0
+        for item in historian.seen:
+            if item["topic"].startswith(DEVICES_QUERY_TOPIC) :
+                found_device_topic += 1
+            elif item["topic"].startswith(CUSTOM_QUERY_TOPIC):
+                found_custom_topic += 1
+        assert found_custom_topic == 6
+        assert found_device_topic == 6
+    finally:
+        if historian:
+            historian.core.stop()
+
 
 @pytest.mark.historian
-def test_failing_historian(request, fail_historian, client_agent):
+def test_restricting_topics(request, volttron_instance, client_agent):
     """
-    Test basic use of health subsystem in the base historian.
+    Test subscription to custom topics. Test --
+     1. add additional topics
+     2. restricting topics
     """
+    global alert_publishes
+    historian = None
+    try:
+        identity = 'platform.historian'
+        CUSTOM_TOPIC = 'devices/device1/unit/all'
+        DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+        CUSTOM_QUERY_TOPIC  = "device1/unit"
+        DEVICES_QUERY_TOPIC = "Building/LAB/Device"
 
-    assert fail_historian.setup_run
-    assert not fail_historian.teardown_run
-    assert fail_historian._process_thread.is_alive()
+        historian = volttron_instance.build_agent(agent_class=BasicHistorian,
+                                              identity=identity,
+                                              submit_size_limit=2,
+                                              max_time_publishing=0.5,
+                                              retry_period=1.0,
+                                              backup_storage_limit_gb=0.0001,
+                                              capture_device_data=False,
+                                              capture_log_data=False,
+                                              capture_analysis_data=False,
+                                              capture_record_data=False,
+                                              custom_topics={'capture_device_data': [CUSTOM_TOPIC]})  # 100K
 
-    fail_historian.stop_process_thread()
+        print("\n** test_basic_function for {}**".format(
+            request.keywords.node.name))
 
-    assert fail_historian.teardown_run
-    assert fail_historian.setup_run
-    assert fail_historian._process_thread is None
-    ###
-    # Test setup failure case
-    ###
-    fail_historian.reset()
-    fail_historian.setup_fail = True
-    fail_historian.start_process_thread()
-    gevent.sleep(0.2)
+        # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+        # Make some random readings.  Randome readings are going to be
+        # within the tolerance here.
+        format_spec = "{0:.13f}"
+        oat_reading = random.uniform(30, 100)
+        mixed_reading = oat_reading + random.uniform(-5, 5)
+        damper_reading = random.uniform(0, 100)
 
-    assert fail_historian._process_thread.is_alive()
-    assert not fail_historian.setup_run
-    assert not fail_historian.teardown_run
+        float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+        percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
 
-    fail_historian.stop_process_thread()
+        # Create a message for all points.
+        all_message = [{'OutsideAirTemperature': oat_reading,
+                        'MixedAirTemperature': mixed_reading,
+                        'DamperSignal': damper_reading},
+                       {'OutsideAirTemperature': float_meta,
+                        'MixedAirTemperature': float_meta,
+                        'DamperSignal': percent_meta
+                        }]
 
-    assert fail_historian.teardown_run
-    assert not fail_historian.setup_run
-    assert fail_historian._process_thread is None
-    ###
-    # Test failure to record intial table names in db
-    ###
-    fail_historian.reset()
-    fail_historian.record_fail = True
-    fail_historian.start_process_thread()
+        # Create timestamp
+        now = utils.format_timestamp( datetime.utcnow() )
 
-    gevent.sleep(0.2)
+        # now = '2015-12-02T00:00:00'
+        headers = {
+            headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+        }
+        print("Published time in header: " + now)
 
-    assert fail_historian._process_thread.is_alive()
-    assert fail_historian.setup_run
-    assert not fail_historian.record_run
-    assert not fail_historian.teardown_run
+        for _ in range(2):
+            client_agent.vip.pubsub.publish('pubsub',
+                                             DEVICES_ALL_TOPIC,
+                                             headers=headers,
+                                             message=all_message).get(timeout=10)
+        for _ in range(2):
+            client_agent.vip.pubsub.publish('pubsub',
+                                            CUSTOM_TOPIC,
+                                            headers=headers,
+                                            message=all_message).get(timeout=10)
 
-    fail_historian.stop_process_thread()
+        gevent.sleep(2.0)
 
-    assert fail_historian.teardown_run
-    assert fail_historian.setup_run
-    assert not fail_historian.record_run
-    assert fail_historian._process_thread is None
-    ###
-    # Test failure during teardown
-    ###
-    fail_historian.reset()
-    fail_historian.teardown_fail = True
-    fail_historian.start_process_thread()
-
-    gevent.sleep(0.2)
-
-    assert fail_historian._process_thread.is_alive()
-    assert fail_historian.setup_run
-    assert not fail_historian.teardown_run
-
-    fail_historian.stop_process_thread()
-
-    assert not fail_historian.teardown_run
-    assert fail_historian.setup_run
-    assert fail_historian._process_thread is None
-
-    fail_historian.reset()
-    fail_historian.publish_fail = True
-    fail_historian.start_process_thread()
-
-    gevent.sleep(0.2)
-
-    DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
-
-    print("\n** test_basic_function for {}**".format(
-        request.keywords.node.name))
-
-    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-
-    float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
-
-    # Create a message for all points.
-    all_message = [{'OutsideAirTemperature': 32},
-                   {'OutsideAirTemperature': float_meta}]
-
-    # Create timestamp
-    now = utils.format_timestamp(datetime.utcnow())
-
-    # now = '2015-12-02T00:00:00'
-    headers = {
-        headers_mod.DATE: now, headers_mod.TIMESTAMP: now
-    }
-    print("Published time in header: " + now)
-
-    client_agent.vip.pubsub.publish('pubsub',
-                                    DEVICES_ALL_TOPIC,
-                                    headers=headers,
-                                    message=all_message).get(timeout=10)
-
-    gevent.sleep(2.0)
-    assert fail_historian._process_thread.is_alive()
-    assert not fail_historian.seen
-    ###
-    # Test if historian recovers when setup fails initially but is successful
-    # after sometime. This is to test case where db is down when historian
-    # is first started and db is brought back up. Historian should recover
-    # without restart.
-    ###
-    fail_historian.stop_process_thread()
-    fail_historian.reset()
-    fail_historian.setup_fail = True
-    fail_historian.start_process_thread()
-
-    gevent.sleep(0.2)
-
-    DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
-
-    print("\n** test_basic_function for {}**".format(
-        request.keywords.node.name))
-
-    float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
-
-    # Create a message for all points.
-    all_message = [{'OutsideAirTemperature': 32},
-                   {'OutsideAirTemperature': float_meta}]
-
-    # Create timestamp
-    now = utils.format_timestamp(datetime.utcnow())
-
-    # now = '2015-12-02T00:00:00'
-    headers = {
-        headers_mod.DATE: now, headers_mod.TIMESTAMP: now
-    }
-    print("Published time in header: " + now)
-
-    client_agent.vip.pubsub.publish('pubsub',
-                                    DEVICES_ALL_TOPIC,
-                                    headers=headers,
-                                    message=all_message).get(timeout=10)
-
-    gevent.sleep(6.0)
-    assert fail_historian._process_thread.is_alive()
-    assert not fail_historian.seen
-
-    # now setup fail is false. publish again and see if we recover
-    fail_historian.setup_fail = False
-
-    # Create timestamp
-    now = utils.format_timestamp(datetime.utcnow())
-
-    # now = '2015-12-02T00:00:00'
-    headers = {
-        headers_mod.DATE: now, headers_mod.TIMESTAMP: now
-    }
-    print("Published time in header: " + now)
-
-    client_agent.vip.pubsub.publish('pubsub',
-                                    DEVICES_ALL_TOPIC,
-                                    headers=headers,
-                                    message=all_message).get(timeout=20)
-
-    gevent.sleep(2.0)
-    assert fail_historian._process_thread.is_alive()
-    assert fail_historian.setup_run
-    assert fail_historian.record_run
-    assert len(fail_historian.seen)
-    print(fail_historian.seen)
+        assert len(historian.seen) == 6  # only records published to custom topic
+        found_device_topic = 0
+        found_custom_topic = 0
+        for item in historian.seen:
+            if item["topic"].startswith(DEVICES_QUERY_TOPIC):
+                found_device_topic += 1
+            elif item["topic"].startswith(CUSTOM_QUERY_TOPIC):
+                found_custom_topic += 1
+        assert found_custom_topic == 6
+        assert found_device_topic == 0
+    finally:
+        if historian:
+            historian.core.stop()

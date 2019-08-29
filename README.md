@@ -4,12 +4,7 @@
 
 Distributed Control System Platform.
 
-|Branch|Status|
-|:---:|---|
-|Master Branch| ![image](https://travis-ci.org/VOLTTRON/volttron.svg?branch=master)|
-|develop| ![image](https://travis-ci.org/VOLTTRON/volttron.svg?branch=develop)|
-
-VOLTTRONTM is an open source platform for distributed sensing and control. The
+VOLTTRON&trade; is an open source platform for distributed sensing and control. The
 platform provides services for collecting and storing data from buildings and
 devices and provides an environment for developing applications which interact
 with that data.
@@ -24,10 +19,10 @@ with that data.
 
 ## Background
 
-VOLTTRONTM is written in Python 2.7 and runs on Linux Operating Systems. For
+VOLTTRON is written in Python 3.6+ and runs on Linux Operating Systems. For
 users unfamiliar with those technologies, the following resources are recommended:
 
-https://docs.python.org/2.7/tutorial/
+https://docs.python.org/3.6/tutorial/
 http://ryanstutorials.net/linuxtutorial/
 
 ## Installation
@@ -40,12 +35,12 @@ http://ryanstutorials.net/linuxtutorial/
 
  ```sh
     sudo apt-get update
-    sudo apt-get install build-essential python-dev openssl libssl-dev libevent-dev git
+    sudo apt-get install build-essential python3.6-dev pythone3.6-venv openssl libssl-dev libevent-dev git
  ```
  On Redhat or CENTOS systems, these can all be installed with the following command:
  ```sh
    sudo yum update
-   sudo yum install make automake gcc gcc-c++ kernel-devel python-devel openssl openssl-devel libevent-devel git
+   sudo yum install make automake gcc gcc-c++ kernel-devel python3.6-devel pythone3.6-venv openssl openssl-devel libevent-devel git
  ```
 
  ### 2. Clone VOLTTRON code
@@ -63,7 +58,7 @@ Run the following command to install all required packages
 
 ```sh
 cd <volttron clone directory>
-python bootstrap.py
+python3 bootstrap.py
 source env/bin/activate
 ```
 
@@ -114,7 +109,7 @@ Proceed to step 4.
 
   ```sh
   cd volttron
-  python bootstrap.py --rabbitmq [optional install directory. defaults to
+  python3 bootstrap.py --rabbitmq [optional install directory. defaults to
   <user_home>/rabbitmq_server]
   ```
 
@@ -307,4 +302,4 @@ There are several options for VOLTTRONTM [support](https://volttron.readthedocs.
 * GitHub issue tracker for feature requests, bug reports, and following development activities https://github.com/VOLTTRON/volttron/issues
 
 ## License
-The project is [licensed](TERMS.md) under a modified BSD license.
+The project is [licensed](LICENSE.md) under Apache 2.

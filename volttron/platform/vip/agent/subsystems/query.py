@@ -57,11 +57,22 @@ class Query(SubsystemBase):
         self._results = ResultsDictionary()
         core.register('query', self._handle_result, self._handle_error)
 
-    def query(self, prop, peer=b''):
+    def query(self, prop: str, peer: str = ''):
+        """ query a specific peer for a property value
+
+        This method is very useful for retrieving configuration data from the core platform.  When
+        peer is not specified it is defaulted to the router.
+
+        :param prop:
+            The property to query for.
+        :param peer:
+            The query to query upon
+        :return:
+        """
         connection = self.core().connection
         result = next(self._results)
-        connection.send_vip(peer.encode('utf-8'), b'query', args=[prop.encode('utf-8')],
-                            msg_id=result.ident.encode('utf-8'))
+        connection.send_vip(peer, b'query', args=[prop.encode('utf-8')],
+                            msg_id=result.ident)
         return result
 
     __call__ = query

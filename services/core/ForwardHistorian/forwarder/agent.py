@@ -434,7 +434,7 @@ class ForwardHistorian(BaseHistorian):
             self.vip.health.set_status(STATUS_BAD, "Timeout in setup of agent")
         except Exception as ex:
             _log.error(ex.args)
-            self.vip.health.set_status(STATUS_BAD, "Error message: {}".format(ex.message))
+            self.vip.health.set_status(STATUS_BAD, "Error message: {}".format(ex))
         else:
             if isinstance(value, Agent):
                 self._target_platform = value

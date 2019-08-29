@@ -81,10 +81,10 @@ def publish_agent(request, volttron_instance):
 
     process = Popen(cmd, env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-    result = process.wait()
-    print(result)
-    assert result == 0
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    (output, error) = process.communicate()
+    assert process.returncode == 0
 
     # Add master driver configuration files to config store.
     cmd = ['volttron-ctl', 'config', 'store',PLATFORM_DRIVER,
@@ -93,7 +93,6 @@ def publish_agent(request, volttron_instance):
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     result = process.wait()
-    print(result)
     assert result == 0
 
     config_name = "devices/fakedriver"
@@ -103,7 +102,6 @@ def publish_agent(request, volttron_instance):
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     result = process.wait()
-    print(result)
     assert result == 0
 
     # Start the master driver agent which would intern start the fake driver
@@ -125,7 +123,6 @@ def publish_agent(request, volttron_instance):
     print("agent id: ", actuator_uuid)
     gevent.sleep(2)
 
-
     example_uuid = volttron_instance.install_agent(
         agent_dir=get_examples("ConfigActuation"),
         config_file={},
@@ -134,6 +131,8 @@ def publish_agent(request, volttron_instance):
 
     # 3: Start a fake agent to publish to message bus
     publish_agent = volttron_instance.build_agent(identity=TEST_AGENT)
+    capabilities = {'edit_config_store': {'identity': "config_actuation"}}
+    volttron_instance.add_capabilities(publish_agent.core.publickey, capabilities)
 
     # 4: add a tear down method to stop sqlhistorian agent and the fake agent
     #  \that published to message bus
@@ -151,7 +150,6 @@ def publish_agent(request, volttron_instance):
     return publish_agent
 
 
-@pytest.mark.skipif("True", "4.1 need to fix")
 def test_thing(publish_agent):
     value = publish_agent.vip.rpc.call(PLATFORM_ACTUATOR,
                                        "get_point",

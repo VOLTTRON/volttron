@@ -320,7 +320,7 @@ class SEP2Agent(Agent):
                 end_device_points[volttron_point_name] = field_value
             return end_device_points
         except Exception as e:
-            raise SEP2Exception(e.message)
+            raise SEP2Exception(e)
 
     @RPC.export
     def set_point(self, sfdi, point_name, value):
@@ -329,7 +329,7 @@ class SEP2Agent(Agent):
         try:
             setattr(end_device, point_name, value)
         except Exception as e:
-            raise SEP2Exception(e.message)
+            raise SEP2Exception(e)
 
     @RPC.export
     def config_points(self, sfdi, point_map):

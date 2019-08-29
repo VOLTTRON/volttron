@@ -42,7 +42,7 @@
 import os
 import logging
 import zmq
-from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH, green
+from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
 
 
 __all__ = ['BaseRouter', 'OUTGOING', 'INCOMING', 'UNROUTABLE', 'ERROR']

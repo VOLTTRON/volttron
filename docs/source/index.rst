@@ -4,13 +4,16 @@
    contain the root `toctree` directive.
 
 ====================================
-VOLTTRON\ :sup:`TM`\  documentation!
+|VOLTTRON|  documentation!
 ====================================
+
+
 
 |VOLTTRON Tagline|
 
-VOLTTRON\ :sup:`TM` is an open-source platform for distributed sensing and control. The platform provides services for collecting and storing data from buildings and devices and provides an environment for developing applications
+|VOLTTRON| is an open-source platform for distributed sensing and control. The platform provides services for collecting and storing data from buildings and devices and provides an environment for developing applications
 that interact with that data.
+
 
 Features
 --------
@@ -29,7 +32,7 @@ Out of the box VOLTTRON provides:
 Background
 ----------
 
-VOLTTRON\ :sup:`TM` is written in Python 2.7 and runs on Linux Operating Systems. For users unfamiliar with those technologies, the following resources are recommended:
+|VOLTTRON| is written in Python 2.7 and runs on Linux Operating Systems. For users unfamiliar with those technologies, the following resources are recommended:
 
 - https://docs.python.org/2.7/tutorial/
 - http://ryanstutorials.net/linuxtutorial/
@@ -37,7 +40,7 @@ VOLTTRON\ :sup:`TM` is written in Python 2.7 and runs on Linux Operating Systems
 License
 -------
 
-The project is :ref:`licensed <license>` under a modified BSD license.
+The project is :ref:`licensed <license>` under Apache 2 license.
 
 
 Contents:
@@ -64,4 +67,5 @@ Indices and tables
 
 
 .. |VOLTTRON Logo| image:: images/volttron-webimage.jpg
+.. |VOLTTRON| unicode:: VOLTTRON U+2122
 .. |VOLTTRON Tagline| image:: images/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png

@@ -61,6 +61,7 @@ import json
 import csv
 import sqlite3
 import datetime
+import pkg_resources
 from functools import wraps
 from abc import abstractmethod
 from gevent import get_hub
@@ -81,6 +82,9 @@ SERVICE_HOURLY_FORECAST = "get_hourly_forecast"
 SERVICE_CURRENT_WEATHER = "get_current_weather"
 
 SERVICE_HOURLY_HISTORICAL = "get_hourly_historical"
+
+CREATE_STMT_API_CALLS = """CREATE TABLE API_CALLS
+                          (CALL_TIME TIMESTAMP NOT NULL);"""
 
 CREATE_STMT_CURRENT = """CREATE TABLE {table}
                         (ID INTEGER PRIMARY KEY ASC,
@@ -124,6 +128,7 @@ class BaseWeatherAgent(Agent):
                  poll_locations=None,
                  poll_interval=None,
                  poll_topic_suffixes=None,
+                 api_calls_limit=-1,
                  **kwargs):
         # Initial agent configuration
         try:
@@ -132,6 +137,7 @@ class BaseWeatherAgent(Agent):
             self._async_call = AsyncCall()
             self._api_key = api_key
             self._max_size_gb = max_size_gb
+            self._api_calls_limit = api_calls_limit
             self.poll_locations = poll_locations
             self.poll_interval = poll_interval
             self.poll_topic_suffixes = poll_topic_suffixes
@@ -146,11 +152,13 @@ class BaseWeatherAgent(Agent):
                     "database_file": "weather.sqlite",
                     "api_key": self._api_key,
                     "max_size_gb": self._max_size_gb,
+                    "api_calls_limit": self._api_calls_limit,
                     "poll_locations": self.poll_locations,
                     "poll_interval": self.poll_interval,
                     "poll_topic_suffixes": self.poll_topic_suffixes
                 }
             self.unit_registry = pint.UnitRegistry()
+            self._api_calls_period = self.get_api_calls_interval()
             self.point_name_mapping = self.parse_point_name_mapping()
             self._api_services = {
                 SERVICE_CURRENT_WEATHER:
@@ -177,12 +185,21 @@ class BaseWeatherAgent(Agent):
                                       actions=["NEW", "UPDATE"],
                                       pattern="config")
         except Exception as e:
-            _log.error("Failed to load weather agent settings.")
+            _log.error("Failed to load weather agent settings.Exception: {}".format(e))
             self.vip.health.set_status(STATUS_BAD,
                                        "Failed to load weather agent settings."
-                                       "Error: {}".format(e.message))
+                                       "Error: {}".format(e))
 
     # Configuration methods
+
+    def get_api_calls_interval(self):
+        """
+        By default sets the api call parameters for cache to None. Should be
+        overridden by concrete agents that utilize an api call tracking feature.
+        :return: Datetime timedelta representing the period for which api
+        calls are measured, Number of api calls allotted for the given period
+        """
+        return None
 
     def register_service(self, service_function_name, interval, service_type,
                          description=None):
@@ -192,8 +209,7 @@ class BaseWeatherAgent(Agent):
         :param interval: datetime timedelta object describing the length of
         time between api updates.
         :param service_type: the string "history", "current", or "forecast".
-        This
-                     determines the structure of the cached data.
+        This determines the structure of the cached data.
         :param description: optional description string describing the method's
         usage.
         """
@@ -336,7 +352,7 @@ class BaseWeatherAgent(Agent):
         Service_Point_Name to an optional Standard_Point_Name.
         May also optionally provide Service_Units (a Pint-parsable unit name
         for a point, provided by the service) to
-        Standardized_Units (units specified for the Standard_Point_Name by
+        Standard_Units (units specified for the Standard_Point_Name by
         the CF standards). Should return None if
         the concrete agent does not require point name mapping and/or unit
         conversion.
@@ -345,7 +361,7 @@ class BaseWeatherAgent(Agent):
     def parse_point_name_mapping(self):
         """
         Parses point name mapping, which should contain a mapping of service
-        points to standardized points, with specified units.
+        points to standard points, with specified units.
         """
         point_name_mapping = {}
         try:
@@ -363,12 +379,14 @@ class BaseWeatherAgent(Agent):
                     service_point_name = map_item.get("Service_Point_Name")
                     if service_point_name:
                         standard_point_name = map_item.get(
-                            "Standard_Point_Name")
-                        standardized_units = map_item.get("Standardized_Units")
+                            "Standard_Point_Name", service_point_name)
+                        if not len(standard_point_name):
+                            standard_point_name = service_point_name
+                        standard_units = map_item.get("Standard_Units")
                         service_units = map_item.get("Service_Units")
                         point_name_mapping[service_point_name] = \
                             {"Standard_Point_Name": standard_point_name,
-                             "Standardized_Units": standardized_units,
+                             "Standard_Units": standard_units,
                              "Service_Units": service_units}
             except IOError as error:
                 _log.error("Error parsing standard point name mapping: "
@@ -402,6 +420,8 @@ class BaseWeatherAgent(Agent):
             self._max_size_gb = 1
 
         self._api_key = config.get("api_key")
+        self._api_calls_limit = config.get("api_calls_limit",
+                                           self._api_calls_limit)
         self.poll_locations = config.get("poll_locations")
         self.poll_interval = config.get("poll_interval")
         self.poll_topic_suffixes = config.get("poll_topic_suffixes")
@@ -410,21 +430,23 @@ class BaseWeatherAgent(Agent):
             self.configure(config)
         except Exception as e:
             _log.error("Failed to load weather agent settings with error:"
-                       "{}".format(e.message))
+                       "{}".format(e))
             self.vip.health.set_status(STATUS_BAD,
                                        "Configuration of weather agent failed "
-                                       "with error: {}".format(e.message))
+                                       "with error: {}".format(e))
         else:
             _log.debug("Configuration successful")
             try:
                 self._cache = WeatherCache(self._database_file,
+                                           calls_period=self._api_calls_period,
+                                           calls_limit=self._api_calls_limit,
                                            api_services=self._api_services,
                                            max_size_gb=self._max_size_gb)
                 self.vip.health.set_status(STATUS_GOOD,
                                            "Configuration of weather agent "
                                            "successful")
             except sqlite3.OperationalError as error:
-                _log.error(error.message)
+                _log.error(error)
                 self.vip.health.set_status(STATUS_BAD, "Cache failed to start "
                                                        "during configuration")
 
@@ -494,6 +516,24 @@ class BaseWeatherAgent(Agent):
                 self._api_services[service_name]["description"]
         return features
 
+    def api_calls_available(self, num_calls=1):
+        """
+        Pass through to cache to check if there are api calls available to
+        remote API
+        :param num_calls: number of calls to request for API tracking
+        :return: whether the requested number of calls are available
+        """
+        return self._cache.api_calls_available(num_calls=num_calls)
+
+    def add_api_call(self):
+        """
+        Add API call timestamp entry to cache -  this method is used by concrete
+        implementations for managing API call tracking for features not included
+        in the base weather agent
+        :return:
+        """
+        return self._cache.add_api_call()
+
     @RPC.export
     def get_current_weather(self, locations):
         """
@@ -546,12 +586,18 @@ class BaseWeatherAgent(Agent):
             # if there was no data in cache or if data is old, query api
             if not record_dict.get(WEATHER_RESULTS):
                 _log.debug("Current weather data from api")
-                record_dict = self.get_current_weather_remote(location)
-                if cache_warning:
-                    warnings = record_dict.get(WEATHER_WARN, [])
-                    warnings.extend(cache_warning)
-                    record_dict[WEATHER_WARN] = warnings
-
+                if self.api_calls_available():
+                    record_dict = self.get_current_weather_remote(location)
+                    # rework this check to catch specific problems (probably
+                    # just weather_error)
+                    if cache_warning:
+                        warnings = record_dict.get(WEATHER_WARN, [])
+                        warnings.extend(cache_warning)
+                        record_dict[WEATHER_WARN] = warnings
+                else:
+                    record_dict[WEATHER_ERROR] = "No calls currently " \
+                                                 "available for the " \
+                                                 "configured API key"
             result.append(record_dict)
         return result
 
@@ -571,11 +617,9 @@ class BaseWeatherAgent(Agent):
             if observation_time and data:
                 interval = self._api_services[SERVICE_CURRENT_WEATHER][
                     "update_interval"]
-                _log.debug("update interval is {}".format(interval))
                 # ts in cache is tz aware utc
                 current_time = get_aware_utc_now()
                 next_update_at = observation_time + interval
-                # if observation time is within the update interval
                 if current_time < next_update_at:
                     result["observation_time"] = \
                         format_timestamp(observation_time)
@@ -588,7 +632,7 @@ class BaseWeatherAgent(Agent):
             status = Status.from_json(self.vip.health.get_status_json())
             self.vip.health.send_alert(CACHE_READ_ERROR, status)
             _log.error("{}. Exception:{}".format(bad_cache_message,
-                                                 error.message))
+                                                 error))
             self.cache_read_error = True
             result[WEATHER_WARN] = [bad_cache_message]
         else:
@@ -613,7 +657,6 @@ class BaseWeatherAgent(Agent):
             observation_time, oldtz = process_timestamp(
                 observation_time)
             if self.point_name_mapping:
-                _log.debug("Got point name mapping")
                 data = self.apply_mapping(data)
             if observation_time is not None:
                 storage_record = [json.dumps(location),
@@ -634,7 +677,7 @@ class BaseWeatherAgent(Agent):
                                           "return any records"
         except Exception as error:
             _log.error(error)
-            result[WEATHER_ERROR] = error.message
+            result[WEATHER_ERROR] = str(error)
         return result
 
     @abstractmethod
@@ -646,16 +689,20 @@ class BaseWeatherAgent(Agent):
         :return: dictionary containing a single record of current weather data
         """
 
-    @RPC.export
-    def get_hourly_forecast(self, locations, hours=24):
+    # TODO make sure we can extract the errors we get if there aren't
+    # api_calls_available
+    def get_forecast_by_service(self, locations, service, service_length,
+                                quantity):
         """
         RPC method returning hourly forecast weather data for each location
         provided. Will provide cached data for
         efficiency if available.
         :param locations: list of location dictionaries for which to return
         weather data
-        :param hours: number of hours worth of weather data to return for the
-        request
+        :param service_length: string representing the service interval
+        :param quantity: number of time series data points of data to include
+        with each location's records
+        :param service:
         :return: list of dictionaries containing weather data for each location.
                  result dictionary would contain all location details passed
                  as input in addition to results. Weather data results  will be
@@ -673,8 +720,8 @@ class BaseWeatherAgent(Agent):
 
                  For example:
                  Input: [{'lat': 39.0693, 'long': -94.6716},
-                         {"zipcode":"invalid location. say only lat/long
-                         allowed for forecast"}]
+                         {"zipcode":99353}   # example invalid input. valid input depends on implementing agents
+                         ]
                  Output:
 
                  [
@@ -707,9 +754,8 @@ class BaseWeatherAgent(Agent):
                       'long': -94.6716
                      },
                      #Result for second location
-                     {"zipcode":"invalid location. say only lat/long
-                         allowed for forecast",
-                      WEATHER_ERROR: "Invalid location"
+                     {"zipcode":99353,
+                      "weather_error": "Invalid location"
                      }
                   ]
 
@@ -717,55 +763,134 @@ class BaseWeatherAgent(Agent):
         request_time = get_aware_utc_now()
         result = []
         for location in locations:
-            record_dict = self.validate_location_dict(SERVICE_HOURLY_FORECAST,
+            record_dict = self.validate_location_dict(service,
                                                       location)
             if record_dict:
                 result.append(record_dict)
                 continue
 
             # check if we have enough recent data in cache
-            record_dict = self.get_cached_hourly_forecast(location, hours,
-                                                          request_time)
+            record_dict = self.get_cached_forecast_by_service(location,
+                                                              quantity,
+                                                              request_time,
+                                                              service,
+                                                              service_length)
             cache_warning = record_dict.get(WEATHER_WARN)
             # if cache didn't work out query remote api
             if not record_dict.get(WEATHER_RESULTS):
-                _log.debug("forecast weather from api")
-                record_dict = self.get_remote_hourly_forecast(location,
-                                                              hours,
-                                                              request_time)
-                if cache_warning:
-                    warnings = record_dict.get(WEATHER_WARN, [])
-                    warnings.extend(cache_warning)
-                    record_dict[WEATHER_WARN] = warnings
-                _log.debug("record_dict from remote : {}".format(record_dict))
+                if self.api_calls_available():
+                    _log.debug("forecast weather from api")
+                    record_dict = self.get_remote_forecast(service, location,
+                                                           quantity,
+                                                           request_time)
+                    if cache_warning:
+                        warnings = record_dict.get(WEATHER_WARN, [])
+                        warnings.extend(cache_warning)
+                        record_dict[WEATHER_WARN] = warnings
+                else:
+                    record_dict[WEATHER_ERROR] = "No calls currently " \
+                                                 "available for the " \
+                                                 "configured API key"
             result.append(record_dict)
 
         return result
 
-    def get_cached_hourly_forecast(self, location, hours, request_time):
+    @RPC.export
+    def get_hourly_forecast(self, locations, hours=24):
+        """
+        RPC method for retrieving a time series of forecast data by hour. The
+        amount and form of data returned is dependent upon the remote API.
+        :param locations: List of location dictionaries used to build the
+        request to the remote API
+        :param hours: Optional parameter for specifying the amount of records
+        user would like returned
+        :return: list of dictionaries containing weather data for each location.
+                 result dictionary would contain all location details passed
+                 as input in addition to results. Weather data results  will be
+                 returned in the key  'weather_results'. value of
+                 'weather_results' will be in the format
+                 [[<forecast time>, <dictionary of data returned for
+                 that forecast time>], [<forecast time>, <dictionary of data
+                 returned for that forecast time],...]
+                 If the weather api did not return the requested number of
+                 records, in addition to 'weather_results' there will also be a
+                 'weather_warn' key.
+                 In case of errors, error message will be in the key
+                 'weather_error'.
+
+
+                 For example:
+                 Input: [{'lat': 39.0693, 'long': -94.6716},
+                         {"zipcode":99353}   # example invalid input. valid input depends on implementing agents
+                         ]
+                 Output:
+
+                 [
+                     #Result for first location
+                     {'lat': 39.0693,
+                       'generation_time': '2018-11-15T22:00:38.000000+00:00',
+                      'weather_results':
+                           [
+                               [ '2018-11-15T17:00:00-06:00',
+                                 {u'': None, 'wind_speed':'6 mph', 'name': u'',
+                                  'temperatureUnit': 'F', 'number': 2,
+                                  'detailedForecast': u'', 'isDaytime': True,
+                                  'air_temperature': 44,
+                                  'startTime': '2018-11-15T17:00:00-06:00',
+                                  'wind_from_direction': 'SW',
+                                  'endTime': '2018-11-15T18:00:00-06:00',
+                                  'shortForecast': 'Sunny',...
+                                  }
+                               ],
+                               ['2018-11-15T18:00:00-06:00',
+                                 {u'': None, 'wind_speed': '6 mph', 'name': u'',
+                                 'temperatureUnit': 'F', 'number': 3,
+                                 'detailedForecast': u'',
+                                 'startTime': '2018-11-15T18:00:00-06:00',
+                                 'endTime': '2018-11-15T19:00:00-06:00',..
+                                 }
+                               ], ... total = number of hours requested or
+                               defaults to 24 hours.
+                           ],
+                      'long': -94.6716
+                     },
+                     #Result for second location
+                     {"zipcode":99353,
+                      "weather_error": "Invalid location"
+                     }
+                  ]
+        """
+        return self.get_forecast_by_service(locations,
+                                            SERVICE_HOURLY_FORECAST, 'hour',
+                                            hours)
+
+    def get_cached_forecast_by_service(self, location, quantity, request_time,
+                                       service, service_length):
         """
         Retrieves forecast weather data stored in cache if it exists and is
         current (the generation timestamp is
         within the update interval) for the location
         :param location: location for which to retrieve forecast weather records
-        :param hours: number of hours worth of data to include with each
-        location's records
+        :param quantity: number of time series data points of data to include
+        with each location's records
         :param request_time: time at which the request for data was made,
         used for checking if the data is current.
+        :param service: service for which to retrieve cached forecast records
+        :param service_length:
         :return: dictionary of forecast weather data for the location
         """
         record_dict = location.copy()
         interval = \
-            self._api_services[SERVICE_HOURLY_FORECAST]["update_interval"]
+            self._api_services[service]["update_interval"]
         # format [(generation_time, forecast_time, points), ...]
         try:
             most_recent_for_location = \
-                self._cache.get_forecast_data(SERVICE_HOURLY_FORECAST,
+                self._cache.get_forecast_data(service, service_length,
                                               json.dumps(location),
-                                              hours, request_time)
+                                              quantity, request_time)
             location_data = []
             if most_recent_for_location:
-                _log.debug(" from cache")
+                _log.debug("from cache")
 
                 generation_time = most_recent_for_location[0][0]
                 next_update_at = generation_time + interval
@@ -774,11 +899,11 @@ class BaseWeatherAgent(Agent):
                 _log.debug("generation_time time {}".format(generation_time))
 
                 if request_time < next_update_at and \
-                        len(most_recent_for_location) >= hours:
+                        len(most_recent_for_location) >= quantity:
                     # Enough to just check for length since cache is querying
                     # records between expected forecast start and end time
                     i = 0
-                    while i < hours:
+                    while i < quantity:
                         record = most_recent_for_location[i]
                         # record = (forecast time, points)
                         entry = [format_timestamp(record[1]),
@@ -795,38 +920,51 @@ class BaseWeatherAgent(Agent):
             status = Status.from_json(self.vip.health.get_status_json())
             self.vip.health.send_alert(CACHE_READ_ERROR, status)
             _log.error("{}. Exception:{}".format(bad_read_message,
-                                                 error.message))
+                                                 error))
             record_dict[WEATHER_WARN] = [bad_read_message]
             self.cache_read_error = True
         else:
             if self.cache_read_error:
                 self.vip.health.set_status(STATUS_GOOD)
                 self.cache_read_error = False
-                
+
         return record_dict
 
-    def get_remote_hourly_forecast(self, location, hours, request_time):
+    @abstractmethod
+    def query_forecast_service(self, service, location, quantity, forecast_start):
+        """
+        Queries a remote api service. Available services are determined per
+        weather agent implementation
+        :param service: The desired service end point to query
+        :param location: The desired location for retrieval of weather records
+        :param quantity: number of records to fetch from the service
+        :param forecast_start: forecast results that are prior to this
+         timestamp will be filtered by base weather agent
+        :return: A list of time series forecast records to be processed and
+        stored
+        """
+
+    def get_remote_forecast(self, service, location, quantity, request_time):
         """
         Retrieves forecast weather data for a location from the remote api
         service provider
+        :param service: Desired remote forecast service - Available services are
+        determined by concrete implementations of the weather agent
         :param location: location for which to retrieve forecast weather records
-        :param hours: number of hours worth of data to include with each
-        location's records
+        :param quantity: number of time -series records to included with each
+        location
         :param request_time: time at which the request for data was made,
         used for checking if the data is current.
         :return: dictionary containing forecast weather data, or an error
         message if the request failed.
         """
         result = location.copy()
+        forecast_start, forecast_end = get_forecast_start_stop(request_time, quantity, service)
         try:
             # query for maximum number of hours so that we can cache it
             # also makes retrieval from cache simpler
-            generation_time, response = self.query_hourly_forecast(
-                location)
-            _log.debug("Current time {}".format(datetime.datetime.utcnow()))
-            _log.debug(" response from forecast generation_time : {}".format(
-                generation_time))
-            _log.debug(" response from forecast : {}".format(response[0]))
+            generation_time, response = self.query_forecast_service(
+                service, location, quantity, forecast_start)
             if not generation_time:
                 # in case api does not return details on when this
                 # forecast data was generated
@@ -834,8 +972,6 @@ class BaseWeatherAgent(Agent):
             else:
                 generation_time, oldtz = process_timestamp(
                     generation_time)
-            _log.debug(" generation time after process : {}".format(
-                generation_time))
             if self.point_name_mapping:
                 response = [[item[0],
                              self.apply_mapping(item[1])] for item in response]
@@ -843,7 +979,6 @@ class BaseWeatherAgent(Agent):
             storage_records = []
             location_data = []
 
-            i = 0
             for item in response:
                 # item contains (forecast time, points)
                 if item[0] is not None and item[1] is not None:
@@ -853,16 +988,17 @@ class BaseWeatherAgent(Agent):
                                       forecast_time,
                                       json.dumps(item[1])]
                     storage_records.append(storage_record)
-                    if len(location_data) < hours and \
-                            forecast_time > request_time:
+                    if len(location_data) < quantity and \
+                            forecast_time >= forecast_start:
                         # checking time because weather.gov returns fixed set
                         # of data and some of the records might be older than
                         # current time
+                        # also check if forecast time is greater than equal to forecast start
+                        # for example, for daily forecast - first forecast should be for the next day
                         location_data.append(item)
-                i = i + 1
             if location_data:
                 try:
-                    self.store_weather_records(SERVICE_HOURLY_FORECAST,
+                    self.store_weather_records(service,
                                                storage_records)
                 except Exception:
                     err_message = "Weather agent failed to write to cache"
@@ -877,24 +1013,23 @@ class BaseWeatherAgent(Agent):
                 result[WEATHER_ERROR] = \
                     "No records were returned by the weather query"
 
-            if location_data and len(location_data) < hours:
+            if location_data and len(location_data) < quantity:
                 warnings = result.get(WEATHER_WARN, [])
                 warnings.append("Weather provider returned less than requested "
                                 "amount of data")
                 result[WEATHER_WARN] = warnings
         except Exception as error:
             _log.error(error)
-            result[WEATHER_ERROR] = error.message
+            result[WEATHER_ERROR] = str(error)
         return result
 
     def apply_mapping(self, record_dict):
         """
         Alters the weather dictionary returned by a provider to use
-        standardized point names specified in the agent's
+        standard point names specified in the agent's
         registry configuration file.
         (see http://cfconventions.org/Data/cf-standard-names/57/build/cf
-        -standard-name-table.html for standardized
-        weather terminology)
+        -standard-name-table.html for standardized weather terminology)
         :param record_dict: dictionary of weather points
         :return: dictionary of weather points containing names updated to
         match the standard point names provided.
@@ -907,13 +1042,13 @@ class BaseWeatherAgent(Agent):
                 point_name = self.point_name_mapping[point][
                     "Standard_Point_Name"]
                 mapped_data[point_name] = value
-                if (self.point_name_mapping[point]["Service_Units"] and
-                        self.point_name_mapping[point]["Standardized_Units"]):
+                if (self.point_name_mapping[point].get("Service_Units") and
+                        self.point_name_mapping[point].get("Standard_Units")):
                     mapped_data[point_name] = self.manage_unit_conversion(
                         self.point_name_mapping[point]["Service_Units"],
                         value,
                         self.point_name_mapping[point][
-                            "Standardized_Units"])
+                            "Standard_Units"])
             else:
                 mapped_data[point] = value
         return mapped_data
@@ -1021,7 +1156,7 @@ class BaseWeatherAgent(Agent):
     def manage_unit_conversion(self, from_units, value, to_units):
         """
         Used to convert units from a query response to the expected
-        standardized units
+        standard units
         :param from_units: pint formatted unit string for the current value
         :param value: magnitude of a measurement prior to conversion
         :param to_units: pint formatted unit string for the output value
@@ -1105,6 +1240,8 @@ class WeatherCache:
     def __init__(self,
                  database_file,
                  api_services=None,
+                 calls_limit=None,
+                 calls_period=None,
                  max_size_gb=1,
                  check_same_thread=True):
         """
@@ -1119,12 +1256,15 @@ class WeatherCache:
         to the sqlite object, else false (see
         https://docs.python.org/3/library/sqlite3.html)
         """
+        self._calls_limit = calls_limit
+        self._calls_period = calls_period
         self._db_file_path = database_file
         self._api_services = api_services
         self._max_size_gb = max_size_gb
         self._sqlite_conn = None
-        self.max_pages = None
+        self._max_pages = None
         self._setup_cache(check_same_thread)
+        self.pending_calls = []
 
     # cache setup methods
 
@@ -1149,7 +1289,7 @@ class WeatherCache:
             cursor.execute("PRAGMA page_size")
             page_size = cursor.fetchone()[0]
             max_storage_bytes = self._max_size_gb * 1024 ** 3
-            self.max_pages = int(max_storage_bytes / page_size)
+            self._max_pages = int(max_storage_bytes / page_size)
             self.manage_cache_size()
         cursor.close()
 
@@ -1159,6 +1299,17 @@ class WeatherCache:
         ensures proper structure.
         """
         cursor = self._sqlite_conn.cursor()
+        if self._calls_limit:
+            try:
+                cursor.execute(CREATE_STMT_API_CALLS)
+                self._sqlite_conn.commit()
+                _log.debug(CREATE_STMT_API_CALLS)
+            except sqlite3.OperationalError as o:
+                if str(o).startswith("table") and str(o).endswith("already "
+                                                                  "exists"):
+                    self.validate_and_fix_cache_tables("API_CALLS", None)
+                else:
+                    raise RuntimeError("Unable to create api_call table")
         for service_name in self._api_services:
             table_exists = False
             table_type = None
@@ -1195,7 +1346,9 @@ class WeatherCache:
         :param table_type: indicates the expected columns for the service (
         must be forecast, history, or current)
         """
-        if table_type == "forecast":
+        if service_name == 'API_CALLS':
+            expected_columns = ["CALL_TIME"]
+        elif table_type == "forecast":
             expected_columns = ["ID", "LOCATION", "GENERATION_TIME",
                                 "FORECAST_TIME", "POINTS"]
         else:
@@ -1213,7 +1366,9 @@ class WeatherCache:
                 self._sqlite_conn.commit()
                 _log.debug(delete_query)
                 create_table = ""
-                if table_type == "forecast":
+                if service_name == "API_CALLS":
+                    create_table = CREATE_STMT_API_CALLS
+                elif table_type == "forecast":
                     create_table = CREATE_STMT_FORECAST.format(
                         table=service_name)
                 elif table_type == "current" or table_type == "history":
@@ -1224,6 +1379,62 @@ class WeatherCache:
                     cursor.execute(create_table)
                     self._sqlite_conn.commit()
                     break
+
+    def api_calls_available(self, num_calls=1):
+        """
+        :param num_calls: Number of calls requested by the agent to fulfill the
+        user's request
+        :return: True if the number of calls within the call period is less
+        than the api calls limit, false otherwise
+        """
+        if num_calls < 1:
+            raise ValueError('Invalid quantity for API calls')
+        if self._calls_limit < 0:
+            return True
+        try:
+            cursor = self._sqlite_conn.cursor()
+            if self._calls_period:
+                current_time = get_aware_utc_now()
+                expiry_time = current_time - self._calls_period
+                delete_query = """DELETE FROM API_CALLS WHERE CALL_TIME <= ?;"""
+                cursor.execute(delete_query, (expiry_time,))
+                self._sqlite_conn.commit()
+            active_calls_query = """SELECT COUNT(*) FROM API_CALLS;"""
+            cursor.execute(active_calls_query)
+            active_calls = cursor.fetchone()[0]
+            cursor.close()
+            return active_calls + num_calls <= self._calls_limit
+        except AttributeError as error:
+            _log.error(str(error))
+            # Add a call to the pending queue so we can track it later
+            self.pending_calls.append(get_aware_utc_now())
+            return True
+
+    def add_api_call(self):
+        """
+        If an API call is available given the constraints, adds an entry to
+        the table for tracking
+        :return: True if an entry was made successfully, false otherwise
+        """
+        try:
+            cursor = self._sqlite_conn.cursor()
+            insert_query = """INSERT INTO API_CALLS
+                                         (CALL_TIME) VALUES (?);"""
+            # Account for calls that went through to the API but did not get added
+            # to the SQLite table due to an error
+            cursor.executemany(
+                insert_query, [(call,) for call in self.pending_calls])
+            cursor = self._sqlite_conn.cursor()
+            current_time = (get_aware_utc_now(),)
+            insert_query = """INSERT INTO API_CALLS
+                             (CALL_TIME) VALUES (?);"""
+            cursor.execute(insert_query, current_time)
+            self._sqlite_conn.commit()
+            cursor.close()
+            return True
+        except (AttributeError, sqlite3.Error) as error:
+            _log.error(error)
+            return False
 
     def get_current_data(self, service_name, location):
         """
@@ -1247,28 +1458,24 @@ class WeatherCache:
         else:
             return None, None
 
-    def get_forecast_data(self, service_name, location, hours, request_time):
+    def get_forecast_data(self, service_name, service_length, location,
+                          quantity, request_time):
         """
         Retrieves the most recent forecast record set (forecast should be a
         time-series) by location
         :param service_name: name of the api service for table lookup
+        :param service_length: indicates the length of time between records
         :param location: location to query by
-        :param hours: number of hours (records) to query for
+        :param quantity: number of records to query for
         :param request_time: time at which the data was requested, used to
         compare with generation time.
         :return: list of up-to-date forecast records for the location
         """
-        query = ""
-
         # get records that have forecast time between the hour immediately
         # after when user requested the data and endtime < start+hours
         # do this to avoid returning data for hours 4 to 10 instead of
         # 2-8 when the request time is hour 1.
-        forecast_start = request_time + datetime.timedelta(hours=1)
-        forecast_start = forecast_start.replace(minute=0, second=0,
-                                                microsecond=0)
-        forecast_end = forecast_start + datetime.timedelta(hours=hours)
-
+        forecast_start, forecast_end = get_forecast_start_stop(request_time, quantity, service_name)
         cursor = self._sqlite_conn.cursor()
         query = """SELECT GENERATION_TIME, FORECAST_TIME, POINTS 
                    FROM {table} 
@@ -1287,34 +1494,34 @@ class WeatherCache:
         cursor.close()
         return data
 
-    def get_historical_data(self, service_name, location, date_timestamp):
-        """
-        Retrieves historical data over the the given time period by location
-        :param service_name: name of the api service for table lookup
-        :param location: location to query by
-        :param date_timestamp: date for which to return a record set
-        :return: list of historical records for the provided date/location
-        """
-        start_timestamp = date_timestamp
-        end_timestamp = date_timestamp + (
-                    datetime.timedelta(days=1) - datetime.timedelta(
-                        milliseconds=1))
-        if service_name not in self._api_services:
-            raise ValueError(
-                "service {} does not exist in the agent's services.".format(
-                    service_name))
-
-        cursor = self._sqlite_conn.cursor()
-        query = """SELECT OBSERVATION_TIME, POINTS 
-                   FROM {table} WHERE LOCATION = ? 
-                   AND OBSERVATION_TIME BETWEEN ? AND ? 
-                   ORDER BY OBSERVATION_TIME ASC;""".format(
-            table=service_name)
-        _log.debug(query)
-        cursor.execute(query, (location, start_timestamp, end_timestamp))
-        data = cursor.fetchall()
-        cursor.close()
-        return data
+    # def get_historical_data(self, service_name, location, date_timestamp):
+    #     """
+    #     Retrieves historical data over the the given time period by location
+    #     :param service_name: name of the api service for table lookup
+    #     :param location: location to query by
+    #     :param date_timestamp: date for which to return a record set
+    #     :return: list of historical records for the provided date/location
+    #     """
+    #     start_timestamp = date_timestamp
+    #     end_timestamp = date_timestamp + (
+    #                 datetime.timedelta(days=1) - datetime.timedelta(
+    #                     milliseconds=1))
+    #     if service_name not in self._api_services:
+    #         raise ValueError(
+    #             "service {} does not exist in the agent's services.".format(
+    #                 service_name))
+    #
+    #     cursor = self._sqlite_conn.cursor()
+    #     query = """SELECT OBSERVATION_TIME, POINTS
+    #                FROM {table} WHERE LOCATION = ?
+    #                AND OBSERVATION_TIME BETWEEN ? AND ?
+    #                ORDER BY OBSERVATION_TIME ASC;""".format(
+    #         table=service_name)
+    #     _log.debug(query)
+    #     cursor.execute(query, (location, start_timestamp, end_timestamp))
+    #     data = cursor.fetchall()
+    #     cursor.close()
+    #     return data
 
     def store_weather_records(self, service_name, records):
         """
@@ -1345,7 +1552,7 @@ class WeatherCache:
 
         cache_full = False
         if self._max_size_gb is not None and \
-                self.page_count(cursor) >= self.max_pages:
+                self.page_count(cursor) >= self._max_pages:
             cache_full = True
             self.manage_cache_size()
         cursor.close()
@@ -1374,13 +1581,13 @@ class WeatherCache:
 
             cursor = self._sqlite_conn.cursor()
             page_count = self.page_count(cursor)
-            if page_count < self.max_pages:
+            if page_count < self._max_pages:
                 return
 
             attempt = 1
             records_deleted = 0
             now = datetime.datetime.utcnow()
-            while page_count >= self.max_pages:
+            while page_count >= self._max_pages:
                 if attempt == 1:
                     for table_name, service in self._api_services.iteritems():
                         # Remove all data that is older than update interval
@@ -1416,7 +1623,7 @@ class WeatherCache:
                 page_count = self.page_count(cursor)
 
             # if we still don't have space in cache
-            while page_count >= self.max_pages:
+            while page_count >= self._max_pages:
                 for table_name in self._api_services:
                     query = """DELETE FROM {table} WHERE ID IN 
                                (SELECT ID FROM {table} 
@@ -1453,7 +1660,28 @@ class AsyncWeatherCache(WeatherCache):
 # Cache methods to make available for threading.
 for method in [WeatherCache.get_current_data,
                WeatherCache.get_forecast_data,
-               WeatherCache.get_historical_data,
+               # WeatherCache.get_historical_data,
                WeatherCache._setup_cache,
                WeatherCache.store_weather_records]:
     setattr(AsyncWeatherCache, method.__name__, _using_threadpool(method))
+
+
+def get_forecast_start_stop(request_time, quantity,  service_name):
+    if service_name == "get_hourly_forecast":
+        forecast_start = request_time + datetime.timedelta(hours=1)
+        forecast_start = forecast_start.replace(minute=0, second=0,
+                                                microsecond=0)
+        forecast_end = forecast_start + datetime.timedelta(hours=quantity)
+    elif service_name == "get_minutely_forecast":
+        forecast_start = request_time + datetime.timedelta(minutes=1)
+        forecast_start = forecast_start.replace(second=0,
+                                                microsecond=0)
+        forecast_end = forecast_start + datetime.timedelta(minutes=quantity)
+    elif service_name == "get_daily_forecast":
+        forecast_start = request_time + datetime.timedelta(days=1)
+        forecast_start = forecast_start.replace(hour=0, minute=0, second=0,
+                                                microsecond=0)
+        forecast_end = forecast_start + datetime.timedelta(days=quantity)
+    else:
+        raise RuntimeError("Unsupported service length")
+    return forecast_start, forecast_end

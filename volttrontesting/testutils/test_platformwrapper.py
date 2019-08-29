@@ -35,9 +35,11 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+import faulthandler
+faulthandler.enable()
 
 
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 import gevent
 import pytest
 import time
@@ -47,6 +49,40 @@ from mock import MagicMock
 
 from volttron.platform import get_services_core, get_examples, jsonapi
 from volttrontesting.utils.platformwrapper import PlatformWrapper
+from volttrontesting.utils.utils import get_rand_tcp_address
+from volttrontesting.utils.platform_process import VolttronProcess, VolttronRuntimeOptions, AgentProcess
+from time import sleep
+
+#
+# def test_volttron_process():
+#     rto = VolttronRuntimeOptions()
+#     p2 = VolttronProcess(runtime_options=rto)
+#     p = VolttronProcess(runtime_options=rto)
+#     p.start()
+#     p2.start()
+#     # a = AgentProcess("/home/osboxes/repos/volttron-develop/examples/ListenerAgent/listener/agent.py",
+#     #                  p.volttron_home, "/home/osboxes/repos/volttron-develop/examples/ListenerAgent/config")
+#     # a.start()
+#
+#     sleep(5)
+#     # a.terminate()
+#     # a.join()
+#     p2.shutdown()
+#     p2.join()
+#     p.shutdown()
+#     p.join()
+
+def test_can_create():
+    p = PlatformWrapper()
+    assert not p.is_running()
+    assert p.volttron_home.startswith("/tmp/tmp")
+
+    p.startup_platform(vip_address=get_rand_tcp_address())
+    assert p.is_running()
+    p.shutdown_platform()
+    assert not p.is_running()
+
+
 
 
 @pytest.mark.wrapper
@@ -73,6 +109,29 @@ def test_can_restart_platform_without_addresses_changing(get_volttron_instances)
     inst_forward.restart_platform()
     assert inst_forward.is_running()
     assert original_vip == inst_forward.vip_address
+
+
+@pytest.mark.wrapper
+def test_can_restart_platform(volttron_instance):
+
+    orig_vip = volttron_instance.vip_address
+    orig_vhome = volttron_instance.volttron_home
+    orig_bus = volttron_instance.messagebus
+    orig_bind = volttron_instance.bind_web_address
+    orig_proc = volttron_instance.p_process.pid
+
+    assert volttron_instance.is_running()
+    volttron_instance.stop_platform()
+    assert not volttron_instance.is_running()
+    volttron_instance.restart_platform()
+    assert volttron_instance.is_running()
+    assert orig_vip == volttron_instance.vip_address
+    assert orig_vhome == volttron_instance.volttron_home
+    assert orig_bus == volttron_instance.messagebus
+    assert orig_bind == volttron_instance.bind_web_address
+    # Expecation that we won't have the same pid after we restart the platform.
+    assert orig_proc != volttron_instance.p_process.pid
+    assert len(volttron_instance.dynamic_agent.vip.peerlist().get()) > 0
 
 
 @pytest.mark.wrapper

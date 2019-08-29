@@ -3,12 +3,12 @@
 Required Sofware: Linux
 =======================
 
-The following packages will need to be installed if they are not
-already:
+The following packages will need to be installed on the system:
 
 -  git
 -  build-essential
--  python-dev
+-  python3.6-dev
+-  python3.6-venv
 -  openssl
 -  libssl-dev
 -  libevent-dev
@@ -19,7 +19,7 @@ command:
 .. code-block:: bash
 
        sudo apt-get update
-       sudo apt-get install build-essential python-dev openssl libssl-dev libevent-dev git
+       sudo apt-get install build-essential python3.6-dev python3.6-venv openssl libssl-dev libevent-dev git
 
 On **Redhat or CENTOS systems**, these can all be installed with the following
 command:
@@ -27,8 +27,10 @@ command:
 .. code-block:: bash
 
    sudo yum update
-   sudo yum install make automake gcc gcc-c++ kernel-devel python-devel openssl openssl-devel libevent-devel git
+   sudo yum install make automake gcc gcc-c++ kernel-devel python3.6-devel pythone3.6-venv openssl openssl-devel libevent-devel git
 
+.. note::
+   The above commands are specific to 3.6, however you could use 3.6 or greater in them.
 
 If you have an agent which requires the pyodbc package, install the
 following:

@@ -5,6 +5,7 @@ import gevent
 import json
 
 from volttron.platform import get_examples, get_ops
+from volttrontesting.utils.agent_additions import add_listener
 
 simple_primary_config = {
     "agent_id": "primary",
@@ -39,7 +40,7 @@ def all_agents_running(instance):
     return all([instance.is_agent_running(uuid) for uuid in uuids])
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def simple_failover(request, get_volttron_instances):
     global simple_primary_config
     global simple_secondary_config
@@ -57,9 +58,10 @@ def simple_failover(request, get_volttron_instances):
     secondary.allow_all_connections()
 
     # configure primary
-    listener_primary = primary.install_agent(agent_dir=get_examples("ListenerAgent"),
-                                             vip_identity="listener",
-                                             start=False)
+    listener_primary = add_listener(primary, start=True, vip_identity="listener")
+    # primary.install_agent(agent_dir=get_examples("ListenerAgent"),
+    #                                          vip_identity="listener",
+    #                                          start=False)
 
     simple_primary_config["remote_vip"] = secondary.vip_address
     simple_primary_config["remote_serverkey"] = secondary.serverkey
@@ -67,9 +69,10 @@ def simple_failover(request, get_volttron_instances):
                                          config_file=simple_primary_config)
 
     # configure secondary
-    listener_secondary = secondary.install_agent(agent_dir=get_examples("ListenerAgent"),
-                                                 vip_identity="listener",
-                                                 start=False)
+    listener_secondary = add_listener(secondary, start=False, vip_identity="listener")
+    # listener_secondary = secondary.install_agent(agent_dir=get_examples("ListenerAgent"),
+    #                                              vip_identity="listener",
+    #                                              start=False)
 
     simple_secondary_config["remote_vip"] = primary.vip_address
     simple_secondary_config["remote_serverkey"] = primary.serverkey
@@ -110,13 +113,13 @@ def test_simple_failover(simple_failover):
 
     listen1 = primary.build_agent()
     listen1.vip.pubsub.subscribe(peer='pubsub',
-                               prefix='alert',
-                               callback=onmessage).get()
+                                 prefix='alert',
+                                 callback=onmessage).get()
 
     listen2 = secondary.build_agent()
     listen2.vip.pubsub.subscribe(peer='pubsub',
-                               prefix='alert',
-                               callback=onmessage).get()
+                                 prefix='alert',
+                                 callback=onmessage).get()
 
     # make sure the secondary will take over
     primary.stop_agent(uuid_primary)

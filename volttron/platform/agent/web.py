@@ -1,5 +1,7 @@
 import base64
 
+from volttron.platform import jsonapi
+
 
 class Response(object):
     """ The WebResponse object is a serializable representation of
@@ -10,6 +12,8 @@ class Response(object):
     def __init__(self, content=None, status=None,  headers=None, mimetype=None,
                  content_type=None):
         self._content = content
+        if self._content is None:
+            self._content = ''
         self._status = status
         if not self._status:
             self._status = '200 OK'
@@ -34,7 +38,14 @@ class Response(object):
 
     @property
     def content(self):
-        return self._content
+        ret_value = self._content
+        # If user wants json then change it to json.
+        if self._contenttype == 'application/json':
+            assert isinstance(self._content, dict) or isinstance(self._content, list), \
+                "Dictionary or list required for content-type dictionary"
+            ret_value = jsonapi.dumpb(self._content)
+
+        return ret_value
 
     def add_header(self, key, value):
         if key in self._headers:
@@ -51,3 +62,9 @@ class Response(object):
         else:
             raise TypeError("Response data is neither bytes nor string type")
         return data
+
+
+class JsonResponse(Response):
+
+    def __init__(self, content):
+        super(JsonResponse, self).__init__(content=content, content_type="application/json")

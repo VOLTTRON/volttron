@@ -27,7 +27,7 @@ for t in tables:
 
         cursor.execute("DROP TABLE {}".format(full_table_name))
     except Exception as ex:
-        print(ex.message)
+        print(ex)
 
 cursor.close()
 conn.close()

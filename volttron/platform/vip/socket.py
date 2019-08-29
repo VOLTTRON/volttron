@@ -72,6 +72,7 @@ BASE64_ENCODED_CURVE_KEY_LEN = 43
 
 _log = logging.getLogger(__name__)
 
+
 @contextmanager
 def nonblocking(sock):
     local = sock._Socket__local
@@ -112,7 +113,7 @@ def decode_key(key):
 
 
 class Address(object):
-    '''Parse and hold a URL-style address.
+    """Parse and hold a URL-style address.
 
     The URL given by address may contain optional query string
     parameters and a URL fragment which, if given, will be interpreted
@@ -128,7 +129,7 @@ class Address(object):
         ipv6:      Boolean value indicating use of IPv6.
         username:  Username to use with PLAIN authentication.
         password:  Password to use with PLAIN authentication.
-    '''
+    """
 
     _KEYS = ('domain', 'server', 'secretkey', 'publickey',
              'serverkey', 'ipv6', 'username', 'password')
@@ -206,7 +207,7 @@ class Address(object):
             sock.identity = self.identity.encode('utf-8')
 
     def bind(self, sock, bind_fn=None):
-        '''Extended zmq.Socket.bind() to include options in the address.'''
+        """Extended zmq.Socket.bind() to include options in the address."""
         if not self.domain:
             raise ValueError('Address domain must be set')
         sock.zap_domain = self.domain.encode("utf-8") or b''
@@ -242,7 +243,7 @@ class Address(object):
             sys.exit(1)
 
     def connect(self, sock, connect_fn=None):
-        '''Extended zmq.Socket.connect() to include options in the address.'''
+        """Extended zmq.Socket.connect() to include options in the address."""
         self._set_sock_identity(sock)
         sock.ipv6 = self.ipv6 or False
         if self.serverkey:
@@ -264,14 +265,15 @@ class Address(object):
 
 
 class ProtocolError(Exception):
-    '''Error raised for invalid use of Socket object.'''
+    """Error raised for invalid use of Socket object."""
     pass
 
 
 class Message(object):
-    '''Message object returned form Socket.recv_vip_object().'''
+    """Message object returned form Socket.recv_vip_object()."""
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
+
     def __repr__(self):
         attrs = ', '.join('%r: %r' % (
             name, [bytes(x) for x in value]
@@ -282,7 +284,7 @@ class Message(object):
 
 
 class _Socket(object):
-    '''Subclass of zmq.Socket to implement VIP protocol.
+    """Subclass of zmq.Socket to implement VIP protocol.
 
     Sockets are of type DEALER by default. If a ROUTER socket is used,
     an intermediary address must be used either as the first element or
@@ -291,15 +293,15 @@ class _Socket(object):
     A state machine is implemented by the send() and recv() methods to
     ensure the proper number, type, and ordering of frames. Protocol
     violations will raise ProtocolError exceptions.
-    '''
+    """
 
     def __new__(cls, context=None, socket_type=DEALER, shadow=None):
-        '''Create and return a new Socket object.
+        """Create and return a new Socket object.
 
         If context is None, use global instance from
         zmq.Context.instance().  socket_type defaults to DEALER, but
         ROUTER may also be used.
-        '''
+        """
         # pylint: disable=arguments-differ
         if socket_type not in [DEALER, ROUTER]:
             raise ValueError('socket_type must be DEALER or ROUTER')
@@ -313,7 +315,7 @@ class _Socket(object):
         return base.__new__(cls, context, socket_type, shadow)
 
     def __init__(self, context=None, socket_type=DEALER, shadow=None):
-        '''Initialize the object and the send and receive state.'''
+        """Initialize the object and the send and receive state."""
         if context is None:
             context = self._context_class.instance()
         # There are multiple backends which handle shadow differently.
@@ -339,12 +341,12 @@ class _Socket(object):
         self.tcp_keepalive_cnt = 6
 
     def reset_send(self):
-        '''Clear send buffer and reset send state machine.
+        """Clear send buffer and reset send state machine.
 
         This method should rarely need to be called and only if
         ProtocolError has been raised during a send operation. Any
         frames in the send buffer will be sent.
-        '''
+        """
         state = -1 if self.type == ROUTER else 0
         if self._send_state != state:
             self._send_state = state
@@ -356,7 +358,7 @@ class _Socket(object):
         yield flags
 
     def send(self, frame, flags=0, copy=True, track=False):
-        '''Send a single frame while enforcing VIP protocol.
+        """ Send a single frame while enforcing VIP protocol.
 
         Expects frames to be sent in the following order:
 
@@ -367,7 +369,14 @@ class _Socket(object):
         between PEER and USER_ID. Zero or more ARG frames may be sent
         after SUBSYSTEM, which may not be empty. All frames up to
         SUBSYSTEM must be sent with the SNDMORE flag.
-        '''
+
+
+        :param frame:
+        :param flags:
+        :param copy:
+        :param track:
+        :return:
+        """
         with self._sending(flags) as flags:
             state = self._send_state
             if state == 4:
@@ -400,17 +409,37 @@ class _Socket(object):
             super(_Socket, self).send_multipart(
                 msg_parts, flags=flags, copy=copy, track=track)
 
-    def send_vip(self, peer, subsystem, args=None, msg_id=b'',
+    def send_vip(self, peer, subsystem, args=None, msg_id='',
                  user=b'', via=None, flags=0, copy=True, track=False):
-        '''Send an entire VIP message by individual parts.
+        """Send an entire VIP message by individual parts.
 
         This method will raise a ProtocolError exception if the previous
         send was made with the SNDMORE flag or if other protocol
         constraints are violated. If SNDMORE flag is used, additional
         arguments may be sent. via is required for ROUTER sockets.
-        '''
-        peer = peer.encode('utf-8') if isinstance(peer, str) else peer
 
+        :param peer:
+            The peer to send to, can be either a string or a byte object.
+        :param subsystem:
+            The subsystem to send the request to
+        :param args:
+            Any arguments to the subsystem
+        :param msg_id:
+            A message id to allow tracking this is usually an entry in the ResultsDictionary.ident
+        :param user:
+        :param via:
+        :param flags:
+        :param copy:
+            Should a copy be made of the message be made for each send
+        :param track:
+        """
+
+        peer = peer.encode('utf-8') if isinstance(peer, str) else peer
+        msg_id = msg_id.encode('utf-8') if isinstance(msg_id, str) else msg_id
+
+        # _log.debug("SEND VIP: peer={}, subsystem={}, args={}, msg_id={}, user={}, type(msg_id)={}".format(
+        #     peer, subsystem, args, msg_id, user, type(msg_id)
+        # ))
         with self._sending(flags) as flags:
             state = self._send_state
             if state > 0:
@@ -419,9 +448,8 @@ class _Socket(object):
                 if via is None:
                     raise ValueError("missing 'via' argument "
                                      "required by ROUTER sockets")
-                self.send(via, flags=flags|SNDMORE, copy=copy, track=track)
-            if msg_id is None:
-                msg_id = b''
+                self.send(via, flags=flags | SNDMORE, copy=copy, track=track)
+
             if user is None:
                 user = b''
             more = SNDMORE if args else 0
@@ -433,12 +461,12 @@ class _Socket(object):
                 send(args, flags=flags, copy=copy, track=track)
 
     def send_vip_dict(self, dct, flags=0, copy=True, track=False):
-        '''Send VIP message from a dictionary.'''
+        """Send VIP message from a dictionary."""
         msg_id = dct.pop('id', b'')
         self.send_vip(flags=flags, copy=copy, track=track, msg_id=msg_id, **dct)
 
     def send_vip_object(self, msg, flags=0, copy=True, track=False):
-        '''Send VIP message from an object.'''
+        """Send VIP message from an object."""
         dct = {
             'via': getattr(msg, 'via', None),
             'peer': msg.peer,
@@ -450,7 +478,7 @@ class _Socket(object):
         self.send_vip(flags=flags, copy=copy, track=track, **dct)
 
     def recv(self, flags=0, copy=True, track=False):
-        '''Receive and return a single frame while enforcing VIP protocol.
+        """ Receive and return a single frame while enforcing VIP protocol.
 
         Expects frames to be received in the following order:
 
@@ -462,7 +490,14 @@ class _Socket(object):
         returned as part of the result. Zero or more ARG frames may be
         received after SUBSYSTEM, which may not be empty. Until the last
         ARG frame is received, the RCVMORE option will be set.
-        '''
+
+
+        :param flags:
+        :param copy:
+        :param track:
+        :return:
+        """
+
         state = self._recv_state
         if state == 1:
             # Automatically receive and check PROTO frame
@@ -484,18 +519,18 @@ class _Socket(object):
         return result
 
     def reset_recv(self):
-        '''Clear recv buffer and reset recv state machine.
+        """Clear recv buffer and reset recv state machine.
 
         This method should rarely need to be called and only if
         ProtocolError has been raised during a receive operation. Any
         frames in the recv buffer will be discarded.
-        '''
+        """
         self._recv_state = -1 if self.type == ROUTER else 0
         while self.getsockopt(RCVMORE):
             super(_Socket, self).recv()
 
     def recv_vip(self, flags=0, copy=True, track=False):
-        '''Receive a complete VIP message and return as a list.
+        """ Receive a complete VIP message and return as a list.
 
         The list includes frames in the following order:
 
@@ -503,7 +538,13 @@ class _Socket(object):
 
         If socket is a ROUTER, INTERMEDIARY will be inserted before PEER
         in the returned list. ARGS is always a possibly empty list.
-        '''
+
+        :param flags:
+        :param copy:
+        :param track:
+        :return:
+            A VIP message
+        """
         state = self._recv_state
         if state > 0:
             raise ProtocolError('previous recv operation is not complete')
@@ -514,7 +555,7 @@ class _Socket(object):
         return result
 
     def recv_vip_dict(self, flags=0, copy=True, track=False):
-        '''Receive a complete VIP message and return in a dict.'''
+        """Receive a complete VIP message and return in a dict."""
         state = self._recv_state
         frames = self.recv_vip(flags=flags, copy=copy, track=track)
         via = frames.pop(0) if state == -1 else None
@@ -524,19 +565,19 @@ class _Socket(object):
         return dct
 
     def recv_vip_object(self, flags=0, copy=True, track=False):
-        '''Recieve a complete VIP message and return as an object.'''
+        """Recieve a complete VIP message and return as an object."""
         msg = Message()
         msg.__dict__ = self.recv_vip_dict(flags=flags, copy=copy, track=track)
         return msg
 
     def bind(self, addr):
-        '''Extended zmq.Socket.bind() to include options in addr.'''
+        """Extended zmq.Socket.bind() to include options in addr."""
         if not isinstance(addr, Address):
             addr = Address(addr)
         addr.bind(self, super(_Socket, self).bind)
 
     def connect(self, addr):
-        '''Extended zmq.Socket.connect() to include options in addr.'''
+        """Extended zmq.Socket.connect() to include options in addr."""
         if not isinstance(addr, Address):
             addr = Address(addr)
         addr.connect(self, super(_Socket, self).connect)

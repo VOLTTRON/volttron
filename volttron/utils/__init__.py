@@ -2,6 +2,11 @@ import re
 
 from watchdog.events import PatternMatchingEventHandler
 
+from volttron.platform import get_home
+import logging
+
+_log = logging.getLogger(__name__)
+
 
 def is_ip_private(vip_address):
     """ Determines if the passed vip_address is a private ip address or not.
@@ -31,9 +36,36 @@ def get_hostname():
     return hostname
 
 
-class FileReloader(PatternMatchingEventHandler):
+class VolttronHomeFileReloader(PatternMatchingEventHandler):
+    """
+    Extends PatternMatchingEvent handler to watch changes to a singlefile/file pattern within volttron home.
+    filetowatch should be path relative to volttron home.
+    For example filetowatch auth.json with watch file <volttron_home>/auth.json.
+    filetowatch *.json will watch all json files in <volttron_home>
+    """
     def __init__(self, filetowatch, callback):
-        super(FileReloader, self).__init__(['*/'+filetowatch])
+        super(VolttronHomeFileReloader, self).__init__([get_home() + '/' + filetowatch])
+        _log.debug("patterns is {}".format([get_home() + '/' + filetowatch]))
+        self._callback = callback
+
+    def on_any_event(self, event):
+        _log.debug("Calling callback on event {}. Calling {}".format(event, self._callback))
+        try:
+            self._callback()
+        except BaseException as e:
+            _log.error("Exception in callback: {}".format(e))
+        _log.debug("After callback on event {}".format(event))
+
+
+class AbsolutePathFileReloader(PatternMatchingEventHandler):
+    """
+    Extends PatternMatchingEvent handler to watch changes to a singlefile/file pattern within volttron home.
+    filetowatch should be path relative to volttron home.
+    For example filetowatch auth.json with watch file <volttron_home>/auth.json.
+    filetowatch *.json will watch all json files in <volttron_home>
+    """
+    def __init__(self, filetowatch, callback):
+        super(VolttronHomeFileReloader, self).__init__([filetowatch])
         self._callback = callback
         self._filetowatch = filetowatch
 
@@ -42,4 +74,9 @@ class FileReloader(PatternMatchingEventHandler):
         return self._filetowatch
 
     def on_any_event(self, event):
-        self._callback()
+        _log.debug("Calling callback on event {}. Calling {}".format(event, self._callback))
+        try:
+            self._callback()
+        except BaseException as e:
+            _log.error("Exception in callback: {}".format(e))
+        _log.debug("After callback on event {}".format(event))

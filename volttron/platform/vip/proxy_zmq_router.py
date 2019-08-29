@@ -37,14 +37,19 @@
 # }}}
 
 from __future__ import print_function, absolute_import
+
+import json
 import logging
-import pika
-from .agent import Agent, Core, RPC
-from . import green as vip
-from volttron.platform import jsonapi
-from .socket import Message
+
 from zmq import green as zmq
-from zmq.green import ZMQError, EAGAIN, ENOTSOCK, EADDRINUSE
+from zmq.green import ZMQError, ENOTSOCK
+
+from volttron.platform import jsonapi
+from .agent import Agent, Core
+from volttron.platform import is_rabbitmq_available
+
+if is_rabbitmq_available():
+    import pika
 
 _log = logging.getLogger(__name__)
 
@@ -68,7 +73,9 @@ class ZMQProxyRouter(Agent):
         rmq_user = self.core.instance_name + '.' + identity
         self._outbound_response_queue = "{user}.zmq.outbound.response".format(user=rmq_user)
         self._outbound_request_queue = "{user}.zmq.outbound.request".format(user=rmq_user)
+        self._rpc_handler_queue = "{user}.zmq.outbound.subsystem".format(user=rmq_user)
         self._vip_loop_running = False
+        self._zmq_peers = set()
 
     @Core.receiver('onstart')
     def startup(self, sender, **kwargs):
@@ -86,6 +93,23 @@ class ZMQProxyRouter(Agent):
 
         connection = self.core.connection
         channel = connection.channel
+
+        # ----------------------------------------------------------------------------------
+        # Create a queue to receive messages from local platform
+        # (for example, response for RPC request etc)
+        result = channel.queue_declare(queue=self._rpc_handler_queue,
+                                       durable=False,
+                                       exclusive=True,
+                                       auto_delete=True,
+                                       callback=None)
+        channel.queue_bind(exchange=connection.exchange,
+                           queue=self._rpc_handler_queue,
+                           routing_key=self.core.instance_name + '.proxy.router.zmq.outbound.subsystem',
+                           callback=None)
+        channel.basic_consume(self.rpc_message_handler,
+                              queue=self._rpc_handler_queue,
+                              no_ack=True)
+        # --------------------------------------------------------------------------------------
 
         # Create a queue to receive messages from local platform
         # (for example, response for RPC request etc)
@@ -179,6 +203,25 @@ class ZMQProxyRouter(Agent):
         except ZMQError as ex:
             _log.error("ZMQ Error {}".format(ex))
 
+    def rpc_message_handler(self, ch, method, props, body):
+        """
+
+        :param ch:
+        :param method:
+        :param props:
+        :param body:
+        :return:
+        """
+        zmq_frames = []
+        frames = jsonapi.loads(body)
+
+        for frame in frames:
+            zmq_frames.append(bytes(frame))
+        try:
+            self.zmq_router.socket.send_multipart(zmq_frames, copy=False)
+        except ZMQError as ex:
+            _log.error("ZMQ Error {}".format(ex))
+
     def outbound_request_handler(self, ch, method, props, body):
         """
         Handler for receiving external platform PubSub/RPC requests from internal agents.
@@ -229,15 +272,18 @@ class ZMQProxyRouter(Agent):
             try:
                 frames = self.zmq_router.socket.recv_multipart(copy=False)
                 sender, recipient, proto, auth_token, msg_id, subsystem = frames[:6]
+                sender = bytes(sender)
                 recipient = bytes(recipient)
                 subsystem = bytes(subsystem)
-                if subsystem == b'hello':
-                    self.vip.peerlist.add_peer(sender)
-                elif subsystem == b'agentstop':
-                    self.vip.peerlist.drop_peer(sender)
 
-                if not recipient:
-                    # Handle router specific messages
+                if subsystem == b'hello':
+                    self.vip.peerlist.add_peer(sender, 'zmq')
+                    self._zmq_peers.add(sender)
+                elif subsystem == b'agentstop':
+                    self.vip.peerlist.drop_peer(sender, 'zmq')
+                    self._zmq_peers.remove(sender)
+                if not recipient or recipient in self._zmq_peers:
+                    # Handle router specific messages or route to ZMQ peer
                     self.zmq_router.route(frames)
                 else:
                     # Route to RabbitMQ agent
@@ -262,7 +308,11 @@ class ZMQProxyRouter(Agent):
 
         app_id = "{instance}.{identity}".format(instance=self.core.instance_name,
                                                 identity=bytes(sender))
-        # Change queue binding
+        # Change queue binding for the Response message
+        # After sending the message (request) on behalf of ZMQ client, the response has to
+        # routed back to the caller. Queue binding is modified for that purpose.
+        # outbound_response_handler() gets called (based on the binding) to reformat response
+        # message and send over zmq bus
         connection.channel.queue_bind(exchange=connection.exchange,
                                       queue=self._outbound_response_queue,
                                       routing_key=app_id,

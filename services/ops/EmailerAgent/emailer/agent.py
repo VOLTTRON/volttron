@@ -185,13 +185,17 @@ class EmailerAgent(Agent):
 
         ** In the above code to-addresses can be a singe email address as well**
 
-        The message must be a dictionary containing a subject and a message.
+        The message must be a dictionary containing a subject and a message.  In addition,
+        an optional to-addresses entry can be added for sending to a specific group of
+        users.
 
         .. code-block:: json
 
             {
                 "subject": "I am a happy camper",
                 "message": "This is a big long string message that I am sending"
+                -- OPTIONAL --
+                "to-addresses": ['yabba@daba.com']
             }
 
         :param peer:
@@ -203,16 +207,15 @@ class EmailerAgent(Agent):
         """
         from_address = self.from_address
         to_addresses = self.to_address
-        smtp_port = self.smtp_port
-        smtp_username = self.current_config.get('smtp_username',None)
-        smtp_password = self.current_config.get('smtp_password',None)
-        enable_tls = self.current_config.get('enable_tls',None)
-
+        to_addresses = message.get("to-addresses", to_addresses)
         subject = message.get('subject', 'No Subject')
         msg = message.get('message', None)
 
         if msg is None:
-            _log.errro('Email messsage body was null, not sending email')
+            _log.error('Email messsage body was null, not sending email')
+            return
+        if to_addresses is None:
+            _log.error('Email address not sent, to_addresses was None')
             return
 
         self.send_email(from_address, to_addresses, subject, msg)
@@ -253,12 +256,12 @@ class EmailerAgent(Agent):
             smtp_port = cfg['smtp_port']
             smtp_username = cfg['smtp_username']
             smtp_password = cfg['smtp_password']
-	    smtp_tls = cfg['smtp_tls']
-            server = smtplib.SMTP(smtp_address,smtp_port)
+            smtp_tls = cfg['smtp_tls']
+            server = smtplib.SMTP(smtp_address, smtp_port)
             server.ehlo()
 
             if smtp_username is not None:
-       	        server.starttls()
+                server.starttls()
                 server.ehlo()
                 server.login(smtp_username, smtp_password)
             server.sendmail(from_address, to_addresses, mime_message.as_string())

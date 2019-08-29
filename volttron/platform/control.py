@@ -38,48 +38,46 @@
 
 import argparse
 import collections
-from volttron.platform import jsonapi
+import hashlib
 import logging
 import logging.handlers
 import os
 import re
 import shutil
+import subprocess
 import sys
+import tarfile
 import tempfile
 import traceback
 import uuid
-import hashlib
-import tarfile
-import subprocess
 from datetime import timedelta
 
-import requests
 import gevent
 import gevent.event
+# noinspection PyUnresolvedReferences
+import grequests
+import requests
+from requests.exceptions import ConnectionError
 
-from volttron.platform.vip.agent.subsystems.query import Query
+from volttron.platform import aip as aipmod
+from volttron.platform import config
 from volttron.platform import get_home, get_address
-from volttron.platform.messaging.health import Status, STATUS_BAD
-
+from volttron.platform import jsonapi
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
     CONFIGURATION_STORE
-from volttron.platform.vip.agent import Agent as BaseAgent, Core, RPC
-from volttron.platform import aip as aipmod
-from volttron.platform import config
-from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.auth import AuthEntry, AuthFile, AuthException
+from volttron.platform.certs import Certs
+from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.keystore import KeyStore, KnownHostsStore
-from volttron.platform.vip.socket import Message
-from volttron.utils.prompt import prompt_response, y, n, y_or_n
+from volttron.platform.messaging.health import Status, STATUS_BAD
+from volttron.platform.scheduling import periodic
+from volttron.platform.vip.agent import Agent as BaseAgent, Core, RPC
 from volttron.platform.vip.agent.errors import VIPError
+from volttron.platform.vip.agent.subsystems.query import Query
+from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import check_rabbit_status
-from volttron.utils.rmq_config_params import RMQConfig
-from requests.packages.urllib3.connection import (ConnectionError,
-                                                  NewConnectionError)
-from volttron.platform.scheduling import periodic
-
 
 try:
     import volttron.restricted
@@ -112,6 +110,11 @@ class ControlService(BaseAgent):
         self._tracker = tracker
         self.crashed_agents = {}
         self.agent_monitor_frequency = int(agent_monitor_frequency)
+
+        if self.core.publickey is None or self.core.secretkey is None:
+            self.core.publickey, self.core.secretkey, _ = self.core._get_keys_from_addr()
+        if self.core.publickey is None or self.core.secretkey is None:
+            self.core.publickey, self.core.secretkey = self.core._get_keys_from_keystore()
 
     @Core.receiver('onsetup')
     def _setup(self, sender, **kwargs):
@@ -192,7 +195,10 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def peerlist(self):
-        return self.vip.peerlist().get(timeout=5)
+        # We want to keep the same interface so we convert the byte array to
+        # string array when returning.
+        peer_list = self.vip.peerlist().get(timeout=5)
+        return peer_list
 
     @RPC.export
     def serverkey(self):
@@ -262,7 +268,8 @@ class ControlService(BaseAgent):
         # Send message to router that agent is shutting down
         frames = [identity.encode('utf-8')]
 
-        self.core.socket.send_vip(b'', b'agentstop', frames, copy=False)
+        # Was self.core.socket.send_vip(b'', b'agentstop', frames, copy=False)
+        self.core.connection.send_vip(b'', b'agentstop', args=frames, copy=False)
 
     @RPC.export
     def restart_agent(self, uuid):
@@ -310,10 +317,12 @@ class ControlService(BaseAgent):
                 type(uuid).__name__, identity))
 
         identity = self.agent_vip_identity(uuid)
-        frames = [bytes(identity)]
+        # Because we are using send_vip we should pass frames that have bytes rather than
+        # strings.
+        frames = [identity.encode('utf-8')]
 
         # Send message to router that agent is shutting down
-        self.core.connection.send_vip(b'', 'agentstop', args=frames)
+        self.core.connection.send_vip(b'', b'agentstop', args=frames)
         self._aip.remove_agent(uuid, remove_auth=remove_auth)
 
     @RPC.export
@@ -340,8 +349,7 @@ class ControlService(BaseAgent):
         if not isinstance(uuid, str):
             identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
-                            "got {!r} from identity: {}".format(
-                type(uuid).__name__, identity))
+                            "got {!r} from identity: {}".format(type(uuid).__name__, identity))
         return self._aip.agent_identity(uuid)
 
     @RPC.export
@@ -774,8 +782,12 @@ def status_agents(opts):
 
     def get_health(agent):
         try:
-            return opts.connection.server.vip.rpc.call(agent.vip_identity,
-                                                       'health.get_status_json').get(timeout=4)['status']
+            # TODO Modify this later so that we aren't calling peerlist before we call the status of the agent.
+            if agent.vip_identity in opts.connection.server.vip.peerlist().get(timeout=4):
+                return opts.connection.server.vip.rpc.call(agent.vip_identity,
+                                                           'health.get_status_json').get(timeout=4)['status']
+            else:
+                return ''
         except (VIPError, gevent.Timeout):
             return ''
 
@@ -1090,14 +1102,14 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
             mechanism = fields['mechanism']['response']
             AuthEntry.valid_credentials(creds, mechanism=mechanism)
         except AuthException as e:
-            return False, e.message
+            return False, str(e)
         return True, None
 
     def valid_mech(mech, fields):
         try:
             AuthEntry.valid_mechanism(mech)
         except AuthException as e:
-            return False, e.message
+            return False, str(e)
         return True, None
 
     asker = Asker()
@@ -1105,7 +1117,7 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
     asker.add('address', address)
     asker.add('user_id', user_id)
     asker.add('capabilities', capabilities,
-              'delimit multiple entries with comma', _comma_split)
+              'delimit multiple entries with comma', _parse_capabilities)
     asker.add('roles', roles, 'delimit multiple entries with comma',
               _comma_split)
     asker.add('groups', groups, 'delimit multiple entries with comma',
@@ -1128,6 +1140,17 @@ def _comma_split(line):
     return [word.strip() for word in line.split(',')]
 
 
+def _parse_capabilities(line):
+    if not isinstance(line, basestring):
+        return line
+    line = line.strip()
+    try:
+       result = json.loads(line.replace("'", "\""))
+    except Exception as e:
+        result = _comma_split(line)
+    return result
+
+
 def add_auth(opts):
     """Add authorization entry.
 
@@ -1141,7 +1164,7 @@ def add_auth(opts):
         "user_id": opts.user_id,
         "groups": _comma_split(opts.groups),
         "roles": _comma_split(opts.roles),
-        "capabilities": _comma_split(opts.capabilities),
+        "capabilities": _parse_capabilities(opts.capabilities),
         "comments": opts.comments,
     }
 
@@ -1149,11 +1172,14 @@ def add_auth(opts):
         # Remove unspecified options so the default parameters are used
         fields = {k: v for k, v in fields.items() if v}
         fields['enabled'] = not opts.disabled
+        print("fields of capabilities: {}".format(fields["capabilities"]))
         entry = AuthEntry(**fields)
     else:
         # No options were specified, use interactive wizard
         responses = _ask_for_auth_fields()
         entry = AuthEntry(**responses)
+        print("fields of capabilities: {}".format(responses["capabilities"]))
+
 
     if opts.add_known_host:
         if entry.address is None:
@@ -1217,7 +1243,7 @@ def remove_auth(opts):
             msg = msg = 'removed entry at index {}'.format(opts.indices)
         _stdout.write(msg + '\n')
     except AuthException as err:
-        _stderr.write('ERROR: %s\n' % err.message)
+        _stderr.write('ERROR: %s\n' % str(err))
 
 
 def update_auth(opts):
@@ -1235,7 +1261,7 @@ def update_auth(opts):
     except IndexError:
         _stderr.write('ERROR: invalid index %s\n' % opts.index)
     except AuthException as err:
-        _stderr.write('ERROR: %s\n' % err.message)
+        _stderr.write('ERROR: %s\n' % str(err))
 
 
 def add_role(opts):
@@ -1622,7 +1648,7 @@ def add_vhost(opts):
         rmq_mgmt.create_vhost(opts.vhost)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error adding a Virtual Host: {} \n".format(opts.vhost))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1644,7 +1670,7 @@ def add_user(opts):
         rmq_mgmt.set_user_permissions(permissions, opts.user)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error Setting User permissions : {} \n".format(opts.user))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1668,7 +1694,7 @@ def add_exchange(opts):
         rmq_mgmt.create_exchange(opts.name, properties)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error Adding Exchange : {} \n".format(opts.name))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1682,7 +1708,7 @@ def add_queue(opts):
         rmq_mgmt.create_queue(opts.name, properties)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error Adding Queue : {} \n".format(opts.name))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1694,7 +1720,7 @@ def list_vhosts(opts):
             _stdout.write(item + "\n")
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Virtual Hosts Found: {} \n")
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1706,7 +1732,7 @@ def list_users(opts):
             _stdout.write(item + "\n")
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Users Found: {} \n")
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1718,7 +1744,7 @@ def list_user_properties(opts):
             _stdout.write("{0}: {1} \n".format(key, value))
     except requests.exceptions.HTTPError as e:
         _stdout.write("No User Found: {} \n".format(opts.user))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1730,7 +1756,7 @@ def list_exchanges(opts):
             _stdout.write(exch + "\n")
     except requests.exceptions.HTTPError as e:
         _stdout.write("No exchanges found \n")
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1742,7 +1768,7 @@ def list_exchanges_with_properties(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No exchanges found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1773,7 +1799,7 @@ def list_queues(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No queues found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1789,7 +1815,7 @@ def list_queues_with_properties(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No queues found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1822,7 +1848,7 @@ def list_connections(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No connections found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1835,7 +1861,7 @@ def list_fed_parameters(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Federation Parameters Found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1860,7 +1886,7 @@ def list_shovel_parameters(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Shovel Parameters Found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1895,7 +1921,7 @@ def list_bindings(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Bindings Found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1925,7 +1951,7 @@ def list_policies(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Policies Found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1949,7 +1975,7 @@ def remove_vhosts(opts):
             rmq_mgmt.delete_vhost(vhost)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Vhost Found {} \n".format(opts.vhost))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1960,7 +1986,7 @@ def remove_users(opts):
             rmq_mgmt.delete_user(user)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No User Found {} \n".format(opts.user))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1971,7 +1997,7 @@ def remove_exchanges(opts):
             rmq_mgmt.delete_exchange(e)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Exchange Found {} \n".format(opts.exchanges))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1982,7 +2008,7 @@ def remove_queues(opts):
             rmq_mgmt.delete_queue(q)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Queues Found {} \n".format(opts.queues))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1993,7 +2019,7 @@ def remove_fed_parameters(opts):
             rmq_mgmt.delete_multiplatform_parameter('federation-upstream', param)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Federation Parameters Found {} \n".format(opts.parameters))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -2004,7 +2030,7 @@ def remove_shovel_parameters(opts):
             rmq_mgmt.delete_multiplatform_parameter('shovel', param)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Shovel Parameters Found {} \n".format(opts.parameters))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -2015,9 +2041,23 @@ def remove_policies(opts):
             rmq_mgmt.delete_policy(policy)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Policies Found {} \n".format(opts.policies))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
+
+
+def create_ssl_keypair(opts):
+    fq_identity = utils.get_fq_identity(opts.identity)
+    certs = Certs()
+    certs.create_ca_signed_cert(fq_identity)
+
+
+def export_pkcs12_from_identity(opts):
+
+    fq_identity = utils.get_fq_identity(opts.identity)
+
+    certs = Certs()
+    certs.export_pkcs12(fq_identity, opts.outfile)
 
 
 def main(argv=sys.argv):
@@ -2226,6 +2266,32 @@ def main(argv=sys.argv):
                              help=argparse.SUPPRESS)
     upgrade.set_defaults(func=upgrade_agent, verify_agents=True)
 
+    # ====================================================
+    # certs commands
+    # ====================================================
+    cert_cmds = add_parser("certs",
+                           help="manage certificate creation")
+
+    certs_subparsers = cert_cmds.add_subparsers(title='subcommands', metavar='', dest='store_commands')
+
+    create_ssl_keypair_cmd = add_parser("create-ssl-keypair", subparser=certs_subparsers,
+                             help="create a ssl keypair.")
+
+    create_ssl_keypair_cmd.add_argument("identity",
+                                        help="Create a private key and cert for the given identity signed by "
+                                             "the root ca of this platform.")
+    create_ssl_keypair_cmd.set_defaults(func=create_ssl_keypair)
+
+    export_pkcs12 = add_parser("export-pkcs12", subparser=certs_subparsers,
+                             help="create a PKCS12 encoded file containing private and public key from an agent. "
+                                  "this function is useful to create a java key store using a p12 file.")
+    export_pkcs12.add_argument("identity", help="identity of the agent to export")
+    export_pkcs12.add_argument("outfile", help="file to write the PKCS12 file to")
+    export_pkcs12.set_defaults(func=export_pkcs12_from_identity)
+
+    # ====================================================
+    # auth commands
+    # ====================================================
     auth_cmds = add_parser("auth",
                            help="manage authorization entries and encryption keys")
 
@@ -2364,6 +2430,9 @@ def main(argv=sys.argv):
                                   help='remove (rather than append) given capabilities')
     auth_update_role.set_defaults(func=update_role)
 
+    # ====================================================
+    # config commands
+    # ====================================================
     config_store = add_parser("config",
                               help="manage the platform configuration store")
 
@@ -2470,7 +2539,9 @@ def main(argv=sys.argv):
 
     if message_bus == 'rmq':
         rmq_mgmt = RabbitMQMgmt()
-        # Add commands
+        # ====================================================
+        # rabbitmq commands
+        # ====================================================
         rabbitmq_cmds = add_parser("rabbitmq", help="manage rabbitmq")
         rabbitmq_subparsers = rabbitmq_cmds.add_subparsers(title='subcommands',
                                                            metavar='',
@@ -2603,7 +2674,7 @@ def main(argv=sys.argv):
     # Below vctl commands can work even when volttron is not up. For others
     # volttron need to be up.
     if len(args) > 0:
-        if args[0] not in ('list', 'tag', 'auth', 'rabbitmq'):
+        if args[0] not in ('list', 'tag', 'auth', 'rabbitmq', 'certs'):
             # check pid file
             if not utils.is_volttron_running(volttron_home):
                 _stderr.write("VOLTTRON is not running. This command "

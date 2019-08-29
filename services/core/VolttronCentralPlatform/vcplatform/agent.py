@@ -395,7 +395,6 @@ class VolttronCentralPlatform(Agent):
                 self._vc_connection = self.vip.auth.connect_remote_platform(
                     address=self._vc_address,
                     serverkey=self._vc_serverkey,
-                    rmq_ca_cert=self._vc_rmq_ca_cert,
                     agent_class=VCConnection
                 )
 
@@ -411,7 +410,7 @@ class VolttronCentralPlatform(Agent):
 
             # Break out of the loop if we have successfully connect to the
             # remote platform.
-            if self._vc_connection is not None:
+            if self._vc_connection is not None and isinstance(self._vc_connection, Agent):
                 self._vc_connection.set_main_agent(self)
                 self._still_connected()
                 self._publish_stats()
@@ -821,6 +820,12 @@ class VolttronCentralPlatform(Agent):
             timeout=5)
         return data or ""
 
+    def delete_agent_config(self, agent_identity, config_name):
+        data = self.vip.rpc.call(CONFIGURATION_STORE, "manage_delete_config",
+                                 agent_identity, config_name).get(
+            timeout=5)
+        return data or ""
+
     def start_agent(self, agent_uuid):
         return self.vip.rpc.call(CONTROL, "start_agent", agent_uuid).get(
             timeout=5)
@@ -1224,7 +1229,7 @@ class VolttronCentralPlatform(Agent):
                     self.get_instance_uuid()))
             gevent.sleep(1)
             try:
-                self._vc_connection.core.stop(timeput=5)
+                self._vc_connection.core.stop(timeout=5)
             except:
                 _log.error("killing _vc_connection connection")
             finally:

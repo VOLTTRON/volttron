@@ -55,7 +55,7 @@ from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
 from .webapp import WebApplicationWrapper
 from ..agent.utils import get_fq_identity
-from ..agent.web import Response
+from ..agent.web import Response, JsonResponse
 from ..auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
 from ..certs import Certs
 from ..jsonrpc import (json_result,
@@ -146,7 +146,6 @@ class MasterWebService(Agent):
     def onsetup(self, sender, **kwargs):
         self.vip.rpc.export(self._auto_allow_csr, 'auto_allow_csr')
         self.vip.rpc.export(self._is_auto_allow_csr, 'is_auto_allow_csr')
-
 
     def _is_auto_allow_csr(self):
         return self._csr_endpoints.auto_allow_csr
@@ -360,7 +359,7 @@ class MasterWebService(Agent):
                                                                     vhost=config.virtual_host)
             return_dict['rmq-address'] = rmq_address
             return_dict['rmq-ca-cert'] = self._certs.cert(self._certs.root_ca_name).public_bytes(serialization.Encoding.PEM)
-        return Response(jsonapi.dumps(return_dict), content_type="application/json")
+        return JsonResponse(return_dict)
 
     def app_routing(self, env, start_response):
         """
@@ -470,7 +469,7 @@ class MasterWebService(Agent):
     def process_response(self, start_responsee, response):
         # process the response
         start_responsee(response.status, response.headers)
-        return bytes(response.content)
+        return [response.content]
 
     def create_raw_response(self, res, start_response):
         # If this is a tuple then we know we are going to have a response
@@ -479,12 +478,14 @@ class MasterWebService(Agent):
             if len(res) == 1:
                 status, = res
                 headers = ()
-            if len(res) == 2:
+            elif len(res) == 2:
                 headers = ()
                 status, response = res
-            if len(res) == 3:
+            elif len(res) == 3:
                 status, response, headers = res
-            start_response(status, headers)
+            else:
+                raise Exception("Couldn't process raw response {}".format(res))
+            start_response(status.encode('utf-8'), headers)
             return [base64.b64decode(response)]
         else:
             start_response("500 Programming Error",
@@ -506,8 +507,7 @@ class MasterWebService(Agent):
                         ('Content-Type', 'text/html')])
                     message = res['error']['message']
                     code = res['error']['code']
-                    return [b'<h1>{}</h1>\n<h2>CODE:{}</h2>'
-                                .format(message, code)]
+                    return ['<h1>{}</h1>\n<h2>CODE:{}</h2>'.format(message, code).encode('utf-8')]
 
             start_response('200 OK',
                            [('Content-Type', 'application/json')])
@@ -575,8 +575,8 @@ class MasterWebService(Agent):
     @Core.receiver('onstart')
     def startupagent(self, sender, **kwargs):
 
-        import urlparse
-        parsed = urlparse.urlparse(self.bind_web_address)
+        from urllib.parse import urlparse
+        parsed = urlparse(self.bind_web_address)
 
         ssl_key = self.web_ssl_key
         ssl_cert = self.web_ssl_cert
@@ -621,8 +621,12 @@ class MasterWebService(Agent):
             for rt in self._admin_endpoints.get_routes():
                 self.registeredroutes.append(rt)
 
-            ssl_private_key = self._certs.get_private_key(get_fq_identity(self.core.identity))
-
+        # Allow authentication endpoint from any https connection
+        if parsed.scheme == 'https':
+            if self.core.messagebus == 'rmq':
+                ssl_private_key = self._certs.get_private_key(get_fq_identity(self.core.identity))
+            else:
+                ssl_private_key = ssl_key
             for rt in AuthenticateEndpoints(ssl_private_key).get_routes():
                 self.registeredroutes.append(rt)
 

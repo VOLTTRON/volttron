@@ -502,7 +502,7 @@ def test_for_duplicate_logs(volttron_instance, agent, cleanup_db):
     assert len(results) == 3
     for r in results:
         assert r[1] is None
-        non_utc = publish_time.replace(tzinfo=None)
-        assert r[2] >= non_utc
+        #non_utc = publish_time.replace(tzinfo=None)
+        assert r[2] >= publish_time
 
 

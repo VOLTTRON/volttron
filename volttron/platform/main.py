@@ -81,7 +81,7 @@ from .control import ControlService
 from .web import MasterWebService
 from .store import ConfigStoreService
 from .agent import utils
-from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH
+from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH, CONTROL
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService
@@ -645,7 +645,7 @@ def start_volttron_process(opts):
             if not os.path.isfile(opts.web_ssl_key) or not os.path.isfile(opts.web_ssl_cert):
                 raise Exception("zmq https requires a web-ssl-key and a web-ssl-cert file.")
     if opts.volttron_central_address:
-        parsed = urlparse.urlparse(opts.volttron_central_address)
+        parsed = urlparse(opts.volttron_central_address)
         if parsed.scheme not in ('http', 'https', 'tcp', 'amqp', 'amqps'):
             raise Exception(
                 'volttron-central-address must begin with tcp, amqp, amqps, http or https.')
@@ -705,6 +705,7 @@ def start_volttron_process(opts):
         # Authorize the platform key:
         entry = AuthEntry(credentials=encode_key(publickey),
                           user_id='platform',
+                          capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
         # Add platform key to known-hosts file:
@@ -735,7 +736,7 @@ def start_volttron_process(opts):
                              "and attempts to restart. {}".format(e))
 
     # Main loops
-    def router(stop):
+    def zmq_router(stop):
         try:
             Router(opts.vip_local_address, opts.vip_address,
                    secretkey=secretkey, publickey=publickey,
@@ -755,7 +756,7 @@ def start_volttron_process(opts):
             pass
         finally:
             _log.debug("In finally")
-            stop()
+            stop(platform_shutdown=True)
 
     # RMQ router
     def rmq_router(stop):
@@ -771,7 +772,7 @@ def start_volttron_process(opts):
             pass
         finally:
             _log.debug("In RMQ router finally")
-            stop()
+            stop(platform_shutdown=True)
 
     address = 'inproc://vip'
     pid_file = os.path.join(opts.volttron_home, "VOLTTRON_PID")
@@ -813,8 +814,8 @@ def start_volttron_process(opts):
 
             protected_topics = auth.get_protected_topics()
             _log.debug("MAIN: protected topics content {}".format(protected_topics))
-            # Start router in separate thread to remain responsive
-            thread = threading.Thread(target=router, args=(config_store.core.stop,))
+            # Start ZMQ router in separate thread to remain responsive
+            thread = threading.Thread(target=zmq_router, args=(config_store.core.stop,))
             thread.daemon = True
             thread.start()
 
@@ -859,9 +860,10 @@ def start_volttron_process(opts):
 
             # Ensure auth service is running before router
             auth_file = os.path.join(opts.volttron_home, 'auth.json')
-            auth = AuthService(
-                auth_file, protected_topics_file, opts.setup_mode, opts.aip, address=address, identity=AUTH,
-                enable_store=False, message_bus='rmq')
+            auth = AuthService(auth_file, protected_topics_file,
+                               opts.setup_mode, opts.aip,
+                               address=address, identity=AUTH,
+                               enable_store=False, message_bus='rmq')
 
             event = gevent.event.Event()
             auth_task = gevent.spawn(auth.core.run, event)
@@ -870,7 +872,8 @@ def start_volttron_process(opts):
 
             protected_topics = auth.get_protected_topics()
 
-            # Start router in separate thread to remain responsive
+            # Spawn Greenlet friendly ZMQ router
+            # Necessary for backward compatibility with ZMQ message bus
             green_router = GreenRouter(opts.vip_local_address, opts.vip_address,
                                        secretkey=secretkey, publickey=publickey,
                                        default_user_id=b'vip.service', monitor=opts.monitor,
@@ -891,6 +894,7 @@ def start_volttron_process(opts):
             proxy_router_task = gevent.spawn(proxy_router.core.run, event)
             event.wait()
             del event
+
         # The instance file is where we are going to record the instance and
         # its details according to
         instance_file = os.path.expanduser(VOLTTRON_INSTANCES)
@@ -918,7 +922,7 @@ def start_volttron_process(opts):
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
-            ControlService(opts.aip, address=address, identity='control',
+            ControlService(opts.aip, address=address, identity=CONTROL,
                            tracker=tracker, heartbeat_autostart=True,
                            enable_store=False, enable_channel=True,
                            message_bus=opts.message_bus,
@@ -929,6 +933,7 @@ def start_volttron_process(opts):
                               external_address_config=external_address_file,
                               setup_mode=opts.setup_mode,
                               bind_web_address=opts.bind_web_address,
+                              enable_store=False,
                               message_bus='zmq'),
             # For Backward compatibility with VOLTTRON versions <= 4.1
             PubSubWrapper(address=address,
@@ -936,6 +941,12 @@ def start_volttron_process(opts):
                           enable_store=False,
                           message_bus='zmq')
         ]
+
+        entry = AuthEntry(credentials=services[0].core.publickey,
+                          user_id=CONTROL,
+                          capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
+                          comments='Automatically added by platform on start')
+        AuthFile().add(entry, overwrite=True)
 
         # Begin the webserver based options here.
         if opts.bind_web_address is not None:
@@ -997,7 +1008,7 @@ def start_volttron_process(opts):
             sys.stderr.write('Shutting down.\n')
             if proxy_router_task:
                 proxy_router.core.stop()
-            _log.debug("Kill all tasks")
+            _log.debug("Kill all service agent tasks")
             for task in tasks:
                 task.kill(block=False)
             gevent.wait(tasks)

@@ -107,7 +107,7 @@ class FncsExample(Agent):
             self.vip.fncs.start_simulation()
 
         except ValueError as ex:
-            _log.error(ex.message)
+            _log.error(ex)
             self.core.stop()
             return
 

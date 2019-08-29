@@ -16,11 +16,14 @@ from vctestutils import APITester
 def multi_messagebus_vc_vcp(volttron_multi_messagebus):
     vcp_instance, vc_instance = volttron_multi_messagebus
     assert vcp_instance.instance_name != vc_instance.instance_name
+    # Handles both connections to zmq as well as connections to rmq bus.
     vc_instance.allow_all_connections()
+
     if vc_instance.messagebus == 'rmq':
-        os.environ['REQUESTS_CA_BUNDLE'] = vc_instance.requests_ca_bundle
-        vc_instance.enable_auto_csr()
-        vc_instance.web_admin_api.create_web_admin('admin', 'admin')
+        if vcp_instance.messagebus == 'rmq':
+            os.environ['REQUESTS_CA_BUNDLE'] = vcp_instance.certsobj.remote_cert_bundle_file()
+        else:
+            os.environ['REQUESTS_CA_BUNDLE'] = vc_instance.certsobj.remote_cert_bundle_file()
     vcp_uuid = add_volttron_central_platform(vcp_instance)
     vc_uuid = add_volttron_central(vc_instance)
 
@@ -33,7 +36,8 @@ def multi_messagebus_vc_vcp(volttron_multi_messagebus):
     # Update vcp_config store to add the volttron-central-address from vc to the
     # config store
     config = jsonapi.dumps({'volttron-central-address': vc_instance.bind_web_address})
-
+    capabilities = {'edit_config_store': {'identity': VOLTTRON_CENTRAL_PLATFORM}}
+    vcp_instance.add_capabilities(vcp_instance.dynamic_agent.core.publickey, capabilities)
     vcp_instance.dynamic_agent.vip.rpc.call(CONFIGURATION_STORE,
                                             "manage_store",
                                             VOLTTRON_CENTRAL_PLATFORM,
@@ -42,15 +46,15 @@ def multi_messagebus_vc_vcp(volttron_multi_messagebus):
                                             "json").get()
     # "manage_store", opts.identity, opts.name, file_contents, config_type = opts.config_type
 
-    yield vcp_instance, vc_instance
+    yield vcp_instance, vc_instance, vcp_uuid
 
     vcp_instance.remove_agent(vcp_uuid)
     vc_instance.remove_agent(vc_uuid)
 
 
-def test_able_to_register(multi_messagebus_vc_vcp):
+def test_able_to_register_unregister(multi_messagebus_vc_vcp):
     gevent.sleep(10)
-    vcp_instance, vc_instance = multi_messagebus_vc_vcp
+    vcp_instance, vc_instance, vcp_uuid = multi_messagebus_vc_vcp
 
     apitester = APITester(vc_instance)
 
@@ -61,3 +65,10 @@ def test_able_to_register(multi_messagebus_vc_vcp):
 
     assert platform['name'] == vcp_instance.instance_name
 
+    vcp_instance.stop_agent(vcp_uuid)
+
+    gevent.sleep(12)
+    assert not vcp_instance.is_agent_running(vcp_uuid)
+#    print(vc_instance.dynamic_agent.vip.peerlist().get(timeout=10))
+    platforms = apitester.list_platforms()
+    assert len(platforms) == 0

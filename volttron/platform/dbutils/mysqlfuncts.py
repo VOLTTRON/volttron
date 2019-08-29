@@ -78,7 +78,8 @@ class MySqlFuncts(DbDriver):
         # cached data even if we create a new cursor for each query and
         # close the cursor after fetching results
         connect_params['autocommit'] = True
-        super(MySqlFuncts, self).__init__('mysql.connector', **connect_params)
+        super(MySqlFuncts, self).__init__('mysql.connector', auth_plugin='mysql_native_password',
+                                          **connect_params)
 
     def init_microsecond_support(self):
         rows = self.select("SELECT version()", None)

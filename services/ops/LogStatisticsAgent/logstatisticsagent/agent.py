@@ -158,7 +158,7 @@ class LogStatisticsAgent(Agent):
         try:
             return os.path.getsize(self.file_path)
         except OSError as e:
-            _log.error(e.message)
+            _log.error(e)
 
 
 def main(argv=sys.argv):

@@ -73,7 +73,7 @@ def get_volttron_instances(request):
             wrapper.skip_cleanup = True
             instances.append(wrapper)
 
-        gevent.sleep(11)
+        gevent.sleep(30)
         for i in range(0, n):
             instances[i].shutdown_platform()
 
@@ -92,6 +92,7 @@ def get_volttron_instances(request):
         return instances
 
     return get_n_volttron_instances
+
 
 @pytest.fixture(scope="module")
 def build_instances(request):
@@ -177,13 +178,11 @@ def multi_platform_connection(request, get_volttron_instances):
     gevent.sleep(5)
 
     # configure vc
-    agent1 = p1.build_agent()
-    agent2 = p2.build_agent()
+    agent1 = p1.dynamic_agent
+    agent2 = p2.dynamic_agent
     agent3 = p3.build_agent()
 
     def stop():
-        agent1.core.stop()
-        agent2.core.stop()
         agent3.core.stop()
         p1.shutdown_platform()
         p2.shutdown_platform()
@@ -205,18 +204,13 @@ def five_platform_connection(request, get_volttron_instances):
     gevent.sleep(5)
 
     # configure vc
-    agent1 = p1.build_agent()
-    agent2 = p2.build_agent()
-    agent3 = p3.build_agent()
-    agent4 = p4.build_agent()
-    agent5 = p5.build_agent()
+    agent1 = p1.dynamic_agent
+    agent2 = p2.dynamic_agent
+    agent3 = p3.dynamic_agent
+    agent4 = p4.dynamic_agent
+    agent5 = p5.dynamic_agent
 
     def stop():
-        agent1.core.stop()
-        agent2.core.stop()
-        agent3.core.stop()
-        agent4.core.stop()
-        agent5.core.stop()
         p1.shutdown_platform()
         p2.shutdown_platform()
         p3.shutdown_platform()
@@ -227,46 +221,30 @@ def five_platform_connection(request, get_volttron_instances):
 
     return agent1, agent2, agent3, agent4, agent5
 
+
 @pytest.mark.multiplatform
 def test_multiplatform_pubsub(request, multi_platform_connection):
     p1_publisher, p2_listener, p3_listener = multi_platform_connection
-
-    def callback2(peer, sender, bus, topicdr, headers, message):
-        print(message)
-        assert message == [{'point': 'value'}]
-
-    def callback3(peer, sender, bus, topic, headers, message):
-        print(message)
-
-    def callback4(peer, sender, bus, topic, headers, message):
-        print(message)
-
-    def callback5(peer, sender, bus, topic, headers, message):
-        print(message)
 
     p2_listener.vip.pubsub.subscribe(peer='pubsub',
                                      prefix='devices',
                                      callback=onmessage,
                                      all_platforms=True)
-    gevent.sleep(2)
     p3_listener.vip.pubsub.subscribe(peer='pubsub',
                                      prefix='devices',
                                      callback=onmessage)
+    gevent.sleep(1)
 
-    print("publish")
     prefix = 'devices'
     for i in range(10):
         p1_publisher.vip.pubsub.publish(peer='pubsub',
                                         topic='devices/campus/building1',
                                         message=[{'point': 'value'}])
-        # gevent.sleep(0.1)
-
-        poll_gevent_sleep(2, lambda: messages_contains_prefix(prefix,
+        poll_gevent_sleep(5, lambda: messages_contains_prefix(prefix,
                                                               subscription_results))
 
         message = subscription_results['devices/campus/building1']['message']
         assert message == [{'point': 'value'}]
-    gevent.sleep(5)
 
 
 @pytest.mark.multiplatform
@@ -295,15 +273,15 @@ def test_multiplatform_2_publishers(request, five_platform_connection):
         print("platform4 sub results [{}] = {}".format(topic, subscription_results5[topic]))
 
     p2_listener.vip.pubsub.subscribe(peer='pubsub',
-                                     prefix='devices',
+                                     prefix='devices/campus/building1',
                                      callback=callback2,
                                      all_platforms=True)
 
     p3_listener.vip.pubsub.subscribe(peer='pubsub',
-                                     prefix='devices',
+                                     prefix='devices/campus/building1',
                                      callback=callback3,
                                      all_platforms=True)
-    gevent.sleep(2)
+
     p4_listener.vip.pubsub.subscribe(peer='pubsub',
                                      prefix='analysis',
                                      callback=callback4,
@@ -312,13 +290,11 @@ def test_multiplatform_2_publishers(request, five_platform_connection):
     p5_publisher.vip.pubsub.subscribe(peer='pubsub',
                                       prefix='analysis',
                                       callback=callback5)
-    gevent.sleep(2)
-    print("publish")
+    gevent.sleep(5)
     prefix = 'devices'
     for i in range(5):
         p1_publisher.vip.pubsub.publish(peer='pubsub', topic='devices/campus/building1', message=[{'point': 'value'}])
-        poll_gevent_sleep(1, lambda: messages_contains_prefix(prefix,
-                                                              subscription_results2))
+        gevent.sleep(1)
         message = subscription_results2['devices/campus/building1']['message']
         assert message == [{'point': 'value'}]
         message = subscription_results3['devices/campus/building1']['message']
@@ -326,12 +302,11 @@ def test_multiplatform_2_publishers(request, five_platform_connection):
 
     prefix = 'analysis'
     for i in range(5):
-        p5_publisher.vip.pubsub.publish(peer='pubsub', topic='analysis/airside/campus/building1',
+        p5_publisher.vip.pubsub.publish(peer='pubsub',
+                                        topic='analysis/airside/campus/building1',
                                         message=[{'result': 'pass'}])
-        # gevent.sleep(0.1)
-
         poll_gevent_sleep(2, lambda: messages_contains_prefix(prefix,
-                                                              subscription_results3))
+                                                              subscription_results4))
         message = subscription_results4['analysis/airside/campus/building1']['message']
         assert message == [{'result': 'pass'}]
         message = subscription_results5['analysis/airside/campus/building1']['message']
@@ -342,7 +317,6 @@ def test_multiplatform_2_publishers(request, five_platform_connection):
 def test_multiplatform_subscribe_unsubscribe(request, multi_platform_connection):
     subscription_results2 = {}
     subscription_results3 = {}
-    message_count = 0
     p1_publisher, p2_listener, p3_listener = multi_platform_connection
 
     def callback2(peer, sender, bus, topic, headers, message):
@@ -369,9 +343,10 @@ def test_multiplatform_subscribe_unsubscribe(request, multi_platform_connection)
     for i in range(2):
         p1_publisher.vip.pubsub.publish(peer='pubsub', topic='devices/campus/building1',
                                         message=[{'point': 'value' + str(i)}])
-        gevent.sleep(0.3)
+        gevent.sleep(0.5)
         message = subscription_results2['devices/campus/building1']['message']
         assert message == [{'point': 'value' + str(i)}]
+
         message = subscription_results3['devices/campus/building1']['message']
         assert message == [{'point': 'value' + str(i)}]
         print("pass")
@@ -379,12 +354,11 @@ def test_multiplatform_subscribe_unsubscribe(request, multi_platform_connection)
     # Listener agent on platform 2 unsubscribes frm prefix='devices'
     p2_listener.vip.pubsub.unsubscribe(peer='pubsub', prefix='devices', callback=callback2, all_platforms=True)
     gevent.sleep(0.2)
-
+    subscription_results2.clear()
     p1_publisher.vip.pubsub.publish(peer='pubsub', topic='devices/campus/building1',
                                     message=[{'point': 'value' + str(2)}])
     gevent.sleep(0.4)
-    message = subscription_results2['devices/campus/building1']['message']
-    assert message == [{'point': 'value1'}]
+    assert not subscription_results2
     gevent.sleep(0.4)
     message = subscription_results3['devices/campus/building1']['message']
     assert message == [{'point': 'value2'}]
@@ -411,22 +385,24 @@ def test_multiplatform_stop_subscriber(request, multi_platform_connection):
                                      all_platforms=True)
 
     p3_listener.vip.pubsub.subscribe(peer='pubsub',
-                                     prefix='devices',
+                                     prefix='devices/campus/building1',
                                      callback=callback3,
                                      all_platforms=True)
-    gevent.sleep(2)
+    gevent.sleep(1)
 
     prefix = 'devices'
     i = 0
     for i in range(2):
         p1_publisher.vip.pubsub.publish(peer='pubsub', topic='devices/campus/building1',
                                         message=[{'point': 'value' + str(i)}])
-        gevent.sleep(0.3)
+        gevent.sleep(0.5)
         message = subscription_results2['devices/campus/building1']['message']
         assert message == [{'point': 'value' + str(i)}]
         message = subscription_results3['devices/campus/building1']['message']
         assert message == [{'point': 'value' + str(i)}]
-        print("pass")
+
+    subscription_results2.clear()
+    print("pass")
 
     # Stop listener agent on platform 2
     p2_listener.core.stop()
@@ -434,10 +410,9 @@ def test_multiplatform_stop_subscriber(request, multi_platform_connection):
 
     p1_publisher.vip.pubsub.publish(peer='pubsub', topic='devices/campus/building1',
                                     message=[{'point': 'value' + str(2)}])
-    gevent.sleep(0.4)
-    message = subscription_results2['devices/campus/building1']['message']
-    assert message == [{'point': 'value1'}]
-    gevent.sleep(0.4)
+    gevent.sleep(1)
+    # check that new message is received by only listener 3
+    assert not subscription_results2
     message = subscription_results3['devices/campus/building1']['message']
     assert message == [{'point': 'value2'}]
 
@@ -455,15 +430,12 @@ def test_multiplatform_without_setup_mode(request, build_instances):
     subscription_results3 = {}
     p1, p2, p3 = build_instances(3)
     gevent.sleep(1)
-    #Get three agents
-    agent1 = p1.build_agent(identity="agent1")
-    agent2 = p2.build_agent(identity="agent2")
-    agent3 = p2.build_agent(identity="agent3")
+    # Get three agents
+    agent1 = p1.dynamic_agent
+    agent2 = p2.dynamic_agent
+    agent3 = p3.dynamic_agent
 
     def stop():
-        agent1.core.stop()
-        agent2.core.stop()
-        agent3.core.stop()
         p1.shutdown_platform()
         p2.shutdown_platform()
         p3.shutdown_platform()
@@ -492,7 +464,7 @@ def test_multiplatform_without_setup_mode(request, build_instances):
     for i in range(0, 2):
         agent1.vip.pubsub.publish(peer='pubsub', topic='devices/building1',
                                  message=[{'point': 'value' + str(i)}])
-        gevent.sleep(1)
+        gevent.sleep(0.5)
         try:
             message = subscription_results3['devices/building1']['message']
             assert message == [{'point': 'value' + str(i)}]
@@ -508,13 +480,11 @@ def test_multiplatform_local_subscription(request, build_instances):
     subscription_results1 = {}
     p1 = build_instances(1, add_my_address=True)
     gevent.sleep(1)
-    #Get twon agents
-    agent1 = p1.build_agent(identity="agent1")
-    agent2 = p1.build_agent(identity="agent2")
+    # Get two agents
+    agent1 = p1.dynamic_agent
+    agent2 = p1.build_agent()
 
     def stop():
-        agent1.core.stop()
-        agent2.core.stop()
         p1.shutdown_platform()
     request.addfinalizer(stop)
 
@@ -551,7 +521,7 @@ def test_multiplatform_bad_discovery_file(request, build_instances):
     p3.shutdown_platform()
 
 
-
+@pytest.mark.xfail(reason="Issue #2107. rpc call to edit config store will fail due to capabilities check")
 @pytest.mark.multiplatform
 def test_multiplatform_rpc(request, get_volttron_instances):
     p1, p2 = get_volttron_instances(2)

@@ -113,10 +113,7 @@ except:
 
 try:
     import pymongo
-
-    # Disabling mongo historian for now
-    # Need to fix mongo gevent loop error
-    HAS_PYMONGO = False
+    HAS_PYMONGO = True
 except:
     HAS_PYMONGO = False
 
@@ -213,7 +210,8 @@ mongo_platform = {
             "port": 27017,
             "database": "mongo_test",
             "user": "test",
-            "passwd": "test"
+            "passwd": "test",
+            "authSource": "admin"
         }
     }
 }
@@ -224,8 +222,8 @@ postgresql_platform = {
         'type': 'postgresql',
         'params': {
             'dbname': 'historian_test',
-            'port': 5433,
-            'host': '127.0.0.1',
+            'port': 5432,
+            'host': 'localhost',
             'user' : 'historian',
             'password': 'volttron'
         },
@@ -307,6 +305,8 @@ def setup_mongodb(connection_params, table_names):
     print ("setup mongodb")
     mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
     params = connection_params
+    if "authSource" in connection_params:
+        mongo_conn_str = mongo_conn_str + "?authSource={authSource}"
     mongo_conn_str = mongo_conn_str.format(**params)
     mongo_client = pymongo.MongoClient(mongo_conn_str)
     db = mongo_client[connection_params['database']]
@@ -497,7 +497,7 @@ def historian(request, volttron_instance, query_agent):
     # 3: add a tear down method to stop historian agent
     def stop_agent():
         print("In teardown method of sqlagent")
-        if volttron_instance.is_running():
+        if volttron_instance.is_running() and volttron_instance.is_agent_running(historian_uuid):
             volttron_instance.stop_agent(historian_uuid)
         volttron_instance.remove_agent(historian_uuid)
 
@@ -515,7 +515,9 @@ def clean_db_rows(request):
     print("*** IN clean_db_rows FIXTURE ***")
     cleanup_function = globals()["cleanup_" + connection_type]
     inspect.getargspec(cleanup_function)[0]
-    cleanup_function(db_connection, [table_names['data_table'], table_names['topics_table'], table_names['meta_table']])
+    # do not clean topics table here as we are not restarting historian
+    # for each test case and topics table is loaded in memory only on start
+    cleanup_function(db_connection, [table_names['data_table'], table_names['meta_table']])
 
 
 def publish(publish_agent, topic, header, message):

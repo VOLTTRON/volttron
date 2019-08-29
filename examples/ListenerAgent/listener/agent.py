@@ -37,22 +37,18 @@
 # }}}
 
 
-
-from datetime import datetime
 import logging
 import sys
-
 from pprint import pformat
 
-from volttron.platform.messaging.health import STATUS_GOOD
-from volttron.platform.vip.agent import Agent, Core, PubSub, compat
-from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.agent import utils
-from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.messaging.health import STATUS_GOOD
+from volttron.platform.vip.agent import Agent, Core, PubSub
+from volttron.platform.vip.agent.subsystems.query import Query
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.2'
+__version__ = '3.3'
 DEFAULT_MESSAGE = 'Listener Message'
 DEFAULT_AGENTID = "listener"
 DEFAULT_HEARTBEAT_PERIOD = 5
@@ -103,8 +99,6 @@ class ListenerAgent(Agent):
     @PubSub.subscribe('pubsub', '')
     def on_match(self, peer, sender, bus,  topic, headers, message):
         """Use match_all to receive all messages and print them out."""
-        if sender == 'pubsub.compat':
-            message = compat.unpack_legacy_message(headers, message)
         self._logfn(
             "Peer: {0}, Sender: {1}:, Bus: {2}, Topic: {3}, Headers: {4}, "
             "Message: \n{5}".format(peer, sender, bus, topic, headers, pformat(message)))

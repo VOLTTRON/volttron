@@ -32,8 +32,7 @@ import time
 
 from pydnp3 import opendnp3
 
-from dnp3.points import DIRECT_OPERATE, SELECT, OPERATE
-from dnp3.points import POINT_TYPE_ANALOG_OUTPUT, POINT_TYPE_BINARY_OUTPUT
+from dnp3 import DIRECT_OPERATE, SELECT, OPERATE, DATA_TYPE_BINARY_OUTPUT
 from dnp3.points import PointDefinitions
 from dnp3_master import DNP3Master
 from function_test import FunctionTest
@@ -44,11 +43,6 @@ OUTPUT_TYPES = {
     float: opendnp3.AnalogOutputFloat32,
     int: opendnp3.AnalogOutputInt32,
     bool: opendnp3.ControlRelayOutputBlock
-}
-
-POINT_TYPE_TO_PYTHON_TYPE = {
-    POINT_TYPE_BINARY_OUTPUT: {bool},
-    POINT_TYPE_ANALOG_OUTPUT: {int, float},
 }
 
 
@@ -78,7 +72,7 @@ class MesaMaster(DNP3Master):
         """
         value_type = type(point_value)
 
-        if pdef.point_type == POINT_TYPE_BINARY_OUTPUT:
+        if pdef.data_type == DATA_TYPE_BINARY_OUTPUT:
             point_value = opendnp3.ControlCode.LATCH_ON if point_value else opendnp3.ControlCode.LATCH_OFF
 
         try:
@@ -97,8 +91,8 @@ class MesaMaster(DNP3Master):
         for offset, value in enumerate(
                 record[field['name']]
                 for record in json_array for field in pdef.array_points):
-
-            self.send_command(self.send_direct_operate_command, pdef, value, index=pdef.index+offset)
+            if value not in ['', None]:
+                self.send_command(self.send_direct_operate_command, pdef, value, index=pdef.index+offset)
 
     def send_function_test(self, point_def_path='', func_def_path='', func_test_path='', func_test_json=None):
         """

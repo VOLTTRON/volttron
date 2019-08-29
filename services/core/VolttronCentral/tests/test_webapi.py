@@ -23,11 +23,25 @@ def auto_registered_local(vc_and_vcp_together):
     yield webapi
 
 
-@pytest.mark.dev
 def test_platform_list(auto_registered_local):
     webapi = auto_registered_local
 
     assert len(webapi.list_platforms()) == 1
+
+
+def test_platform_inspect(auto_registered_local):
+    webapi = auto_registered_local
+    platforms = webapi.list_platforms()
+    platform_uuid = platforms[0]["uuid"]
+
+    agents = webapi.list_agents(platform_uuid)
+
+    for agent in agents:
+        agent_uuid = agent['uuid']
+        result = webapi.inspect(platform_uuid, agent_uuid)
+        print(result)
+        method = 'health.get_status'
+        assert method in result['methods']
 
 
 @pytest.fixture(scope="module")
@@ -137,6 +151,41 @@ def test_store_list_get_configuration(auto_registered_local):
 
 
 @pytest.mark.vc
+def test_store_delete_configuration(auto_registered_local):
+
+    data = dict(
+        bim=50,
+        baz="foo",
+        bar="lambda"
+    )
+    str_data = jsonapi.dumps(data)
+    identity = "foo.bar"
+    config_name = "fuzzywidgets"
+
+    webapi = auto_registered_local
+
+    platforms = webapi.list_platforms()
+    platform_uuid = platforms[0]["uuid"]
+
+    resp = webapi.store_agent_config(platform_uuid, identity, config_name,
+                                     str_data)
+    assert resp is None
+
+    resp = webapi.list_agent_configs(platform_uuid, identity)
+    assert config_name == resp[0]
+
+    resp = webapi.get_agent_config(platform_uuid, identity, config_name)
+    assert str_data == resp
+
+    resp = webapi.delete_agent_config(platform_uuid, identity, config_name)
+    assert '' == resp
+
+    resp = webapi.list_agent_configs(platform_uuid, identity)
+    for res in resp:
+        assert config_name != resp[0]
+
+
+@pytest.mark.vc
 @pytest.mark.skipif(True, reason='Permissions always admin presently')
 def test_correct_reader_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
@@ -183,16 +232,17 @@ def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(auto_registered_
     for agent in agent_list:
         for p in permissions:
             assert p in agent['permissions']
+            permissions = agent['permissions']
 
             if agent['identity'] in ('platform.agent', 'volttron.central') or \
-                    agent['identity'].endswith('platform.agent'):
+                    agent['identity'].endswith('.platform.agent'):
                 if p in ('can_restart', 'can_start'):
-                    assert agent['permissions'][p]
+                    assert permissions[p]
                 else:
-                    assert not agent['permissions'][p]
+                    assert not permissions[p]
             else:
                 # for admin all should be true if not vcp or vc.
-                assert agent['permissions'][p]
+                assert permissions[p]
 
     apitester.remove_agent(platform['uuid'], listener_uuid)
     agent_list = apitester.list_agents(platform_uuid=platform['uuid'])

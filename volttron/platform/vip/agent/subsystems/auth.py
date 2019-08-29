@@ -80,7 +80,7 @@ class Auth(SubsystemBase):
 
         core.onsetup.connect(onsetup, self)
 
-    def connect_remote_platform(self, address, serverkey=None, rmq_ca_cert=None, agent_class=None):
+    def connect_remote_platform(self, address, serverkey=None, agent_class=None):
         """
         Atempts to connect to a remote platform to exchange data.
 
@@ -108,7 +108,7 @@ class Auth(SubsystemBase):
         if agent_class is None:
             agent_class = Agent
 
-        parsed_address = urlparse.urlparse(address)
+        parsed_address = urlparse(address)
         _log.debug("Begining auth.connect_remote_platform: {}".format(address))
 
         value = None
@@ -136,11 +136,6 @@ class Auth(SubsystemBase):
                                 secretkey=secretkey,
                                 message_bus='zmq',
                                 address=address)
-
-        elif parsed_address.scheme in ('amqp', 'amqps'):
-            # Rabbitmq connection
-            # TODO use known host rather than
-            pass
         elif parsed_address.scheme in ('https', 'http'):
             try:
                 # TODO: Use known host instead of looking up for discovery info if possible.
@@ -161,7 +156,6 @@ class Auth(SubsystemBase):
                         err = "Discovery from {} did not return serverkey and/or vip_address".format(address)
                         raise ValueError(err)
 
-                    publickey, secretkey = self._core().publickey, self._core().secretkey
                     _log.debug("Connecting using: {}".format(get_fq_identity(self._core().identity)))
 
                     # use fully qualified identity
@@ -177,25 +171,38 @@ class Auth(SubsystemBase):
                     # This is if both remote and local are rmq message buses.
                     if info.messagebus_type == 'rmq':
                         _log.debug("Both remote and local are rmq messagebus.")
+                        fqid_local = get_fq_identity(self._core().identity)
                         # Discovery info for external platform
-                        value = self.request_cert(address)
+                        response = self.request_cert(address, fqid_local, info)
 
-                        if value is None:
+                        if response is None:
                             _log.error("there was no response from the server")
-                        elif isinstance(value, tuple):
-                            if value[0] == 'PENDING':
+                            value = None
+                        elif isinstance(response, tuple):
+                            if response[0] == 'PENDING':
                                 _log.info("Waiting for administrator to accept a CSR request.")
                             value = None
-                        elif os.path.exists(value):
-                            info = DiscoveryInfo.request_discovery_info(address)
-                            remote_rmq_user = remote_identity
+                        # elif isinstance(response, dict):
+                        #     response
+                        elif os.path.exists(response):
+                            # info = DiscoveryInfo.request_discovery_info(address)
+                            # From the remote platforms perspective the remote user name is
+                            #   remoteinstance.localinstance.identity, this is what we must
+                            #   pass to the build_remote_connection_params for a successful
+
+                            remote_rmq_user = get_fq_identity(fqid_local, info.instance_name)
+                            _log.debug("REMOTE RMQ USER IS: {}".format(remote_rmq_user))
                             remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
                                 remote_rmq_user,
                                 info.rmq_address)
+                            _log.debug("Building dynamic agent using remote_rmq_address: {}".format(
+                                remote_rmq_address))
 
-                            value = build_agent(identity=remote_rmq_user,
+                            value = build_agent(identity=fqid_local,
                                                 address=remote_rmq_address,
                                                 instance_name=info.instance_name,
+                                                message_bus='rmq',
+                                                enable_store=False,
                                                 agent_class=agent_class)
                         else:
                             raise ValueError("Unknown path through discovery process!")
@@ -223,14 +230,14 @@ class Auth(SubsystemBase):
                                             message_bus='zmq',
                                             address=info.vip_address)
             except DiscoveryError:
-                value = dict(status='UNKNOWN',
-                             message="Couldn't connect to {} or incorrect response returned".format(address))
+                _log.error("Couldn't connect to {} or incorrect response returned response was {}".format(address, value))
+
         else:
             raise ValueError("Invalid configuration found the address: {} has an invalid scheme".format(address))
 
         return value
 
-    def request_cert(self, csr_server, discovery_info=None):
+    def request_cert(self, csr_server, fully_qualified_local_identity, discovery_info):
         """ Get a signed csr from the csr_server endpoint
 
         This method will create a csr request that is going to be sent to the
@@ -243,26 +250,25 @@ class Auth(SubsystemBase):
         if get_messagebus() != 'rmq':
             raise ValueError("Only can create csr for rabbitmq based platform in ssl mode.")
 
-        from volttron.platform.web import DiscoveryInfo
+        # from volttron.platform.web import DiscoveryInfo
         config = RMQConfig()
 
         if not config.is_ssl:
             raise ValueError("Only can create csr for rabbitmq based platform in ssl mode.")
 
-        info = discovery_info
-        if info is None:
-            info = DiscoveryInfo.request_discovery_info(csr_server)
+        # info = discovery_info
+        # if info is None:
+        #     info = DiscoveryInfo.request_discovery_info(csr_server)
 
         certs = Certs()
-        csr_request = certs.create_csr(self._core().identity, info.instance_name)
+        csr_request = certs.create_csr(fully_qualified_local_identity, discovery_info.instance_name)
         # The csr request requires the fully qualified identity that is
         # going to be connected to the external instance.
         #
         # The remote instance id is the instance name of the remote platform
         # concatenated with the identity of the local fully quallified identity.
-        remote_cert_name = "{}.{}".format(info.instance_name,
-                                          get_fq_identity(self._core().identity))
-        remote_ca_name = info.instance_name + "_ca"
+        remote_cert_name = "{}.{}".format(discovery_info.instance_name, fully_qualified_local_identity)
+        remote_ca_name = discovery_info.instance_name + "_ca"
 
         # if certs.cert_exists(remote_cert_name, True):
         #     return certs.cert(remote_cert_name, True)
@@ -284,10 +290,10 @@ class Auth(SubsystemBase):
         message = j.get('message', '')
 
         if status == 'SUCCESSFUL' or status == 'APPROVED':
-            certs.save_remote_info(get_fq_identity(self._core().identity),
+            certs.save_remote_info(fully_qualified_local_identity,
                                    remote_cert_name, cert,
                                    remote_ca_name,
-                                   info.rmq_ca_cert)
+                                   discovery_info.rmq_ca_cert)
 
         elif status == 'PENDING':
             _log.debug("Pending CSR request for {}".format(remote_cert_name))
@@ -319,7 +325,8 @@ class Auth(SubsystemBase):
             self._dirty = False
             try:
                 self._user_to_capabilities = self._rpc().call(AUTH,
-                                                              'get_user_to_capabilities').get(timeout=10)
+                    'get_user_to_capabilities').get(timeout=10)
+                _log.debug("self. user to cap {}".format(self._user_to_capabilities))
             except RemoteError:
                 self._dirty = True
 

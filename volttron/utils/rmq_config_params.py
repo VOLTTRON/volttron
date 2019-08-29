@@ -79,6 +79,25 @@ class RMQConfig(object):
             self.load_rmq_config()
         except (IOError, yaml.YAMLError) as exc:
             self.config_opts = {}
+        self._set_default_config()
+
+    def _set_default_config(self):
+        """
+        init with default values
+        :return:
+        """
+        self.config_opts.setdefault('host', "localhost")
+        self.config_opts.setdefault("ssl", "true")
+        self.config_opts.setdefault('amqp-port', 5672)
+        self.config_opts.setdefault('amqp-port-ssl', 5671)
+        self.config_opts.setdefault('mgmt-port', 15672)
+        self.config_opts.setdefault('mgmt-port-ssl', 15671)
+        self.config_opts.setdefault('virtual-host', 'volttron')
+        self.config_opts.setdefault('reconnect-delay', 30)
+        self.config_opts.setdefault('user', self.instance_name + '-admin')
+        rmq_home = os.path.join(os.path.expanduser("~"),
+                                "rabbitmq_server/rabbitmq_server-3.7.7")
+        self.config_opts.setdefault("rmq-home", rmq_home)
 
     def load_rmq_config(self, volttron_home=None):
         """
@@ -89,7 +108,7 @@ class RMQConfig(object):
         """Loads the config file if the path exists."""
         
         with open(self.volttron_rmq_config, 'r') as yaml_file:
-            self.config_opts = yaml.load(yaml_file)
+            self.config_opts = yaml.safe_load(yaml_file)
             if self.config_opts.get('rmq-home'):
                 self.config_opts['rmq-home'] = os.path.expanduser(
                     self.config_opts['rmq-home'])
@@ -110,25 +129,7 @@ class RMQConfig(object):
         except yaml.YAMLError as exc:
             raise
 
-    def set_default_config(self):
-        """
-        Check if basic configuration is available in the config file,
-        if not set default.
-        :return:
-        """
-        self.config_opts.setdefault('host', "localhost")
-        self.config_opts.setdefault("ssl", "true")
-        self.config_opts.setdefault('amqp-port', 5672)
-        self.config_opts.setdefault('amqp-port-ssl', 5671)
-        self.config_opts.setdefault('mgmt-port', 15672)
-        self.config_opts.setdefault('mgmt-port-ssl', 15671)
-        self.config_opts.setdefault('virtual-host', 'volttron')
-        self.config_opts.setdefault('reconnect-delay', 30)
-        self.config_opts.setdefault('user', self.instance_name + '-admin')
-        rmq_home = os.path.join(os.path.expanduser("~"),
-                                "rabbitmq_server/rabbitmq_server-3.7.7")
-        self.config_opts.setdefault("rmq-home", rmq_home)
-        self.write_rmq_config()
+
 
     @property
     def hostname(self):

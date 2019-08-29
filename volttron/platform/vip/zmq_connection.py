@@ -60,6 +60,7 @@ import logging
 
 from .green import Socket as GreenSocket
 from .rmq_connection import BaseConnection
+_log = logging.getLogger(__name__)
 
 
 class ZMQConnection(BaseConnection):
@@ -104,9 +105,10 @@ class ZMQConnection(BaseConnection):
     def send_vip_object(self, message, flags=0, copy=True, track=False):
         self.socket.send_vip_object(message, flags, copy, track)
 
-    def send_vip(self, peer, subsystem, args=None, msg_id=b'',
+    def send_vip(self, peer, subsystem, args=None, msg_id: bytes = b'',
                  user=b'', via=None, flags=0, copy=True, track=False):
-        self.socket.send_vip(peer, subsystem, args, msg_id, user, via, flags, copy, track)
+        self.socket.send_vip(peer, subsystem, args=args, msg_id=msg_id, user=user,
+                             via=via, flags=flags, copy=copy, track=track)
 
     def recv_vip_object(self, flags=0, copy=True, track=False):
         return self.socket.recv_vip_object(flags, copy, track)
@@ -114,7 +116,10 @@ class ZMQConnection(BaseConnection):
     def disconnect(self):
         self.socket.disconnect(self._url)
 
-    def close_connection(self, linger=1):
+    def close_connection(self, linger=5):
         """This method closes ZeroMQ socket"""
         self.socket.close(linger)
+        _log.debug("********************************************************************")
+        _log.debug("Closing connection to ZMQ: {}".format(self._identity))
+        _log.debug("********************************************************************")
 

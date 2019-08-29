@@ -50,8 +50,7 @@ import gevent
 from zmq import green as zmq
 from zmq import SNDMORE
 from volttron.platform import jsonapi
-
-from .base import BasePubSub
+from .base import SubsystemBase
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..errors import Unreachable, VIPError, UnknownSubsystem
 from .... import jsonrpc
@@ -82,7 +81,7 @@ def decode_peer(peer):
     return peer
 
 
-class PubSub(BasePubSub):
+class PubSub(SubsystemBase):
     """
     Pubsub subsystem concrete class implementation for ZMQ message bus.
     """
@@ -111,15 +110,13 @@ class PubSub(BasePubSub):
         self._event_queue = Queue()
         self._retry_period = 300.0
         self._processgreenlet = None
-        self._channel = None
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
             self._processgreenlet = gevent.spawn(self._process_loop)
             core.onconnected.connect(self._connected)
-            self.vip_socket = self.core().connection.socket
-
-            def subscribe(member):  # pylint: disable=redefined-outer-name
+            self.vip_socket = self.core().socket
+            def subscribe(member):   # pylint: disable=redefined-outer-name
                 for peer, bus, prefix, all_platforms, queue in annotations(
                         member, set, 'pubsub.subscriptions'):
                     # XXX: needs updated in light of onconnected signal
@@ -304,7 +301,6 @@ class PubSub(BasePubSub):
         """
         result = next(self._results)
 
-        # TODO: Look at differences here!
         subscriptions = {platform: {bus: list(subscriptions.keys())}
                          for platform, bus_subscriptions in self._my_subscriptions.items()
                          for bus, subscriptions in bus_subscriptions.items()}
@@ -320,8 +316,12 @@ class PubSub(BasePubSub):
                 kwargs = dict(op='synchronize', subscriptions=subscriptions)
                 self._save_parameters(result.ident, **kwargs)
             self.vip_socket.send_vip(b'', b'pubsub', frames, result.ident.encode('utf-8'), copy=False)
+
+        # 2073 - python3 dictionary keys method returns a dict_keys structure that isn't serializable.
+        #        added list(subscriptions.keys()) to make it like python2 list of strings.
         items = [
-            {platform: {bus: subscriptions.keys()} for platform, bus_subscriptions in self._my_subscriptions.items()
+            {platform: {bus: list(subscriptions.keys())}
+             for platform, bus_subscriptions in self._my_subscriptions.items()
              for bus, subscriptions in bus_subscriptions.items()}]
         for subscriptions in items:
             sync_msg = jsonapi.dumpb(
@@ -479,14 +479,15 @@ class PubSub(BasePubSub):
         """
         topics = []
         bus_subscriptions = dict()
-        subscriptions = dict()
         if prefix is None:
             if callback is None:
-                if platform in self._my_subscriptions:
+                if len(self._my_subscriptions) and platform in \
+                        self._my_subscriptions:
                     bus_subscriptions = self._my_subscriptions[platform]
-                if bus in bus_subscriptions:
-                    subscriptions = bus_subscriptions.pop(bus)
-                    topics = list(subscriptions)
+                    if bus in bus_subscriptions:
+                        topics.extend(bus_subscriptions[bus].keys())
+                if not len(topics):
+                    return []
             else:
                 if platform in self._my_subscriptions:
                     bus_subscriptions = self._my_subscriptions[platform]
@@ -511,7 +512,8 @@ class PubSub(BasePubSub):
             if not topics:
                 raise KeyError('no such subscription')
         else:
-            _log.debug("PUSUB unsubscribe my subscriptions: {0} {1}".format(prefix, self._my_subscriptions))
+            _log.debug("PUSUB unsubscribe my subscriptions: {0} {1}".format(
+                prefix, self._my_subscriptions))
             if platform in self._my_subscriptions:
                 bus_subscriptions = self._my_subscriptions[platform]
                 if bus in bus_subscriptions:
@@ -755,15 +757,21 @@ class PubSub(BasePubSub):
             param ident: event id
             param ident: float
         """
+
+        # #2074 the self._pubsubwithrpc attribute is delete when we have
+        # successfully determined that we are not connected to a backward
+        # compatible with volttron 4.0
         try:
             parameters = self._pubsubwithrpc.parameters.pop(id)
             event = parameters['event']
             event.cancel()
         except KeyError:
             return
+        except AttributeError:
+            pass
 
         try:
-            result = self._results.parameters.pop(id)
+            result = self._results.pop(id)
             result.set_exception(gevent.Timeout)
         except KeyError:
             return
