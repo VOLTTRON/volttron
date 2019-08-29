@@ -63,8 +63,11 @@ import pytz
 import sys
 import re
 import json
-import requests
 import grequests
+# requests should be imported after grequests as
+# requests imports ssl and grequests patches ssl
+import requests
+
 import pkg_resources
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import RPC

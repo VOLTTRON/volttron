@@ -122,6 +122,9 @@ extras_require = {
     ],
     'rabbitmq': [
         'cryptography',
-        'pika'
+        'gevent-pika'
+    ],
+    'weather': [
+        'pint'
     ],
 }

@@ -733,21 +733,25 @@ def execute_command_p(cmds, env=None, cwd=None, logger=None, err_prefix=None):
     If not logs stderr and raises RuntimeException"""
     if cwd is None:
         cwd = os.getcwd()
+    try:
+        results = subprocess.run(cmds, env=env, cwd=cwd,
+                                 stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        if results.returncode != 0:
+            err_prefix = "Error executing command"
+            err_message = "\n{}: Below Command failed with non zero exit code.\n" \
+                          "Command:{} \nStderr:\n{}\n".format(err_prefix,
+                                                              results.args,
+                                                              results.stderr)
+            if logger:
+                logger.exception(err_message)
+                raise RuntimeError()
+            else:
+                raise RuntimeError(err_message)
+        return results.returncode, results.stdout.decode('utf-8')
+    except BaseException as e:
+        _log.error("Exception running cmd: {} . Exception: {}".format(cmds, e))
+        raise e
 
-    results = subprocess.run(cmds, env=env, cwd=cwd,
-                             stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-    if results.returncode != 0:
-        err_prefix = "Error executing command"
-        err_message = "\n{}: Below Command failed with non zero exit code.\n" \
-                      "Command:{} \nStderr:\n{}\n".format(err_prefix,
-                                                          results.args,
-                                                          results.stderr)
-        if logger:
-            logger.exception(err_message)
-            raise RuntimeError()
-        else:
-            raise RuntimeError(err_message)
-    return results.returncode, results.stdout.decode('utf-8')
 
 
 def is_volttron_running(volttron_home):

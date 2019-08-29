@@ -1035,7 +1035,7 @@ class BaseWeatherAgent(Agent):
         match the standard point names provided.
         """
         mapped_data = {}
-        for point, value in record_dict.iteritems():
+        for point, value in record_dict.items():
             if isinstance(value, dict):
                 value = self.apply_mapping(value)
             if point in self.point_name_mapping:
@@ -1589,7 +1589,7 @@ class WeatherCache:
             now = datetime.datetime.utcnow()
             while page_count >= self._max_pages:
                 if attempt == 1:
-                    for table_name, service in self._api_services.iteritems():
+                    for table_name, service in self._api_services.items():
                         # Remove all data that is older than update interval
                         if service["type"] == "current":
                             query = """DELETE FROM {table} 
@@ -1598,7 +1598,7 @@ class WeatherCache:
                             cursor.execute(query,
                                            (now - service["update_interval"],))
                 elif attempt == 2:
-                    for table_name, service in self._api_services.iteritems():
+                    for table_name, service in self._api_services.items():
                         # Remove all data that is older than update interval
                         if service["type"] == "forecast":
                             query = """DELETE FROM {table} 
@@ -1608,7 +1608,7 @@ class WeatherCache:
                                            (now - service["update_interval"],))
                 elif attempt > 2:
                     records_deleted = 0
-                    for table_name, service in self._api_services.iteritems():
+                    for table_name, service in self._api_services.items():
                         if service["type"] == "history":
                             query = "DELETE FROM {table} WHERE ID IN " \
                                     "(SELECT ID FROM {table} " \
