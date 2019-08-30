@@ -158,7 +158,7 @@ class AuthService(Agent):
 
     def _send_update(self):
         user_to_caps = self.get_user_to_capabilities()
-        peers = self.vip.peerlist().get(timeout=0.1)
+        peers = self.vip.peerlist().get(timeout=0.5)
         _log.debug("AUTH new capabilities update: {}".format(user_to_caps))
 
         for peer in peers:
