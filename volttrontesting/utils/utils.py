@@ -1,19 +1,18 @@
-from datetime import datetime
+import os
 import socket
+import subprocess
 import time
 import mock
+from datetime import datetime
 from random import randint
 from random import random
 
 import gevent
+import mock
 import pytest
 
-from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent import utils
-
-
-import os
-import subprocess
+from volttron.platform.messaging import headers as headers_mod
 
 
 def is_running_in_container():
