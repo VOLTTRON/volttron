@@ -2,7 +2,6 @@ import os
 import socket
 import subprocess
 import time
-import mock
 from datetime import datetime
 from random import randint
 from random import random
