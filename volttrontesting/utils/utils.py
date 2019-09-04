@@ -1,18 +1,17 @@
-from datetime import datetime
+import os
 import socket
+import subprocess
 import time
+from datetime import datetime
 from random import randint
 from random import random
 
 import gevent
+import mock
 import pytest
 
-from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent import utils
-
-
-import os
-import subprocess
+from volttron.platform.messaging import headers as headers_mod
 
 
 def is_running_in_container():
@@ -177,3 +176,30 @@ def validate_published_device_data(expected_headers, expected_message,
         assert k in message[0]
         # pytest.approx gives 10^-6 (one millionth accuracy)
         assert message[0][k] == pytest.approx(v)
+
+
+class AgentMock(object):
+    '''
+    The purpose for this parent class is to be used for unit
+    testing of agents. It takes in the class methods of other
+    classes, turns them into it's own mock methods. For testing,
+    dynamically replace the agent's current base class with this
+    class, while passing in the agent's current classes as arguments.
+
+    For example:
+        Agent_to_test.__bases__ = (AgentMock.imitate(Agent, Agent()), )
+
+    As noted in the example, __bases__ takes in a tuple.
+    Also, the parent class Agent is passed as both Agent and the
+    instantiated Agent(), since it contains a class within it
+    that needs to be mocked as well
+    '''
+    @classmethod
+    def imitate(cls, *others):
+        for other in others:
+            for name in other.__dict__:
+                try:
+                    setattr(cls, name, mock.create_autospec(other.__dict__[name]))
+                except (TypeError, AttributeError):
+                    pass
+        return cls
