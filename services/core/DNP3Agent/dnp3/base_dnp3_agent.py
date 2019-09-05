@@ -43,13 +43,13 @@ from volttron.platform.agent import utils
 from volttron.platform.messaging import headers
 from volttron.platform.vip.agent import Agent
 
-from outstation import DNP3Outstation
+from dnp3.outstation import DNP3Outstation
 from dnp3 import DEFAULT_POINT_TOPIC, DEFAULT_OUTSTATION_STATUS_TOPIC
 from dnp3 import DEFAULT_LOCAL_IP, DEFAULT_PORT
 from dnp3 import DATA_TYPE_ANALOG_INPUT, DATA_TYPE_BINARY_INPUT
 from dnp3 import PUBLISH_AND_RESPOND
-from points import PointDefinitions, PointDefinition, PointArray
-from points import DNP3Exception
+from dnp3.points import PointDefinitions, PointDefinition, PointArray
+from dnp3.points import DNP3Exception
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)

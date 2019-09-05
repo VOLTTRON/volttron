@@ -127,8 +127,9 @@ def add_definitions_to_config_store(test_agent):
 def agent(request, volttron_instance):
     """Build the test agent for rpc call."""
 
-    test_agent = volttron_instance.build_agent()
-
+    test_agent = volttron_instance.build_agent(identity="test_agent")
+    capabilities = {'edit_config_store': {'identity': 'dnp3agent'}}
+    volttron_instance.add_capabilities(test_agent.core.publickey, capabilities)
     add_definitions_to_config_store(test_agent)
 
     print('Installing DNP3Agent')
