@@ -706,7 +706,7 @@ class PlatformHandler(object):
 
         point_list = []
 
-        for point, item in message.iteritems():
+        for point, item in message.items():
             point_list.append(point)
 
         # Note adding the s to the end of the prefix.

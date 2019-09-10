@@ -149,7 +149,7 @@ def agent(request, volttron_instance):
             volttron_instance.remove_agent(agent_id)
             test_agent.core.stop()
 
-    gevent.sleep(2)        # wait for agents and devices to start
+    gevent.sleep(12)        # wait for agents and devices to start
 
     request.addfinalizer(stop)
 
@@ -175,7 +175,7 @@ def reset(agent):
     """Reset agent and global variable messages before running every test."""
     global messages
     messages = {}
-    agent.vip.rpc.call(DNP3_AGENT_ID, 'reset')
+    agent.vip.rpc.call(DNP3_AGENT_ID, 'reset').get()
 
 
 class TestDNP3Agent:

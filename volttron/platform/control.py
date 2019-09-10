@@ -1740,7 +1740,7 @@ def list_users(opts):
 def list_user_properties(opts):
     try:
         props = rmq_mgmt.get_user_props(opts.user)
-        for key, value in props.iteritems():
+        for key, value in props.items():
             _stdout.write("{0}: {1} \n".format(key, value))
     except requests.exceptions.HTTPError as e:
         _stdout.write("No User Found: {} \n".format(opts.user))

@@ -474,7 +474,7 @@ class AuthService(Agent):
             for peer in peers:
                 self._user_to_permissions[peer].clear()
         else:
-            for topic, caps_for_topic in topic_to_caps.iteritems():
+            for topic, caps_for_topic in topic_to_caps.items():
                 for user in user_to_caps:
                     try:
                         caps_for_user = user_to_caps[user]

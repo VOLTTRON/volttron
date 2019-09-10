@@ -301,7 +301,7 @@ class BaseDNP3Agent(Agent):
             col_count = len(point_def.array_points)
             cols_by_name = {pt['name']: col for col, pt in enumerate(point_def.array_points)}
             for row_number, point_dict in enumerate(value):
-                for pt_name, pt_val in point_dict.iteritems():
+                for pt_name, pt_val in point_dict.items():
                     pt_index = point_def.index + col_count * row_number + cols_by_name[pt_name]
                     array_point_def = self.point_definitions.get_point_named(point_def.name, index=pt_index)
                     self._apply_point_update(array_point_def, pt_index, pt_val)
@@ -465,7 +465,7 @@ class BaseDNP3Agent(Agent):
         """
         _log.info('Setting DNP3 point values: {}'.format(point_dict))
         try:
-            for point_name, value in point_dict.iteritems():
+            for point_name, value in point_dict.items():
                 self.update_input_point(self.get_point_named(self.dnp3_point_name(point_name)), value)
         except Exception as e:
             raise DNP3Exception(e)

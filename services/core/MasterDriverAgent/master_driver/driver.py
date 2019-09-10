@@ -378,7 +378,7 @@ class DriverAgent(BasicAgent):
             headers_mod.DATE: utcnow_string,
             headers_mod.TIMESTAMP: utcnow_string,
         }
-        for point, value in point_values.iteritems():
+        for point, value in point_values.items():
             results = {point_name: value}
             meta = {point_name: self.meta_data[point_name]}
             all_message = [results, meta]
