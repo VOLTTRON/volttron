@@ -756,9 +756,6 @@ class AuthFile(object):
                 # Use gevent FileObject to avoid blocking the thread
                 before_strip_comments = FileObject(fil, close=False).read()
                 data = strip_comments(before_strip_comments.decode("utf-8"))
-                if data != before_strip_comments:
-                    _log.warning('Comments in %s are deprecated and will not be '
-                              'preserved', self.auth_file)
                 if data:
                     auth_data = jsonapi.loads(data)
         except Exception:
