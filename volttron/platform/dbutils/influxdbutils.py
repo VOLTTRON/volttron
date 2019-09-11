@@ -64,6 +64,12 @@ import re
 from requests.exceptions import ConnectionError
 
 from dateutil import parser
+from importlib import reload
+# reload to get the socket that is not patched by gevent.
+# volttron platform uses grequest, which patches ssl and socket.
+# influxdb  client throws thread exception with gevent patched socket
+import socket
+reload(socket)
 from influxdb import InfluxDBClient
 from influxdb.exceptions import InfluxDBClientError
 

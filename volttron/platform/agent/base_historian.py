@@ -1167,7 +1167,7 @@ class BaseHistorianAgent(Agent):
 
     def _historian_setup(self):
         try:
-            _log.exception("Trying to setup historian")
+            _log.info("Trying to setup historian")
             self.historian_setup()
             if not self._readonly:
                 # Record the names of data, topics, meta tables in a metadata table
