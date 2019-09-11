@@ -1010,6 +1010,8 @@ def start_volttron_process(opts):
             for task in tasks:
                 task.kill(block=False)
             gevent.wait(tasks)
+    except Exception as e:
+        _log.error(e)
     finally:
         _log.debug("AIP finally")
         opts.aip.finish()

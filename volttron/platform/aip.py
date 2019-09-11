@@ -57,11 +57,14 @@ from gevent import subprocess
 from gevent.subprocess import PIPE
 from wheel.tool import unpack
 
-from volttron.platform import certs
+from volttron.platform.agent.utils import get_fq_identity
+from volttron.platform import certs, keystore
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, \
     CONTROL
 
 # Can't use zmq.utils.jsonapi because it is missing the load() method.
+from volttron.platform.keystore import KeyStore
+
 try:
     import simplejson as jsonapi
 except ImportError:
@@ -212,12 +215,14 @@ class AIPplatform(object):
         self.agents = {}
         self.secure_agent_user = load_platform_config().get(
             'secure-agent-users', False)
-        if get_messagebus() == 'rmq':
+        self.message_bus = get_messagebus()
+        if self.message_bus == 'rmq':
             self.rmq_mgmt = RabbitMQMgmt()
+        self.instance_name = get_platform_instance_name()
 
     def add_agent_user_group(self):
         user = pwd.getpwuid(os.getuid())
-        group_name = "volttron_{}".format(get_platform_instance_name())
+        group_name = "volttron_{}".format(self.instance_name)
         try:
             group = grp.getgrnam(group_name)
         except KeyError:
@@ -255,7 +260,7 @@ class AIPplatform(object):
             volttron_agent_user = "volttron_{}".format(
                 str(get_utc_seconds_from_epoch()).replace(".", ""))
             _log.info("Creating volttron user {}".format(volttron_agent_user))
-            group = "volttron_{}".format(get_platform_instance_name())
+            group = "volttron_{}".format(self.instance_name)
             useradd = ['sudo', 'useradd', volttron_agent_user, '-r', '-G', group]
             useradd_process = subprocess.Popen(
                 useradd, stdout=PIPE, stderr=PIPE)
@@ -292,12 +297,14 @@ class AIPplatform(object):
     def set_agent_user_directory_permissions(self, volttron_agent_user,
                                              agent_uuid, agent_dir):
         name = self.agent_name(agent_uuid)
-        agent_path_with_name = os.path.join(agent_dir, name)
+        # agent_path_with_name = os.path.join(agent_dir, name)
         # Directories in the install path have read/execute
         for (root, directories, files) in os.walk(agent_dir, topdown=True):
             for directory in directories:
                 self.set_acl_for_path("rx", volttron_agent_user,
                                       os.path.join(root, directory))
+        self.set_acl_for_path("r", volttron_agent_user,
+                              os.path.join(get_home(), "known_hosts"))
 
     def remove_agent_user(self, agent_dir):
         """
@@ -348,7 +355,7 @@ class AIPplatform(object):
             self.stop_agent(agent_uuid)
         event = gevent.event.Event()
         agent = Agent(identity='aip', address='inproc://vip',
-                      message_bus=get_messagebus())
+                      message_bus=self.message_bus)
         task = gevent.spawn(agent.core.run, event)
         try:
             event.wait()
@@ -433,12 +440,16 @@ class AIPplatform(object):
             final_identity = self._setup_agent_vip_id(
                 agent_uuid, vip_identity=vip_identity)
 
-            if publickey is not None and secretkey is not None:
-                keystore = self.get_agent_keystore(agent_uuid)
-                keystore.public = publickey
-                keystore.secret = secretkey
+            keystore = self.get_agent_keystore(agent_uuid)
+            keystore.public = publickey
+            keystore.secret = secretkey
 
             self._authorize_agent_keys(agent_uuid, final_identity)
+
+            if self.message_bus == 'rmq':
+                rmq_user = get_fq_identity(final_identity,
+                                           self.instance_name)
+                certs.Certs().create_ca_signed_cert(rmq_user, overwrite=False)
 
             if self.secure_agent_user:
                 # When installing, we always create a new user, as anything
@@ -598,11 +609,11 @@ class AIPplatform(object):
         if agent_uuid not in os.listdir(self.install_dir):
             raise ValueError('invalid agent')
         self.stop_agent(agent_uuid)
-        msg_bus = get_messagebus()
+        msg_bus = self.message_bus
         identity = self.agent_identity(agent_uuid)
         if msg_bus == 'rmq':
             # Delete RabbitMQ user for the agent
-            instance_name = get_platform_instance_name()
+            instance_name = self.instance_name
             rmq_user = instance_name + '.' + identity
             self.rmq_mgmt.delete_user(rmq_user)
         self.agents.pop(agent_uuid, None)

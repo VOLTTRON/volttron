@@ -64,8 +64,13 @@ class BaseJSONStore(object):
     def __init__(self, filename, permissions=0o600):
         self.filename = filename
         self.permissions = permissions
-        create_file_if_missing(filename, contents='{}')
-        os.chmod(filename, permissions)
+        try:
+            created = create_file_if_missing(filename, contents='{}')
+            if created:
+                os.chmod(filename, permissions)
+        except Exception as e:
+            _log.error(e)
+            raise RuntimeError("Failed to access KeyStore: {}".format(filename))
 
     def store(self, data):
         fd = os.open(self.filename, os.O_CREAT | os.O_WRONLY | os.O_TRUNC,

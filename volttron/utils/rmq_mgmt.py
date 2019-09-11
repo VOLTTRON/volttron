@@ -935,8 +935,8 @@ class RabbitMQMgmt(object):
         rmq_user = get_fq_identity(identity, instance_name)
         permissions = self.get_default_permissions(rmq_user)
 
-        if self.is_ssl:
-            self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)
+        # if self.is_ssl:
+        #     self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)
         param = None
 
         try:

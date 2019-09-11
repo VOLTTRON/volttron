@@ -674,18 +674,21 @@ def create_file_if_missing(path, permission=0o660, contents=None):
                 raise
     try:
         open(path)
+        return False
     except IOError as exc:
         if exc.errno != errno.ENOENT:
             raise
         _log.debug('missing file %s', path)
         _log.info('creating file %s', path)
         fd = os.open(path, os.O_CREAT | os.O_WRONLY, permission)
+        success = False
         try:
             if contents:
                 os.write(fd, contents)
+                success = True
         finally:
             os.close(fd)
-
+        return success
 
 def fix_sqlite3_datetime(sql=None):
     """Primarily for fixing the base historian cache on certain versions

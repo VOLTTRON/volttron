@@ -557,8 +557,8 @@ class Core(BasicCore):
             keystore_dir = os.path.join(
                 self.volttron_home, 'keystores',
                 self.identity)
-            if not os.path.exists(keystore_dir):
-                os.makedirs(keystore_dir)
+            # if not os.path.exists(keystore_dir):
+            #     os.makedirs(keystore_dir)
 
         keystore_path = os.path.join(keystore_dir, 'keystore.json')
         keystore = KeyStore(keystore_path)
