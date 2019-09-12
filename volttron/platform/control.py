@@ -266,7 +266,7 @@ class ControlService(BaseAgent):
         identity = self.agent_vip_identity(uuid)
         self._aip.stop_agent(uuid)
         # Send message to router that agent is shutting down
-        frames = [identity.encode('utf-8')]
+        frames = [identity]
 
         # Was self.core.socket.send_vip(b'', b'agentstop', frames, copy=False)
         self.core.connection.send_vip(b'', b'agentstop', args=frames, copy=False)
@@ -319,7 +319,7 @@ class ControlService(BaseAgent):
         identity = self.agent_vip_identity(uuid)
         # Because we are using send_vip we should pass frames that have bytes rather than
         # strings.
-        frames = [identity.encode('utf-8')]
+        frames = [identity]
 
         # Send message to router that agent is shutting down
         self.core.connection.send_vip(b'', b'agentstop', args=frames)

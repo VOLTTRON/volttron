@@ -813,8 +813,7 @@ class Certs(object):
         ca_cert = self.cert(ca_name)
 
         issuer = ca_cert.subject
-        ski = ca_cert.extensions.get_extension_for_class(
-            x509.SubjectKeyIdentifier)
+        ski = x509.SubjectKeyIdentifier.from_public_key(ca_cert.public_key())
 
         key = rsa.generate_private_key(
             public_exponent=65537,

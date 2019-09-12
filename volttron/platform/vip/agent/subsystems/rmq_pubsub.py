@@ -125,7 +125,7 @@ class RMQPubSub(SubsystemBase):
                                                                                     queue_name=queue_name)
                     else:
                         queue_name = "{user}.pubsub.{uid}".format(user=self.core().rmq_user,
-                                                                  uid=bytes(uuid.uuid4()))
+                                                                  uid=uuid.uuid4())
 
                     self._add_subscription(routing_key, member, queue_name)
                     # self._logger.debug("SYNC RMQ: all_platforms {}")
@@ -153,8 +153,8 @@ class RMQPubSub(SubsystemBase):
         """
         connection = self.core().connection
         # self._logger.debug("Synchronize {}".format(self._my_subscriptions))
-        for prefix, subscriptions in self._my_subscriptions.iteritems():
-            for queue_name, callback in subscriptions.iteritems():
+        for prefix, subscriptions in self._my_subscriptions.items():
+            for queue_name, callback in subscriptions.items():
                 durable = False
                 auto_delete = True
                 # Check if queue needs to be persistent
@@ -272,7 +272,7 @@ class RMQPubSub(SubsystemBase):
             dict(prefix=prefix, bus=bus, all_platforms=True)
         )
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
-        frames = [self.core().identity, b'', b'VIP1', b'', b'', b'pubsub', b'subscribe', sub_msg]
+        frames = [self.core().identity, '', 'VIP1', '', '', 'pubsub', 'subscribe', sub_msg]
         connection.channel.basic_publish(exchange=connection.exchange,
                                          routing_key=rkey,
                                          body=jsonapi.dumps(frames, ensure_ascii=False))
@@ -412,8 +412,8 @@ class RMQPubSub(SubsystemBase):
         dct = {
             # 'user_id': self.core().identity,
             'app_id': connection.routing_key,  # SENDER
-            'headers': dict(recipient=b'',  # RECEIVER
-                            proto=b'VIP',  # PROTO
+            'headers': dict(recipient='',  # RECEIVER
+                            proto='VIP',  # PROTO
                             user=self.core().identity,  # USER_ID
                             ),
             'message_id': result.ident,  # MSG_ID
@@ -436,7 +436,7 @@ class RMQPubSub(SubsystemBase):
 
     def set_result(self, ident, value=None):
         try:
-            result = self._results.pop(bytes(ident))
+            result = self._results.pop(ident)
             if result:
                 result.set(value)
         except KeyError:
@@ -463,7 +463,7 @@ class RMQPubSub(SubsystemBase):
             if ident:
                 result = None
                 try:
-                    result = self._results.pop(bytes(ident))
+                    result = self._results.pop(ident)
                     if result:
                         result.set(delivery_number)
                 except KeyError:
@@ -503,8 +503,8 @@ class RMQPubSub(SubsystemBase):
             subscriptions = dict()
             subscriptions['all'] = dict(prefix=topics, bus=bus)
             rkey = self.core().instance_name + '.proxy.router.pubsub'
-            frames = [self.core().identity, b'', b'VIP1', b'', b'', b'pubsub',
-                      b'unsubscribe', jsonapi.dumps(subscriptions)]
+            frames = [self.core().identity, '', 'VIP1', '', '', 'pubsub',
+                      'unsubscribe', jsonapi.dumps(subscriptions)]
             self.core().connection.channel.basic_publish(exchange=self.core().connection.exchange,
                                                          routing_key=rkey,
                                                          body=frames)
@@ -535,7 +535,7 @@ class RMQPubSub(SubsystemBase):
                 for prefix in self._my_subscriptions:
                     subscriptions = self._my_subscriptions[prefix]
                     self._logger.debug("prefix: {0}, {1}".format(prefix, subscriptions))
-                    for queue_name, callbacks in subscriptions.iteritems():
+                    for queue_name, callbacks in subscriptions.items()():
                         try:
                             callbacks.remove(callback)
                         except KeyError:
@@ -563,13 +563,13 @@ class RMQPubSub(SubsystemBase):
                 topics.append(routing_key)
                 subscriptions = self._my_subscriptions[routing_key]
                 if callback is None:
-                    for queue_name, callbacks in subscriptions.iteritems():
+                    for queue_name, callbacks in subscriptions.items()():
                         self._logger.debug("RMQ queues {}".format(queue_name))
                         self.core().connection.channel.queue_delete(callback=None, queue=queue_name)
                     del self._my_subscriptions[routing_key]
                 else:
                     self._logger.debug("topics: {0}".format(topics))
-                    for queue_name, callbacks in subscriptions.iteritems():
+                    for queue_name, callbacks in subscriptions.items()():
                         try:
                             callbacks.remove(callback)
                         except KeyError:

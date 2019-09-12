@@ -94,7 +94,7 @@ def recursive_asdict(d):
     http://stackoverflow.com/questions/2412486/serializing-a-suds-object-in-python
     """
     out = {}
-    for k, v in asdict(d).iteritems():
+    for k, v in asdict(d).items():
         if hasattr(v, '__keylist__'):
             out[k] = recursive_asdict(v)
         elif isinstance(v, list):

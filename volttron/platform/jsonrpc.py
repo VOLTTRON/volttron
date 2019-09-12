@@ -36,10 +36,10 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-'''Implementation of JSON-RPC 2.0 with support for bi-directional calls.
+"""Implementation of JSON-RPC 2.0 with support for bi-directional calls.
 
 See http://www.jsonrpc.org/specification for the complete specification.
-'''
+"""
 
 import sys
 from contextlib import contextmanager
@@ -83,7 +83,7 @@ def json_validate_response(jsonresponse):
 
 
 def json_method(ident, method, args, kwargs):
-    '''Builds a JSON-RPC request object (dictionary).'''
+    """Builds a JSON-RPC request object (dictionary)."""
     request = {'jsonrpc': '2.0', 'method': str(method)}
     if args and kwargs:
         request['params'] = {'*args': args, '**kwargs': kwargs}
@@ -97,12 +97,12 @@ def json_method(ident, method, args, kwargs):
 
 
 def json_result(ident, result):
-    '''Builds a JSON-RPC response object (dictionary).'''
+    """Builds a JSON-RPC response object (dictionary)."""
     return {'jsonrpc': '2.0', 'id': ident, 'result': result}
 
 
 def json_error(ident, code, message, **data):
-    '''Builds a JSON-RPC error object (dictionary).'''
+    """Builds a JSON-RPC error object (dictionary)."""
     error = {'code': code, 'message': message}
     if data:
         error['data'] = data
@@ -114,8 +114,8 @@ class ParseError(Exception):
 
 
 class JsonRpcData(object):
-    ''' A `JsonRpcData` reprepresents the data associated with an rpc request.
-    '''
+    """ A `JsonRpcData` reprepresents the data associated with an rpc request.
+    """
     def __init__(self, id, version, method, params, authorization):
         self.id = id
         self.version = version
@@ -149,7 +149,7 @@ class JsonRpcData(object):
 
 
 class Error(Exception):
-    '''Raised when a recoverable JSON-RPC protocol error occurs.'''
+    """Raised when a recoverable JSON-RPC protocol error occurs."""
     def __init__(self, code, message, data=None):
         args = (code, message, data) if data is not None else (code, message)
         super(Error, self).__init__(*args)   # pylint: disable=star-args
@@ -165,7 +165,7 @@ class Error(Exception):
 
 
 class MethodNotFound(Error):
-    '''Raised when remote method is not implemented.'''
+    """Raised when remote method is not implemented."""
     pass
 
 
@@ -206,7 +206,7 @@ class RemoteError(Exception):
         return '%s(%s)' % (exc_type, exc_args)
 
     def print_tb(self, file=sys.stderr):
-        '''Pretty print the traceback in the standard format.'''
+        """Pretty print the traceback in the standard format."""
         exc_type = self.exc_info.get('exc_type', '<unknown>')
         file.write('Remote Traceback (most recent call last):\n')
         try:
@@ -220,7 +220,7 @@ class RemoteError(Exception):
 
 
 def exception_from_json(code, message, data=None):
-    '''Return an exception suitable for raising in a caller.'''
+    """Return an exception suitable for raising in a caller."""
     if code == UNHANDLED_EXCEPTION:
         return RemoteError(data.get('detail', message),
                            **data.get('exception.py', {}))
@@ -230,7 +230,7 @@ def exception_from_json(code, message, data=None):
 
 
 class Dispatcher(object):
-    '''Parses and directs JSON-RPC 2.0 requests/responses.
+    """Parses and directs JSON-RPC 2.0 requests/responses.
 
     Parses a JSON-RPC message conatained in a dictionary (JavaScript
     object) or a batch of messages (list of dictionaries) and dispatches
@@ -239,58 +239,58 @@ class Dispatcher(object):
     Subclasses must implement the serialize and deserialize methods with
     the JSON library of choice. The exception, result, error, method and
     batch handling methods should also be implemented.
-    '''
+    """
 
     def serialize(self, json_obj):
-        '''Pack compatible Python objects into and return JSON string.'''
+        """Pack compatible Python objects into and return JSON string."""
         raise NotImplementedError()
 
     def deserialize(self, json_string):
-        '''Unpack a JSON string and return Python object(s).'''
+        """Unpack a JSON string and return Python object(s)."""
         raise NotImplementedError()
 
     def batch_call(self, requests):
-        '''Create and return a request for a batch of method calls.
+        """Create and return a request for a batch of method calls.
 
         requests is an iterator of lists or tuples with 4 items each:
         ident, method, args, kwargs. These are the same 4 arguments
         required by the call() method. The first (ident) element may be
         None to indicate a notification.
-        '''
+        """
         return self.serialize([json_method(ident, method, args, kwargs)
                                for ident, method, args, kwargs in requests])
 
     def call(self, ident, method, args=None, kwargs=None):
-        '''Create and return a request for a single method call.'''
+        """Create and return a request for a single method call."""
         return self.serialize(json_method(
             ident, method, args or (), kwargs or {}))
 
     def notify(self, method, args=None, kwargs=None):
-        '''Create and return a request for a single notification.'''
+        """Create and return a request for a single notification."""
         return self.serialize(json_method(
             None, method, args or (), kwargs or {}))
 
     def exception(self, response, ident, message, context=None):
-        '''Called for response errors.
+        """Called for response errors.
 
         Typically called when a response, such as an error, does not
         contain all the necessary members and sending an error to the
         remote peer is not possible. Also called when serializing a
         response fails.
-        '''
+        """
         pass
 
     def result(self, response, ident, result, context=None):
-        '''Called when a result response is received.'''
+        """Called when a result response is received."""
         pass
 
     def error(self, response, ident, code, message, data=None, context=None):
-        '''Called when an error resposne is received.'''
+        """Called when an error resposne is received."""
         pass
 
     def method(self, request, ident, name, args, kwargs,
                batch=None, context=None):
-        '''Called to get make method call and return results.
+        """Called to get make method call and return results.
 
         request is the original JSON request (as dict). name is the name
         of the method requested. Only one of args or kwargs will contain
@@ -305,25 +305,20 @@ class Dispatcher(object):
         be sent back in the returned error. An exc_info attribute may
         also be set which must be a dictionary and will be used as the
         basis for the exception.py member of the returned error.
-        '''
+        """
         raise NotImplementedError()
 
     @contextmanager
     def batch(self, request, context=None):
-        '''Context manager for batch requests.
+        """Context manager for batch requests.
 
         Entered before processing a batch request and exited afterward.
-        '''
+        """
         # pylint: disable=unused-argument
         yield
 
-    def dispatch(self, json_string, context=None):
-        '''Dispatch a JSON-RPC message and return a response or None.'''
-        try:
-            message = self.deserialize(json_string)
-        except ValueError as exc:
-            return self.serialize(json_error(
-                None, PARSE_ERROR, 'invalid JSON', detail=str(exc)))
+    def dispatch(self, message: (dict, list), context: str = None):
+        """Dispatch a JSON-RPC message and return a response or None."""
         if isinstance(message, list):
             dispatch = self._dispatch_one
             with self.batch(message) as batch:
@@ -343,7 +338,7 @@ class Dispatcher(object):
                 self.exception(response, None, str(exc), context=context)
 
     def _dispatch_one(self, msg, batch, context):
-        '''Dispatch a single JSON-RPC message.'''
+        """Dispatch a single JSON-RPC message."""
         try:
             ident = msg.get('id')
         except AttributeError:

@@ -689,7 +689,8 @@ def create_file_if_missing(path, permission=0o660, contents=None):
             if e.errno != errno.EEXIST:
                 raise
     try:
-        open(path)
+        with open(path) as fd:
+            pass
     except IOError as exc:
         if exc.errno != errno.ENOENT:
             raise

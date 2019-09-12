@@ -36,62 +36,48 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
-
-import re
-import weakref
+from json import JSONDecodeError
+from typing import List, Any
+from zmq.sugar.frame import Frame
 
 from volttron.platform import jsonapi
 
-from .base import SubsystemBase
-from ..errors import VIPError
-from ..results import ResultsDictionary
-from volttron.platform.vip.socket import Message
 
-__all__ = ['Query']
-
-
-class Query(SubsystemBase):
-    def __init__(self, core):
-        self.core = weakref.ref(core)
-        self._results = ResultsDictionary()
-        core.register('query', self._handle_result, self._handle_error)
-
-    def query(self, prop: str, peer: str = ''):
-        """ query a specific peer for a property value
-
-        This method is very useful for retrieving configuration data from the core platform.  When
-        peer is not specified it is defaulted to the router.
-
-        :param prop:
-            The property to query for.
-        :param peer:
-            The query to query upon
-        :return:
-        """
-        connection = self.core().connection
-        result = next(self._results)
-        connection.send_vip(peer, 'query', args=[prop],
-                            msg_id=result.ident)
-        return result
-
-    __call__ = query
-
-    def _handle_result(self, message):
-        if message.args and not message.args[0]:
+def deserialize_frames(frames: List[Frame]) -> List:
+    decoded = []
+    for x in frames:
+        if isinstance(x, list):
+            decoded.append(deserialize_frames(x))
+        else:
+            d = x.bytes.decode('utf-8')
             try:
-                result = self._results.pop(message.id)
-            except KeyError:
-                return
-            try:
-                value = message.args[1]
-            except IndexError:
-                value = None
-            result.set(value)
+                decoded.append(jsonapi.loads(d))
+            except JSONDecodeError:
+                decoded.append(d)
 
-    def _handle_error(self, sender, message, error, **kwargs):
+    return decoded
+
+
+def serialize_frames(data: List[Any]) -> List[Frame]:
+    frames = []
+
+    for x in data:
         try:
-            result = self._results.pop(message.id)
-        except KeyError:
-            return
-        result.set_exception(error)
+            if isinstance(x, list):
+                frames.append(serialize_frames(x))
+            elif isinstance(x, Frame):
+                frames.append(x)
+            elif isinstance(x, bytes):
+                frames.append(Frame(x))
+            elif isinstance(x, dict):
+                frames.append(Frame(jsonapi.dumps(x).encode('utf-8')))
+            else:
+                frames.append(Frame(x.encode('utf-8')))
+        except TypeError as e:
+            print(f"Can't serialize {x} with type: {type(x)}")
+            import sys
+            sys.exit(0)
+
+    return frames
+
+

@@ -56,11 +56,10 @@
 # }}}
 
 import errno
-import json
 import logging
 import os
 
-from volttron.platform import is_rabbitmq_available
+from volttron.platform import is_rabbitmq_available, jsonapi
 from volttron.platform.agent.utils import get_fq_identity
 from volttron.platform.vip import BaseConnection
 from volttron.platform.vip.agent.errors import Unreachable
@@ -314,7 +313,7 @@ class RMQConnection(BaseConnection):
 
         msg = Message()
         msg.peer = peer
-        msg.user = props.headers.get('user', b'')
+        msg.user = props.headers.get('user', '')
         msg.platform = platform
         msg.id = props.message_id
         msg.subsystem = props.type
@@ -330,18 +329,18 @@ class RMQConnection(BaseConnection):
         :return:
         """
         platform = getattr(message, 'platform', self._instance_name)
-        if message.peer == b'':
+        if message.peer == '':
             message.peer = 'router'
-        if platform == b'':
+        if platform == '':
             platform = self._instance_name
 
         destination_routing_key = "{0}.{1}".format(platform, message.peer)
         user = getattr(message, 'user', self._rmq_userid)
-        msg_id = getattr(message, 'id', b'')
+        msg_id = getattr(message, 'id', '')
         self._send_via_rmq(destination_routing_key, message.subsystem, message.args, msg_id, user)
 
-    def send_vip(self, peer, subsystem, args=None, msg_id=b'',
-                 user=b'', via=None, flags=0, copy=True, track=False, platform=None):
+    def send_vip(self, peer, subsystem, args=None, msg_id='',
+                 user='', via=None, flags=0, copy=True, track=False, platform=None):
         """
         Send VIP message over RabbitMQ message bus.
         :param peer: peer
@@ -356,11 +355,11 @@ class RMQConnection(BaseConnection):
         :param platform: instance name
         :return:
         """
-        if not platform or platform == b'':
+        if not platform or platform == '':
             platform = self._instance_name
-        if peer == b'':
+        if peer == '':
             peer = 'router'
-        if user == b'':
+        if user == '':
             user = self._rmq_userid
         destination_routing_key = "{0}.{1}".format(platform, peer)
         self._send_via_rmq(destination_routing_key, subsystem, args, msg_id, user)
@@ -383,7 +382,7 @@ class RMQConnection(BaseConnection):
             'app_id': self.routing_key,  # Routing key of SENDER
             'headers': dict(
                 recipient=destination_routing_key,  # RECEIVER
-                proto=b'VIP',  # PROTO
+                proto='VIP',  # PROTO
                 user=user,  # USER_ID
             ),
             'message_id': msg_id,  # MSG_ID
@@ -529,14 +528,14 @@ class RMQRouterConnection(RMQConnection):
         :param body: message body
         :return:
         """
-        # Ignore if message type is 'pubsub'
-        if props.type == 'pubsub':
+        # Ignore if message type is 'pubsu'
+        if props.type == 'pubsu':
             return
 
         sender = props.app_id
         subsystem = props.type
         props.app_id = self.routing_key
-        props.type = b'error'
+        props.type = 'error'
         props.user_id = self._rmq_userid
         errnum = errno.EHOSTUNREACH
         errmsg = os.strerror(errnum).encode('ascii')
@@ -545,11 +544,12 @@ class RMQRouterConnection(RMQConnection):
         recipient = props.headers.get('recipient', '') if props.headers else ''
         message = [errnum, errmsg, recipient, subsystem]
 
-        # _log.error("Host Unreachable Error Message is: {0}, {1}, {2}, {3}".format(
-        #     message,
-        #     method.routing_key,
-        #     sender,
-        #     props))
+        _log.error("Host Unreachable Error Message is: {0}, {1}, {2}, {3}".format(
+            message,
+            method.routing_key,
+            sender,
+            props))
+
 
         # The below try/except protects the platform from someone who is not communicating
         # via vip protocol.  If sender is not a string then the channel publish will throw

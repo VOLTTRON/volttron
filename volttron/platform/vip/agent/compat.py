@@ -137,7 +137,7 @@ class CompatPubSub(object):
                     #    ('add' if add else 'remove'), topic))
                     sock.send('subscriptions/{}{}{}'.format(
                         ('add' if add else 'remove'),
-                        ('' if topic[:1] == '/' else '/'), topic).encode('utf-8'))
+                        ('' if topic[:1] == '/' else '/'), topic))
 
     def forward(self, peer, sender, bus, topic, headers, message):
         headers = Headers(headers)
