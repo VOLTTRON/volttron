@@ -42,6 +42,7 @@ import socket
 # reload to get the socket that is not patched by gevent.
 # pika requires socket patched and thread not patched
 # pymongo requires either both patched (to support gevent) or both unpatched to use threads
+from importlib import reload
 reload(socket)
 
 import pymongo

@@ -57,13 +57,16 @@
 import logging
 import sys
 
-from requests.exceptions import ConnectionError
-from influxdb.exceptions import InfluxDBClientError
 
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.dbutils import influxdbutils
 from volttron.utils.docs import doc_inherit
+
+# Prefer grequest  to request. If importing requests  or any package that import requests, it needs to be done
+# after import of any volttron agent class and grequests
+from requests.exceptions import ConnectionError
+from influxdb.exceptions import InfluxDBClientError
 
 __version__ = "0.1"
 

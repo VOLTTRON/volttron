@@ -59,7 +59,6 @@ from datetime import datetime
 
 import gevent
 # noinspection PyUnresolvedReferences
-import grequests
 import psutil
 import pytz
 import yaml

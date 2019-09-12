@@ -38,7 +38,7 @@
 
 import logging
 import os
-import requests
+import grequests
 
 from urllib.parse import urlparse
 import weakref
@@ -278,9 +278,17 @@ class Auth(SubsystemBase):
             identity=remote_cert_name,  # get_platform_instance_name()+"."+self._core().identity,
             hostname=config.hostname
         )
-        response = requests.post(csr_server + "/csr/request_new",
+        request = grequests.post(csr_server + "/csr/request_new",
                                  json=jsonapi.dumps(json_request),
                                  verify=False)
+        response = grequests.map([request])
+
+        if response and isinstance(response, list):
+            response[0].raise_for_status()
+        response = response[0]
+        # response = requests.post(csr_server + "/csr/request_new",
+        #                          json=jsonapi.dumps(json_request),
+        #                          verify=False)
 
         _log.debug("The response: {}".format(response))
 
