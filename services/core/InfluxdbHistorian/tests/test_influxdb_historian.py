@@ -51,7 +51,7 @@
 # United States Government or any agency thereof.
 #
 # }}}
-
+import math
 import random
 import pytest
 import gevent
@@ -569,7 +569,7 @@ def test_publish_with_changed_value_type(volttron_instance, influxdb_client):
             ts = format_timestamp(ts)
             assert point["value_string"] == str(expected[ts][topic])
             try:
-                assert approx(point["value"]) == float(expected[ts][topic])
+                assert math.isclose(point["value"], float(expected[ts][topic]))
             except ValueError:
                 assert point["value"] is None
 
@@ -964,36 +964,47 @@ def test_query_topics_by_pattern(volttron_instance, influxdb_client):
                                               'get_topics_by_pattern',
                                               topic_pattern=pattern_1).get(timeout=5)
 
-        assert sorted(topics_metadata) == sorted(expected_1)
+        # Can't sort list of dict with single key directly in python3
+        # Compare only the topic names which the key in the dict. The value is topic id
+        topic_names = [list(topic_dict)[0] for topic_dict in topics_metadata]
+        expected_topic_names = [list(expected_dict)[0] for expected_dict in expected_1]
+        assert sorted(topic_names) == sorted(expected_topic_names)
 
         # Test for pattern 2
         topics_metadata = lister.vip.rpc.call('influxdb.historian',
                                               'get_topics_by_pattern',
                                               topic_pattern=pattern_2).get(timeout=5)
 
-        assert sorted(topics_metadata) == sorted(expected_2)
+        topic_names = [list(topic_dict)[0] for topic_dict in topics_metadata]
+        expected_topic_names = [list(expected_dict)[0] for expected_dict in expected_2]
+        assert sorted(topic_names) == sorted(expected_topic_names)
 
         # Test for pattern 3
         topics_metadata = lister.vip.rpc.call('influxdb.historian',
                                               'get_topics_by_pattern',
                                               topic_pattern=pattern_3).get(timeout=5)
 
-        assert sorted(topics_metadata) == sorted(expected_3)
+        topic_names = [list(topic_dict)[0] for topic_dict in topics_metadata]
+        expected_topic_names = [list(expected_dict)[0] for expected_dict in expected_3]
+        assert sorted(topic_names) == sorted(expected_topic_names)
 
         # Test for pattern 4
         topics_metadata = lister.vip.rpc.call('influxdb.historian',
                                               'get_topics_by_pattern',
                                               topic_pattern=pattern_4).get(timeout=5)
 
-        assert sorted(topics_metadata) == sorted(expected_4)
+        topic_names = [list(topic_dict)[0] for topic_dict in topics_metadata]
+        expected_topic_names = [list(expected_dict)[0] for expected_dict in expected_4]
+        assert sorted(topic_names) == sorted(expected_topic_names)
 
         # Test for pattern 5
         topics_metadata = lister.vip.rpc.call('influxdb.historian',
                                               'get_topics_by_pattern',
                                               topic_pattern=pattern_5).get(timeout=5)
 
-        assert sorted(topics_metadata) == sorted(expected_5)
-
+        topic_names = [list(topic_dict)[0] for topic_dict in topics_metadata]
+        expected_topic_names = [list(expected_dict)[0] for expected_dict in expected_5]
+        assert sorted(topic_names) == sorted(expected_topic_names)
     finally:
         volttron_instance.stop_agent(agent_uuid)
         volttron_instance.remove_agent(agent_uuid)
@@ -1346,7 +1357,10 @@ def test_update_config_store(volttron_instance, influxdb_client):
     try:
         assert influxdb_client is not None
 
-        publisher = volttron_instance.build_agent()
+        publisher = volttron_instance.build_agent(identity="publisher")
+        capabilities = {'edit_config_store': {'identity': 'influxdb.historian'}}
+        volttron_instance.add_capabilities(publisher.core.publickey, capabilities)
+
         assert publisher is not None
         publish_some_fake_data(publisher, 5)
 

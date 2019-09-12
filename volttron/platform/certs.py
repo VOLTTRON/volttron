@@ -868,8 +868,7 @@ class Certs(object):
                 x509.BasicConstraints(ca=True, path_length=0),
                 critical=True
             ).add_extension(
-                x509.SubjectKeyIdentifier(
-                    _create_fingerprint(key.public_key())),
+                x509.SubjectKeyIdentifier.from_public_key(key.public_key()),
                 critical=False
             )
         else:

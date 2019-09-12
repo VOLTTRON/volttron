@@ -127,8 +127,9 @@ def add_definitions_to_config_store(test_agent):
 def agent(request, volttron_instance):
     """Build the test agent for rpc call."""
 
-    test_agent = volttron_instance.build_agent()
-
+    test_agent = volttron_instance.build_agent(identity="test_agent")
+    capabilities = {'edit_config_store': {'identity': 'dnp3agent'}}
+    volttron_instance.add_capabilities(test_agent.core.publickey, capabilities)
     add_definitions_to_config_store(test_agent)
 
     print('Installing DNP3Agent')
@@ -148,7 +149,7 @@ def agent(request, volttron_instance):
             volttron_instance.remove_agent(agent_id)
             test_agent.core.stop()
 
-    gevent.sleep(2)        # wait for agents and devices to start
+    gevent.sleep(12)        # wait for agents and devices to start
 
     request.addfinalizer(stop)
 
@@ -174,7 +175,7 @@ def reset(agent):
     """Reset agent and global variable messages before running every test."""
     global messages
     messages = {}
-    agent.vip.rpc.call(DNP3_AGENT_ID, 'reset')
+    agent.vip.rpc.call(DNP3_AGENT_ID, 'reset').get()
 
 
 class TestDNP3Agent:

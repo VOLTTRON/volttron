@@ -178,7 +178,7 @@ def _create_federation_setup(admin_user, admin_password, is_ssl, vhost, vhome):
         if is_ssl:
             ssl_params = rmq_mgmt.get_ssl_url_params()
 
-        for host, upstream in federation.iteritems():
+        for host, upstream in federation.items():
             try:
                 name = "upstream-{vhost}-{host}".format(vhost=upstream['virtual-host'],
                                                         host=host)
@@ -228,10 +228,10 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
     ssl_params = None
     _log.debug("shovel config: {}".format(shovel_config))
     try:
-        for remote_host, shovel in shovels.iteritems():
+        for remote_host, shovel in shovels.items():
             pubsub_config = shovel.get("pubsub", {})
             _log.debug("shovel parameters: {}".format(shovel))
-            for identity, topics in pubsub_config.iteritems():
+            for identity, topics in pubsub_config.items():
                 # Build source address
                 src_uri = rmq_mgmt.build_shovel_connection(identity, instance_name,
                                                            local_host, port,
@@ -266,7 +266,7 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                                             prop)
             rpc_config = shovel.get("rpc", {})
             _log.debug("RPC config: {}".format(rpc_config))
-            for remote_instance, agent_ids in rpc_config.iteritems():
+            for remote_instance, agent_ids in rpc_config.items():
                 for ids in agent_ids:
                     local_identity = ids[0]
                     remote_identity = ids[1]

@@ -158,7 +158,7 @@ class AuthService(Agent):
 
     def _send_update(self):
         user_to_caps = self.get_user_to_capabilities()
-        peers = self.vip.peerlist().get(timeout=0.1)
+        peers = self.vip.peerlist().get(timeout=0.5)
         _log.debug("AUTH new capabilities update: {}".format(user_to_caps))
 
         for peer in peers:
@@ -474,7 +474,7 @@ class AuthService(Agent):
             for peer in peers:
                 self._user_to_permissions[peer].clear()
         else:
-            for topic, caps_for_topic in topic_to_caps.iteritems():
+            for topic, caps_for_topic in topic_to_caps.items():
                 for user in user_to_caps:
                     try:
                         caps_for_user = user_to_caps[user]

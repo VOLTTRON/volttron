@@ -40,19 +40,16 @@ import datetime
 import logging
 import sys
 import time
-import threading
+
 import gevent
 
-from volttron.platform.vip.agent import Agent, Core, compat
-from volttron.platform.vip.agent.utils import build_agent
-from volttron.platform.agent.base_historian import BaseHistorian, add_timing_data_to_header
 from volttron.platform.agent import utils
-from volttron.platform.keystore import KnownHostsStore
-from volttron.platform.messaging import topics, headers as headers_mod
-from volttron.platform.messaging.health import STATUS_BAD, Status
+from volttron.platform.agent.base_historian import BaseHistorian, add_timing_data_to_header
 from volttron.platform.agent.known_identities import PLATFORM_HISTORIAN
-import os
-from urlparse import urlparse
+from volttron.platform.keystore import KnownHostsStore
+from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.messaging.health import STATUS_BAD, Status
+from volttron.platform.vip.agent.utils import build_agent
 
 DATAMOVER_TIMEOUT_KEY = 'DATAMOVER_TIMEOUT_KEY'
 utils.setup_logging()

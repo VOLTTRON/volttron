@@ -535,7 +535,7 @@ class RMQPubSub(SubsystemBase):
                 for prefix in self._my_subscriptions:
                     subscriptions = self._my_subscriptions[prefix]
                     self._logger.debug("prefix: {0}, {1}".format(prefix, subscriptions))
-                    for queue_name, callbacks in subscriptions.items()():
+                    for queue_name, callbacks in subscriptions.items():
                         try:
                             callbacks.remove(callback)
                         except KeyError:
@@ -563,13 +563,13 @@ class RMQPubSub(SubsystemBase):
                 topics.append(routing_key)
                 subscriptions = self._my_subscriptions[routing_key]
                 if callback is None:
-                    for queue_name, callbacks in subscriptions.items()():
+                    for queue_name, callbacks in subscriptions.items():
                         self._logger.debug("RMQ queues {}".format(queue_name))
                         self.core().connection.channel.queue_delete(callback=None, queue=queue_name)
                     del self._my_subscriptions[routing_key]
                 else:
                     self._logger.debug("topics: {0}".format(topics))
-                    for queue_name, callbacks in subscriptions.items()():
+                    for queue_name, callbacks in subscriptions.items():
                         try:
                             callbacks.remove(callback)
                         except KeyError:

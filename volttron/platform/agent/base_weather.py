@@ -446,7 +446,7 @@ class BaseWeatherAgent(Agent):
                                            "Configuration of weather agent "
                                            "successful")
             except sqlite3.OperationalError as error:
-                _log.error(error)
+                _log.error("Error initializing cache {}".format(error))
                 self.vip.health.set_status(STATUS_BAD, "Cache failed to start "
                                                        "during configuration")
 
@@ -676,7 +676,7 @@ class BaseWeatherAgent(Agent):
                 result[WEATHER_ERROR] = "Weather api did not " \
                                           "return any records"
         except Exception as error:
-            _log.error(error)
+            _log.error("Exception getting current weather from remote {}".format(error))
             result[WEATHER_ERROR] = str(error)
         return result
 
@@ -1019,7 +1019,7 @@ class BaseWeatherAgent(Agent):
                                 "amount of data")
                 result[WEATHER_WARN] = warnings
         except Exception as error:
-            _log.error(error)
+            _log.error("Exception in getting remote forecast data:{}:{}".format(type(error), error))
             result[WEATHER_ERROR] = str(error)
         return result
 
@@ -1035,7 +1035,7 @@ class BaseWeatherAgent(Agent):
         match the standard point names provided.
         """
         mapped_data = {}
-        for point, value in record_dict.iteritems():
+        for point, value in record_dict.items():
             if isinstance(value, dict):
                 value = self.apply_mapping(value)
             if point in self.point_name_mapping:
@@ -1405,7 +1405,7 @@ class WeatherCache:
             cursor.close()
             return active_calls + num_calls <= self._calls_limit
         except AttributeError as error:
-            _log.error(str(error))
+            _log.error("Error getting available API calls: {}".format(error))
             # Add a call to the pending queue so we can track it later
             self.pending_calls.append(get_aware_utc_now())
             return True
@@ -1433,7 +1433,7 @@ class WeatherCache:
             cursor.close()
             return True
         except (AttributeError, sqlite3.Error) as error:
-            _log.error(error)
+            _log.error("Error Adding api calls {}:{}".format(type(error), error))
             return False
 
     def get_current_data(self, service_name, location):
@@ -1589,7 +1589,7 @@ class WeatherCache:
             now = datetime.datetime.utcnow()
             while page_count >= self._max_pages:
                 if attempt == 1:
-                    for table_name, service in self._api_services.iteritems():
+                    for table_name, service in self._api_services.items():
                         # Remove all data that is older than update interval
                         if service["type"] == "current":
                             query = """DELETE FROM {table} 
@@ -1598,7 +1598,7 @@ class WeatherCache:
                             cursor.execute(query,
                                            (now - service["update_interval"],))
                 elif attempt == 2:
-                    for table_name, service in self._api_services.iteritems():
+                    for table_name, service in self._api_services.items():
                         # Remove all data that is older than update interval
                         if service["type"] == "forecast":
                             query = """DELETE FROM {table} 
@@ -1608,7 +1608,7 @@ class WeatherCache:
                                            (now - service["update_interval"],))
                 elif attempt > 2:
                     records_deleted = 0
-                    for table_name, service in self._api_services.iteritems():
+                    for table_name, service in self._api_services.items():
                         if service["type"] == "history":
                             query = "DELETE FROM {table} WHERE ID IN " \
                                     "(SELECT ID FROM {table} " \

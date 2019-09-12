@@ -124,4 +124,7 @@ extras_require = {
         'cryptography',
         'gevent-pika'
     ],
+    'weather': [
+        'pint'
+    ],
 }

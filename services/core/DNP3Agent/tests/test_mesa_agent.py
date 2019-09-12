@@ -92,7 +92,7 @@ def dict_compare(source_dict, target_dict):
 
        Ignores keys in target_dict that are not in source_dict.
     """
-    for name, source_val in source_dict.iteritems():
+    for name, source_val in source_dict.items():
         target_val = target_dict.get(name, None)
         assert source_val == target_val, 'Source value of {}={}, target value={}'.format(name, source_val, target_val)
 
@@ -113,7 +113,9 @@ def add_definitions_to_config_store(test_agent):
 def agent(request, volttron_instance):
     """Build the test agent for rpc call."""
 
-    test_agent = volttron_instance.build_agent()
+    test_agent = volttron_instance.build_agent(identity="test_agent")
+    capabilities = {'edit_config_store': {'identity': 'mesaagent'}}
+    volttron_instance.add_capabilities(test_agent.core.publickey, capabilities)
 
     add_definitions_to_config_store(test_agent)
 
