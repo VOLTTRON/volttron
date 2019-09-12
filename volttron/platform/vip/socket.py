@@ -276,7 +276,7 @@ class Message(object):
 
     def __repr__(self):
         attrs = ', '.join('%r: %r' % (
-            name, [bytes(x) for x in value]
+            name, [x for x in value]
             if isinstance(value, (list, tuple))
             else value) for name, value in
                 self.__dict__.items())
