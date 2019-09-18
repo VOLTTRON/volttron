@@ -845,7 +845,6 @@ def process_rmq_inputs(args, instance_name=None):
     else:
         setup_rabbitmq_volttron(args[0], verbose, prompt=True, instance_name=instance_name)
 
-
 def main():
     global verbose, prompt_vhome
 
@@ -869,6 +868,9 @@ def main():
                             'details when prompted. \nUsage: vcfg --rabbitmq '
                             'single|federation|shovel [rabbitmq config '
                             'file]')
+    group.add_argument('--secure-agent-users', action='store_true', dest='secure_agent_users',
+                       help='Require that agents run with their own users (this requires running '
+                            'scripts/security_user_permissions.sh as sudo)')
 
     args = parser.parse_args()
     verbose = args.verbose
@@ -901,6 +903,9 @@ def main():
             exit(1)
         else:
             process_rmq_inputs(args.rabbitmq, args.instance_name)
+    elif args.secure_agent_users:
+        config_opts['secure-agent-users'] = args.secure_agent_users
+        _update_config_file()
     elif not args.agent:
         wizard()
 

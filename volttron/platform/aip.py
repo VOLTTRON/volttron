@@ -181,7 +181,47 @@ class ExecutionEnvironment(object):
     end and all resources to be returned to the system.
     '''
 
-    def __init__(self, agent_user=None):
+    def __init__(self):
+        self.process = None
+        self.env = None
+
+    def execute(self, *args, **kwargs):
+        try:
+            self.env = kwargs.get('env', None)
+            self.process = subprocess.Popen(*args, **kwargs)
+        except OSError as e:
+            if e.filename:
+                raise
+            raise OSError(*(e.args + (args[0],)))
+
+    def stop(self):
+        if self.process.poll() is None:
+            # pylint: disable=catching-non-exception
+            self.process.send_signal(signal.SIGINT)
+            try:
+                return gevent.with_timeout(60, process_wait, self.process)
+            except gevent.Timeout:
+                _log.warn("First timeout")
+                self.process.terminate()
+            try:
+                return gevent.with_timeout(30, process_wait, self.process)
+            except gevent.Timeout:
+                _log.warn("2nd timeout")
+                self.process.kill()
+            try:
+                return gevent.with_timeout(30, process_wait, self.process)
+            except gevent.Timeout:
+                _log.error("last timeout")
+                raise ValueError('process is unresponsive')
+        return self.process.poll()
+
+    def __call__(self, *args, **kwargs):
+        self.execute(*args, **kwargs)
+
+
+class SecureExecutionEnvironment(object):
+
+    def __init__(self, agent_user):
         self.process = None
         self.env = None
         self.agent_user = agent_user
@@ -189,19 +229,35 @@ class ExecutionEnvironment(object):
     def execute(self, *args, **kwargs):
         try:
             self.env = kwargs.get('env', None)
-            _log.debug(kwargs.get('cwd'))
-            _log.debug(*args)
-            if self.agent_user:
-                run_as_user = ['sudo', '-u', self.agent_user]
-                run_as_user.extend(*args)
-                _log.debug(run_as_user)
-                self.process = subprocess.Popen(run_as_user, **kwargs)
-            else:
-                self.process = subprocess.Popen(*args, **kwargs)
+            run_as_user = ['sudo', '-E', '-u', self.agent_user]
+            run_as_user.extend(*args)
+            _log.debug(run_as_user)
+            self.process = subprocess.Popen(run_as_user, **kwargs)
         except OSError as e:
             if e.filename:
                 raise
             raise OSError(*(e.args + (args[0],)))
+
+    def stop(self):
+        if self.process.poll() is None:
+            # pylint: disable=catching-non-exception
+            subprocess.Popen(['sudo', '-E', '-u', self.agent_user, 'kill', '-2', str(self.process.pid)])
+            try:
+                return gevent.with_timeout(60, process_wait, self.process)
+            except gevent.Timeout:
+                _log.warn("First timeout")
+                subprocess.Popen(['sudo', '-E', '-u', self.agent_user, 'kill', '-15', str(self.process.pid)])
+            try:
+                return gevent.with_timeout(30, process_wait, self.process)
+            except gevent.Timeout:
+                _log.warn("2nd timeout")
+                subprocess.Popen(['sudo', '-E', '-u', self.agent_user, 'kill', '-9', str(self.process.pid)])
+            try:
+                return gevent.with_timeout(30, process_wait, self.process)
+            except gevent.Timeout:
+                _log.error("last timeout")
+                raise ValueError('process is unresponsive')
+        return self.process.poll()
 
     def __call__(self, *args, **kwargs):
         self.execute(*args, **kwargs)
@@ -238,8 +294,6 @@ class AIPplatform(object):
                                    "creation of agent users".
                                    format(stderr, group_name))
             group = grp.getgrnam(group_name)
-            os.chown(os.path.join(get_home(), "known_hosts"), user.pw_uid,
-                     group.gr_gid)
 
     def add_agent_user(self, agent_name, agent_dir):
         """
@@ -297,12 +351,16 @@ class AIPplatform(object):
     def set_agent_user_directory_permissions(self, volttron_agent_user,
                                              agent_uuid, agent_dir):
         name = self.agent_name(agent_uuid)
-        # agent_path_with_name = os.path.join(agent_dir, name)
+        agent_path_with_name = os.path.join(agent_dir, name)
         # Directories in the install path have read/execute
         for (root, directories, files) in os.walk(agent_dir, topdown=True):
             for directory in directories:
                 self.set_acl_for_path("rx", volttron_agent_user,
                                       os.path.join(root, directory))
+        # Need to be able to read the keys from the agent's keystore
+        self.set_acl_for_path("r", volttron_agent_user,
+                              os.path.join(self._get_agent_dist_info_dir(agent_path_with_name), "keystore.json"))
+        # Need to be able read known_hosts
         self.set_acl_for_path("r", volttron_agent_user,
                               os.path.join(get_home(), "known_hosts"))
 
@@ -521,8 +579,9 @@ class AIPplatform(object):
         agent_path = os.path.join(self.install_dir, agent_uuid)
         name = self.agent_name(agent_uuid)
         agent_path_with_name = os.path.join(agent_path, name)
-        data_dir = self._get_agent_data_dir(agent_path_with_name)
-        keystore_path = os.path.join(data_dir, 'keystore.json')
+        dist_info = self._get_agent_dist_info_dir(agent_path_with_name)
+        # data_dir = self._get_agent_data_dir(agent_path_with_name)
+        keystore_path = os.path.join(dist_info, 'keystore.json')
         return KeyStore(keystore_path)
 
     def _authorize_agent_keys(self, agent_uuid, identity):
@@ -753,7 +812,10 @@ class AIPplatform(object):
         try:
             if reserve:
                 # return resmon.reserve_soft_resources(requirements)
-                return ExecutionEnvironment(agent_user=agent_user)
+                if agent_user:
+                    return SecureExecutionEnvironment(agent_user=agent_user)
+                else:
+                    return ExecutionEnvironment()
             else:
                 failed_terms = resmon.check_soft_resources(requirements)
                 if failed_terms:
@@ -888,7 +950,10 @@ class AIPplatform(object):
                     format(user_id_path, err))
                 agent_user = self.add_agent_user(name, agent_dir)
         if resmon is None:
-            execenv = ExecutionEnvironment(agent_user=agent_user)
+            if agent_user:
+                execenv = SecureExecutionEnvironment(agent_user=agent_user)
+            else:
+                execenv = ExecutionEnvironment()
         else:
             execreqs = self._read_execreqs(pkg.distinfo)
             execenv = self._reserve_resources(resmon, execreqs,
@@ -919,27 +984,9 @@ class AIPplatform(object):
     def stop_agent(self, agent_uuid):
         try:
             execenv = self.agents[agent_uuid]
+            return execenv.stop()
         except KeyError:
             return
-        if execenv.process.poll() is None:
-            # pylint: disable=catching-non-exception
-            execenv.process.send_signal(signal.SIGINT)
-            try:
-                return gevent.with_timeout(60, process_wait, execenv.process)
-            except gevent.Timeout:
-                _log.warn("First timeout")
-                execenv.process.terminate()
-            try:
-                return gevent.with_timeout(30, process_wait, execenv.process)
-            except gevent.Timeout:
-                _log.warn("2nd timeout")
-                execenv.process.kill()
-            try:
-                return gevent.with_timeout(30, process_wait, execenv.process)
-            except gevent.Timeout:
-                _log.error("last timeout")
-                raise ValueError('process is unresponsive')
-        return execenv.process.poll()
 
     def agent_uuid_from_pid(self, pid):
         for agent_uuid, execenv in self.agents.iteritems():

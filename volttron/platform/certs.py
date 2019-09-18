@@ -367,9 +367,13 @@ class Certs(object):
 
         required_paths = (self.cert_dir, self.private_dir, self.ca_db_dir,
                           self.csr_pending_dir, self.remote_cert_dir, self.certs_pending_dir)
-        for p in required_paths:
-            if not os.path.exists(p):
-                os.makedirs(p, 0o755)
+
+        try:
+            for p in required_paths:
+                if not os.path.exists(p):
+                    os.makedirs(p, 0o755)
+        except Exception:
+            raise RuntimeError("No permission to create certificates directory")
 
     def export_pkcs12(self, name, outfile):
         cert_file = self.cert_file(name)
