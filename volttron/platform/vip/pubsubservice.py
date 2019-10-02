@@ -301,15 +301,15 @@ class PubSubService(object):
         if len(frames) > 8:
             data = frames[8].bytes
             try:
-                msg = jsonapi.loadb(data)
+                msg = jsonapi.loads(data)
                 headers = msg['headers']
                 message = msg['message']
-                peer = frames[0].bytes
+                peer = frames[0].bytes.decode('utf-8')
                 bus = msg['bus']
-                pub_msg = jsonapi.dumpb(
-                    dict(sender=peer.decode("utf-8"), bus=bus, headers=headers, message=message)
+                pub_msg = jsonapi.dumps(
+                    dict(sender=peer, bus=bus, headers=headers, message=message)
                 )
-                frames[8] = zmq.Frame(pub_msg)
+                frames[8] = zmq.Frame(pub_msg.encode('utf-8'))
             except KeyError as exc:
                 self._logger.error("Missing key in _peer_publish message {}".format(exc))
                 return 0
@@ -848,9 +848,9 @@ class PubSubService(object):
         :param frames: ZMQ message frames
         :return:
         """
-        publisher = bytes(frames[0])
-        topic = bytes(frames[7])
-        data = bytes(frames[8])
+        publisher = frames[0].bytes.decode('utf-8')
+        topic = frames[7].bytes.decode('utf-8')
+        data = frames[8].bytes.decode('utf-8')
         try:
             msg = jsonapi.loads(data)
             bus = msg['bus']
