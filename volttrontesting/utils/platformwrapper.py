@@ -529,7 +529,6 @@ class PlatformWrapper:
         # in correct home director. Without this when more than one test instance are created, get_home()
         # will return home dir of last started platform wrapper instance
         os.environ.update(self.env)
-        self.allow_all_connections()
 
         self.vip_address = vip_address
         self.mode = mode
