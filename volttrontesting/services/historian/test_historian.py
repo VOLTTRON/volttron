@@ -452,8 +452,8 @@ def query_agent(request, volttron_instance):
                     pytest.param(mysql_platform, marks=mysql_skipif),
                     sqlite_platform,
                     pytest.param(mongo_platform, marks=pymongo_skipif),
-                    # pytest.param(postgresql_platform, marks=postgresql_skipif),
-                    # postgresql_platform(redshift_platform, marks=redshift_skipif)
+                    pytest.param(postgresql_platform, marks=postgresql_skipif),
+                    postgresql_platform(redshift_platform, marks=redshift_skipif)
                 ])
 def historian(request, volttron_instance, query_agent):
     global db_connection, MICROSECOND_PRECISION, table_names, \
