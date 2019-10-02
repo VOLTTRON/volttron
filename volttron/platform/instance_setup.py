@@ -309,12 +309,14 @@ def _create_web_certs():
     crts.create_ca_signed_cert(name=MASTER_WEB+"-server",type='server',ca_name=crts.root_ca_name, fqdn=get_hostname())
     return 0
 
+
 def check_rmq_setup():
     global config_opts
     rmq_config = RMQConfig()
     if not os.path.exists(rmq_config.volttron_rmq_config):
         setup_rabbitmq_volttron('single', verbose, prompt=True, instance_name=None)
     _load_config()
+
 
 def do_message_bus():
     global config_opts

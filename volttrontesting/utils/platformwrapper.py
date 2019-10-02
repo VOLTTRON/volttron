@@ -38,7 +38,6 @@ from volttron.platform.vip.agent.connection import Connection
 from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
-from volttron.platform.agent.utils import execute_command, execute_command_p
 from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
 
 

@@ -60,6 +60,7 @@ from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_vip, \
 from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
 from volttron.platform.agent.utils import execute_command
 
+
 @pytest.fixture(scope="module")
 def federated_rmq_instances(request, **kwargs):
     """
