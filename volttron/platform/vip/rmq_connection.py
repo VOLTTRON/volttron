@@ -528,8 +528,8 @@ class RMQRouterConnection(RMQConnection):
         :param body: message body
         :return:
         """
-        # Ignore if message type is 'pubsu'
-        if props.type == 'pubsu':
+        # Ignore if message type is 'pubsub'
+        if props.type == 'pubsub':
             return
 
         sender = props.app_id
