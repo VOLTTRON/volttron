@@ -121,7 +121,7 @@ extras_require = {
         'websocket-client',
     ],
     'rabbitmq': [
-        'cryptography',
+        'cryptography==2.2.2',
         'gevent-pika'
     ],
     'weather': [
