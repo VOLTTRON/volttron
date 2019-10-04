@@ -498,7 +498,11 @@ class PlatformWrapper:
             self.add_capability(capabilities, caps)
         auth.add(entry, overwrite=True)
         _log.debug("Updated entry is {}".format(entry))
-        gevent.sleep(1)
+        # Minimum sleep of 2 seconds seem to be needed in order for auth updates to get propagated to peers.
+        # This slow down is not an issue with file watcher but rather vip.peerlist(). peerlist times out
+        # when invoked in quick succession. add_capabilities updates auth.json, gets the peerlist and calls all peers'
+        # auth.update rpc call. So sleeping here instead expecting individual test cases to sleep for long
+        gevent.sleep(2)
 
 
     @staticmethod

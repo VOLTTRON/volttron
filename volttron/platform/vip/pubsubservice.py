@@ -61,6 +61,7 @@ _ROUTE_ERRORS = {
     for errnum in [zmq.EHOSTUNREACH, zmq.EAGAIN]
 }
 
+_log = logging.getLogger(__name__)
 
 class PubSubService(object):
     def __init__(self, socket, protected_topics, routing_service, *args, **kwargs):
@@ -898,6 +899,7 @@ class ProtectedPubSubTopics(object):
         return self._dict.copy()
 
     def _isprefix(self, topic):
+        _log.debug("topic type {}".format(type(topic)))
         for prefix in self._dict:
             if topic[:len(prefix)] == prefix:
                 return prefix
