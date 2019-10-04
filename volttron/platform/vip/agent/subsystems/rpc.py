@@ -49,6 +49,7 @@ import re
 import gevent.local
 from gevent.event import AsyncResult
 from volttron.platform import jsonapi
+from volttron.platform.agent.utils import get_messagebus
 
 from .base import SubsystemBase
 from ..errors import VIPError
@@ -368,8 +369,13 @@ class RPC(SubsystemBase):
     @spawn
     def _handle_subsystem(self, message):
         dispatch = self._dispatcher.dispatch
-        responses = [response for response in (
-            dispatch(msg, message) for msg in message.args) if response]
+
+        if get_messagebus() == "rmq":
+            responses = [response for response in (
+                dispatch(jsonapi.loads(msg), message) for msg in message.args) if response]
+        else:
+            responses = [response for response in (
+                dispatch(msg, message) for msg in message.args) if response]
         if responses:
             message.user = ''
             message.args = responses
@@ -459,8 +465,8 @@ class RPC(SubsystemBase):
                 op = 'send_platform'
                 subsystem = 'external_rpc'
                 frames.append(op)
-                msg = jsonapi.dumps(dict(to_platform=platform, to_peer=peer,
-                                         from_platform='', from_peer='', args=[request]))
+                msg = dict(to_platform=platform, to_peer=peer,
+                           from_platform='', from_peer='', args=[request])
                 frames.append(msg)
                 peer = ''
 
@@ -514,8 +520,8 @@ class RPC(SubsystemBase):
                 op = 'send_platform'
                 subsystem = 'external_rpc'
                 frames.append(op)
-                msg = jsonapi.dumps(dict(to_platform=platform, to_peer=peer,
-                                         from_platform='', from_peer='', args=[request]))
+                msg = dict(to_platform=platform, to_peer=peer,
+                           from_platform='', from_peer='', args=[request])
                 frames.append(msg)
                 peer = ''
 
