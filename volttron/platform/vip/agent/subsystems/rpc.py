@@ -370,7 +370,7 @@ class RPC(SubsystemBase):
     def _handle_subsystem(self, message):
         dispatch = self._dispatcher.dispatch
 
-        if get_messagebus() == "rmq":
+        if self._message_bus == "rmq":
             responses = [response for response in (
                 dispatch(jsonapi.loads(msg), message) for msg in message.args) if response]
         else:
