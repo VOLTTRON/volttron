@@ -17,6 +17,7 @@ the script input box select scripts/pycharm-launcy.py.  In the script parameters
 input box put services/core/VolttronCentral/volttroncentral/agent.py.
 """
 import argparse
+import shutil
 import string
 import sys
 import os
@@ -109,12 +110,13 @@ if agent_identity:
         os.makedirs(new_dir)
         try:
             output = subprocess.check_output(['vctl', 'auth', 'keypair'],
-                                             env=os.environ.copy(), universal_newlines=True)
-        except subprocess.CalledProcessError:
+                                             env=os.environ.copy(), universal_newlines=True, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
             sys.stderr.write("Couldn't get key pair for identity: {}\n".format(
                 agent_identity
             ))
             sys.stderr.write("Call was:\n\tvctl auth keypair\n")
+            sys.stderr.write("Output of command: {}".format(e.output))
             sys.stderr.write("Your environment might not be setup correctly!")
             os.rmdir(new_dir)
             write_required_statement()
@@ -128,14 +130,15 @@ if agent_identity:
         pubkey = json_obj['public']
         try:
             params = ['vctl', 'auth', 'add',
-                      '--credentials', "{}".format(pubkey),
+                      '--credentials', "{}".format(pubkey), '--user_id', agent_identity,
+                      '--capabilities', "edit_config_store",
                       '--comments', "Added from pycharm-launch.py script."
                       ]
             output = subprocess.check_output(params, env=os.environ.copy(), universal_newlines=True)
         except subprocess.CalledProcessError as e:
             sys.stderr.write(str(e))
-            os.rmdir(new_dir)
-            sys.stderr.write(str(e))
+            sys.stderr.write("Command returned following output: {}".format(e.output))
+            shutil.rmtree(new_dir)
             sys.stderr.write("Couldn't authenticate agent id: {}\n".format(
                 agent_identity
             ))

@@ -51,6 +51,7 @@ import tempfile
 import traceback
 import uuid
 from datetime import timedelta
+import json
 
 import gevent
 import gevent.event
@@ -553,7 +554,7 @@ def backup_agent_data(output_filename, source_dir):
 
 def restore_agent_data_from_tgz(source_file, output_dir):
     # Open tarfile
-    with tarfile.open(mode="r:gz", fileobj=file(source_file)) as tar:
+    with tarfile.open(mode="r:gz", fileobj=open(source_file)) as tar:
         tar.extractall(output_dir)
 
 
@@ -1141,7 +1142,7 @@ def _comma_split(line):
 
 
 def _parse_capabilities(line):
-    if not isinstance(line, basestring):
+    if not isinstance(line, str):
         return line
     line = line.strip()
     try:

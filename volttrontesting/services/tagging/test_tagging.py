@@ -226,7 +226,7 @@ def query_agent(request, volttron_instance):
 @pytest.fixture(scope="module",
                 params=[
                     sqlite_config,
-                    # pymongo_skipif(mongodb_config)
+                    # pytest.param(mongodb_config, marks=pymongo_skipif)
                 ])
 def tagging_service(request, volttron_instance):
     global connection_type, db_connection, tagging_service_id

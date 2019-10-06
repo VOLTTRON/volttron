@@ -192,8 +192,8 @@ def _install_agent(agent_dir, config, tag):
 def _is_agent_installed(tag):
     installed_list_process = Popen(['vctl','list'], env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     installed_list = installed_list_process.communicate()
-    installed = "".join(installed_list)
-    if tag in installed:
+    installed = b"".join(installed_list)
+    if tag.encode('utf-8') in installed:
         return True
     else:
         return False
