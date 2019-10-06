@@ -231,7 +231,7 @@ class ZMQProxyRouter(Agent):
         :return:
         """
         _log.debug("Proxy ZMQ Router {}".format(body))
-        frames = jsonapi.loads(body)
+        frames = jsonapi.loads(body.decode('utf-8'))
         if len(frames) > 6:
             if frames[5] == 'pubsub':
                 # Forward the message to pubsub component of the router to take action
