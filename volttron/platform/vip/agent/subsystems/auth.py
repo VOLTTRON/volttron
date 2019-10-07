@@ -350,8 +350,8 @@ class Auth(SubsystemBase):
         return self._user_to_capabilities.get(user_id, [])
 
     def _update_capabilities(self, user_to_capabilities):
-        identity = bytes(self._rpc().context.vip_message.peer)
-        if identity.decode("utf-8") == AUTH:
+        identity = self._rpc().context.vip_message.peer
+        if identity == AUTH:
             self._user_to_capabilities = user_to_capabilities
             self._dirty = True
 
