@@ -134,7 +134,7 @@ class AuthService(Agent):
         self.auth_entries = entries
         if self._is_connected:
             try:
-                _log.info("Sending auth updates to peers")
+                _log.debug("Sending auth updates to peers")
                 self._send_update()
             except BaseException as e:
                 _log.error("Exception sending auth updates to peer. {}".format(e))
