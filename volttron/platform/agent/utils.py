@@ -58,7 +58,6 @@ from configparser import ConfigParser
 from datetime import datetime
 
 import gevent
-# noinspection PyUnresolvedReferences
 import psutil
 import pytz
 import yaml
