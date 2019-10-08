@@ -207,6 +207,16 @@ class AuthService(Agent):
 
     @Core.receiver('onstart')
     def zap_loop(self, sender, **kwargs):
+        """
+        The zap loop is the starting of the authentication process for
+        the VOLTTRON zmq message bus.  It talks directly with the low
+        level socket so all responses must be byte like objects, in
+        this case we are going to send zmq frames across the wire.
+
+        :param sender:
+        :param kwargs:
+        :return:
+        """
         self._is_connected = True
         self._zap_greenlet = gevent.getcurrent()
         sock = self.zap_socket
