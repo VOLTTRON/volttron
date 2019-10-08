@@ -265,8 +265,6 @@ class DriverAgent(BasicAgent):
             headers_mod.SYNC_TIMESTAMP: sync_timestamp
         }
 
-
-
         if self.publish_depth_first or self.publish_breadth_first:
             for point, value in results.items():
                 depth_first_topic, breadth_first_topic = self.get_paths_for_point(point)
@@ -295,30 +293,28 @@ class DriverAgent(BasicAgent):
 
         self.parent.scrape_ending(self.device_name)
 
-
     def _publish_wrapper(self, topic, headers, message):
         while True:
             try:
                 with publish_lock():
                     _log.debug("publishing: " + topic)
                     self.vip.pubsub.publish('pubsub',
-                                        topic,
-                                        headers=headers,
-                                        message=message).get(timeout=10.0)
+                                            topic,
+                                            headers=headers,
+                                            message=message).get(timeout=10.0)
 
                     _log.debug("finish publishing: " + topic)
             except gevent.Timeout:
-                _log.warn("Did not receive confirmation of publish to "+topic)
+                _log.warning("Did not receive confirmation of publish to "+topic)
                 break
             except Again:
-                _log.warn("publish delayed: " + topic + " pubsub is busy")
+                _log.warning("publish delayed: " + topic + " pubsub is busy")
                 gevent.sleep(random.random())
             except VIPError as ex:
-                _log.warn("driver failed to publish " + topic + ": " + str(ex))
+                _log.warning("driver failed to publish " + topic + ": " + str(ex))
                 break
             else:
                 break
-
 
     def heart_beat(self):
         if self.heart_beat_point is None:
