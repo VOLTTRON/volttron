@@ -185,7 +185,7 @@ def modbus_server(request):
     modbus_server.start()
     time.sleep(1)
     yield modbus_server
-    request.addfinalizer(stop)
+    modbus_server.stop()
 
 
 @pytest.mark.usefixtures("modbus_server")

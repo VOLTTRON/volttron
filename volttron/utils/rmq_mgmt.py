@@ -123,6 +123,7 @@ class RabbitMQMgmt(object):
             raise e
         return response
 
+    
     def _get_authentication_args(self, ssl_auth):
         """
         Return authentication kwargs for request/greqeust

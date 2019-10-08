@@ -29,5 +29,10 @@ CREATE TABLE volttron_table_definitions(
 
 CREATE USER 'username'@'localhost' IDENTIFIED BY 'password';
 
-#GRANT <access or ALL PRIVILEGES> ON <dbname>.<tablename or *> TO 'username'@'host'
+# GRANT <access or ALL PRIVILEGES> ON <dbname>.<tablename or *> TO 'username'@'host'
 GRANT SELECT, CREATE, INDEX, INSERT ON test_historian.* TO 'user'@'localhost';
+GRANT UPDATE ON test_historian.<topics_table> TO 'user'@'localhost';
+GRANT UPDATE ON test_historian.topics TO 'historian'@'localhost';
+
+# For running test cases additional provide DELETE permission on the test database to the test user
+GRANT DELETE ON test_historian.* TO 'user'@'localhost';

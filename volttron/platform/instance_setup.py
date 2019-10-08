@@ -192,8 +192,8 @@ def _install_agent(agent_dir, config, tag):
 def _is_agent_installed(tag):
     installed_list_process = Popen(['vctl','list'], env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     installed_list = installed_list_process.communicate()
-    installed = "".join(installed_list)
-    if tag in installed:
+    installed = b"".join(installed_list)
+    if tag.encode('utf-8') in installed:
         return True
     else:
         return False
@@ -309,12 +309,14 @@ def _create_web_certs():
     crts.create_ca_signed_cert(name=MASTER_WEB+"-server",type='server',ca_name=crts.root_ca_name, fqdn=get_hostname())
     return 0
 
+
 def check_rmq_setup():
     global config_opts
     rmq_config = RMQConfig()
     if not os.path.exists(rmq_config.volttron_rmq_config):
         setup_rabbitmq_volttron('single', verbose, prompt=True, instance_name=None)
     _load_config()
+
 
 def do_message_bus():
     global config_opts

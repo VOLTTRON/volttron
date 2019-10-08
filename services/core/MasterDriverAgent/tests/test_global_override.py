@@ -670,7 +670,7 @@ def test_indefinite_override_on(config_store, test_agent):
 
 
 @pytest.mark.driver
-def test_indefinite_override_after_restart(config_store, test_agent, volttron_instance1):
+def test_indefinite_override_after_restart(config_store, test_agent, volttron_instance):
     for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)

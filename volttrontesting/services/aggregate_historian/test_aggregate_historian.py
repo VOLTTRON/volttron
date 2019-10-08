@@ -422,7 +422,7 @@ def cleanup(connection_type, truncate_tables):
     cleanup_function = globals()["cleanup_" + connection_type]
     cleanup_function(db_connection, truncate_tables)
 
-@pytest.mark.dev
+
 @pytest.mark.aggregator
 def test_get_supported_aggregations(aggregate_agent, query_agent):
     """

@@ -703,7 +703,7 @@ class Certs(object):
             mod_key = execute_command(cmd,
                                       err_prefix="Error getting modulus of "
                                                  "private key")
-        except Exception as e:
+        except RuntimeError as e:
             return False
 
         return mod_pub == mod_key

@@ -38,7 +38,6 @@ from volttron.platform.vip.agent.connection import Connection
 from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
-from volttron.platform.agent.utils import execute_command, execute_command_p
 from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
 
 
@@ -498,7 +497,11 @@ class PlatformWrapper:
             self.add_capability(capabilities, caps)
         auth.add(entry, overwrite=True)
         _log.debug("Updated entry is {}".format(entry))
-        gevent.sleep(1)
+        # Minimum sleep of 2 seconds seem to be needed in order for auth updates to get propagated to peers.
+        # This slow down is not an issue with file watcher but rather vip.peerlist(). peerlist times out
+        # when invoked in quick succession. add_capabilities updates auth.json, gets the peerlist and calls all peers'
+        # auth.update rpc call. So sleeping here instead expecting individual test cases to sleep for long
+        gevent.sleep(2)
 
 
     @staticmethod
@@ -529,7 +532,6 @@ class PlatformWrapper:
         # in correct home director. Without this when more than one test instance are created, get_home()
         # will return home dir of last started platform wrapper instance
         os.environ.update(self.env)
-        self.allow_all_connections()
 
         self.vip_address = vip_address
         self.mode = mode
