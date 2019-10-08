@@ -36,7 +36,7 @@
          python standalone_matlab.py
 
 '''
-\from scriptwrapper import script_runner
+from scriptwrapper import script_runner
 
 import os
 import sys
