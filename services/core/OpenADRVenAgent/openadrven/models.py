@@ -36,10 +36,8 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from datetime import datetime as dt
 from datetime import timedelta
 from dateutil import parser
-import json
 
 from sqlalchemy import Column, String, Integer, DateTime, Float
 from sqlalchemy.ext.declarative import declarative_base

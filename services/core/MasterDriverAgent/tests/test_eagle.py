@@ -36,12 +36,12 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import json
+
 import pytest
 import gevent
 from gevent import pywsgi
 
-from volttron.platform import get_services_core
+from volttron.platform import get_services_core, jsonapi
 from volttrontesting.utils.utils import get_rand_http_address
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
 
@@ -50,7 +50,7 @@ no_scheme = server_addr[7:]
 ip, port = no_scheme.split(':')
 
 TEST_MAC_ID = '0xffffffffffffffff'
-driver_config_string = json.dumps({
+driver_config_string = jsonapi.dumps({
     "driver_config": {
         "username": "",
         "password": "",
@@ -66,7 +66,7 @@ driver_config_string = json.dumps({
     "timezone": "US/Pacific"
 })
 
-register_config_string = json.dumps([
+register_config_string = jsonapi.dumps([
     "NetworkStatus",
     "InstantaneousDemand",
     "PriceCluster",
@@ -81,7 +81,7 @@ command_network_status = '<Command>\
 <Format>JSON</Format>\
 </Command>'
 
-response_network_status = json.dumps({
+response_network_status = jsonapi.dumps({
     'NetworkStatus': {
         'Status': 'Connected', # This is the value we'll check
         'ShortAddr': '0x5272',
@@ -101,7 +101,7 @@ command_instantaneous_demand = '<Command>\
 <Format>JSON</Format>\
 </Command>'.format(TEST_MAC_ID)
 
-response_instantaneous_demand = json.dumps({
+response_instantaneous_demand = jsonapi.dumps({
     'InstantaneousDemand': {
         'DeviceMacId': '0xffffffffffffffff',
         'Divisor': '0x0000000a', # 10
@@ -121,7 +121,7 @@ command_price_cluster = '<Command>\
 <Format>JSON</Format>\
 </Command>'.format(TEST_MAC_ID)
 
-response_price_cluster = json.dumps({
+response_price_cluster = jsonapi.dumps({
     'PriceCluster': {
         'DeviceMacId': '0xffffffffffffffff',
         'MeterMacId': '0xffffffffffffffff',
@@ -141,7 +141,7 @@ command_current_summation = '<Command>\
 <Format>JSON</Format>\
 </Command>'.format(TEST_MAC_ID)
 
-response_current_summation = json.dumps({
+response_current_summation = jsonapi.dumps({
     'CurrentSummation': {
         'DeviceMacId': '0xffffffffffffffff',
         'Divisor': '0x00000000',
@@ -161,7 +161,7 @@ command_demand_peaks = '<Command>\
 <Format>JSON</Format>\
 </Command>'
 
-response_demand_peaks = json.dumps({
+response_demand_peaks = jsonapi.dumps({
     'DemandPeaks': {
         'PeakReceived': '-2.000000',
         'DeviceMacId': '0xffffffffffffffff',

@@ -1,4 +1,3 @@
-import json
 import os
 import re
 import subprocess
@@ -6,6 +5,7 @@ import subprocess
 import pytest
 
 from volttron.platform.auth import AuthEntry
+from volttron.platform import jsonapi
 
 _auth_entry1 = AuthEntry(
     domain='test1_domain', address='test1_address', mechanism='NULL',
@@ -36,7 +36,7 @@ def auth_list(platform):
 def auth_list_json(platform):
     output = auth_list(platform)
     entries = re.findall('\nINDEX: \d+(\n{.*?\n}\n)', output, re.DOTALL)
-    return [json.loads(entry) for entry in entries]
+    return [jsonapi.loads(entry) for entry in entries]
 
 
 def entry_to_input_string(domain='', address='', user_id='', capabilities='',
@@ -76,7 +76,7 @@ def auth_add_cmd_line(platform, entry):
             v = ','.join(v)
         if v:
             if k == "capabilities":
-                args.extend(['--' + k, json.dumps(v)])
+                args.extend(['--' + k, jsonapi.dumps(v)])
             else:
                 args.extend(['--' + k, v])
 

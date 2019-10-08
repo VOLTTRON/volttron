@@ -1,6 +1,4 @@
-import json
 import os
-import time
 
 import gevent
 import pytest
@@ -9,6 +7,8 @@ from volttron.platform import jsonrpc
 from volttron.platform import keystore
 from volttrontesting.utils.utils import poll_gevent_sleep
 from volttron.platform.vip.agent.errors import VIPError
+from volttron.platform import jsonapi
+
 
 def build_agent(platform, identity):
     """Build an agent, configure its keys and return the agent."""
@@ -249,7 +249,7 @@ def build_protected_pubsub(instance, topic, capabilities, topic_regex=None,
 
     topic_file = os.path.join(instance.volttron_home, 'protected_topics.json')
     with open(topic_file, 'w') as f:
-        json.dump(topic_dict, f)
+        jsonapi.dump(topic_dict, f)
         gevent.sleep(.5)
 
     if add_capabilities:

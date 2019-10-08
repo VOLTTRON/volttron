@@ -38,11 +38,9 @@
 
 from datetime import timedelta
 import gevent
-import json
 import logging
 import os
 import pytest
-import random
 import requests
 import sqlite3
 import time

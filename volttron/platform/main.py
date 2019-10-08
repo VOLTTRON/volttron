@@ -175,9 +175,9 @@ def configure_logging(conf_path):
 
     with open(conf_path) as conf_file:
         if conf_format == 'json':
-            import json
+            from volttron.platform import jsonapi
             try:
-                conf_dict = json.load(conf_file)
+                conf_dict = jsonapi.load(conf_file)
             except ValueError as exc:
                 return conf_path, exc
         elif conf_format == 'py':

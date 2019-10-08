@@ -36,10 +36,11 @@ heat_pgm_sat,heat_pgm_sun,cool_pgm_mon,cool_pgm_tue,cool_pgm_wed,cool_pgm_thu,
 cool_pgm_fri,cool_pgm_sat,cool_pgm_sun,
 
 """
-import json
+
 from master_driver.interfaces import BaseInterface, BaseRegister, DriverInterfaceError
 from . import  thermostat_api
 
+from volttron.platform import jsonapi
 
 class Register(BaseRegister):
     '''Inherits from  Volttron Register Class'''
@@ -215,7 +216,7 @@ class Interface(BaseInterface):
         for point_names, properties in point_map.items():
             point_name =  properties[0]
     
-            query = json.loads(self.thermostat.tstat())
+            query = jsonapi.loads(self.thermostat.tstat())
             if point_name in self.query_point_name:
                 try:
                     db = query[self.point_name_map[point_name]]

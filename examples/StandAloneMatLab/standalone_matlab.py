@@ -36,20 +36,16 @@
          python standalone_matlab.py
 
 '''
-from datetime import datetime
-from scriptwrapper import script_runner
+\from scriptwrapper import script_runner
 
 import os
 import sys
 
-import json
 import gevent
 import logging
 
-from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.vip.agent import Agent, PubSub, Core
 from volttron.platform.agent import utils
-from volttron.platform.scheduling import periodic
 
 # These are the options that can be set from the settings module.
 from settings import remote_url, _topics

@@ -34,14 +34,13 @@ except ImportError:
     pytest.skip("pydnp3 not found!", allow_module_level=True)
 
 import gevent
-import json
 import os
 import pytest
 import yaml
 
 from dnp3.points import PointDefinitions
 from mesa_master_test import MesaMasterTest
-from volttron.platform import get_services_core
+from volttron.platform import get_services_core, jsonapi
 from volttron.platform.agent.utils import strip_comments
 
 MESA_AGENT_ID = 'mesaagent'
@@ -100,7 +99,7 @@ def dict_compare(source_dict, target_dict):
 def add_definitions_to_config_store(test_agent):
     """Add PointDefinitions and FunctionDefinitions to the mesaagent's config store."""
     with open(POINT_DEFINITIONS_PATH, 'r') as f:
-        points_json = json.loads(strip_comments(f.read()))
+        points_json = jsonapi.loads(strip_comments(f.read()))
     test_agent.vip.rpc.call('config.store', 'manage_store', MESA_AGENT_ID,
                             'mesa_points.config', points_json, config_type='raw')
     with open(FUNCTION_DEFINITIONS_PATH, 'r') as f:
@@ -211,7 +210,7 @@ class TestMesaAgent:
     def convert_json_file_to_dict(json_file):
         """Convert a json file to a dictionary."""
         send_json = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data', json_file))
-        return json.load(open(send_json))
+        return jsonapi.load(open(send_json))
 
     @staticmethod
     def send_points(master, send_json, send_in_step_order=True):

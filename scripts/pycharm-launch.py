@@ -23,7 +23,7 @@ import sys
 import os
 import runpy
 import subprocess
-import json
+from volttron.platform import jsonapi
 
 __author__ = 'Craig Allwardt<craig.allwardt@pnnl.gov>'
 __version__ = '1.3.0'
@@ -123,7 +123,7 @@ if agent_identity:
             sys.exit(20)
         else:
             keystore_file = os.path.join(new_dir, "keystore.json")
-            json_obj = json.loads(output)
+            json_obj = jsonapi.loads(output)
             with open(keystore_file, 'w') as fout:
                 fout.write(output)
 

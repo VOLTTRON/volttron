@@ -1,6 +1,5 @@
 import configparser as configparser
 from datetime import datetime
-import json
 import logging
 import os
 import uuid
@@ -518,7 +517,7 @@ class PlatformWrapper:
     def set_auth_dict(self, auth_dict):
         if auth_dict:
             with open(os.path.join(self.volttron_home, 'auth.json'), 'w') as fd:
-                fd.write(json.dumps(auth_dict))
+                fd.write(jsonapi.dumps(auth_dict))
 
     def startup_platform(self, vip_address, auth_dict=None,
                          mode=UNRESTRICTED, bind_web_address=None,
@@ -889,7 +888,7 @@ class PlatformWrapper:
                 temp_config = join(self.volttron_home,
                                    basename(agent_dir) + "_config_file")
                 with open(temp_config, "w") as fp:
-                    fp.write(json.dumps(config_file))
+                    fp.write(jsonapi.dumps(config_file))
                 config_file = temp_config
             elif not config_file:
                 if os.path.exists(os.path.join(agent_dir, "config")):
@@ -899,7 +898,7 @@ class PlatformWrapper:
                     temp_config = join(self.volttron_home,
                                        basename(agent_dir) + "_config_file")
                     with open(temp_config, "w") as fp:
-                        fp.write(json.dumps({}))
+                        fp.write(jsonapi.dumps({}))
                     config_file = temp_config
             elif os.path.exists(config_file):
                 pass  # config_file already set!

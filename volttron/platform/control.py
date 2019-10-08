@@ -41,6 +41,7 @@ import collections
 import hashlib
 import logging
 import logging.handlers
+import logging.config
 import os
 import re
 import shutil
@@ -51,7 +52,6 @@ import tempfile
 import traceback
 import uuid
 from datetime import timedelta
-import json
 
 import gevent
 import gevent.event
@@ -184,8 +184,6 @@ class ControlService(BaseAgent):
     def send_alert(self, agent_id, agent_name):
         """Send an alert for the group, summarizing missing topics.
 
-        :param unseen_topics: List of topics that were expected but not received
-        :type unseen_topics: list
         """
         alert_key = "Agent {}({}) stopped unexpectedly".format(agent_name,
                                                                agent_id)
@@ -1146,7 +1144,7 @@ def _parse_capabilities(line):
         return line
     line = line.strip()
     try:
-       result = json.loads(line.replace("'", "\""))
+       result = jsonapi.loads(line.replace("'", "\""))
     except Exception as e:
         result = _comma_split(line)
     return result
