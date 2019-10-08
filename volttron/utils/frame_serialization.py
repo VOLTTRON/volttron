@@ -46,6 +46,7 @@ from volttron.platform import jsonapi
 
 _log = logging.getLogger(__name__)
 
+
 def deserialize_frames(frames: List[Frame]) -> List:
     decoded = []
     for x in frames:
@@ -57,14 +58,14 @@ def deserialize_frames(frames: List[Frame]) -> List:
                 decoded.append(jsonapi.loads(d))
             except JSONDecodeError:
                 decoded.append(d)
-    #_log.debug("deserialized: {}".format(decoded))
+    # _log.debug("deserialized: {}".format(decoded))
     return decoded
 
 
 def serialize_frames(data: List[Any]) -> List[Frame]:
     frames = []
 
-    _log.debug("Serializing: {}".format(data))
+    # _log.debug("Serializing: {}".format(data))
     for x in data:
         try:
             if isinstance(x, list):
@@ -80,7 +81,6 @@ def serialize_frames(data: List[Any]) -> List[Frame]:
             else:
                 frames.append(Frame(x.encode('utf-8')))
         except TypeError as e:
-            print(f"Can't serialize {x} with type: {type(x)}")
             import sys
             sys.exit(0)
 
