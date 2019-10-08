@@ -540,8 +540,8 @@ class AuthService(Agent):
         if current and isinstance(current, list):
             current = current[0]
             dift = False
-            read_allowed_str = ("|").join(read_tokens)
-            write_allowed_str = ("|").join(write_tokens)
+            read_allowed_str = "|".join(read_tokens)
+            write_allowed_str = "|".join(write_tokens)
             if re.search(current['read'], read_allowed_str):
                 dift = True
                 current["read"] = read_allowed_str
@@ -676,7 +676,6 @@ class AuthEntry(object):
             return result
         else:
             return AuthEntry._get_capability(value)
-
 
     @staticmethod
     def _get_capability(value):
