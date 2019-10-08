@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import json
 import os
 
 import gevent
@@ -49,7 +48,7 @@ from volttron.platform.auth import (AuthEntry, AuthFile, AuthFileIndexError,
                                     AuthEntryInvalid)
 from volttrontesting.platform.auth_control_test import assert_auth_entries_same
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL
-
+from volttron.platform import jsonapi
 
 @pytest.fixture(scope='function')
 def auth_file_platform_tuple(volttron_instance_encrypt):
@@ -259,7 +258,7 @@ def test_upgrade_file_verison_0_to_1_2(tmpdir_factory):
 
     filename = str(tmpdir_factory.mktemp('auth_test').join('auth.json'))
     with open(filename, 'w') as fp:
-        fp.write(json.dumps(version0, indent=2))
+        fp.write(jsonapi.dumps(version0, indent=2))
 
     upgraded = AuthFile(filename)
     entries, groups, roles = upgraded.read()
@@ -286,7 +285,7 @@ def test_upgrade_file_verison_0_to_1_2_minimum_entries(tmpdir_factory):
 
     filename = str(tmpdir_factory.mktemp('auth_test').join('auth.json'))
     with open(filename, 'w') as fp:
-        fp.write(json.dumps(version0, indent=2))
+        fp.write(jsonapi.dumps(version0, indent=2))
 
     upgraded = AuthFile(filename)
     entries = upgraded.read()[0]
@@ -382,7 +381,7 @@ def test_upgrade_file_version_1_1_to_1_2(tmpdir_factory):
 
     filename = str(tmpdir_factory.mktemp('auth_test').join('auth.json'))
     with open(filename, 'w') as fp:
-        fp.write(json.dumps(version1_1, indent=2))
+        fp.write(jsonapi.dumps(version1_1, indent=2))
 
     upgraded = AuthFile(filename)
     entries = upgraded.read()[0]

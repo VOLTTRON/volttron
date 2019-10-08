@@ -39,8 +39,6 @@
 import pytest
 import gevent
 from gevent import pywsgi
-import os
-import json
 
 from volttron.platform import get_services_core
 from volttrontesting.utils.utils import get_rand_http_address

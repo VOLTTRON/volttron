@@ -2,8 +2,8 @@ import pytest
 import gevent
 import logging
 import time
-import json
-from volttron.platform import get_services_core
+
+from volttron.platform import get_services_core, jsonapi
 from volttrontesting.utils.utils import get_rand_ip_and_port
 from master_driver.interfaces.modbus_tk.server import Server
 from master_driver.interfaces.modbus_tk.maps import Map, Catalog
@@ -290,7 +290,7 @@ def agent(request, volttron_instance):
                           'manage_store',
                           PLATFORM_DRIVER,
                           'devices/modbus_tk',
-                          json.dumps(DRIVER_CONFIG),
+                          jsonapi.dumps(DRIVER_CONFIG),
                           config_type='json')
 
     # Add csv configurations

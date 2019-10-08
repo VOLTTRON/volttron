@@ -55,13 +55,12 @@ import math
 import random
 import pytest
 import gevent
-import json
 import pytz
 from pytest import approx
 from datetime import datetime, timedelta
 from dateutil import parser
 
-from volttron.platform import get_services_core
+from volttron.platform import get_services_core, jsonapi
 from volttron.platform.agent.utils import format_timestamp, \
                                           parse_timestamp_string, \
                                           get_aware_utc_now
@@ -1271,7 +1270,7 @@ def test_update_meta(volttron_instance, influxdb_client):
 
         for meta in rs:
             topic = meta["topic"]
-            meta_dict = json.loads(meta['meta_dict'].replace("u'", "\"").replace("'", "\""))
+            meta_dict = jsonapi.loads(meta['meta_dict'].replace("u'", "\"").replace("'", "\""))
             last_updated = meta["last_updated"]
 
             assert meta_dict == updated_meta[topic]["meta_dict"]
@@ -1367,7 +1366,7 @@ def test_update_config_store(volttron_instance, influxdb_client):
         # Update config store
         publisher.vip.rpc.call('config.store', 'manage_store',
                                'influxdb.historian','config',
-                               json.dumps(updated_influxdb_config), config_type="json").get(timeout=10)
+                               jsonapi.dumps(updated_influxdb_config), config_type="json").get(timeout=10)
         publish_some_fake_data(publisher, 5)
 
         influxdb_client.switch_database(db)

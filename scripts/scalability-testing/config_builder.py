@@ -55,7 +55,7 @@
 
 #}}}
 
-import json
+
 import os
 import os.path
 import abc
@@ -64,6 +64,7 @@ from shutil import copy, rmtree
 from test_settings import (virtual_device_host, device_types, config_dir, 
                            volttron_install, master_driver_file,
                            host_config_location)
+from volttron.platform import jsonapi
 
 class DeviceConfig(object, metaclass=abc.ABCMeta):
     def __init__(self, host_address, instance_number, registry_config, interval=60, heart_beat_point=None):
@@ -79,7 +80,7 @@ class DeviceConfig(object, metaclass=abc.ABCMeta):
         
 
     def __str__(self):
-        return json.dumps(self.configuration,
+        return jsonapi.dumps(self.configuration,
                           indent=4, separators=(',', ': '))
     
     @abc.abstractmethod
@@ -217,7 +218,7 @@ def build_master_config(config_dir,
         configuration["publish_depth_first"] = False
         configuration["publish_breadth_first"] = False
         
-    config_str = json.dumps(configuration, indent=4, separators=(',', ': '))
+    config_str = jsonapi.dumps(configuration, indent=4, separators=(',', ': '))
     
     agent_config = os.path.join(config_dir, "config")
     

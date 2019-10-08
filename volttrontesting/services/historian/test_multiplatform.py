@@ -41,7 +41,7 @@ By default all_platform is set to False and historian subscribes only to topics 
 When all_platforms=True, historian will subscribe to topics from all connected platforms
 
 """
-import json
+
 import os
 import random
 from datetime import datetime
@@ -49,7 +49,7 @@ from datetime import datetime
 import gevent
 import pytest
 
-from volttron.platform import get_services_core
+from volttron.platform import get_services_core, jsonapi
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 from volttrontesting.fixtures.volttron_platform_fixtures import build_wrapper
@@ -188,7 +188,7 @@ def get_zmq_volttron_instances(request):
             addr_file = os.path.join(wrapper.volttron_home, 'external_address.json')
             if address_file:
                 with open(addr_file, 'w') as f:
-                    json.dump(web_addresses, f)
+                    jsonapi.dump(web_addresses, f)
                     gevent.sleep(.1)
             wrapper.startup_platform(address, bind_web_address=web_address, setupmode=True)
             wrapper.skip_cleanup = True

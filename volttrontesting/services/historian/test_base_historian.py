@@ -37,10 +37,8 @@
 # }}}
 
 import shutil
-import json
-import os
 
-from volttron.platform import get_services_core
+from volttron.platform import get_services_core, jsonapi
 
 from volttron.platform.agent.base_historian import (BaseHistorian,
                                                     STATUS_KEY_BACKLOGGED,
@@ -76,11 +74,11 @@ def prep_config(volttron_home):
     shutil.copy(src_driver, new_driver)
 
     with open(new_driver, 'r+') as f:
-        config = json.load(f)
+        config = jsonapi.load(f)
         config['registry_config'] = os.getcwd() + '/services/core/MasterDriverAgent/master_driver/fake.csv'
         f.seek(0)
         f.truncate()
-        json.dump(config, f)
+        jsonapi.dump(config, f)
 
     master_config = {
         "agentid": "master_driver",
@@ -275,7 +273,7 @@ def test_health_stuff(request, volttron_instance, client_agent):
 
         # Test publish slow or backlogged
 
-        historian.publish_sleep = 0.75
+        historian.publish_sleep = 1
 
         for _ in range(1500):
             client_agent.vip.pubsub.publish('pubsub',

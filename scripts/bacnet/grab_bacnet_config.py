@@ -40,7 +40,6 @@ import sys
 import argparse
 import traceback
 from csv import DictWriter
-import json
 from os.path import basename
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 from bacpypes.app import BIPSimpleApplication
@@ -54,6 +53,7 @@ from bacpypes.task import TaskManager
 from bacpypes.object import get_datatype, get_object_class, DeviceObject
 from bacpypes.primitivedata import Enumerated, Unsigned, Boolean, Integer, Real, Double
 from bacpypes.constructeddata import Array
+from volttron.platform import jsonapi
 
 """
 Simple utility to scrape device registers and write them to a configuration file.
@@ -446,7 +446,7 @@ def main():
         "registry_config":"config://registry_configs/{}".format(config_file_name)
     }
 
-    json.dump(config, args.driver_out_file,indent=4)
+    jsonapi.dump(config, args.driver_out_file, indent=4)
     
     try:
         device_name = read_prop(this_application, target_address, "device", device_id, "objectName")

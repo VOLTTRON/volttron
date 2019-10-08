@@ -186,7 +186,8 @@ class BaseRouter(object):
             # A user id might/should be set by the ZAP authenticator
             try:
                 # _log.debug(f"THE TYPE IS:::::::: {type(recipient)}")
-                return recipient  # .get('User-Id').encode('utf-8')
+                # recipient.get('User-Id').encode('utf-8') returns sender !!!
+                return sender
             except ZMQError as exc:
                 if exc.errno != EINVAL:
                     raise
