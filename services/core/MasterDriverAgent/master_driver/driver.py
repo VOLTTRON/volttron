@@ -265,8 +265,6 @@ class DriverAgent(BasicAgent):
             headers_mod.SYNC_TIMESTAMP: sync_timestamp
         }
 
-
-
         if self.publish_depth_first or self.publish_breadth_first:
             for point, value in results.items():
                 depth_first_topic, breadth_first_topic = self.get_paths_for_point(point)

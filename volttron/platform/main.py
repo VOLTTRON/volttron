@@ -54,6 +54,9 @@ import uuid
 
 import gevent
 import gevent.monkey
+
+from volttron.utils.frame_serialization import deserialize_frames, serialize_frames
+
 gevent.monkey.patch_socket()
 gevent.monkey.patch_ssl()
 from gevent.fileobject import FileObject
@@ -372,70 +375,74 @@ class Router(BaseRouter):
                 self._message_debugger_socket.connect(socket_path)
             # Publish the routed message, including the "topic" (status/direction), for use by MessageDebuggerAgent.
             frame_bytes = [topic]
-            frame_bytes.extend([frame if type(frame) is bytes else frame.bytes for frame in frames])
+            frame_bytes.extend(frames)  # [frame if type(frame) is bytes else frame.bytes for frame in frames])
+            frame_bytes = serialize_frames(frames)
+            frame_bytes = [f.bytes for f in frame_bytes]
             self._message_debugger_socket.send_pyobj(frame_bytes)
 
     def handle_subsystem(self, frames, user_id):
-        subsystem = bytes(frames[5])
-        if subsystem == b'quit':
-            sender = bytes(frames[0])
-            if sender == b'control' and user_id == self.default_user_id:
+        _log.debug(f"Handling subsystem with frames: {frames} user_id: {user_id}")
+
+        subsystem = frames[5]
+        if subsystem == 'quit':
+            sender = frames[0]
+            if sender == 'control' and user_id == self.default_user_id:
                 if self._ext_routing:
                     self._ext_routing.close_external_connections()
                 self.stop()
                 raise KeyboardInterrupt()
-        elif subsystem == b'agentstop':
+        elif subsystem ==b'agentstop':
             try:
-                drop = frames[6].bytes
+                drop = frames[6]
                 self._drop_peer(drop)
                 self._drop_pubsub_peers(drop)
                 _log.debug("ROUTER received agent stop message. dropping peer: {}".format(drop))
             except IndexError:
                 pass
             return False
-        elif subsystem == b'query':
+        elif subsystem == 'query':
             try:
-                name = bytes(frames[6])
+                name = frames[6]
             except IndexError:
                 value = None
             else:
-                if name == b'addresses':
+                if name == 'addresses':
                     if self.addresses:
                         value = [addr.base for addr in self.addresses]
                     else:
                         value = [self.local_address.base]
-                elif name == b'local_address':
+                elif name == 'local_address':
                     value = self.local_address.base
                 # Allow the agents to know the serverkey.
-                elif name == b'serverkey':
+                elif name == 'serverkey':
                     keystore = KeyStore()
                     value = keystore.public
-                elif name == b'volttron-central-address':
+                elif name == 'volttron-central-address':
                     value = self._volttron_central_address
-                elif name == b'volttron-central-serverkey':
+                elif name == 'volttron-central-serverkey':
                     value = self._volttron_central_serverkey
-                elif name == b'instance-name':
+                elif name == 'instance-name':
                     value = self._instance_name
-                elif name == b'bind-web-address':
+                elif name == 'bind-web-address':
                     value = self._bind_web_address
-                elif name == b'platform-version':
+                elif name == 'platform-version':
                     value = __version__
-                elif name == b'message-bus':
+                elif name == 'message-bus':
                     value = os.environ.get('MESSAGEBUS', 'zmq')
-                elif name == b'agent-monitor-frequency':
+                elif name == 'agent-monitor-frequency':
                     value = self._agent_monitor_frequency
                 else:
                     value = None
-            frames[6:] = [b'', jsonapi.dumpb(value)]
-            frames[3] = b''
+            frames[6:] = ['', jsonapi.dumps(value)]
+            frames[3] = ''
             return frames
-        elif subsystem == b'pubsub':
+        elif subsystem == 'pubsub':
             result = self.pubsub.handle_subsystem(frames, user_id)
             return result
-        elif subsystem == b'routing_table':
+        elif subsystem == 'routing_table':
             result = self._ext_routing.handle_subsystem(frames)
             return result
-        elif subsystem == b'external_rpc':
+        elif subsystem == 'external_rpc':
             result = self.ext_rpc.handle_subsystem(frames)
             return result
 
@@ -458,7 +465,7 @@ class Router(BaseRouter):
             if sock == self.socket:
                 if sockets[sock] == zmq.POLLIN:
                     frames = sock.recv_multipart(copy=False)
-                    self.route(frames)
+                    self.route(deserialize_frames(frames))
             elif sock in self._ext_routing._vip_sockets:
                 if sockets[sock] == zmq.POLLIN:
                     # _log.debug("From Ext Socket: ")
@@ -738,6 +745,7 @@ def start_volttron_process(opts):
     # Main loops
     def zmq_router(stop):
         try:
+            _log.debug("Running zmq router")
             Router(opts.vip_local_address, opts.vip_address,
                    secretkey=secretkey, publickey=publickey,
                    default_user_id=b'vip.service', monitor=opts.monitor,

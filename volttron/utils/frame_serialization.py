@@ -37,11 +37,14 @@
 # }}}
 
 from json import JSONDecodeError
+import logging
 from typing import List, Any
 from zmq.sugar.frame import Frame
+import struct
 
 from volttron.platform import jsonapi
 
+_log = logging.getLogger(__name__)
 
 def deserialize_frames(frames: List[Frame]) -> List:
     decoded = []
@@ -54,13 +57,14 @@ def deserialize_frames(frames: List[Frame]) -> List:
                 decoded.append(jsonapi.loads(d))
             except JSONDecodeError:
                 decoded.append(d)
-
+    #_log.debug("deserialized: {}".format(decoded))
     return decoded
 
 
 def serialize_frames(data: List[Any]) -> List[Frame]:
     frames = []
 
+    _log.debug("Serializing: {}".format(data))
     for x in data:
         try:
             if isinstance(x, list):
@@ -71,6 +75,8 @@ def serialize_frames(data: List[Any]) -> List[Frame]:
                 frames.append(Frame(x))
             elif isinstance(x, dict):
                 frames.append(Frame(jsonapi.dumps(x).encode('utf-8')))
+            elif isinstance(x, int):
+                frames.append(struct.pack("I", x))
             else:
                 frames.append(Frame(x.encode('utf-8')))
         except TypeError as e:
