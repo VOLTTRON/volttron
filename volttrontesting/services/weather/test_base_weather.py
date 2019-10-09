@@ -126,7 +126,7 @@ class BasicWeatherAgent(BaseWeatherAgent):
                             "Service_Units": "inch",
                             "Standard_Units": "centimeter"}
                            ]
-        with open("temp.csv", 'wb') as csvfile:
+        with open("temp.csv", 'w') as csvfile:
             fields = ["Service_Point_Name", "Standard_Point_Name",
                       "Service_Units", "Standard_Units"]
             writer = csv.DictWriter(csvfile, fieldnames=fields)
@@ -898,7 +898,7 @@ def test_api_calls_services(weather):
     with pytest.raises(ValueError) as invalid_calls_available:
         weather.api_calls_available(0)
 
-    assert 'Invalid quantity for API calls' in invalid_calls_available.value
+    assert 'Invalid quantity for API calls' in invalid_calls_available.value.args
 
     clear_api_calls(weather)
 
