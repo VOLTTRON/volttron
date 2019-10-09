@@ -1,10 +1,9 @@
-import json
 import logging
 import pytest
 
 import gevent
 
-from volttron.platform import get_volttron_root
+from volttron.platform import get_volttron_root, jsonapi
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, \
     CONFIGURATION_STORE
 from volttron.platform.jsonrpc import RemoteError, UNAUTHORIZED
@@ -225,7 +224,7 @@ def test_can_change_topic_map(setup_platform, vc_agent):
                     'manage_store',
                     VOLTTRON_CENTRAL_PLATFORM,
                     'config',
-                    json.dumps(replace_map),
+                    jsonapi.dumps(replace_map),
                     'json').get(timeout=STANDARD_GET_TIMEOUT)
 
     gevent.sleep(2)
@@ -247,7 +246,7 @@ def test_can_change_topic_map(setup_platform, vc_agent):
                     'manage_store',
                     VOLTTRON_CENTRAL_PLATFORM,
                     'config',
-                    json.dumps(replace_map),
+                    jsonapi.dumps(replace_map),
                     'json').get(timeout=STANDARD_GET_TIMEOUT)
 
     gevent.sleep(2)
