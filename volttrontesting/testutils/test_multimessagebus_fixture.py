@@ -53,8 +53,8 @@ def test_can_connect_web_using_remote_platform_ca(web_bound_correctly):
     # these two lines enable debugging at httplib level (requests->urllib3->httplib)
     # you will see the REQUEST, including HEADERS and DATA, and RESPONSE with HEADERS but without DATA.
     # the only thing missing will be the response.body which is not logged.
-    import httplib
-    httplib.HTTPConnection.debuglevel = 1
+    from http.client import HTTPConnection
+    HTTPConnection.debuglevel = 1
     resp = requests.get(sink.discovery_address, verify=source.requests_ca_bundle)
 
     assert resp.ok
@@ -66,7 +66,7 @@ def test_instance_config_matches_instance(web_bound_correctly):
 
     def config_file_correct(instance):
         import os
-        from ConfigParser import ConfigParser
+        from configparser import ConfigParser
 
         config_file = os.path.join(instance.volttron_home, "config")
         assert os.path.isfile(config_file)

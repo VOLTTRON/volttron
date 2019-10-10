@@ -26,7 +26,7 @@ from volttron.platform.agent.known_identities import MASTER_WEB, CONTROL
 from volttron.platform.certs import Certs
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (strip_comments,
-                                           load_platform_config,
+                                           execute_command,
                                            store_message_bus_config)
 from volttron.platform.aip import AIPplatform
 from volttron.platform.auth import (AuthFile, AuthEntry,
