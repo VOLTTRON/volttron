@@ -52,6 +52,12 @@ def deserialize_frames(frames: List[Frame]) -> List:
     for x in frames:
         if isinstance(x, list):
             decoded.append(deserialize_frames(x))
+        elif isinstance(x, int):
+            decoded.append(x)
+        elif isinstance(x, bytes):
+            decoded.append(x.decode('utf-8'))
+        elif isinstance(x, str):
+            decoded.append(x)
         else:
             d = x.bytes.decode('utf-8')
             try:

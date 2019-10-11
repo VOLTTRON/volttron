@@ -389,9 +389,9 @@ class PubSubService(object):
         # Send error message as peer is not authorized to publish to the topic
         if errmsg is not None:
             try:
-                frames = [publisher, b'', proto, user_id, msg_id,
-                          b'error', zmq.Frame(str(UNAUTHORIZED).encode("utf-8")),
-                          zmq.Frame(str(errmsg).encode("utf-8")), b'', subsystem]
+                frames = [publisher, '', proto, user_id, msg_id,
+                          'error', str(UNAUTHORIZED),
+                          str(errmsg), '', subsystem]
             except ValueError:
                 self._logger.debug("Value error")
             self._send(frames, publisher)
@@ -830,22 +830,22 @@ class PubSubService(object):
         """
         # self._logger.debug("PubSubService message: {}".format(message))
         json_msg = jsonapi.dumps(dict(sender=peer, bus=bus, headers=headers, message=message))
-        frames = [sender, b'', b'VIP1', '', '', b'pubsub', b'publish', topic, json_msg]
+        frames = [sender, '', 'VIP1', '', '', 'pubsub', 'publish', topic, json_msg]
         # Send it through ZMQ bus
         self._distribute(frames, '')
         self._logger.debug("Publish callback {}".format(topic))
 
-    def _publish_on_rmq_bus(self, frames):
+    def _publish_on_rmq_bus(self, frames: list):
         """
         Publish the message on RabbitMQ message bus.
         :param frames: ZMQ message frames
         :return:
         """
-        publisher = frames[0].bytes.decode('utf-8')
-        topic = frames[7].bytes.decode('utf-8')
-        data = frames[8].bytes.decode('utf-8')
+        publisher = frames[0]
+        topic = frames[7]
+
         try:
-            msg = jsonapi.loads(data)
+            msg = frames[8]
             bus = msg['bus']
         except KeyError as exc:
             self._logger.error("Missing key in _peer_publish message {}".format(exc))

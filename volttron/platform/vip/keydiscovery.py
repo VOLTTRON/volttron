@@ -100,7 +100,7 @@ class KeyDiscoveryAgent(Agent):
         """
         self._vip_socket = self.core.socket
 
-        #If in setup mode, read the external_addresses.json to get web addresses to set up authorized connection with
+        # If in setup mode, read the external_addresses.json to get web addresses to set up authorized connection with
         # external platforms.
         if self._setup_mode:
             if self._my_web_address is None:
@@ -111,12 +111,12 @@ class KeyDiscoveryAgent(Agent):
                     self._ext_addresses_store = PersistentDict(filename=self._store_path, flag='c', format='json')
                 except ValueError as exc:
                     _log.error("Error in json format: {0}".format(exc))
-                #Delete the existing store.
+                # Delete the existing store.
                 if self._ext_addresses_store:
                     self._ext_addresses_store.clear()
                     self._ext_addresses_store.async_sync()
             web_addresses = dict()
-            #Read External web addresses file
+            # Read External web addresses file
             try:
                 web_addresses = self._read_platform_address_file()
                 try:
@@ -124,7 +124,7 @@ class KeyDiscoveryAgent(Agent):
                 except ValueError:
                     _log.debug("My web address is not in the external bind web adress list")
 
-                op = b'web-addresses'
+                op = 'web-addresses'
                 self._send_to_router(op, web_addresses)
             except IOError as exc:
                 _log.error("Error in reading file: {}".format(exc))
@@ -133,14 +133,14 @@ class KeyDiscoveryAgent(Agent):
             delay = utils.get_aware_utc_now() + timedelta(seconds=sec)
             grnlt = self.core.schedule(delay, self._key_collection, web_addresses)
         else:
-            #Use the existing store for platform discovery information
+            # Use the existing store for platform discovery information
             with self._ext_addresses_store_lock:
                 try:
                     self._ext_addresses_store = PersistentDict(filename=self._store_path, flag='c', format='json')
                 except ValueError as exc:
                     _log.error("Error in json file format: {0}".format(exc))
                 for name, discovery_info in self._ext_addresses_store.items():
-                    op = b'normalmode_platform_connection'
+                    op = 'normalmode_platform_connection'
                     self._send_to_router(op, discovery_info)
 
     def _key_collection(self, web_addresses):
@@ -183,7 +183,7 @@ class KeyDiscoveryAgent(Agent):
         #If platform discovery is successful, send the info to RoutingService
         #to establish connection with remote platform.
         if platform_info:
-            op = b'setupmode_platform_connection'
+            op = 'setupmode_platform_connection'
             connection_settings = dict(platform_info)
             connection_settings['web-address'] = web_address
             self._send_to_router(op, connection_settings)
@@ -198,7 +198,7 @@ class KeyDiscoveryAgent(Agent):
 
         frames = [op, address]
         try:
-            self._vip_socket.send_vip(b'', b'routing_table', frames, copy=False)
+            self._vip_socket.send_vip('', 'routing_table', frames, copy=False)
         except ZMQError as ex:
             # Try sending later
             _log.error("ZMQ error while sending external platform info to router: {}".format(ex))
