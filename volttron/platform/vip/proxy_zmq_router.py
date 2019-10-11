@@ -44,6 +44,7 @@ from zmq import green as zmq
 from zmq.green import ZMQError, ENOTSOCK
 
 from volttron.platform import jsonapi
+from volttron.utils.frame_serialization import deserialize_frames
 from .agent import Agent, Core
 from volttron.platform import is_rabbitmq_available
 
@@ -268,6 +269,7 @@ class ZMQProxyRouter(Agent):
         while True:
             try:
                 frames = self.zmq_router.socket.recv_multipart(copy=False)
+                frames = deserialize_frames(frames)
                 sender, recipient, proto, auth_token, msg_id, subsystem = frames[:6]
                 sender = sender
                 recipient = recipient

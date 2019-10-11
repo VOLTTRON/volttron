@@ -332,10 +332,12 @@ class RMQRouter(BaseRouter):
         message = Message(peer=None, subsystem=parts[0], args=parts[1:])
         for peer in self._peers:
             message.peer = peer
+            _log.debug(f"Distributing to peers {peer}")
             if self._peers_with_messagebus[peer] == 'rmq':
                 self.connection.send_vip_object(message)
             else:
-                self.connection.send_vip_object_via_proxy(message)
+                _log.debug(f"???????????????????Looks like we should be destributing message {message}")
+                #self.connection.send_vip_object_via_proxy(message)
 
     def _make_user_access_tokens(self, identity):
         tokens = dict()

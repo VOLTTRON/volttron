@@ -64,6 +64,7 @@ from volttron.platform.agent.utils import get_fq_identity
 from volttron.platform.vip import BaseConnection
 from volttron.platform.vip.agent.errors import Unreachable
 from volttron.platform.vip.socket import Message
+from volttron.utils.frame_serialization import deserialize_frames
 
 if is_rabbitmq_available():
     import pika
@@ -550,6 +551,7 @@ class RMQRouterConnection(RMQConnection):
             sender,
             props))
 
+        real_message = jsonapi.dumps(deserialize_frames(message), ensure_ascii=False)
 
         # The below try/except protects the platform from someone who is not communicating
         # via vip protocol.  If sender is not a string then the channel publish will throw
@@ -557,7 +559,7 @@ class RMQRouterConnection(RMQConnection):
         try:
             self.channel.basic_publish(self.exchange,
                                        sender,
-                                       jsonapi.dumps(message, ensure_ascii=False),
+                                       real_message,
                                        props)
         except AssertionError:
             pass
