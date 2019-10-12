@@ -108,11 +108,10 @@ def volttron_instance(request, **kwargs):
     @return: volttron platform instance
     """
     address = kwargs.pop("vip_address", get_rand_vip())
-    wrapper = build_wrapper(address, messagebus='zmq', ssl_auth=False, **kwargs)
-    # wrapper = build_wrapper(address,
-    #                         messagebus=request.param['messagebus'],
-    #                         ssl_auth=request.param['ssl_auth'],
-    #                         **kwargs)
+    wrapper = build_wrapper(address,
+                            messagebus=request.param['messagebus'],
+                            ssl_auth=request.param['ssl_auth'],
+                            **kwargs)
 
     yield wrapper
 
@@ -222,7 +221,7 @@ def volttron_instance_rmq(request):
 @pytest.fixture(scope="module",
                 params=[
                     dict(messagebus='zmq', ssl_auth=False),
-                    # pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
+                    pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
                 ])
 def volttron_instance_web(request):
     print("volttron_instance_web (messagebus {messagebus} ssl_auth {ssl_auth})".format(**request.param))
