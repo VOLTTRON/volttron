@@ -65,7 +65,7 @@ def closing(obj):
     finally:
         try:
             obj.close()
-        except Exception as exc:
+        except BaseException as exc:
             # if exc.__class__.__module__ == 'exceptions':
             if exc.__class__.__module__ == 'builtins':
                 # Don't ignore built-in exceptions because they likely indicate
