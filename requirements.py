@@ -56,6 +56,8 @@ install_requires = [
     'pyzmq',
     'setuptools',
     'tzlocal',
+    'pyopenssl==19.0.0',
+    'cryptography==2.2.2',
     # Cross platform way of handling changes in file/directories.
     # https://github.com/Bogdanp/watchdog_gevent
     'watchdog_gevent',
@@ -121,7 +123,6 @@ extras_require = {
         'websocket-client',
     ],
     'rabbitmq': [
-        'cryptography==2.2.2',
         'gevent-pika'
     ],
     'weather': [
