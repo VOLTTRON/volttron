@@ -791,7 +791,6 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> s
 #     #     raise e
 
 
-
 def is_volttron_running(volttron_home):
     """
     Checks if volttron is running for the given volttron home. Checks if a VOLTTRON_PID file exist and if it does
@@ -809,3 +808,13 @@ def is_volttron_running(volttron_home):
         return running
     else:
         return False
+
+
+def wait_for_volttron_startup(vhome, timeout):
+    # Check for VOLTTRON_PID
+    sleep_time = 0
+    while (not is_volttron_running(vhome)) and sleep_time < timeout:
+        gevent.sleep(3)
+        sleep_time += 3
+    if sleep_time >= timeout:
+        raise Exception("Platform startup failed. Please check volttron.log in {}".format(vhome))

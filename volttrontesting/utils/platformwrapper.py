@@ -684,14 +684,7 @@ class PlatformWrapper:
         # A negative means that the process exited with an error.
         assert self.p_process.poll() is None
 
-        # Check for VOLTTRON_PID
-        sleep_time = 0
-        while (not self.is_running()) and sleep_time < timeout:
-            gevent.sleep(3)
-            sleep_time += 3
-
-        if sleep_time >= timeout:
-            raise Exception("Platform startup failed. Please check volttron.log in {}".format(self.volttron_home))
+        utils.wait_for_volttron_startup(self.volttron_home, timeout)
 
         self.serverkey = self.keystore.public
         assert self.serverkey
