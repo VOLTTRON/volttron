@@ -108,11 +108,10 @@ def volttron_instance(request, **kwargs):
     @return: volttron platform instance
     """
     address = kwargs.pop("vip_address", get_rand_vip())
-    wrapper = build_wrapper(address, messagebus='zmq', ssl_auth=False, **kwargs)
-    # wrapper = build_wrapper(address,
-    #                         messagebus=request.param['messagebus'],
-    #                         ssl_auth=request.param['ssl_auth'],
-    #                         **kwargs)
+    wrapper = build_wrapper(address,
+                            messagebus=request.param['messagebus'],
+                            ssl_auth=request.param['ssl_auth'],
+                            **kwargs)
 
     yield wrapper
 
