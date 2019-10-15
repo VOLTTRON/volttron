@@ -279,8 +279,7 @@ class RPC(SubsystemBase):
             _log.debug("user capability names: {}".format(user_capabilities_names))
             if not required_caps.issubset(user_capabilities_names):
                 msg = ('method "{}" requires capabilities {}, but capability {} was'
-                       ' provided for user {}').format(method.__name__, required_caps, user_capabilites,
-                                                       self._owner.core.identity)
+                       ' provided for user {}').format(method.__name__, required_caps, user_capabilites, user)
                 raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)
             else:
                 # Now check if args passed to method are the ones allowed.
@@ -298,22 +297,22 @@ class RPC(SubsystemBase):
                             _log.debug("name= {} value={}".format(name, value))
                             if name not in args_dict:
                                 raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED,
-                                                                  "User capability is not defined "
+                                                                  "User {} capability is not defined "
                                                                   "properly. method {} does not have "
-                                                                  "a parameter {}".format(method.__name__, name))
+                                                                  "a parameter {}".format(user, method.__name__, name))
                             if _isregex(value):
                                 regex = re.compile('^' + value[1:-1] + '$')
                                 if not regex.match(args_dict[name]):
                                     raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED,
-                                                                      "User can call method {} only "
+                                                                      "User {} can call method {} only "
                                                                       "with {} matching pattern {} but called with "
-                                                                      "{}={}".format(method.__name__, name, value,
+                                                                      "{}={}".format(user, method.__name__, name, value,
                                                                                      name, args_dict[name]))
                             elif args_dict[name] != value:
                                 raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED,
-                                                                  "User can call method {} only "
+                                                                  "User {} can call method {} only "
                                                                   "with {}={} but called with "
-                                                                  "{}={}".format(method.__name__, name, value,
+                                                                  "{}={}".format(user, method.__name__, name, value,
                                                                                  name, args_dict[name]))
 
             return method(*args, **kwargs)

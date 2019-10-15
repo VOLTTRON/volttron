@@ -525,7 +525,7 @@ class RMQPubSub(SubsystemBase):
             if callback is None:
                 for prefix in self._my_subscriptions:
                     subscriptions = self._my_subscriptions[prefix]
-                    for queue_name in subscriptions.keys():
+                    for queue_name in list(subscriptions):
                         self.core().connection.channel.queue_delete(
                             callback=None, queue=queue_name)
                         subscriptions.pop(queue_name)
