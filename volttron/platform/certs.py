@@ -380,7 +380,7 @@ class Certs(object):
 
         subprocess.check_call(cmd)
 
-    def ca_cert(self, public_bytes=False):
+    def ca_cert(self, public_bytes: bool = False):
         """
         Get the X509 CA certificate.
         :return: the CA certificate of current volttron instance
@@ -390,13 +390,14 @@ class Certs(object):
 
         return self.cert(self.root_ca_name, public_bytes=public_bytes)
 
-    def cert(self, name, remote=False, public_bytes=False):
+    def cert(self, name, remote=False, public_bytes: bool = False):
         """
         Get the X509 certificate based upon the name
+        :param public_bytes:
         :param name: name of the certificate to be loaded
         :param remote: determines correct path to search for the cert.
         :return: The certificate object by the given name
-        :rtype: :class: `x509._Certificate`
+        :rtype: :class: `x509._Certificate` or `byte PEM encoding`
         """
 
         if remote:
