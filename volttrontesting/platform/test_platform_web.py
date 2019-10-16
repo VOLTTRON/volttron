@@ -3,6 +3,7 @@ import logging
 import gevent
 from volttron.platform.vip.agent import Agent
 from volttrontesting.utils.platformwrapper import start_wrapper_platform
+from volttron.utils import get_hostname
 from volttron.platform import jsonapi
 import pytest
 import random
@@ -180,13 +181,13 @@ def _build_web_dir(vhome):
 
 
 @pytest.mark.web
-def test_can_discover_info(web_instance):
+def test_can_discover_info(volttron_instance_web):
     """
     Tests whether the web instance returns the key, instance name and
     instance tcp address.
     """
 
-    vi = web_instance
+    vi = volttron_instance_web
 
     # must sleep because the web server takes a bit to get going.
     gevent.sleep(1)
@@ -195,9 +196,18 @@ def test_can_discover_info(web_instance):
     assert res.ok
 
     d = res.json()
-    assert vi.serverkey == d['serverkey']
-    assert d['vip-address']
+    if vi.messagebus == 'zmq':
+        assert vi.serverkey == d['serverkey']
+        assert d['vip-address']
+
     assert d['instance-name']
+
+    if vi.messagebus == 'rmq':
+        rmq_config = vi.rabbitmq_config_obj
+
+        assert vi.certsobj.ca_cert(public_bytes=True).decode('utf-8') == d['rmq-ca-cert']
+        assert f"amqps://{get_hostname()}:{rmq_config.rmq_port_ssl}/{rmq_config.virtual_host}" == \
+               d["rmq-address"]
 
 
 @pytest.mark.web
@@ -235,7 +245,6 @@ def test_test_web_agent(web_instance):
 
     for k, v in payload.items():
         assert v == jsonresp[k]
-
 
 
 @pytest.mark.web

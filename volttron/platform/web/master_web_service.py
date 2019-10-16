@@ -341,6 +341,8 @@ class MasterWebService(Agent):
 
         return_dict = {}
 
+        # Only send vip and serverkey if the platform has specified
+        # a tcp address in the <VOLTTRON_HOME>/config or --vip-address command line argument.
         if external_vip and self.serverkey:
             return_dict['serverkey'] = encode_key(self.serverkey)
             return_dict['vip-address'] = external_vip
@@ -358,7 +360,8 @@ class MasterWebService(Agent):
                 rmq_address = "amqp://{host}:{port}/{vhost}".format(host=config.hostname, port=config.amqp_port,
                                                                     vhost=config.virtual_host)
             return_dict['rmq-address'] = rmq_address
-            return_dict['rmq-ca-cert'] = self._certs.cert(self._certs.root_ca_name).public_bytes(serialization.Encoding.PEM)
+            return_dict['rmq-ca-cert'] = self._certs.cert(self._certs.root_ca_name).public_bytes(
+                serialization.Encoding.PEM).decode("utf-8")
         return JsonResponse(return_dict)
 
     def app_routing(self, env, start_response):
@@ -398,7 +401,8 @@ class MasterWebService(Agent):
             # Load the publickey that was used to sign the login message through the env
             # parameter so agents can use it to verify the Bearer has specific
             # jwt claims
-            passenv['WEB_PUBLIC_KEY'] = env['WEB_PUBLIC_KEY'] = self._certs.get_cert_public_key(get_fq_identity(self.core.identity))
+            passenv['WEB_PUBLIC_KEY'] = env['WEB_PUBLIC_KEY'] = self._certs.get_cert_public_key(
+                get_fq_identity(self.core.identity)).decode('utf-8')
 
         # if we have a peer then we expect to call that peer's web subsystem
         # callback to perform whatever is required of the method.
@@ -466,9 +470,9 @@ class MasterWebService(Agent):
             return True
         return False
 
-    def process_response(self, start_responsee, response):
+    def process_response(self, start_response, response):
         # process the response
-        start_responsee(response.status, response.headers)
+        start_response(response.status, response.headers)
         return [response.content]
 
     def create_raw_response(self, res, start_response):
