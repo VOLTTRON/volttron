@@ -133,7 +133,7 @@ def weather_agent(request, volttron_instance):
     }
     weather_uuid = volttron_instance.install_agent(
         vip_identity='weather_agent',
-        agent_dir=get_services_core("WeatherAgent"),
+        agent_dir=get_services_core("WeatherUndergroundAgent"),
         config_file=config,
         start=False)
 
@@ -199,7 +199,7 @@ def test_poll_valid(volttron_instance, publish_agent, locations, result_topics):
         }
         uuid = volttron_instance.install_agent(
             vip_identity='weather_agent',
-            agent_dir=get_services_core("WeatherAgent"),
+            agent_dir=get_services_core("WeatherUndergroundAgent"),
             config_file=config,
             start=False)
 
@@ -248,7 +248,7 @@ def test_poll_invalid(volttron_instance, publish_agent, locations,
         }
         uuid = volttron_instance.install_agent(
             vip_identity='weather_agent',
-            agent_dir=get_services_core("WeatherAgent"),
+            agent_dir=get_services_core("WeatherUndergroundAgent"),
             config_file=config,
             start=False)
 

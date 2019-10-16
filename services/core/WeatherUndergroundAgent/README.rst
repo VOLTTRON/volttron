@@ -10,6 +10,8 @@ In order for this agent to retrieve data from Weather Underground,
  you must get a developer's key and put that in the config file. Please see
 `<http://www.wunderground.com/weather/api/>`_
 
+NOTE: This agent was last tested when Weather Underground still provided free api keys.
+
 Features
 --------
 
