@@ -925,7 +925,7 @@ class ActuatorAgent(Agent):
         within
                      the time allotted will raise a LockError"""
 
-        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        rpc_peer = self.vip.rpc.context.vip_message.peer
         return self._set_point(rpc_peer, topic, value, point=point, **kwargs)
 
     def _set_point(self, sender, topic, value, point=None, **kwargs):
@@ -1033,7 +1033,7 @@ class ActuatorAgent(Agent):
         .. warning:: calling without previously scheduling *all* devices
                      and not within the time allotted will raise a LockError
         """
-        requester_id = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        requester_id = self.vip.rpc.context.vip_message.peer
         devices = collections.defaultdict(list)
         results = {}
         for topic, value in topics_values:
@@ -1162,7 +1162,7 @@ class ActuatorAgent(Agent):
         within
                      the time allotted will raise a LockError"""
 
-        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        rpc_peer = self.vip.rpc.context.vip_message.peer
         return self._revert_point(rpc_peer, topic, point=point, **kwargs)
 
     def _revert_point(self, sender, topic, point=None, **kwargs):
@@ -1202,7 +1202,7 @@ class ActuatorAgent(Agent):
         .. warning:: Calling without previously scheduling a device and not
         within
                      the time allotted will raise a LockError"""
-        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        rpc_peer = self.vip.rpc.context.vip_message.peer
         return self._revert_device(rpc_peer, topic, **kwargs)
 
     def _revert_device(self, sender, topic, **kwargs):
@@ -1339,7 +1339,7 @@ class ActuatorAgent(Agent):
         
             The return values are described in `New Task Response`_.
         """
-        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        rpc_peer = self.vip.rpc.context.vip_message.peer
         return self._request_new_schedule(rpc_peer, task_id, priority, requests, publish_result=False)
 
     def _request_new_schedule(self, sender, task_id, priority, requests, publish_result=True):
@@ -1442,7 +1442,7 @@ class ActuatorAgent(Agent):
         The return values are described in `Cancel Task Response`_.
         
         """
-        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        rpc_peer = self.vip.rpc.context.vip_message.peer
         return self._request_cancel_schedule(rpc_peer, task_id, publish_result=False)
 
     def _request_cancel_schedule(self, sender, task_id, publish_result=True):
