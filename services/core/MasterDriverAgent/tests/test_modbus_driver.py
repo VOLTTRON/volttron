@@ -85,7 +85,7 @@ def agent(request, volttron_instance):
                           'manage_store',
                           PLATFORM_DRIVER,
                           'devices/modbus',
-                          jsonapi..dumps(DRIVER_CONFIG),
+                          jsonapi.dumps(DRIVER_CONFIG),
                           config_type='json')
 
     # Add csv configurations
