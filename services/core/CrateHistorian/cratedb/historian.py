@@ -66,7 +66,6 @@ from volttron.platform.dbutils.crateutils import (create_schema,
 from crate import client as crate_client
 from crate.client.exceptions import ConnectionError, ProgrammingError
 
-
 from volttron.platform.jsonapi import dumps
 from volttron.utils.docs import doc_inherit
 
@@ -203,9 +202,9 @@ class CrateHistorian(BaseHistorian):
             raise ValueError("invalid params['host'] value")
         elif host != self._host:
             _log.info("Changing host to {}".format(host))
-        
+
         self._host = host
-        
+
         client = CrateHistorian.get_client(host)
         if client is None:
             _log.error("Couldn't reach host: {}".format(host))
@@ -309,12 +308,11 @@ class CrateHistorian(BaseHistorian):
                         old_meta = {}
                     if set(old_meta.items()) != set(meta.items()):
                         _log.debug(
-                           'Updating meta for topic: {} {}'.format(topic,
-                                                                   meta))
+                            'Updating meta for topic: {} {}'.format(topic,
+                                                                    meta))
                         self._topic_meta[topic_lower] = meta
                         cursor.execute(update_topic_query(self._schema, self._topic_table),
                                        (meta, topic))
-
 
                 batch_data.append(
                     (ts, topic, source, value, meta)
@@ -608,7 +606,6 @@ class CrateHistorian(BaseHistorian):
             for topic in topics:
                 meta[topic] = self._topic_meta.get(topic.lower())
         return meta
-
 
     @doc_inherit
     def query_aggregate_topics(self):
