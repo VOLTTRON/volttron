@@ -14,6 +14,7 @@ ij_formatter_on_tag = @formatter:on
 ij_formatter_tags_enabled = false
 ij_smart_tabs = false
 ij_wrap_on_typing = false
+ij_visual_guides = 40, 120
 
 [*.css]
 # ij_css_align_closing_brace_with_properties = false
@@ -245,8 +246,8 @@ ij_python_new_line_after_colon_multi_clause = true
 ij_python_optimize_imports_always_split_from_imports = false
 ij_python_optimize_imports_case_insensitive_order = false
 ij_python_optimize_imports_join_from_imports_with_same_source = false
-ij_python_optimize_imports_sort_by_type_first = true
-ij_python_optimize_imports_sort_imports = true
+ij_python_optimize_imports_sort_by_type_first = false
+ij_python_optimize_imports_sort_imports = false
 ij_python_optimize_imports_sort_names_in_from_imports = false
 ij_python_space_after_comma = true
 ij_python_space_after_number_sign = true
