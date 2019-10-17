@@ -44,12 +44,14 @@ def test_register_route(master_web_service: MasterWebService):
     fn_mock = mock.Mock()
     fn_mock.__name__ = "test_register_route"
     interest = {'/web': {'type': 'agent_route', 'fn': fn_mock}}
+    routes_before = len(ws.peerroutes)
+    registered_routes_before = len(ws.registeredroutes)
     add_points_of_interest(ws, interest)
-    assert len(ws.peerroutes) == 1
-    assert len(ws.registeredroutes) == 1
+    assert routes_before + 1 == len(ws.peerroutes)
+    assert registered_routes_before + 1 == len(ws.registeredroutes)
     ws.unregister_all_agent_routes()
-    assert len(ws.peerroutes) == 0
-    assert len(ws.registeredroutes) == 0
+    assert routes_before == len(ws.peerroutes)
+    assert registered_routes_before == len(ws.registeredroutes)
 
 
 def test_register_endpoint(master_web_service: MasterWebService):
@@ -69,10 +71,11 @@ def test_register_path_route(master_web_service: MasterWebService):
     fn_mock = mock.Mock()
     fn_mock.__name__ = "test_register_path_route"
     interest = {"/foo": {"type": "path", "root_dir": "./foo"}}
+    registerd_routes_before = len(ws.registeredroutes)
     add_points_of_interest(ws, interest)
-
-    assert len(ws.pathroutes) == 1
-    assert len(ws.registeredroutes) == 1
+    assert 1 == len(ws.pathroutes)
+    assert registerd_routes_before + 1 == len(ws.registeredroutes)
     ws.unregister_all_agent_routes()
-    assert len(ws.pathroutes) == 0
-    assert len(ws.registeredroutes) == 0
+    assert 0 == len(ws.pathroutes)
+    assert registerd_routes_before == len(ws.registeredroutes)
+
