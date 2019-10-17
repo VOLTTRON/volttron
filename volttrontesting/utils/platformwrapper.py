@@ -400,6 +400,8 @@ class PlatformWrapper:
             self.logit('using instance serverkey: {}'.format(publickey))
             serverkey = publickey
         self.logit("BUILD agent VOLTTRON HOME: {}".format(self.volttron_home))
+        if self.bind_web_address:
+            kwargs['enable_web'] = True
         agent = agent_class(address=address, identity=identity,
                             publickey=publickey, secretkey=secretkey,
                             serverkey=serverkey,
