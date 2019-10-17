@@ -4,15 +4,18 @@ of the tests in here are not integration tests, but unit tests to test the
 functionality of the MasterWebService agent.
 """
 import mock
+from io import BytesIO
 import pytest
 
+from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import MASTER_WEB
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.subsystems.web import ResourceType
 from volttrontesting.utils.utils import AgentMock
 from volttron.platform.web import MasterWebService
 
-
+# Patch the MasterWebService so the underlying Agent interfaces are mocked
+# so we can just test the things that the MasterWebService is responsible for.
 MasterWebService.__bases__ = (AgentMock.imitate(Agent, Agent()),)
 
 
@@ -24,11 +27,24 @@ def master_web_service():
                            bind_web_address="http://v2:8888", aip=mock_aip)
 
 
+def add_points_of_interest(ws: MasterWebService, endpoints: dict):
+    for k, v in endpoints.items():
+        if v['type'] == 'agent_route':
+            ws.register_agent_route(k, v['fn'])
+        elif v['type'] == 'endpoint':
+            ws.register_endpoint(k, ResourceType.RAW.value)
+        elif v['type'] == 'path':
+            ws.register_path_route(k, v['root_dir'])
+        else:
+            raise ValueError(f"Invalid type specified in endpoints dictionary {k}")
+
+
 def test_register_route(master_web_service: MasterWebService):
     ws = master_web_service
     fn_mock = mock.Mock()
     fn_mock.__name__ = "test_register_route"
-    ws.register_agent_route("/web/", fn_mock)
+    interest = {'/web': {'type': 'agent_route', 'fn': fn_mock}}
+    add_points_of_interest(ws, interest)
     assert len(ws.peerroutes) == 1
     assert len(ws.registeredroutes) == 1
     ws.unregister_all_agent_routes()
@@ -40,7 +56,8 @@ def test_register_endpoint(master_web_service: MasterWebService):
     ws = master_web_service
     fn_mock = mock.Mock()
     fn_mock.__name__ = "test_register_endpoint"
-    ws.register_endpoint("/battle/one", ResourceType.RAW.value)
+    interest = {"/battle/one": {'type': 'endpoint'}}
+    add_points_of_interest(ws, interest)
 
     assert len(ws.endpoints) == 1
     ws.unregister_all_agent_routes()
@@ -51,7 +68,8 @@ def test_register_path_route(master_web_service: MasterWebService):
     ws = master_web_service
     fn_mock = mock.Mock()
     fn_mock.__name__ = "test_register_path_route"
-    ws.register_path_route("/foo/", "./foo")
+    interest = {"/foo": {"type": "path", "root_dir": "./foo"}}
+    add_points_of_interest(ws, interest)
 
     assert len(ws.pathroutes) == 1
     assert len(ws.registeredroutes) == 1
