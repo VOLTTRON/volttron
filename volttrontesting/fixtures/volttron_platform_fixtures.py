@@ -63,21 +63,6 @@ def volttron_instance_msgdebug(request):
     cleanup_wrapper(wrapper)
 
 
-# IPC testing is removed since it is not used from VOLTTRON 6.0
-@pytest.fixture(scope="function")
-def volttron_instance_encrypt(request):
-    print("building instance (using encryption)")
-
-    address = get_rand_vip()
-    wrapper = build_wrapper(address)
-
-    def cleanup():
-        cleanup_wrapper(wrapper)
-
-    request.addfinalizer(cleanup)
-    return wrapper
-
-
 @pytest.fixture(scope="module")
 def volttron_instance_module_web(request):
     print("building module instance (using web)")
