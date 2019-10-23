@@ -67,7 +67,7 @@ import subprocess
 
 # Create a context common to the green and non-green zmq modules.
 from volttron.platform.instance_setup import _update_config_file
-
+from volttron.platform.agent.utils import get_platform_instance_name
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
 from volttron.platform import jsonapi
 
@@ -380,8 +380,17 @@ class Router(BaseRouter):
             frame_bytes = [f.bytes for f in frame_bytes]
             self._message_debugger_socket.send_pyobj(frame_bytes)
 
+    def extract_bytes(self, frame_bytes):
+        result = []
+        for f in frame_bytes:
+            if isinstance(f, list):
+                result.extend(self.extract_bytes(f))
+            else:
+                result.append(f.bytes)
+        return result
+
     def handle_subsystem(self, frames, user_id):
-        _log.debug(f"Handling subsystem with frames: {frames} user_id: {user_id}")
+        #_log.debug(f"Handling subsystem with frames: {frames} user_id: {user_id}")
 
         subsystem = frames[5]
         if subsystem == 'quit':
@@ -637,8 +646,14 @@ def start_volttron_process(opts):
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
-    if opts.message_bus == 'rmq':
+
+    _log.debug("opts.instancename {}".format(opts.instance_name))
+    if opts.instance_name:
         store_message_bus_config(opts.message_bus, opts.instance_name)
+    else:
+        # if there is no instance_name given get_platform_instance_name will
+        # try to retrieve from config or default a value and store it in the config
+        get_platform_instance_name(vhome=opts.volttron_home, prompt=False)
 
     if opts.bind_web_address:
         parsed = urlparse(opts.bind_web_address)
