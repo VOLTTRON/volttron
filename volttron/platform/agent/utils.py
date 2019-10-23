@@ -405,8 +405,8 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         message_bus = os.environ.get('MESSAGEBUS', 'zmq')
         if identity is not None:
             if not is_valid_identity(identity):
-                _log.warn('Deprecation warining')
-                _log.warn(
+                _log.warning('Deprecation warining')
+                _log.warning(
                     'All characters in {identity} are not in the valid set.'
                     .format(idenity=identity))
 
