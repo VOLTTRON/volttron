@@ -1585,13 +1585,11 @@ def edit_config(opts):
 
 
 class ControlConnection(object):
-    def __init__(self, address, peer='control',
-                 publickey=None, secretkey=None, serverkey=None):
+    def __init__(self, address, peer='control'):
         self.address = address
         self.peer = peer
         message_bus = utils.get_messagebus()
-        self._server = BaseAgent(address=self.address, publickey=publickey,
-                                 secretkey=secretkey, serverkey=serverkey,
+        self._server = BaseAgent(address=self.address,
                                  enable_store=False,
                                  identity=CONTROL_CONNECTION,
                                  message_bus=message_bus,
@@ -2712,8 +2710,7 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = ControlConnection(opts.vip_address,
-                                        **get_keys(opts))
+    opts.connection = ControlConnection(opts.vip_address)
 
     try:
         with gevent.Timeout(opts.timeout):

@@ -114,6 +114,12 @@ class KeyStore(BaseJSONStore):
         return os.path.join(get_home(), 'keystore')
 
     @staticmethod
+    def get_agent_keystore_path(identity=None):
+        if identity is None:
+            raise AttributeError("invalid identity")
+        return os.path.join(get_home(), f"keystores/{identity}/keystore.json")
+
+    @staticmethod
     def generate_keypair_dict():
         """Generate and return new keypair as dictionary"""
         public, secret = curve_keypair()
