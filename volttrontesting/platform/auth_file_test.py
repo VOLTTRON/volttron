@@ -51,13 +51,16 @@ from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, 
 from volttron.platform import jsonapi
 
 @pytest.fixture(scope='function')
-def auth_file_platform_tuple(volttron_instance_encrypt):
-    platform = volttron_instance_encrypt
+def auth_file_platform_tuple(volttron_instance):
+    platform = volttron_instance
     auth_file = AuthFile(os.path.join(platform.volttron_home, 'auth.json'))
-
-    allow_entries, groups, roles = auth_file.read()
     gevent.sleep(0.5)
-    return auth_file, platform
+    yield auth_file, platform
+
+    allow_entries = auth_file.read_allow_entries()
+
+    auth_file.remove_by_indices(list(range(3, len(allow_entries))))
+    gevent.sleep(0.5)
 
 
 @pytest.fixture(scope='module')
@@ -116,15 +119,15 @@ def test_auth_file_api(auth_file_platform_tuple, auth_entry1,
     auth_file.add(auth_entry2)
     entries = auth_file.read_allow_entries()
     entries_len = len(entries)
-    assert entries_len >= 2
+    assert entries_len == 5
 
     # update entries
-    auth_file.update_by_index(auth_entry3, 0)
+    auth_file.update_by_index(auth_entry3, entries_len-2)
     entries = auth_file.read_allow_entries()
     assert entries_len == len(entries)
 
     # remove entries
-    auth_file.remove_by_index(1)
+    auth_file.remove_by_index(entries_len-1)
     entries = auth_file.read_allow_entries()
     assert entries_len - 1 == len(entries)
 

@@ -58,7 +58,7 @@ def deserialize_frames(frames: List[Frame]) -> List:
             decoded.append(x.decode('utf-8'))
         elif isinstance(x, str):
             decoded.append(x)
-        else:
+        elif x is not None:
             d = x.bytes.decode('utf-8')
             try:
                 decoded.append(jsonapi.loads(d))

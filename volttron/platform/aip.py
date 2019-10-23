@@ -229,7 +229,7 @@ class AIPplatform(object):
             task.kill()
 
     def brute_force_platform_shutdown(self):
-        for agent_uuid in self.agents.iterkeys():
+        for agent_uuid in list(self.agents.keys()):
             _log.debug("Stopping agent UUID {}".format(agent_uuid))
             self.stop_agent(agent_uuid)
         # kill the platform

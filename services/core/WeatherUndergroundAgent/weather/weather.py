@@ -112,7 +112,7 @@ class Weather2Agent(Agent):
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
-        _log.debug('WeatherAgent: Subscribing to ' + self.request_topic_prefix)
+        _log.debug('WeatherUndergroundAgent: Subscribing to ' + self.request_topic_prefix)
         self.vip.pubsub.subscribe(peer='pubsub',
                                   prefix=self.request_topic_prefix,
                                   callback=self.on_request)
