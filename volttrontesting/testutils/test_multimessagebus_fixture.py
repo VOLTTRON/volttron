@@ -33,12 +33,12 @@ def test_correct_remote_ca_specified(web_bound_correctly):
             requests_ca_content = f.read()
 
         data = sink.certsobj.ca_cert(public_bytes=True)
-        assert data in requests_ca_content
+        assert data.decode('utf-8') in requests_ca_content
         if source.messagebus == 'zmq':
-            assert data == requests_ca_content
+            assert data.decode('utf-8') == requests_ca_content
 
         if source.messagebus == 'rmq':
-            assert data != source.certsobj.ca_cert(public_bytes=True)
+            assert data.decode('utf-8') != source.certsobj.ca_cert(public_bytes=True)
 
 
 def test_can_connect_web_using_remote_platform_ca(web_bound_correctly):
