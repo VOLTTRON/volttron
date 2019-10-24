@@ -84,7 +84,7 @@ from .control import ControlService
 from .web import MasterWebService
 from .store import ConfigStoreService
 from .agent import utils
-from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH, CONTROL
+from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService
@@ -736,6 +736,16 @@ def start_volttron_process(opts):
         for addr in opts.vip_address:
             known_hosts.add(addr, encode_key(publickey))
     secretkey = decode_key(keystore.secret)
+
+    # Add the control.connection so that volttron-ctl can access the bus
+    control_conn_path = KeyStore.get_agent_keystore_path(CONTROL_CONNECTION)
+    os.makedirs(os.path.dirname(control_conn_path), exist_ok=True)
+    ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(CONTROL_CONNECTION))
+    entry = AuthEntry(credentials=encode_key(decode_key(ks_control_conn.public)),
+                      user_id=CONTROL_CONNECTION,
+                      capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
+                      comments='Automatically added by platform on start')
+    AuthFile().add(entry, overwrite=True)
 
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
