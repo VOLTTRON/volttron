@@ -536,10 +536,10 @@ class PubSubService(object):
             except KeyError:
                 error = None
             if exc.errno == EHOSTUNREACH:
-                self._logger.debug("Host unreachable {}".format(subscriber.bytes.decode('utf-8')))
-                drop.append(subscriber.bytes)
+                self._logger.debug("Host unreachable {}".format(subscriber))
+                drop.append(subscriber)
             elif exc.errno == EAGAIN:
-                self._logger.debug("EAGAIN error {}".format(subscriber.bytes.decode('utf-8')))
+                self._logger.debug("EAGAIN error {}".format(subscriber))
                 # Only send EAGAIN errors
                 proto, user_id, msg_id, subsystem = frames[2:6]
                 frames = [publisher, b'', proto, user_id, msg_id,
@@ -615,7 +615,8 @@ class PubSubService(object):
 
         try:
             sender, recipient, proto, usr_id, msg_id, subsystem, op = frames[:7]
-        except IndexError:
+        except (ValueError, TypeError):  # TypeError will happen if frames is not subscriptable.
+            _log.error(f"Invalid number of frames handle_subsystem {frames}")
             return False
 
         # subsystem = bytes(subsystem)
