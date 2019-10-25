@@ -33,7 +33,7 @@ def test_pubsub_routing_setup(pubsub_service):
         assert parameters["routing_service"] is None
 
 
-def test_handle_subsystem_frames(pubsub_service):
+def test_handle_subsystem_not_enough_frames(pubsub_service):
 
     parameters, service = pubsub_service
 
@@ -41,12 +41,15 @@ def test_handle_subsystem_frames(pubsub_service):
     result = service.handle_subsystem([])
     assert not result
 
+    result = service.handle_subsystem(None)
+    assert not result
 
-def test_returns_none_if_not_pubsub_subsystem(pubsub_service):
+
+def test_returns_empty_list_when_subsystem_not_specified(pubsub_service):
 
     parameters, service = pubsub_service
     frames = [None for x in range(7)]
     assert 7 == len(frames)
     frames[6] = "not_pubsub"
     result = service.handle_subsystem(frames)
-    assert result is None
+    assert [] == result
