@@ -124,6 +124,12 @@ class Agent(object):
             _log.exception("Exception creating Agent. {}".format(e))
             raise e
 
+    # def __lt__(self, other):
+    #     return self.core.identity < other.core.identity
+    #
+    # def __eq__(self, other):
+    #     return self.core.identity == other.core.identity
+
 
 class BasicAgent(object):
     def __init__(self, **kwargs):

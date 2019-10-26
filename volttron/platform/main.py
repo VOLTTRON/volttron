@@ -395,19 +395,24 @@ class Router(BaseRouter):
         subsystem = frames[5]
         if subsystem == 'quit':
             sender = frames[0]
-            if sender == 'control' and user_id == self.default_user_id:
+            # was if sender == 'control' and user_id == self.default_user_id:
+            # now we serialize frames and if user_id is always the sender and not
+            # recipents.get('User-Id') or default user name
+            if sender == 'control':
                 if self._ext_routing:
                     self._ext_routing.close_external_connections()
                 self.stop()
                 raise KeyboardInterrupt()
-        elif subsystem ==b'agentstop':
+            else:
+                _log.error(f"Sender {sender} not authorized to shutdown platform")
+        elif subsystem =='agentstop':
             try:
                 drop = frames[6]
                 self._drop_peer(drop)
                 self._drop_pubsub_peers(drop)
                 _log.debug("ROUTER received agent stop message. dropping peer: {}".format(drop))
             except IndexError:
-                pass
+                _log.error(f"agentstop called but unable to determine agent from frames sent {frames}")
             return False
         elif subsystem == 'query':
             try:

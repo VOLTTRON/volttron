@@ -1389,7 +1389,7 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     if not agents:
         _stderr.write('No installed Agents found\n')
         return
-    agents.sort()
+    #agents.sort()
     if not opts.min_uuid_len:
         n = 36
     else:
@@ -1437,7 +1437,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
     if not agents:
         _stderr.write('No installed Agents found\n')
         return
-    agents.sort()
+    #agents.sort()
     if not opts.min_uuid_len:
         n = 36
     else:
