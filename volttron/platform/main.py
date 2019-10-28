@@ -379,15 +379,15 @@ class Router(BaseRouter):
             frame_bytes = serialize_frames(frames)
             frame_bytes = [f.bytes for f in frame_bytes]
             self._message_debugger_socket.send_pyobj(frame_bytes)
-
-    def extract_bytes(self, frame_bytes):
-        result = []
-        for f in frame_bytes:
-            if isinstance(f, list):
-                result.extend(self.extract_bytes(f))
-            else:
-                result.append(f.bytes)
-        return result
+    # This is currently not being used e.g once fixed we won't use it.
+    #def extract_bytes(self, frame_bytes):
+    #    result = []
+    #    for f in frame_bytes:
+    #        if isinstance(f, list):
+    #            result.extend(self.extract_bytes(f))
+    #        else:
+    #            result.append(f.bytes)
+    #    return result
 
     def handle_subsystem(self, frames, user_id):
         #_log.debug(f"Handling subsystem with frames: {frames} user_id: {user_id}")
