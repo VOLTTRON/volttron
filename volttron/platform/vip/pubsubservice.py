@@ -49,9 +49,11 @@ from zmq import green
 from collections import defaultdict
 
 # Create a context common to the green and non-green zmq modules.
+from volttron.platform.agent.utils import get_platform_instance_name
 from volttron.utils.frame_serialization import serialize_frames
 
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
+from volttron.platform import get_home
 from .agent.subsystems.pubsub import ProtectedPubSubTopics
 from volttron.platform.jsonrpc import (INVALID_REQUEST, UNAUTHORIZED)
 from volttron.platform import jsonapi
@@ -739,10 +741,17 @@ class PubSubService(object):
         if len(frames) <= 7:
             return False
         else:
-            data = frames[7].bytes
-            msg = jsonapi.loadb(data)
+            msg = frames[7]
             try:
+                this_platform_instance_name = get_platform_instance_name()
                 for instance_name in msg:
+                    if instance_name == this_platform_instance_name:
+                        _log.error("Invalid configuraiton of external instances!\n"
+                                   f"The name {instance_name} is specified as local and "
+                                   "external instance name.  Please fix this issue in the "
+                                   "external_platform_discovery.json file in the "
+                                   "the VOLTTRON_HOME of the external instance.")
+                        continue
                     prefixes = msg[instance_name]
                     # Store external subscription list for later use (during publish)
                     self._ext_subscriptions[instance_name] = prefixes
@@ -772,7 +781,7 @@ class PubSubService(object):
         if len(frames) > 8:
             publisher, receiver, proto, user_id, msg_id, subsystem, op, topic, data = frames[0:9]
             # Check if peer is authorized to publish the topic
-            errmsg = self._check_if_protected_topic(user_id.decode("utf-8"), topic.decode("utf-8"))
+            errmsg = self._check_if_protected_topic(user_id, topic)
 
             # peer is not authorized to publish to the topic, send error message to the peer
             if errmsg is not None:
@@ -892,8 +901,8 @@ class ProtectedPubSubTopics(object):
         return self._dict.copy()
 
     def _isprefix(self, topic):
-        _log.debug("topic type {}".format(type(topic)))
         for prefix in self._dict:
             if topic[:len(prefix)] == prefix:
+                _log.debug(f"Prefix is {prefix}")
                 return prefix
         return None

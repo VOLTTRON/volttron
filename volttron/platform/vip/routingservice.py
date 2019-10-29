@@ -43,6 +43,7 @@ import re
 import zmq
 import logging
 from zmq import SNDMORE, EHOSTUNREACH, ZMQError, EAGAIN, NOBLOCK
+from volttron.utils.frame_serialization import serialize_frames
 from ..keystore import KeyStore
 from zmq.utils import jsonapi
 from ..vip.socket import Address
@@ -100,32 +101,27 @@ class RoutingService(object):
 
         try:
             sender, recipient, proto, usr_id, msg_id, subsystem, op = frames[:7]
-        except IndexError:
+        except (ValueError, TypeError):  # TypeError will happen if frames is not subscriptable.
+            _log.error(f"Invalid number of frames handle_subsystem {frames}")
             return False
-        subsystem = bytes(subsystem)
-        op = bytes(op)
-        # for f in frames:
-        #     _log.debug("ROUTINGSERVICE handle subsystem {}".format(bytes(f)))
 
-        if subsystem == b'routing_table':
-            #If Setup mode of operation, setup authorization
-            if op == b'setupmode_platform_connection':
-                instance_config = bytes(frames[7])
-                instance_config = jsonapi.loads(instance_config)
+        if subsystem == 'routing_table':
+            # If Setup mode of operation, setup authorization
+            if op == 'setupmode_platform_connection':
+                instance_config = frames[7]  # sonapi.loads(instance_config)
                 self._setup_authorization(instance_config)
             # If Normal mode of operation, build authorized connection
-            elif op == b'normalmode_platform_connection':
-                instance_config = bytes(frames[7])
-                instance_config = jsonapi.loads(instance_config)
+            elif op == 'normalmode_platform_connection':
+                instance_config = frames[7]  # jsonapi.loads(instance_config)
                 self._build_connection(instance_config)
                 return False
-            #Respond to Hello/Welcome messages from other instances
-            elif op == b'hello':
-                handshake_request = bytes(frames[7])
+            # Respond to Hello/Welcome messages from other instances
+            elif op == 'hello':
+                handshake_request = frames[7]
                 try:
-                    #Respond to 'hello' request with 'welcome'
+                    # Respond to 'hello' request with 'welcome'
                     if handshake_request == b'hello':
-                        name = bytes(frames[8])
+                        name = frames[8]
                         frames.pop(0)
                         _log.debug("HELLO Recieved hello, sending welcome to {}".format(name))
                         frames[6] = 'welcome'
@@ -135,9 +131,9 @@ class RoutingService(object):
                             self.send_external(name, frames)
                         except ZMQError as exc:
                             _log.error("ZMQ error: ")
-                    #Respond to 'welcome' response by sending Pubsub subscription list
-                    elif handshake_request == b'welcome':
-                        name = bytes(frames[8])
+                    # Respond to 'welcome' response by sending Pubsub subscription list
+                    elif handshake_request == 'welcome':
+                        name = frames[8]
                         _log.debug("HELLO Received welcome. Connection established with: {}".format(name))
                         try:
                             self._instances[name]['status'] = STATUS_CONNECTED
@@ -146,13 +142,13 @@ class RoutingService(object):
                             _log.error("Welcome message received from unknown platform: {}".format(name))
                 except IndexError as exc:
                     _log.error("Insufficient frames in hello message {}".format(exc))
-            elif op == b"web-addresses":
-                self._web_addresses = bytes(frames[7])
+            elif op == "web-addresses":
+                self._web_addresses = frames[7]
                 self._web_addresses = jsonapi.loads(self._web_addresses)
-            #Update routing table entry
-            elif op == b'update':
+            # Update routing table entry
+            elif op == 'update':
                 result = self._update_entry(frames)
-            elif op == b'request_response':
+            elif op == 'request_response':
                 pass
             else:
                 _log.error("Unknown operation: {}".format(op))
@@ -218,7 +214,7 @@ class RoutingService(object):
             _log.error("Missing parameter in instance info message {}".format(exc))
             return
 
-        #Return immediately if vip_address of external instance is same as self address
+        # Return immediately if vip_address of external instance is same as self address
         if address in self._my_addr:
             _log.debug("Same instance: {}".format(address))
             return
@@ -230,8 +226,8 @@ class RoutingService(object):
         sock.tcp_keepalive_cnt = 6
 
         num = random.random()
-        sock.identity = 'instance.'+ instance_name + '.' + str(num)
-        sock.zap_domain = 'vip'
+        sock.identity = f"instance.{instance_name}.{num}".encode('utf-8')
+        sock.zap_domain = b'vip'
         mon_sock = sock.get_monitor_socket(
                 zmq.EVENT_CONNECTED | zmq.EVENT_DISCONNECTED | zmq.EVENT_CONNECT_DELAYED)
 
@@ -239,10 +235,9 @@ class RoutingService(object):
         self._monitor_sockets.add(mon_sock)
 
         self._instances[instance_name] = dict(platform_identity=sock.identity,
-                                     status=STATUS_CONNECTING,
-                                     socket=sock,
-                                     monitor_socket=mon_sock
-                                     )
+                                              status=STATUS_CONNECTING,
+                                              socket=sock,
+                                              monitor_socket=mon_sock)
 
         self._socket_identities[sock.identity] = instance_name
         self._vip_sockets.add(sock)
@@ -254,20 +249,14 @@ class RoutingService(object):
         keystore = KeyStore()
         sock = self._instances[instance_name]['socket']
 
-        vip_address = "{0}?serverkey={1}&publickey={2}&secretkey={3}".format(
-                        address,
-                        str(serverkey),
-                        str(keystore.public),
-                        str(keystore.secret)
-                        )
+        vip_address = f"{address}?serverkey={serverkey}&publickey={keystore.public}&secretkey={keystore.secret}"
 
         ext_platform_address = Address(vip_address)
         ext_platform_address.identity = sock.identity
         try:
             ext_platform_address.connect(sock)
             # Form VIP message to send to remote instance
-            frames = [b'', 'VIP1', b'', b'', b'routing_table', b'hello', b'hello', self._my_instance_name]
-            _log.debug("HELLO Sending hello to: {}".format(instance_name))
+            frames = serialize_frames(['', 'VIP1', '', '', 'routing_table', 'hello', 'hello', self._my_instance_name])
             self.send_external(instance_name, frames)
         except zmq.error.ZMQError as ex:
             _log.error("ZMQ error on external connection {}".format(ex))
@@ -374,8 +363,8 @@ class RoutingService(object):
             instance_info = self._instances[instance_name]
 
             try:
-                #Send using external socket
-                success = self._send(instance_info['socket'], frames)
+                # Send using external socket
+                success = self._send_to_socket(instance_info['socket'], frames)
             except ZMQError as exc:
                 _log.error("Could not send to {} using new socket".format(instance_name))
                 success = False
@@ -398,16 +387,22 @@ class RoutingService(object):
             #success = self._send(self._socket, frames)
         return success
 
-    def _send(self, sock, frames):
+    def _send_to_socket(self, sock, frames):
         """
-        Socket send function
-        :param sock: socket
-        :param frames: frames to send
+        Send specified frames through the passed zmq.Socket.  The frames do not
+        have to be true frames.  This function will call `volttron.utils/.rame_serialization.serialize_frames``
+        on the list of frames before sending the data.
+
+        :param sock: zmq.Socket
+        :param frames:
+            A list of frames or data to be sent through a zmq socket.
         :return:
+            bool - True if frames were successfully sent.
         """
         success = True
 
         try:
+            frames = serialize_frames(frames)
             # Try sending the message to its recipient
             sock.send_multipart(frames, flags=NOBLOCK, copy=False)
         except ZMQError as exc:
