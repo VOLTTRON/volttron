@@ -144,7 +144,7 @@ class RoutingService(object):
                     _log.error("Insufficient frames in hello message {}".format(exc))
             elif op == "web-addresses":
                 self._web_addresses = frames[7]
-                self._web_addresses = jsonapi.loads(self._web_addresses)
+                self._web_addresses = self._web_addresses
             # Update routing table entry
             elif op == 'update':
                 result = self._update_entry(frames)
@@ -179,14 +179,12 @@ class RoutingService(object):
 
         sock = zmq.Socket(zmq.Context(), zmq.DEALER)
         num = random.random()
-        sock.identity = 'platform-' + '-' + instance_name + '-' + str(num)
-        sock.zap_domain = 'vip'
+        # socket identity and zap domain must be bytes
+        sock.identity = f"instance.{instance_name}.{num}".encode('utf-8')
+        sock.zap_domain = b'vip'
         self._poller.register(sock, zmq.POLLIN)
         keystore = KeyStore()
-        vip_address = "{0}?serverkey={1}&publickey={2}&secretkey={3}".format(
-            address, str(serverkey),
-            str(keystore.public), str(keystore.secret)
-        )
+        vip_address = f"{address}?serverkey={serverkey}&publickey={keystore.public}&secretkey={keystore.secret}"
 
         ext_platform_address = Address(vip_address)
         ext_platform_address.identity = sock.identity
