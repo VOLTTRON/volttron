@@ -306,7 +306,7 @@ class RMQRouter(BaseRouter):
                     value = os.environ.get('MESSAGEBUS', 'zmq')
                 else:
                     value = None
-            message.args = ['', jsonapi.dumps(value)]
+            message.args = ['', value]
             message.args.append('')
         elif subsystem == 'error':
             try:

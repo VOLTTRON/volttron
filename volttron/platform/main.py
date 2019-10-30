@@ -447,7 +447,7 @@ class Router(BaseRouter):
                     value = self._agent_monitor_frequency
                 else:
                     value = None
-            frames[6:] = ['', jsonapi.dumps(value)]
+            frames[6:] = ['', value]
             frames[3] = ''
             return frames
         elif subsystem == 'pubsub':
