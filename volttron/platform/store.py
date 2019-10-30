@@ -261,7 +261,7 @@ class ConfigStoreService(Agent):
 
     @RPC.export
     def set_config(self, config_name, contents, trigger_callback=False, send_update=True):
-        identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        identity = self.vip.rpc.context.vip_message.peer
         self.store_config(identity, config_name, contents, trigger_callback=trigger_callback, send_update=send_update)
 
 
@@ -271,7 +271,7 @@ class ConfigStoreService(Agent):
         Called by an Agent at startup to trigger initial configuration state
         push.
         """
-        identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        identity = self.vip.rpc.context.vip_message.peer
 
         #We need to create store and lock if it doesn't exist in case someone
         # tries to add a configuration while we are sending the initial state.
@@ -313,7 +313,7 @@ class ConfigStoreService(Agent):
     @RPC.export
     def delete_config(self, config_name, trigger_callback=False, send_update=True):
         """Called by an Agent to delete a configuration."""
-        identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        identity = self.vip.rpc.context.vip_message.peer
         self.delete(identity, config_name, trigger_callback=trigger_callback,
                     send_update=send_update)
 

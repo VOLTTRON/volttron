@@ -95,7 +95,7 @@ class Agent(object):
                     'All characters in {identity} are not in the valid set.'.format(
                         identity=identity))
 
-            if message_bus == 'rmq':
+            if message_bus is not None and message_bus.lower() == 'rmq':
                 _log.debug("Creating RMQ Core {}".format(identity))
                 self.core = RMQCore(self, identity=identity, address=address,
                                     context=context, publickey=publickey,

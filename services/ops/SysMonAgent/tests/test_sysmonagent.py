@@ -44,12 +44,11 @@
 Pytest test cases for SysMonAgent
 """
 
-import json
 import pytest
 
 import gevent
 
-from volttron.platform import get_ops
+from volttron.platform import jsonapi
 from volttrontesting.utils.utils import poll_gevent_sleep
 from volttron.platform import get_ops
 
@@ -68,7 +67,7 @@ def sysmon_tester_agent(request, volttron_instance, tmpdir):
     Fixture used for setting up SysMonAgent and tester agent
     """
     config = tmpdir.mkdir('config').join('config')
-    config.write(json.dumps(_test_config))
+    config.write(jsonapi.dumps(_test_config))
 
     sysmon_uuid = volttron_instance.install_agent(
         agent_dir=get_ops("SysMonAgent"),

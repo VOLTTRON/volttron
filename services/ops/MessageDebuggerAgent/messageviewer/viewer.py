@@ -54,8 +54,7 @@
 
 from cmd import Cmd
 import gevent
-import json
-import logging
+
 import logging.handlers
 import os
 import shlex
@@ -188,7 +187,7 @@ class MessageViewerCmd(Cmd):
                     received_messages.append(msg)
                 except zmq.Again:
                     if len(received_messages) > 0:
-                        obj_list = [json.loads(obj_str) for obj_str in received_messages]
+                        obj_list = [jsonapi.loads(obj_str) for obj_str in received_messages]
                         data_rows, col_widths = self.data_rows_for_obj_list(obj_list,
                                                                             column_labels,
                                                                             formatter=formatter)
@@ -261,7 +260,7 @@ class MessageViewerCmd(Cmd):
                     if len(response['results']) > 0:
                         for msg in response['results']:
                             print()
-                            print(json.dumps(msg, indent=4, sort_keys=2))
+                            print(jsonapi.dumps(msg, indent=4, sort_keys=2))
                     else:
                         print('No data in filtered output, consider relaxing filters')
                 else:
@@ -615,7 +614,7 @@ class MessageViewer(object):
         try:
             while True:
                 json_string = monitor_socket.recv()
-                print(json.loads(json_string))
+                print(jsonapi.loads(json_string))
         except KeyboardInterrupt:
             _log.debug('Execution interrupted')
 

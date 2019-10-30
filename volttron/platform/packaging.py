@@ -55,10 +55,8 @@ from volttron.platform.agent import utils
 from volttron.platform import get_volttron_data, get_home
 from volttron.utils.prompt import prompt_response
 from volttron.platform import certs
-from volttron.platform.agent.utils import get_platform_instance_name
 from volttron.platform import config
 
-from volttron.platform.agent.utils import execute_command
 try:
      from volttron.restricted import auth
 except ImportError:

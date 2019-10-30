@@ -641,7 +641,7 @@ class BaseHistorianAgent(Agent):
         if self.no_insert:
             raise RuntimeError("Insert not supported by this historian.")
 
-        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        rpc_peer = self.vip.rpc.context.vip_message.peer
         _log.debug("insert called by {} with {} records".format(rpc_peer, len(records)))
 
         for r in records:
@@ -1167,7 +1167,7 @@ class BaseHistorianAgent(Agent):
 
     def _historian_setup(self):
         try:
-            _log.exception("Trying to setup historian")
+            _log.info("Trying to setup historian")
             self.historian_setup()
             if not self._readonly:
                 # Record the names of data, topics, meta tables in a metadata table

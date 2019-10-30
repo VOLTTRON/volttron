@@ -44,7 +44,6 @@ from datetime import timedelta
 from dateutil import parser
 import gevent
 # OpenADR rule 1: use ISO8601 timestamp
-import json
 import logging
 import lxml.etree as etree_
 import os
@@ -64,6 +63,7 @@ from volttron.platform.agent.utils import format_timestamp
 from volttron.platform.messaging import topics, headers
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.scheduling import periodic
+from volttron.platform import jsonapi
 
 from .oadr_builder import *
 from .oadr_extractor import *
@@ -1635,7 +1635,7 @@ class OpenADRVenAgent(Agent):
             error_msg = 'Default report interval {} is not an integer number of seconds'.format(default)
             raise OpenADRInternalException(error_msg, OADR_BAD_DATA)
         report.interval_secs = interval_secs
-        report.telemetry_parameters = json.dumps(params.get('telemetry_parameters', None))
+        report.telemetry_parameters = jsonapi.dumps(params.get('telemetry_parameters', None))
         report.report_specifier_id = specifier_id
         report.status = report.STATUS_INACTIVE
         return report
@@ -1743,13 +1743,13 @@ class OpenADRVenAgent(Agent):
 
     def json_object(self, obj):
         """Ensure that an object is valid JSON by dumping it with json_converter and then reloading it."""
-        obj_string = json.dumps(obj, default=self.json_converter)
-        obj_json = json.loads(obj_string)
+        obj_string = jsonapi.dumps(obj, default=self.json_converter)
+        obj_json = jsonapi.loads(obj_string)
         return obj_json
 
     @staticmethod
     def json_converter(object_to_dump):
-        """When calling json.dumps, convert datetime instances to strings."""
+        """When calling jsonapi.dumps, convert datetime instances to strings."""
         if isinstance(object_to_dump, dt):
             return object_to_dump.__str__()
 

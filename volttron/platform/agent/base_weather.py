@@ -57,7 +57,6 @@
 
 import logging
 import pint
-import json
 import csv
 import sqlite3
 import datetime
@@ -74,6 +73,7 @@ from volttron.platform.messaging import headers
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_GOOD,
                                                 Status)
+from volttron.platform import jsonapi
 
 POLL_TOPIC = "weather/poll/current/{}"
 
@@ -367,7 +367,7 @@ class BaseWeatherAgent(Agent):
         try:
             mapping_file = self.get_point_name_defs_file()
         except Exception as e:
-            _log.warn("Error loading mapping file ({})".format(e))
+            _log.warning("Error loading mapping file ({})".format(e))
             return None
         if mapping_file:
             try:
@@ -446,7 +446,7 @@ class BaseWeatherAgent(Agent):
                                            "Configuration of weather agent "
                                            "successful")
             except sqlite3.OperationalError as error:
-                _log.error(error)
+                _log.error("Error initializing cache {}".format(error))
                 self.vip.health.set_status(STATUS_BAD, "Cache failed to start "
                                                        "during configuration")
 
@@ -613,7 +613,7 @@ class BaseWeatherAgent(Agent):
         try:
             observation_time, data = \
                 self._cache.get_current_data(SERVICE_CURRENT_WEATHER,
-                                             json.dumps(location))
+                                             jsonapi.dumps(location))
             if observation_time and data:
                 interval = self._api_services[SERVICE_CURRENT_WEATHER][
                     "update_interval"]
@@ -623,7 +623,7 @@ class BaseWeatherAgent(Agent):
                 if current_time < next_update_at:
                     result["observation_time"] = \
                         format_timestamp(observation_time)
-                    result[WEATHER_RESULTS] = json.loads(data)
+                    result[WEATHER_RESULTS] = jsonapi.loads(data)
         except Exception as error:
             bad_cache_message = "Weather agent failed to read from " \
                                 "cache"
@@ -659,9 +659,9 @@ class BaseWeatherAgent(Agent):
             if self.point_name_mapping:
                 data = self.apply_mapping(data)
             if observation_time is not None:
-                storage_record = [json.dumps(location),
+                storage_record = [jsonapi.dumps(location),
                                   observation_time,
-                                  json.dumps(data)]
+                                  jsonapi.dumps(data)]
                 try:
                     self.store_weather_records(SERVICE_CURRENT_WEATHER,
                                                storage_record)
@@ -676,7 +676,7 @@ class BaseWeatherAgent(Agent):
                 result[WEATHER_ERROR] = "Weather api did not " \
                                           "return any records"
         except Exception as error:
-            _log.error(error)
+            _log.error("Exception getting current weather from remote {}".format(error))
             result[WEATHER_ERROR] = str(error)
         return result
 
@@ -886,7 +886,7 @@ class BaseWeatherAgent(Agent):
         try:
             most_recent_for_location = \
                 self._cache.get_forecast_data(service, service_length,
-                                              json.dumps(location),
+                                              jsonapi.dumps(location),
                                               quantity, request_time)
             location_data = []
             if most_recent_for_location:
@@ -907,7 +907,7 @@ class BaseWeatherAgent(Agent):
                         record = most_recent_for_location[i]
                         # record = (forecast time, points)
                         entry = [format_timestamp(record[1]),
-                                 json.loads(record[2])]
+                                 jsonapi.loads(record[2])]
                         location_data.append(entry)
                         i = i + 1
                     record_dict["generation_time"] = format_timestamp(
@@ -983,10 +983,10 @@ class BaseWeatherAgent(Agent):
                 # item contains (forecast time, points)
                 if item[0] is not None and item[1] is not None:
                     forecast_time, tz = process_timestamp(item[0])
-                    storage_record = [json.dumps(location),
+                    storage_record = [jsonapi.dumps(location),
                                       generation_time,
                                       forecast_time,
-                                      json.dumps(item[1])]
+                                      jsonapi.dumps(item[1])]
                     storage_records.append(storage_record)
                     if len(location_data) < quantity and \
                             forecast_time >= forecast_start:
@@ -1019,7 +1019,7 @@ class BaseWeatherAgent(Agent):
                                 "amount of data")
                 result[WEATHER_WARN] = warnings
         except Exception as error:
-            _log.error(error)
+            _log.error("Exception in getting remote forecast data:{}:{}".format(type(error), error))
             result[WEATHER_ERROR] = str(error)
         return result
 
@@ -1035,7 +1035,7 @@ class BaseWeatherAgent(Agent):
         match the standard point names provided.
         """
         mapped_data = {}
-        for point, value in record_dict.iteritems():
+        for point, value in record_dict.items():
             if isinstance(value, dict):
                 value = self.apply_mapping(value)
             if point in self.point_name_mapping:
@@ -1084,7 +1084,7 @@ class BaseWeatherAgent(Agent):
     #                 for item in cached_history:
     #                     observation_time = format_timestamp(item[0])
     #                     record = [location, observation_time,
-    #                               json.loads(item[1])]
+    #                               jsonapi.loads(item[1])]
     #                     records.append(record)
     #             if not len(records):
     #                 response = self.query_hourly_historical(location, current)
@@ -1093,11 +1093,11 @@ class BaseWeatherAgent(Agent):
     #                     records.append(item)
     #                     observation_time = parse_timestamp_string(item[0])
     #                     s_record = [location, observation_time,
-    #                                 json.dumps(item[1])]
+    #                                 jsonapi.dumps(item[1])]
     #                     storage_records.append(s_record)
     #                     record = [location,
     #                               format_timestamp(observation_time),
-    #                               json.dumps(item[1])]
+    #                               jsonapi.dumps(item[1])]
     #                 self.store_weather_records(service_name, storage_records)
     #             for record in records:
     #                 data.append(record)
@@ -1183,7 +1183,7 @@ class BaseWeatherAgent(Agent):
         and location.
         """
         return self._cache.get_historical_data(request_name,
-                                               json.dumps(location),
+                                               jsonapi.dumps(location),
                                                date_timestamp)
 
     def store_weather_records(self, service_name, records):
@@ -1405,7 +1405,7 @@ class WeatherCache:
             cursor.close()
             return active_calls + num_calls <= self._calls_limit
         except AttributeError as error:
-            _log.error(str(error))
+            _log.error("Error getting available API calls: {}".format(error))
             # Add a call to the pending queue so we can track it later
             self.pending_calls.append(get_aware_utc_now())
             return True
@@ -1433,7 +1433,7 @@ class WeatherCache:
             cursor.close()
             return True
         except (AttributeError, sqlite3.Error) as error:
-            _log.error(error)
+            _log.error("Error Adding api calls {}:{}".format(type(error), error))
             return False
 
     def get_current_data(self, service_name, location):
@@ -1589,7 +1589,7 @@ class WeatherCache:
             now = datetime.datetime.utcnow()
             while page_count >= self._max_pages:
                 if attempt == 1:
-                    for table_name, service in self._api_services.iteritems():
+                    for table_name, service in self._api_services.items():
                         # Remove all data that is older than update interval
                         if service["type"] == "current":
                             query = """DELETE FROM {table} 
@@ -1598,7 +1598,7 @@ class WeatherCache:
                             cursor.execute(query,
                                            (now - service["update_interval"],))
                 elif attempt == 2:
-                    for table_name, service in self._api_services.iteritems():
+                    for table_name, service in self._api_services.items():
                         # Remove all data that is older than update interval
                         if service["type"] == "forecast":
                             query = """DELETE FROM {table} 
@@ -1608,7 +1608,7 @@ class WeatherCache:
                                            (now - service["update_interval"],))
                 elif attempt > 2:
                     records_deleted = 0
-                    for table_name, service in self._api_services.iteritems():
+                    for table_name, service in self._api_services.items():
                         if service["type"] == "history":
                             query = "DELETE FROM {table} WHERE ID IN " \
                                     "(SELECT ID FROM {table} " \

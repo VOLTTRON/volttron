@@ -64,6 +64,14 @@ from volttron.platform.agent.utils import get_platform_instance_name
 _log = logging.getLogger(os.path.basename(__file__))
 
 
+class RabbitMQStartError(BaseException):
+    pass
+
+
+class RabbitMQSetupAlreadyError(BaseException):
+    pass
+
+
 def _start_rabbitmq_without_ssl(rmq_config, conf_file, env=None):
     """
     Check if basic RabbitMQ configuration is available. Start RabbitMQ in
@@ -111,6 +119,10 @@ management.listener.port = {}""".format(rmq_config.amqp_port, rmq_config.mgmt_po
         with open(conf_file, 'w+') as r_conf:
             r_conf.write(new_conf)
 
+    # Need to write env file even when starting without ssl mode since env file will provide the right node name,
+    # tcp port and conf file to use. This is essential for tests as we don't use default port, paths or node name.
+    # TODO - we should probably not use default node name even for non test use case to avoid node name class when
+    #        you have more than one instance of RMQ on the same machine
     write_env_file(rmq_config, conf_file, env)
 
     # Start RabbitMQ server
@@ -178,7 +190,7 @@ def _create_federation_setup(admin_user, admin_password, is_ssl, vhost, vhome):
         if is_ssl:
             ssl_params = rmq_mgmt.get_ssl_url_params()
 
-        for host, upstream in federation.iteritems():
+        for host, upstream in federation.items():
             try:
                 name = "upstream-{vhost}-{host}".format(vhost=upstream['virtual-host'],
                                                         host=host)
@@ -228,10 +240,10 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
     ssl_params = None
     _log.debug("shovel config: {}".format(shovel_config))
     try:
-        for remote_host, shovel in shovels.iteritems():
+        for remote_host, shovel in shovels.items():
             pubsub_config = shovel.get("pubsub", {})
             _log.debug("shovel parameters: {}".format(shovel))
-            for identity, topics in pubsub_config.iteritems():
+            for identity, topics in pubsub_config.items():
                 # Build source address
                 src_uri = rmq_mgmt.build_shovel_connection(identity, instance_name,
                                                            local_host, port,
@@ -266,7 +278,7 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                                             prop)
             rpc_config = shovel.get("rpc", {})
             _log.debug("RPC config: {}".format(rpc_config))
-            for remote_instance, agent_ids in rpc_config.iteritems():
+            for remote_instance, agent_ids in rpc_config.items():
                 for ids in agent_ids:
                     local_identity = ids[0]
                     remote_identity = ids[1]
@@ -525,7 +537,7 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
             shovel - Setup shovels to forward local messages to remote instances
     :param verbose
     :param prompt
-    :return:
+    :raises RabbitMQSetupAlreadyError
     """
     if not instance_name:
         instance_name = get_platform_instance_name(prompt=True)
@@ -540,7 +552,7 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
         logging.getLogger("requests.packages.urllib3.connectionpool"
                           "").setLevel(logging.DEBUG)
     else:
-        _log.setLevel(logging.WARN)
+        _log.setLevel(logging.INFO)
         logging.getLogger("requests.packages.urllib3.connectionpool"
                           "").setLevel(logging.WARN)
 
@@ -576,7 +588,12 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
 
     invalid = True
     if setup_type in ["all", "single"]:
+
+        if os.path.exists(rmq_conf_file):
+            raise RabbitMQSetupAlreadyError(f"{rmq_conf_file} already exits.")
         invalid = False
+        if os.path.exists(rmq_conf_file):
+            raise RabbitMQSetupAlreadyError()
         _start_rabbitmq_without_ssl(rmq_config, rmq_conf_file, env=env)
         _log.debug("Creating rabbitmq virtual hosts and required users for "
                    "volttron")
@@ -958,7 +975,7 @@ def stop_rabbit(rmq_home, env=None, quite=False):
         gevent.sleep(2)
         if not quite:
             _log.info("**Stopped rmq server")
-    except Exception as e:
+    except RuntimeError as e:
         if not quite:
             raise e
 
@@ -972,7 +989,7 @@ def restart_ssl(rmq_home, env=None):
     :return:
     """
     cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "eval", "ssl:stop(), ssl:start()."]
-    execute_command(cmd, err_prefix="Error reloading ssl certificates", env=env)
+    execute_command(cmd, err_prefix="Error reloading ssl certificates", env=env, logger=_log)
 
 
 def check_rabbit_status(rmq_home=None, env=None):
@@ -984,20 +1001,27 @@ def check_rabbit_status(rmq_home=None, env=None):
     status_cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "shovel_status"]
     try:
         execute_command(status_cmd, env=env)
-    except Exception:
+    except RuntimeError:
         status = False
     return status
 
 
 def start_rabbit(rmq_home, env=None):
     """
-    Start RabbitMQ server
+    Start RabbitMQ server.
+
+    The function assumes that rabbitmq.conf in rmq_home/etc/rabbitmq is setup before
+    this funciton is called.
+
+    If the function cannot detect that rabbit was started within roughly 60 seconds
+    then `class:RabbitMQStartError` will be raised.
+
     :param rmq_home: RabbitMQ installation path
     :param env: Environment to start RabbitMQ with.
-    :return:
+
+    :raises RabbitMQStartError:
     """
 
-    #status_cmd = [os.path.join(rmq_home, "sbin/rabbitmqctl"), "status"]
     # rabbitmqctl status returns true as soon as the erlang vm and does not wait
     # for all the plugins and database to be initialized and rmq is ready to
     # accept incoming connection.
@@ -1012,14 +1036,17 @@ def start_rabbit(rmq_home, env=None):
     start = True
     while not started:
         try:
+            # we expect this call to raise a RuntimeError until the rabbitmq server
+            # is up and running.
             execute_command(status_cmd, env=env)
             if not start:
                 # if we have attempted started already
                 gevent.sleep(1)  # give a second just to be sure
             started = True
             _log.info("Rmq server at {} is running at ".format(rmq_home))
-        except Exception as e:
-
+        except RuntimeError as e:
+            # First time this exception block we are going to attempt to start
+            # the rabbitmq server.
             if start:
                 _log.debug("Rabbitmq is not running. Attempting to start")
                 msg = "Error starting rabbitmq at {}".format(rmq_home)
@@ -1027,8 +1054,8 @@ def start_rabbit(rmq_home, env=None):
                 execute_command(start_cmd, env=env,  err_prefix=msg, logger=_log)
                 start = False
             else:
-                if i > 60:  # if more than a minute, may be something is wrong
-                    raise e
+                if i > 60:  # if more than 60 tries we assume something failed
+                    raise RabbitMQStartError("Unable to verify rabbitmq server has started in a resonable time.")
                 else:
                     # sleep for another 2 seconds and check status again
                     gevent.sleep(2)

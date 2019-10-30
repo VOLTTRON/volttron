@@ -42,8 +42,6 @@ from collections import defaultdict
 from json import JSONDecodeError
 
 import pytz
-from crate import client as crate_client
-from crate.client.exceptions import ConnectionError, ProgrammingError
 
 from volttron.platform import jsonapi
 from volttron.platform.agent import utils
@@ -55,6 +53,19 @@ from volttron.platform.dbutils.crateutils import (create_schema,
                                                   insert_topic_query,
                                                   update_topic_query,
                                                   select_topics_metadata_query)
+
+# modules that import ssl should be imported after import of base agent of the class to avoid MonkePatchWarning
+#     MonkeyPatchWarning: Monkey-patching ssl after ssl has already been imported may lead to errors,
+#     including RecursionError on Python 3.6. It may also silently lead to incorrect behaviour on Python 3.7.
+#     Please monkey-patch earlier. See https://github.com/gevent/gevent/issues/1016.
+#     Modules that had direct imports (NOT patched): ['urllib3.util.ssl_
+#     (/home/volttron/git/python3_volttron/env/lib/python3.6/site-packages/urllib3/util/ssl_.py)',
+#     'urllib3.util (/home/volttron/git/python3_volttron/env/lib/python3.6/site-packages/urllib3/util/__init__.py)'].
+#        curious_george.patch_all(thread=False, select=False)
+# In this case crate should be imported after BaseHistorian.
+from crate import client as crate_client
+from crate.client.exceptions import ConnectionError, ProgrammingError
+
 from volttron.platform.jsonapi import dumps
 from volttron.utils.docs import doc_inherit
 
@@ -191,9 +202,9 @@ class CrateHistorian(BaseHistorian):
             raise ValueError("invalid params['host'] value")
         elif host != self._host:
             _log.info("Changing host to {}".format(host))
-        
+
         self._host = host
-        
+
         client = CrateHistorian.get_client(host)
         if client is None:
             _log.error("Couldn't reach host: {}".format(host))
@@ -297,12 +308,11 @@ class CrateHistorian(BaseHistorian):
                         old_meta = {}
                     if set(old_meta.items()) != set(meta.items()):
                         _log.debug(
-                           'Updating meta for topic: {} {}'.format(topic,
-                                                                   meta))
+                            'Updating meta for topic: {} {}'.format(topic,
+                                                                    meta))
                         self._topic_meta[topic_lower] = meta
                         cursor.execute(update_topic_query(self._schema, self._topic_table),
                                        (meta, topic))
-
 
                 batch_data.append(
                     (ts, topic, source, value, meta)
@@ -338,7 +348,7 @@ class CrateHistorian(BaseHistorian):
                         cursor.execute(insert, batch)
                     except ProgrammingError:
                         _log.debug('Invalid data not saved {}'.format(
-                            to_publish_list[id]
+                            batch
                         ))
                     except Exception as ex:
                         _log.error(repr(ex))
@@ -596,7 +606,6 @@ class CrateHistorian(BaseHistorian):
             for topic in topics:
                 meta[topic] = self._topic_meta.get(topic.lower())
         return meta
-
 
     @doc_inherit
     def query_aggregate_topics(self):

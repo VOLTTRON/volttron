@@ -32,9 +32,7 @@ except:
 
 try:
     import pymongo
-    # Ignore mongo test for now.
-    # Mongo fails on rabbitmq branch with gevent Loop Exception
-    HAS_PYMONGO = False
+    HAS_PYMONGO = True
 except:
     HAS_PYMONGO = False
 
@@ -346,9 +344,9 @@ def query_agent(request, volttron_instance):
                 params=[
                     pytest.param(mysql_aggregator, marks=mysql_skipif),
                     sqlite_aggregator,
-                    pymongo_skipif(mongo_aggregator),
-                    postgresql_skipif(postgresql_aggregator),
-                    redshift_skipif(redshift_aggregator),
+                    pytest.param(mongo_aggregator, marks=pymongo_skipif),
+                    pytest.param(postgresql_aggregator, marks=postgresql_skipif),
+                    pytest.param(redshift_aggregator, marks=redshift_skipif),
                 ])
 def aggregate_agent(request, volttron_instance):
     global db_connection, table_names, connection_type
@@ -422,7 +420,7 @@ def cleanup(connection_type, truncate_tables):
     cleanup_function = globals()["cleanup_" + connection_type]
     cleanup_function(db_connection, truncate_tables)
 
-@pytest.mark.dev
+
 @pytest.mark.aggregator
 def test_get_supported_aggregations(aggregate_agent, query_agent):
     """

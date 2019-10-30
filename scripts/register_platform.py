@@ -1,6 +1,6 @@
 import requests
 import sys
-import json
+from volttron.platform import jsonapi
 authentication=None
 
 def do_rpc(method, params=None ):
@@ -20,7 +20,7 @@ def do_rpc(method, params=None ):
     if params:
         json_package['params'] = params
 
-    data = json.dumps(json_package)
+    data = jsonapi.dumps(json_package)
 
     return requests.post(url_root, data=data)
 
@@ -29,7 +29,7 @@ def main(platform_uri, agent_id):
                                        'password': 'admin'})
 
     if response.ok:
-        authentication = json.loads(response.text)['result']
+        authentication = jsonapi.loads(response.text)['result']
         print('Authentication successful')
     else:
         print('login unsuccessful')
@@ -42,8 +42,8 @@ def main(platform_uri, agent_id):
 
     print(response.text)
     if response.ok:
-        data = json.loads(response.text)['result']
-        print("Response: "+ data)
+        data = jsonapi.loads(response.text)['result']
+        print("Response: " + data)
     else:
         print('Not registered successfully.')
         sys.exit(0)

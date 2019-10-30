@@ -104,7 +104,7 @@ class Periodic(object):  # pylint: disable=invalid-name
 
     def _loop(self, method):
         # pylint: disable=missing-docstring
-        # Use monotonic clock provided on hub's loop instance.
+        # Use monotonic clock provided on hu's loop instance.
         now = gevent.get_hub().loop.now
         period = self.period
         deadline = now()
@@ -534,8 +534,8 @@ class Core(BasicCore):
     def stop(self, timeout=None, platform_shutdown=False):
         # Send message to router that this agent is stopping
         if self.__connected and not platform_shutdown:
-            frames = [self.identity.encode('utf-8')]
-            self.connection.send_vip(b'', b'agentstop', args=frames, copy=False)
+            frames = [self.identity]
+            self.connection.send_vip('', 'agentstop', args=frames, copy=False)
         super(Core, self).stop(timeout=timeout)
 
     # This function moved directly from the zmqcore agent.  it is included here because
@@ -565,7 +565,8 @@ class Core(BasicCore):
     def register(self, name, handler, error_handler=None):
         self.subsystems[name] = handler
         if error_handler:
-            name_bytes = name.encode("utf-8")
+            name_bytes = name
+
             def onerror(sender, error, **kwargs):
                 if error.subsystem == name_bytes:
                     error_handler(sender, error=error, **kwargs)
@@ -576,7 +577,7 @@ class Core(BasicCore):
         if len(message.args) < 4:
             _log.debug('unhandled VIP error %s', message)
         elif self.onviperror:
-            args = [bytes(arg) for arg in message.args]
+            args = message.args
             error = VIPError.from_errno(*args)
             self.onviperror.send(self, error=error, message=message)
 
@@ -601,11 +602,11 @@ class Core(BasicCore):
         def hello():
             # Send hello message to VIP router to confirm connection with
             # platform
-            state.ident = ident = b'connect.hello.%d' % state.count
+            state.ident = ident = 'connect.hello.%d' % state.count
             state.count += 1
             self.spawn(connection_failed_check)
-            message = Message(peer=b'', subsystem=b'hello',
-                              id=ident, args=[b'hello'])
+            message = Message(peer='', subsystem='hello',
+                              id=ident, args=['hello'])
             self.connection.send_vip_object(message)
 
         def hello_response(sender, version='',
@@ -812,6 +813,10 @@ class ZMQCore(Core):
             sock = self.socket
             while True:
                 try:
+                    # Message at this point in time will be a
+                    # volttron.platform.vip.socket.Message object that has attributes
+                    # for all of the vip elements.  Note these are no longer bytes.
+                    # see https://github.com/volttron/volttron/issues/2123
                     message = sock.recv_vip_object(copy=False)
                 except ZMQError as exc:
 
@@ -822,33 +827,30 @@ class ZMQCore(Core):
                         break
                     else:
                         raise
-
-                subsystem = bytes(message.subsystem)
+                subsystem = message.subsystem
                 # _log.debug("Received new message {0}, {1}, {2}, {3}".format(
-                # subsystem, message.id, len(message.args), message.args[0]))
+                #     subsystem, message.id, len(message.args), message.args[0]))
 
                 # Handle hellos sent by CONNECTED event
-                if (subsystem == b'hello' and
-                        bytes(message.id) == state.ident and
+                if (str(subsystem) == 'hello' and
+                        message.id == state.ident and
                         len(message.args) > 3 and
-                        bytes(message.args[0]) == b'welcome'):
-                    version, server, identity = [
-                        bytes(x) for x in message.args[1:4]]
+                        message.args[0] == 'welcome'):
+                    version, server, identity = message.args[1:4]
                     self.connected = True
                     self.onconnected.send(self, version=version,
                                           router=server, identity=identity)
                     continue
 
-                subsystem = subsystem.decode('utf-8')
                 try:
                     handle = self.subsystems[subsystem]
                 except KeyError:
                     _log.error('peer %r requested unknown subsystem %r',
-                               message.peer.decode("utf-8"), subsystem)
-                    message.user = b''
+                               message.peer, subsystem)
+                    message.user = ''
                     message.args = list(router._INVALID_SUBSYSTEM)
                     message.args.append(message.subsystem)
-                    message.subsystem = b'error'
+                    message.subsystem = 'error'
                     sock.send_vip_object(message, copy=False)
                 else:
                     handle(message)
@@ -928,6 +930,9 @@ class RMQCore(Core):
         self.messagebus = messagebus
         self.rmq_mgmt = RabbitMQMgmt()
         self.rmq_address = address
+
+    def _get_keys_from_addr(self):
+        return None, None, None
 
     def get_connected(self):
         return super(RMQCore, self).get_connected()
@@ -1030,15 +1035,14 @@ class RMQCore(Core):
                         _log.error(exc.args)
                         raise
                     if message:
-                        subsystem = bytes(message.subsystem)
+                        subsystem = message.subsystem
 
-                        if subsystem == b'hello':
-                            if (subsystem == b'hello' and
-                                    bytes(message.id) == state.ident and
+                        if subsystem == 'hello':
+                            if (subsystem == 'hello' and
+                                    message.id == state.ident and
                                     len(message.args) > 3 and
-                                    bytes(message.args[0]) == b'welcome'):
-                                version, server, identity = [
-                                    bytes(x) for x in message.args[1:4]]
+                                    message.args[0] == 'welcome'):
+                                version, server, identity = message.args[1:4]
                                 self.connected = True
                                 self.onconnected.send(self, version=version,
                                                       router=server,
@@ -1048,11 +1052,11 @@ class RMQCore(Core):
                             handle = self.subsystems[subsystem]
                         except KeyError:
                             _log.error('peer %r requested unknown subsystem %r',
-                                       bytes(message.peer), subsystem)
-                            message.user = b''
+                                       message.peer, subsystem)
+                            message.user = ''
                             message.args = list(router._INVALID_SUBSYSTEM)
                             message.args.append(message.subsystem)
-                            message.subsystem = b'error'
+                            message.subsystem = 'error'
                             self.connection.send_vip_object(message)
                         else:
                             handle(message)
