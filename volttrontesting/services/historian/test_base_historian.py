@@ -240,15 +240,6 @@ def test_health_stuff(request, volttron_instance, client_agent):
                                              message=all_message).get(timeout=10)
         gevent.sleep(2)
         status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
-        for _ in range(10):
-            client_agent.vip.pubsub.publish('pubsub',
-                                            DEVICES_ALL_TOPIC,
-                                            headers=headers,
-                                            message=all_message).get(timeout=10)
-
-        gevent.sleep(2)
-
-        status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
         alert_publish = alert_publishes[0]
 
