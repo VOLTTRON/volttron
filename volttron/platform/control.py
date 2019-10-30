@@ -552,7 +552,7 @@ def backup_agent_data(output_filename, source_dir):
 
 def restore_agent_data_from_tgz(source_file, output_dir):
     # Open tarfile
-    with tarfile.open(mode="r:gz", fileobj=open(source_file)) as tar:
+    with tarfile.open(source_file, mode="r:gz") as tar:
         tar.extractall(output_dir)
 
 
