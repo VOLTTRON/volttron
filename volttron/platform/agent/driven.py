@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ __all__ = ['AbstractDrivenAgent', 'ConversionMapper', 'Results']
 
 __author__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2014, Battelle Memorial Institute'
-__license__ = 'FreeBSD'
+__license__ = 'Apache 2.0'
 
 
 class AbstractDrivenAgent(object, metaclass=ABCMeta):
