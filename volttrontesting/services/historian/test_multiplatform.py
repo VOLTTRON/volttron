@@ -237,8 +237,8 @@ def test_all_platform_subscription_zmq(request, get_zmq_volttron_instances):
         agent_dir=get_services_core("SQLHistorian"),
         config_file=hist_config,
         start=True)
-    gevent.sleep(1)
-    query_agent = downstream.build_agent("query_agent1")
+    gevent.sleep(3)
+    query_agent = downstream.build_agent(identity="query_agent1")
     gevent.sleep(1)
 
     hist2_config = {"connection":
@@ -252,7 +252,7 @@ def test_all_platform_subscription_zmq(request, get_zmq_volttron_instances):
         agent_dir=get_services_core("SQLHistorian"),
         config_file=hist2_config,
         start=True)
-    query_agent2 = downstream2.build_agent("query_agent2")
+    query_agent2 = downstream2.build_agent(identity="query_agent2")
     gevent.sleep(2)
 
     print("publish")

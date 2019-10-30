@@ -19,8 +19,8 @@ def test_agent_can_get_platform_version(volttron_instance):
     assert response.strip()
     _, version = response.strip().split(" ")
 
-    platform_version = query.query("platform-version")
-    assert version == platform_version.get(timeout=2)
+    platform_version = query.query("platform-version").get(timeout=2)
+    assert version == platform_version
 
 
 @pytest.mark.agent
