@@ -47,7 +47,7 @@ author = 'The VOLTTRON Community'
 # The short X.Y version
 version = '7.0'
 # The full version, including alpha/beta/rc tags
-release = '7.0 beta'
+release = '7.0 Release Candidate'
 
 
 # -- General configuration ---------------------------------------------------
