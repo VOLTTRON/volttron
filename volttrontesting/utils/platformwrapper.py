@@ -413,7 +413,7 @@ class PlatformWrapper:
 
         # Automatically add agent's credentials to auth.json file
         if publickey:
-            self.logit('Adding publickey to auth.json')
+            self.logit(f'Adding publickey to auth.json {publickey} {identity}')
             self._append_allow_curve_key(publickey, identity=identity)
 
         if should_spawn:
@@ -692,22 +692,36 @@ class PlatformWrapper:
         assert self.serverkey
 
         # Use dynamic_agent so we can look and see the agent with peerlist.
-        self.dynamic_agent = self.build_agent(identity="dynamic_agent")
-        assert self.dynamic_agent is not None
-        assert isinstance(self.dynamic_agent, Agent)
-        has_control = False
-        times = 0
-        while not has_control and times < 10:
-            times += 1
-            try:
-                has_control = CONTROL in self.dynamic_agent.vip.peerlist().get(timeout=.2)
-                self.logit("Has control? {}".format(has_control))
-            except gevent.Timeout:
-                pass
+        if not setupmode:
+            self.dynamic_agent = self.build_agent(identity="dynamic_agent")
+            assert self.dynamic_agent is not None
+            assert isinstance(self.dynamic_agent, Agent)
+            has_control = False
+            times = 0
+            while not has_control and times < 10:
+                times += 1
+                try:
+                    has_control = CONTROL in self.dynamic_agent.vip.peerlist().get(timeout=.2)
+                    self.logit("Has control? {}".format(has_control))
+                except gevent.Timeout:
+                    pass
 
-        if not has_control:
-            self.shutdown_platform()
-            raise Exception("Couldn't connect to core platform!")
+            if not has_control:
+                self.shutdown_platform()
+                raise Exception("Couldn't connect to core platform!")
+
+            def subscribe_to_all(peer, sender, bus, topic, headers, messages):
+                logged = "{} --------------------Pubsub Message--------------------\n".format(
+                    utils.format_timestamp(datetime.now()))
+                logged += "PEER: {}\n".format(peer)
+                logged += "SENDER: {}\n".format(sender)
+                logged += "Topic: {}\n".format(topic)
+                logged += "headers: {}\n".format([str(k) + '=' + str(v) for k, v in headers.items()])
+                logged += "message: {}\n".format(messages)
+                logged += "-------------------------------------------------------\n"
+                self.logit(logged)
+
+            self.dynamic_agent.vip.pubsub.subscribe('pubsub', '', subscribe_to_all).get()
 
         if bind_web_address:
             times = 0
@@ -744,18 +758,7 @@ class PlatformWrapper:
             if self.ssl_auth:
                 self._web_admin_api = WebAdminApi(self)
 
-        def subscribe_to_all(peer, sender, bus, topic, headers, messages):
-            logged = "{} --------------------Pubsub Message--------------------\n".format(
-                utils.format_timestamp(datetime.now()))
-            logged += "PEER: {}\n".format(peer)
-            logged += "SENDER: {}\n".format(sender)
-            logged += "Topic: {}\n".format(topic)
-            logged += "headers: {}\n".format([str(k)+'='+str(v) for k, v in headers.items()])
-            logged += "message: {}\n".format(messages)
-            logged += "-------------------------------------------------------\n"
-            self.logit(logged)
 
-        self.dynamic_agent.vip.pubsub.subscribe('pubsub', '', subscribe_to_all).get()
 
     def is_running(self):
         return utils.is_volttron_running(self.volttron_home)
@@ -1185,16 +1188,16 @@ class PlatformWrapper:
             return
 
         running_pids = []
-
-        for agnt in self.list_agents():
-            pid = self.agent_pid(agnt['uuid'])
-            if pid is not None and int(pid) > 0:
-                running_pids.append(int(pid))
-        if not self.skip_cleanup:
-            self.remove_all_agents()
-        # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
-        self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
-        self.dynamic_agent.core.stop()
+        if self.dynamic_agent:  # because we are not creating dynamic agent in setupmode
+            for agnt in self.list_agents():
+                pid = self.agent_pid(agnt['uuid'])
+                if pid is not None and int(pid) > 0:
+                    running_pids.append(int(pid))
+            if not self.skip_cleanup:
+                self.remove_all_agents()
+            # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
+            self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
+            self.dynamic_agent.core.stop()
 
         if self.p_process is not None:
             try:
