@@ -160,7 +160,7 @@ class VolttronCentralPlatform(Agent):
         self.enable_registration = False
 
         # A connection to the volttron central agent.
-        self._vc_connection = None
+        self._vc_connection: VCConnection = None
 
         # This publickey is set during the manage rpc call.
         self.manager_publickey = None
@@ -397,15 +397,19 @@ class VolttronCentralPlatform(Agent):
                     serverkey=self._vc_serverkey,
                     agent_class=VCConnection
                 )
+            except DiscoveryError:
+                _log.warning("Unable to connect to discovery for address.  Using:\n"
+                             f"address: {self._vc_address}\nserverkey: {self._vc_serverkey}")
+                self._vc_connection = None
 
             except ValueError as ex:
-                _log.warn("Unable to connect to volttron central due to "
-                          "invalid configuration.")
-                _log.warn("Value Error! {}".format(ex.message))
+                _log.warning("Unable to connect to volttron central due to "
+                             "invalid configuration.")
+                _log.warning("Value Error! {}".format(ex))
                 self._vc_connection = None
 
             except gevent.Timeout:
-                _log.warn("No connection to volttron central instance.")
+                _log.warning("No connection to volttron central instance.")
                 self._vc_connection = None
 
             # Break out of the loop if we have successfully connect to the
