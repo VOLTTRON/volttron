@@ -286,7 +286,7 @@ class VolttronCentralAgent(Agent):
 
         # Identities of all platform agents that are connecting to us should
         # have an identity of platform.md5hash.
-        connected_platforms = set([x.encode('utf-8') for x in self.vip.peerlist().get(timeout=5)
+        connected_platforms = set([x for x in self.vip.peerlist().get(timeout=5)
                                    if x.startswith('vcp-') or x.endswith('.platform.agent')])
 
         _log.debug("Connected: {}".format(connected_platforms))
