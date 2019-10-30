@@ -326,9 +326,8 @@ class PubSubService(object):
         """
         results = []
         if len(frames) > 7:
-            data = frames[7].bytes
-            msg = jsonapi.loadb(data)
-            peer = frames[0].bytes
+            msg = frames[7]
+            peer = frames[0]
             try:
                 prefix = msg['prefix']
                 bus = msg['bus']
@@ -639,8 +638,8 @@ class PubSubService(object):
                 result = self._peer_list(frames)
                 # Form response frame
                 response = [sender, recipient, proto, user_id, msg_id, subsystem]
-                response.append(zmq.Frame('list_response'))
-                response.append(zmq.Frame(result))
+                response.append('list_response')
+                response.append(result)
                 result = None
             elif op == 'synchronize':
                 self._peer_sync(frames)
@@ -741,7 +740,11 @@ class PubSubService(object):
         if len(frames) <= 7:
             return False
         else:
+            _log.debug(f"external subscription frames {frames}")
             msg = frames[7]
+            if not isinstance(msg, dict):
+                raise ValueError(f"Invalid frame passed for frame {frames[7]}")
+
             try:
                 this_platform_instance_name = get_platform_instance_name()
                 for instance_name in msg:
@@ -777,6 +780,7 @@ class PubSubService(object):
         results = []
         subscribers_count = 0
         # Check if destination is local VIP -- Todo
+        _log.debug(f"external_to_local_publish frames {frames}")
 
         if len(frames) > 8:
             publisher, receiver, proto, user_id, msg_id, subsystem, op, topic, data = frames[0:9]

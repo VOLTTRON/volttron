@@ -704,7 +704,7 @@ class PubSub(SubsystemBase):
             result = None
             try:
                 result = self._results.pop(message.id)
-                response = jsonapi.loads(message.args[1])
+                response = message.args[1]
                 if result:
                     result.set(response)
             except KeyError:
