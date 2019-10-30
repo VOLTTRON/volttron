@@ -377,8 +377,9 @@ class Router(BaseRouter):
             frame_bytes = [topic]
             frame_bytes.extend(frames)  # [frame if type(frame) is bytes else frame.bytes for frame in frames])
             frame_bytes = serialize_frames(frames)
-            frame_bytes = [f.bytes for f in frame_bytes]
-            self._message_debugger_socket.send_pyobj(frame_bytes)
+            # TODO we need to fix the msgdebugger socket if we need it to be connected
+            #frame_bytes = [f.bytes for f in frame_bytes]
+            #self._message_debugger_socket.send_pyobj(frame_bytes)
     # This is currently not being used e.g once fixed we won't use it.
     #def extract_bytes(self, frame_bytes):
     #    result = []
@@ -493,7 +494,7 @@ class Router(BaseRouter):
     def ext_route(self, socket):
         """
         Handler function for message received through external socket connection
-        :param socket: socket
+        :param socket: socket affected files: {}
         :return:
         """
         # Expecting incoming frames to follow this VIP format:

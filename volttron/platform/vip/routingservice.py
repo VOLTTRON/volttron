@@ -43,6 +43,7 @@ import re
 import zmq
 import logging
 from zmq import SNDMORE, EHOSTUNREACH, ZMQError, EAGAIN, NOBLOCK
+
 from volttron.utils.frame_serialization import serialize_frames
 from ..keystore import KeyStore
 from zmq.utils import jsonapi
@@ -64,6 +65,7 @@ _ROUTE_ERRORS = {
 }
 
 _log = logging.getLogger(__name__)
+
 
 class RoutingService(object):
     """
@@ -255,6 +257,7 @@ class RoutingService(object):
             ext_platform_address.connect(sock)
             # Form VIP message to send to remote instance
             frames = serialize_frames(['', 'VIP1', '', '', 'routing_table', 'hello', 'hello', self._my_instance_name])
+            _log.debug(f"HELLO Sending hello to: {instance_name}")
             self.send_external(instance_name, frames)
         except zmq.error.ZMQError as ex:
             _log.error("ZMQ error on external connection {}".format(ex))
@@ -359,7 +362,7 @@ class RoutingService(object):
 
         try:
             instance_info = self._instances[instance_name]
-
+            _log.debug(f"Instance info is: {instance_info}")
             try:
                 # Send using external socket
                 success = self._send_to_socket(instance_info['socket'], frames)
@@ -380,8 +383,9 @@ class RoutingService(object):
             #             self._instances[instance_name]['status'] = STATUS_DISCONNECTED
             #             raise
         except KeyError:
+            _log.debug(f"******************My instance name is: {self._my_instance_name}")
             frames[:0] = [self._my_instance_name]
-            #_log.debug("Key error for platform {0}".format(instance_name))
+            _log.debug("Key error for platform {0}".format(instance_name))
             #success = self._send(self._socket, frames)
         return success
 
@@ -401,6 +405,7 @@ class RoutingService(object):
 
         try:
             frames = serialize_frames(frames)
+            _log.debug(f"Frames sent to external {[x.bytes for x in frames]}")
             # Try sending the message to its recipient
             sock.send_multipart(frames, flags=NOBLOCK, copy=False)
         except ZMQError as exc:
