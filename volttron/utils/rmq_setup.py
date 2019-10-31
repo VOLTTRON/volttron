@@ -588,12 +588,16 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
 
     invalid = True
     if setup_type in ["all", "single"]:
-
-        if os.path.exists(rmq_conf_file):
-            raise RabbitMQSetupAlreadyError(f"{rmq_conf_file} already exits.")
         invalid = False
-        if os.path.exists(rmq_conf_file):
-            raise RabbitMQSetupAlreadyError()
+        # Verify that the rmq_conf_file if exists is removed before continuing.
+        message = f"A rabbitmq conf file f{rmq_conf_file} already exists.\n" \
+            "In order for setup to proceed it must be removed.\n"
+        print(message)
+        while os.path.exists(rmq_conf_file):
+            value = prompt_response(f"Remove {rmq_conf_file}? ", y_or_n)
+            if value in y:
+                os.remove(rmq_conf_file)
+
         _start_rabbitmq_without_ssl(rmq_config, rmq_conf_file, env=env)
         _log.debug("Creating rabbitmq virtual hosts and required users for "
                    "volttron")
