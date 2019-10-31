@@ -52,8 +52,6 @@ import requests
 import argparse
 import getpass
 import csv
-import sys
-import json
 
 parser = argparse.ArgumentParser(description='Create Obix driver configurations for site.')
 parser.add_argument('url', default="", help='Url of the exports on the site')
@@ -126,6 +124,6 @@ config = {
   "register_config": "config://obix_h.csv"
 }
 
-json.dump(config, args.devicefile, indent=4)
+jsonapi.dump(config, args.devicefile, indent=4)
 
 

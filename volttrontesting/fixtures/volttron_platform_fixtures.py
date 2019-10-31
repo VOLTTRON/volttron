@@ -63,21 +63,6 @@ def volttron_instance_msgdebug(request):
     cleanup_wrapper(wrapper)
 
 
-# IPC testing is removed since it is not used from VOLTTRON 6.0
-@pytest.fixture(scope="function")
-def volttron_instance_encrypt(request):
-    print("building instance (using encryption)")
-
-    address = get_rand_vip()
-    wrapper = build_wrapper(address)
-
-    def cleanup():
-        cleanup_wrapper(wrapper)
-
-    request.addfinalizer(cleanup)
-    return wrapper
-
-
 @pytest.fixture(scope="module")
 def volttron_instance_module_web(request):
     print("building module instance (using web)")
@@ -99,7 +84,7 @@ def volttron_instance_module_web(request):
 @pytest.fixture(scope="module",
                 params=[
                     dict(messagebus='zmq', ssl_auth=False),
-                    #pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
+                    pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
                 ])
 def volttron_instance(request, **kwargs):
     """Fixture that returns a single instance of volttron platform for testing
@@ -108,11 +93,10 @@ def volttron_instance(request, **kwargs):
     @return: volttron platform instance
     """
     address = kwargs.pop("vip_address", get_rand_vip())
-    wrapper = build_wrapper(address, messagebus='zmq', ssl_auth=False, **kwargs)
-    # wrapper = build_wrapper(address,
-    #                         messagebus=request.param['messagebus'],
-    #                         ssl_auth=request.param['ssl_auth'],
-    #                         **kwargs)
+    wrapper = build_wrapper(address,
+                            messagebus=request.param['messagebus'],
+                            ssl_auth=request.param['ssl_auth'],
+                            **kwargs)
 
     yield wrapper
 
@@ -222,7 +206,7 @@ def volttron_instance_rmq(request):
 @pytest.fixture(scope="module",
                 params=[
                     dict(messagebus='zmq', ssl_auth=False),
-                    # pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
+                    pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
                 ])
 def volttron_instance_web(request):
     print("volttron_instance_web (messagebus {messagebus} ssl_auth {ssl_auth})".format(**request.param))

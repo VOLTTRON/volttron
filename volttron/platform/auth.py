@@ -163,7 +163,22 @@ class AuthService(Agent):
 
     def _send_update(self):
         user_to_caps = self.get_user_to_capabilities()
-        peers = self.vip.peerlist().get(timeout=0.5)
+        i = 0
+        exception = None
+        peers = None
+        # peerlist times out lots of times when running test suite. This happens even with higher timeout in get()
+        # but if we retry peerlist succeeds by second attempt most of the time!!!
+        while not peers and i < 3:
+            try:
+                i = i + 1
+                peers = self.vip.peerlist().get(timeout=0.5)
+            except BaseException as e:
+                _log.warning("Attempt {} to get peerlist failed with exception {}".format(i, e))
+                exception = e
+
+        if not peers:
+            raise exception
+
         _log.debug("after getting peerlist to send auth updates")
 
         for peer in peers:

@@ -33,8 +33,7 @@ try:
 except ImportError:
     pytest.skip("pydnp3 not found!", allow_module_level=True)
 
-import json
-
+from volttron.platform import jsonapi
 from collections import OrderedDict
 
 from dnp3 import DIRECT_OPERATE
@@ -92,7 +91,7 @@ class MesaMasterTest(MesaMaster):
         :return:
         """
         if send_json_path:
-            send_json = json.load(open(send_json_path), object_pairs_hook=OrderedDict)
+            send_json = jsonapi.load(open(send_json_path), object_pairs_hook=OrderedDict)
 
         try:
             function_id = send_json['function_id']

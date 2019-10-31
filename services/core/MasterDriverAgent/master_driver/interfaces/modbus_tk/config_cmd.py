@@ -58,8 +58,9 @@ from master_driver.interfaces.modbus_tk.helpers import str2bool
 import cmd
 import yaml
 import os
-import json
 import subprocess32
+
+from volttron.platform import jsonapi
 
 
 class VolttronException(Exception):
@@ -579,7 +580,7 @@ class ConfigCmd (cmd.Cmd):
                 if f.endswith('.config') and f.split('.')[0] == driver_name:
                     existed = True
                     with open("{0}/{1}.config".format(config_dir, driver_name), 'r') as config_file:
-                        config_dict = json.load(config_file)
+                        config_dict = jsonapi.load(config_file)
                         print("\nDRIVER: {0}".format(driver_name.upper()))
                         for k in config_dict.keys():
                             if k != 'driver_config':
@@ -763,7 +764,7 @@ class ConfigCmd (cmd.Cmd):
                 })
 
             with open("{0}/{1}.config".format(self._directories['config_dir'], name), 'w') as config_file:
-                json.dump(driver_config, config_file, indent=2)
+                jsonapi.dump(driver_config, config_file, indent=2)
 
         else:
             print("Device type '{0}' does not exist".format(device_type_name))
@@ -796,7 +797,7 @@ class ConfigCmd (cmd.Cmd):
             self.do_load_volttron(driver_name)
 
         with open(config_path, 'r') as config_file:
-            driver_config = json.load(config_file)
+            driver_config = jsonapi.load(config_file)
 
         csv_config = driver_config['registry_config'].split('//')[1]
         csv_map = driver_config['driver_config']['register_map'].split('//')[1]

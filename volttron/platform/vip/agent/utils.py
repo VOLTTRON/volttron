@@ -70,7 +70,7 @@ def build_connection(identity, peer='', address=get_address(),
 def build_agent(address=get_address(), identity=None, publickey=ks.public,
                 secretkey=ks.secret, timeout=10, serverkey=None,
                 agent_class=Agent, volttron_central_address=None,
-                volttron_central_instance_name=None, **kwargs):
+                volttron_central_instance_name=None, **kwargs) -> Agent:
     """ Builds a dynamic agent connected to the specifiedd address.
 
     All key parameters should have been encoded with

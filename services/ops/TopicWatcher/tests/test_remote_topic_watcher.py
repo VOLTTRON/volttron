@@ -37,14 +37,11 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import json
-import sqlite3
 
 import gevent
-import os
 import pytest
 
-from volttron.platform import get_ops, get_examples
+from volttron.platform import get_ops, get_examples, jsonapi
 from volttron.platform.agent.known_identities import PLATFORM_TOPIC_WATCHER
 from volttron.platform.agent.utils import get_aware_utc_now
 
@@ -69,7 +66,7 @@ def test_remote_alert_publish(get_volttron_instances):
     def onmessage(peer, sender, bus, topic, headers, message):
         global alert_messages
 
-        alert = json.loads(message)["context"]
+        alert = jsonapi.loads(message)["context"]
 
         try:
             alert_messages[alert] += 1
@@ -133,7 +130,7 @@ def test_alert_multi_messagebus_publish(volttron_multi_messagebus):
     def onmessage(peer, sender, bus, topic, headers, message):
         global alert_messages
 
-        alert = json.loads(message)["context"]
+        alert = jsonapi.loads(message)["context"]
 
         try:
             alert_messages[alert] += 1

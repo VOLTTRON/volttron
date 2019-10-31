@@ -1,6 +1,5 @@
 import configparser as configparser
 from datetime import datetime
-import json
 import logging
 import os
 import uuid
@@ -28,7 +27,7 @@ from volttron.platform.certs import Certs
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (strip_comments,
                                            load_platform_config,
-                                           store_message_bus_config)
+                                           store_message_bus_config, execute_command)
 from volttron.platform.aip import AIPplatform
 from volttron.platform.auth import (AuthFile, AuthEntry,
                                     AuthFileEntryAlreadyExists)
@@ -401,6 +400,8 @@ class PlatformWrapper:
             self.logit('using instance serverkey: {}'.format(publickey))
             serverkey = publickey
         self.logit("BUILD agent VOLTTRON HOME: {}".format(self.volttron_home))
+        if self.bind_web_address:
+            kwargs['enable_web'] = True
         agent = agent_class(address=address, identity=identity,
                             publickey=publickey, secretkey=secretkey,
                             serverkey=serverkey,
@@ -412,7 +413,7 @@ class PlatformWrapper:
 
         # Automatically add agent's credentials to auth.json file
         if publickey:
-            self.logit('Adding publickey to auth.json')
+            self.logit(f'Adding publickey to auth.json {publickey} {identity}')
             self._append_allow_curve_key(publickey, identity=identity)
 
         if should_spawn:
@@ -518,7 +519,7 @@ class PlatformWrapper:
     def set_auth_dict(self, auth_dict):
         if auth_dict:
             with open(os.path.join(self.volttron_home, 'auth.json'), 'w') as fd:
-                fd.write(json.dumps(auth_dict))
+                fd.write(jsonapi.dumps(auth_dict))
 
     def startup_platform(self, vip_address, auth_dict=None,
                          mode=UNRESTRICTED, bind_web_address=None,
@@ -664,9 +665,9 @@ class PlatformWrapper:
 
         log = os.path.join(self.volttron_home, 'volttron.log')
 
-        cmd = ['volttron']
-        if msgdebug:
-            cmd.append('--msgdebug')
+        cmd = ['env/bin/volttron']
+        # if msgdebug:
+        #     cmd.append('--msgdebug')
         if enable_logging:
             cmd.append('-vv')
         cmd.append('-l{}'.format(log))
@@ -685,35 +686,42 @@ class PlatformWrapper:
         # A negative means that the process exited with an error.
         assert self.p_process.poll() is None
 
-        # Check for VOLTTRON_PID
-        sleep_time = 0
-        while (not self.is_running()) and sleep_time < timeout:
-            gevent.sleep(3)
-            sleep_time += 3
-
-        if sleep_time >= timeout:
-            raise Exception("Platform startup failed. Please check volttron.log in {}".format(self.volttron_home))
+        utils.wait_for_volttron_startup(self.volttron_home, timeout)
 
         self.serverkey = self.keystore.public
         assert self.serverkey
 
         # Use dynamic_agent so we can look and see the agent with peerlist.
-        self.dynamic_agent = self.build_agent(identity="dynamic_agent")
-        assert self.dynamic_agent is not None
-        assert isinstance(self.dynamic_agent, Agent)
-        has_control = False
-        times = 0
-        while not has_control and times < 10:
-            times += 1
-            try:
-                has_control = CONTROL in self.dynamic_agent.vip.peerlist().get(timeout=.2)
-                self.logit("Has control? {}".format(has_control))
-            except gevent.Timeout:
-                pass
+        if not setupmode:
+            self.dynamic_agent = self.build_agent(identity="dynamic_agent")
+            assert self.dynamic_agent is not None
+            assert isinstance(self.dynamic_agent, Agent)
+            has_control = False
+            times = 0
+            while not has_control and times < 10:
+                times += 1
+                try:
+                    has_control = CONTROL in self.dynamic_agent.vip.peerlist().get(timeout=.2)
+                    self.logit("Has control? {}".format(has_control))
+                except gevent.Timeout:
+                    pass
 
-        if not has_control:
-            self.shutdown_platform()
-            raise Exception("Couldn't connect to core platform!")
+            if not has_control:
+                self.shutdown_platform()
+                raise Exception("Couldn't connect to core platform!")
+
+            def subscribe_to_all(peer, sender, bus, topic, headers, messages):
+                logged = "{} --------------------Pubsub Message--------------------\n".format(
+                    utils.format_timestamp(datetime.now()))
+                logged += "PEER: {}\n".format(peer)
+                logged += "SENDER: {}\n".format(sender)
+                logged += "Topic: {}\n".format(topic)
+                logged += "headers: {}\n".format([str(k) + '=' + str(v) for k, v in headers.items()])
+                logged += "message: {}\n".format(messages)
+                logged += "-------------------------------------------------------\n"
+                self.logit(logged)
+
+            self.dynamic_agent.vip.pubsub.subscribe('pubsub', '', subscribe_to_all).get()
 
         if bind_web_address:
             times = 0
@@ -750,18 +758,7 @@ class PlatformWrapper:
             if self.ssl_auth:
                 self._web_admin_api = WebAdminApi(self)
 
-        def subscribe_to_all(peer, sender, bus, topic, headers, messages):
-            logged = "{} --------------------Pubsub Message--------------------\n".format(
-                utils.format_timestamp(datetime.now()))
-            logged += "PEER: {}\n".format(peer)
-            logged += "SENDER: {}\n".format(sender)
-            logged += "Topic: {}\n".format(topic)
-            logged += "headers: {}\n".format([str(k)+'='+str(v) for k, v in headers.items()])
-            logged += "message: {}\n".format(messages)
-            logged += "-------------------------------------------------------\n"
-            self.logit(logged)
 
-        self.dynamic_agent.vip.pubsub.subscribe('pubsub', '', subscribe_to_all).get()
 
     def is_running(self):
         return utils.is_volttron_running(self.volttron_home)
@@ -889,7 +886,7 @@ class PlatformWrapper:
                 temp_config = join(self.volttron_home,
                                    basename(agent_dir) + "_config_file")
                 with open(temp_config, "w") as fp:
-                    fp.write(json.dumps(config_file))
+                    fp.write(jsonapi.dumps(config_file))
                 config_file = temp_config
             elif not config_file:
                 if os.path.exists(os.path.join(agent_dir, "config")):
@@ -899,7 +896,7 @@ class PlatformWrapper:
                     temp_config = join(self.volttron_home,
                                        basename(agent_dir) + "_config_file")
                     with open(temp_config, "w") as fp:
-                        fp.write(json.dumps({}))
+                        fp.write(jsonapi.dumps({}))
                     config_file = temp_config
             elif os.path.exists(config_file):
                 pass  # config_file already set!
@@ -1191,16 +1188,16 @@ class PlatformWrapper:
             return
 
         running_pids = []
-
-        for agnt in self.list_agents():
-            pid = self.agent_pid(agnt['uuid'])
-            if pid is not None and int(pid) > 0:
-                running_pids.append(int(pid))
-        if not self.skip_cleanup:
-            self.remove_all_agents()
-        # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
-        self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
-        self.dynamic_agent.core.stop()
+        if self.dynamic_agent:  # because we are not creating dynamic agent in setupmode
+            for agnt in self.list_agents():
+                pid = self.agent_pid(agnt['uuid'])
+                if pid is not None and int(pid) > 0:
+                    running_pids.append(int(pid))
+            if not self.skip_cleanup:
+                self.remove_all_agents()
+            # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
+            self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
+            self.dynamic_agent.core.stop()
 
         if self.p_process is not None:
             try:

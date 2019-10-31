@@ -92,6 +92,9 @@ class ZMQConnection(BaseConnection):
             self.socket.setsockopt(zmq.RECONNECT_IVL, reconnect_interval)
 
     def connect(self, callback=None):
+        _log.debug(f"connecting to url {self._url}")
+        _log.debug(f"url type is {type(self._url)}")
+
         self.socket.connect(self._url)
         if callback:
             callback(True)

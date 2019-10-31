@@ -73,7 +73,7 @@ from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL, PLATFORM_HISTORIAN)
 from volttron.platform.agent.utils import (
-    get_aware_utc_now)
+    get_aware_utc_now, get_messagebus)
 from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform.jsonrpc import (
     INVALID_REQUEST, METHOD_NOT_FOUND,
@@ -236,7 +236,7 @@ class VolttronCentralAgent(Agent):
 
         if users is None:
             users = {}
-            _log.warn("No users are available for logging in!")
+            _log.warning("No users are available for logging in!")
 
         # Unregister all routes for vc and then re-add down below.
         self.vip.web.unregister_all_routes()
@@ -286,7 +286,7 @@ class VolttronCentralAgent(Agent):
 
         # Identities of all platform agents that are connecting to us should
         # have an identity of platform.md5hash.
-        connected_platforms = set([x.encode('utf-8') for x in self.vip.peerlist().get(timeout=5)
+        connected_platforms = set([x for x in self.vip.peerlist().get(timeout=5)
                                    if x.startswith('vcp-') or x.endswith('.platform.agent')])
 
         _log.debug("Connected: {}".format(connected_platforms))

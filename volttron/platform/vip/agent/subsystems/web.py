@@ -39,6 +39,7 @@
 from collections import defaultdict
 import logging
 import weakref
+from enum import Enum
 
 from volttron.platform.agent.known_identities import MASTER_WEB
 from volttron.platform.vip.agent.subsystems.base import SubsystemBase
@@ -46,6 +47,13 @@ from volttron.platform.vip.agent.subsystems.base import SubsystemBase
 __docformat__ = 'reStructuredText'
 
 _log = logging.getLogger(__name__)
+
+
+class ResourceType(Enum):
+    JSONRPC = 'jsonrpc'
+    ENDPOINT = 'endpoint'
+    RAW = 'raw'
+    UNKNOWN = 99
 
 
 class WebSubSystem(SubsystemBase):
@@ -80,9 +88,11 @@ class WebSubSystem(SubsystemBase):
     def unregister_all_routes(self):
         self._rpc().call(MASTER_WEB, 'unregister_all_agent_routes').get(timeout=10)
 
-    def register_endpoint(self, endpoint, callback, res_type="jsonrpc"):
+    def register_endpoint(self, endpoint, callback,
+                          res_type: ResourceType = ResourceType.JSONRPC):
         """
         The :meth:`register_endpoint` method registers an endpoint with the
+        :param res_type:
         :class:`volttron.platform.web.MasterWebService` on the VOLTTRON
         instance.
 
@@ -105,6 +115,8 @@ class WebSubSystem(SubsystemBase):
         """
         _log.info('Registering route endpoint: {}'.format(endpoint))
         self._endpoints[endpoint] = callback
+        if isinstance(res_type, ResourceType):
+            res_type = res_type.value
         self._rpc().call(MASTER_WEB, 'register_endpoint', endpoint, res_type).get(timeout=10)
 
     def register_path(self, prefix, static_path):

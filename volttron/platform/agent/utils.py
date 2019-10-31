@@ -74,7 +74,7 @@ from volttron.utils.prompt import prompt_response
 
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
            'is_valid_identity', 'load_platform_config', 'get_messagebus',
-           'get_fq_identity', 'execute_command']
+           'get_fq_identity', 'execute_command', 'get_aware_utc_now']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
@@ -405,8 +405,8 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         message_bus = os.environ.get('MESSAGEBUS', 'zmq')
         if identity is not None:
             if not is_valid_identity(identity):
-                _log.warn('Deprecation warining')
-                _log.warn(
+                _log.warning('Deprecation warining')
+                _log.warning(
                     'All characters in {identity} are not in the valid set.'
                     .format(idenity=identity))
 
@@ -791,7 +791,6 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> s
 #     #     raise e
 
 
-
 def is_volttron_running(volttron_home):
     """
     Checks if volttron is running for the given volttron home. Checks if a VOLTTRON_PID file exist and if it does
@@ -809,3 +808,13 @@ def is_volttron_running(volttron_home):
         return running
     else:
         return False
+
+
+def wait_for_volttron_startup(vhome, timeout):
+    # Check for VOLTTRON_PID
+    sleep_time = 0
+    while (not is_volttron_running(vhome)) and sleep_time < timeout:
+        gevent.sleep(3)
+        sleep_time += 3
+    if sleep_time >= timeout:
+        raise Exception("Platform startup failed. Please check volttron.log in {}".format(vhome))

@@ -1,14 +1,13 @@
-import logging
 
 import subprocess
 import gevent
 import pytest
 from dateutil.parser import parse as dateparse
-from volttron.platform import jsonapi
 
 from volttron.platform.messaging.health import STATUS_GOOD, STATUS_BAD, \
     STATUS_UNKNOWN
 from volttron.platform.vip.agent.subsystems.query import Query
+from volttron.platform import jsonapi
 
 
 @pytest.mark.agent
@@ -34,7 +33,7 @@ def test_agent_status_set_when_created(volttron_instance):
     assert l['context'] is None
 
     assert isinstance(agent.vip.health.get_status_json(), str)
-    l = json.loads(agent.vip.health.get_status_json())
+    l = jsonapi.loads(agent.vip.health.get_status_json())
     assert l['status'] == STATUS_GOOD
     assert l['context'] is None
 

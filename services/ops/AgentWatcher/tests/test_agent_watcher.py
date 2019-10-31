@@ -38,9 +38,9 @@
 
 import pytest
 import gevent
-import json
 
-from volttron.platform import get_ops, get_examples
+
+from volttron.platform import get_ops, get_examples, jsonapi
 
 WATCHER_CONFIG = {
     "watchlist": ["listener"],
@@ -70,7 +70,7 @@ def platform(request, volttron_instance):
     def onmessage(peer, sender, bus, topic, headers, message):
         global alert_messages
 
-        alert = json.loads(message)["context"]
+        alert = jsonapi.loads(message)["context"]
 
         try:
             alert_messages[alert] += 1

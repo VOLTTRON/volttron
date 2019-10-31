@@ -55,7 +55,6 @@
 import datetime
 from dateutil.parser import parse
 import gevent
-import json
 import logging
 import os
 import sys
@@ -69,6 +68,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 
 from volttron.platform.agent import utils
+from volttron.platform import jsonapi
 from volttron.platform.control import ControlConnection, KnownHostsStore, KeyStore
 from volttron.platform.vip.agent import Agent, RPC, Core
 from volttron.platform.vip.router import ERROR, UNROUTABLE, INCOMING, OUTGOING
@@ -172,7 +172,7 @@ class MessageDebuggerAgent(Agent):
 
                 if self._streaming_messages and self.allowed_by_filters(debug_message, ignore_session_id=True):
                     # Re-publish the DebugMessage (as json) for MessageViewer real-time consumption
-                    self.monitor_socket().send(json.dumps(debug_message.as_json_compatible_object()))
+                    self.monitor_socket().send(jsonapi.dumps(debug_message.as_json_compatible_object()))
 
             except Again:
                 if waiting_for_test_msg:
@@ -702,7 +702,7 @@ class DebugMessage(ORMBase):
 
     def extract_data_fields(self):
         try:
-            data_dict = json.loads(str(self.data))
+            data_dict = jsonapi.loads(str(self.data))
         except ValueError:
             data_dict = None
         if type(data_dict) == dict:

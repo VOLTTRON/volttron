@@ -60,13 +60,14 @@ __docformat__ = 'reStructuredText'
 import logging
 import re
 import sys
-import json
 import grequests
 import datetime
 import pkg_resources
 from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.agent import utils
 from volttron.utils.docs import doc_inherit
+from volttron.platform import jsonapi
+
 
 # requests should be imported after grequests
 # as grequests monkey patches ssl and requests imports ssl
@@ -324,7 +325,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             raise RuntimeError("get request did not return any "
                                "response")
         try:
-            response = json.loads(gresponse.content)
+            response = jsonapi.loads(gresponse.content)
             properties = response["properties"]
             observation_time = properties["timestamp"]
             return observation_time, properties
@@ -379,7 +380,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             raise RuntimeError("get request did not return any "
                                "response")
         try:
-            response = json.loads(gresponse.content)
+            response = jsonapi.loads(gresponse.content)
             data = []
             properties = response["properties"]
             generation_time = properties["generatedAt"]

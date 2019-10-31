@@ -7,7 +7,8 @@ import socket
 from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
-import json
+from volttron.platform import jsonapi
+
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ class WeatherAgent(Agent):
     def add_weather_report(self, peer, sender, bus, topic, headers, message):
         _log.debug("message is %s", message)
         if self.is_json_message(message, sender):
-            message = json.loads(message)
+            message = jsonapi.loads(message)
             if self.is_expected_add_message(message):
                 weather_report_type = message["type"]
                 city = message["city"]
@@ -66,7 +67,7 @@ class WeatherAgent(Agent):
 
     def del_weather_report(self, peer, sender, bus, topic, headers, message):
         if self.is_json_message(message, sender):
-            message = json.loads(message)
+            message = jsonapi.loads(message)
             if self.is_expected_delete_message(message):
                 topic_name = self.create_topic_name(message["type"], message["city"], message["state"])
                 if self.topic_is_being_published(topic_name):
@@ -98,7 +99,7 @@ class WeatherAgent(Agent):
 
     def is_json_message(self, message, sender):
         try:
-            json.loads(message)
+            jsonapi.loads(message)
             return True
         except ValueError:
             _log.info("Message published by %s has invalid value (JSON format)", sender)
@@ -177,13 +178,13 @@ class WeatherAgent(Agent):
             headers_mod.DATE: now,
             headers_mod.TIMESTAMP: now
         }
-        self.vip.pubsub.publish('pubsub', topic_name, headers, json.dumps(parsed_weather_data))
+        self.vip.pubsub.publish('pubsub', topic_name, headers, jsonapi.dumps(parsed_weather_data))
 
     def retrieve_weather_data(self, url):
         f = urllib.request.urlopen(url, None, 5)
         json_string = f.read()
         f.close()
-        return json.loads(json_string)
+        return jsonapi.loads(json_string)
 
     def subscribe_to_buses(self):
         self.vip.pubsub.subscribe('pubsub', 'Add Weather Service', callback=self.add_weather_report)

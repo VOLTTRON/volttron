@@ -39,11 +39,10 @@ except ImportError:
     pytest.skip("pydnp3 not found!", allow_module_level=True)
 
 import gevent
-import json
 import os
 import pytest
 
-from volttron.platform import get_services_core
+from volttron.platform import get_services_core, jsonapi
 from volttron.platform.agent.utils import strip_comments
 
 from dnp3.points import PointDefinitions
@@ -118,7 +117,7 @@ def dict_compare(source_dict, target_dict):
 def add_definitions_to_config_store(test_agent):
     """Add PointDefinitions to the mesaagent's config store."""
     with open(POINT_DEFINITIONS_PATH, 'r') as f:
-        points_json = json.loads(strip_comments(f.read()))
+        points_json = jsonapi.loads(strip_comments(f.read()))
     test_agent.vip.rpc.call('config.store', 'manage_store', DNP3_AGENT_ID,
                             'mesa_points.config', points_json, config_type='raw')
 

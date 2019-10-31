@@ -41,6 +41,7 @@ import collections
 import hashlib
 import logging
 import logging.handlers
+import logging.config
 import os
 import re
 import shutil
@@ -51,7 +52,6 @@ import tempfile
 import traceback
 import uuid
 from datetime import timedelta
-import json
 
 import gevent
 import gevent.event
@@ -184,8 +184,6 @@ class ControlService(BaseAgent):
     def send_alert(self, agent_id, agent_name):
         """Send an alert for the group, summarizing missing topics.
 
-        :param unseen_topics: List of topics that were expected but not received
-        :type unseen_topics: list
         """
         alert_key = "Agent {}({}) stopped unexpectedly".format(agent_name,
                                                                agent_id)
@@ -554,7 +552,7 @@ def backup_agent_data(output_filename, source_dir):
 
 def restore_agent_data_from_tgz(source_file, output_dir):
     # Open tarfile
-    with tarfile.open(mode="r:gz", fileobj=open(source_file)) as tar:
+    with tarfile.open(source_file, mode="r:gz") as tar:
         tar.extractall(output_dir)
 
 
@@ -1146,7 +1144,7 @@ def _parse_capabilities(line):
         return line
     line = line.strip()
     try:
-       result = json.loads(line.replace("'", "\""))
+       result = jsonapi.loads(line.replace("'", "\""))
     except Exception as e:
         result = _comma_split(line)
     return result
@@ -1391,7 +1389,7 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     if not agents:
         _stderr.write('No installed Agents found\n')
         return
-    agents.sort()
+    agents = sorted(agents, key=lambda x: x.name)
     if not opts.min_uuid_len:
         n = 36
     else:
@@ -1439,7 +1437,8 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
     if not agents:
         _stderr.write('No installed Agents found\n')
         return
-    agents.sort()
+
+    agents = sorted(agents, key=lambda x: x.name)
     if not opts.min_uuid_len:
         n = 36
     else:
@@ -1587,13 +1586,11 @@ def edit_config(opts):
 
 
 class ControlConnection(object):
-    def __init__(self, address, peer='control',
-                 publickey=None, secretkey=None, serverkey=None):
+    def __init__(self, address, peer='control'):
         self.address = address
         self.peer = peer
         message_bus = utils.get_messagebus()
-        self._server = BaseAgent(address=self.address, publickey=publickey,
-                                 secretkey=secretkey, serverkey=serverkey,
+        self._server = BaseAgent(address=self.address,
                                  enable_store=False,
                                  identity=CONTROL_CONNECTION,
                                  message_bus=message_bus,
@@ -2714,8 +2711,7 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = ControlConnection(opts.vip_address,
-                                        **get_keys(opts))
+    opts.connection = ControlConnection(opts.vip_address)
 
     try:
         with gevent.Timeout(opts.timeout):

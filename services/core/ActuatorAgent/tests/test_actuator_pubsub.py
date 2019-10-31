@@ -1574,7 +1574,7 @@ def test_set_value_array(publish_agent, cancel_schedules, revert_devices):
                                      set_topic,
                                      headers=header,
                                      message=[0.2]).get(timeout=10)
-    gevent.sleep(1)
+    gevent.sleep(1.5)
     print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
@@ -1986,7 +1986,7 @@ def test_set_read_only_point(publish_agent, cancel_schedules):
         REQUEST_CANCEL_SCHEDULE,
         agentid,
         'task_set_read_only_point').get(timeout=10)
-    gevent.sleep(1)
+    gevent.sleep(1.5)
 
     print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
