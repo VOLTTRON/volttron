@@ -814,9 +814,9 @@ class RabbitMQMgmt(object):
         :return:
         """
 
-        from urlparse import urlparse
+        from  urllib import parse
 
-        parsed_addr = urlparse(rmq_address)
+        parsed_addr = parse.urlparse(rmq_address)
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
 
         _, virtual_host = parsed_addr.path.split('/')
