@@ -653,7 +653,7 @@ class PubSubService(object):
             elif op == 'external_publish':
                 self._logger.debug("PUBSUBSERVICE external to local publish")
                 self._external_to_local_publish(frames)
-            elif op == b'error':
+            elif op == 'error':
                 self._handle_error(frames)
             elif op == 'request_response':
                 pass
@@ -824,11 +824,9 @@ class PubSubService(object):
         :param frames:
         :return:
         """
-        if len(frames) > 7:
-            error_type = frames[7].bytes
-            if error_type == INVALID_REQUEST:
-                topic = frames[8].bytes
-                # Remove subscriber for that topic
+        # happens only in case of errors in multi platform use case
+        _log.warning(f"In _handle_error of pubsub subsystem. Frames: {frames}")
+
 
     def publish_callback(self, peer, sender, bus, topic, headers, message):
         """
