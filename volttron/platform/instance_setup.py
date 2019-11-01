@@ -446,6 +446,7 @@ def do_web_enabled_rmq(vhome):
 
     config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
 
+
 def do_web_enabled_zmq(vhome):
     global config_opts
 
@@ -517,7 +518,10 @@ def do_web_agent():
     _update_config_file()
 
 
-@installs(get_services_core("VolttronCentral"), 'vc')
+# TODO: Commented out so we don't prompt for installing vc or vcp until they
+# have been figured out totally for python3
+#
+# @installs(get_services_core("VolttronCentral"), 'vc')
 def do_vc():
     do_web_agent()
     resp = vc_config()
@@ -645,7 +649,10 @@ def is_file_readable(file_path, log=True):
         return False
 
 
-@installs(get_services_core("VolttronCentralPlatform"), 'vcp')
+# Todo: Commented out so we don't prompt for installing vc or vcp until they
+# have been figured out totally for python3
+#
+# @installs(get_services_core("VolttronCentralPlatform"), 'vcp')
 def do_vcp():
     global config_opts
     is_vc = False
@@ -757,6 +764,7 @@ def do_master_driver():
 def do_listener():
     return {}
 
+
 def confirm_volttron_home():
     global prompt_vhome
     volttron_home = get_home()
@@ -768,6 +776,7 @@ def confirm_volttron_home():
                 '\nPlease execute with VOLTRON_HOME=/your/path volttron-cfg to '
                 'modify VOLTTRON_HOME.\n')
             exit(1)
+
 
 def wizard():
     global config_opts
@@ -793,15 +802,20 @@ def wizard():
         elif config_opts['message-bus'] == 'zmq':
             do_web_enabled_zmq(volttron_home)
         _update_config_file()
-        prompt = 'Is this an instance of volttron central?'
-        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
-        if response in y:
-            do_vc()
-
-    prompt = 'Will this instance be controlled by volttron central?'
-    response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
-    if response in y:
-        do_vcp()
+        # TODO: Commented out so we don't prompt for installing vc or vcp until they
+        # have been figured out totally for python3
+        #
+        # prompt = 'Is this an instance of volttron central?'
+        # response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+        # if response in y:
+        #     do_vc()
+    # TODO: Commented out so we don't prompt for installing vc or vcp until they
+    # have been figured out totally for python3
+    #
+    # prompt = 'Will this instance be controlled by volttron central?'
+    # response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
+    # if response in y:
+    #     do_vcp()
 
     prompt = 'Would you like to install a platform historian?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
