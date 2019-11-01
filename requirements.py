@@ -57,7 +57,7 @@ install_requires = [
     'setuptools',
     'tzlocal',
     'pyopenssl==19.0.0',
-    'cryptography==2.2.2',
+    'cryptography==2.3',
     # Cross platform way of handling changes in file/directories.
     # https://github.com/Bogdanp/watchdog_gevent
     'watchdog_gevent',
