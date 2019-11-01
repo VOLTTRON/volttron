@@ -35,7 +35,7 @@ http://ryanstutorials.net/linuxtutorial/
 
  ```sh
     sudo apt-get update
-    sudo apt-get install build-essential python3.6-dev pythone3.6-venv openssl libssl-dev libevent-dev git
+    sudo apt-get install build-essential python3.6-dev python3.6-venv python3-venv openssl libssl-dev libevent-dev git
  ```
  On Redhat or CENTOS systems, these can all be installed with the following command:
  ```sh

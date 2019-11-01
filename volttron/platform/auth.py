@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -222,6 +222,16 @@ class AuthService(Agent):
 
     @Core.receiver('onstart')
     def zap_loop(self, sender, **kwargs):
+        """
+        The zap loop is the starting of the authentication process for
+        the VOLTTRON zmq message bus.  It talks directly with the low
+        level socket so all responses must be byte like objects, in
+        this case we are going to send zmq frames across the wire.
+
+        :param sender:
+        :param kwargs:
+        :return:
+        """
         self._is_connected = True
         self._zap_greenlet = gevent.getcurrent()
         sock = self.zap_socket
@@ -545,8 +555,8 @@ class AuthService(Agent):
         if current and isinstance(current, list):
             current = current[0]
             dift = False
-            read_allowed_str = ("|").join(read_tokens)
-            write_allowed_str = ("|").join(write_tokens)
+            read_allowed_str = "|".join(read_tokens)
+            write_allowed_str = "|".join(write_tokens)
             if re.search(current['read'], read_allowed_str):
                 dift = True
                 current["read"] = read_allowed_str
@@ -681,7 +691,6 @@ class AuthEntry(object):
             return result
         else:
             return AuthEntry._get_capability(value)
-
 
     @staticmethod
     def _get_capability(value):
