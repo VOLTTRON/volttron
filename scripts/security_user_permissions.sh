@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
-# DO NOT RUN THIS SCRIPT AS ROOT - IT WILL NOT WORK
-# Run the script normally, it will ask you for your password for commands that require root
-echo "Create volttron_agent user group"
+
+if [ -z "$UID" ] || [ $UID -ne 0 ]; then
+  echo "Script should be run as root user or as sudo <path to this script>/secure_user_permission.sh"
+  exit
+fi
+
+if [ -z ${USER} ]; then
+ echo '$USER is not set. Finding user name for UID 0'
+ USER=`awk -v val=0 -F ":" '$3==val{print $1}' /etc/passwd`
+ echo "USER got based on uid 0 is $USER"
+fi
+
+echo "Creating volttron_agent user group"
 echo "Adding Permissions to sudoers for VOLTTRON:"
 # allow user to add and delete users using the volttron agent user pattern
 while true; do
