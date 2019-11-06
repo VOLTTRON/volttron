@@ -288,7 +288,7 @@ class AIPplatform(object):
             groupadd_process = subprocess.Popen(
                 groupadd, stdout=PIPE, stderr=PIPE)
             stdout, stderr = groupadd_process.communicate()
-            if stderr:
+            if groupadd_process.returncode != 0:
                 # TODO alert?
                 raise RuntimeError("Add {} group failed ({}) - Prevent "
                                    "creation of agent users".
@@ -319,7 +319,7 @@ class AIPplatform(object):
             useradd_process = subprocess.Popen(
                 useradd, stdout=PIPE, stderr=PIPE)
             stdout, stderr = useradd_process.communicate()
-            if stderr and len(stderr):
+            if useradd_process.returncode != 0:
                 # TODO alert?
                 raise RuntimeError("Creating {} user failed: {}".format(
                     volttron_agent_user, stderr))
@@ -340,10 +340,9 @@ class AIPplatform(object):
         permissions_process = subprocess.Popen(
             permissions_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = permissions_process.communicate()
-        if stdout and len(stdout):
-            _log.info("Set {} permissions on {}, stdout: {}".format(
+        if permissions_process.returncode != 0:
+            _log.error("Set {} permissions on {}, stdout: {}".format(
                 perms, path, stdout))
-        if stderr and len(stderr):
             # TODO alert?
             raise RuntimeError("Setting {} permissions on {} failed: {}".format(
                 perms, path, stderr))
@@ -380,7 +379,7 @@ class AIPplatform(object):
                     userdel_process = subprocess.Popen(
                         userdel, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     stdout, stderr = userdel_process.communicate()
-                    if stderr:
+                    if userdel_process.returncode != 0:
                         _log.error("Remove {user} user failed: {stderr}".format(
                             user=volttron_agent_user, stderr=stderr))
                         raise RuntimeError(stderr)
