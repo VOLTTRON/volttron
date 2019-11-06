@@ -2,14 +2,22 @@
 
 if [ -z "$UID" ] || [ $UID -ne 0 ]; then
   echo "Script should be run as root user or as sudo <path to this script>/secure_user_permission.sh"
-  exit
+  exit 1
 fi
 
-echo -n "Enter volttron platform user. User would be provided sudo access to volttron related commands:"
-read volttron_user
+while true; do
+    echo -n "Enter volttron platform user. User would be provided sudo access to specific commands:"
+    read volttron_user
+    id=`id -u $volttron_user`
+    if [ $id -ne 0 ]; then
+        break
+    else
+        echo "Volttron platform cannot run as root user. Please provide a non root user"
+    fi
+done
 
 echo "Creating volttron_agent user group"
-echo "Adding Permissions to sudoers for VOLTTRON:"
+echo "Adding Permissions to sudoers for user: $volttron_user"
 # allow user to add and delete users using the volttron agent user pattern
 while true; do
     valid=0
@@ -35,7 +43,7 @@ while true; do
         fi
 
         if [ $valid -eq 1 ]; then
-            echo "Setting Volttron instance name to volttron_$name"
+            echo "Setting Volttron instance name to $name"
             break
         fi
     fi

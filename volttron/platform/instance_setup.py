@@ -777,7 +777,7 @@ def wizard():
     # This option indicates if volttron platform should start agents as their
     # own users rather than the volttron user
     prompt = 'Should agents run with their own users (this requires running ' \
-             'scripts/security_user_permissions.sh as sudo)?'
+             'scripts/secure_user_permissions.sh as sudo)?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     config_opts['secure-agent-users'] = True if response in y else False
     _update_config_file()
@@ -870,7 +870,7 @@ def main():
                             'file]')
     group.add_argument('--secure-agent-users', action='store_true', dest='secure_agent_users',
                        help='Require that agents run with their own users (this requires running '
-                            'scripts/security_user_permissions.sh as sudo)')
+                            'scripts/secure_user_permissions.sh as sudo)')
 
     args = parser.parse_args()
     verbose = args.verbose

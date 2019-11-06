@@ -1148,7 +1148,7 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--secure-agent-users', default=False,
         help='Require that agents run with their own users (this requires '
-             'running scripts/security_user_permissions.sh as sudo)')
+             'running scripts/secure_user_permissions.sh as sudo)')
 
     # XXX: re-implement control options
     # on
