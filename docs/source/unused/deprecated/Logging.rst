@@ -13,7 +13,7 @@ Data sent to the data logger should be sent as a JSON object that
 consists of a dictionary of dictionaries. The keys of the outer
 dictionary are used as the points to store the data items. The inner
 dictionary consists of 2 required fields and 1 optional. The required
-fields are "Readings" and "Units". Readings contains the data that willll
+fields are "Readings" and "Units". Readings contains the data that will
 be written. It may contain either a single value, or a list of lists
 which consists of timestamp/value pairs. Units is a string that
 identifies the meaning of the scale values of the data. The optional
