@@ -3,7 +3,7 @@ VOLTTRON Security
 =================
 
 There are various security-related topics throughout VOLTTRON's documentation.
-This is a quick roadmap for finding security documentaion.
+This is a quick roadmap for finding security documentation.
 
 A core component of VOLTTRON is its :ref:`message bus<messagebus index>`.
 The security of this message bus is crucial to the entire system.

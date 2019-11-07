@@ -12,7 +12,7 @@ make a working Market Agent.
 Markets are implemented by the Market Service Agent which is a core service agent.
 The Market Service Agent publishes information on several topics to which the base
 agent automatically subscribes.  The base agent also provides all the methods you will
-need to interact with the Market Service Agent to implment your market transactions.
+need to interact with the Market Service Agent to implement your market transactions.
 
 MarketAgent
 ===========
@@ -24,7 +24,7 @@ method::
 
 This method causes the market agent to join a single market.  If the agent wishes to participate in several
 markets it may be called once for each market.  The first argument is the name of the market to join and this name must
-be unique across the entire volttron instance because all markets are implmented by a single market service agent for
+be unique across the entire volttron instance because all markets are implemented by a single market service agent for
 each volttron instance.  The second argument describes the role that this agent wished to play in this market.
 The value is imported as::
     from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
@@ -120,7 +120,7 @@ The error codes are documented in::
 * NOT_FORMED - If a market fails to form this will be called at the offer time.
 * SHORT_OFFERS - If the market doesn’t receive all its offers this will be called while clearing the market.
 * BAD_STATE - This indicates a bad state transition while clearing the market  and should never happen, but may be called  while clearing the market.
-* NO_INTERSECT - If the market fails to clear this would be called while clearing the market and an auxillary array will be included.  The auxillary array contains comparisions between the supply max, supply min, demand max and demand min.  They allow the market client to make determinations about why the curves did not intersect that may be useful.
+* NO_INTERSECT - If the market fails to clear this would be called while clearing the market and an auxillary array will be included.  The auxillary array contains comparisons between the supply max, supply min, demand max and demand min.  They allow the market client to make determinations about why the curves did not intersect that may be useful.
 
 The error callback is optional, but highly recommended.
 

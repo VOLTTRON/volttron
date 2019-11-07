@@ -3,7 +3,7 @@
 Agent Creation Walkthrough
 --------------------------
 
-The VOLTTRON platfrom now has utilities to speed the creation and installation
+The VOLTTRON platform now has utilities to speed the creation and installation
 of new agents. To use these utilities the VOLTTRON environment must be activated.
 
 From the project directory, activate the VOLTTRON environment with:

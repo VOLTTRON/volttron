@@ -35,7 +35,7 @@ point towards the foreign Volttron instance.
     }
 
 
-The **services_topic_list** allows you to sepcify which of the main data topics
+The **services_topic_list** allows you to specify which of the main data topics
 to forward. If there is no entry, the historian defaults to sending all.
 
 **topic_replace_list** allows you to replace portions of topics if needed. This
