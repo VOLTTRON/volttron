@@ -240,23 +240,14 @@ class SecureExecutionEnvironment(object):
 
     def stop(self):
         if self.process.poll() is None:
-            # pylint: disable=catching-non-exception
-            subprocess.Popen(['sudo', '-E', '-u', self.agent_user, 'kill', '-2', str(self.process.pid)])
-            try:
-                return gevent.with_timeout(60, process_wait, self.process)
-            except gevent.Timeout:
-                _log.warn("First timeout")
-                subprocess.Popen(['sudo', '-E', '-u', self.agent_user, 'kill', '-15', str(self.process.pid)])
-            try:
-                return gevent.with_timeout(30, process_wait, self.process)
-            except gevent.Timeout:
-                _log.warn("2nd timeout")
-                subprocess.Popen(['sudo', '-E', '-u', self.agent_user, 'kill', '-9', str(self.process.pid)])
-            try:
-                return gevent.with_timeout(30, process_wait, self.process)
-            except gevent.Timeout:
-                _log.error("last timeout")
-                raise ValueError('process is unresponsive')
+            cmd = ["sudo", "scripts/secure_stop_agent.sh", self.agent_user, str(self.process.pid)]
+            _log.debug("In aip secureexecutionenv {}".format(cmd))
+            process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
+            stdout, stderr = process.communicate()
+            _log.info("stopping agent: stdout {} stderr: {}".format(stdout, stderr))
+            if process.returncode != 0:
+                _log.error("Exception stopping agent: stdout {} stderr: {}".format(stdout, stderr))
+                raise RuntimeError("Exception stopping agent: stdout {} stderr: {}".format(stdout, stderr))
         return self.process.poll()
 
     def __call__(self, *args, **kwargs):

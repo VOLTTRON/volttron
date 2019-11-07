@@ -73,22 +73,29 @@ if [[ ! $command =~ $re ]]; then
     echo "Usage: <path>/secure_stop_agent.sh <user name of requester> <pid of agent to be stopped>"
     exit 4
 fi
-
+echo "Sending SIGINT signal to $pid"
 # Attempt 1 send SIGINT give process to complete onstop functions
-stop_process_and_wait $pid SIGINT 60
+stop_process_and_wait $pid SIGINT 10
 if [ $? -eq 0 ]; then
+    echo  "Agent stopped"
     exit 0
 fi
 
+echo "Sending SIGTERM signal to $pid"
+
 # Attempt 2 send terminate
-#stop_process_and_wait $pid SIGTERM 30
-#if [ $? -eq 0 ]; then
-#    exit 0
-#fi
+stop_process_and_wait $pid SIGTERM 10
+if [ $? -eq 0 ]; then
+    echo  "Agent terminated"
+    exit 0
+fi
+
+echo "Sending SIGKILL signal to $pid"
 
 # Attempt 3 kill
 stop_process_and_wait $pid SIGKILL 30
 if [ $? -eq 0 ]; then
+    echo  "Agent killed"
     exit 0
 else
     echo "Unable to stop/kill agent"

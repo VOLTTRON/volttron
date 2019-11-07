@@ -10,8 +10,11 @@ agent process.
 
 To Run Agents as Their Own Users:
 ---------------------------------
+    1. Make sure acl library is install. If you are running on docker image acl might not be installed.
+       This feature requires acl to be installed.
+       **apt-get install acl**
 
-    1. **Run scripts/security_users_permissions.sh** - This script will ask the
+    2. **Run scripts/secure_users_permissions.sh** - This script will ask the
     Volttron user to provide a name for the their Volttron instance
     (volttron_<instance_name>). The instance name must be a 23 shorter string
     featuring only characters valid as unix user names. This name should not be
