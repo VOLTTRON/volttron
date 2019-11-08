@@ -16,6 +16,11 @@ while true; do
     fi
 done
 
+script=${BASH_SOURCE[0]}
+script=`realpath $script`
+source_dir=$(dirname "$(dirname "$script")")
+
+
 echo "Creating volttron_agent user group"
 echo "Adding Permissions to sudoers for user: $volttron_user"
 # allow user to add and delete users using the volttron agent user pattern
@@ -52,6 +57,8 @@ done
 echo "$volttron_user ALL= NOPASSWD: /usr/sbin/groupadd volttron_$name" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron
 echo "$volttron_user ALL= NOPASSWD: /usr/sbin/usermod -a -G volttron_$name $USER" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron
 echo "$volttron_user ALL= NOPASSWD: /usr/sbin/useradd volttron_* -r -G volttron_$name" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron
+echo "$volttron_user ALL= NOPASSWD: $source_dir/scripts/secure_stop_agent" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron
+
 # TODO want delete only users with pattern of particular group
 echo "$volttron_user ALL= NOPASSWD: /usr/sbin/userdel volttron_*" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron
 # allow user to run all non-sudo commands for all volttron agent users
