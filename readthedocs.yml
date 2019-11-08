@@ -5,12 +5,10 @@
 # Required
 version: 2
 
-build:
-  image: volttron-7-preview
-
 # Optionally set the version of Python and requirements required to build your docs
 python:
   version: 3.6
   install:
-
     - requirements: docs/requirements.txt
+    - method: setuptools
+
