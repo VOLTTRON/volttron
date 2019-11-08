@@ -3,15 +3,11 @@
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 
 # Required
-version: 2
+version: 1
 
-build:
-  image: latest
+requirements_file: docs/requirements.txt
 
 # Optionally set the version of Python and requirements required to build your docs
 python:
   version: 3.6
-  install:
-    - requirements: docs/requirements.txt
-    - method: setuptools
-        path: .
+  setup_py_install: true
