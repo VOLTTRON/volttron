@@ -76,12 +76,17 @@ Proceed to step 4.
   dependencies script, passing in the OS name and approriate distribution as a parameter. The following are  
   supported
 
-  - `debian bionic` (for Ubuntu 18.04)
-  - `debian xenial` (for Ubuntu 16.04)
-  - `debian xenial` (for Linux Mint 18.04)
-  - `debian stretch` (for Debian Stretch)
-  - `centos 7` (for CentOS 7)
-  - `centos 6` (for CentOS 6)
+  * `debian bionic` (for Ubuntu 18.04)
+
+  * `debian xenial` (for Ubuntu 16.04)
+
+  * `debian xenial` (for Linux Mint 18.04)
+
+  * `debian stretch` (for Debian Stretch)
+
+  * `centos 7` (for CentOS 7)
+
+  * `centos 6` (for CentOS 6)
 
   Example command
   ```sh
