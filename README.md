@@ -71,7 +71,7 @@ Proceed to step 4.
 
 For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
 
-**On Debian based systems and CentOS 6/7**
+###### On Debian based systems and CentOS 6/7
 
 If you are running an Debian or CentOS system, you can install the RabbitMQ dependencies by running the rabbit 
   dependencies script, passing in the OS name and approriate distribution as a parameter. The following are supported
@@ -94,7 +94,7 @@ If you are running an Debian or CentOS system, you can install the RabbitMQ depe
 ./scripts/rabbit_dependencies.sh debian xenial
 ```
 
-**Alternatively**
+###### Alternatively
 
 You can download and install Erlang from [Erlang Solutions](https://www.erlang-solutions.com/resources/download.html).
 Please include OTP/components - ssl, public_key, asn1, and crypto.
