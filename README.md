@@ -11,9 +11,9 @@ with that data.
 
 ## Features
 
-* [Message Bus](https://volttron.readthedocs.io/en/latest/core_services/messagebus/index.html#messagebus-index) allows agents to subcribe to data sources and publish results and messages
-* [Driver framework](https://volttron.readthedocs.io/en/latest/core_services/drivers/index.html#volttron-driver-framework) for collecting data from and sending control actions to buildings and devices
-* [Historian framework](https://volttron.readthedocs.io/en/latest/core_services/historians/index.html#historian-index) for storing data
+* [Message Bus](https://volttron.readthedocs.io/en/latest/core_services/messagebus/index.html#messagebus-index) allows agents to subcribe to data sources and publish results and messages.
+* [Driver framework](https://volttron.readthedocs.io/en/latest/core_services/drivers/index.html#volttron-driver-framework) for collecting data from and sending control actions to buildings and devices.
+* [Historian framework](https://volttron.readthedocs.io/en/latest/core_services/historians/index.html#historian-index) for storing data.
 * [Agent lifecycle managment](https://volttron.readthedocs.io/en/latest/core_services/control/AgentManagement.html#agentmanagement) in the platform
 * [Web UI](https://volttron.readthedocs.io/en/latest/core_services/service_agents/central_management/VOLTTRON-Central.html#volttron-central) for managing deployed instances from a single central instance.
 
@@ -37,7 +37,7 @@ http://ryanstutorials.net/linuxtutorial/
     sudo apt-get update
     sudo apt-get install build-essential python-dev openssl libssl-dev libevent-dev git
  ```
- On Redhat or CENTOS systems, these can all be installed with the following command:
+ On Redhat or CentOS systems, these can all be installed with the following command:
  ```sh
    sudo yum update
    sudo yum install make automake gcc gcc-c++ kernel-devel python-devel openssl openssl-devel libevent-devel git
@@ -45,7 +45,7 @@ http://ryanstutorials.net/linuxtutorial/
 
  ### 2. Clone VOLTTRON code
 
-From version 6.0 VOLTTRON supports two message bus - ZMQ and RabbitMQ. 
+From version 6.0, VOLTTRON supports two message buses - ZMQ and RabbitMQ. 
 
 ```sh
 git clone https://github.com/VOLTTRON/volttron --branch <branch name>
@@ -73,15 +73,15 @@ Proceed to step 4.
   **On Debian based systems and CentOS 6/7**
 
   If you are running an Debian or CentOS system, you can install the RabbitMQ dependencies by running the rabbit 
-  dependencies script, passing in the os name and approriate distribution as a parameter. The following are  
+  dependencies script, passing in the OS name and approriate distribution as a parameter. The following are  
   supported
 
-  debian bionic (for Ubuntu 18.04)
-  debian xenial (for Ubuntu 16.04)
-  debian xenial (for Linux Mint 18.04)
-  debian stretch (for Debian Stretch)
-  centos 7 (for CentOS 7)
-  centos 6 (for CentOS 6)
+  - `debian bionic` (for Ubuntu 18.04)
+  - `debian xenial` (for Ubuntu 16.04)
+  - `debian xenial` (for Linux Mint 18.04)
+  - `debian stretch` (for Debian Stretch)
+  - `centos 7` (for CentOS 7)
+  - `centos 6` (for CentOS 6)
 
   Example command
   ```sh
@@ -105,7 +105,7 @@ Proceed to step 4.
   port 4369) on <hostname>." Note: RabbitMQ startup error would show up in syslog (/var/log/messages) file
   and not in RabbitMQ logs (/var/log/rabbitmq/rabbitmq@hostname.log)
 
-  ##### 3. bootstrap
+  ##### 3. Bootstrap
 
   ```sh
   cd volttron
@@ -116,14 +116,14 @@ Proceed to step 4.
   This will build the platform and create a virtual Python environment and
   dependencies for RabbitMQ. It also installs RabbitMQ server as the current user.
   If an install path is provided, path should exists and be writeable. RabbitMQ
-  will be installed under <install dir>/rabbitmq_server-3.7.7 Rest of the
-  documentation refers to the directory <install dir>/rabbitmq_server-3.7.7 as
-  $RABBITMQ_HOME
+  will be installed under `<install dir>/rabbitmq_server-3.7.7` Rest of the
+  documentation refers to the directory `<install dir>/rabbitmq_server-3.7.7` as
+  `$RABBITMQ_HOME`
 
   You can check if RabbitMQ server is installed by checking it's status. Please
-  note, RABBITMQ_HOME environment variable can be set in ~/.bashrc. If doing so,
+  note, the `RABBITMQ_HOME` environment variable can be set in ~/.bashrc. If doing so,
   it needs to be set to RabbitMQ installation directory (default path is
-  <user_home>/rabbitmq_server/rabbitmq_server/rabbitmq_server-3.7.7)
+  `<user_home>/rabbitmq_server/rabbitmq_server/rabbitmq_server-3.7.7`)
 
   ```
   echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.7.7'|sudo tee --append ~/.bashrc
@@ -145,18 +145,19 @@ Proceed to step 4.
   vcfg --rabbitmq single [optional path to rabbitmq_config.yml]
   ```
 
-  Refer to examples/configurations/rabbitmq/rabbitmq_config.yml for a sample configuration file.
-  At a minimum you would need to provide the host name and a unique common-name
-  (under certificate-data) in the configuration file. Note. common-name must be
-  unique and the general conventions is to use  <voltttron instance name>-root-ca.
+  Refer to [examples/configurations/rabbitmq/rabbitmq_config.yml](examples/configurations/rabbitmq/rabbitmq_config.yml)
+  for a sample configuration file.
+  At a minimum you will need to provide the host name and a unique common-name
+  (under certificate-data) in the configuration file. Note: common-name must be
+  unique and the general conventions is to use `<voltttron instance name>-root-ca`.
 
   Running the above command without the optional configuration file parameter will
   prompt user for all the needed data at the command prompt and use that to
-  generate a rabbitmq_config.yml file in VOLTTRON_HOME directory.
+  generate a rabbitmq_config.yml file in the `VOLTTRON_HOME` directory.
 
-  This scripts creates a new virtual host  and creates SSL certificates needed
-  for this VOLTTRON instance. These certificates get created under the sub
-  directory "certificates" in your VOLTTRON home (typically in ~/.volttron). It
+  This script creates a new virtual host and creates SSL certificates needed
+  for this VOLTTRON instance. These certificates get created under the subdirectory 
+  "certificates" in your VOLTTRON home (typically in ~/.volttron). It
   then creates the main VIP exchange named "volttron" to route message between
   platform and agents and alternate exchange to capture unrouteable messages.
 
@@ -166,9 +167,9 @@ Proceed to step 4.
   if available, if not user will be prompted for volttron instance name. To
   run the scripts without any prompts, save the volttron instance name in
   volttron_home/config file and pass the volttron home directory as command line
-  argument For example: "vcfg --vhome /home/vdev/.new_vhome --rabbitmq single"
+  argument For example: `vcfg --vhome /home/vdev/.new_vhome --rabbitmq single`
 
-  Following is the example inputs for "vcfg --rabbitmq single" command. Since no
+  Following is the example inputs for `vcfg --rabbitmq single` command. Since no
   config file is passed the script prompts for necessary details.
 
   ```sh
@@ -227,15 +228,13 @@ Proceed to step 4.
 
   ```
 
-
-
 ### 4. Test
 
-We are now ready to start VOLTTRON instance. If configureds with RabbitMQ message bus a config file would have got generated in $VOLTTRON\_HOME/config with the entry message-bus=rmq. If you need to revert back to ZeroMQ based VOLTTRON, you
-will have to either remove "message-bus" parameter or set it to default "zmq" in $VOLTTRON\_HOME/config and restart volttron process. The following command starts volttron process in the background
+We are now ready to start VOLTTRON instance. If configureds with RabbitMQ message bus a config file would have got generated in `$VOLTTRON\_HOME/config` with the entry message-bus=rmq. If you need to revert back to ZeroMQ based VOLTTRON, you
+will have to either remove "message-bus" parameter or set it to default "zmq" in `$VOLTTRON\_HOME/config` and restart the volttron process. The following command starts volttron process in the background
 
 ```sh
-volttron -vv -l volttron.log&
+volttron -vv -l volttron.log &
 ```
 
 This enters the virtual Python environment and then starts the platform in debug (vv) mode with a log file named volttron.log.
@@ -272,13 +271,13 @@ There are several [walkthroughs](https://volttron.readthedocs.io/en/latest/devgu
 
 * [Agent Development Walkthrough](https://volttron.readthedocs.io/en/latest/devguides/agent_development/Agent-Development.html#agent-development)
 * Demonstration of the [management UI](https://volttron.readthedocs.io/en/latest/devguides/walkthroughs/VOLTTRON-Central-Demo.html#volttron-central-demo)
-* Rabbitmq Setup with Federation and Shovel plugins
-* Backward compatibility with RabbitMQ message bus
+* RabbitMQ setup with Federation and Shovel plugins
+* Backward compatibility with the RabbitMQ message bus
 
 ## Acquiring Third Party Agent Code
-Third party agents are available under volttron-applications repository. In
-order to use those agents, add volttron-applications repository in the same
-as volttron source code clone using following command:
+Third party agents are available under the volttron-applications repository. In
+order to use those agents, clone the volttron-applications repository in the same
+directory as the volttron source code:
 
 ```sh
 cd <parent directory of volttron>
