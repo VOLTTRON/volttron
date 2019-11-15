@@ -5,7 +5,10 @@ from volttron.platform.certs import Certs
 from volttron.platform.agent.known_identities import MASTER_WEB
 from volttron.platform.agent.utils import get_fq_identity
 
-import jwt
+try:
+    import jwt
+except ImportError:
+    logging.getLogger().warning("Missing library jwt within web package.")
 
 from discovery import DiscoveryInfo, DiscoveryError
 
