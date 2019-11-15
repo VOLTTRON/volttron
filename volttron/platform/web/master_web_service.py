@@ -48,8 +48,14 @@ import gevent
 import gevent.pywsgi
 from ws4py.server.geventserver import WSGIServer
 import mimetypes
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+try:
+    from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+    HAS_JINJA2 = True
+except ImportError:
+    HAS_JINJA2 = False
+    logging.getLogger().warning("Missing jinja2 libaray in master_web_service.py")
 
 from volttron.utils import is_ip_private
 from volttron.platform.agent import json as jsonapi
@@ -86,13 +92,14 @@ __TEMPLATE_DIR__ = os.path.join(__PACKAGE_DIR__, "templates")
 __STATIC_DIR__ = os.path.join(__PACKAGE_DIR__, "static")
 
 
-# Our admin interface will use Jinja2 templates based upon the above paths
-# reference api for using Jinja2 http://jinja.pocoo.org/docs/2.10/api/
-# Using the FileSystemLoader instead of the package loader in this case however.
-tplenv = Environment(
-    loader=FileSystemLoader(__TEMPLATE_DIR__),
-    autoescape=select_autoescape(['html', 'xml'])
-)
+if HAS_JINJA2:
+    # Our admin interface will use Jinja2 templates based upon the above paths
+    # reference api for using Jinja2 http://jinja.pocoo.org/docs/2.10/api/
+    # Using the FileSystemLoader instead of the package loader in this case however.
+    tplenv = Environment(
+        loader=FileSystemLoader(__TEMPLATE_DIR__),
+        autoescape=select_autoescape(['html', 'xml'])
+    )
 
 
 class MasterWebService(Agent):

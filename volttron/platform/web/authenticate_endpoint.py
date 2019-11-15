@@ -3,9 +3,22 @@ import os
 import re
 import urlparse
 
-import jwt
-from jinja2 import Environment, FileSystemLoader, select_autoescape
-from passlib.hash import argon2
+try:
+    import jwt
+except ImportError:
+    logging.getLogger().warning("Missing jinja2 libaray in authenticate_endpoint.py")
+try:
+    from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
+    HAS_JINJA2 = True
+except ImportError:
+    HAS_JINJA2 = False
+    logging.getLogger().warning("Missing jinja2 libaray in admin_endpoints.py")
+
+try:
+    from passlib.hash import argon2
+except ImportError:
+    logging.getLogger(__name__).warning("Missing passlib libaray in admin_endpoints.py")
+
 from watchdog_gevent import Observer
 
 from volttron.platform import get_home
@@ -20,13 +33,14 @@ __TEMPLATE_DIR__ = os.path.join(__PACKAGE_DIR__, "templates")
 __STATIC_DIR__ = os.path.join(__PACKAGE_DIR__, "static")
 
 
-# Our admin interface will use Jinja2 templates based upon the above paths
-# reference api for using Jinja2 http://jinja.pocoo.org/docs/2.10/api/
-# Using the FileSystemLoader instead of the package loader in this case however.
-tplenv = Environment(
-    loader=FileSystemLoader(__TEMPLATE_DIR__),
-    autoescape=select_autoescape(['html', 'xml'])
-)
+if HAS_JINJA2:
+    # Our admin interface will use Jinja2 templates based upon the above paths
+    # reference api for using Jinja2 http://jinja.pocoo.org/docs/2.10/api/
+    # Using the FileSystemLoader instead of the package loader in this case however.
+    tplenv = Environment(
+        loader=FileSystemLoader(__TEMPLATE_DIR__),
+        autoescape=select_autoescape(['html', 'xml'])
+    )
 
 
 class AuthenticateEndpoints(object):
