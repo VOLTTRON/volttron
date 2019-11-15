@@ -25,9 +25,8 @@ modbus-tk==0.5.8
 PyYAML==3.12
 cryptography==2.2.2
 service-identity==17.0.0
-argon2_cffi==19.1.0
-passlib==1.7.1
-pyjwt==1.7.1
-pint==0.8.1
+#
+# Used for notification of changes in auth and other files in the core platform
+#
 watchdog_gevent==0.1.1
-jinja2==2.10
+
