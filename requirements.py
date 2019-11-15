@@ -61,14 +61,7 @@ install_requires = [
     # Cross platform way of handling changes in file/directories.
     # https://github.com/Bogdanp/watchdog_gevent
     'watchdog_gevent',
-    'wheel==0.30',
-    'ws4py',
-
-    # Web stuff probably needs to be in optional
-    'jwt',
-    'jinja2',
-    'passlib',
-    'argon2_cffi'
+    'wheel==0.30'
 ]
 
 extras_require = {
@@ -124,6 +117,13 @@ extras_require = {
     ],
     'rabbitmq': [
         'gevent-pika'
+    ],
+    'web': [    # Web support for launching web based agents including ssl and json web tokens.
+        'ws4py',
+        'jwt',
+        'jinja2',
+        'passlib',
+        'argon2_cffi'
     ],
     'weather': [
         'pint'
