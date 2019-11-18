@@ -1282,7 +1282,9 @@ def mergetree(src, dst, symlinks=False, ignore=None):
 
 
 class WebAdminApi(object):
-    def __init__(self, platform_wrapper=PlatformWrapper()):
+    def __init__(self, platform_wrapper: PlatformWrapper = None):
+        if platform_wrapper is None:
+            platform_wrapper = PlatformWrapper()
         assert platform_wrapper.is_running(), "Platform must be running"
         assert platform_wrapper.bind_web_address, "Platform must have web address"
         assert platform_wrapper.ssl_auth, "Platform must be ssl enabled"
