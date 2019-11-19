@@ -16,7 +16,7 @@ requests[security]==2.21.0
 grequests==0.3.0
 simplejson==3.8.2
 six==1.10.0
-Twisted==16.4.1
+Twisted==19.7.0
 tzlocal==1.2.2
 ujson==1.35
 ws4py==0.3.5
