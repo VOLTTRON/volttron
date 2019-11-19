@@ -51,6 +51,7 @@ import gevent
 import requests
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
+import os
 from volttron.platform import certs
 from volttron.platform.agent import json as jsonapi
 from rmq_config_params import RMQConfig
@@ -935,12 +936,27 @@ class RabbitMQMgmt(object):
         rmq_user = get_fq_identity(identity, instance_name)
         permissions = self.get_default_permissions(rmq_user)
 
-        # if self.is_ssl:
-        #     self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)
+        if self.is_ssl:
+            # This could fail with permission error when running in secure mode
+            # and agent was installed when volttron was running on ZMQ instance
+            # and then switched to RMQ instance. In that case
+            # vctl certs create-ssl-keypair should be used to create a cert/key pair
+            # and then agents should be started.
+            try:
+                _log.info("Creating ca signed certs for {}".format(rmq_user))
+                self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)
+            except Exception as e:
+                _log.error("Exception creating certs. {}".format(e))
+                raise RuntimeError(e)
         param = None
 
         try:
-            self.create_user_with_permissions(rmq_user, permissions, ssl_auth=self.is_ssl)
+            root_ca_name, server_cert, admin_user = \
+                certs.Certs.get_admin_cert_names(self.rmq_config.instance_name)
+            if os.access(self.rmq_config.crts.private_key_file(admin_user), os.R_OK):
+                # this must be called from service agents. Create rmq user with permissions
+                # for installed agent this would be done by aip at start of agent
+                self.create_user_with_permissions(rmq_user, permissions, ssl_auth=self.is_ssl)
             param = self.build_connection_param(rmq_user, ssl_auth=self.is_ssl)
         except AttributeError:
             _log.error("Unable to create RabbitMQ user for the agent. Check if RabbitMQ broker is running")

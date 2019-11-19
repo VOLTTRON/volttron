@@ -250,9 +250,9 @@ def volttron_instance_web(request):
 @pytest.fixture(scope="module",
                 params=[
                     dict(sink='zmq_web', source='zmq'),
-                    rmq_skipif(dict(sink='rmq_web', source='zmq')),
-                    rmq_skipif(dict(sink='rmq_web', source='rmq')),
-                    rmq_skipif(dict(sink='zmq_web', source='rmq'))
+                    # rmq_skipif(dict(sink='rmq_web', source='zmq')),
+                    # rmq_skipif(dict(sink='rmq_web', source='rmq')),
+                    # rmq_skipif(dict(sink='zmq_web', source='rmq'))
                 ])
 def volttron_multi_messagebus(request):
     """ This fixture allows multiple two message bus types to be configured to work together
@@ -283,7 +283,9 @@ def volttron_multi_messagebus(request):
                          ssl_auth=ssl_auth,
                          messagebus=messagebus,
                          bind_web_address=web_address,
-                         volttron_central_address=web_address)
+                         volttron_central_address=web_address,
+                         secure_agent_users=True,
+                         instance_name="zmq_1")
 
     source_address = get_rand_vip()
     messagebus = 'zmq'
@@ -300,7 +302,8 @@ def volttron_multi_messagebus(request):
                                ssl_auth=ssl_auth,
                                messagebus=messagebus,
                                volttron_central_address=sink.bind_web_address,
-                               remote_platform_ca=sink.certsobj.cert_file(sink.certsobj.root_ca_name))
+                               remote_platform_ca=sink.certsobj.cert_file(sink.certsobj.root_ca_name),
+                               secure_agent_users=True)
         if source.messagebus == 'rmq':
             # The _ca is how the auth subsystem saves the remote cert from discovery.  We
             # are effectively doing that here instead of making the discovery call.
@@ -310,7 +313,9 @@ def volttron_multi_messagebus(request):
         source = build_wrapper(source_address,
                                ssl_auth=ssl_auth,
                                messagebus=messagebus,
-                               volttron_central_address=sink.bind_web_address)
+                               volttron_central_address=sink.bind_web_address,
+                               secure_agent_users=True,
+                               instance_name='zmq_2')
 
     yield source, sink
 

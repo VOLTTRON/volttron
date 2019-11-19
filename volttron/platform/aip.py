@@ -40,16 +40,14 @@
 """Component for the instantiation and packaging of agents."""
 
 import errno
+import grp
 import logging
 import os
-import stat
+import pwd
 import shutil
 import signal
 import sys
 import uuid
-import grp
-import pwd
-import datetime
 
 import gevent
 import gevent.event
@@ -57,11 +55,9 @@ from gevent import subprocess
 from gevent.subprocess import PIPE
 from wheel.tool import unpack
 
+from volttron.platform import certs
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
 from volttron.platform.agent.utils import get_fq_identity
-from volttron.platform import certs, keystore
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, \
-    CONTROL
-
 # Can't use zmq.utils.jsonapi because it is missing the load() method.
 from volttron.platform.keystore import KeyStore
 
@@ -939,6 +935,19 @@ class AIPplatform(object):
                 _log.info("No existing volttron user was found at {} due to {}".
                     format(user_id_path, err))
                 agent_user = self.add_agent_user(name, agent_dir)
+
+        if self.message_bus == 'rmq':
+            rmq_user = get_fq_identity(agent_vip_identity, self.instance_name)
+            _log.info("Create RMQ user {} for agent {}".format(rmq_user, agent_vip_identity))
+
+            self.rmq_mgmt.create_user_with_permissions(rmq_user, self.rmq_mgmt.get_default_permissions(rmq_user),
+                                                       ssl_auth=True)
+            if self.secure_agent_user:
+                # change group of agent's private cert to agent user group
+                # and give read access to group
+                key_file = certs.Certs().private_key_file(rmq_user)
+                self.set_acl_for_path("r", agent_user, key_file)
+
         if resmon is None:
             if agent_user:
                 execenv = SecureExecutionEnvironment(agent_user=agent_user)
@@ -951,6 +960,7 @@ class AIPplatform(object):
         execenv.name = name or agent_path_with_name
         _log.info('starting agent %s', agent_path_with_name)
         # data_dir = self._get_agent_data_dir(agent_path_with_name)
+        _log.info("starting agent using {} ".format(type(execenv)))
         execenv.execute(argv, cwd=agent_path_with_name, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
         self.agents[agent_uuid] = execenv

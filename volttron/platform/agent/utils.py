@@ -298,7 +298,7 @@ def update_kwargs_with_config(kwargs, config):
         config.pop('agentid')
 
     for k, v in config.items():
-        kwargs[k.replace("-","_")] = v
+        kwargs[k.replace("-", "_")] = v
 
 
 def parse_json_config(config_str):
@@ -750,3 +750,13 @@ def is_volttron_running(volttron_home):
         return running
     else:
         return False
+
+
+def wait_for_volttron_startup(vhome, timeout):
+    # Check for VOLTTRON_PID
+    sleep_time = 0
+    while (not is_volttron_running(vhome)) and sleep_time < timeout:
+        gevent.sleep(3)
+        sleep_time += 3
+    if sleep_time >= timeout:
+        raise Exception("Platform startup failed. Please check volttron.log in {}".format(vhome))

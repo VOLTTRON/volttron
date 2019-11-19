@@ -811,7 +811,7 @@ class Certs(object):
         """
         if not overwrite:
             if self.cert_exists(name):
-                return
+                return False
 
         if not ca_name:
             ca_name = self.root_ca_name

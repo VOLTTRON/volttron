@@ -50,8 +50,8 @@ from zmq import green as zmq
 from volttron.platform import certs, is_rabbitmq_available
 from volttron.platform.agent import json as jsonapi
 from volttron.platform.agent.known_identities import MASTER_WEB, PLATFORM_DRIVER, VOLTTRON_CENTRAL
-
-from volttron.platform.agent.utils import get_platform_instance_name
+from volttron.platform.agent.utils import get_platform_instance_name, wait_for_volttron_startup
+from volttron.utils import get_hostname
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.utils.rmq_setup import setup_rabbitmq_volttron, _create_certs
 from volttron.utils.rmq_config_params import RMQConfig
@@ -120,7 +120,9 @@ def _cmd(cmdargs):
         print(cmdargs)
     process = Popen(cmdargs, env=os.environ, stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE)
-    process.wait()
+    out, err = process.communicate()
+    if process.returncode != 0:
+        print("Cmd failed: {} \n stdout {} stderr {}".format(" ".join(cmdargs), out, err))
 
 
 def _is_bound_already(address):
@@ -164,12 +166,14 @@ volttron-cfg needs to be run from the volttron top level source directory.
 
 
 def _start_platform():
+    vhome = get_home()
     cmd = ['volttron', '-vv',
-           '-l', os.path.join(get_home(), 'volttron.cfg.log')]
+           '-l', os.path.join(vhome, 'volttron.cfg.log')]
     if verbose:
         print('Starting platform...')
     pid = Popen(cmd, env=os.environ.copy(), stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
+    wait_for_volttron_startup(vhome, 30)
 
 
 def _shutdown_platform():
