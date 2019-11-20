@@ -849,6 +849,7 @@ def process_rmq_inputs(args, instance_name=None):
     else:
         setup_rabbitmq_volttron(args[0], verbose, prompt=True, instance_name=instance_name)
 
+
 def main():
     global verbose, prompt_vhome
 

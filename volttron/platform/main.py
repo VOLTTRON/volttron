@@ -788,6 +788,7 @@ def start_volttron_process(opts):
         _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.message_bus))
         _log.debug("********************************************************************")
         if opts.message_bus == 'zmq':
+            _log.debug(os.environ["PATH"])
             # Start the config store before auth so we may one day have auth use it.
             config_store = ConfigStoreService(address=address,
                                               identity=CONFIGURATION_STORE,

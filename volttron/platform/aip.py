@@ -59,6 +59,7 @@ from volttron.platform import certs
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
 from volttron.platform.agent.utils import get_fq_identity
 # Can't use zmq.utils.jsonapi because it is missing the load() method.
+from volttron.platform.certs import Certs
 from volttron.platform.keystore import KeyStore
 
 try:
@@ -228,6 +229,7 @@ class SecureExecutionEnvironment(object):
             run_as_user = ['sudo', '-E', '-u', self.agent_user]
             run_as_user.extend(*args)
             _log.debug(run_as_user)
+            _log.debug("kwargs {}".format(kwargs))
             self.process = subprocess.Popen(run_as_user, **kwargs)
         except OSError as e:
             if e.filename:
@@ -381,6 +383,11 @@ class AIPplatform(object):
         for path in [self.run_dir, self.config_dir, self.install_dir]:
             if not os.path.exists(path):
                 os.makedirs(path, 0o755)
+        # Create certificates directory and its subdirectory at start of platform
+        # so if volttron is run in secure mode, the first agent install would already have
+        # the directories ready. In secure mode, agents will be run as separate user and will
+        # not have access to create these directories
+        Certs()
 
     def finish(self):
         for exeenv in self.agents.itervalues():
