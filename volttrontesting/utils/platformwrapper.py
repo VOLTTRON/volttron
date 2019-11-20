@@ -191,6 +191,7 @@ class PlatformWrapper:
         self._instance_shutdown = False
 
         self.volttron_home = tempfile.mkdtemp()
+        os.chmod(self.volttron_home, 0o755)
         self.packaged_dir = os.path.join(self.volttron_home, "packaged")
         os.makedirs(self.packaged_dir)
 
@@ -1289,7 +1290,9 @@ def mergetree(src, dst, symlinks=False, ignore=None):
 
 
 class WebAdminApi(object):
-    def __init__(self, platform_wrapper=PlatformWrapper()):
+    def __init__(self, platform_wrapper=None):
+        if platform_wrapper is None:
+            platform_wrapper = PlatformWrapper()
         assert platform_wrapper.is_running(), "Platform must be running"
         assert platform_wrapper.bind_web_address, "Platform must have web address"
         assert platform_wrapper.ssl_auth, "Platform must be ssl enabled"
