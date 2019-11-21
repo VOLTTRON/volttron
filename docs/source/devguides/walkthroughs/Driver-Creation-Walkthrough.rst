@@ -1,7 +1,7 @@
 .. _DriverCreationWalkthrough:
 
-Volttron Drivers Overview:
-==========================
+Volttron Drivers Overview
+=========================
 
 In order for Volttron agents to gather data from a device or to set device values, agents send requests to the Master
 Driver Agent to read or set points. The Master Driver Agent then sends these requests on to the appropriate driver for
@@ -12,8 +12,8 @@ needed to serve the functions of setting and reading points.
 As a demonstration of developing a driver, a driver can be made to read and set points in a CSV file. This driver will
 only differ from a real device driver in terms of the specifics of the protocol.
 
-Create a Driver and Register class:
-===================================
+Create a Driver and Register class
+==================================
 
 When a new driver configuration is added to the Master Driver, the Master Driver will look for a file in its interfaces
 directory (services/core/MasterDriverAgent/master_driver/interfaces) that shares the name of the value specified by
@@ -207,8 +207,8 @@ correct register to read from or write to, and instruct the register to perform 
             result[register.point_name] = register.get_state()
         return result
 
-Writing the Register class:
----------------------------
+Writing the Register class
+--------------------------
 The CSV driver's register class is responsible for parsing the CSV, reading the corresponding rows to return the
 register's current value and writing updated values into the CSV for the register. On a device which communicates via
 a protocol such as Modbus, the same units of work would be done, but using pymodbus to perform the reads and writes.
@@ -280,8 +280,8 @@ new value, then continues on. Finally it writes the output back to the csv.
 
 At this point, we should be able to scrape the CSV device using the Master Driver, and set points using the actuator.
 
-Writing the Register class:
----------------------------
+Creating Driver Configurations
+------------------------------
 The configuration files for the CSV driver are very simple, but in general, the device configuration should specify
 the parameters which the interface requires to communicate with the device, and the registry configuration contains
 rows which correspond to registers, and specifies their usage.
@@ -312,8 +312,8 @@ And here's the registry configuration:
 The BACNet and Modbus driver docs and example configurations can be used to compare these configurations to more complex
 configurations.
 
-Testing your driver:
-====================
+Testing your driver
+===================
 To test the driver's scrape all functionality, one can install a ListenerAgent and Master Driver with the driver's
 configurations, and run them. To do so for the CSV driver using the configurations above: activate the Volttron
 environment start the platform, tail the platform's log file, then try the following:
