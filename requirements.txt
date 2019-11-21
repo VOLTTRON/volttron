@@ -19,15 +19,9 @@ six==1.10.0
 Twisted==16.4.1
 tzlocal==1.2.2
 ujson==1.35
-ws4py==0.3.5
 zope.interface==4.3.2
 modbus-tk==0.5.8
 PyYAML==3.12
 cryptography==2.2.2
 service-identity==17.0.0
-argon2_cffi==19.1.0
-passlib==1.7.1
-pyjwt==1.7.1
-pint==0.8.1
 watchdog_gevent==0.1.1
-jinja2==2.10

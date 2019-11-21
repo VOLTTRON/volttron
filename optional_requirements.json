@@ -1,4 +1,8 @@
 {
+    "--web": {
+        "help": "Web and ssl support using argon2 an cffi",
+        "packages": ["ws4py==0.3.5", "argon2_cffi==19.1.0", "passlib==1.7.1", "pyjwt==1.7.1", "jinja2==2.10"]
+    },
     "--pandas": {
         "help": "Installs numpy and pandas for applications",
         "packages": ["numpy>1.13,<2", "pandas"]
