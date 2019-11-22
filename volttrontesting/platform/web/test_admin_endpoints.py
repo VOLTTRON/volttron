@@ -33,6 +33,19 @@ def get_test_volttron_home():
     shutil.rmtree(volttron_home, ignore_errors=True)
 
 
+def test_admin_unauthorized():
+    with get_test_volttron_home():
+        myuser = 'testing'
+        mypass = 'funky'
+        adminep = AdminEndpoints()
+        adminep.add_user(myuser, mypass)
+
+        env = get_test_web_env('/admin/api/boo')
+        response = adminep.admin(env, {})
+        assert '401 Unauthorized' == response.status
+        assert 'Unauthorized User' in response.content
+
+
 def test_set_master_password_setup():
     with get_test_volttron_home():
         # Note these passwords are not right so we expect to be redirected back to the
