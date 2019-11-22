@@ -191,6 +191,8 @@ class PlatformWrapper:
         self._instance_shutdown = False
 
         self.volttron_home = tempfile.mkdtemp()
+        # This is needed to run tests with volttron's secure mode. Without this
+        # default permissions for folders under /tmp directory doesn't not have read or execute for group or others
         os.chmod(self.volttron_home, 0o755)
         self.packaged_dir = os.path.join(self.volttron_home, "packaged")
         os.makedirs(self.packaged_dir)

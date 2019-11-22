@@ -776,7 +776,6 @@ def wizard():
     do_message_bus()
     do_vip()
     _update_config_file()
-    prompt = 'Is this instance web enabled?'
 
     # This option indicates if volttron platform should start agents as their
     # own users rather than the volttron user
