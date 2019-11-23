@@ -101,7 +101,7 @@ class RabbitTestConfig(object):
             self.rabbitmq_config['mgmt-port-ssl'] = mgmt_port_ssl
 
 
-def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None):
+def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None, instance_name=None):
     """
         Set-up rabbitmq broker for volttron testing:
             - Install config and rabbitmq_config.yml in VOLTTRON_HOME
@@ -135,7 +135,9 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None):
         os.environ['RMQ_HOME'] = rabbit_config_obj.rmq_home
 
     # instance name is the basename of the volttron home now.
-    rabbit_config_obj.instance_name = rabbit_config_obj.node_name = os.path.basename(vhome)
+    rabbit_config_obj.instance_name = instance_name
+    rabbit_config_obj.node_name = os.path.basename(vhome)
+
     os.mkdir(os.path.join(vhome, "rmq_node_data"))
 
     rabbit_config_obj.rmq_conf_file = os.path.join(vhome, "rmq_node_data", rabbit_config_obj.node_name + "-rmq.conf")

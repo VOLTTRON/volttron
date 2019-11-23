@@ -278,7 +278,8 @@ class PlatformWrapper:
         if self.messagebus == 'rmq':
             self.rabbitmq_config_obj = create_rmq_volttron_setup(vhome=self.volttron_home,
                                                                  ssl_auth=self.ssl_auth,
-                                                                 env=self.env)
+                                                                 env=self.env,
+                                                                 instance_name=self.instance_name)
 
             self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
 
@@ -1206,7 +1207,7 @@ class PlatformWrapper:
         if not self.skip_cleanup:
             self.remove_all_agents()
         # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
-        self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
+        self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=30)
         self.dynamic_agent.core.stop()
 
         if self.p_process is not None:
