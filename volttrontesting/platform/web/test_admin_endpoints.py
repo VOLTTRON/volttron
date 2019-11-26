@@ -1,36 +1,13 @@
-from io import BytesIO
-
-import gevent
-from mock import patch, Mock
 import pytest
 from volttron.platform.web.admin_endpoints import AdminEndpoints
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from mock import patch
 from urllib.parse import urlencode
-from volttron.utils.rmq_config_params import RMQConfig
-from volttrontesting.utils.web_utils import get_test_web_env
-from volttrontesting.utils.platformwrapper import create_volttron_home
-from volttron.platform.agent.utils import get_platform_instance_name
+from volttrontesting.utils.web_utils import get_test_web_env, get_test_volttron_home
 from volttron.platform import jsonapi
-import contextlib
 import os
-import shutil
-
 
 ___WEB_USER_FILE_NAME__ = 'web-users.json'
-
-
-@contextlib.contextmanager
-def get_test_volttron_home():
-    volttron_home = create_volttron_home()
-    original_home = os.environ.get('VOLTTRON_HOME')
-    os.environ['VOLTTRON_HOME'] = volttron_home
-    yield volttron_home
-    if original_home is None:
-        os.environ.unsetenv('VOLTTRON_HOME')
-    else:
-        os.environ['VOLTTRON_HOME'] = original_home
-    shutil.rmtree(volttron_home, ignore_errors=True)
 
 
 def test_admin_unauthorized():
@@ -43,7 +20,7 @@ def test_admin_unauthorized():
         env = get_test_web_env('/admin/api/boo')
         response = adminep.admin(env, {})
         assert '401 Unauthorized' == response.status
-        assert 'Unauthorized User' in response.content
+        assert b'Unauthorized User' in response.response[0]
 
 
 def test_set_master_password_setup():
@@ -69,10 +46,10 @@ def test_set_master_password_setup():
 
         # expect Location and Content-Type headers to be set
         response = adminep.admin(env, params)
-        assert 2 == len(response.headers)
-        assert ('Location', '/admin/login.html') in response.headers
-        assert ('Content-Type', 'text/html') in response.headers
-        assert '302' == response.status
+        assert 3 == len(response.headers)
+        assert response.headers.has_key('Location')
+        assert '/admin/login.html' == response.headers.get('Location')
+        assert 302 == response.status_code
 
 
 def test_admin_login_page():
@@ -87,7 +64,8 @@ def test_admin_login_page():
         assert 1 == jinja_mock.get_template.call_count
         assert ('login.html',) == jinja_mock.get_template.call_args[0]
         assert 1 == jinja_mock.get_template.return_value.render.call_count
-        assert ('Content-Type', 'text/html') in response.headers
+        assert 'text/html' == response.headers.get('Content-Type')
+        # assert ('Content-Type', 'text/html') in response.headers
         assert '200 OK' == response.status
 
 
