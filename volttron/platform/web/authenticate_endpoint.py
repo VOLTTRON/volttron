@@ -1,15 +1,15 @@
 import logging
 import os
 import re
-from urllib.parse import urlparse
+from urllib.parse import parse_qs
 
+from werkzeug import Response
 import jwt
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from passlib.hash import argon2
 #from watchdog_gevent import Observer
 
 from volttron.platform import get_home
-from volttron.platform.agent.web import Response
 from volttron.utils import VolttronHomeFileReloader
 from volttron.utils.persistance import PersistentDict
 
@@ -31,9 +31,12 @@ tplenv = Environment(
 
 class AuthenticateEndpoints(object):
 
-    def __init__(self, ssl_private_key):
+    def __init__(self, ssl_private_key=None, passphrase=None):
 
         self._ssl_private_key = ssl_private_key
+        self._passphrase = passphrase
+        if self._ssl_private_key is None and self._passphrase is None:
+            raise ValueError("Must have either ssl_private_key or passphrase specified!")
         self._userdict = None
         self.reload_userdict()
         # TODO Add back reload capability
@@ -81,14 +84,14 @@ class AuthenticateEndpoints(object):
         """
         if env.get('REQUEST_METHOD') != 'POST':
             _log.warning("Authentication must use POST request.")
-            return Response('', status='401 Unauthorized')
+            return Response('401 Unauthorized', status='401 Unauthorized', content_type='text/html')
 
         assert len(self._userdict) > 0, "No users in user dictionary, set the master password first!"
 
         if not isinstance(data, dict):
             _log.debug("data is not a dict, decoding")
             decoded = dict((k, v if len(v) > 1 else v[0])
-                           for k, v in urlparse.parse_qs(data).iteritems())
+                           for k, v in parse_qs(data).items())
 
             username = decoded.get('username')
             password = decoded.get('password')
@@ -114,7 +117,9 @@ class AuthenticateEndpoints(object):
             _log.error("No matching user for passed username: {}".format(username))
             return Response('', status='401')
 
-        encoded = jwt.encode(user, self._ssl_private_key, algorithm='RS256').encode('utf-8')
+        algorithm = 'RS256' if self._ssl_private_key is not None else 'HS256'
+        encode_key = self._ssl_private_key if algorithm == 'RS256' else self._passphrase
+        encoded = jwt.encode(user, encode_key, algorithm=algorithm) #.encode('utf-8')
 
         return Response(encoded, '200 OK', content_type='text/plain')
 

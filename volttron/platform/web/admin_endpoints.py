@@ -44,10 +44,10 @@ from urllib.parse import parse_qs
 from jinja2 import TemplateNotFound
 from passlib.hash import argon2
 #from watchdog_gevent import Observer
+from werkzeug import Response
 
 from ...platform import get_home
 from ...platform import jsonapi
-from ...platform.agent.web import Response
 from ...platform.certs import Certs
 from ...utils import VolttronHomeFileReloader
 from ...utils.persistance import PersistentDict
@@ -65,12 +65,18 @@ class AdminEndpoints(object):
     def __init__(self, rmq_mgmt=None, ssl_public_key: bytes = None):
 
         self._rmq_mgmt = rmq_mgmt
-        if isinstance(ssl_public_key, bytes):
-            self._ssl_public_key = ssl_public_key.decode('utf-8')
-        elif isinstance(ssl_public_key, str):
-            self._ssl_public_key = ssl_public_key
+        if ssl_public_key is None:
+            self._insecure_mode = True
         else:
-            raise ValueError("Invalid type for ssl_public_key")
+            self._insecure_mode = False
+        # must have a none value for when we don't have an ssl context available.
+        if ssl_public_key is not None:
+            if isinstance(ssl_public_key, bytes):
+                self._ssl_public_key = ssl_public_key.decode('utf-8')
+            elif isinstance(ssl_public_key, str):
+                self._ssl_public_key = ssl_public_key
+            else:
+                raise ValueError("Invalid type for ssl_public_key")
         self._userdict = None
         self.reload_userdict()
         # TODO Add back reload capability
@@ -80,7 +86,8 @@ class AdminEndpoints(object):
         #     get_home()
         # )
         # self._observer.start()
-        self._certs = Certs()
+        if ssl_public_key is not None:
+            self._certs = Certs()
 
     def reload_userdict(self):
         webuserpath = os.path.join(get_home(), 'web-users.json')
@@ -101,7 +108,7 @@ class AdminEndpoints(object):
         if len(self._userdict) == 0:
             if env.get('REQUEST_METHOD') == 'POST':
                 decoded = dict((k, v if len(v) > 1 else v[0])
-                               for k, v in parse_qs(data).iteritems())
+                               for k, v in parse_qs(data).items())
                 username = decoded.get('username')
                 pass1 = decoded.get('password1')
                 pass2 = decoded.get('password2')
@@ -116,7 +123,7 @@ class AdminEndpoints(object):
 
         if 'login.html' in env.get('PATH_INFO') or '/admin/' == env.get('PATH_INFO'):
             template = template_env(env).get_template('login.html')
-            return Response(template.render())
+            return Response(template.render(), content_type='text/html')
 
         return self.verify_and_dispatch(env, data)
 
@@ -132,10 +139,6 @@ class AdminEndpoints(object):
             claims = get_user_claims(env)
         except NotAuthorized:
             _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
-            return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
-
-        # Make sure we have only admins for viewing this.
-        if 'admin' not in claims.get('groups'):
             return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
 
         # Make sure we have only admins for viewing this.
