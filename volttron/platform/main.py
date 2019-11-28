@@ -667,11 +667,18 @@ def start_volttron_process(opts):
             raise Exception(
                 'bind-web-address must begin with http or https.')
         opts.bind_web_address = config.expandall(opts.bind_web_address)
+        # zmq with tls is supported
         if opts.message_bus == 'zmq' and parsed.scheme == 'https':
             if not opts.web_ssl_key or not opts.web_ssl_cert:
                 raise Exception("zmq https requires a web-ssl-key and a web-ssl-cert file.")
             if not os.path.isfile(opts.web_ssl_key) or not os.path.isfile(opts.web_ssl_cert):
                 raise Exception("zmq https requires a web-ssl-key and a web-ssl-cert file.")
+        # zmq without tls is supported through the use of a secret key, if it's None then
+        # we want to generate a secret key and set it in the config file.
+        elif opts.message_bus == 'zmq' and opts.web_secret_key is None:
+            import binascii
+            opts.web_secret_key = binascii.hexlify(os.urandom(24))
+
     if opts.volttron_central_address:
         parsed = urlparse(opts.volttron_central_address)
         if parsed.scheme not in ('http', 'https', 'tcp', 'amqp', 'amqps'):
@@ -1015,7 +1022,8 @@ def start_volttron_process(opts):
                 message_bus=opts.message_bus,
                 volttron_central_rmq_address=opts.volttron_central_rmq_address,
                 web_ssl_key=opts.web_ssl_key,
-                web_ssl_cert=opts.web_ssl_cert
+                web_ssl_cert=opts.web_ssl_cert,
+                web_secret_key=opts.web_secret_key
             ))
 
         events = [gevent.event.Event() for service in services]
@@ -1273,7 +1281,9 @@ def main(argv=sys.argv):
         volttron_central_rmq_address=None,
         web_ssl_key=None,
         web_ssl_cert=None,
-        web_ca_cert=None
+        web_ca_cert=None,
+        # If we aren't using ssl then we need a secret key available for us to use.
+        web_secret_key=None
     )
 
     # Parse and expand options

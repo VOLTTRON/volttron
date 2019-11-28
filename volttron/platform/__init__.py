@@ -43,6 +43,8 @@ import logging
 import os
 import psutil
 import sys
+from configparser import ConfigParser
+from ..utils.frozendict import FrozenDict
 
 __version__ = '7.0rc'
 
@@ -167,3 +169,26 @@ def is_rabbitmq_available():
         os.environ['RABBITMQ_NOT_AVAILABLE'] = "True"
         rabbitmq_available = False
     return rabbitmq_available
+
+
+__config__ = None
+
+
+def get_platform_config():
+    global __config__
+    if os.environ.get("VOLTTRON_HOME") is None:
+        raise Exception("VOLTTRON_HOME must be specified before calling this function.")
+
+    if __config__ is None:
+        __config__ = FrozenDict()
+        volttron_home = get_home()
+        config_file = os.path.join(volttron_home, "config")
+        if os.path.exists(config_file):
+            parser = ConfigParser()
+            parser.read(config_file)
+            options = parser.options('volttron')
+            for option in options:
+                __config__[option] = parser.get('volttron', option)
+            __config__.freeze()
+    return __config__
+
