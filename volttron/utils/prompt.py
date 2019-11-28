@@ -44,6 +44,7 @@ y_or_n = ('Y', 'N', 'y', 'n')
 y = ('Y', 'y')
 n = ('N', 'n')
 
+
 def prompt_response(prompt, valid_answers=None, default=None, echo=True,
                     mandatory=False):
 
