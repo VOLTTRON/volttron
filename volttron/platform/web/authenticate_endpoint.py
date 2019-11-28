@@ -31,12 +31,14 @@ tplenv = Environment(
 
 class AuthenticateEndpoints(object):
 
-    def __init__(self, ssl_private_key=None, passphrase=None):
+    def __init__(self, tls_private_key=None, web_secret_key=None):
 
-        self._ssl_private_key = ssl_private_key
-        self._passphrase = passphrase
-        if self._ssl_private_key is None and self._passphrase is None:
-            raise ValueError("Must have either ssl_private_key or passphrase specified!")
+        self._tls_private_key = tls_private_key
+        self._web_secret_key = web_secret_key
+        if self._tls_private_key is None and self._web_secret_key is None:
+            raise ValueError("Must have either ssl_private_key or web_secret_key specified!")
+        if self._tls_private_key is not None and self._web_secret_key is not None:
+            raise ValueError("Must use either ssl_private_key or web_secret_key not both!")
         self._userdict = None
         self.reload_userdict()
         # TODO Add back reload capability
@@ -117,11 +119,11 @@ class AuthenticateEndpoints(object):
             _log.error("No matching user for passed username: {}".format(username))
             return Response('', status='401')
 
-        algorithm = 'RS256' if self._ssl_private_key is not None else 'HS256'
-        encode_key = self._ssl_private_key if algorithm == 'RS256' else self._passphrase
-        encoded = jwt.encode(user, encode_key, algorithm=algorithm) #.encode('utf-8')
+        algorithm = 'RS256' if self._tls_private_key is not None else 'HS256'
+        encode_key = self._tls_private_key if algorithm == 'RS256' else self._web_secret_key
+        encoded = jwt.encode(user, encode_key, algorithm=algorithm)
 
-        return Response(encoded, '200 OK', content_type='text/plain')
+        return Response(encoded)
 
     def __get_user(self, username, password):
         """

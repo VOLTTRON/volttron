@@ -41,13 +41,17 @@ import logging
 import mimetypes
 import os
 import re
+from urllib.parse import urlparse, parse_qs
 import zlib
 from collections import defaultdict
 
 import gevent
 import gevent.pywsgi
 from cryptography.hazmat.primitives import serialization
+from gevent import Greenlet
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from werkzeug import Response
+
 from ws4py.server.geventserver import WSGIServer
 
 from .admin_endpoints import AdminEndpoints
@@ -55,16 +59,17 @@ from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
 from .webapp import WebApplicationWrapper
 from ..agent.utils import get_fq_identity
-from ..agent.web import Response, JsonResponse
+from ..agent.web import Response as VolttronResponse, JsonResponse
 from ..auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
-from ..certs import Certs
+from ..certs import Certs, CertWrapper
 from ..jsonrpc import (json_result,
                        json_validate_request,
                        UNAUTHORIZED)
 from ..vip.agent import Agent, Core, RPC
 from ..vip.agent.subsystems import query
 from ..vip.socket import encode_key
-from ...platform import jsonapi
+from ...platform import jsonapi, get_platform_config
+from ...platform.aip import AIPplatform
 from ...utils import is_ip_private
 from ...utils.rmq_config_params import RMQConfig
 
@@ -100,9 +105,9 @@ class MasterWebService(Agent):
     that will be called during the request process.
     """
 
-    def __init__(self, serverkey, identity, address, bind_web_address, aip,
+    def __init__(self, serverkey, identity, address, bind_web_address, aip: AIPplatform,
                  volttron_central_address=None, volttron_central_rmq_address=None,
-                 web_ssl_key=None, web_ssl_cert=None, **kwargs):
+                 web_ssl_key=None, web_ssl_cert=None, web_secret_key=None, **kwargs):
         """Initialize the discovery service with the serverkey
 
         serverkey is the public key in order to access this volttron's bus.
@@ -119,6 +124,7 @@ class MasterWebService(Agent):
         # any of the internal agent's certificates
         self.web_ssl_key = web_ssl_key
         self.web_ssl_cert = web_ssl_cert
+        self._web_secret_key = web_secret_key
 
         # Maps from endpoint to peer.
         self.endpoints = {}
@@ -136,10 +142,14 @@ class MasterWebService(Agent):
             mimetypes.init()
 
         self._certs = Certs()
-        self._csr_endpoints = None
-        self.appContainer = None
-        self._server_greenlet = None
-        self._admin_endpoints = None
+        # noinspection PyTypeChecker
+        self._csr_endpoints: CSREndpoints = None
+        # noinspection PyTypeChecker
+        self.appContainer: WebApplicationWrapper = None
+        # noinspection PyTypeChecker
+        self._server_greenlet: Greenlet = None
+        # noinspection PyTypeChecker
+        self._admin_endpoints: AdminEndpoints = None
 
     # pylint: disable=unused-argument
     @Core.receiver('onsetup')
@@ -160,26 +170,32 @@ class MasterWebService(Agent):
             if p not in peers:
                 del self.peerroutes[p]
 
-    @RPC.export
+    @RPC.export()
     def get_user_claims(self, bearer):
         from volttron.platform.web import get_user_claim_from_bearer
-        return get_user_claim_from_bearer(bearer)
+        if self._web_secret_key is not None:
+            return get_user_claim_from_bearer(bearer, web_secret_key=self._web_secret_key)
+        elif self.web_ssl_cert is not None:
+            return get_user_claim_from_bearer(bearer,
+                                              tls_public_key=CertWrapper.get_cert_public_key(self.web_ssl_cert))
+        else:
+            raise ValueError("Configuration error secret key or web ssl cert must be not None.")
 
-    @RPC.export
+    @RPC.export()
     def websocket_send(self, endpoint, message):
         _log.debug("Sending data to {} with message {}".format(endpoint,
                                                                message))
         self.appContainer.websocket_send(endpoint, message)
 
-    @RPC.export
+    @RPC.export()
     def get_bind_web_address(self):
         return self.bind_web_address
 
-    @RPC.export
+    @RPC.export()
     def get_serverkey(self):
         return self.serverkey
 
-    @RPC.export
+    @RPC.export()
     def get_volttron_central_address(self):
         """Return address of external Volttron Central
 
@@ -188,7 +204,7 @@ class MasterWebService(Agent):
         """
         return self.volttron_central_address
 
-    @RPC.export
+    @RPC.export()
     def register_endpoint(self, endpoint, res_type):
         """
         RPC method to register a dynamic route.
@@ -209,7 +225,7 @@ class MasterWebService(Agent):
 
         self.endpoints[endpoint] = (identity, res_type)
 
-    @RPC.export
+    @RPC.export()
     def register_agent_route(self, regex, fn):
         """ Register an agent route to an exported function.
 
@@ -229,7 +245,7 @@ class MasterWebService(Agent):
         self.peerroutes[identity].append(compiled)
         self.registeredroutes.insert(0, (compiled, 'peer_route', (identity, fn)))
 
-    @RPC.export
+    @RPC.export()
     def unregister_all_agent_routes(self):
         # Get calling identity from whom the request came from
         identity = self.vip.rpc.context.vip_message.peer
@@ -250,7 +266,7 @@ class MasterWebService(Agent):
         _log.debug(endpoints)
         self.endpoints = endpoints
 
-    @RPC.export
+    @RPC.export()
     def register_path_route(self, regex, root_dir):
         # Get calling identity from whom the request came from
         identity = self.vip.rpc.context.vip_message.peer
@@ -263,7 +279,7 @@ class MasterWebService(Agent):
         # to be before the last route which will resolve to .*
         self.registeredroutes.insert(len(self.registeredroutes) - 1, (compiled, 'path', root_dir))
 
-    @RPC.export
+    @RPC.export()
     def register_websocket(self, endpoint):
         # Get calling identity from whom the request came from
         identity = self.vip.rpc.context.vip_message.peer
@@ -278,7 +294,7 @@ class MasterWebService(Agent):
             raise AttributeError("self does not contain"
                                  " attribute appContainer")
 
-    @RPC.export
+    @RPC.export()
     def unregister_websocket(self, endpoint):
         # Get calling identity from whom the request came from
         identity = self.vip.rpc.context.vip_message.peer
@@ -364,7 +380,8 @@ class MasterWebService(Agent):
             return_dict['rmq-address'] = rmq_address
             return_dict['rmq-ca-cert'] = self._certs.cert(self._certs.root_ca_name).public_bytes(
                 serialization.Encoding.PEM).decode("utf-8")
-        return JsonResponse(return_dict)
+        return Response(return_dict, content_type="application/json")
+        # return JsonResponse(return_dict)
 
     def app_routing(self, env, start_response):
         """
@@ -440,12 +457,16 @@ class MasterWebService(Agent):
                     try:
                         retvalue = v(env, start_response, data)
                     except TypeError:
-                        retvalue = self.process_response(start_response, v(env, data))
+                        response = v(env, data)
+                        if isinstance(response, VolttronResponse):
+                            response = MasterWebService.convert_response_to_werkzueg(response)
+                        return response(env, start_response)
+                        # retvalue = self.process_response(start_response, v(env, data))
 
                     if isinstance(retvalue, Response):
                         return self.process_response(start_response, retvalue)
                     else:
-                        return retvalue
+                        return retvalue[0]
 
                 elif t == 'peer_route':  # RPC calls from agents on the platform
                     _log.debug('Matched peer_route with pattern {}'.format(
@@ -472,9 +493,21 @@ class MasterWebService(Agent):
             return True
         return False
 
+    @staticmethod
+    def convert_response_to_werkzueg(self, response: VolttronResponse) -> Response:
+        if isinstance(response, VolttronResponse):
+            return Response(response.content, response.status, headers=response.headers, content_type=response.content_type)
+        return response
+
     def process_response(self, start_response, response):
+        # if we are using the original response, then morph it into a werkzueg response.
+        response = MasterWebService.convert_response_to_werkzueg(response)
+        return response()
         # process the response
         start_response(response.status, response.headers)
+
+        if isinstance(response.content, str):
+            return [response.content.encode('utf-8')]
         return [response.content]
 
     def create_raw_response(self, res, start_response):
@@ -592,9 +625,9 @@ class MasterWebService(Agent):
         if parsed.scheme == 'https':
             # Admin interface is only availble to rmq at present.
             if self.core.messagebus == 'rmq':
-                self._admin_endpoints = AdminEndpoints(self.core.rmq_mgmt,
-                                                       self._certs.get_cert_public_key(get_fq_identity(self.core.identity)))
-
+                self._admin_endpoints = AdminEndpoints(rmq_mgmt=self.core.rmq_mgmt,
+                                                       ssl_public_key=self._certs.get_cert_public_key(
+                                                           get_fq_identity(self.core.identity)))
             if ssl_key is None or ssl_cert is None:
                 # Because the master.web service certificate is a client to rabbitmq we
                 # can't use it directly therefore we use the -server on the file to specify
@@ -605,6 +638,11 @@ class MasterWebService(Agent):
 
                 if not os.path.isfile(ssl_cert) or not os.path.isfile(ssl_key):
                     self._certs.create_ca_signed_cert(base_filename, type='server')
+
+            if ssl_key is not None and ssl_cert is not None and self._admin_endpoints is None:
+                self._admin_endpoints = AdminEndpoints(ssl_public_key=CertWrapper.get_cert_public_key(ssl_cert))
+        else:
+            self._admin_endpoints = AdminEndpoints()
 
         hostname = parsed.hostname
         port = parsed.port
@@ -626,26 +664,28 @@ class MasterWebService(Agent):
             for rt in self._csr_endpoints.get_routes():
                 self.registeredroutes.append(rt)
 
-            for rt in self._admin_endpoints.get_routes():
-                self.registeredroutes.append(rt)
+        # Register the admin endpoinds regardless of whether there is an ssl context
+        # or not.
+        for rt in self._admin_endpoints.get_routes():
+            self.registeredroutes.append(rt)
 
         # Allow authentication endpoint from any https connection
         if parsed.scheme == 'https':
             if self.core.messagebus == 'rmq':
                 ssl_private_key = self._certs.get_private_key(get_fq_identity(self.core.identity))
             else:
-                ssl_private_key = ssl_key
-            for rt in AuthenticateEndpoints(ssl_private_key).get_routes():
+                ssl_private_key = CertWrapper.get_private_key(ssl_key)
+            for rt in AuthenticateEndpoints(tls_private_key=ssl_private_key).get_routes():
+                self.registeredroutes.append(rt)
+        else:
+            # We don't have a private ssl key if we aren't using ssl.
+            for rt in AuthenticateEndpoints(web_secret_key=self._web_secret_key).get_routes():
                 self.registeredroutes.append(rt)
 
         static_dir = os.path.join(os.path.dirname(__file__), "static")
         self.registeredroutes.append((re.compile('^/.*$'), 'path', static_dir))
 
         port = int(port)
-        vhome = os.environ.get('VOLTTRON_HOME')
-        logdir = os.path.join(vhome, "log")
-        if not os.path.exists(logdir):
-            os.makedirs(logdir)
 
         self.appContainer = WebApplicationWrapper(self, hostname, port)
         if ssl_key and ssl_cert:
@@ -671,4 +711,8 @@ class MasterWebService(Agent):
 
         jwt.encode()
 
-
+    @Core.receiver('onstop')
+    def onstop(self, sender, **kwargs):
+        _log.debug("Stopping web agent.")
+        if not self._server_greenlet.dead:
+            self._server_greenlet.join(timeout=10)

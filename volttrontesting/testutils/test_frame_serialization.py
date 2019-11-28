@@ -21,8 +21,13 @@ def test_can_serialize_homogeneous_strings():
 
 
 def test_mixed_array():
-    original = ["alpha", dict(alpha=5, gamma="5.0", theta=5.0), "gamma", ["from", "to", 'VIP1']]
+    original = ["alpha", dict(alpha=5, gamma="5.0", theta=5.0), "gamma", ["from", "to", 'VIP1',
+                                                                          ['third', 'level',
+                                                                           'here', 50]]]
     frames = serialize_frames(original)
+    for x in frames:
+        assert isinstance(x, Frame)
+
     after_deserialize = deserialize_frames(frames)
 
     for r in range(len(original)):

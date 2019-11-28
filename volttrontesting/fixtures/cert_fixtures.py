@@ -3,7 +3,7 @@ from cryptography.hazmat.primitives import serialization
 import os
 from types import SimpleNamespace
 
-from volttron.platform.certs import Certs, GenericCerts
+from volttron.platform.certs import CertWrapper
 
 
 @contextlib.contextmanager
@@ -25,7 +25,7 @@ def certs_profile_1(certificate_dir, fqdn=None, num_server_certs=1, num_client_c
     os.makedirs(private_dir, exist_ok=True)
     os.makedirs(public_dir, exist_ok=True)
 
-    ca_cert, pk = GenericCerts.make_self_signed_ca("myca")
+    ca_cert, pk = CertWrapper.make_self_signed_ca("myca")
     ca_cert_file = os.path.join(public_dir, "myca.crt")
     with open(ca_cert_file, "wb") as f:
         f.write(ca_cert.public_bytes(serialization.Encoding.PEM))
@@ -44,7 +44,7 @@ def certs_profile_1(certificate_dir, fqdn=None, num_server_certs=1, num_client_c
     for x in range(num_server_certs):
         cert_file = os.path.join(public_dir, f"server{x}")
         key_file = os.path.join(private_dir, f"server{x}")
-        cert, pk1 = GenericCerts.make_signed_cert(ca_cert, pk, f"server{x}", fqdn=fqdn, type="server")
+        cert, pk1 = CertWrapper.make_signed_cert(ca_cert, pk, f"server{x}", fqdn=fqdn, type="server")
         with open(cert_file, "wb") as f:
             f.write(cert.public_bytes(serialization.Encoding.PEM))
         encryption = serialization.NoEncryption()
@@ -61,7 +61,7 @@ def certs_profile_1(certificate_dir, fqdn=None, num_server_certs=1, num_client_c
     for x in range(num_client_certs):
         cert_file = os.path.join(public_dir, f"client{x}")
         key_file = os.path.join(private_dir, f"client{x}")
-        cert, pk1 = GenericCerts.make_signed_cert(ca_cert, pk, f"client{x}")
+        cert, pk1 = CertWrapper.make_signed_cert(ca_cert, pk, f"client{x}")
         with open(cert_file, "wb") as f:
             f.write(cert.public_bytes(serialization.Encoding.PEM))
         encryption = serialization.NoEncryption()

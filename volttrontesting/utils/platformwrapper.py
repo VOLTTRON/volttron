@@ -170,6 +170,18 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
     assert wrapper.is_running()
 
 
+def create_volttron_home() -> str:
+    """
+    Creates a VOLTTRON_HOME temp directory for use within a testing context.
+    This function will return a string containing the VOLTTRON_HOME but will not
+    set the global variable.
+
+    :return: str: the temp directory
+    """
+    volttron_home = tempfile.mkdtemp()
+    return volttron_home
+
+
 class PlatformWrapper:
     def __init__(self, messagebus=None, ssl_auth=False, instance_name=None, remote_platform_ca=None):
         """ Initializes a new VOLTTRON instance
@@ -186,7 +198,7 @@ class PlatformWrapper:
         # lower level fixture calls shutdown, this won't hang.
         self._instance_shutdown = False
 
-        self.volttron_home = tempfile.mkdtemp()
+        self.volttron_home = create_volttron_home()
         self.packaged_dir = os.path.join(self.volttron_home, "packaged")
         os.makedirs(self.packaged_dir)
 

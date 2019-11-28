@@ -1,3 +1,4 @@
+from configparser import ConfigParser
 import contextlib
 import os
 import shutil
@@ -7,7 +8,7 @@ from mock import Mock
 from volttrontesting.utils.platformwrapper import create_volttron_home
 
 
-def get_test_web_env(path, input_data: BytesIO = None, query_string='', url_scheme='http', method='GET',):
+def get_test_web_env(path, input_data: bytes = None, query_string='', url_scheme='http', method='GET',):
     """
     Constructs the environment that gets passed to a wsgi application during a request
     from client to server.  The response will return a valid env that can be passed
@@ -22,8 +23,13 @@ def get_test_web_env(path, input_data: BytesIO = None, query_string='', url_sche
     """
     if path is None:
         raise ValueError("Invalid path specified.  Cannot be None.")
-    if input_data is None:
-        input_data = BytesIO()
+    byte_data = BytesIO()
+    len_input_data = 0
+    if input_data is not None:
+        byte_data.write(input_data)
+        byte_data.seek(0)
+        len_input_data = len(input_data)
+
     if url_scheme not in ('http', 'https', 'ws', 'wss'):
         raise ValueError(f"Invalid url_scheme specified {url_scheme}")
     stdenvvars = {
@@ -45,21 +51,38 @@ def get_test_web_env(path, input_data: BytesIO = None, query_string='', url_sche
         'HTTP_ACCEPT': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
         'HTTP_ACCEPT_ENCODING': 'gzip, deflate',
         'HTTP_ACCEPT_LANGUAGE': 'en-US,en;q=0.9',
-        'wsgi.input': input_data,  # {Input} <gevent.pywsgi.Input object at 0x7fd11882a588>
+        'CONTENT_LENGTH': len_input_data,
+        'wsgi.input': byte_data,  # input_data,  # {Input} <gevent.pywsgi.Input object at 0x7fd11882a588>
         'wsgi.input_terminated': True,
         'wsgi.url_scheme': url_scheme,
         "JINJA2_TEMPLATE_ENV": Mock()
+        # ,
+        # 'CONTENT_LENGTH': len(input_data.getvalue().decode('utf-8'))
     }
 
     return stdenvvars
 
 
 @contextlib.contextmanager
-def get_test_volttron_home():
-    volttron_home = create_volttron_home()
+def get_test_volttron_home(volttron_config_params: dict = None, volttron_home=None):
+    if volttron_home is None:
+        volttron_home = create_volttron_home()
+    # Because we also can take in a volttron_home we want to make sure that
+    # we have made the directory before going on.
+    os.makedirs(volttron_home, exist_ok=True)
     original_home = os.environ.get('VOLTTRON_HOME')
     os.environ['VOLTTRON_HOME'] = volttron_home
+    if volttron_config_params:
+        config_path = os.path.join(volttron_home, "config")
+        conf = ConfigParser()
+        conf.add_section("volttron")
+        for k, v in volttron_config_params.items():
+            conf.set("volttron", k, v)
+        with open(config_path, 'w') as fp:
+            conf.write(fp)
+
     yield volttron_home
+
     if original_home is None:
         os.environ.unsetenv('VOLTTRON_HOME')
     else:
