@@ -1155,9 +1155,19 @@ def _create_signed_certificate(ca_cert, ca_key, name,
     #
 
 
-class GenericCerts(object):
+class CertWrapper(object):
+    """
+    This class is a wrapper around the building of certificates.
+    """
     @staticmethod
     def make_self_signed_ca(ca_name, **kwargs):
+        """
+        Creates a self signed certificate.
+
+        :param ca_name:
+        :param kwargs:
+        :return:
+        """
         kwargs['CN'] = ca_name
         return _mk_cacert(**kwargs)
 
@@ -1166,3 +1176,28 @@ class GenericCerts(object):
         kwargs['CN'] = common_name
         return _create_signed_certificate(ca_cert, ca_key, common_name, **kwargs)
 
+    @staticmethod
+    def load_key(keyfile):
+        return _load_key(keyfile)
+
+    @staticmethod
+    def load_cert(certfile):
+        return _load_cert(certfile)
+
+    @staticmethod
+    def get_private_key(keyfile):
+        pk = CertWrapper.load_key(keyfile)
+        privatekey = pk.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption())
+        return privatekey
+
+    @staticmethod
+    def get_cert_public_key(certfile):
+        cert = CertWrapper.load_cert(certfile)
+        pubkey = cert.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo)
+
+        return pubkey
