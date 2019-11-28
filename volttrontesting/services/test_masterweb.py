@@ -200,6 +200,7 @@ def test_masterweb_has_discovery():
             mocked_start_response, response = get_server_response(env, mw)
 
 
+@pytest.mark.web
 def test_path_route():
     with get_master_web(web_secret_key="oh my goodnes") as ws:
         # Stage 1 create a temp dir and add index.html to that directory
@@ -247,6 +248,7 @@ def test_path_route():
         # mocked_start_response.reset_mock()
 
 
+@pytest.mark.web
 def test_register_route(master_web_service: MasterWebService):
     ws = master_web_service
     fn_mock = mock.Mock()
@@ -265,6 +267,7 @@ def test_register_route(master_web_service: MasterWebService):
     assert registered_routes_before == len(ws.registeredroutes)
 
 
+@pytest.mark.web
 def test_register_endpoint(master_web_service: MasterWebService):
     ws = master_web_service
     fn_mock = mock.Mock()

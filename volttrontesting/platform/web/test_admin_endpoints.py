@@ -10,6 +10,7 @@ import os
 ___WEB_USER_FILE_NAME__ = 'web-users.json'
 
 
+@pytest.mark.web
 def test_admin_unauthorized():
     with get_test_volttron_home():
         myuser = 'testing'
@@ -23,6 +24,7 @@ def test_admin_unauthorized():
         assert b'Unauthorized User' in response.response[0]
 
 
+@pytest.mark.web
 def test_set_master_password_setup():
     with get_test_volttron_home():
         # Note these passwords are not right so we expect to be redirected back to the
@@ -52,6 +54,7 @@ def test_set_master_password_setup():
         assert 302 == response.status_code
 
 
+@pytest.mark.web
 def test_admin_login_page():
     with get_test_volttron_home() as vhome:
         username_test = "mytest"
@@ -69,6 +72,7 @@ def test_admin_login_page():
         assert '200 OK' == response.status
 
 
+@pytest.mark.web
 def test_persistent_users():
     with get_test_volttron_home() as vhome:
         username_test = "mytest"
@@ -83,6 +87,7 @@ def test_persistent_users():
         assert username_test == list(another_ep._userdict)[0]
 
 
+@pytest.mark.web
 def test_add_user():
     with get_test_volttron_home() as vhome:
         webuserpath = os.path.join(vhome, ___WEB_USER_FILE_NAME__)
@@ -129,6 +134,7 @@ def test_add_user():
         assert original_hashed_passwordd != user['hashed_password']
 
 
+@pytest.mark.web
 def test_construction():
 
     # within rabbitmq mgmt this is used
