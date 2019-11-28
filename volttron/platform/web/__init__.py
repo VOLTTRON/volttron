@@ -72,7 +72,6 @@ def get_user_claim_from_bearer(bearer, web_secret_key=None, tls_public_key=None)
     return jwt.decode(bearer, pubkey, algorithms=algorithm)
 
 
-
 def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
     """ Build a full vip address string based upon the passed arguments
 
