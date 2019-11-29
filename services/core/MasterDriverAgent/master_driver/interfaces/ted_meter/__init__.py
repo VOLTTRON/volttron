@@ -24,21 +24,24 @@
 # The views and conclusions contained in the software and documentation are those
 # of the authors and should not be interpreted as representing official policies,
 # either expressed or implied, of the FreeBSD Project.
+"""
+The TED Driver allows scraping of TED Pro Meters via an HTTP API
+"""
+
+import logging
+import time
+import xml.etree.ElementTree as ET
+
+import grequests
 
 from volttron.platform.agent import utils
 from master_driver.interfaces import BaseRegister, BaseInterface, BasicRevert
 
-import logging
 
-import grequests
-import time
+TED_METER_LOGGER = logging.getLogger("ted_meter")
+TED_METER_LOGGER.setLevel(logging.WARNING)
 
-import xml.etree.ElementTree as ET
-
-ted_meter_logger = logging.getLogger("ted_meter")
-ted_meter_logger.setLevel(logging.WARNING)
-
-mtu_register_map = {
+MTU_REGISTER_MAP = {
     'Value': {'units': 'kW', 'multiplier': .001, "description": "Present Demand in kW", "point_name": "load_kw"},
     'KVA': {'units': 'kVA', 'multiplier': .001, "description": "Present Demand in kVA", "point_name": "load_kva"},
     'PF': {'units': 'ratio', 'multiplier': .001, "description": "Present Power Factor in unitless form", "point_name": "power_factor"},
@@ -48,18 +51,20 @@ mtu_register_map = {
     'PhaseVoltage': {'units': 'Volts', 'multiplier': 1, "description": "Present Phase Voltage in Volts", "point_name": "phase_voltage"},
 }
 
-system_register_map = {
+SYSTEM_REGISTER_MAP = {
     'MTD': {'units': 'kWh', 'multiplier': .001, "description": "Totalized Consumption in kWh", "point_name": "consumption"}
 }
 
-spyder_register_map = {
+SPYDER_REGISTER_MAP = {
     'Now': {'units': 'kW', 'multiplier': .001, "point_name": "load", "description": "Current Demand in kW"},
     'MTD': {'units': 'kWh', 'multiplier': .001, "point_name": "consumption", "description": "Totalized Consumption in kWh"}
 }
 
 
 class Register(BaseRegister):
-    def __init__(self, read_only, volttron_point_name, units, description, point_name):
+    """Base class for generic register for the TED Pro Device"""
+
+    def __init__(self, read_only, volttron_point_name, units, description):
         super(Register, self).__init__("byte",
                                        read_only,
                                        volttron_point_name,
@@ -73,7 +78,7 @@ class Interface(BasicRevert, BaseInterface):
 
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
-        self.logger = ted_meter_logger
+        self.logger = TED_METER_LOGGER
 
     def configure(self, config_dict, registry_config_str):
         """Configure method called by the master driver with configuration stanza and registry config file"""
@@ -90,15 +95,19 @@ class Interface(BasicRevert, BaseInterface):
         self._get_totalizer_state()
 
     def _get_totalizer_state(self):
+        """Sets up the totalizer state in the config store to allow perstistence of running totals through agent lifecycles."""
         try:
             totalizer_state = self.vip.config.get("state/ted_meter")
         except KeyError:
-            totalizer_state = {register_name: {"total": 0, "last_read": 0} for register_name in self.get_register_names(
+            totalizer_state = {register_name: {
+                "total": 0, "last_read": 0
+            } for register_name in self.get_register_names(
             ) if self.get_register_by_name(register_name).units == "kWh"}
             self.vip.config.set("state/drivers/ted_meter", totalizer_state)
         self.totalizer_state = totalizer_state
 
     def _get_ted_configuration(self):
+        """Retrieves the TED Pro configuration from the device, used to build the registers"""
         req = (grequests.get(
             "http://{ted_host}/api/SystemSettings.xml".format(ted_host=self.device_address), auth=(self.username, self.password), timeout=self.timeout),)
         system, = grequests.map(req)
@@ -109,50 +118,53 @@ class Interface(BasicRevert, BaseInterface):
         system_tree = ET.ElementTree(ET.fromstring(system.text))
         mtus = [{"MTUNumber": x.find("MTUNumber").text, "MTUID": x.find(
             "MTUID").text} for x in system_tree.findall('.//MTU') if x.find("MTUID").text != "000000"]
-        Spyders = [[{"group": i, "name": y.find("Description").text} for i, y in enumerate(x.findall("Group")) if y.find(
+        spyders = [[{"group": i, "name": y.find("Description").text} for i, y in enumerate(x.findall("Group")) if y.find(
             "UseCT").text != "0"] for x in system_tree.findall(".//Spyder") if x.find("Enabled").text == "1"]
         config["MTUs"] = mtus
-        config["Spyders"] = Spyders
+        config["Spyders"] = spyders
         return config
 
     def _create_registers(self, ted_config):
-        for i, Spyder in enumerate(ted_config['Spyders']):
-            for group in Spyder:
-                for key, value in spyder_register_map.items():
+        """Creates registers based on the system config captured from the device"""
+        for i, spyder in enumerate(ted_config['Spyders']):
+            for group in spyder:
+                for key, value in SPYDER_REGISTER_MAP.items():
                     point_name = 'spyder-{}/{}/{}'.format(
                         i+1, group["name"], value["point_name"])
                     self.insert_register(Register(
-                        True, point_name, value["units"], value["description"], point_name))
+                        True, point_name, value["units"], value["description"]
+                    ))
         for mtu in ted_config["MTUs"]:
-            for key, value in mtu_register_map.items():
+            for key, value in MTU_REGISTER_MAP.items():
                 if key in ('PhaseCurrent', 'PhaseVoltage'):
                     for conductor in ('a', 'b', 'c'):
                         point_name = 'mtu-{}/{}-{}'.format(
                             mtu["MTUNumber"], value["point_name"], conductor)
                         self.insert_register(Register(
-                            True, point_name, value["units"], value["description"], point_name
+                            True, point_name, value["units"], value["description"]
                         ))
                 else:
                     point_name = 'mtu-{}/{}'.format(
                         mtu["MTUNumber"], value["point_name"])
                     self.insert_register(Register(
-                        True, point_name, value["units"], value["description"], point_name
+                        True, point_name, value["units"], value["description"]
                     ))
-        for key, value in system_register_map.items():
+        for key, value in SYSTEM_REGISTER_MAP.items():
             point_name = 'system/{}'.format(value["point_name"])
             self.insert_register(Register(
                 True,
                 point_name,
                 value["units"],
                 value["description"],
-                point_name
             ))
 
-    def _set_point(self):
+    def _set_point(self, point_name, value):
+        """TED has no writable points, so skipping set_poin"""
         pass
 
-    def get_point(self):
-        pass
+    def get_point(self, point_name):
+        points = self._scrape_all()
+        return points.get(point_name)
 
     def get_data(self):
         requests = [grequests.get(url, auth=(self.username, self.password), timeout=self.timeout) for url in (
@@ -180,27 +192,24 @@ class Interface(BasicRevert, BaseInterface):
                 "Spyders": []}
         system_tree, spyder_tree, dashdata_tree = self.get_data()
         for mtu in self.ted_config["MTUs"]:
-            MTU_Data = {}
-            MTU_Data.update(mtu)
             mtu_tree = system_tree.find(".MTUVal/MTU" + mtu["MTUNumber"])
             for prop in mtu_tree:
                 if prop.tag in ["PhaseCurrent", "PhaseVoltage"]:
                     for conductor in prop:
                         point_name = 'mtu-{}/{}-{}'.format(
-                            mtu["MTUNumber"], mtu_register_map[prop.tag]["point_name"], conductor.tag.lower())
+                            mtu["MTUNumber"], MTU_REGISTER_MAP[prop.tag]["point_name"], conductor.tag.lower())
                         output[point_name] = conductor.text
-                elif prop.tag in mtu_register_map:
+                elif prop.tag in MTU_REGISTER_MAP:
                     point_name = 'mtu-{}/{}'.format(
-                        mtu["MTUNumber"], mtu_register_map[prop.tag]["point_name"])
+                        mtu["MTUNumber"], MTU_REGISTER_MAP[prop.tag]["point_name"])
                     output[point_name] = int(
-                        prop.text) * mtu_register_map[prop.tag]["multiplier"]
+                        prop.text) * MTU_REGISTER_MAP[prop.tag]["multiplier"]
 
         spyder_data = list(spyder_tree.findall(".//Spyder"))
-        for i, Spyder in enumerate(self.ted_config['Spyders']):
+        for i, spyder in enumerate(self.ted_config['Spyders']):
             group_data = list(spyder_data[i].findall("Group"))
-            ted_meter_logger.error(group_data)
-            for group in Spyder:
-                for key, value in spyder_register_map.items():
+            for group in spyder:
+                for key, value in SPYDER_REGISTER_MAP.items():
                     point_name = 'spyder-{}/{}/{}'.format(
                         i+1, group["name"], value["point_name"])
                     read_value = int(group_data[group["group"]].find(
@@ -211,8 +220,7 @@ class Interface(BasicRevert, BaseInterface):
                     else:
                         output[point_name] = read_value
 
-        
-        for key, value in system_register_map.items():
+        for key, value in SYSTEM_REGISTER_MAP.items():
             point_name = 'system/{}'.format(value["point_name"])
             read_value = int(dashdata_tree.find(
                 key).text) * value["multiplier"]
@@ -226,19 +234,24 @@ class Interface(BasicRevert, BaseInterface):
     def _get_totalized_value(self, point_name, read_value):
         totalizer_value = self.totalizer_state.get(point_name)
         if totalizer_value is not None:
-            if read_value >= totalizer_value:
+            total, last_read = totalizer_value["total"], totalizer_value["last_read"]
+            self.logger.error(totalizer_value)
+            if read_value >= total:
                 self.totalizer_state[point_name]["total"] = read_value
                 actual = read_value
             else:
-                if read_value >= self.totalizer_state[point_name]["last_read"]:
-                    self.totalizer_state[point_name]["total"] += read_value - \
-                        self.totalizer_state[point_name]["last_read"]
-                    actual = self.totalizer_state[point_name]["total"]
+                if read_value > last_read:
+                    self.totalizer_state[point_name]["total"] += read_value - last_read 
+                    self.logger.error("This is where I'm supposed to be")
+                elif read_value == last_read:
+                    self.logger.error("this is not what I'm supposed to do, read_value == last_read")
                 else:
                     self.totalizer_state[point_name]["total"] += read_value
+                    self.logger.error("also not where I should be else")
                 actual = self.totalizer_state[point_name]["total"]
             self.totalizer_state[point_name]["last_read"] = read_value
-            self.vip.config.set('state/drivers/ted_meter', self.totalizer_state)
+            self.vip.config.set('state/ted_meter',
+                                self.totalizer_state)
         else:
             actual = read_value
         return actual
