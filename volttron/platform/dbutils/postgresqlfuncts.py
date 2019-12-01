@@ -19,6 +19,7 @@
 import ast
 import contextlib
 import logging
+import copy
 
 import pytz
 import psycopg2
@@ -43,16 +44,15 @@ For method details please refer to base class
 """
 class PostgreSqlFuncts(DbDriver):
     def __init__(self, connect_params, table_names):
-        _log.debug(connect_params)
         if table_names:
             self.data_table = table_names['data_table']
             self.topics_table = table_names['topics_table']
             self.meta_table = table_names['meta_table']
             self.agg_topics_table = table_names.get('agg_topics_table')
             self.agg_meta_table = table_names.get('agg_meta_table')
-        if "timescale_dialect" in connect_params.keys():
-            _log.debug("timescale in connect params")
-            self.timescale_dialect = connect_params.get("timescale_dialect")
+        connect_params = copy.deepcopy(connect_params)
+        if "timescale_dialect" in connect_params:
+            self.timescale_dialect = connect_params.get("timescale_dialect", False)
             del connect_params["timescale_dialect"]
         else:
             self.timescale_dialect = False
@@ -116,9 +116,10 @@ class PostgreSqlFuncts(DbDriver):
                 'UNIQUE (topic_id, ts)'
             ')').format(Identifier(self.data_table)))
         if self.timescale_dialect:
+            _log.debug("trying to create hypertable")
             self.execute_stmt(SQL(
-                'SELECT create_hypertable({}, ts)').format(
-                Identifier(self.data_table)))
+                "SELECT create_hypertable({}, 'ts')").format(
+                Literal(self.data_table)))
             self.execute_stmt(SQL(
                 'CREATE INDEX ON {} (topic_id, ts)').format(
                 Identifier(self.data_table)))
