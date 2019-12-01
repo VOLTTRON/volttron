@@ -155,7 +155,7 @@ SQLHistorianAgent to use a remote PostgreSQL database.
 TimescaleDB Support
 ++++++++++++++++++++++++++
 
-Both of the above PosgreSQL connection types can make
+Both of the above PostgreSQL connection types can make
 use of TimescaleDB's high performance Hypertable backend
 for the primary timeseries table. The agent assumes you
 have completed the TimescaleDB installation and setup
