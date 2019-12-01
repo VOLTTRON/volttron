@@ -176,7 +176,7 @@ class Interface(BasicRevert, BaseInterface):
                     point_name = 'spyder-{}/{}/{}'.format(
                         i+1, group["name"], value["point_name"])
                     self.insert_register(Register(
-                        True, point_name, value["units"], value["description"]
+                        point_name, value["units"], value["description"]
                     ))
         for mtu in ted_config["MTUs"]:
             for key, value in MTU_REGISTER_MAP.items():
@@ -185,18 +185,17 @@ class Interface(BasicRevert, BaseInterface):
                         point_name = 'mtu-{}/{}-{}'.format(
                             mtu["MTUNumber"], value["point_name"], conductor)
                         self.insert_register(Register(
-                            True, point_name, value["units"], value["description"]
+                            point_name, value["units"], value["description"]
                         ))
                 else:
                     point_name = 'mtu-{}/{}'.format(
                         mtu["MTUNumber"], value["point_name"])
                     self.insert_register(Register(
-                        True, point_name, value["units"], value["description"]
+                        point_name, value["units"], value["description"]
                     ))
         for key, value in SYSTEM_REGISTER_MAP.items():
             point_name = 'system/{}'.format(value["point_name"])
             self.insert_register(Register(
-                True,
                 point_name,
                 value["units"],
                 value["description"],
