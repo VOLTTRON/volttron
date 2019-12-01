@@ -174,6 +174,30 @@ SQLHistorianAgent to use a remote PostgreSQL database.
         }
     }
 
+TimescaleDB Support
+++++++++++++++++++++++++++
+
+Both of the above PosgreSQL connection types can make
+use of TimescaleDB's high performance Hypertable backend
+for the primary timeseries table. To use, simply add
+'timescale_dialect: true' to the connection params
+in the Agent Config as below
+
+::
+    {
+        "connection": {
+            "type": "postgresql",
+            "params": {
+                "dbname": "volttron",
+                "host": "historian.example.com",
+                "port": 5432,
+                "user": "volttron",
+                "password": "secret",
+                "timescale_dialect": true
+            }
+        }
+    }
+
 Redshift Database
 +++++++++++++++++
 
