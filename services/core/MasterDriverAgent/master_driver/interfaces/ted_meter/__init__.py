@@ -112,7 +112,6 @@ class Interface(BasicRevert, BaseInterface):
         self.track_totalizers = config_dict.get('track_totalizers', True)
         self.init_time = time.time()
         self.ted_config = self._get_ted_configuration()
-        self.logger.error(self.device_path)
         self._create_registers(self.ted_config)
         if self.track_totalizers:
             self._get_totalizer_state()
@@ -288,22 +287,16 @@ class Interface(BasicRevert, BaseInterface):
 
         totalizer_point_name = point_name + '_totalized'
         totalizer_value = self.totalizer_state.get(totalizer_point_name)
-        self.logger.error(totalizer_value)
         if totalizer_value is not None:
             total, last_read = totalizer_value["total"], totalizer_value["last_read"]
-            self.logger.error(totalizer_value)
             if read_value >= total:
                 self.totalizer_state[totalizer_point_name]["total"] = read_value
                 actual = read_value
             else:
-                if read_value > last_read:
+                if read_value >= last_read:
                     self.totalizer_state[totalizer_point_name]["total"] += read_value - last_read 
-                    self.logger.error("This is where I'm supposed to be")
-                elif read_value == last_read:
-                    self.logger.error("this is not what I'm supposed to do, read_value == last_read")
                 else:
                     self.totalizer_state[totalizer_point_name]["total"] += read_value
-                    self.logger.error("also not where I should be else")
                 actual = self.totalizer_state[totalizer_point_name]["total"]
             self.totalizer_state[totalizer_point_name]["last_read"] = read_value
             self.vip.config.set('state/ted_meter/{}'.format(self.device_path),
