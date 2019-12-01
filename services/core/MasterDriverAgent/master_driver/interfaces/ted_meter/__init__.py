@@ -24,12 +24,14 @@
 # The views and conclusions contained in the software and documentation are those
 # of the authors and should not be interpreted as representing official policies,
 # either expressed or implied, of the FreeBSD Project.
+
 """
 The TED Driver allows scraping of TED Pro Meters via an HTTP API
 """
 
 import logging
 import time
+import copy
 import xml.etree.ElementTree as ET
 
 import grequests
@@ -52,12 +54,12 @@ MTU_REGISTER_MAP = {
 }
 
 SYSTEM_REGISTER_MAP = {
-    'MTD': {'units': 'kWh', 'multiplier': .001, "description": "Totalized Consumption in kWh", "point_name": "consumption"}
+    'MTD': {'units': 'kWh', 'multiplier': .001, "description": "Month to Day Consumption", "point_name": "mtd"}
 }
 
 SPYDER_REGISTER_MAP = {
     'Now': {'units': 'kW', 'multiplier': .001, "point_name": "load", "description": "Current Demand in kW"},
-    'MTD': {'units': 'kWh', 'multiplier': .001, "point_name": "consumption", "description": "Totalized Consumption in kWh"}
+    'MTD': {'units': 'kWh', 'multiplier': .001, "point_name": "mtd", "description": "Month to Day Consumption"}
 }
 
 
@@ -92,18 +94,19 @@ class Interface(BasicRevert, BaseInterface):
         self.ted_config = self._get_ted_configuration()
         self.logger.error(self.device_path)
         self._create_registers(self.ted_config)
-        self._get_totalizer_state()
+        if self.track_totalizers:
+            self._get_totalizer_state()
 
     def _get_totalizer_state(self):
         """Sets up the totalizer state in the config store to allow perstistence of running totals through agent lifecycles."""
         try:
-            totalizer_state = self.vip.config.get("state/ted_meter")
+            totalizer_state = self.vip.config.get("state/ted_meter/{}".format(self.device_path))
         except KeyError:
             totalizer_state = {register_name: {
                 "total": 0, "last_read": 0
             } for register_name in self.get_register_names(
-            ) if self.get_register_by_name(register_name).units == "kWh"}
-            self.vip.config.set("state/drivers/ted_meter", totalizer_state)
+            ) if self.get_register_by_name(register_name).units == "kWh" and "_totalized" in register_name}
+            self.vip.config.set("state/ted_meter/{}".format(self.device_path), totalizer_state)
         self.totalizer_state = totalizer_state
 
     def _get_ted_configuration(self):
@@ -123,6 +126,14 @@ class Interface(BasicRevert, BaseInterface):
         config["MTUs"] = mtus
         config["Spyders"] = spyders
         return config
+    
+    def insert_register(self, register):
+        super(Interface, self).insert_register(register)
+        if self.track_totalizers:
+            if register.units == 'kWh':
+                totalized_register = copy.deepcopy(register)
+                totalized_register.point_name = register.point_name + "_totalized"
+                super(Interface, self).insert_register(totalized_register)
 
     def _create_registers(self, ted_config):
         """Creates registers based on the system config captured from the device"""
@@ -186,6 +197,7 @@ class Interface(BasicRevert, BaseInterface):
         dashdata_tree = ET.ElementTree(ET.fromstring(dashdata.text))
         return (system_tree, spyder_tree, dashdata_tree)
 
+
     def _scrape_all(self):
         output = {}
         data = {"MTUs": [],
@@ -213,45 +225,45 @@ class Interface(BasicRevert, BaseInterface):
                     point_name = 'spyder-{}/{}/{}'.format(
                         i+1, group["name"], value["point_name"])
                     read_value = int(group_data[group["group"]].find(
-                        key).text) * value["multiplier"]
+                        key).text)
                     if value["units"] == 'kWh' and self.track_totalizers:
-                        output[point_name] = self._get_totalized_value(
-                            point_name, read_value)
-                    else:
-                        output[point_name] = read_value
+                        output[point_name + "_totalized"] = self._get_totalized_value(
+                            point_name, read_value, value["multiplier"])
+                    output[point_name] = read_value * value["multiplier"]
 
         for key, value in SYSTEM_REGISTER_MAP.items():
             point_name = 'system/{}'.format(value["point_name"])
             read_value = int(dashdata_tree.find(
-                key).text) * value["multiplier"]
+                key).text)
             if value["units"] == 'kWh' and self.track_totalizers:
-                output[point_name] = self._get_totalized_value(
-                    point_name, read_value)
-            else:
-                output[point_name] = read_value
+                output[point_name + "_totalized"] = self._get_totalized_value(
+                    point_name, read_value, value["multiplier"])
+            output[point_name] = read_value * value["multiplier"]
         return output
 
-    def _get_totalized_value(self, point_name, read_value):
-        totalizer_value = self.totalizer_state.get(point_name)
+    def _get_totalized_value(self, point_name, read_value, multiplier):
+        totalizer_point_name = point_name + '_totalized'
+        totalizer_value = self.totalizer_state.get(totalizer_point_name)
+        self.logger.error(totalizer_value)
         if totalizer_value is not None:
             total, last_read = totalizer_value["total"], totalizer_value["last_read"]
             self.logger.error(totalizer_value)
             if read_value >= total:
-                self.totalizer_state[point_name]["total"] = read_value
+                self.totalizer_state[totalizer_point_name]["total"] = read_value
                 actual = read_value
             else:
                 if read_value > last_read:
-                    self.totalizer_state[point_name]["total"] += read_value - last_read 
+                    self.totalizer_state[totalizer_point_name]["total"] += read_value - last_read 
                     self.logger.error("This is where I'm supposed to be")
                 elif read_value == last_read:
                     self.logger.error("this is not what I'm supposed to do, read_value == last_read")
                 else:
-                    self.totalizer_state[point_name]["total"] += read_value
+                    self.totalizer_state[totalizer_point_name]["total"] += read_value
                     self.logger.error("also not where I should be else")
-                actual = self.totalizer_state[point_name]["total"]
-            self.totalizer_state[point_name]["last_read"] = read_value
-            self.vip.config.set('state/ted_meter',
+                actual = self.totalizer_state[totalizer_point_name]["total"]
+            self.totalizer_state[totalizer_point_name]["last_read"] = read_value
+            self.vip.config.set('state/ted_meter/{}'.format(self.device_path),
                                 self.totalizer_state)
         else:
             actual = read_value
-        return actual
+        return actual * multiplier
