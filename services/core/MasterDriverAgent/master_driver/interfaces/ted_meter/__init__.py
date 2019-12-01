@@ -64,11 +64,27 @@ SPYDER_REGISTER_MAP = {
 
 
 class Register(BaseRegister):
-    """Base class for generic register for the TED Pro Device"""
+    """
+    Generic class for containing information about a the points exposed by the TED Pro API
 
-    def __init__(self, read_only, volttron_point_name, units, description):
+
+    :param register_type: Type of the register. Either "bit" or "byte". Usually "byte".
+    :param pointName: Name of the register.
+    :param units: Units of the value of the register.
+    :param description: Description of the register.
+
+    :type register_type: str
+    :type pointName: str
+    :type units: str
+    :type description: str
+
+    The TED Meter Driver does not expose the read_only parameter, as the TED API does not
+    support a writing data.
+    """
+
+    def __init__(self, volttron_point_name, units, description):
         super(Register, self).__init__("byte",
-                                       read_only,
+                                       True,
                                        volttron_point_name,
                                        units,
                                        description=description)
@@ -83,7 +99,11 @@ class Interface(BasicRevert, BaseInterface):
         self.logger = TED_METER_LOGGER
 
     def configure(self, config_dict, registry_config_str):
-        """Configure method called by the master driver with configuration stanza and registry config file"""
+        """Configure method called by the master driver with configuration 
+        stanza and registry config file, we ignore the registry config, as we
+        build the registers based on the configuration collected from TED Pro
+        Device
+        """
         self.device_address = config_dict['device_address']
         self.username = config_dict.get('username')
         self.password = config_dict.get('password')
@@ -98,7 +118,11 @@ class Interface(BasicRevert, BaseInterface):
             self._get_totalizer_state()
 
     def _get_totalizer_state(self):
-        """Sets up the totalizer state in the config store to allow perstistence of running totals through agent lifecycles."""
+        """
+        Sets up the totalizer state in the config store to allow perstistence
+        of cumulative totalizers, despite regular resets of the totalizers on
+        the device.
+        """
         try:
             totalizer_state = self.vip.config.get("state/ted_meter/{}".format(self.device_path))
         except KeyError:
@@ -110,7 +134,9 @@ class Interface(BasicRevert, BaseInterface):
         self.totalizer_state = totalizer_state
 
     def _get_ted_configuration(self):
-        """Retrieves the TED Pro configuration from the device, used to build the registers"""
+        """
+        Retrieves the TED Pro configuration from the device, used to build the registers
+        """
         req = (grequests.get(
             "http://{ted_host}/api/SystemSettings.xml".format(ted_host=self.device_address), auth=(self.username, self.password), timeout=self.timeout),)
         system, = grequests.map(req)
@@ -128,6 +154,11 @@ class Interface(BasicRevert, BaseInterface):
         return config
     
     def insert_register(self, register):
+        """
+        We override the default insert_register behavior so that we can
+        automatically create additional totalized registers when 
+        ``track_totalizers`` is True
+        """
         super(Interface, self).insert_register(register)
         if self.track_totalizers:
             if register.units == 'kWh':
@@ -136,7 +167,10 @@ class Interface(BasicRevert, BaseInterface):
                 super(Interface, self).insert_register(totalized_register)
 
     def _create_registers(self, ted_config):
-        """Creates registers based on the system config captured from the device"""
+        """
+        Processes the config scraped from the TED Pro device and generates
+        register for each available parameter
+        """
         for i, spyder in enumerate(ted_config['Spyders']):
             for group in spyder:
                 for key, value in SPYDER_REGISTER_MAP.items():
@@ -170,7 +204,9 @@ class Interface(BasicRevert, BaseInterface):
             ))
 
     def _set_point(self, point_name, value):
-        """TED has no writable points, so skipping set_poin"""
+        """
+        TED has no writable points, so skipping set_point method
+        """
         pass
 
     def get_point(self, point_name):
@@ -178,6 +214,9 @@ class Interface(BasicRevert, BaseInterface):
         return points.get(point_name)
 
     def get_data(self):
+        """
+        returns a tuple of ETree objects corresponding to the three aapi endpoints
+        """
         requests = [grequests.get(url, auth=(self.username, self.password), timeout=self.timeout) for url in (
             "http://{ted_host}/api/SystemOverview.xml?T=0&D=0&M=0".format(
                 ted_host=self.device_address),
@@ -242,6 +281,11 @@ class Interface(BasicRevert, BaseInterface):
         return output
 
     def _get_totalized_value(self, point_name, read_value, multiplier):
+        """
+        processes the read value and returns the totalized value, based on the
+        internal state tracking
+        """
+
         totalizer_point_name = point_name + '_totalized'
         totalizer_value = self.totalizer_state.get(totalizer_point_name)
         self.logger.error(totalizer_value)
