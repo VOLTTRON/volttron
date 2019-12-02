@@ -7,6 +7,7 @@ import jwt
 import pytest
 
 from volttron.platform.certs import CertWrapper
+from volttron.utils import get_random_key
 from volttrontesting.utils.platformwrapper import create_volttron_home
 from volttrontesting.utils.web_utils import get_test_web_env, get_test_volttron_home
 from volttron.platform.web.admin_endpoints import AdminEndpoints
@@ -14,16 +15,12 @@ from volttron.platform.web.authenticate_endpoint import AuthenticateEndpoints
 from volttrontesting.fixtures.cert_fixtures import certs_profile_1
 
 
-def __get_random_key__():
-    return binascii.hexlify(os.urandom(65)).decode('utf-8')
-
-
 @pytest.mark.parametrize("encryption_type", ("private_key", "tls"))
 def test_jwt_encode(encryption_type):
     with get_test_volttron_home() as vhome:
         if encryption_type == "private_key":
             algorithm = "HS256"
-            encoded_key = __get_random_key__()
+            encoded_key = get_random_key().encode("utf-8")
         else:
             with certs_profile_1(vhome) as certs:
                 algorithm = "RS256"

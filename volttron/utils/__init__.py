@@ -47,10 +47,21 @@ import logging
 _log = logging.getLogger(__name__)
 
 
-def get_random_key():
-    """"""
+def get_random_key(length: int = 65) -> str:
+    """
+    Returns a hex random key of specified length.  The length must be > 0 in order for
+    the key to be valid.  Raises a ValueError if the length is invalid.
+
+    The default length is 65, which is 130 in length when hexlify is run.
+
+    :param length:
+    :return:
+    """
+    if length <= 0:
+        raise ValueError("Invalid length specified for random key must be > 0")
+
     import binascii
-    random_key = binascii.hexlify(os.urandom(24)).decode('utf-8')
+    random_key = binascii.hexlify(os.urandom(length)).decode('utf-8')
     return random_key
 
 
