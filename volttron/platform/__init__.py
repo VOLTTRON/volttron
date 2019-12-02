@@ -79,6 +79,15 @@ def get_home():
     return vhome
 
 
+def get_config_path() -> str:
+    """
+    Returns the platforms main configuration file.
+
+    :return:
+    """
+    return os.path.join(get_home(), "config")
+
+
 def get_address():
     """Return the VIP address of the platform
     If the VOLTTRON_VIP_ADDR environment variable is set, it used.
@@ -191,4 +200,29 @@ def get_platform_config():
                 __config__[option] = parser.get('volttron', option)
             __config__.freeze()
     return __config__
+
+
+def update_platform_config(values: dict) -> None:
+    global __config__
+
+    if __config__ is None:
+        cfg = get_platform_config()
+    else:
+        cfg = __config__
+        # Make sure we can update items
+        cfg._frozen = False
+
+    cfg.update(values)
+
+    config_file = get_config_path()
+    with open(config_file, "w") as fp:
+        p = ConfigParser()
+        p.add_section("volttron")
+        for k, v in cfg.items():
+            p.set("volttron", k, v)
+
+        cfg.freeze()
+        p.write(fp)
+
+    return get_platform_config()
 
