@@ -55,6 +55,7 @@ import uuid
 import gevent
 import gevent.monkey
 
+from volttron.utils import get_random_key
 from volttron.utils.frame_serialization import deserialize_frames, serialize_frames
 
 gevent.monkey.patch_socket()
@@ -391,7 +392,7 @@ class Router(BaseRouter):
     #    return result
 
     def handle_subsystem(self, frames, user_id):
-        #_log.debug(f"Handling subsystem with frames: {frames} user_id: {user_id}")
+        _log.debug(f"Handling subsystem with frames: {frames} user_id: {user_id}")
 
         subsystem = frames[5]
         if subsystem == 'quit':
@@ -450,6 +451,7 @@ class Router(BaseRouter):
                     value = None
             frames[6:] = ['', value]
             frames[3] = ''
+            _log.debug(f"FFFFFRRRRAAAAMMMEMMMES: {frames}")
             return frames
         elif subsystem == 'pubsub':
             result = self.pubsub.handle_subsystem(frames, user_id)
@@ -676,8 +678,7 @@ def start_volttron_process(opts):
         # zmq without tls is supported through the use of a secret key, if it's None then
         # we want to generate a secret key and set it in the config file.
         elif opts.message_bus == 'zmq' and opts.web_secret_key is None:
-            import binascii
-            opts.web_secret_key = binascii.hexlify(os.urandom(24))
+            opts.web_secret_key = get_random_key()
 
     if opts.volttron_central_address:
         parsed = urlparse(opts.volttron_central_address)

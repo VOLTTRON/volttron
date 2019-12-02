@@ -1,5 +1,6 @@
 import pytest
 from volttron.platform.web.admin_endpoints import AdminEndpoints
+from volttron.utils import get_random_key
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from mock import patch
 from urllib.parse import urlencode
@@ -12,12 +13,14 @@ ___WEB_USER_FILE_NAME__ = 'web-users.json'
 
 @pytest.mark.web
 def test_admin_unauthorized():
-    with get_test_volttron_home():
+    config_params = {"web_secret_key": get_random_key()}
+    with get_test_volttron_home(volttron_config_params=config_params):
         myuser = 'testing'
         mypass = 'funky'
         adminep = AdminEndpoints()
         adminep.add_user(myuser, mypass)
 
+        # User hasn't logged in so this should be not authorized.
         env = get_test_web_env('/admin/api/boo')
         response = adminep.admin(env, {})
         assert '401 Unauthorized' == response.status
