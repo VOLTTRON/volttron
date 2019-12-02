@@ -35,9 +35,10 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
+import pytest
 
 from volttron.platform import get_platform_config, update_platform_config, get_config_path
+from volttron.utils import get_random_key
 from volttrontesting.utils.web_utils import get_test_web_env, get_test_volttron_home
 from volttron.platform import jsonapi
 import os
@@ -72,3 +73,20 @@ def test_update_platform_config():
             assert v == cfg.get("volttron", k)
 
 
+def test_get_random_key():
+    with get_test_volttron_home():
+        key = get_random_key()
+        # According to docs the default length is 65
+        #
+        # Note 2x default is what we should get due to hex encoding.
+        assert 130 == len(key)
+
+        with pytest.raises(ValueError) as err:
+            key = get_random_key(0)
+
+        with pytest.raises(ValueError) as err:
+            key = get_random_key(-1)
+
+        key = get_random_key(20)
+        # note 2x the passed random key
+        assert 40 == len(key)
