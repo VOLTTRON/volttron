@@ -82,7 +82,9 @@ class SqlLiteFuncts(DbDriver):
             # before the historian.
             try:
                 if db_dir == '':
-                    db_dir = './data'
+                    data_dir = os.path.basename(os.getcwd()) + ".agent-data"
+                    db_dir = os.path.join(os.getcwd(), data_dir)
+                    _log.debug("In sqlitefuncts. cur dir is {} ".format(os.curdir))
                     self.__database = os.path.join(db_dir, self.__database)
 
                 os.makedirs(db_dir)

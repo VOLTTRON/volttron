@@ -1538,8 +1538,11 @@ class BackupDatabase:
         """ Creates a backup database for the historian if doesn't exist."""
 
         _log.debug("Setting up backup DB.")
+        # we want to create it in the agent-data directory since agent will not have write access to any other
+        # directory in secure mode
+        backup_db = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data", 'backup.sqlite')
         self._connection = sqlite3.connect(
-            'backup.sqlite',
+            backup_db,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
             check_same_thread=check_same_thread)
 

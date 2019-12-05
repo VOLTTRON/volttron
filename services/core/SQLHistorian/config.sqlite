@@ -2,7 +2,9 @@
     "connection": {
         "type": "sqlite",
         "params": {
-            "database": "~/.volttron/data/historian_test.sqlite"
+            # if no directory is given location will be under install_dir/<agent name>.agent-data directory
+            # In secure mode this will be only directory in which agent will have write access
+            "database": "historian_test.sqlite"
         }
     },
     "all_platforms":true
