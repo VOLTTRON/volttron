@@ -892,6 +892,8 @@ class PlatformWrapper:
         # Now if the agent_dir is specified.
         if agent_dir:
             assert not agent_wheel
+            temp_config = os.path.join(self.volttron_home,
+                                       os.path.basename(agent_dir) + "_config_file")
             if isinstance(config_file, dict):
                 from os.path import join, basename
                 temp_config = join(self.volttron_home,
@@ -969,6 +971,10 @@ class PlatformWrapper:
 
         if start:
             assert self.is_agent_running(agent_uuid)
+
+        # remove temp config_file
+        if os.path.isfile(temp_config):
+            os.remove(temp_config)
 
         return agent_uuid
 
@@ -1070,7 +1076,6 @@ class PlatformWrapper:
         # ValueError: I/O operation on closed file
         except ValueError:
             pass
-        # _log.debug("AGENT_PID: {}".format(pid))
         return pid
 
     def build_agentpackage(self, agent_dir, config_file={}):
