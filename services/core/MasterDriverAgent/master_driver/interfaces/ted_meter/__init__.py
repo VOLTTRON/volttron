@@ -44,22 +44,83 @@ TED_METER_LOGGER = logging.getLogger("ted_meter")
 TED_METER_LOGGER.setLevel(logging.WARNING)
 
 MTU_REGISTER_MAP = {
-    'Value': {'units': 'kW', 'multiplier': .001, "description": "Present Demand in kW", "point_name": "load_kw"},
-    'KVA': {'units': 'kVA', 'multiplier': .001, "description": "Present Demand in kVA", "point_name": "load_kva"},
-    'PF': {'units': 'ratio', 'multiplier': .001, "description": "Present Power Factor in unitless form", "point_name": "power_factor"},
-    'Phase': {'units': 'degrees', 'multiplier': 1, "description": "Present Phase Angle in Degrees", "point_name":  "phase_angle"},
-    'Voltage': {'units': 'Volts', 'multiplier': .1, "description": "Present Voltage in Volts", "point_name": "voltage"},
-    'PhaseCurrent': {'units': 'Amps', 'multiplier': 1, "description": "Present Phase Current in Amps", "point_name": "phase_current"},
-    'PhaseVoltage': {'units': 'Volts', 'multiplier': 1, "description": "Present Phase Voltage in Volts", "point_name": "phase_voltage"},
+    'Value': {'units': 'kW', 'multiplier': .001, "description": "Present Demand in kW", "point_name": "load_kw", "haystack_tags": {
+        "power": True,
+        "elec": True,
+        "meter": True,
+        "ac": True,
+        "active": True
+    }},
+    'KVA': {'units': 'kVA', 'multiplier': .001, "description": "Present Demand in kVA", "point_name": "load_kva", "haystack_tags": {
+        "power": True,
+        "elec": True,
+        "meter": True,
+        "ac": True,
+        "sensor": True,
+        "apparent": True
+    }},
+    'PF': {'units': 'ratio', 'multiplier': .001, "description": "Present Power Factor in unitless form", "point_name": "power_factor", "haystack_tags": {
+        "elec": True,
+        "meter": True,
+        "ac": True,
+        "sensor": True,
+        "pf": True
+    }},
+    'Phase': {'units': 'degrees', 'multiplier': 1, "description": "Present Phase Angle in Degrees", "point_name":  "phase_angle", "haystack_tags": {
+        "elec": True,
+        "meter": True,
+        "ac": True,
+        "sensor": True,
+        "angle": True
+    }},
+    'Voltage': {'units': 'Volts', 'multiplier': .1, "description": "Present Voltage in Volts", "point_name": "voltage", "haystack_tags": {
+        "elec": True,
+        "meter": True,
+        "ac": True,
+        "sensor": True,
+        "volt": True
+    }},
+    'PhaseCurrent': {'units': 'Amps', 'multiplier': 1, "description": "Present Phase Current in Amps", "point_name": "phase_current", "haystack_tags": {
+        "elec": True,
+        "meter": True,
+        "ac": True,
+        "sensor": True,
+        "current": True
+    }},
+    'PhaseVoltage': {'units': 'Volts', 'multiplier': 1, "description": "Present Phase Voltage in Volts", "point_name": "phase_voltage", "haystack_tags": {
+        "elec": True,
+        "meter": True,
+        "ac": True,
+        "sensor": True,
+        "volt": True
+    }},
 }
 
 SYSTEM_REGISTER_MAP = {
-    'MTD': {'units': 'kWh', 'multiplier': .001, "description": "Month to Day Consumption", "point_name": "mtd"}
+    'MTD': {'units': 'kWh', 'multiplier': .001, "description": "Month to Day Consumption", "point_name": "mtd", "haystack_tags": {
+        "elec": True,
+        "energy": True,
+        "meter": True,
+        "ac": True,
+        "sensor": True
+    }}
 }
 
 SPYDER_REGISTER_MAP = {
-    'Now': {'units': 'kW', 'multiplier': .001, "point_name": "load", "description": "Current Demand in kW"},
-    'MTD': {'units': 'kWh', 'multiplier': .001, "point_name": "mtd", "description": "Month to Day Consumption"}
+    'Now': {'units': 'kW', 'multiplier': .001, "point_name": "load", "description": "Current Demand in kW", "haystack_tags": {
+        "elec": True,
+        "power": True,
+        "meter": True,
+        "ac": True,
+        "sensor": True
+    }},
+    'MTD': {'units': 'kWh', 'multiplier': .001, "point_name": "mtd", "description": "Month to Day Consumption", "haystack_tags": {
+        "elec": True,
+        "energy": True,
+        "meter": True,
+        "ac": True,
+        "sensor": True
+    }}
 }
 
 
@@ -79,7 +140,7 @@ class Register(BaseRegister):
     :type description: str
 
     The TED Meter Driver does not expose the read_only parameter, as the TED API does not
-    support a writing data.
+    support writing data.
     """
 
     def __init__(self, volttron_point_name, units, description):
