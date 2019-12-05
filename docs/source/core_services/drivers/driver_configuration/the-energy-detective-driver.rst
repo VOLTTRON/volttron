@@ -58,6 +58,13 @@ Parameters
     This driver does not make use of the registry config. Because it is able to determine the configuration
     of the TED Pro Device via the API, it simply creates registers for each data source on the TED Pro
 
+
+.. note::
+
+    This driver is internally aware of the appropriate HayStack Tags for it's registers, however, the 
+    MasterDriver Framework makes no provision for publishing those tags during a scrape. Therefore,
+    integration of the tagging data is left to the end user.
+
 Examples
 ********
 
