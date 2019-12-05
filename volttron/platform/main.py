@@ -624,6 +624,7 @@ def start_volttron_process(opts):
     # and opts.web_ssl_cert
 
     os.environ['MESSAGEBUS'] = opts.message_bus
+    os.environ['SECURE_AGENT_USER'] = opts.secure_agent_users
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
@@ -997,6 +998,11 @@ def start_volttron_process(opts):
 
         with open(pid_file, 'w+') as f:
             f.write(str(os.getpid()))
+
+        # prevent access for others. Required for secure mode
+        # doesn't hurt for regular mode either as this file is
+        # only access by platform user
+        os.chmod(pid_file, 0o640)
 
         # Wait for any service to stop, signaling exit
         try:
