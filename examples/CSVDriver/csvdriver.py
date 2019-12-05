@@ -184,7 +184,7 @@ class Interface(BasicRevert, BaseInterface):
         # then return that register's state
         return register.get_state()
 
-    def set_point(self, point_name, value):
+    def _set_point(self, point_name, value):
         """
         Read the value of the register which matches the passed point name
         :param point_name: The point name of the register the user wishes to set
@@ -199,7 +199,7 @@ class Interface(BasicRevert, BaseInterface):
         # set the state, and return the new value
         return register.set_state(value)
 
-    def scrape_all(self):
+    def _scrape_all(self):
         """
         Loop over all of the registers configured for this device, then return a mapping of register name to its value
         :return: Results dictionary of the form {<register point name>: <register value>, ...}

@@ -50,7 +50,7 @@ single request. First create the csv interface class boilerplate.
 
 .. code-block:: python
 
-    class Interface(BaseInterface):
+    class Interface(BasicRevert, BaseInterface):
         def __init__(self, **kwargs):
             super(Interface, self).__init__(**kwargs)
 
@@ -60,10 +60,10 @@ single request. First create the csv interface class boilerplate.
         def get_point(self, point_name):
             pass
 
-        def set_point(self, point_name, value):
+        def _set_point(self, point_name, value):
             pass
 
-        def scrape_all(self):
+        def _scrape_all(self):
             pass
 
 This class should inherit from the BaseInterface, and at a minimum implement the configure, get_point, set_point, and
@@ -106,6 +106,9 @@ Name" specifying the name of the register, and "Point Value", the current value 
 
 .. code-block:: python
 
+
+    _log = logging.getLogger(__name__)
+
     CSV_FIELDNAMES = ["Point Name", "Point Value"]
     CSV_DEFAULT = [
         {
@@ -121,6 +124,12 @@ Name" specifying the name of the register, and "Point Value", the current value 
             "Point Value": "testpoint"
         }
     ]
+    type_mapping = {"string": str,
+                    "int": int,
+                    "integer": int,
+                    "float": float,
+                    "bool": bool,
+                    "boolean": bool}
 
     class Interface(BasicRevert, BaseInterface):
     def __init__(self, **kwargs):
@@ -192,14 +201,14 @@ correct register to read from or write to, and instruct the register to perform 
         register = self.get_register_by_name(point_name)
         return register.get_state()
 
-    def set_point(self, point_name, value):
+    def _set_point(self, point_name, value):
         register = self.get_register_by_name(point_name)
         if register.read_only:
             raise IOError("Trying to write to a point configured read only: " + point_name)
         register.set_state(value)
         return register.get_state()
 
-    def scrape_all(self):
+    def _scrape_all(self):
         result = {}
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False)
