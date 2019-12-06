@@ -61,7 +61,7 @@ Parameters
 
 .. note::
 
-    This driver is internally aware of the appropriate HayStack Tags for it's registers, however, the 
+    This driver is internally aware of the appropriate HayStack Tags for its registers, however, the 
     MasterDriver Framework makes no provision for publishing those tags during a scrape. Therefore,
     integration of the tagging data is left to the end user.
 
