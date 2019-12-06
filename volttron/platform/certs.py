@@ -769,19 +769,23 @@ class Certs(object):
             file_path))[0])
         directory = os.path.dirname(cert_file)
         if not os.path.exists(directory):
-            os.makedirs(directory, mode=0750)
+            # make certs directory accessible to all.
+            os.makedirs(directory, mode=0755)
         if file_path != cert_file:
             copyfile(file_path, cert_file)
-        os.chmod(cert_file,0644)
+        # but restrict file access
+        os.chmod(cert_file, 0640)
 
     def save_key(self, file_path):
         key_file = self.private_key_file(os.path.splitext(os.path.basename(
             file_path))[0])
         directory = os.path.dirname(key_file)
         if not os.path.exists(directory):
-            os.makedirs(directory, mode=0750)
+            # make directory accessible to all.
+            os.makedirs(directory, mode=0755)
         if file_path != key_file:
             copyfile(file_path, key_file)
+            # but restrict file access
             os.chmod(key_file, 0600)
 
     def create_ca_signed_cert(self, name, type='client', ca_name=None,
