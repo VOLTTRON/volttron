@@ -231,6 +231,22 @@ def get_messagebus():
     return message_bus
 
 
+def is_secure_mode():
+    """Get type of message bus - zeromq or rabbbitmq."""
+    string_value = os.environ.get('SECURE_AGENT_USERS')
+    _log.debug("value from env {}".format(string_value))
+    if not string_value:
+        config = load_platform_config()
+        string_value = config.get('secure-agent-users', 'False')
+        _log.debug("value from config {}".format(string_value))
+
+    if string_value == "True":
+        _log.debug("returning True")
+        return True
+
+    return False
+
+
 def store_message_bus_config(message_bus, instance_name):
     # If there is no config file or home directory yet, create volttron_home
     # and config file
@@ -668,7 +684,7 @@ def create_file_if_missing(path, permission=0o660, contents=None):
     dirname = os.path.dirname(path)
     if dirname and not os.path.exists(dirname):
         try:
-            os.makedirs(dirname)
+            os.makedirs(dirname, 0o755)
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise
