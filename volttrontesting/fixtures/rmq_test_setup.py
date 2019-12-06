@@ -165,6 +165,7 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None, instance_nam
     if not os.path.isfile(vhome_config):
         with open(vhome_config, 'w') as yml_file:
             yaml.dump(rabbit_config_obj.rabbitmq_config, yml_file, default_flow_style=False)
+        os.chmod(vhome_config, 0o744)
 
     store_message_bus_config(message_bus='rmq',
                              instance_name=rabbit_config_obj.instance_name)
