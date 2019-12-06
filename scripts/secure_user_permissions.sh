@@ -40,6 +40,13 @@ if [ ! -d $volttron_home ]; then
     else
         exit 1
     fi
+else
+  # if this is a existing volttron home directory, update file permissions of existing files
+  # TODO - need not traverse agents dir. should get handled on agent start. Should I check just specific files/folders?
+  # files=(`find /home/volttron/test_umask/ -type f`)
+  # for f in "${files[@]}"; do echo $f; done
+  # restrict permissions for others on auth.json, protected_topics.json, known_hosts(readonly), config(readonly),
+  # keystore(readonly), certificates/*, keystores/*, configuration_store/*, packaged/*
 fi
 
 if [ -f $volttron_home/config ]; then
