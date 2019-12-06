@@ -995,9 +995,10 @@ class Certs(object):
         ca_db[dn] = entries
         with open(db_file, 'w+') as outfile:
             json.dump(ca_db, outfile, indent=4)
-
+        os.chmod(db_file, 0o740)
         with open(self.ca_serial_file(ca_name), "w+") as f:
             f.write(str(serial+1))  # next available serial is current + 1
+        os.chmod(self.ca_serial_file(ca_name), 0o740)
 
     def verify_cert(self, cert_name):
         """
