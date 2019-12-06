@@ -1,13 +1,13 @@
 """
 Agent documentation goes here.
 """
+import json
 
 __docformat__ = 'reStructuredText'
 
 import logging
 import sys
 import os
-import subprocess
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers
 from volttron.platform.vip.agent import Agent, Core, RPC
@@ -108,82 +108,166 @@ class SecurityAgent(Agent):
     @RPC.export
     def get_agent_dir(self):
         """Get the agent's directory for testing purposes"""
-        return os.path.dirname(os.path.realpath(__file__))
+        return os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
-    def try_read_write_execute_dir(self, path):
-        rwx = {"read": False,
-               "write": False,
-               "execute": False
-               }
-        # Try to read test file
-        try:
-            with open(path, "r") as p:
-                line = p.readline()
-                rwx["read"] = True
-        except OSError as e:
-            _log.debug(e)
-        # Try to write test file
-        try:
-            with open(path, "w") as p:
-                p.write("test")
-                rwx["write"] = True
-        except OSError as e:
-            _log.debug(e)
-        # TODO most unsure about this
-        # Try to run test file
-        try:
-            hello_world = subprocess.Popen(path,
-                                           stderr=subprocess.PIPE)
-            hello_world.wait()
-            stderr = hello_world.communicate()
-            # Check to see the reason for error was permissions related
-            if stderr:
-                _log.info(stderr)
-                assert "permission denied" in stderr
-            else:
-                rwx["execute"] = True
-        except OSError as e:
-            _log.debug(e)
-        return rwx
 
     @RPC.export
-    def can_execute_only_agent_install_dir(self):
-        """Agents should be able to execute only from the agent directory"""
-        test_path = os.path.join(self.get_agent_dir(), "test_perms.sh")
-        _log.debug("Testing permissions on {}".format(test_path))
-        return self.try_read_write_execute_dir(test_path)
+    def verify_install_dir_permissions(self):
+        """
+        Checks if agent user has only read and execute permission on all directories under install directory except
+        agent-data directory. user should have read, write, and execute permissions to agent-data directory.
+        If there are no errors return None
+        :return: If permissions are not right an error message is returned. If there are no errors return None
+        """
+        _log.debug("In verify_install_dir_permissions")
+        data_dir = os.path.basename(self.get_agent_dir()) + ".agent-data"
+        _log.debug("Agent dir is {}".format(self.get_agent_dir()))
+        for (root, directories, files) in os.walk(self.get_agent_dir(), topdown=True):
+            for directory in directories:
+                dir_path = os.path.join(root, directory)
+                _log.debug("Directory that is checked is " + dir_path)
+                if not os.access(dir_path, os.R_OK):
+                    return "Agent user does not have read access to directory {}".format(dir_path)
+                if not os.access(dir_path, os.X_OK):
+                    return "Agent user does not have execute access to directory {}".format(dir_path)
+                write_access = os.access(dir_path, os.W_OK)
+                if directory == data_dir and not write_access:
+                    return "Agent user does not have write access to {}".format(dir_path)
+                elif directory != data_dir and write_access:
+                    return "Agent user has write access to {}".format(dir_path)
+        return None
+
 
     @RPC.export
-    def can_read_only_agent_data_dir(self):
-        """Agents should be able read only in the agent's agent-data
-        directory"""
-        agent_path_name = os.path.dirname(
-            self.get_agent_dir()).rsplit("/", 1)[1]
-        # Can't really used packaged files here
-        test_path = os.path.join(os.path.dirname(self.get_agent_dir()),
-                                 "{}.agent-data".format(agent_path_name),
-                                 "USER_ID")
-        _log.debug("Testing permissions on {}".format(test_path))
-        return self.try_read_write_execute_dir(test_path)
+    def verify_vhome_dir_permissions(self):
+        """
+        Check permission of agent outside of agent install directory. Agent should have read+execute access to the
+        following directories. Read access to other folders are based on default settings in the machine.
+        We restrict only file access when necessary.
+            - vhome
+            - vhome/certificates and its subfolders
+        :return:
+        """
+        install_dir = os.path.dirname(self.get_agent_dir())
+        vhome = os.path.dirname(os.path.dirname(install_dir))
+        certs_dir = os.path.join(vhome, "certificates/certs")
+        key_dir = os.path.join(vhome, "certificates/private")
+        paths = [vhome, certs_dir, key_dir]
+        for p in paths:
+            if not os.access(vhome, os.R_OK):
+                return "Agent user does not have read access to file {}".format(p)
+            if not os.access(vhome, os.X_OK):
+                return "Agent user does not have read access to file {}".format(p)
+        return None
 
     @RPC.export
-    def can_read_only_data_dir(self):
-        """Agents should be able to read"""
-        # Can't really used packaged files here
-        test_path = os.path.join(self.get_agent_dir(), "data", "test_perms.sh")
-        _log.debug("Testing permissions on {}".format(test_path))
-        return self.try_read_write_execute_dir(test_path)
+    def verify_install_dir_file_permissions(self):
 
-    # @RPC.export
-    # def can_read_write_execute_other_dir(self, directory):
-    #     """Agents should not be able to read/write/execute anything outside of
-    #         their own directory"""
-    #     return self.try_read_write_execute_dir(directory)
-    #
-    #
-    # @RPC.export
-    # def can_act_as_root(self):
-    #     """Agents should not be able to read/write/execute as root."""
+        """
+        Checks if agent user has only read permission on all files under install directory except files in
+        agent-data directory. User will be the owner of files in agent-data directory hence we need not check this dir.
+        :return: If permissions are not right an error message is returned. If there are no errors return None
+        """
+        data_dir_name = os.path.basename(self.get_agent_dir()) + ".agent-data"
+        install_dir = os.path.dirname(self.get_agent_dir())  # start at vhome/agents/<uuid> dir
+        for (root, directories, files) in os.walk(install_dir, topdown=True):
+            if os.path.basename(root) == data_dir_name:
+                continue
+            for f in files:
+                file_path = os.path.join(root, f)
+                if not os.access(file_path, os.R_OK):
+                    return "Agent user does not have read access to file {}".format(file_path)
+                if os.access(file_path, os.W_OK):
+                    return "Agent user has write access to file {}".format(file_path)
+                if os.access(file_path, os.X_OK):
+                    return "Agent user has execute access to file {}".format(file_path)
+        return None
+
+    @RPC.export
+    def verify_vhome_file_permissions(self, instance_name):
+
+        """
+        Test to make sure agent does not have any permissions on files outside agent's directory but for the below
+        exceptions.
+        Agent user should have read access to
+            - vhome/config
+            - vhome/known_hosts
+            - vhome/certificates/certs/*
+            - vhome/certificates/private/<agent_vip_id>.<instance_name>.pem (in case of rmq)
+            - vhome/rabbitmq_config.yml( in case of rmq)
+
+        Agent should have write access to volttron.log in the test home folder
+        :return: If permissions are not right an error message is returned. If there are no errors return None
+        """
+        install_dir = os.path.dirname(self.get_agent_dir())
+        vhome = os.path.dirname(os.path.dirname(install_dir))
+        config = os.path.join(vhome, "config")
+        known_hosts = os.path.join(vhome, "known_hosts")
+        log = os.path.join(vhome, "volttron.log")
+        rmq_yml = os.path.join(vhome, "rabbitmq_config.yml")
+        key = os.path.join(vhome, "certificates/private", instance_name + "." + self.core.identity + ".pem")
+        data_dir_name = os.path.basename(self.get_agent_dir()) + ".agent-data"
+        ca_public = os.path.join(vhome, "certificates/remote_certs/requests_ca_bundle")
+        paths = [config, known_hosts, rmq_yml, log, key, ca_public]
+        public_key_dir = os.path.join(vhome, "certificates/certs")
+        for (root, directories, files) in os.walk(vhome, topdown=True):
+            if os.path.basename(root) == data_dir_name:
+                continue  # files are owned by agent user
+            if root.startswith(os.path.join(vhome, "rmq_node_data")):
+                # rmq node data for test runs only. ignore
+                continue
+            for f in files:
+                file_path = os.path.join(root, f)
+                if file_path in paths or file_path.startswith(install_dir) or file_path.startswith(public_key_dir):
+                    # should have read access alone
+                    if not os.access(file_path, os.R_OK):
+                        return "Agent user does not have read access to file {}. ".format(file_path)
+                else:
+                    if os.access(file_path, os.R_OK):
+                        return "Agent user has read access to file {}" \
+                            "Should have read access only to {}".format(file_path, paths)
+                if file_path != log:
+                    if os.access(file_path, os.W_OK):
+                        return "Agent user has write access to file {}".format(file_path)
+                if os.access(file_path, os.X_OK):
+                    return "Agent user has execute access to file {}".format(file_path)
+        return None
+
+    @RPC.export
+    def verify_config_store_access(self, agent2_identity):
+        """
+        Verify that agent is able to access its own config store. But agent should not be able edit another agent's
+        config store either through vctl config command or by direct file access
+        :return: If permissions are not right an error message is returned. If there are no errors return None
+        """
+        error = None
+        CONFIG = {
+                "name": "test"
+            }
+        try:
+            self.vip.rpc.call('config.store', 'manage_store', "security_agent", 'config',
+                              json.dumps({"name": "value"}), config_type='json').get(timeout=2)
+        except Exception as e:
+            error = str(e)
+
+        if error:
+            return error
+
+        try:
+            self.vip.rpc.call('config.store', 'manage_store', agent2_identity, 'config',
+                              json.dumps({"test": "value"}), config_type='json').get(timeout=10)
+            error = "Security agent is able to edit  config store entry of security_agent2"
+        except Exception as e:
+            error = e.message
+            if error == "User can call method manage_store only with identity=security_agent " \
+                        "but called with identity={}".format(agent2_identity):
+               error = None
+
+        # try accessing the file directly
+        agent2_config = os.path.join(self.core.volttron_home, "configuration_store/{}.store".format(agent2_identity))
+        if os.access(agent2_config, os.R_OK) or os.access(agent2_config, os.W_OK) or os.access(agent2_config, os.X_OK):
+            error = "Agent has access to another agent's config store file"
+        return error
 
 
 def main():

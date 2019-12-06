@@ -1,5 +1,3 @@
-import os
-import grp
 import pwd
 import gevent
 import pytest
@@ -9,11 +7,19 @@ from volttron.platform import get_home, get_services_core, is_rabbitmq_available
 from volttrontesting.utils.utils import get_rand_vip
 from volttrontesting.fixtures.volttron_platform_fixtures import \
     build_wrapper, cleanup_wrapper
+from volttron.platform.agent.utils import execute_command
 
-# TODO docs
 HAS_RMQ = is_rabbitmq_available()
 rmq_skipif = pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
 
+# skip if running on travis because initial secure_user_permissions scripts needs to be run as root/sudo
+# TODO: Should we spin a separate docker image just to test this one test case alone?
+#  May be we can do this along with testing for remote RMQ instance setup for which we need sudo access too.
+pytestmark = pytest.mark.skipif(os.environ.get("CI") is not None,
+                                reason="Can't run on travis as this test needs root to run "
+                                       "setup script before running test case")
+
+INSTANCE_NAME = "volttron_security"
 
 # TODO do this a better way
 def get_agent_user_from_dir(agent_name, agent_uuid):
@@ -21,20 +27,14 @@ def get_agent_user_from_dir(agent_name, agent_uuid):
     :param agent_uuid:
     :return: Unix user ID if installed Volttron agent
     """
-    user_id_path = os.path.join(get_home(), "agents", agent_uuid,
-                                agent_name, "{}.agent-data".format(agent_name),
-                                "USER_ID")
+    user_id_path = os.path.join(get_home(), "agents", agent_uuid, "USER_ID")
     with open(user_id_path, 'r') as id_file:
         return id_file.readline()
 
 
 @pytest.fixture(scope="module", params=(
-                    dict(messagebus='zmq', ssl_auth=False,
-                         instance_name="volttron_security"),
-                    # TODO work out how to make a good platform level failure case
-                    # dict(messagebus='zmq', ssl_auth=False,
-                    #                          instance_name="volttron_fail"),
-                    # rmq_skipif(dict(messagebus='rmq', ssl_auth=True))
+                    dict(messagebus='zmq', ssl_auth=False, instance_name=INSTANCE_NAME),
+                    rmq_skipif(dict(messagebus='rmq', ssl_auth=True, instance_name=INSTANCE_NAME)),
                 ))
 def secure_volttron_instance(request):
     """
@@ -96,6 +96,7 @@ def security_agent(request, secure_volttron_instance):
         print("stopping security agent")
         if secure_volttron_instance.is_running():
             secure_volttron_instance.stop_agent(agent)
+            secure_volttron_instance.remove_agent(agent)
 
     request.addfinalizer(stop_agent)
     return agent
@@ -103,29 +104,49 @@ def security_agent(request, secure_volttron_instance):
 
 @pytest.mark.secure
 def test_agent_rpc(secure_volttron_instance, security_agent, query_agent):
+    """
+    Test agent running in secure mode can make RPC calls without any errors
+    :param secure_volttron_instance: secure volttron instance
+    :param security_agent: Test agent which runs secure mode as a user other than platform user
+    :param query_agent: Fake agent to do rpc calls to test agent
+    """
     """if multiple copies of an agent can be installed successfully"""
     # Make sure the security agent can receive an RPC call, and respond
     assert query_agent.vip.rpc.call(
         "security_agent", "can_receive_rpc_calls").get(timeout=5)
 
     # Try installing a second copy of the agent
-    agent2 = secure_volttron_instance.install_agent(
-        vip_identity="security_agent2",
-        agent_dir="volttrontesting/platform/security/SecurityAgent",
-        start=False,
-        config_file=None)
+    agent2 = None
+    try:
+        agent2 = secure_volttron_instance.install_agent(
+            vip_identity="security_agent2",
+            agent_dir="volttrontesting/platform/security/SecurityAgent",
+            start=False,
+            config_file=None)
 
-    secure_volttron_instance.start_agent(agent2)
-    gevent.sleep(3)
-    assert secure_volttron_instance.is_agent_running(agent2)
+        secure_volttron_instance.start_agent(agent2)
+        gevent.sleep(3)
+        assert secure_volttron_instance.is_agent_running(agent2)
 
-    assert query_agent.vip.rpc.call("security_agent", "can_make_rpc_calls",
-                                    "security_agent2").get(timeout=5)
+        assert query_agent.vip.rpc.call("security_agent", "can_make_rpc_calls",
+                                        "security_agent2").get(timeout=5)
+    except BaseException as e:
+        print("Exception {}".format(e))
+        assert False
+    finally:
+        if agent2:
+            secure_volttron_instance.remove_agent(agent2)
 
 
 @pytest.mark.secure
 def test_agent_pubsub(secure_volttron_instance, security_agent,
                       query_agent):
+    """
+    Test agent running in secure mode can publish and subscribe to message bus without any errors
+    :param secure_volttron_instance: secure volttron instance
+    :param security_agent: Test agent which runs secure mode as a user other than platform user
+    :param query_agent: Fake agent to do rpc calls to test agent
+    """
     query_agent.vip.rpc.call("security_agent", "can_publish_to_pubsub")
 
     gevent.sleep(3)
@@ -145,128 +166,146 @@ def test_agent_pubsub(secure_volttron_instance, security_agent,
         "security_agent", "can_subscribe_to_messagebus").get(timeout=5)
 
 
-@pytest.mark.dev
-def test_agent_perms_install_dir(secure_volttron_instance, security_agent,
-                                 query_agent):
-    permissions = {'read': False, 'write': False, 'execute': True}
-    results = query_agent.vip.rpc.call(
-        "security_agent", "can_execute_only_install_dir").get(timeout=5)
-    for key, value in permissions.items():
-        assert value == results[key]
-
 
 @pytest.mark.secure
-def test_agent_perms_data_dir():
-    permissions = {'read': True, 'write': False, 'execute': False}
-    results = query_agent.vip.rpc.call(
-        "security_agent", "can_read_only_agent_data_dir").get(timeout=5)
-    for key, value in permissions.items():
-        assert value == results[key]
-
-
-@pytest.mark.secure
-def test_agent_perms_agent_data_dir(secure_volttron_instance, security_agent,
-                                    query_agent):
-    permissions = {'read': True, 'write': False, 'execute': False}
-    results = query_agent.vip.rpc.call(
-        "security_agent", "can_read_only_data_dir").get(timeout=5)
-    for key, value in permissions.items():
-        assert value == results[key]
-
-
-@pytest.mark.skip
-@pytest.mark.secure
-def test_agent_perms_distinfo_dir():
-    permissions = {'read': True, 'write': False, 'execute': True}
-    results = query_agent.vip.rpc.call(
-        'security_agent', 'can_read_execute_dist_info').get(timeout=5)
-    for key, value in permissions.items():
-        assert value == results[key]
-
-
-@pytest.mark.secure
-def test_agent_perms_other_dir(query_agent):
-    permissions = {'read': False, 'write': False, 'execute': False}
-    results = query_agent.vip.rpc.call(
-        'security_agent', 'can_read_write_execute_other_dir').get(timeout=5)
-    for key, value in permissions.items():
-        assert value == results[key]
-
-
-# TODO get agent reset if things go wrong
-@pytest.mark.skip
-@pytest.mark.secure
-def test_agent_user_removed_during_execution(secure_volttron_instance,
-                                             security_agent, query_agent):
-    # TODO remove user
-
+def test_install_dir_permissions(secure_volttron_instance, security_agent, query_agent):
+    """
+    Test to make sure agent user only has read and execute permissions for all sub folders of agent install directory
+    except <agent>.agent-data directory. Agent user should have rwx to agent-data directory
+    :param secure_volttron_instance: secure volttron instance
+    :param security_agent: Test agent which runs secure mode as a user other than platform user
+    :param query_agent: Fake agent to do rpc calls to test agent
+    """
     assert secure_volttron_instance.is_agent_running(security_agent)
-    assert query_agent.vip.rpc.call(
-        "security_agent", "can_receive_rpc_calls").get(timeout=5)
+    results = query_agent.vip.rpc.call("security_agent", "verify_install_dir_permissions").get(timeout=10)
+    print(results)
+    assert results is None
 
-    # TODO recreate user
+@pytest.mark.secure
+def test_install_dir_file_permissions(secure_volttron_instance, security_agent, query_agent):
+    """
+    Test to make sure agent user only has read access to all files in install-directory except for files in
+    <agent>.agent-data directory. Agent user will be the owner of files in agent-data directory and hence we
+    need not check files in this dir
+    :param secure_volttron_instance: secure volttron instance
+    :param security_agent: Test agent which runs secure mode as a user other than platform user
+    :param query_agent: Fake agent to do rpc calls to test agent
+    """
+    results = query_agent.vip.rpc.call("security_agent", "verify_install_dir_file_permissions").get(timeout=5)
+    assert results is None
 
+@pytest.mark.secure
+def test_vhome_dir_permissions(secure_volttron_instance, security_agent, query_agent):
+    """
+    Test to make sure we have read and execute access to relevant folder outside of agent's install dir.
+
+    Agent should have read access to the below directories other than its own agent install dir. Read access to other
+    folder are based on default settings in the machine.  We restrict only file access when necessary.
+        - vhome
+        - vhome/certificates and its subfolders
+    :param secure_volttron_instance: secure volttron instance
+    :param security_agent: Test agent which runs secure mode as a user other than platform user
+    :param query_agent: Fake agent to do rpc calls to test agent
+    """
     assert secure_volttron_instance.is_agent_running(security_agent)
-    assert query_agent.vip.rpc.call(
-        "security_agent", "can_receive_rpc_calls").get(timeout=5)
+    results = query_agent.vip.rpc.call("security_agent", "verify_vhome_dir_permissions").get(timeout=10)
+    print(results)
+    assert results is None
 
-    # TODO remove USER_ID file
+@pytest.mark.secure
+def test_vhome_file_permissions(secure_volttron_instance, security_agent, query_agent):
+    """
+    Test to make sure agent does not have any permissions on files outside agent's directory but for the following
+    exceptions.
+    Agent user should have read access to
+        - vhome/config
+        - vhome/known_hosts
+        - vhome/rabbitmq_config.yml
+        - vhome/certificates/certs/<agent_vip_id>.<instance_name>.crt
+        - vhome/certificates/private/<agent_vip_id>.<instance_name>.pem
 
+    :param secure_volttron_instance: secure volttron instance
+    :param security_agent: Test agent which runs secure mode as a user other than platform user
+    :param query_agent: Fake agent to do rpc calls to test agent
+    """
     assert secure_volttron_instance.is_agent_running(security_agent)
-    assert query_agent.vip.rpc.call(
-        "security_agent", "can_receive_rpc_calls").get(timeout=5)
+    # Try installing a second copy of the agent. First agent should not have read/write/execute access to any
+    # of the files of agent2. rpc call checks all files in vhome
+    agent2 = None
+    try:
+        agent2 = secure_volttron_instance.install_agent(
+            vip_identity="security_agent2",
+            agent_dir="volttrontesting/platform/security/SecurityAgent",
+            start=False,
+            config_file=None)
 
-    # TODO remove user group
-    # TODO what should happen here?
+        secure_volttron_instance.start_agent(agent2)
+        gevent.sleep(3)
+        assert secure_volttron_instance.is_agent_running(agent2)
+
+        # Now verify that security_agent has read access to only its own files
+        results = query_agent.vip.rpc.call("security_agent", "verify_vhome_file_permissions", INSTANCE_NAME).get(timeout=10)
+        print(results)
+        assert results is None
+    except BaseException as e:
+        print("Exception {}".format(e))
+        assert False
+    finally:
+        if agent2:
+            secure_volttron_instance.remove_agent(agent2)
 
 
-# TODO get_agent reset if things go wrong
-@pytest.mark.skip
 @pytest.mark.secure
-def test_agent_user_removed_after_installation(secure_volttron_instance):
-    install_agent = secure_volttron_instance.install_agent(
-        vip_identity="security_agent2",
-        agent_dir="volttrontesting/platform/security/SecurityAgent",
-        start=False,
-        config_file=None)
+def test_config_store_access(secure_volttron_instance, security_agent, query_agent):
+    """
+    Test to make sure agent does not have any permissions on files outside agent's directory but for the following
+    exceptions.
+    Agent user should have read access to
+        - vhome/config
+        - vhome/known_hosts
+        - vhome/certificates/certs/<agent_vip_id>.<instance_name>.crt
+        - vhome/certificates/private/<agent_vip_id>.<instance_name>.pem
+    :param secure_volttron_instance: secure volttron instance
+    :param security_agent: Test agent which runs secure mode as a user other than platform user
+    :param query_agent: Fake agent to do rpc calls to test agent
+    """
+    assert secure_volttron_instance.is_agent_running(security_agent)
+    # Try installing a second copy of the agent. First agent should not have read/write/execute access to any
+    # of the files of agent2. rpc call checks all files in vhome
+    agent2 = None
+    try:
+        agent2 = secure_volttron_instance.install_agent(
+            vip_identity="security_agent2",
+            agent_dir="volttrontesting/platform/security/SecurityAgent",
+            start=False,
+            config_file=None)
 
-    # TODO remove the user
+        secure_volttron_instance.start_agent(agent2)
+        gevent.sleep(3)
+        assert secure_volttron_instance.is_agent_running(agent2)
 
-    secure_volttron_instance.start_agent(install_agent)
-    gevent.sleep(3)
-    assert not secure_volttron_instance.is_agent_running(install_agent)
+        # make initial entry in config store for both agents
+        config_path = os.path.join(secure_volttron_instance.volttron_home, "test_secure_agent_config")
+        with open(config_path, "w+") as f:
+            f.write('{"test":"value"}')
 
-    secure_volttron_instance.remove_agent(install_agent)
-    # TODO assert the agent was removed
+        gevent.sleep(1)
 
-    install_agent = secure_volttron_instance.install_agent(
-        vip_identity="security_agent2",
-        agent_dir="volttrontesting/platform/security/SecurityAgent",
-        start=False,
-        config_file=None)
+        execute_command(['volttron-ctl', 'config', 'store', "security_agent", "config", config_path, "--json"],
+                                 cwd=secure_volttron_instance.volttron_home, env=secure_volttron_instance.env)
+        execute_command(['volttron-ctl', 'config', 'store', "security_agent2", "config", config_path, "--json"],
+                                 cwd=secure_volttron_instance.volttron_home, env=secure_volttron_instance.env)
 
-    # TODO remove USER_ID FILE
+        execute_command(['volttron-ctl', 'config', 'store', "security_agent", "config", config_path, "--json"],
+                        cwd=secure_volttron_instance.volttron_home, env=secure_volttron_instance.env)
 
-    secure_volttron_instance.start_agent(install_agent)
-    gevent.sleep(3)
-    assert not secure_volttron_instance.is_agent_running(install_agent)
-
-    secure_volttron_instance.remove_agent(install_agent)
-    # TODO assert the agent was removed
-
-    # TODO remove user group
-    # TODO what should happen here?
-
-
-@pytest.mark.skip
-@pytest.mark.secure
-def test_user_cant_sudo():
-    pass
-
-
-@pytest.mark.skip
-@pytest.mark.secure
-def test_user_add_del_perms():
-    pass
-# TODO test sudo permissions for user
-# TODO test volttron user add/delete other users
+        # this rpc method will check agents own config store and access and agent's access to other agent's config store
+        results = query_agent.vip.rpc.call("security_agent",
+                                           "verify_config_store_access", "security_agent2").get(timeout=30)
+        print("RESULTS :::: {}".format(results))
+    except BaseException as e:
+        print("Exception {}".format(e))
+        assert False
+    finally:
+        if agent2:
+            secure_volttron_instance.remove_agent(agent2)
