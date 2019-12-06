@@ -340,17 +340,36 @@ class AIPplatform(object):
                                              agent_uuid, agent_dir):
         name = self.agent_name(agent_uuid)
         agent_path_with_name = os.path.join(agent_dir, name)
-        # Directories in the install path have read/execute
+        # Directories in the install path have read/execute except agent-data dir. agent-data dir has rwx
+        data_dir = self._get_agent_data_dir(agent_path_with_name) # creates dir if it doesn't exist
         for (root, directories, files) in os.walk(agent_dir, topdown=True):
             for directory in directories:
-                self.set_acl_for_path("rx", volttron_agent_user,
-                                      os.path.join(root, directory))
-        # Need to be able to read the keys from the agent's keystore
-        self.set_acl_for_path("r", volttron_agent_user,
-                              os.path.join(self._get_agent_dist_info_dir(agent_path_with_name), "keystore.json"))
-        # Need to be able read known_hosts
+                if directory == os.path.basename(data_dir):
+                    self.set_acl_for_path("rwx", volttron_agent_user,
+                                          os.path.join(root, directory))
+                else:
+                    self.set_acl_for_path("rx", volttron_agent_user,
+                                          os.path.join(root, directory))
+        # In install directory, make all files' permissions to 400. Then do setfacl -m "r" to only agent user
+        self._set_agent_dir_file_permissions(agent_dir, volttron_agent_user, data_dir)
+        # Need to be able read config and known_hosts file in volttron_home
         self.set_acl_for_path("r", volttron_agent_user,
                               os.path.join(get_home(), "known_hosts"))
+        self.set_acl_for_path("r", volttron_agent_user,
+                              os.path.join(get_home(), "config"))
+
+    def _set_agent_dir_file_permissions(self, input_dir, agent_user, data_dir):
+        """ Recursively change permissions to all files in given directrory to 400 but for files in
+            agent-data directory
+        """
+        for (root, directories, files) in os.walk(input_dir, topdown=True):
+            for f in files:
+                permissions = "r"
+                if root == data_dir:
+                    permissions = "rwx"
+                file_path = os.path.join(root, f)
+                os.chmod(file_path, 0o400)  # only platform user has default read permissions
+                self.set_acl_for_path(permissions, agent_user, file_path)  # in addition agent user has access
 
     def remove_agent_user(self, agent_dir):
         """
@@ -488,6 +507,10 @@ class AIPplatform(object):
                 unpacker.unpack(dest=agent_path)
             else:
                 unpack(agent_wheel, dest=agent_path)
+
+            # Is it ok to remove the wheel file after unpacking?
+            os.remove(agent_wheel)
+
             final_identity = self._setup_agent_vip_id(
                 agent_uuid, vip_identity=vip_identity)
 
@@ -573,7 +596,6 @@ class AIPplatform(object):
         name = self.agent_name(agent_uuid)
         agent_path_with_name = os.path.join(agent_path, name)
         dist_info = self._get_agent_dist_info_dir(agent_path_with_name)
-        # data_dir = self._get_agent_data_dir(agent_path_with_name)
         keystore_path = os.path.join(dist_info, 'keystore.json')
         return KeyStore(keystore_path)
 
@@ -941,7 +963,13 @@ class AIPplatform(object):
             except (IOError, KeyError) as err:
                 _log.info("No existing volttron user was found at {} due to {}".
                     format(user_id_path, err))
+
+                # May be switched from normal to secure mode with existing agents. To handle this case
+                # create users and also set permissions again for existing files
                 agent_user = self.add_agent_user(name, agent_dir)
+                self.set_agent_user_directory_permissions(agent_user,
+                                                          agent_uuid,
+                                                          agent_dir)
 
         if self.message_bus == 'rmq':
             rmq_user = get_fq_identity(agent_vip_identity, self.instance_name)
