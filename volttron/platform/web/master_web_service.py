@@ -50,7 +50,7 @@ import gevent.pywsgi
 from cryptography.hazmat.primitives import serialization
 from gevent import Greenlet
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from werkzeug import Response
+from volttron.platform.agent.web import Response
 
 from ws4py.server.geventserver import WSGIServer
 
@@ -59,7 +59,7 @@ from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
 from .webapp import WebApplicationWrapper
 from ..agent.utils import get_fq_identity
-from ..agent.web import Response as VolttronResponse, JsonResponse
+from ..agent.web import Response, JsonResponse
 from ..auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
 from ..certs import Certs, CertWrapper
 from ..jsonrpc import (json_result,
@@ -105,14 +105,18 @@ class MasterWebService(Agent):
     that will be called during the request process.
     """
 
-    def __init__(self, serverkey, identity, address, bind_web_address, aip: AIPplatform,
+    def __init__(self, serverkey, identity, address, bind_web_address,
                  volttron_central_address=None, volttron_central_rmq_address=None,
                  web_ssl_key=None, web_ssl_cert=None, web_secret_key=None, **kwargs):
-        """Initialize the discovery service with the serverkey
+        """
+        Initialize the configuration of the base web service integration within the platform.
 
-        serverkey is the public key in order to access this volttron's bus.
         """
         super(MasterWebService, self).__init__(identity, address, **kwargs)
+
+        # no matter what we need to have a bind_web_address passed to us.
+        if not bind_web_address:
+            raise ValueError("Invalid bind web address.")
 
         self.bind_web_address = bind_web_address
         self.serverkey = serverkey
@@ -128,7 +132,6 @@ class MasterWebService(Agent):
 
         # Maps from endpoint to peer.
         self.endpoints = {}
-        self.aip = aip
 
         self.volttron_central_address = volttron_central_address
         self.volttron_central_rmq_address = volttron_central_rmq_address
@@ -364,6 +367,8 @@ class MasterWebService(Agent):
         if external_vip and self.serverkey:
             return_dict['serverkey'] = encode_key(self.serverkey)
             return_dict['vip-address'] = external_vip
+        elif not external_vip:
+            _log.warning("There was no external vip-address specified in config file or command line.")
 
         if self.instance_name:
             return_dict['instance-name'] = self.instance_name
@@ -380,7 +385,7 @@ class MasterWebService(Agent):
             return_dict['rmq-address'] = rmq_address
             return_dict['rmq-ca-cert'] = self._certs.cert(self._certs.root_ca_name).public_bytes(
                 serialization.Encoding.PEM).decode("utf-8")
-        return Response(return_dict, content_type="application/json")
+        return Response(jsonapi.dumps(return_dict), content_type="application/json")
         # return JsonResponse(return_dict)
 
     def app_routing(self, env, start_response):
@@ -458,13 +463,16 @@ class MasterWebService(Agent):
                         retvalue = v(env, start_response, data)
                     except TypeError:
                         response = v(env, data)
-                        if isinstance(response, VolttronResponse):
-                            response = MasterWebService.convert_response_to_werkzueg(response)
                         return response(env, start_response)
                         # retvalue = self.process_response(start_response, v(env, data))
 
                     if isinstance(retvalue, Response):
-                        return self.process_response(start_response, retvalue)
+                        return retvalue(env, start_response)
+                        #return self.process_response(start_response, retvalue)
+                    elif isinstance(retvalue, Response):  # werkzueg Response
+                        for d in retvalue(env, start_response):
+                            print(d)
+                        return retvalue(env, start_response)
                     else:
                         return retvalue[0]
 
@@ -493,16 +501,10 @@ class MasterWebService(Agent):
             return True
         return False
 
-    @staticmethod
-    def convert_response_to_werkzueg(self, response: VolttronResponse) -> Response:
-        if isinstance(response, VolttronResponse):
-            return Response(response.content, response.status, headers=response.headers, content_type=response.content_type)
-        return response
-
     def process_response(self, start_response, response):
         # if we are using the original response, then morph it into a werkzueg response.
-        response = MasterWebService.convert_response_to_werkzueg(response)
-        return response()
+        # response = MasterWebService.convert_response_to_werkzueg(response)
+        # return response()
         # process the response
         start_response(response.status, response.headers)
 

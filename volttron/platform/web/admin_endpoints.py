@@ -44,7 +44,8 @@ from urllib.parse import parse_qs
 from jinja2 import TemplateNotFound
 from passlib.hash import argon2
 #from watchdog_gevent import Observer
-from werkzeug import Response
+from watchdog_gevent import Observer
+from volttron.platform.agent.web import Response
 
 from ...platform import get_home
 from ...platform import jsonapi
@@ -79,13 +80,13 @@ class AdminEndpoints(object):
                 raise ValueError("Invalid type for ssl_public_key")
         self._userdict = None
         self.reload_userdict()
-        # TODO Add back reload capability
-        # self._observer = Observer()
-        # self._observer.schedule(
-        #     FileReloader("web-users.json", self.reload_userdict),
-        #     get_home()
-        # )
-        # self._observer.start()
+
+        self._observer = Observer()
+        self._observer.schedule(
+            VolttronHomeFileReloader("web-users.json", self.reload_userdict),
+            get_home()
+        )
+        self._observer.start()
         if ssl_public_key is not None:
             self._certs = Certs()
 
@@ -119,7 +120,7 @@ class AdminEndpoints(object):
                     return Response('', status='302', headers={'Location': '/admin/login.html'})
 
             template = template_env(env).get_template('first.html')
-            return Response(template.render())
+            return Response(template.render(), content_type="text/html")
 
         if 'login.html' in env.get('PATH_INFO') or '/admin/' == env.get('PATH_INFO'):
             template = template_env(env).get_template('login.html')
