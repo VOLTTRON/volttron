@@ -14,13 +14,19 @@ from types import SimpleNamespace
 from urllib.parse import urlencode
 
 import pytest
+from deepdiff import DeepDiff
+from werkzeug.wrappers import Response
 
 from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import MASTER_WEB
+from volttron.platform.keystore import KeyStore
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.subsystems.web import ResourceType
+from volttron.platform.vip.socket import decode_key
 from volttron.platform.web import MasterWebService
 from volttron.platform.web.admin_endpoints import AdminEndpoints
+from volttron.utils import get_random_key
+from volttrontesting.fixtures.environment_fixtures import build_test_environment
 from volttrontesting.utils.platformwrapper import create_volttron_home
 
 from volttrontesting.utils.web_utils import get_test_web_env, get_test_volttron_home
@@ -38,7 +44,7 @@ def master_web_service():
     serverkey = "serverkey"
     mock_aip = mock.Mock()
     yield MasterWebService(serverkey=serverkey, identity=MASTER_WEB, address="tcp://stuff",
-                           bind_web_address="http://v2:8888", aip=mock_aip)
+                           bind_web_address="http://v2:8888")
 
 
 @contextlib.contextmanager
@@ -49,9 +55,9 @@ def get_master_web(bind_web_address="http://v2:8080", **kwargs) -> MasterWebServ
     :return: MasterWebService
     """
     serverkey = "serverkey"
-    mock_aip = mock.Mock()
+
     mws = MasterWebService(serverkey=serverkey, identity=MASTER_WEB, address="tcp://stuff",
-                           bind_web_address=bind_web_address, aip=mock_aip, **kwargs)
+                           bind_web_address=bind_web_address, **kwargs)
     mws.startupagent(sender='testweb')
     # original_volttron_home = os.environ.get('VOLTTRON_HOME')
     # new_volttron_home = create_volttron_home()
@@ -81,8 +87,15 @@ def get_server_response(env_fixture, ws):
     mocked_start_response = mock.MagicMock()
     iobytes = ws.app_routing(env_fixture, mocked_start_response)
     response = BytesIO()
-    for chunk in iobytes:
-        response.write(chunk)
+    if isinstance(iobytes, Response):
+        for chunk in iobytes.response:
+            if isinstance(chunk, str):
+                response.write(chunk.encode('utf-8'))
+            else:
+                response.write(chunk)
+    else:
+        for chunk in iobytes:
+            response.write(chunk)
     # use getvalue instead of moving to the begining of stream and reading.
     response = response.getvalue().decode('utf-8')
     return mocked_start_response, response
@@ -131,7 +144,8 @@ def test_authenticate_endpoint(scheme):
         user = 'bogart'
         passwd = 'cat'
         adminep = AdminEndpoints()
-        adminep.add_user(user, passwd)
+        adminep.add_user(user, passwd, groups=['foo', 'read-only'])
+        expected_claims = dict(groups=['foo', 'read-only'])
 
         with get_master_web(**kwargs) as mw:
 
@@ -144,6 +158,7 @@ def test_authenticate_endpoint(scheme):
 
             claims = mw.get_user_claims(response)
             assert claims
+            assert not DeepDiff(expected_claims, claims)
 
 
 class MockQuery(object):
@@ -183,21 +198,82 @@ class MockQuery(object):
             return self.value
 
 
-def test_masterweb_has_discovery():
-    web_secret = "my secret key"
+@pytest.mark.parametrize('scheme', ('http', 'https'))
+def test_discovery(scheme):
+    vhome = create_volttron_home()
+    # creates a vhome level key store
+    keystore = KeyStore()
+    serverkey = decode_key(keystore.public)
 
-    def _construct_query_mock(core):
+    # Depending upon scheme we enable/disable password jwt and certificate based jwt.
+    if scheme == 'https':
+        with certs_profile_1('/'.join([vhome, 'certs'])) as certs:
+            config_params = dict(web_ssl_key=certs.server_certs[0].key_file,
+                                 web_ssl_cert=certs.server_certs[0].cert_file)
+    else:
+        config_params = dict(web_secret_key=get_random_key())
+
+    with get_test_volttron_home(volttron_config_params=config_params):
         instance_name = "booballoon"
-        kv = {
-            "instance-name": instance_name,
-            "addresses": []
-        }
-        return MockQuery(**kv)
+        host, port = get_hostname_and_random_port()
 
-    with mock.patch('volttron.platform.vip.agent.subsystems.query.Query', _construct_query_mock):
-        with get_master_web(web_secret_key=web_secret) as mw:
+        # this is the vip address
+        address = f"tcp://{host}:{port}"
+
+        def _construct_query_mock(core):
+            """
+            Internal function that creates a concrete response for the data.
+            when query('instance-name').get() is called the passed instance name
+            is returned
+            """
+            nonlocal instance_name, address
+
+            kv = {
+                "instance-name": instance_name,
+                "addresses": [address]
+            }
+            return MockQuery(**kv)
+
+        with mock.patch('volttron.platform.vip.agent.subsystems.query.Query', _construct_query_mock):
+            host, port = get_hostname_and_random_port()
+            bind_web_address = f"{scheme}://{host}:{port}"
+            serverkey = decode_key(keystore.public)
+
+            mws = MasterWebService(serverkey=serverkey, identity=MASTER_WEB, address=address,
+                                   bind_web_address=bind_web_address, **config_params)
+            mws.startupagent(sender='testweb')
+
             env = get_test_web_env("/discovery/")
-            mocked_start_response, response = get_server_response(env, mw)
+            mock_start_response = mock.Mock()
+            # A closingiterator is returned from the response object so we use the next
+            # on the returned response.  Then we can do json responses.
+            response = mws.app_routing(env, mock_start_response).__next__()
+            # load json into a dict for testing responses.
+            response = jsonapi.loads(response.decode('utf-8'))
+
+            assert response.get('instance-name') is not None
+            assert instance_name == response.get('instance-name')
+            assert keystore.public == response.get('serverkey')
+            assert address == response.get('vip-address')
+
+
+# def test_masterweb_has_discovery():
+#     web_secret = "my secret key"
+#
+#     def _construct_query_mock(core):
+#         instance_name = "booballoon"
+#         kv = {
+#             "instance-name": instance_name,
+#             "addresses": []
+#         }3
+#         return MockQuery(**kv)
+#
+#     with mock.patch('volttron.platform.vip.agent.subsystems.query.Query', _construct_query_mock):
+#         with get_master_web(web_secret_key=web_secret) as mw:
+#             env = get_test_web_env("/discovery/")
+#             mocked_start_response, response = get_server_response(env, mw)
+#
+#             assert response
 
 
 @pytest.mark.web
@@ -281,3 +357,6 @@ def test_register_endpoint(master_web_service: MasterWebService):
 
     ws.unregister_all_agent_routes()
     assert len(ws.endpoints) == 0
+
+
+
