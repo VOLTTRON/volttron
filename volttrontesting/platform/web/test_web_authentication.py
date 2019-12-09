@@ -39,9 +39,9 @@ def test_jwt_encode(encryption_type):
 def test_authenticate_must_use_post_request():
     with get_test_volttron_home():
 
-        env = get_test_web_env('/authenticate')
+        env = get_test_web_env('/authenticate', method='GET')
 
-        authorize_ep = AuthenticateEndpoints(web_secret_key=__get_random_key__())
+        authorize_ep = AuthenticateEndpoints(web_secret_key=get_random_key())
         response = authorize_ep.get_auth_token(env, {})
         assert ('Content-Type', 'text/html') in response.headers.items()
         assert '401 Unauthorized' == response.status
@@ -58,13 +58,12 @@ def test_both_private_key_and_passphrase():
                        match="Must use either ssl_private_key or web_secret_key not both!"):
         with get_test_volttron_home() as vhome:
             with certs_profile_1(vhome) as certs:
-                authorizeep = AuthenticateEndpoints(web_secret_key=__get_random_key__(),
+                authorizeep = AuthenticateEndpoints(web_secret_key=get_random_key(),
                                                     tls_private_key=certs.server_certs[0].key)
 
 
 @pytest.mark.parametrize("scheme", ("http", "https"))
 def test_authenticate_endpoint(scheme):
-    vhome = create_volttron_home()
     kwargs = {}
 
     # Note this is not a context wrapper, it just does the creation for us
@@ -75,7 +74,7 @@ def test_authenticate_endpoint(scheme):
             kwargs['web_ssl_key'] = certs.server_certs[0].key_file
             kwargs['web_ssl_cert'] = certs.server_certs[0].cert_file
     else:
-        kwargs['web_secret_key'] = __get_random_key__()
+        kwargs['web_secret_key'] = get_random_key()
 
     # We are specifying the volttron_home here so we don't create an additional one.
     with get_test_volttron_home(volttron_config_params=kwargs, volttron_home=vhome):
@@ -109,26 +108,3 @@ def test_authenticate_endpoint(scheme):
         assert '200 OK' == response.status
         assert "text/plain" in response.content_type
         assert 3 == len(response.response[0].decode('utf-8').split('.'))
-
-# def test_authenticate_tls():
-#     user = 'fred'
-#     passwd = 'sam'
-#     with get_test_volttron_home() as vhome:
-#         # Store a real username/password
-#         adminep = AdminEndpoints()
-#         adminep.add_user(user, passwd)
-#
-#         certs_dir = os.path.join(vhome, "certs")
-#         with certs_profile_1(certs_dir) as mycerts:
-#             server_cert = mycerts.server_certs[0]
-#
-#             # build a custom env to pass to the end point
-#             env = get_test_web_env('/authenticate', method='POST')
-#
-#             authorizeep = AuthenticateEndpoints(ssl_private_key=server_cert.key)
-#             invalid_login_username_params = urlencode(dict(username='fooey', password=passwd))
-#             response = authorizeep.get_auth_token(env, invalid_login_username_params.encode('utf-8'))
-#
-#             assert '401' == response.status
-#
-#             assert_valid_authorization(authorizeep, env, user, passwd)

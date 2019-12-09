@@ -3,17 +3,18 @@ import os
 import re
 from urllib.parse import parse_qs
 
-from werkzeug import Response
 import jwt
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from passlib.hash import argon2
-#from watchdog_gevent import Observer
+from watchdog_gevent import Observer
 
 from volttron.platform import get_home
+from volttron.platform.agent.web import Response
 from volttron.utils import VolttronHomeFileReloader
 from volttron.utils.persistance import PersistentDict
 
 _log = logging.getLogger(__name__)
+
 
 __PACKAGE_DIR__ = os.path.dirname(os.path.abspath(__file__))
 __TEMPLATE_DIR__ = os.path.join(__PACKAGE_DIR__, "templates")
@@ -41,13 +42,12 @@ class AuthenticateEndpoints(object):
             raise ValueError("Must use either ssl_private_key or web_secret_key not both!")
         self._userdict = None
         self.reload_userdict()
-        # TODO Add back reload capability
-        # self._observer = Observer()
-        # self._observer.schedule(
-        #     FileReloader("web-users.json", self.reload_userdict),
-        #     get_home()
-        # )
-        # self._observer.start()
+        self._observer = Observer()
+        self._observer.schedule(
+            VolttronHomeFileReloader("web-users.json", self.reload_userdict),
+            get_home()
+        )
+        self._observer.start()
 
     def reload_userdict(self):
         webuserpath = os.path.join(get_home(), 'web-users.json')
@@ -123,7 +123,7 @@ class AuthenticateEndpoints(object):
         encode_key = self._tls_private_key if algorithm == 'RS256' else self._web_secret_key
         encoded = jwt.encode(user, encode_key, algorithm=algorithm)
 
-        return Response(encoded)
+        return Response(encoded, content_type="text/plain")
 
     def __get_user(self, username, password):
         """

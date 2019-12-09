@@ -87,9 +87,9 @@ def __get_key_and_algorithm__(env):
     publickey = env.get("WEB_PUBLIC_KEY")
     algorithm = 'RS256' if publickey is not None else 'HS256'
     if algorithm == 'HS256':
-        if config.get('web_secret_key') is None:
+        if config.get('web-secret-key') is None:
             raise ValueError("invalid configuration detected web_secret_key must be set!")
-    encode_key = publickey if algorithm == 'RS256' else config.get('web_secret_key')
+    encode_key = publickey if algorithm == 'RS256' else config.get('web-secret-key')
     return algorithm, encode_key
 
 
