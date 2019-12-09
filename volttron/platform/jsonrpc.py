@@ -137,12 +137,12 @@ class JsonRpcData(object):
         params = data.get('params', None)
         authorization = data.get('authorization', None)
 
-        if id == None:
+        if id is None:
             raise ParseError("Invalid id")
         if version != '2.0':
             print("VERSION IS: {}".format(version))
             raise ParseError('Invalid jsonrpc version')
-        if method == None:
+        if method is None:
             raise ParseError('Method not specified.')
 
         return JsonRpcData(id, version, method, params, authorization)
