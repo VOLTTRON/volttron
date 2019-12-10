@@ -46,7 +46,7 @@ import sys
 from configparser import ConfigParser
 from ..utils.frozendict import FrozenDict
 
-__version__ = '7.0rc'
+__version__ = '7.0rc2'
 
 
 def set_home(home=None):

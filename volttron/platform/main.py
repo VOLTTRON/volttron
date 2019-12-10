@@ -679,6 +679,7 @@ def start_volttron_process(opts):
         # we want to generate a secret key and set it in the config file.
         elif opts.message_bus == 'zmq' and opts.web_secret_key is None:
             opts.web_secret_key = get_random_key()
+            _update_config_file(web_secret_key = opts.web_secret_key)
 
     if opts.volttron_central_address:
         parsed = urlparse(opts.volttron_central_address)
@@ -1019,7 +1020,7 @@ def start_volttron_process(opts):
                 address=address,
                 bind_web_address=opts.bind_web_address,
                 volttron_central_address=opts.volttron_central_address,
-                aip=opts.aip, enable_store=False,
+                enable_store=False,
                 message_bus=opts.message_bus,
                 volttron_central_rmq_address=opts.volttron_central_rmq_address,
                 web_ssl_key=opts.web_ssl_key,
@@ -1157,6 +1158,10 @@ def main(argv=sys.argv):
         '--web-ca-cert', metavar='CAFILE', default=None,
         help='If using self-signed certificates, this variable will be set globally to allow requests'
              'to be able to correctly reach the webserver without having to specify verify in all calls.'
+    )
+    agents.add_argument(
+        "--web-secret-key", default=None,
+        help="Secret key to be used instead of https based authentication."
     )
     agents.add_argument(
         '--web-ssl-key', metavar='KEYFILE', default=None,

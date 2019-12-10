@@ -40,8 +40,6 @@ import os
 import re
 
 from watchdog.events import PatternMatchingEventHandler
-
-#from volttron.platform import get_home
 import logging
 
 _log = logging.getLogger(__name__)
@@ -101,6 +99,9 @@ class VolttronHomeFileReloader(PatternMatchingEventHandler):
     filetowatch *.json will watch all json files in <volttron_home>
     """
     def __init__(self, filetowatch, callback):
+        # Protect from circular reference for file
+        from volttron.platform import get_home
+
         super(VolttronHomeFileReloader, self).__init__([get_home() + '/' + filetowatch])
         _log.debug("patterns is {}".format([get_home() + '/' + filetowatch]))
         self._callback = callback
