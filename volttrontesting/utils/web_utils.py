@@ -8,7 +8,8 @@ from mock import Mock
 from volttrontesting.utils.platformwrapper import create_volttron_home
 
 
-def get_test_web_env(path, input_data: bytes = None, query_string='', url_scheme='http', method='GET',):
+def get_test_web_env(path, input_data: bytes = None, query_string='', url_scheme='http', method='GET',
+                     **kwargs):
     """
     Constructs the environment that gets passed to a wsgi application during a request
     from client to server.  The response will return a valid env that can be passed
@@ -59,6 +60,11 @@ def get_test_web_env(path, input_data: bytes = None, query_string='', url_scheme
         # ,
         # 'CONTENT_LENGTH': len(input_data.getvalue().decode('utf-8'))
     }
+
+    # Use kwargs passed and add them to the stdvars and make them available
+    # in the environment.
+    for k, v in kwargs:
+        stdenvvars[k] = v
 
     return stdenvvars
 
