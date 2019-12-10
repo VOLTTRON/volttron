@@ -125,7 +125,8 @@ extras_require = {
         'jwt',
         'jinja2',
         'passlib',
-        'argon2_cffi'
+        'argon2_cffi',
+        'Werkzeug'
     ],
     'weather': [
         'pint'
