@@ -713,8 +713,8 @@ class Certs(object):
 
         return mod_pub == mod_key
 
-    def save_remote_info(self, local_keyname, remote_name, remote_cert, remote_ca_name,
-                         remote_ca_cert):
+    def save_agent_remote_info(self, directory, local_keyname, remote_name, remote_cert, remote_ca_name,
+                               remote_ca_cert):
         """
         Save the remote info file, remote certificates and remote ca to the proper place
         in the remote_certificate directory.
@@ -725,8 +725,8 @@ class Certs(object):
         :param remote_ca_name: name of the remote ca
         :param remote_ca_cert: certificate of the remote ca certificate
         """
-        self.save_remote_cert(remote_name, remote_cert)
-        self.save_remote_cert(remote_ca_name, remote_ca_cert)
+        self.save_remote_cert(remote_name, remote_cert, directory)
+        self.save_remote_cert(remote_ca_name, remote_ca_cert, directory)
         metadata = dict(remote_ca_name=remote_ca_name,
                         local_keyname=local_keyname)
         metafile = self.remote_certs_file(remote_name)[:-4] + ".json"
@@ -736,8 +736,11 @@ class Certs(object):
 
         self.rebuild_requests_ca_bundle()
 
-    def rebuild_requests_ca_bundle(self):
-        with open(self.remote_cert_bundle_file(), 'wb') as fp:
+    def rebuild_requests_ca_bundle(self, directory=None):
+        bundle_file = self.remote_cert_bundle_file()
+        if directory:
+            bundle_file = os.path.join(directory, os.path.basename(bundle_file))
+        with open(bundle_file, 'wb') as fp:
             # First include this platforms ca
             fp.write(self.ca_cert(public_bytes=True))
             for f in os.listdir(self.remote_cert_dir):
@@ -758,10 +761,16 @@ class Certs(object):
             os.remove(cert_file)
         self.remote_cert_bundle_file()
 
-    def save_remote_cert(self, name, cert_string):
-        cert_file = self.remote_certs_file(name)
-        with open(cert_file, 'wb') as fp:
-            fp.write(cert_string)
+    def save_remote_cert(self, name, cert_string, directory=None):
+        if directory:
+            cert_file = os.path.join(directory, name + ".crt")
+        else:
+            cert_file = self.remote_certs_file(name)
+        try:
+            with open(cert_file, 'wb') as fp:
+                fp.write(cert_string)
+        except Exception as e:
+            raise RuntimeError("Error saving remote cert {}. Exception: {}".format(cert_file, e))
         self.rebuild_requests_ca_bundle()
 
     def save_cert(self, file_path):

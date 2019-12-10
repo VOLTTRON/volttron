@@ -14,7 +14,7 @@ from vctestutils import APITester
 
 @pytest.fixture(scope="module")
 def multi_messagebus_vc_vcp(volttron_multi_messagebus):
-    vcp_instance, vc_instance = volttron_multi_messagebus
+    vcp_instance, vc_instance = volttron_multi_messagebus()
     assert vcp_instance.instance_name != vc_instance.instance_name
     # Handles both connections to zmq as well as connections to rmq bus.
     vc_instance.allow_all_connections()

@@ -4,7 +4,7 @@ import requests
 
 @pytest.fixture
 def web_bound_correctly(volttron_multi_messagebus):
-    source, sink = volttron_multi_messagebus
+    source, sink = volttron_multi_messagebus()
 
     assert sink.bind_web_address, "Sink should always have a web enabled"
     assert not source.bind_web_address, "Source should never have a web enabled"

@@ -336,8 +336,8 @@ class AIPplatform(object):
             raise RuntimeError("Setting {} permissions on {} failed: {}".format(
                 perms, path, stderr))
 
-    def set_agent_user_directory_permissions(self, volttron_agent_user,
-                                             agent_uuid, agent_dir):
+    def set_agent_user_permissions(self, volttron_agent_user,
+                                   agent_uuid, agent_dir):
         name = self.agent_name(agent_uuid)
         agent_path_with_name = os.path.join(agent_dir, name)
         # Directories in the install path have read/execute except agent-data dir. agent-data dir has rwx
@@ -352,11 +352,21 @@ class AIPplatform(object):
                                           os.path.join(root, directory))
         # In install directory, make all files' permissions to 400. Then do setfacl -m "r" to only agent user
         self._set_agent_dir_file_permissions(agent_dir, volttron_agent_user, data_dir)
+
         # Need to be able read config and known_hosts file in volttron_home
         self.set_acl_for_path("r", volttron_agent_user,
                               os.path.join(get_home(), "known_hosts"))
         self.set_acl_for_path("r", volttron_agent_user,
                               os.path.join(get_home(), "config"))
+
+        # if messagebus is rmq.
+        # TODO: For now provide read access to all agents since this is used for
+        #  multi instance connections. This will not be requirement in VOLTTRON 8.0 once CSR is implemented for
+        #  federation and shovel. The below lines can be removed then
+        if self.message_bus == 'rmq':
+            os.chmod(os.path.join(get_home(), "certificates/private"), 0o755)
+            self.set_acl_for_path("r", volttron_agent_user,
+                                  os.path.join(get_home(), "certificates/private", self.instance_name + "-admin.pem"))
 
     def _set_agent_dir_file_permissions(self, input_dir, agent_user, data_dir):
         """ Recursively change permissions to all files in given directrory to 400 but for files in
@@ -530,9 +540,9 @@ class AIPplatform(object):
                 # that already exists is untrustworthy
                 created_user = self.add_agent_user(self.agent_name(agent_uuid),
                                                    agent_path)
-                self.set_agent_user_directory_permissions(created_user,
-                                                          agent_uuid,
-                                                          agent_path)
+                self.set_agent_user_permissions(created_user,
+                                                agent_uuid,
+                                                agent_path)
 
         except Exception:
             shutil.rmtree(agent_path)
@@ -967,9 +977,9 @@ class AIPplatform(object):
                 # May be switched from normal to secure mode with existing agents. To handle this case
                 # create users and also set permissions again for existing files
                 agent_user = self.add_agent_user(name, agent_dir)
-                self.set_agent_user_directory_permissions(agent_user,
-                                                          agent_uuid,
-                                                          agent_dir)
+                self.set_agent_user_permissions(agent_user,
+                                                agent_uuid,
+                                                agent_dir)
 
         if self.message_bus == 'rmq':
             rmq_user = get_fq_identity(agent_vip_identity, self.instance_name)

@@ -46,17 +46,15 @@ from urlparse import urlparse
 
 import gevent
 
-from volttron.platform.vip.agent import Agent, Core, compat, Unreachable
-from volttron.platform.vip.agent.utils import build_agent
+from volttron.platform.vip.agent import Agent, compat, Unreachable
 from volttron.platform.agent.base_historian import BaseHistorian, add_timing_data_to_header
 from volttron.platform.agent import utils
 from volttron.platform.keystore import KnownHostsStore
-from volttron.platform.messaging import topics, headers as headers_mod
+from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_GOOD, Status)
 from volttron.utils.docs import doc_inherit
 from zmq.green import ZMQError, ENOTSOCK
-import os
 
 FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()

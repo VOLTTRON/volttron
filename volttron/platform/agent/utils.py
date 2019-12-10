@@ -52,7 +52,6 @@ import os
 import pytz
 import re
 import stat
-import time
 import yaml
 from volttron.platform import get_home, get_address
 from volttron.utils.prompt import prompt_response

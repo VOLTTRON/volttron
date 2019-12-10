@@ -1,13 +1,20 @@
 import pwd
+from datetime import datetime
+
 import gevent
 import pytest
 from mock import MagicMock
-from volttron.platform.vip.agent import *
-from volttron.platform import get_home, get_services_core, is_rabbitmq_available
-from volttrontesting.utils.utils import get_rand_vip
-from volttrontesting.fixtures.volttron_platform_fixtures import \
-    build_wrapper, cleanup_wrapper
+
+from volttron.platform import get_home, is_rabbitmq_available
+from volttron.platform import get_services_core, get_examples
+from volttron.platform.agent import utils
 from volttron.platform.agent.utils import execute_command
+from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.vip.agent import *
+from volttrontesting.fixtures.volttron_platform_fixtures import \
+    build_wrapper, cleanup_wrapper, volttron_multi_messagebus
+from volttrontesting.utils.utils import get_hostname_and_random_port, get_rand_vip, get_rand_ip_and_port
+
 
 HAS_RMQ = is_rabbitmq_available()
 rmq_skipif = pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
@@ -19,7 +26,8 @@ pytestmark = pytest.mark.skipif(os.environ.get("CI") is not None,
                                 reason="Can't run on travis as this test needs root to run "
                                        "setup script before running test case")
 
-INSTANCE_NAME = "volttron_security"
+INSTANCE_NAME1 = "volttron1"
+INSTANCE_NAME2 = "volttron2"
 
 # TODO do this a better way
 def get_agent_user_from_dir(agent_name, agent_uuid):
@@ -33,8 +41,8 @@ def get_agent_user_from_dir(agent_name, agent_uuid):
 
 
 @pytest.fixture(scope="module", params=(
-                    dict(messagebus='zmq', ssl_auth=False, instance_name=INSTANCE_NAME),
-                    rmq_skipif(dict(messagebus='rmq', ssl_auth=True, instance_name=INSTANCE_NAME)),
+                    dict(messagebus='zmq', ssl_auth=False, instance_name=INSTANCE_NAME1),
+                    rmq_skipif(dict(messagebus='rmq', ssl_auth=True, instance_name=INSTANCE_NAME1)),
                 ))
 def secure_volttron_instance(request):
     """
@@ -101,6 +109,42 @@ def security_agent(request, secure_volttron_instance):
     request.addfinalizer(stop_agent)
     return agent
 
+
+@pytest.fixture(scope="module")
+def multi_messagebus_forwarder(volttron_multi_messagebus):
+    from_instance, to_instance = volttron_multi_messagebus(INSTANCE_NAME1, INSTANCE_NAME2)
+    to_instance.allow_all_connections()
+    forwarder_config = {"custom_topic_list": ["foo"]}
+
+    if to_instance.messagebus == 'rmq':
+        remote_address = to_instance.bind_web_address
+        to_instance.enable_auto_csr()
+        print("REQUEST CA: {}".format(os.environ.get('REQUESTS_CA_BUNDLE')))
+        os.environ['REQUESTS_CA_BUNDLE'] = to_instance.requests_ca_bundle
+
+        forwarder_config['destination-address'] = remote_address
+    else:
+        remote_address = to_instance.vip_address
+        forwarder_config['destination-vip'] = remote_address
+        forwarder_config['destination-serverkey'] = to_instance.serverkey
+
+    forwarder_uuid = from_instance.install_agent(
+        agent_dir=get_services_core("ForwardHistorian"),
+        config_file=forwarder_config,
+        start=True
+    )
+    gevent.sleep(1)
+    assert from_instance.is_agent_running(forwarder_uuid)
+
+    yield from_instance, to_instance
+
+    from_instance.stop_agent(forwarder_uuid)
+
+def publish(publish_agent, topic, header, message):
+    publish_agent.vip.pubsub.publish('pubsub',
+                                     topic,
+                                     headers=header,
+                                     message=message).get(timeout=10)
 
 @pytest.mark.secure
 def test_agent_rpc(secure_volttron_instance, security_agent, query_agent):
@@ -244,7 +288,9 @@ def test_vhome_file_permissions(secure_volttron_instance, security_agent, query_
         assert secure_volttron_instance.is_agent_running(agent2)
 
         # Now verify that security_agent has read access to only its own files
-        results = query_agent.vip.rpc.call("security_agent", "verify_vhome_file_permissions", INSTANCE_NAME).get(timeout=10)
+        results = query_agent.vip.rpc.call("security_agent",
+                                           "verify_vhome_file_permissions",
+                                           INSTANCE_NAME1).get(timeout=10)
         print(results)
         assert results is None
     except BaseException as e:
@@ -309,3 +355,49 @@ def test_config_store_access(secure_volttron_instance, security_agent, query_age
     finally:
         if agent2:
             secure_volttron_instance.remove_agent(agent2)
+
+
+def test_multi_messagebus_forwarder(multi_messagebus_forwarder):
+    """
+    Forward Historian test with multi message bus combinations
+    :return:
+    """
+    from_instance, to_instance = multi_messagebus_forwarder
+    publish_agent = from_instance.dynamic_agent
+    subscriber_agent = to_instance.dynamic_agent
+
+    subscriber_agent.callback = MagicMock(name="callback")
+    subscriber_agent.callback.reset_mock()
+    subscriber_agent.vip.pubsub.subscribe(peer='pubsub',
+                               prefix='devices',
+                               callback=subscriber_agent.callback).get()
+
+    subscriber_agent.analysis_callback = MagicMock(name="analysis_callback")
+    subscriber_agent.analysis_callback.reset_mock()
+    subscriber_agent.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix='analysis',
+                                          callback=subscriber_agent.analysis_callback).get()
+    sub_list = subscriber_agent.vip.pubsub.list('pubsub').get()
+    gevent.sleep(3)
+
+    # Create timestamp
+    now = utils.format_timestamp(datetime.utcnow())
+    print("now is ", now)
+    headers = {
+        headers_mod.DATE: now,
+        headers_mod.TIMESTAMP: now
+    }
+
+    for i in range(0, 5):
+        topic = "devices/PNNL/BUILDING1/HP{}/CoolingTemperature".format(i)
+        value = 35
+        publish(publish_agent, topic, headers, value)
+        topic = "analysis/PNNL/BUILDING1/WATERHEATER{}/ILCResults".format(i)
+        value = {'result': 'passed'}
+        publish(publish_agent, topic, headers, value)
+        gevent.sleep(0.5)
+
+    gevent.sleep(1)
+
+    assert subscriber_agent.callback.call_count == 5
+    assert subscriber_agent.analysis_callback.call_count == 5

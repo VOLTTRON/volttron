@@ -250,9 +250,9 @@ def volttron_instance_web(request):
 @pytest.fixture(scope="module",
                 params=[
                     dict(sink='zmq_web', source='zmq'),
-                    # rmq_skipif(dict(sink='rmq_web', source='zmq')),
-                    # rmq_skipif(dict(sink='rmq_web', source='rmq')),
-                    # rmq_skipif(dict(sink='zmq_web', source='rmq'))
+                    rmq_skipif(dict(sink='rmq_web', source='zmq')),
+                    rmq_skipif(dict(sink='rmq_web', source='rmq')),
+                    rmq_skipif(dict(sink='zmq_web', source='rmq'))
                 ])
 def volttron_multi_messagebus(request):
     """ This fixture allows multiple two message bus types to be configured to work together
@@ -265,59 +265,68 @@ def volttron_multi_messagebus(request):
     :param request:
     :return:
     """
-    print("volttron_multi_messagebus source: {} sink: {}".format(request.param['source'],
-                                                                 request.param['sink']))
-    sink_address = get_rand_vip()
+    source = None
+    sink = None
+    def get_volttron_multi_msgbus_instances(instance_name1=None, instance_name2=None):
+        print("volttron_multi_messagebus source: {} sink: {}".format(request.param['source'],
+                                                                     request.param['sink']))
+        sink_address = get_rand_vip()
 
-    if request.param['sink'] == 'rmq_web':
-        hostname, port = get_hostname_and_random_port()
-        web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
-        messagebus = 'rmq'
-        ssl_auth = True
-    else:
-        web_address = "http://{}".format(get_rand_ip_and_port())
+        if request.param['sink'] == 'rmq_web':
+            hostname, port = get_hostname_and_random_port()
+            web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
+            messagebus = 'rmq'
+            ssl_auth = True
+        else:
+            web_address = "http://{}".format(get_rand_ip_and_port())
+            messagebus = 'zmq'
+            ssl_auth = False
+
+        sink = build_wrapper(sink_address,
+                             ssl_auth=ssl_auth,
+                             messagebus=messagebus,
+                             bind_web_address=web_address,
+                             volttron_central_address=web_address,
+                             secure_agent_users=True,
+                             instance_name="volttron1")
+
+        source_address = get_rand_vip()
         messagebus = 'zmq'
         ssl_auth = False
 
-    sink = build_wrapper(sink_address,
-                         ssl_auth=ssl_auth,
-                         messagebus=messagebus,
-                         bind_web_address=web_address,
-                         volttron_central_address=web_address,
-                         secure_agent_users=True,
-                         instance_name="zmq_1")
+        if request.param['source'] == 'rmq':
+            messagebus = 'rmq'
+            ssl_auth = True
 
-    source_address = get_rand_vip()
-    messagebus = 'zmq'
-    ssl_auth = False
+        if sink.messagebus == 'rmq':
+            # sink_ca_file = sink.certsobj.cert_file(sink.certsobj.root_ca_name)
 
-    if request.param['source'] == 'rmq':
-        messagebus = 'rmq'
-        ssl_auth = True
+            source = build_wrapper(source_address,
+                                   ssl_auth=ssl_auth,
+                                   messagebus=messagebus,
+                                   volttron_central_address=sink.bind_web_address,
+                                   remote_platform_ca=sink.certsobj.cert_file(sink.certsobj.root_ca_name),
+                                   secure_agent_users=True,
+                                   instance_name='volttron2')
+            if source.messagebus == 'rmq':
+                # The _ca is how the auth subsystem saves the remote cert from discovery.  We
+                # are effectively doing that here instead of making the discovery call.
+                source.certsobj.save_remote_cert(sink.certsobj.root_ca_name + "_ca", sink.certsobj.ca_cert(
+                    public_bytes=True))
+        else:
+            source = build_wrapper(source_address,
+                                   ssl_auth=ssl_auth,
+                                   messagebus=messagebus,
+                                   volttron_central_address=sink.bind_web_address,
+                                   secure_agent_users=True,
+                                   instance_name='volttron2')
 
-    if sink.messagebus == 'rmq':
-        # sink_ca_file = sink.certsobj.cert_file(sink.certsobj.root_ca_name)
+        return source, sink
 
-        source = build_wrapper(source_address,
-                               ssl_auth=ssl_auth,
-                               messagebus=messagebus,
-                               volttron_central_address=sink.bind_web_address,
-                               remote_platform_ca=sink.certsobj.cert_file(sink.certsobj.root_ca_name),
-                               secure_agent_users=True)
-        if source.messagebus == 'rmq':
-            # The _ca is how the auth subsystem saves the remote cert from discovery.  We
-            # are effectively doing that here instead of making the discovery call.
-            source.certsobj.save_remote_cert(sink.certsobj.root_ca_name + "_ca", sink.certsobj.ca_cert(
-                public_bytes=True))
-    else:
-        source = build_wrapper(source_address,
-                               ssl_auth=ssl_auth,
-                               messagebus=messagebus,
-                               volttron_central_address=sink.bind_web_address,
-                               secure_agent_users=True,
-                               instance_name='zmq_2')
+    def cleanup():
+        cleanup_wrapper(source)
+        cleanup_wrapper(sink)
 
-    yield source, sink
+    request.addfinalizer(cleanup)
 
-    cleanup_wrapper(source)
-    cleanup_wrapper(sink)
+    return get_volttron_multi_msgbus_instances

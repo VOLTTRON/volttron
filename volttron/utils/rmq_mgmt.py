@@ -807,7 +807,8 @@ class RabbitMQMgmt(object):
             return None
         return conn_params
 
-    def build_remote_connection_param(self, rmq_user, rmq_address, ssl_auth=None, retry_attempt=30, retry_delay=2):
+    def build_remote_connection_param(self, rmq_user, rmq_address, ssl_auth=None, cert_dir=None,
+                                      retry_attempt=30, retry_delay=2):
         """
         Build Pika Connection parameters
         :param rmq_user: RabbitMQ user
@@ -825,6 +826,10 @@ class RabbitMQMgmt(object):
         try:
             if ssl_auth:
                 certfile = self.certs.cert_file(rmq_user, True)
+                if cert_dir:
+                    # remote cert file for agents will be in agent-data/remote-certs dir
+                    certfile = os.path.join(cert_dir, os.path.basename(certfile))
+
                 metafile = certfile[:-4] + ".json"
                 metadata = jsonapi.loads(open(metafile).read())
                 local_keyfile = metadata['local_keyname']
@@ -833,11 +838,11 @@ class RabbitMQMgmt(object):
                     ssl_version=ssl.PROTOCOL_TLSv1,
                     ca_certs=ca_file,
                     keyfile=self.certs.private_key_file(local_keyfile),
-                    certfile=self.certs.cert_file(rmq_user, True),
+                    certfile=certfile,
                     cert_reqs=ssl.CERT_REQUIRED)
                 conn_params = pika.ConnectionParameters(
-                    host= parsed_addr.hostname,
-                    port= parsed_addr.port,
+                    host=parsed_addr.hostname,
+                    port=parsed_addr.port,
                     virtual_host=virtual_host,
                     ssl=True,
                     connection_attempts=retry_attempt,

@@ -39,7 +39,7 @@
 import pytest
 import gevent
 import os
-from volttron.platform import get_services_core, get_examples
+from volttron.platform import get_services_core
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent import utils
 from datetime import datetime
@@ -48,7 +48,7 @@ from mock import MagicMock
 
 @pytest.fixture(scope="module")
 def multi_messagebus_forwarder(volttron_multi_messagebus):
-    from_instance, to_instance = volttron_multi_messagebus
+    from_instance, to_instance = volttron_multi_messagebus()
     to_instance.allow_all_connections()
     forwarder_config = {"custom_topic_list": ["foo"]}
 
@@ -64,19 +64,11 @@ def multi_messagebus_forwarder(volttron_multi_messagebus):
         forwarder_config['destination-vip'] = remote_address
         forwarder_config['destination-serverkey'] = to_instance.serverkey
 
-    listener_id = from_instance.install_agent(
-        agent_dir=get_examples("ListenerAgent"),
-        config_file=forwarder_config,
-        start=True
-    )
-    gevent.sleep(1)
     forwarder_uuid = from_instance.install_agent(
         agent_dir=get_services_core("ForwardHistorian"),
         config_file=forwarder_config,
-        start=False
+        start=True
     )
-    gevent.sleep(1)
-    from_instance.start_agent(forwarder_uuid)
     gevent.sleep(1)
     assert from_instance.is_agent_running(forwarder_uuid)
 

@@ -53,6 +53,7 @@ from volttron.platform.jsonrpc import RemoteError
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.platform.keystore import KeyStore
 from volttron.platform.vip.agent.subsystems.health import BAD_STATUS, Status
+from volttron.platform import get_home
 
 """
 The auth subsystem allows an agent to quickly query authorization state
@@ -191,9 +192,14 @@ class Auth(SubsystemBase):
 
                             remote_rmq_user = get_fq_identity(fqid_local, info.instance_name)
                             _log.debug("REMOTE RMQ USER IS: {}".format(remote_rmq_user))
+                            remote_certs_dir = os.path.join(get_home(), "agents", self._core().agent_uuid,
+                                                            self._core().identity,
+                                                            self._core().identity + ".agent-data", "remote_certs")
                             remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
                                 remote_rmq_user,
-                                info.rmq_address)
+                                info.rmq_address,
+                                ssl_auth=True,
+                                cert_dir=remote_certs_dir)
                             _log.debug("Building dynamic agent using remote_rmq_address: {}".format(
                                 remote_rmq_address))
 
@@ -288,12 +294,29 @@ class Auth(SubsystemBase):
         status = j.get('status')
         cert = j.get('cert')
         message = j.get('message', '')
+        remote_certs_dir = None
+        install_dir = os.path.join(get_home(), "agents",  self._core().agent_uuid)
+        files = os.listdir(install_dir)
+        for f in files:
+            agent_dir = os.path.join(install_dir, f)
+            if os.path.isdir(agent_dir):
+                break  # found
+
+        sub_dirs = os.listdir(agent_dir)
+        for d in sub_dirs:
+            d_path = os.path.join(agent_dir, d)
+            if os.path.isdir(d_path) and d.endswith("agent-data"):
+                remote_certs_dir = os.path.join(d_path, "remote-certs")
+                _log.debug("remote certs dir {}".format(remote_certs_dir))
+                if not os.path.exists(remote_certs_dir):
+                    os.mkdir(remote_certs_dir)
 
         if status == 'SUCCESSFUL' or status == 'APPROVED':
-            certs.save_remote_info(fully_qualified_local_identity,
-                                   remote_cert_name, cert,
-                                   remote_ca_name,
-                                   discovery_info.rmq_ca_cert)
+            certs.save_agent_remote_info(remote_certs_dir,
+                                         fully_qualified_local_identity,
+                                         remote_cert_name, cert,
+                                         remote_ca_name,
+                                         discovery_info.rmq_ca_cert)
 
         elif status == 'PENDING':
             _log.debug("Pending CSR request for {}".format(remote_cert_name))
