@@ -37,33 +37,21 @@
 # }}}
 
 
-import getpass
+class FrozenDict(dict):
+    """
+    A wrapper around a dictionary that allows us to "freeze" a dictionary so that
+    we can no longer set values on the object itself.  This does that we can't
+    change the value instance object if its mutable.
+    """
+    def __init__(self, *args, **kwargs):
+        self._frozen = False
+        dict.__init__(self, *args, **kwargs)
 
-# Yes or no answers to questions.
-y_or_n = ('Y', 'N', 'y', 'n')
-y = ('Y', 'y')
-n = ('N', 'n')
+    def freeze(self):
+        self._frozen = True
 
-
-def prompt_response(prompt, valid_answers=None, default=None, echo=True,
-                    mandatory=False):
-
-    prompt += ' '
-    if default is not None:
-        prompt += '[{}]: '.format(default)
-    if echo:
-        while True:
-            resp = input(prompt)
-            if resp == '' and default is not None:
-                return default
-            if str.strip(resp) == '' and mandatory:
-                print('Please enter a non empty value')
-                continue
-            if valid_answers is None or resp in valid_answers:
-                return resp
-            else:
-                print('Invalid response. Proper responses are:')
-                print(valid_answers)
-    else:
-        resp = getpass.getpass(prompt)
-        return resp
+    def __setitem__(self, key, value):
+        if (self._frozen):
+            raise TypeError("Attempted assignment to a frozen dict")
+        else:
+            return dict.__setitem__(self, key, value)

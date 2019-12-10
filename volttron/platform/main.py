@@ -55,6 +55,7 @@ import uuid
 import gevent
 import gevent.monkey
 
+from volttron.utils import get_random_key
 from volttron.utils.frame_serialization import deserialize_frames, serialize_frames
 
 gevent.monkey.patch_socket()
@@ -391,7 +392,7 @@ class Router(BaseRouter):
     #    return result
 
     def handle_subsystem(self, frames, user_id):
-        #_log.debug(f"Handling subsystem with frames: {frames} user_id: {user_id}")
+        _log.debug(f"Handling subsystem with frames: {frames} user_id: {user_id}")
 
         subsystem = frames[5]
         if subsystem == 'quit':
@@ -450,6 +451,7 @@ class Router(BaseRouter):
                     value = None
             frames[6:] = ['', value]
             frames[3] = ''
+            _log.debug(f"FFFFFRRRRAAAAMMMEMMMES: {frames}")
             return frames
         elif subsystem == 'pubsub':
             result = self.pubsub.handle_subsystem(frames, user_id)
@@ -667,11 +669,18 @@ def start_volttron_process(opts):
             raise Exception(
                 'bind-web-address must begin with http or https.')
         opts.bind_web_address = config.expandall(opts.bind_web_address)
+        # zmq with tls is supported
         if opts.message_bus == 'zmq' and parsed.scheme == 'https':
             if not opts.web_ssl_key or not opts.web_ssl_cert:
                 raise Exception("zmq https requires a web-ssl-key and a web-ssl-cert file.")
             if not os.path.isfile(opts.web_ssl_key) or not os.path.isfile(opts.web_ssl_cert):
                 raise Exception("zmq https requires a web-ssl-key and a web-ssl-cert file.")
+        # zmq without tls is supported through the use of a secret key, if it's None then
+        # we want to generate a secret key and set it in the config file.
+        elif opts.message_bus == 'zmq' and opts.web_secret_key is None:
+            opts.web_secret_key = get_random_key()
+            _update_config_file(web_secret_key = opts.web_secret_key)
+
     if opts.volttron_central_address:
         parsed = urlparse(opts.volttron_central_address)
         if parsed.scheme not in ('http', 'https', 'tcp', 'amqp', 'amqps'):
@@ -1011,11 +1020,12 @@ def start_volttron_process(opts):
                 address=address,
                 bind_web_address=opts.bind_web_address,
                 volttron_central_address=opts.volttron_central_address,
-                aip=opts.aip, enable_store=False,
+                enable_store=False,
                 message_bus=opts.message_bus,
                 volttron_central_rmq_address=opts.volttron_central_rmq_address,
                 web_ssl_key=opts.web_ssl_key,
-                web_ssl_cert=opts.web_ssl_cert
+                web_ssl_cert=opts.web_ssl_cert,
+                web_secret_key=opts.web_secret_key
             ))
 
         events = [gevent.event.Event() for service in services]
@@ -1150,6 +1160,10 @@ def main(argv=sys.argv):
              'to be able to correctly reach the webserver without having to specify verify in all calls.'
     )
     agents.add_argument(
+        "--web-secret-key", default=None,
+        help="Secret key to be used instead of https based authentication."
+    )
+    agents.add_argument(
         '--web-ssl-key', metavar='KEYFILE', default=None,
         help='ssl key file for using https with the volttron server'
     )
@@ -1273,7 +1287,9 @@ def main(argv=sys.argv):
         volttron_central_rmq_address=None,
         web_ssl_key=None,
         web_ssl_cert=None,
-        web_ca_cert=None
+        web_ca_cert=None,
+        # If we aren't using ssl then we need a secret key available for us to use.
+        web_secret_key=None
     )
 
     # Parse and expand options

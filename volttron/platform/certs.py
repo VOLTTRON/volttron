@@ -194,7 +194,7 @@ def _mk_cacert(valid_days=DEFAULT_DAYS, **kwargs):
     cert = cert_builder.sign(
         key, hashes.SHA256(), default_backend())
 
-    print ("Created CA cert")
+    print("Created CA cert")
     return cert, key
 
 
@@ -1022,3 +1022,182 @@ class Certs(object):
 
         self._save_cert(self.root_ca_name, cert, pk)
         self.rebuild_requests_ca_bundle()
+
+
+def _create_private_key():
+    return rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend()
+    )
+
+
+def _create_signed_certificate(ca_cert, ca_key, name,
+                               valid_days=365, cert_type='client',
+                               **kwargs):
+    issuer = ca_cert.subject
+    # cryptography 2.7
+    # ski = x509.SubjectKeyIdentifier.from_public_key(ca_cert.public_key())
+    # crptography 2.2.2
+    ski = ca_cert.extensions.get_extension_for_class(
+        x509.SubjectKeyIdentifier)
+
+    key = _create_private_key()
+    # key = rsa.generate_private_key(
+    #     public_exponent=65537,
+    #     key_size=2048,
+    #     backend=default_backend()
+    # )
+    fqdn = kwargs.pop('fqdn', None)
+    if kwargs:
+        subject = _create_subject(**kwargs)
+    else:
+        temp_list = ca_cert.subject.rdns
+        new_attrs = []
+        for i in temp_list:
+            if i.get_attributes_for_oid(NameOID.COMMON_NAME):
+                if type == 'server':
+                    # TODO: Also add SubjectAltName
+                    if fqdn:
+                        hostname = fqdn
+                    else:
+                        hostname = getfqdn()
+                        fqdn = hostname
+                    new_attrs.append(RelativeDistinguishedName(
+                        [x509.NameAttribute(
+                            NameOID.COMMON_NAME,
+                            hostname)]))
+                else:
+                    new_attrs.append(RelativeDistinguishedName(
+                        [x509.NameAttribute(NameOID.COMMON_NAME,
+                                            name)]))
+            else:
+                new_attrs.append(i)
+        subject = x509.Name(new_attrs)
+
+    cert_builder = x509.CertificateBuilder().subject_name(
+        subject
+    ).issuer_name(
+        issuer
+    ).public_key(
+        key.public_key()
+    ).not_valid_before(
+        datetime.datetime.utcnow()
+    ).not_valid_after(
+        # Our certificate will be valid for 365 days
+        datetime.datetime.utcnow() + datetime.timedelta(days=valid_days)
+    ).add_extension(
+        x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(ski),
+        critical=False
+    )
+    if type == 'CA':
+        # create a intermediate CA
+        cert_builder = cert_builder.add_extension(
+            x509.BasicConstraints(ca=True, path_length=0),
+            critical=True
+        ).add_extension(
+            x509.SubjectKeyIdentifier(
+                _create_fingerprint(key.public_key())),
+            critical=False
+        )
+        # cryptography 2.7
+        # .add_extension(
+        #     x509.SubjectKeyIdentifier.from_public_key(key.public_key()),
+        #     critical=False
+        # )
+    else:
+        # if type is server or client.
+        cert_builder = cert_builder.add_extension(
+            x509.KeyUsage(digital_signature=True, key_encipherment=True,
+                          content_commitment=False,
+                          data_encipherment=False, key_agreement=False,
+                          key_cert_sign=False,
+                          crl_sign=False,
+                          encipher_only=False, decipher_only=False
+                          ),
+            critical=True)
+
+    if type == 'server':
+        # if server cert specify that the certificate can be used as an SSL
+        # server certificate
+        cert_builder = cert_builder.add_extension(
+            x509.ExtendedKeyUsage((ExtendedKeyUsageOID.SERVER_AUTH,)),
+            critical=False
+        )
+        cert_builder = cert_builder.add_extension(
+            x509.SubjectAlternativeName((DNSName(fqdn),)),
+            critical=True
+        )
+    elif type == 'client':
+        # specify that the certificate can be used as an SSL
+        # client certificate to enable TLS Web Client Authentication
+        cert_builder = cert_builder.add_extension(
+            x509.ExtendedKeyUsage((ExtendedKeyUsageOID.CLIENT_AUTH,)),
+            critical=False
+        )
+
+    # Serial must be positive integer so we are going to
+    # use an increasing milliseconds serial number
+    serial = int(time.time() * 10e3)
+    cert_builder = cert_builder.serial_number(serial)
+
+    # 1. version is hardcoded to 2 in Cert builder object. same as what is
+    # set by old certs.py
+
+    # 2. No way to set comment. Using M2Crypto it was set using
+    # cert.add_ext(X509.new_extension('nsComment', 'SSL sever'))
+
+    # ca_key = _load_key(self.private_key_file(ca_name))
+    cert = cert_builder.sign(ca_key, hashes.SHA256(), default_backend())
+    return cert, key
+    # self._save_cert(name, cert, key)
+    # self.update_ca_db(cert, ca_name, serial)
+    #
+
+
+class CertWrapper(object):
+    """
+    This class is a wrapper around the building of certificates.
+    """
+    @staticmethod
+    def make_self_signed_ca(ca_name, **kwargs):
+        """
+        Creates a self signed certificate.
+
+        :param ca_name:
+        :param kwargs:
+        :return:
+        """
+        kwargs['CN'] = ca_name
+        return _mk_cacert(**kwargs)
+
+    @staticmethod
+    def make_signed_cert(ca_cert, ca_key, common_name, **kwargs):
+        kwargs['CN'] = common_name
+        return _create_signed_certificate(ca_cert, ca_key, common_name, **kwargs)
+
+    @staticmethod
+    def load_key(keyfile):
+        return _load_key(keyfile)
+
+    @staticmethod
+    def load_cert(certfile):
+        return _load_cert(certfile)
+
+    @staticmethod
+    def get_private_key(keyfile):
+        pk = CertWrapper.load_key(keyfile)
+        privatekey = pk.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption())
+        return privatekey
+
+    @staticmethod
+    def get_cert_public_key(certfile):
+        cert = CertWrapper.load_cert(certfile)
+        pubkey = cert.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo)
+
+        return pubkey
