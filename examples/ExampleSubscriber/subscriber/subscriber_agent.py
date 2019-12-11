@@ -78,7 +78,7 @@ def subscriber_agent(config_path, **kwargs):
         '''
         This agent demonstrates usage of the 3.0 pubsub service as well as 
         interfacting with the historian. This agent is mostly self-contained, 
-        but requires the histoiran be running to demonstrate the query feature.
+        but requires the historian to be running to demonstrate the query feature.
         '''
     
         def __init__(self, **kwargs):

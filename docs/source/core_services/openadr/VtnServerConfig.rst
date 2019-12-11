@@ -5,6 +5,15 @@ OpenADR VTN Server: Installation and Configuration
 
 The Kisensum VTN server is a Django application written in Python 3 and utilizing a Postgres database.
 
+.. warning:: 
+
+    If you are planning to install your VTN server on the same system that contains your VOLTTRON instance 
+    and you are using RabbitMQ with VOLTTRON, you will need to set up a new instance of RabbitMQ for VTN. 
+    In production, the VTN server should be on a different device than VOLTTRON, and as such it is recommended 
+    that your VTN server is in it's own VM or on it's own machine. If you still wish to set up two instances 
+    of RabbitMQ on the same system, please refer to https://www.rabbitmq.com for further details.
+
+
 Get Source Code
 ---------------
 
