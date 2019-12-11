@@ -122,7 +122,7 @@ extras_require = {
     ],
     'web': [    # Web support for launching web based agents including ssl and json web tokens.
         'ws4py',
-        'jwt',
+        'pyJWT',
         'jinja2',
         'passlib',
         'argon2_cffi',
