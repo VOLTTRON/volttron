@@ -115,7 +115,7 @@ extras_require = {
         'pytest-timeout',
         'websocket-client',
         # Allows us to compare nested dictionaries easily.
-        'deepdiff,'
+        'deepdiff'
     ],
     'rabbitmq': [
         'gevent-pika'
@@ -125,7 +125,8 @@ extras_require = {
         'jwt',
         'jinja2',
         'passlib',
-        'argon2_cffi'
+        'argon2_cffi',
+        'Werkzeug'
     ],
     'weather': [
         'pint'
