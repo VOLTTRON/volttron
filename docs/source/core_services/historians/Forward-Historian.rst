@@ -57,5 +57,4 @@ the agent is disconnected from its target for a long time.
 See Also
 ~~~~~~~~
 
-`Historians <historians>`_
-:ref:`Historians <historians>`
+:ref:`Historians <Historian Index>`
