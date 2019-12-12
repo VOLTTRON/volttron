@@ -316,7 +316,7 @@ def _create_web_certs():
             return 1
     
     print("Creating new web server certificate.")
-    crts.create_ca_signed_cert(name=MASTER_WEB+"-server",type='server',ca_name=crts.root_ca_name, fqdn=get_hostname())
+    crts.create_signed_cert_files(name=MASTER_WEB + "-server", cert_type='server', ca_name=crts.root_ca_name, fqdn=get_hostname())
     return 0
 
 

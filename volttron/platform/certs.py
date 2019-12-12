@@ -404,7 +404,7 @@ class Certs(object):
             subjects.append(Subject.create_from_x509_subject(cert.subject))
         return subjects
 
-    def get_private_key(self, name):
+    def get_pk_bytes(self, name):
         """
         Serialize a private key in a traditional openssl manner to be able to
         use it with JWT and other technologies.
@@ -763,16 +763,16 @@ class Certs(object):
             copyfile(file_path, key_file)
             os.chmod(key_file, 0o600)
 
-    def create_ca_signed_cert(self, name, type='client', ca_name=None,
-                              overwrite=True, valid_days=DEFAULT_DAYS,
-                              **kwargs):
+    def create_signed_cert_files(self, name, cert_type='client', ca_name=None,
+                                 overwrite=True, valid_days=DEFAULT_DAYS,
+                                 **kwargs):
         """
         Create a new certificate and sign it with the volttron instance's
         CA certificate. Save the created certificate and the private key of
         the certificate with the given name
         :param valid_days: number of days for which cert should be valid
         :param ca_name: name of the ca to sign this cert
-        :param type: client or server
+        :param cert_type: client or server
         :param overwrite: boolean to denote if existing cert should be
          overwritten
         :param name: name used to save the newly created certificate and
@@ -794,133 +794,14 @@ class Certs(object):
 
         if not ca_name:
             ca_name = self.root_ca_name
-        ca_cert = self.cert(ca_name)
 
-        issuer = ca_cert.subject
-        # cryptography 2.7
-        # ski = x509.SubjectKeyIdentifier.from_public_key(ca_cert.public_key())
-        # crptography 2.2.2
-        ski = ca_cert.extensions.get_extension_for_class(
-            x509.SubjectKeyIdentifier)
+        cert, key, serial = _create_signed_certificate(ca_cert=self.cert(ca_name),
+                                                       ca_key=_load_key(self.private_key_file(ca_name)),
+                                                       name=name, valid_days=valid_days, type=cert_type, **kwargs)
 
-        key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=2048,
-            backend=default_backend()
-        )
-        fqdn = kwargs.pop('fqdn', None)
-        if kwargs:
-            subject = _create_subject(**kwargs)
-        else:
-            temp_list = ca_cert.subject.rdns
-            new_attrs = []
-            for i in temp_list:
-                if i.get_attributes_for_oid(NameOID.COMMON_NAME):
-                    if type == 'server':
-                        # TODO: Also add SubjectAltName
-                        if fqdn:
-                            hostname = fqdn
-                        else:
-                            hostname = getfqdn()
-                            fqdn = hostname
-                        new_attrs.append(RelativeDistinguishedName(
-                            [x509.NameAttribute(
-                                NameOID.COMMON_NAME,
-                                hostname)]))
-                    else:
-                        new_attrs.append(RelativeDistinguishedName(
-                            [x509.NameAttribute(NameOID.COMMON_NAME,
-                                                name)]))
-                else:
-                    new_attrs.append(i)
-            subject = x509.Name(new_attrs)
-
-        cert_builder = x509.CertificateBuilder().subject_name(
-            subject
-        ).issuer_name(
-            issuer
-        ).public_key(
-            key.public_key()
-        ).not_valid_before(
-            datetime.datetime.utcnow()
-        ).not_valid_after(
-            # Our certificate will be valid for 365 days
-            datetime.datetime.utcnow() + datetime.timedelta(days=valid_days)
-        ).add_extension(
-            x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(ski),
-            critical=False
-        )
-        if type == 'CA':
-            # create a intermediate CA
-            cert_builder = cert_builder.add_extension(
-                x509.BasicConstraints(ca=True, path_length=0),
-                critical=True
-            ).add_extension(
-                x509.SubjectKeyIdentifier(
-                    _create_fingerprint(key.public_key())),
-                critical=False
-            )
-            # cryptography 2.7
-            # .add_extension(
-            #     x509.SubjectKeyIdentifier.from_public_key(key.public_key()),
-            #     critical=False
-            # )
-        else:
-            # if type is server or client.
-            cert_builder = cert_builder.add_extension(
-                x509.KeyUsage(digital_signature=True, key_encipherment=True,
-                              content_commitment=False,
-                              data_encipherment=False, key_agreement=False,
-                              key_cert_sign=False,
-                              crl_sign=False,
-                              encipher_only=False, decipher_only=False
-                              ),
-                critical=True)
-
-        if type == 'server':
-            # if server cert specify that the certificate can be used as an SSL
-            # server certificate
-            cert_builder = cert_builder.add_extension(
-                x509.ExtendedKeyUsage((ExtendedKeyUsageOID.SERVER_AUTH,)),
-                critical=False
-            )
-            cert_builder = cert_builder.add_extension(
-                x509.SubjectAlternativeName((DNSName(fqdn),)),
-                critical=True
-            )
-        elif type == 'client':
-            # specify that the certificate can be used as an SSL
-            # client certificate to enable TLS Web Client Authentication
-            cert_builder = cert_builder.add_extension(
-                x509.ExtendedKeyUsage((ExtendedKeyUsageOID.CLIENT_AUTH,)),
-                critical=False
-            )
-        serial_file = self.ca_serial_file(ca_name)
-        # If there is no ca db, start with signing CA's serial number + 1 so
-        # that there is no clash of serial numbers in certificate chain
-        # ca cert's serial number is set to int(time.time()).
-        # A CA should generate unique serial numbers for each certificate it
-        # generated. (signing authority + serial number) together is expected to
-        #  be unique across all certificates.
-        serial = ca_cert.serial_number + 1
-        if os.path.exists(serial_file):
-            with open(serial_file, "r") as f:
-                line = f.readline()
-                if line:
-                    serial = int(line.strip())
-        cert_builder = cert_builder.serial_number(serial)
-
-        # 1. version is hardcoded to 2 in Cert builder object. same as what is
-        # set by old certs.py
-
-        # 2. No way to set comment. Using M2Crypto it was set using
-        # cert.add_ext(X509.new_extension('nsComment', 'SSL sever'))
-
-        ca_key = _load_key(self.private_key_file(ca_name))
-        cert = cert_builder.sign(ca_key, hashes.SHA256(), default_backend())
         self._save_cert(name, cert, key)
         self.update_ca_db(cert, ca_name, serial)
-        return True
+        return cert, key
 
     def _save_cert(self, name, cert, pk):
         """
@@ -1022,6 +903,7 @@ class Certs(object):
 
         self._save_cert(self.root_ca_name, cert, pk)
         self.rebuild_requests_ca_bundle()
+        return cert, pk
 
 
 def _create_private_key():
@@ -1032,9 +914,18 @@ def _create_private_key():
     )
 
 
-def _create_signed_certificate(ca_cert, ca_key, name,
-                               valid_days=365, cert_type='client',
-                               **kwargs):
+def _create_signed_certificate(ca_cert, ca_key, name, valid_days=365, type='client', **kwargs):
+    """
+    Creates signed cert of type provided and signs it with ca_key provided. To create subject for the new certificate
+    common name is set new value, rest of the attributes are copied from subject of provided ca certificate
+    :param ca_cert:
+    :param ca_key:
+    :param name:
+    :param valid_days:
+    :param type:
+    :param kwargs:
+    :return:
+    """
     issuer = ca_cert.subject
     # cryptography 2.7
     # ski = x509.SubjectKeyIdentifier.from_public_key(ca_cert.public_key())
@@ -1138,6 +1029,9 @@ def _create_signed_certificate(ca_cert, ca_key, name,
 
     # Serial must be positive integer so we are going to
     # use an increasing milliseconds serial number
+    # A CA should generate unique serial numbers for each certificate it
+    # generated. (signing authority + serial number) together is expected to
+    #  be unique across all certificates.
     serial = int(time.time() * 10e3)
     cert_builder = cert_builder.serial_number(serial)
 
@@ -1149,10 +1043,7 @@ def _create_signed_certificate(ca_cert, ca_key, name,
 
     # ca_key = _load_key(self.private_key_file(ca_name))
     cert = cert_builder.sign(ca_key, hashes.SHA256(), default_backend())
-    return cert, key
-    # self._save_cert(name, cert, key)
-    # self.update_ca_db(cert, ca_name, serial)
-    #
+    return cert, key, serial
 
 
 class CertWrapper(object):
@@ -1174,7 +1065,8 @@ class CertWrapper(object):
     @staticmethod
     def make_signed_cert(ca_cert, ca_key, common_name, **kwargs):
         kwargs['CN'] = common_name
-        return _create_signed_certificate(ca_cert, ca_key, common_name, **kwargs)
+        cert, key, serial = _create_signed_certificate(ca_cert, ca_key, common_name, **kwargs)
+        return cert, key
 
     @staticmethod
     def load_key(keyfile):

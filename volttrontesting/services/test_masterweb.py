@@ -138,7 +138,7 @@ def test_authenticate_endpoint(scheme):
     kwargs['bind_web_address'] = f"{scheme}://{host}:{port}"
 
     # We are specifying the volttron_home here so we don't create an additional one.
-    with get_test_volttron_home(messagebus='zmq', volttron_config_params=kwargs, volttron_home=vhome):
+    with get_test_volttron_home(messagebus='zmq', config_params=kwargs, volttron_home=vhome):
 
         # add a user so that we can actually log in.
         user = 'bogart'

@@ -78,7 +78,7 @@ def test_authenticate_endpoint(scheme):
         kwargs['web_secret_key'] = get_random_key()
 
     # We are specifying the volttron_home here so we don't create an additional one.
-    with get_test_volttron_home(messagebus='zmq', volttron_config_params=kwargs, volttron_home=vhome):
+    with get_test_volttron_home(messagebus='zmq', config_params=kwargs, volttron_home=vhome):
 
         user = 'bogart'
         passwd = 'cat'

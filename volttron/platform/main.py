@@ -1010,7 +1010,7 @@ def start_volttron_process(opts):
                     base_webserver_name = MASTER_WEB + "-server"
                     from volttron.platform.certs import Certs
                     certs = Certs()
-                    certs.create_ca_signed_cert(base_webserver_name, type='server')
+                    certs.create_signed_cert_files(base_webserver_name, cert_type='server')
                     opts.web_ssl_key = certs.private_key_file(base_webserver_name)
                     opts.web_ssl_cert = certs.cert_file(base_webserver_name)
 

@@ -500,10 +500,10 @@ def _create_certs(rmq_config, admin_client_name, server_cert_name):
     copy(rmq_config.crts.cert_file(crts.root_ca_name),
          rmq_config.crts.cert_file(crts.trusted_ca_name))
 
-    crts.create_ca_signed_cert(server_cert_name, type='server',
-                               fqdn=rmq_config.hostname)
+    crts.create_signed_cert_files(server_cert_name, cert_type='server',
+                                  fqdn=rmq_config.hostname)
 
-    crts.create_ca_signed_cert(admin_client_name, type='client')
+    crts.create_signed_cert_files(admin_client_name, cert_type='client')
 
 
 def _verify_and_save_instance_ca(rmq_config, instance_ca_path, instance_ca_key):

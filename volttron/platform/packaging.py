@@ -480,7 +480,7 @@ def _create_cert(name=None, **kwargs):
     else:
         cert_data = _create_cert_ui('{} ({})'.format(cert_type, name))
 
-    crts.create_ca_signed_cert(name, **cert_data)
+    crts.create_signed_cert_files(name, **cert_data)
 
 
 def _create_cert_ui(cn):
