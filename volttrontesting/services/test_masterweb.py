@@ -26,10 +26,10 @@ from volttron.platform.vip.socket import decode_key
 from volttron.platform.web import MasterWebService
 from volttron.platform.web.admin_endpoints import AdminEndpoints
 from volttron.utils import get_random_key
-from volttrontesting.fixtures.environment_fixtures import build_test_environment
 from volttrontesting.utils.platformwrapper import create_volttron_home
+from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home
 
-from volttrontesting.utils.web_utils import get_test_web_env, get_test_volttron_home
+from volttrontesting.utils.web_utils import get_test_web_env
 from volttrontesting.utils.utils import AgentMock, get_hostname_and_random_port
 #from volttrontesting.utils.platformwrapper import create_volttron_home
 from volttrontesting.fixtures.cert_fixtures import certs_profile_1
@@ -138,7 +138,7 @@ def test_authenticate_endpoint(scheme):
     kwargs['bind_web_address'] = f"{scheme}://{host}:{port}"
 
     # We are specifying the volttron_home here so we don't create an additional one.
-    with get_test_volttron_home(volttron_config_params=kwargs, volttron_home=vhome):
+    with get_test_volttron_home(messagebus='zmq', volttron_config_params=kwargs, volttron_home=vhome):
 
         # add a user so that we can actually log in.
         user = 'bogart'
@@ -213,7 +213,7 @@ def test_discovery(scheme):
     else:
         config_params = dict(web_secret_key=get_random_key())
 
-    with get_test_volttron_home(volttron_config_params=config_params):
+    with get_test_volttron_home(messagebus='zmq', config_params=config_params):
         instance_name = "booballoon"
         host, port = get_hostname_and_random_port()
 

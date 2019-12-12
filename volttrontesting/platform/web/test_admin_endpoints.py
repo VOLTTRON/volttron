@@ -43,7 +43,9 @@ from volttron.utils import get_random_key
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from mock import patch
 from urllib.parse import urlencode
-from volttrontesting.utils.web_utils import get_test_web_env, get_test_volttron_home
+from volttrontesting.utils.web_utils import get_test_web_env
+from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home
+
 from volttron.platform import jsonapi
 import os
 
@@ -53,7 +55,7 @@ ___WEB_USER_FILE_NAME__ = 'web-users.json'
 @pytest.mark.web
 def test_admin_unauthorized():
     config_params = {"web_secret_key": get_random_key()}
-    with get_test_volttron_home(volttron_config_params=config_params) as vhome:
+    with get_test_volttron_home(messagebus='zmq', config_params=config_params) as vhome:
         myuser = 'testing'
         mypass = 'funky'
         adminep = AdminEndpoints()
@@ -68,7 +70,7 @@ def test_admin_unauthorized():
 
 @pytest.mark.web
 def test_set_master_password_setup():
-    with get_test_volttron_home():
+    with get_test_volttron_home(messagebus='zmq'):
         # Note these passwords are not right so we expect to be redirected back to the
         # first.html
         params = urlencode(dict(username='bart', password1='goodwin', password2='wowsa'))
@@ -100,7 +102,7 @@ def test_set_master_password_setup():
 
 @pytest.mark.web
 def test_admin_login_page():
-    with get_test_volttron_home() as vhome:
+    with get_test_volttron_home(messagebus='zmq') as vhome:
         username_test = "mytest"
         username_test_passwd = "value-plus"
         adminep = AdminEndpoints()
@@ -118,7 +120,7 @@ def test_admin_login_page():
 
 @pytest.mark.web
 def test_persistent_users():
-    with get_test_volttron_home() as vhome:
+    with get_test_volttron_home(messagebus='zmq') as vhome:
         username_test = "mytest"
         username_test_passwd = "value-plus"
         adminep = AdminEndpoints()
@@ -133,7 +135,7 @@ def test_persistent_users():
 
 @pytest.mark.web
 def test_add_user():
-    with get_test_volttron_home() as vhome:
+    with get_test_volttron_home(messagebus='zmq') as vhome:
         webuserpath = os.path.join(vhome, ___WEB_USER_FILE_NAME__)
         assert not os.path.exists(webuserpath)
 
