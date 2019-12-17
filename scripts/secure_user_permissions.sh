@@ -47,6 +47,7 @@ else
   # for f in "${files[@]}"; do echo $f; done
   # restrict permissions for others on auth.json, protected_topics.json, known_hosts(readonly), config(readonly),
   # keystore(readonly ?), rabbitmq_config.yml(readonly), certificates/*, keystores/*, configuration_store/*, packaged/*
+  echo "TODO"
 fi
 
 if [ -f $volttron_home/config ]; then

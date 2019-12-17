@@ -834,6 +834,9 @@ class RabbitMQMgmt(object):
                 metadata = jsonapi.loads(open(metafile).read())
                 local_keyfile = metadata['local_keyname']
                 ca_file = self.certs.cert_file(metadata['remote_ca_name'], True)
+                if cert_dir:
+                    ca_file = os.path.join(cert_dir, os.path.basename(ca_file))
+
                 ssl_options = dict(
                     ssl_version=ssl.PROTOCOL_TLSv1,
                     ca_certs=ca_file,

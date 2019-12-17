@@ -74,6 +74,7 @@ class Auth(SubsystemBase):
         self._user_to_capabilities = {}
         self._dirty = True
         self._csr_certs = dict()
+        self.remote_certs_dir = None
 
         def onsetup(sender, **kwargs):
             rpc.export(self._update_capabilities, 'auth.update')
@@ -192,20 +193,21 @@ class Auth(SubsystemBase):
 
                             remote_rmq_user = get_fq_identity(fqid_local, info.instance_name)
                             _log.debug("REMOTE RMQ USER IS: {}".format(remote_rmq_user))
-                            remote_certs_dir = os.path.join(get_home(), "agents", self._core().agent_uuid,
-                                                            self._core().identity,
-                                                            self._core().identity + ".agent-data", "remote_certs")
+
                             remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
                                 remote_rmq_user,
                                 info.rmq_address,
                                 ssl_auth=True,
-                                cert_dir=remote_certs_dir)
-                            _log.debug("Building dynamic agent using remote_rmq_address: {}".format(
-                                remote_rmq_address))
+                                cert_dir=self.get_remote_certs_dir())
+                            _log.debug("Building dynamic agent using remote_rmq_address: {} public key {} "
+                                       "secret key {}".format(remote_rmq_address, self._core().publickey,
+                                                              self._core().secretkey))
 
                             value = build_agent(identity=fqid_local,
                                                 address=remote_rmq_address,
                                                 instance_name=info.instance_name,
+                                                publickey=self._core().publickey,
+                                                secretkey=self._core().secretkey,
                                                 message_bus='rmq',
                                                 enable_store=False,
                                                 agent_class=agent_class)
@@ -294,22 +296,7 @@ class Auth(SubsystemBase):
         status = j.get('status')
         cert = j.get('cert')
         message = j.get('message', '')
-        remote_certs_dir = None
-        install_dir = os.path.join(get_home(), "agents",  self._core().agent_uuid)
-        files = os.listdir(install_dir)
-        for f in files:
-            agent_dir = os.path.join(install_dir, f)
-            if os.path.isdir(agent_dir):
-                break  # found
-
-        sub_dirs = os.listdir(agent_dir)
-        for d in sub_dirs:
-            d_path = os.path.join(agent_dir, d)
-            if os.path.isdir(d_path) and d.endswith("agent-data"):
-                remote_certs_dir = os.path.join(d_path, "remote-certs")
-                _log.debug("remote certs dir {}".format(remote_certs_dir))
-                if not os.path.exists(remote_certs_dir):
-                    os.mkdir(remote_certs_dir)
+        remote_certs_dir = self.get_remote_certs_dir()
 
         if status == 'SUCCESSFUL' or status == 'APPROVED':
             certs.save_agent_remote_info(remote_certs_dir,
@@ -317,9 +304,12 @@ class Auth(SubsystemBase):
                                          remote_cert_name, cert,
                                          remote_ca_name,
                                          discovery_info.rmq_ca_cert)
-
+            os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(remote_certs_dir, "requests_ca_bundle")
+            _log.debug("Set os.environ requests ca bundle to {}".format(os.environ['REQUESTS_CA_BUNDLE']))
+            return os.path.join(remote_certs_dir, remote_cert_name + ".crt")
         elif status == 'PENDING':
             _log.debug("Pending CSR request for {}".format(remote_cert_name))
+            return status, message
         elif status == 'DENIED':
             _log.error("Denied from remote machine.  Shutting down agent.")
             status = Status.build(BAD_STATUS,
@@ -336,12 +326,23 @@ class Auth(SubsystemBase):
         else:  # No resposne
             return None
 
-        certfile = certs.cert_file(remote_cert_name, remote=True)
-
-        if certs.cert_exists(remote_cert_name, remote=True):
-            return certfile
-        else:
-            return status, message
+    def get_remote_certs_dir(self):
+        if not self.remote_certs_dir:
+            install_dir = os.path.join(get_home(), "agents", self._core().agent_uuid)
+            files = os.listdir(install_dir)
+            for f in files:
+                agent_dir = os.path.join(install_dir, f)
+                if os.path.isdir(agent_dir):
+                    break  # found
+            sub_dirs = os.listdir(agent_dir)
+            for d in sub_dirs:
+                d_path = os.path.join(agent_dir, d)
+                if os.path.isdir(d_path) and d.endswith("agent-data"):
+                    self.remote_certs_dir = os.path.join(d_path, "remote-certs")
+                    _log.debug("remote certs dir {}".format(self.remote_certs_dir))
+                    if not os.path.exists(self.remote_certs_dir):
+                        os.mkdir(self.remote_certs_dir)
+        return self.remote_certs_dir
 
     def _fetch_capabilities(self):
         while self._dirty:

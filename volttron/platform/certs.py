@@ -729,24 +729,28 @@ class Certs(object):
         self.save_remote_cert(remote_ca_name, remote_ca_cert, directory)
         metadata = dict(remote_ca_name=remote_ca_name,
                         local_keyname=local_keyname)
-        metafile = self.remote_certs_file(remote_name)[:-4] + ".json"
+        metafile = os.path.join(directory, remote_name + ".json")
 
         with open(metafile, 'w') as fp:
             fp.write(json.dumps(metadata))
 
-        self.rebuild_requests_ca_bundle()
+        self.rebuild_requests_ca_bundle(directory)
 
-    def rebuild_requests_ca_bundle(self, directory=None):
+    def rebuild_requests_ca_bundle(self, agent_remote_cert_dir=None):
         bundle_file = self.remote_cert_bundle_file()
-        if directory:
-            bundle_file = os.path.join(directory, os.path.basename(bundle_file))
+        if agent_remote_cert_dir:
+            # if this is called by agent there will be an agent specific
+            # remote cert dir in secure mode
+            bundle_file = os.path.join(agent_remote_cert_dir,
+                                       os.path.basename(bundle_file))
         with open(bundle_file, 'wb') as fp:
             # First include this platforms ca
             fp.write(self.ca_cert(public_bytes=True))
             for f in os.listdir(self.remote_cert_dir):
-                # based upon the call to the safe_remote_info from subsystem.auth file
-                # there will be a _ca added to the instance name on the other side of the
-                # connection so we can safely look for that string and bundle together.
+                # based upon the call to the safe_remote_info from
+                # subsystem.auth file there will be a _ca added to the
+                # instance name on the other side of the connection so we can
+                # safely look for that string and bundle together.
                 if not f.endswith("_ca.crt"):
                     continue
 
@@ -761,17 +765,20 @@ class Certs(object):
             os.remove(cert_file)
         self.remote_cert_bundle_file()
 
-    def save_remote_cert(self, name, cert_string, directory=None):
-        if directory:
-            cert_file = os.path.join(directory, name + ".crt")
+    def save_remote_cert(self, name, cert_string, remote_cert_dir=None):
+        if remote_cert_dir:
+            # agent has its own remote cert dir in secure mode
+            cert_file = os.path.join(remote_cert_dir, name + ".crt")
         else:
+            # default platform remote cert dir
             cert_file = self.remote_certs_file(name)
         try:
             with open(cert_file, 'wb') as fp:
                 fp.write(cert_string)
         except Exception as e:
-            raise RuntimeError("Error saving remote cert {}. Exception: {}".format(cert_file, e))
-        self.rebuild_requests_ca_bundle()
+            raise RuntimeError("Error saving remote cert {}. "
+                               "Exception: {}".format(cert_file, e))
+        self.rebuild_requests_ca_bundle(remote_cert_dir)
 
     def save_cert(self, file_path):
         cert_file = self.cert_file(os.path.splitext(os.path.basename(

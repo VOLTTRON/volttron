@@ -624,7 +624,7 @@ def start_volttron_process(opts):
     # and opts.web_ssl_cert
 
     os.environ['MESSAGEBUS'] = opts.message_bus
-    os.environ['SECURE_AGENT_USER'] = opts.secure_agent_users
+    os.environ['SECURE_AGENT_USER'] = str(opts.secure_agent_users)
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]

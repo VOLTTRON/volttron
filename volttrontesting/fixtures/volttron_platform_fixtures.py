@@ -265,8 +265,7 @@ def volttron_multi_messagebus(request):
     :param request:
     :return:
     """
-    source = None
-    sink = None
+
     def get_volttron_multi_msgbus_instances(instance_name1=None, instance_name2=None):
         print("volttron_multi_messagebus source: {} sink: {}".format(request.param['source'],
                                                                      request.param['sink']))
@@ -320,12 +319,13 @@ def volttron_multi_messagebus(request):
                                    volttron_central_address=sink.bind_web_address,
                                    secure_agent_users=True,
                                    instance_name='volttron2')
-
+        get_volttron_multi_msgbus_instances.source = source
+        get_volttron_multi_msgbus_instances.sink = sink
         return source, sink
 
     def cleanup():
-        cleanup_wrapper(source)
-        cleanup_wrapper(sink)
+        cleanup_wrapper(get_volttron_multi_msgbus_instances.source)
+        cleanup_wrapper(get_volttron_multi_msgbus_instances.sink)
 
     request.addfinalizer(cleanup)
 

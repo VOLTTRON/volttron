@@ -919,6 +919,10 @@ class RMQCore(Core):
         self.messagebus = messagebus
         self.rmq_mgmt = RabbitMQMgmt()
         self.rmq_address = address
+        # added so that it is available to auth subsytem when connecting
+        # to remote instance
+        if self.publickey is None or self.secretkey is None:
+            self.publickey, self.secretkey = self._get_keys_from_keystore()
 
     def get_connected(self):
         return super(RMQCore, self).get_connected()

@@ -139,6 +139,10 @@ def multi_messagebus_forwarder(volttron_multi_messagebus):
     yield from_instance, to_instance
 
     from_instance.stop_agent(forwarder_uuid)
+    from_instance.remove_agent(forwarder_uuid)
+    from_instance.shutdown_platform()
+    to_instance.shutdown_platform()
+
 
 def publish(publish_agent, topic, header, message):
     publish_agent.vip.pubsub.publish('pubsub',
