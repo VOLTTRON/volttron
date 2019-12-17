@@ -340,8 +340,12 @@ class AIPplatform(object):
                                    agent_uuid, agent_dir):
         name = self.agent_name(agent_uuid)
         agent_path_with_name = os.path.join(agent_dir, name)
-        # Directories in the install path have read/execute except agent-data dir. agent-data dir has rwx
-        data_dir = self._get_agent_data_dir(agent_path_with_name) # creates dir if it doesn't exist
+        # Directories in the install path have read/execute
+        # except agent-data dir. agent-data dir has rwx
+
+        # creates dir if it doesn't exist
+        data_dir = self._get_agent_data_dir(agent_path_with_name)
+
         for (root, directories, files) in os.walk(agent_dir, topdown=True):
             for directory in directories:
                 if directory == os.path.basename(data_dir):
@@ -350,7 +354,8 @@ class AIPplatform(object):
                 else:
                     self.set_acl_for_path("rx", volttron_agent_user,
                                           os.path.join(root, directory))
-        # In install directory, make all files' permissions to 400. Then do setfacl -m "r" to only agent user
+        # In install directory, make all files' permissions to 400.
+        # Then do setfacl -m "r" to only agent user
         self._set_agent_dir_file_permissions(agent_dir, volttron_agent_user, data_dir)
 
         # Need to be able read config and known_hosts file in volttron_home
@@ -361,7 +366,8 @@ class AIPplatform(object):
 
         # if messagebus is rmq.
         # TODO: For now provide read access to all agents since this is used for
-        #  multi instance connections. This will not be requirement in VOLTTRON 8.0 once CSR is implemented for
+        #  multi instance connections. This will not be requirement in
+        #  VOLTTRON 8.0 once CSR is implemented for
         #  federation and shovel. The below lines can be removed then
         if self.message_bus == 'rmq':
             os.chmod(os.path.join(get_home(), "certificates/private"), 0o755)
@@ -378,8 +384,10 @@ class AIPplatform(object):
                 if root == data_dir:
                     permissions = "rwx"
                 file_path = os.path.join(root, f)
-                os.chmod(file_path, 0o400)  # only platform user has default read permissions
-                self.set_acl_for_path(permissions, agent_user, file_path)  # in addition agent user has access
+                # only platform user has default read permissions
+                os.chmod(file_path, 0o400)
+                # in addition agent user has access
+                self.set_acl_for_path(permissions, agent_user, file_path)
 
     def remove_agent_user(self, agent_dir):
         """
@@ -523,12 +531,9 @@ class AIPplatform(object):
 
             final_identity = self._setup_agent_vip_id(
                 agent_uuid, vip_identity=vip_identity)
+            keystore = self.get_agent_keystore(agent_uuid, publickey, secretkey)
 
-            keystore = self.get_agent_keystore(agent_uuid)
-            keystore.public = publickey
-            keystore.secret = secretkey
-
-            self._authorize_agent_keys(agent_uuid, final_identity)
+            self._authorize_agent_keys(agent_uuid, final_identity, keystore.public)
 
             if self.message_bus == 'rmq':
                 rmq_user = get_fq_identity(final_identity,
@@ -601,16 +606,16 @@ class AIPplatform(object):
 
         return final_identity
 
-    def get_agent_keystore(self, agent_uuid):
+    def get_agent_keystore(self, agent_uuid, encoded_public=None,
+                           encoded_secret=None):
         agent_path = os.path.join(self.install_dir, agent_uuid)
-        name = self.agent_name(agent_uuid)
-        agent_path_with_name = os.path.join(agent_path, name)
-        dist_info = self._get_agent_dist_info_dir(agent_path_with_name)
+        agent_name = self.agent_name(agent_uuid)
+        dist_info = os.path.join(agent_path, agent_name,
+                                 agent_name + '.dist-info')
         keystore_path = os.path.join(dist_info, 'keystore.json')
-        return KeyStore(keystore_path)
+        return KeyStore(keystore_path, encoded_public, encoded_secret)
 
-    def _authorize_agent_keys(self, agent_uuid, identity):
-        publickey = self.get_agent_keystore(agent_uuid).public
+    def _authorize_agent_keys(self, agent_uuid, identity, publickey):
         capabilities = {'edit_config_store': {'identity': identity}}
 
         if identity == VOLTTRON_CENTRAL_PLATFORM:
@@ -644,15 +649,6 @@ class AIPplatform(object):
         if not os.path.exists(data_dir):
             os.mkdir(data_dir)
         return data_dir
-
-    def _get_agent_dist_info_dir(self, agent_path):
-        pkg = UnpackedPackage(agent_path)
-
-        dist_dir = os.path.join(os.path.dirname(pkg.distinfo),
-                                '{}.dist-info'.format(pkg.package_name))
-        if not os.path.exists(dist_dir):
-            os.mkdir(dist_dir)
-        return dist_dir
 
     def get_agent_identity_to_uuid_mapping(self):
         results = {}

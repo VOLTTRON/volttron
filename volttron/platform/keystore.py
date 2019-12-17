@@ -69,7 +69,8 @@ class BaseJSONStore(object):
             if created:
                 os.chmod(filename, permissions)
         except Exception as e:
-            _log.error(e)
+            import traceback
+            _log.error(traceback.print_exc())
             raise RuntimeError("Failed to access KeyStore: {}".format(filename))
 
     def store(self, data):
@@ -107,12 +108,17 @@ class BaseJSONStore(object):
 class KeyStore(BaseJSONStore):
     """Handle generation, storage, and retrival of CURVE key pairs"""
 
-    def __init__(self, filename=None):
+    def __init__(self, filename=None, encoded_public=None, encoded_secret=None):
         if filename is None:
             filename = self.get_default_path()
         super(KeyStore, self).__init__(filename)
         if not self.isvalid():
-            self.generate()
+            if encoded_public and encoded_secret:
+                self.store({'public': encoded_public,
+                            'secret': encode_key(encoded_secret)})
+            else:
+                _log.debug("calling generate from keystore")
+                self.generate()
 
     @staticmethod
     def get_default_path():
@@ -153,18 +159,10 @@ class KeyStore(BaseJSONStore):
         """Return encoded public key"""
         return self._get_key('public')
 
-    @public.setter
-    def public(self, encoded_public_key):
-        self.update({'public': encoded_public_key, 'secret': self.secret})
-
     @property
     def secret(self):
         """Return encoded secret key"""
         return self._get_key('secret')
-
-    @secret.setter
-    def secret(self, encoded_secret_key):
-        self.update({'public': self.public, 'secret': encoded_secret_key})
 
     def isvalid(self):
         """Check if key pair is valid"""
