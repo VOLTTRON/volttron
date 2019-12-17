@@ -714,9 +714,8 @@ def do_vcp():
 @installs(get_services_core("SQLHistorian"), 'platform_historian',
           identity='platform.historian')
 def do_platform_historian():
-    datafile = os.path.join(get_home(), 'data', 'platform.historian.sqlite')
+    datafile = 'platform.historian.sqlite'
     config = {
-        'agentid': 'sqlhistorian-sqlite',
         'connection': {
             'type': 'sqlite',
             'params': {
