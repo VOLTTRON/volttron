@@ -180,7 +180,21 @@ def validate_published_device_data(expected_headers, expected_message,
 
 
 class AgentMock(object):
+    '''
+    The purpose for this parent class is to be used for unit
+    testing of agents. It takes in the class methods of other
+    classes, turns them into it's own mock methods. For testing,
+    dynamically replace the agent's current base class with this
+    class, while passing in the agent's current classes as arguments.
 
+    For example:
+        Agent_to_test.__bases__ = (AgentMock.imitate(Agent, Agent()), )
+
+    As noted in the example, __bases__ takes in a tuple.
+    Also, the parent class Agent is passed as both Agent and the
+    instantiated Agent(), since it contains a class within it
+    that needs to be mocked as well
+    '''
     @classmethod
     def imitate(cls, *others):
         for other in others:
